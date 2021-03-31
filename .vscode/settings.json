@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.dump": "plaintext",
+        "*.mak": "makefile",
+        "*.make": "makefile",
+        "stdbool.h": "c"
+    }
+}

@@ -3,6 +3,8 @@
 #include <cosmopolitan.h>
 #else
 #include <ctype.h>
+#include <execinfo.h>
+#include <gc.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -248,10 +250,6 @@ do_return : {
   argv = *(obj_t **)vm_dealloca(vm, sizeof(obj_t *));
   argc = *(size_t *)vm_dealloca(vm, sizeof(size_t));
   *stack = retval;
-  // printf("return: ");
-  // print(*stack);
-  // printf("\n");
-  // printf("exit: %zu\n", index);
   run_next_op;
 }
 do_exit : {
@@ -372,13 +370,11 @@ do_print : {
 }
 do_jump : {
   index = array_ptr(int, func.bytecode)[index];
-  // printf(" -> %zu\n", index);
   run_next_op;
 }
 do_iftrue : {
   if ((stack--)->boolean) {
     index = array_ptr(int, func.bytecode)[index];
-    // printf(" -> %zu\n", index);
   } else {
     index++;
   }
@@ -387,7 +383,6 @@ do_iftrue : {
 do_iffalse : {
   if (!(stack--)->boolean) {
     index = array_ptr(int, func.bytecode)[index];
-    // printf(" -> %zu\n", index);
   } else {
     index++;
   }

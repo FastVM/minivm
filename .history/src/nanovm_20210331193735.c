@@ -3,6 +3,7 @@
 #include <cosmopolitan.h>
 #else
 #include <ctype.h>
+#include <gc.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
