@@ -1,0 +1,8 @@
+(block
+    (define fib 
+        (function (n)
+            (if (< n 2) n
+                (+
+                    (rec (- n 2))
+                    (rec (- n 1))))))
+    (print (fib 35)))
