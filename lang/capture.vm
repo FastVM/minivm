@@ -1,0 +1,6 @@
+(block
+    (define zero 0)
+    (define one 1)
+    (define succ (function (n) (+ n one)))
+    (define delay (function (f) (function (n) (f n))))
+    (print ((delay succ) 2)))

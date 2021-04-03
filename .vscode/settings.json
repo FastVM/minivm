@@ -3,6 +3,22 @@
         "*.dump": "plaintext",
         "*.mak": "makefile",
         "*.make": "makefile",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "array": "c",
+        "chrono": "c",
+        "compare": "c",
+        "functional": "c",
+        "istream": "c",
+        "ostream": "c",
+        "ranges": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "string.h": "c",
+        "optional": "c",
+        "system_error": "c",
+        "string_view": "c",
+        "memory_resource": "c"
     }
 }

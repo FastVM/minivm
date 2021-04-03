@@ -1,0 +1,12 @@
+*.out
+*.lds
+*.o
+*.zip
+*.gcda
+*.a
+cosmopolitan.h
+gen/*
+build/*
+vscode/*
+.history/*
+perf.*
