@@ -5,8 +5,8 @@
 *.gcda
 *.a
 cosmopolitan.h
-gen/*
-build/*
-vscode/*
-.history/*
+gen
+build
+.vscode/*
+.history
 perf.*
