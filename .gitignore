@@ -4,6 +4,8 @@
 *.zip
 *.gcda
 *.a
+*.exe
+*.com
 .vscode
 .vscode/*
 .history
