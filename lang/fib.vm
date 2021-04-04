@@ -5,4 +5,4 @@
                 (+
                     (self self (- n 2))
                     (self self (- n 1))))))
-    (print (fib fib 40)))
+    (print (fib fib 35)))

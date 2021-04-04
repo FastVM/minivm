@@ -299,6 +299,8 @@ obj_t run(vm_t *vm, func_t basefunc, size_t argc, obj_t *argv, bool run1) {
   func_t func = basefunc;
 #else
   obj_t *stack = (obj_t *)(vm->linear->values + vm->linear->length);
+  (cur_stack++)->type = TYPE_UNK;
+  (cur_stack++)->type = TYPE_UNK;
 #ifdef VM_TYPED
   vm->linear->length += (basefunc.stack_used + 2) * sizeof(obj_t);
 #else
@@ -387,8 +389,8 @@ rec_call:
   cur_stack = (obj_t *)(vm->linear->values + vm->linear->length);
 #ifdef VM_TYPED
   vm->linear->length += (cur_func.stack_used + 2) * sizeof(obj_t);
-  // (cur_stack++)->type = TYPE_UNK;
-  // (cur_stack++)->type = TYPE_UNK;
+  (cur_stack++)->type = TYPE_UNK;
+  (cur_stack++)->type = TYPE_UNK;
   cur_stack += 2;
 #else
   vm->linear->length += cur_func.stack_used * sizeof(obj_t);
