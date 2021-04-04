@@ -3,39 +3,47 @@
 #include <cosmopolitan.h>
 #else
 #include <ctype.h>
-#include <gc.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef VM_GC
+#include <gc.h>
 #define malloc(n) (GC_malloc((n)))
 #define calloc(e, n) (GC_malloc((e) * (n)))
 #define realloc(ptr, n) (GC_realloc((ptr), (n)))
 #define free(n) (GC_free((n)))
+#endif
 #endif
 
 struct obj_t;
 struct func_t;
 struct vm_t;
 union value_t;
+enum form_t;
 enum type_t;
+enum opcode_t;
 
 typedef struct obj_t obj_t;
 typedef struct array_t array_t;
 typedef struct vm_t vm_t;
 typedef struct func_t func_t;
 typedef enum type_t type_t;
+typedef enum opcode_t opcode_t;
 typedef enum form_t form_t;
 
-obj_t run(vm_t *vm, func_t func, size_t argc, obj_t *argv);
+obj_t run(vm_t *vm, func_t func, size_t argc, obj_t *argv, bool is_run1);
 
 enum type_t {
+  TYPE_UNK,
   TYPE_NONE,
   TYPE_BOOLEAN,
   TYPE_NUMBER,
   TYPE_POINTER,
   TYPE_FUNCTION,
+  TYPE_MAX,
+  TYPE_MAX2P = 16,
 };
 
 enum form_t {
@@ -75,9 +83,7 @@ struct obj_t {
   union {
     bool boolean;
     double number;
-    struct {
-      array_t *pointer;
-    };
+    array_t *pointer;
     func_t *function;
   };
 };
@@ -107,7 +113,7 @@ struct func_t {
   array_t *captured;
 };
 
-enum opcode {
+enum opcode_t {
   OPCODE_RETURN,
   OPCODE_EXIT,
   OPCODE_PUSH,
@@ -136,6 +142,7 @@ enum opcode {
   OPCODE_REC,
   OPCODE_FUNC,
   OPCODE_MAX1,
+  OPCODE_MAX2P = 256,
 };
 
 array_t *array_new(int elem_size) {
@@ -220,24 +227,66 @@ void print(obj_t arg) {
 
 #ifdef VM_DEBUG
 #define debug_op                                                               \
-  printf("%zu: %i\n", cur.index, array_ptr(int, cur.func.bytecode)[cur.index])
-#define run_next_op                                                            \
-  debug_op;                                                                    \
-  goto *ptrs[array_ptr(int, cur.func.bytecode)[cur.index++]];
+  printf("%zu: %i\n", cur_index, array_ptr(int, cur_func.bytecode)[cur_index]);
 #else
-#define run_next_op goto *ptrs[array_ptr(int, cur.func.bytecode)[cur.index++]];
+#define debug_op
 #endif
 
+#ifdef VM_CONT
 typedef struct {
   size_t index;
-  func_t func;
   size_t argc;
   obj_t *argv;
   obj_t *stack;
   obj_t *locals;
+  func_t func;
 } stack_frame_t;
+#define cur_index (cur.index)
+#define cur_argc (cur.argc)
+#define cur_argv (cur.argv)
+#define cur_stack (cur.stack)
+#define cur_locals (cur.locals)
+#define cur_func (cur.func)
+#else
+#define cur_index (index)
+#define cur_argc (argc)
+#define cur_argv (argv)
+#define cur_stack (stack)
+#define cur_locals (locals)
+#define cur_func (basefunc)
+#endif
 
-obj_t run(vm_t *vm, func_t basefunc, size_t argc, obj_t *argv) {
+#ifdef VM_TYPED
+#define run_next_op                                                            \
+  debug_op goto *ptrs[array_ptr(int, cur_func.bytecode)[cur_index++] +             \
+                      (*(cur_stack - 1)).type * OPCODE_MAX2P +                 \
+                      (*cur_stack).type * OPCODE_MAX2P * TYPE_MAX2P];
+
+void opcode_on2(void **ptrs, opcode_t op, type_t top2, type_t top1,
+                void *then) {
+  ptrs[op + top2 * OPCODE_MAX2P + top1 * OPCODE_MAX2P * TYPE_MAX2P] = then;
+}
+
+void opcode_on1(void **ptrs, opcode_t op, type_t top1, void *then) {
+  for (int top2 = 0; top2 < TYPE_MAX2P; top2++) {
+    ptrs[op + top2 * OPCODE_MAX2P + top1 * OPCODE_MAX2P * TYPE_MAX2P] = then;
+  }
+}
+
+void opcode_on0(void **ptrs, opcode_t op, void *then) {
+  for (int top2 = 0; top2 < TYPE_MAX2P; top2++) {
+    for (int top1 = 0; top1 < TYPE_MAX2P; top1++) {
+      ptrs[op + top2 * OPCODE_MAX2P + top1 * OPCODE_MAX2P * TYPE_MAX2P] = then;
+    }
+  }
+}
+#else
+#define run_next_op                                                            \
+  debug_op goto *ptrs[array_ptr(int, cur_func.bytecode)[cur_index++]];
+#endif
+
+obj_t run(vm_t *vm, func_t basefunc, size_t argc, obj_t *argv, bool run1) {
+#ifdef VM_CONT
   stack_frame_t next = (stack_frame_t){
       .func = basefunc,
       .argc = argc,
@@ -247,212 +296,304 @@ obj_t run(vm_t *vm, func_t basefunc, size_t argc, obj_t *argv) {
       .stack = NULL,
       .locals = NULL,
   };
-  static void *ptrs[OPCODE_MAX1];
-  ptrs[OPCODE_RETURN] = &&do_return;
-  ptrs[OPCODE_EXIT] = &&do_exit;
-  ptrs[OPCODE_PUSH] = &&do_push;
-  ptrs[OPCODE_POP] = &&do_pop;
-  ptrs[OPCODE_ARG] = &&do_arg;
-  ptrs[OPCODE_STORE] = &&do_store;
-  ptrs[OPCODE_LOAD] = &&do_load;
-  ptrs[OPCODE_LOADC] = &&do_loadc;
-  ptrs[OPCODE_ADD] = &&do_add;
-  ptrs[OPCODE_SUB] = &&do_sub;
-  ptrs[OPCODE_MUL] = &&do_mul;
-  ptrs[OPCODE_DIV] = &&do_div;
-  ptrs[OPCODE_MOD] = &&do_mod;
-  ptrs[OPCODE_NEG] = &&do_neg;
-  ptrs[OPCODE_LT] = &&do_lt;
-  ptrs[OPCODE_GT] = &&do_gt;
-  ptrs[OPCODE_LTE] = &&do_lte;
-  ptrs[OPCODE_GTE] = &&do_gte;
-  ptrs[OPCODE_EQ] = &&do_eq;
-  ptrs[OPCODE_NEQ] = &&do_neq;
-  ptrs[OPCODE_PRINT] = &&do_print;
-  ptrs[OPCODE_JUMP] = &&do_jump;
-  ptrs[OPCODE_IFTRUE] = &&do_iftrue;
-  ptrs[OPCODE_IFFALSE] = &&do_iffalse;
-  ptrs[OPCODE_CALL] = &&do_call;
-  ptrs[OPCODE_REC] = &&do_rec;
-  ptrs[OPCODE_FUNC] = &&do_func;
+  func_t func = basefunc;
+#else
+  obj_t *stack = (obj_t *)(vm->linear->values + vm->linear->length);
+#ifdef VM_TYPED
+  vm->linear->length += (basefunc.stack_used + 2) * sizeof(obj_t);
+#else
+  vm->linear->length += cur_func.stack_used * sizeof(obj_t);
+#endif
+  obj_t *locals = (obj_t *)(vm->linear->values + vm->linear->length);
+  vm->linear->length += cur_func.locals_used * sizeof(obj_t);
+  int index = 0;
+#endif
+#ifdef VM_TYPED
+  static void *ptrs[OPCODE_MAX2P * TYPE_MAX2P * TYPE_MAX2P + 1];
+  if (run1) {
+    for (int top2 = 0; top2 < TYPE_MAX2P; top2++) {
+      for (int top = 0; top < TYPE_MAX2P; top++) {
+        for (int op = 0; op < OPCODE_MAX2P; op++) {
+          ptrs[op + top2 * OPCODE_MAX2P + top * OPCODE_MAX2P * TYPE_MAX2P] =
+              &&do_err;
+        }
+      }
+    }
+    opcode_on0(ptrs, OPCODE_RETURN, &&do_return);
+    opcode_on0(ptrs, OPCODE_EXIT, &&do_exit);
+    opcode_on0(ptrs, OPCODE_PUSH, &&do_push);
+    opcode_on0(ptrs, OPCODE_POP, &&do_pop);
+    opcode_on0(ptrs, OPCODE_ARG, &&do_arg);
+    opcode_on0(ptrs, OPCODE_STORE, &&do_store);
+    opcode_on0(ptrs, OPCODE_LOAD, &&do_load);
+    opcode_on0(ptrs, OPCODE_LOADC, &&do_loadc);
+    opcode_on0(ptrs, OPCODE_PRINT, &&do_print);
+    opcode_on0(ptrs, OPCODE_JUMP, &&do_jump);
+    opcode_on0(ptrs, OPCODE_CALL, &&do_call);
+    opcode_on0(ptrs, OPCODE_REC, &&do_rec);
+    opcode_on1(ptrs, OPCODE_NEG, TYPE_NUMBER, &&do_neg);
+    opcode_on1(ptrs, OPCODE_IFTRUE, TYPE_BOOLEAN, &&do_iftrue);
+    opcode_on1(ptrs, OPCODE_IFFALSE, TYPE_BOOLEAN, &&do_iffalse);
+    opcode_on1(ptrs, OPCODE_FUNC, TYPE_FUNCTION, &&do_func);
+    opcode_on2(ptrs, OPCODE_ADD, TYPE_NUMBER, TYPE_NUMBER, &&do_add);
+    opcode_on2(ptrs, OPCODE_SUB, TYPE_NUMBER, TYPE_NUMBER, &&do_sub);
+    opcode_on2(ptrs, OPCODE_MUL, TYPE_NUMBER, TYPE_NUMBER, &&do_mul);
+    opcode_on2(ptrs, OPCODE_DIV, TYPE_NUMBER, TYPE_NUMBER, &&do_div);
+    opcode_on2(ptrs, OPCODE_MOD, TYPE_NUMBER, TYPE_NUMBER, &&do_mod);
+    opcode_on2(ptrs, OPCODE_LT, TYPE_NUMBER, TYPE_NUMBER, &&do_lt);
+    opcode_on2(ptrs, OPCODE_GT, TYPE_NUMBER, TYPE_NUMBER, &&do_gt);
+    opcode_on2(ptrs, OPCODE_LTE, TYPE_NUMBER, TYPE_NUMBER, &&do_lte);
+    opcode_on2(ptrs, OPCODE_GTE, TYPE_NUMBER, TYPE_NUMBER, &&do_gte);
+    opcode_on2(ptrs, OPCODE_EQ, TYPE_NUMBER, TYPE_NUMBER, &&do_eq);
+    opcode_on2(ptrs, OPCODE_NEQ, TYPE_NUMBER, TYPE_NUMBER, &&do_neq);
+  }
+#else
+  static void *ptrs[OPCODE_MAX2P];
+  if (run1) {
+    ptrs[OPCODE_RETURN] = &&do_return;
+    ptrs[OPCODE_EXIT] = &&do_exit;
+    ptrs[OPCODE_PUSH] = &&do_push;
+    ptrs[OPCODE_POP] = &&do_pop;
+    ptrs[OPCODE_ARG] = &&do_arg;
+    ptrs[OPCODE_STORE] = &&do_store;
+    ptrs[OPCODE_LOAD] = &&do_load;
+    ptrs[OPCODE_LOADC] = &&do_loadc;
+    ptrs[OPCODE_ADD] = &&do_add;
+    ptrs[OPCODE_SUB] = &&do_sub;
+    ptrs[OPCODE_MUL] = &&do_mul;
+    ptrs[OPCODE_DIV] = &&do_div;
+    ptrs[OPCODE_MOD] = &&do_mod;
+    ptrs[OPCODE_NEG] = &&do_neg;
+    ptrs[OPCODE_LT] = &&do_lt;
+    ptrs[OPCODE_GT] = &&do_gt;
+    ptrs[OPCODE_LTE] = &&do_lte;
+    ptrs[OPCODE_GTE] = &&do_gte;
+    ptrs[OPCODE_EQ] = &&do_eq;
+    ptrs[OPCODE_NEQ] = &&do_neq;
+    ptrs[OPCODE_PRINT] = &&do_print;
+    ptrs[OPCODE_JUMP] = &&do_jump;
+    ptrs[OPCODE_IFTRUE] = &&do_iftrue;
+    ptrs[OPCODE_IFFALSE] = &&do_iffalse;
+    ptrs[OPCODE_CALL] = &&do_call;
+    ptrs[OPCODE_REC] = &&do_rec;
+    ptrs[OPCODE_FUNC] = &&do_func;
+  }
+#endif
+#ifdef VM_CONT
 rec_call:
   ((stack_frame_t *)vm->frames->values)[vm->frames->length++] = cur;
   cur = next;
-  cur.stack =
-      (obj_t *)(vm->linear->values + vm->linear->length * sizeof(obj_t));
-  vm->linear->length += cur.func.stack_used * sizeof(obj_t);
-  cur.locals =
-      (obj_t *)(vm->linear->values + vm->linear->length * sizeof(obj_t));
-  vm->linear->length += cur.func.locals_used * sizeof(obj_t);
-  cur.index = 0;
+  func = cur.func;
+  cur_stack = (obj_t *)(vm->linear->values + vm->linear->length);
+#ifdef VM_TYPED
+  vm->linear->length += (cur_func.stack_used + 2) * sizeof(obj_t);
+  // (cur_stack++)->type = TYPE_UNK;
+  // (cur_stack++)->type = TYPE_UNK;
+  cur_stack += 2;
+#else
+  vm->linear->length += cur_func.stack_used * sizeof(obj_t);
+#endif
+  cur.locals = (obj_t *)(vm->linear->values + vm->linear->length);
+  vm->linear->length += cur_func.locals_used * sizeof(obj_t);
+  cur_index = 0;
+#endif
   run_next_op;
+do_err : {
+  fprintf(stderr, "error: invalid type to opcode\n");
+  exit(1);
+};
 do_return : {
-  obj_t retval = *cur.stack;
-  vm->linear->length -= cur.func.locals_used * sizeof(obj_t) +
-                        cur.func.stack_used * sizeof(obj_t);
-  cur = *array_pop(stack_frame_t, vm->frames);
-  *cur.stack = retval;
+  obj_t retval = *cur_stack;
+#ifdef VM_TYPED
+  vm->linear->length -=
+      (cur_func.locals_used + cur_func.stack_used + 2) * sizeof(obj_t);
+#else
+  vm->linear->length -= (cur_func.stack_used + cur_func.locals_used) * sizeof(obj_t);
+#endif
+#ifdef VM_CONT
+  cur = ((stack_frame_t *)vm->frames->values)[--vm->frames->length];
+  func = cur.func;
+  *cur_stack = retval;
   run_next_op;
+#else
+  return *cur_stack;
+#endif
 }
 do_exit : {
-  obj_t retval = *cur.stack;
-  vm->linear->length -= cur.func.locals_used * sizeof(obj_t) +
-                        cur.func.stack_used * sizeof(obj_t);
-  cur = *array_pop(stack_frame_t, vm->frames);
+  obj_t retval = *cur_stack;
+#ifdef VM_TYPED
+  vm->linear->length -=
+      (cur_func.locals_used + cur_func.stack_used + 2) * sizeof(obj_t);
+#else
+  vm->linear->length -= (cur_func.stack_used + cur_func.locals_used) * sizeof(obj_t);
+#endif
+#ifdef VM_CONT
+  cur = ((stack_frame_t *)vm->frames->values)[--vm->frames->length];
+  func = cur.func;
+#endif
   return retval;
 }
 do_push : {
-  *(++cur.stack) = array_ptr(
-      obj_t,
-      cur.func.constants)[array_ptr(int, cur.func.bytecode)[cur.index++]];
+  *(++cur_stack) = array_ptr(
+      obj_t, cur_func.constants)[array_ptr(int, cur_func.bytecode)[cur_index++]];
   run_next_op;
 }
 do_pop : {
-  cur.stack--;
+  cur_stack--;
   run_next_op;
 }
 do_arg : {
-  *(++cur.stack) = cur.argv[array_ptr(int, cur.func.bytecode)[cur.index++]];
+  *(++cur_stack) = cur_argv[array_ptr(int, cur_func.bytecode)[cur_index++]];
   run_next_op;
 }
 do_store : {
-  cur.locals[array_ptr(int, cur.func.bytecode)[cur.index++]] = *cur.stack;
+  cur_locals[array_ptr(int, cur_func.bytecode)[cur_index++]] = *cur_stack;
   run_next_op;
 }
 do_load : {
-  *(++cur.stack) = cur.locals[array_ptr(int, cur.func.bytecode)[cur.index++]];
+  *(++cur_stack) = cur_locals[array_ptr(int, cur_func.bytecode)[cur_index++]];
   run_next_op;
 }
 do_loadc : {
-  *(++cur.stack) = array_ptr(
-      obj_t, cur.func.captured)[array_ptr(int, cur.func.bytecode)[cur.index++]];
+  *(++cur_stack) = array_ptr(
+      obj_t, cur_func.captured)[array_ptr(int, cur_func.bytecode)[cur_index++]];
   run_next_op;
 }
 do_add : {
-  double rhs = (cur.stack--)->number;
-  cur.stack->number += rhs;
+  double rhs = (cur_stack--)->number;
+  cur_stack->number += rhs;
   run_next_op;
 }
 do_sub : {
-  double rhs = (cur.stack--)->number;
-  cur.stack->number -= rhs;
+  double rhs = (cur_stack--)->number;
+  cur_stack->number -= rhs;
   run_next_op;
 }
 do_mul : {
-  double rhs = (cur.stack--)->number;
-  cur.stack->number *= rhs;
+  double rhs = (cur_stack--)->number;
+  cur_stack->number *= rhs;
   run_next_op;
 }
 do_div : {
-  double rhs = (cur.stack--)->number;
-  cur.stack->number /= rhs;
+  double rhs = (cur_stack--)->number;
+  cur_stack->number /= rhs;
   run_next_op;
 }
 do_mod : {
-  double rhs = (cur.stack--)->number;
-  cur.stack->number *= rhs;
+  double rhs = (cur_stack--)->number;
+  cur_stack->number *= rhs;
   run_next_op;
 }
 do_neg : {
-  cur.stack->number *= -1;
+  cur_stack->number *= -1;
   run_next_op;
 }
 do_lt : {
-  double rhs = (cur.stack--)->number;
-  *cur.stack = (obj_t){
+  double rhs = (cur_stack--)->number;
+  *cur_stack = (obj_t){
       .type = TYPE_BOOLEAN,
-      .boolean = cur.stack->number < rhs,
+      .boolean = cur_stack->number < rhs,
   };
   run_next_op;
 }
 do_gt : {
-  double rhs = (cur.stack--)->number;
-  *cur.stack = (obj_t){
+  double rhs = (cur_stack--)->number;
+  *cur_stack = (obj_t){
       .type = TYPE_BOOLEAN,
-      .boolean = cur.stack->number > rhs,
+      .boolean = cur_stack->number > rhs,
   };
   run_next_op;
 }
 do_lte : {
-  double rhs = (cur.stack--)->number;
-  *cur.stack = (obj_t){
+  double rhs = (cur_stack--)->number;
+  *cur_stack = (obj_t){
       .type = TYPE_BOOLEAN,
-      .boolean = cur.stack->number <= rhs,
+      .boolean = cur_stack->number <= rhs,
   };
   run_next_op;
 }
 do_gte : {
-  double rhs = (cur.stack--)->number;
-  *cur.stack = (obj_t){
+  double rhs = (cur_stack--)->number;
+  *cur_stack = (obj_t){
       .type = TYPE_BOOLEAN,
-      .boolean = cur.stack->number >= rhs,
+      .boolean = cur_stack->number >= rhs,
   };
   run_next_op;
 }
 do_eq : {
-  double rhs = (cur.stack--)->number;
-  *cur.stack = (obj_t){
+  double rhs = (cur_stack--)->number;
+  *cur_stack = (obj_t){
       .type = TYPE_BOOLEAN,
-      .boolean = cur.stack->number == rhs,
+      .boolean = cur_stack->number == rhs,
   };
   run_next_op;
 }
 do_neq : {
-  double rhs = (cur.stack--)->number;
-  *cur.stack = (obj_t){
+  double rhs = (cur_stack--)->number;
+  *cur_stack = (obj_t){
       .type = TYPE_BOOLEAN,
-      .boolean = cur.stack->number != rhs,
+      .boolean = cur_stack->number != rhs,
   };
   run_next_op;
 }
 do_print : {
-  print(*cur.stack);
+  print(*cur_stack);
   printf("\n");
-  cur.stack->type = TYPE_NONE;
+  cur_stack->type = TYPE_NONE;
   run_next_op;
 }
 do_jump : {
-  cur.index = array_ptr(int, cur.func.bytecode)[cur.index];
+  cur_index = array_ptr(int, cur_func.bytecode)[cur_index];
   run_next_op;
 }
 do_iftrue : {
-  if ((cur.stack--)->boolean) {
-    cur.index = array_ptr(int, cur.func.bytecode)[cur.index];
+  if ((cur_stack--)->boolean) {
+    cur_index = array_ptr(int, cur_func.bytecode)[cur_index];
   } else {
-    cur.index++;
+    cur_index++;
   }
   run_next_op;
 }
 do_iffalse : {
-  if (!(cur.stack--)->boolean) {
-    cur.index = array_ptr(int, cur.func.bytecode)[cur.index];
+  if (!(cur_stack--)->boolean) {
+    cur_index = array_ptr(int, cur_func.bytecode)[cur_index];
   } else {
-    cur.index++;
+    cur_index++;
   }
   run_next_op;
 }
 do_call : {
-  int nargs = array_ptr(int, cur.func.bytecode)[cur.index++];
-  cur.stack -= nargs;
+  int nargs = array_ptr(int, cur_func.bytecode)[cur_index++];
+  cur_stack -= nargs;
+#ifdef VM_CONT
   next = (stack_frame_t){
-      .func = *cur.stack->function,
+      .func = *cur_stack->function,
       .argc = nargs,
-      .argv = cur.stack + 1,
+      .argv = cur_stack + 1,
   };
   goto rec_call;
+#else
+  *cur_stack = run(vm, *cur_stack->function, nargs, cur_stack + 1, false);
+  run_next_op;
+#endif
 }
 do_rec : {
-  int nargs = array_ptr(int, cur.func.bytecode)[cur.index++];
-  cur.stack -= nargs - 1;
+  int nargs = array_ptr(int, cur_func.bytecode)[cur_index++];
+  cur_stack -= nargs - 1;
+#ifdef VM_CONT
   next = (stack_frame_t){
       .argc = nargs,
-      .argv = cur.stack,
-      .func = cur.func,
+      .argv = cur_stack,
+      .func = func,
   };
   goto rec_call;
+#else
+  *cur_stack = run(vm, basefunc, nargs, cur_stack, false);
+  run_next_op;
+#endif
 }
 do_func : {
-  func_t *old_func = cur.stack->function;
+  func_t *old_func = cur_stack->function;
   func_t *new_func = malloc(sizeof(func_t));
   new_func->bytecode = old_func->bytecode;
   new_func->constants = old_func->constants;
@@ -470,17 +611,18 @@ do_func : {
     int from = array_ptr(int, new_func->capture_from)[index];
     switch (flags) {
     case CAPTURE_FROM_LOCAL:
-      array_push(obj_t, new_func->captured, cur.locals[from]);
+      array_push(obj_t, new_func->captured, cur_locals[from]);
       break;
     case CAPTURE_FROM_ARGS:
-      array_push(obj_t, new_func->captured, cur.argv[from]);
+      array_push(obj_t, new_func->captured, cur_argv[from]);
       break;
     case CAPTURE_FROM_CAPTURE:
-      array_push(obj_t, new_func->captured, array_ptr(obj_t, cur.func.captured)[from]);
+      array_push(obj_t, new_func->captured,
+                 array_ptr(obj_t, cur_func.captured)[from]);
       break;
     }
   }
-  cur.stack->function = new_func;
+  cur_stack->function = new_func;
   run_next_op;
 }
 }
@@ -926,7 +1068,7 @@ obj_t vm_run(vm_t *vm, char *code) {
       exit(1);
     }
     last = code;
-    res = run(vm, func, 0, NULL);
+    res = run(vm, func, 0, NULL, true);
     strip(&code);
   }
   return res;

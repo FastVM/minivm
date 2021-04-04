@@ -6,6 +6,7 @@
 *.a
 *.exe
 *.com
+*.out
 .vscode
 .vscode/*
 .history
