@@ -96,10 +96,6 @@ const char *vm_opcode_internal_name(opcode_t op)
         return "div_num";
     case OPCODE_MOD:
         return "mod";
-    case OPCODE_INT_MOD_NUM:
-        return "int_mod_num";
-    case OPCODE_INT_MOD:
-        return "int_mod";
     case OPCODE_MOD_NUM:
         return "mod_num";
     case OPCODE_CALL:
@@ -215,10 +211,6 @@ const char *vm_opcode_name(opcode_t op)
         return "mod";
     case OPCODE_MOD_NUM:
         return "mod";
-    case OPCODE_INT_MOD:
-        return "imod";
-    case OPCODE_INT_MOD_NUM:
-        return "imod";
     case OPCODE_CALL:
         return "call";
     case OPCODE_REC:
@@ -331,10 +323,6 @@ const char *vm_opcode_format(opcode_t op)
     case OPCODE_MOD:
         return "rrr";
     case OPCODE_MOD_NUM:
-        return "rrn";
-    case OPCODE_INT_MOD:
-        return "rrr";
-    case OPCODE_INT_MOD_NUM:
         return "rrn";
     case OPCODE_CALL:
         return "rrc";

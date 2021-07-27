@@ -1,7 +1,5 @@
 
-#include <vm/vm.h>
-#include <vm/debug.h>
-#include <vm/vector.h>
+#include <vm/asm.h>
 
 struct jmploc_t;
 struct jmpfrom_t;
@@ -442,32 +440,4 @@ opcode_t *vm_assemble(const char *src)
         }
     };
     return ret;
-}
-
-int main(int argc, const char **argv)
-{
-    for (int argno = 1; argno < argc; argno++)
-    {
-        const char *name = argv[argno];
-        FILE *input = fopen(name, "r");
-        if (input == NULL)
-        {
-            printf("error: cannot read file: %s\n", name);
-            return 0;
-        }
-        fseek(input, 0L, SEEK_END);
-        int size = ftell(input);
-        fseek(input, 0, SEEK_SET);
-        char *mem = calloc(1, size + 1);
-        int nread = fread(mem, 1, size, input);
-        mem[nread] = '\0';
-        fclose(input);
-        opcode_t *opcodes = vm_assemble(mem);
-        free(mem);
-        if (opcodes == NULL)
-        {
-            return 1;
-        }
-        vm_run(opcodes);
-    }
 }

@@ -102,8 +102,6 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_DIV_NUM] = &&do_div_num;
   ptrs[OPCODE_MOD] = &&do_mod;
   ptrs[OPCODE_MOD_NUM] = &&do_mod_num;
-  ptrs[OPCODE_INT_MOD] = &&do_int_mod;
-  ptrs[OPCODE_INT_MOD_NUM] = &&do_int_mod_num;
   ptrs[OPCODE_CALL] = &&do_call;
   ptrs[OPCODE_REC] = &&do_rec;
   ptrs[OPCODE_TAIL_CALL] = &&do_tail_call;
@@ -656,24 +654,6 @@ do_mod_num:
   number_t rhs = read_num;
   vm_fetch;
   cur_locals[to] = nanbox_from_double(fmod(nanbox_to_double(cur_locals[lhs]), rhs));
-  run_next_op;
-}
-do_int_mod:
-{
-  reg_t to = read_reg;
-  reg_t lhs = read_reg;
-  reg_t rhs = read_reg;
-  vm_fetch;
-  cur_locals[to] = nanbox_from_double((number_t)((integer_t)nanbox_to_double(cur_locals[lhs]) % (integer_t)nanbox_to_double(cur_locals[rhs])));
-  run_next_op;
-}
-do_int_mod_num:
-{
-  reg_t to = read_reg;
-  reg_t lhs = read_reg;
-  number_t rhs = read_num;
-  vm_fetch;
-  cur_locals[to] = nanbox_from_double((number_t)((integer_t)nanbox_to_double(cur_locals[lhs]) % (integer_t)rhs));
   run_next_op;
 }
 do_println:
