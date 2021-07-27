@@ -1,8 +1,0 @@
-(block
-    (define fib 
-        (function (self n)
-            (if (< n 2) n
-                (+
-                    (self self (- n 2))
-                    (self self (- n 1))))))
-    (print (fib fib 35)))

@@ -1,0 +1,23 @@
+info: CC=gcc OPT=fast
+for: c fmod: 4.08
+for: c imod: 1.70
+for: asm fmod: 10.06
+for: asm imod: 8.68
+
+info: CC=clang OPT=fast
+for: c fmod: 36.24
+for: c imod: 1.50
+for: asm fmod: 41.59
+for: asm imod: 8.84
+
+info: CC=gcc OPT=3
+for: c fmod: 36.17
+for: c imod: 1.69
+for: asm fmod: 42.60
+for: asm imod: 8.91
+
+info: CC=clang OPT=3
+for: c fmod: 35.95
+for: c imod: 1.52
+for: asm fmod: 45.08
+for: asm imod: 18.55

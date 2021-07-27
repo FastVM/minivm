@@ -1,8 +1,6 @@
 *.out
-*.lds
 *.o
 *.zip
-*.gcda
 *.a
 *.exe
 *.com
@@ -12,6 +10,7 @@
 .history
 .history/src
 cosmopolitan.h
-gen
+bin
 build
 perf.*
+target

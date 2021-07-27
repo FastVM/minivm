@@ -1,29 +1,37 @@
-OUT=build/nanovm
+CC=gcc
+OPT=fast
 
-cross: build cosmopolitan-amalgamation-0.3.zip
-	unzip -o cosmopolitan-amalgamation-0.3.zip
-	gcc -g -Ofast -ffast-math -static -nostdlib -nostdinc -fno-pie -no-pie -mno-red-zone \
-		-fno-omit-frame-pointer -pg -mnop-mcount \
-		-o build/nanovm.com.dbg src/nanovm.c -fuse-ld=bfd -Wl,-T,ape.lds \
-		-I. crt.o ape.o cosmopolitan.a -D__COSMO__ $(CFLAGS)
-	objcopy -S -O binary build/nanovm.com.dbg $(OUT).com
+$(shell mkdir -p bin)
 
-unopt: build
-	$(CC) src/nanovm.c -o $(OUT).exe $(CFLAGS) -lgc
+all: minivm asm
 
-opt: build 
-	$(CC) src/nanovm.c -o $(OUT).exe -Ofast $(CFLAGS) -lgc
+asm: vm/asm.c vm/debug.c vm/minivm.c
+	$(CC) -o bin/asm $^ -I./ -lm -O$(OPT) $(CFLAGS)
 
-build: 
-	mkdir build
+minivm: vm/main.c vm/minivm.c
+	$(CC) -o bin/minivm $^ -I./ -lm -O$(OPT) $(CFLAGS)
 
-cosmopolitan-amalgamation-0.3.zip:
-	wget https://justine.lol/cosmopolitan/cosmopolitan-amalgamation-0.3.zip
+bench: .dummy
+	$(MAKE) --no-print-directory -B asm
+	$(CC) -O$(OPT) asm/fprimes.c -lm $(CFLAGS)
+	\time -f"for: c fmod: %e" ./a.out
+	$(CC) -O$(OPT) asm/iprimes.c $(CFLAGS)
+	\time -f"for: c imod: %e" ./a.out
+	\time -f"for: asm fmod: %e" ./bin/asm asm/fprimes.mini
+	\time -f"for: asm imod: %e" ./bin/asm asm/iprimes.mini
 
-cleans: clean
-	: rm cosmopolitan-amalgamation-0.3.zip
+bench-all: .dummy
+	echo "info: CC=gcc OPT=fast"
+	$(MAKE) --no-print-directory bench CC=gcc OPT=fast
+	echo "info: CC=clang OPT=fast"
+	$(MAKE) --no-print-directory bench CC=clang OPT=fast
+	echo "info: CC=gcc OPT=3"
+	$(MAKE) --no-print-directory bench CC=gcc OPT=3
+	echo "info: CC=clang OPT=3"
+	$(MAKE) --no-print-directory bench CC=clang OPT=3
 
-clean: dummy
-	: rm ape.lds ape.o cosmopolitan.a cosmopolitan.h crt.o -r build
+bench-info:	
+	@$(MAKE) --no-print-directory bench-all | grep -E "^(for|info)"
 
-dummy:
+
+.dummy: 

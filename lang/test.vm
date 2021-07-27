@@ -1,2 +1,0 @@
-(block
-    (print (if true 1 0)))
