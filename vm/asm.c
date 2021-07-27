@@ -324,7 +324,7 @@ int vm_asm_read_opcode(opcode_t *buffer, opcode_t op, const char **const src, ve
     }
 }
 
-opcode_t *vm_assemble(const char *src)
+vm_asm_result_t vm_assemble(const char *src)
 {
     int nalloc = 1 << 16;
     opcode_t *ret = malloc(nalloc);
@@ -346,7 +346,7 @@ opcode_t *vm_assemble(const char *src)
                     printf("error: expected ] before end of string\n");
                     free(ret);
                     vec_del(jmplocs);
-                    return NULL;
+                    return vm_asm_result_fail;
                 }
             }
             jmploc_t loc = (jmploc_t){
@@ -380,7 +380,7 @@ opcode_t *vm_assemble(const char *src)
                 free(ret);
                 vec_del(jmplocs);
                 vec_del(replaces);
-                return NULL;
+                return vm_asm_result_fail;
             }
             if (res == -1)
             {
@@ -388,7 +388,7 @@ opcode_t *vm_assemble(const char *src)
                 free(ret);
                 vec_del(jmplocs);
                 vec_del(replaces);
-                return NULL;
+                return vm_asm_result_fail;
             }
             vm_asm_strip(&src);
             int nbytes = vm_asm_read_opcode(mem, res, &src, &replaces);
@@ -398,17 +398,14 @@ opcode_t *vm_assemble(const char *src)
                 free(ret);
                 vec_del(jmplocs);
                 vec_del(replaces);
-                return NULL;
+                return vm_asm_result_fail;
             }
             mem += nbytes;
         }
         vm_asm_strip_endl(&src);
     }
-    for (int i = 0; i < 16; i++)
-    {
-        *mem = OPCODE_EXIT;
-        mem += 1;
-    }
+    *mem = OPCODE_EXIT;
+    mem += 1;
     vec_foreach(ref1, replaces)
     {
         jmpfrom_t *jfrom = ref1;
@@ -436,8 +433,11 @@ opcode_t *vm_assemble(const char *src)
             free(ret);
             vec_del(jmplocs);
             vec_del(replaces);
-            return NULL;
+            return vm_asm_result_fail;
         }
     };
-    return ret;
+    return (vm_asm_result_t){
+        .bytecode = ret,
+        .len = mem - ret,
+    };
 }

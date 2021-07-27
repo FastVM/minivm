@@ -2,4 +2,4 @@
 
 #include <vm/vm.h>
 
-const char *vm_dis(opcode_t *bytecode);
+char *vm_dis(opcode_t *bytecode);

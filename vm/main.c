@@ -1,6 +1,8 @@
 #include <vm/vm.h>
 #include <vm/asm.h>
+#include <vm/dis.h>
 #include <vm/vector.h>
+#include "ctype.h"
 
 int vm_main_file_length(FILE *input)
 {
@@ -53,10 +55,55 @@ void vm_main_run_file_asm(FILE *input)
     char *src = calloc(1, file_len + 1);
     int nread = fread(src, 1, file_len, input);
     src[nread] = '\0';
-    opcode_t *mem = vm_assemble(src);
+    opcode_t *mem = vm_assemble(src).bytecode;
     free(src);
     vm_run(mem);
     free(mem);
+}
+
+void vm_main_conv_asm_to_bc(FILE *out, FILE *input)
+{
+    int file_len = vm_main_file_length(input);
+    char *src = calloc(1, file_len + 1);
+    int nread = fread(src, 1, file_len, input);
+    src[nread] = '\0';
+    vm_asm_result_t res = vm_assemble(src);
+    free(src);
+    fwrite(res.bytecode, 1, res.len, out);
+    free(res.bytecode);
+}
+
+void vm_main_conv_bc_to_asm(FILE *out, FILE *input)
+{
+    int file_len = vm_main_file_length(input);
+    opcode_t *src = calloc(1, file_len + 1);
+    int nread = fread(src, 1, file_len, input);
+    src[nread] = OPCODE_EXIT;
+    char *res = vm_dis(src);
+    free(src);
+    fprintf(out, "%s", res);
+    free(res);
+}
+
+void vm_main_file_copy_printable(FILE *out, FILE *input)
+{
+    while (!feof(input))
+    {
+        char c = fgetc(input);
+        if (isprint(c))
+        {
+            fputc(c, out);
+        }
+    }
+}
+
+void vm_main_file_copy_bin(FILE *out, FILE *input)
+{
+    while (!feof(input))
+    {
+        char c = fgetc(input);
+        fputc(c, out);
+    }
 }
 
 int main(int argc, const char **argv)
@@ -98,7 +145,19 @@ int main(int argc, const char **argv)
                 }
                 name = argv[++argno];
             }
-            mode = "asm";
+            const char *ext = vm_main_file_ext_ref(name);
+            if (!strcmp(ext, ".asm"))
+            {
+                mode = "asm";
+            }
+            else if (!strcmp(ext, ".bc"))
+            {
+                mode = "bc";
+            }
+            else
+            {
+                printf("error: could not figure output file type from: %s\n", name);
+            }
             output = name;
             continue;
         }
@@ -130,12 +189,31 @@ int main(int argc, const char **argv)
                 printf("error: could not open file: %s\n", name);
                 return 1;
             }
-            vm_main_run_file_bc(file);
+            if (!strcmp(mode, "run"))
+            {
+                vm_main_run_file_bc(file);
+            }
+            else if (!strcmp(mode, "asm"))
+            {
+                FILE *out = fopen(output, "w");
+                vm_main_conv_bc_to_asm(out, file);
+                fclose(out);
+            }
+            else if (!strcmp(mode, "bc"))
+            {
+                FILE *out = fopen(output, "w");
+                vm_main_file_copy_bin(out, file);
+                fclose(out);
+            }
+            else
+            {
+                printf("error: internal mode error, cannot deal with: %s\n", mode);
+            }
             fclose(file);
         }
         else if (!strcmp(ext, ".asm"))
         {
-            FILE *file = fopen(name, "rb");
+            FILE *file = fopen(name, "r");
             if (file == NULL)
             {
                 printf("error: could not open file: %s\n", name);
@@ -147,10 +225,19 @@ int main(int argc, const char **argv)
             }
             else if (!strcmp(mode, "asm"))
             {
-                        }
+                FILE *out = fopen(output, "w");
+                vm_main_file_copy_printable(out, file);
+                fclose(out);
+            }
+            else if (!strcmp(mode, "bc"))
+            {
+                FILE *out = fopen(output, "wb");
+                vm_main_conv_asm_to_bc(out, file);
+                fclose(out);
+            }
             else
             {
-                printf("error: internal mode unknown for .asm\n");
+                printf("error: internal mode error, cannot deal with: %s\n", mode);
             }
             fclose(file);
         }
