@@ -1,8 +1,10 @@
 #pragma once
 
-#include <stdio.h>
+#ifdef VM_USE_COMSO
+#include <cosmopolitan.h> // size_t
+#else
 #include <stdlib.h>
-#include <string.h>
+#endif
 
 struct vec_s;
 
@@ -44,10 +46,12 @@ static void vec_resize(vec_t *vecp, int ngrow)
         *(typeof(value) *)&(vec)->values[(vec)->length] = value; \
         (vec)->length += (vec)->size;                            \
       })
-
-#define vec_pop(vec) ((void))(vec)->length-=(vec)->size)
+#define vec_pop(vec) ((vec)->length -= (vec)->size)
 #define vec_del(vec) ((void)free(vec))
 #define vec_get(vec, index) ((vec)->values + index * (vec)->size)
+#define vec_size(vec) ((vec)->length / (vec)->size)
+#define vec_last(vec) (vec_get(vec, vec_size(vec) - 1))
+#define vec_load_pop(vec) (vec_pop(vec), vec_get(vec, vec_size(vec)))
 #define vec_foreach(item, vec)                        \
   for (                                               \
       void *item = (void *)(vec)->values;             \

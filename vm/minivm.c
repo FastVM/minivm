@@ -1,6 +1,5 @@
 #include <vm/vm.h>
 
-#define VM_REG_NUM ((256))
 #define VM_FRAME_NUM ((16))
 
 #ifdef __clang__
@@ -18,6 +17,7 @@ typedef struct
   int func;
   int bytecode;
   int outreg;
+  int nregs;
 } stack_frame_t;
 
 #define vm_set_frame(frame_arg)          \
@@ -45,9 +45,10 @@ typedef struct
 
 void vm_run(opcode_t *basefunc)
 {
-  int allocn = VM_FRAME_NUM - 4;
-  stack_frame_t *frames_base = calloc(1, sizeof(stack_frame_t) * VM_FRAME_NUM);
-  nanbox_t *locals_base = calloc(1, sizeof(nanbox_t) * VM_REG_NUM * VM_FRAME_NUM);
+  int allocn = VM_FRAME_NUM;
+  stack_frame_t *frames_base = calloc(1, sizeof(stack_frame_t) * allocn);
+  int locals_allocated = 16 * VM_FRAME_NUM;
+  nanbox_t *locals_base = calloc(1, sizeof(nanbox_t) * locals_allocated);
 
   stack_frame_t *cur_frame = frames_base;
   nanbox_t *cur_locals = locals_base;
@@ -108,6 +109,8 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_TAIL_REC] = &&do_tail_rec;
   ptrs[OPCODE_RETURN] = &&do_return;
   ptrs[OPCODE_PRINTLN] = &&do_println;
+  ptrs[OPCODE_ALLOCA] = &&do_alloca;
+  cur_frame->nregs = 256;
   vm_fetch;
   run_next_op;
 do_exit:
@@ -116,36 +119,48 @@ do_exit:
   free(frames_base);
   return;
 }
+do_alloca:
+{
+  int nregs = read_int;
+  vm_fetch;
+  cur_frame->nregs += nregs;
+  run_next_op;
+}
 do_return:
 {
   reg_t from = read_reg;
   nanbox_t val = cur_locals[from];
-  cur_frame--;
   int outreg = cur_frame->outreg;
   cur_func = cur_frame->func;
   cur_index = cur_frame->index;
-  cur_locals -= VM_REG_NUM;
+  cur_frame--;
+  cur_locals -= cur_frame->nregs;
   cur_locals[outreg] = val;
   vm_fetch;
   run_next_op;
 }
 do_call:
 {
-  if (cur_frame - frames_base >= allocn)
+  if (cur_frame - frames_base + 1 >= allocn)
   {
     int len = cur_frame - frames_base;
-    int alloc = allocn * 2 + 8;
+    int alloc = allocn * 2;
     frames_base = realloc(frames_base, sizeof(stack_frame_t) * alloc);
     cur_frame = frames_base + len;
     allocn = alloc - 4;
-    int nlocals = cur_locals - locals_base;
-    locals_base = realloc(locals_base, sizeof(nanbox_t) * VM_REG_NUM * alloc);
-    cur_locals = locals_base + nlocals;
   }
-  reg_t func = read_reg;
+  if (cur_locals - locals_base + cur_frame->nregs >= locals_allocated)
+  {
+    int len = cur_locals - locals_base;
+    int alloc = locals_allocated * 2;
+    locals_base = realloc(locals_base, sizeof(nanbox_t) * alloc);
+    cur_locals = locals_base + len;
+    locals_allocated = alloc;
+  }
   reg_t outreg = read_reg;
+  reg_t func = read_reg;
   reg_t nargs = read_reg;
-  nanbox_t *next_locals = cur_locals + VM_REG_NUM;
+  nanbox_t *next_locals = cur_locals + cur_frame->nregs;
   for (int argno = 0; argno < nargs; argno++)
   {
     reg_t regno = read_reg;
@@ -153,10 +168,11 @@ do_call:
   }
   int next_func = nanbox_to_int(cur_locals[func]);
   cur_locals = next_locals;
+  cur_frame++;
   cur_frame->index = cur_index;
   cur_frame->func = cur_func;
   cur_frame->outreg = outreg;
-  cur_frame++;
+  cur_frame->nregs = nargs + 8;
   cur_index = next_func;
   cur_func = next_func;
   vm_fetch;
@@ -164,30 +180,36 @@ do_call:
 }
 do_rec:
 {
-  if (cur_frame - frames_base >= allocn)
+  if (cur_frame - frames_base + 1 >= allocn)
   {
     int len = cur_frame - frames_base;
-    int alloc = allocn * 2 + 8;
+    int alloc = allocn * 2;
     frames_base = realloc(frames_base, sizeof(stack_frame_t) * alloc);
     cur_frame = frames_base + len;
     allocn = alloc - 4;
-    int nlocals = cur_locals - locals_base;
-    locals_base = realloc(locals_base, sizeof(nanbox_t) * VM_REG_NUM * alloc);
-    cur_locals = locals_base + nlocals;
+  }
+  if (cur_locals - locals_base + cur_frame->nregs >= locals_allocated)
+  {
+    int len = cur_locals - locals_base;
+    int alloc = locals_allocated * 2;
+    locals_base = realloc(locals_base, sizeof(nanbox_t) * alloc);
+    cur_locals = locals_base + len;
+    locals_allocated = alloc;
   }
   reg_t outreg = read_reg;
   reg_t nargs = read_reg;
-  nanbox_t *next_locals = cur_locals + VM_REG_NUM;
+  nanbox_t *next_locals = cur_locals + cur_frame->nregs;
   for (int argno = 0; argno < nargs; argno++)
   {
     reg_t regno = read_reg;
     next_locals[argno] = cur_locals[regno];
   }
   cur_locals = next_locals;
+  cur_frame++;
   cur_frame->index = cur_index;
   cur_frame->func = cur_func;
   cur_frame->outreg = outreg;
-  cur_frame++;
+  cur_frame->nregs = nargs + 8;
   cur_index = cur_func;
   vm_fetch;
   run_next_op;
@@ -196,13 +218,15 @@ do_tail_call:
 {
   reg_t func = read_reg;
   reg_t nargs = read_reg;
+  nanbox_t *next_locals = cur_locals - cur_frame->nregs + nargs;
   for (int argno = 0; argno < nargs; argno++)
   {
     reg_t from = read_reg;
-    cur_locals[argno] = cur_locals[from];
+    next_locals[argno] = cur_locals[from];
   }
   int next_func = nanbox_to_int(cur_locals[func]);
   cur_index = next_func;
+  cur_locals = next_locals;
   cur_func = next_func;
   vm_fetch;
   run_next_op;
@@ -210,12 +234,14 @@ do_tail_call:
 do_tail_rec:
 {
   reg_t nargs = read_reg;
+  nanbox_t *next_locals = cur_locals - cur_frame->nregs + nargs;
   for (int argno = 0; argno < nargs; argno++)
   {
     reg_t from = read_reg;
-    cur_locals[argno] = cur_locals[from];
+    next_locals[argno] = cur_locals[from];
   }
   cur_index = cur_func;
+  cur_locals = next_locals;
   vm_fetch;
   run_next_op;
 }
@@ -672,7 +698,7 @@ do_println:
       printf("false\n");
     }
   }
-  if (nanbox_is_double(val))
+  else if (nanbox_is_double(val))
   {
     number_t num = nanbox_to_double(val);
     if (fmod(num, 1) == 0)
@@ -683,6 +709,10 @@ do_println:
     {
       printf("%f\n", num);
     }
+  }
+  else
+  {
+    printf("unk\n");
   }
   vm_fetch;
   run_next_op;

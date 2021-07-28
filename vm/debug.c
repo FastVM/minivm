@@ -110,6 +110,8 @@ const char *vm_opcode_internal_name(opcode_t op)
         return "return";
     case OPCODE_PRINTLN:
         return "println";
+    case OPCODE_ALLOCA:
+        return "alloca";
     }
 }
 
@@ -128,7 +130,7 @@ const char *vm_opcode_name(opcode_t op)
     case OPCODE_STORE_NUM:
         return "mov";
     case OPCODE_STORE_FUN:
-        return "mov";
+        return "proc";
     case OPCODE_EQUAL:
         return "eq";
     case OPCODE_EQUAL_NUM:
@@ -223,6 +225,8 @@ const char *vm_opcode_name(opcode_t op)
         return "ret";
     case OPCODE_PRINTLN:
         return "println";
+    case OPCODE_ALLOCA:
+        return "alloca";
     }
 }
 
@@ -336,6 +340,8 @@ const char *vm_opcode_format(opcode_t op)
         return "r";
     case OPCODE_PRINTLN:
         return "r";
+    case OPCODE_ALLOCA:
+        return "n";
     }
 }
 

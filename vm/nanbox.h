@@ -88,10 +88,14 @@
 #define NANBOX_AUX5_TYPE void *
 #endif
 
+#ifdef VM_USE_COMSO
+#include <cosmopolitan.h> // size_t
+#else
 #include <stddef.h>	 // size_t
 #include <stdint.h>	 // int64_t, int32_t
 #include <stdbool.h> // bool, true, false
 #include <string.h>	 // memset
+#endif
 
 /*
  * Macros to expand the prefix.

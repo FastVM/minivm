@@ -203,7 +203,29 @@ opcode_t vm_asm_match_opcode(const char **const src)
                 }
                 case 'f':
                 {
-                    goto fail;
+                    if (**src != '{')
+                    {
+                        goto fail;
+                    }
+                    *src += 1;
+                    int depth = 1;
+                    while (depth > 0)
+                    {
+                        if (**src == '\0')
+                        {
+                            goto fail;
+                        }
+                        if (**src == '{')
+                        {
+                            depth += 1;
+                        }
+                        if (**src == '}')
+                        {
+                            depth -= 1;
+                        }
+                        *src += 1;
+                    }
+                    goto success;
                 }
                 case '\0':
                 {
@@ -235,7 +257,7 @@ opcode_t vm_asm_match_opcode(const char **const src)
     return (opcode_t)-1;
 }
 
-int vm_asm_read_opcode(opcode_t *buffer, opcode_t op, const char **const src, vec_t *replaces)
+int vm_asm_read_opcode(opcode_t *buffer, opcode_t op, const char **const src, vec_t *replaces, vec_t *ends)
 {
     opcode_t *init = buffer;
     const char *fmt = vm_opcode_format(op);
@@ -308,8 +330,9 @@ int vm_asm_read_opcode(opcode_t *buffer, opcode_t op, const char **const src, ve
         }
         case 'f':
         {
-            printf("no funcs yet\n");
-            return 0;
+            *src += 1;
+            vec_push(*ends, (reg_t *)buffer);
+            buffer += sizeof(reg_t);
         }
         case '\0':
         {
@@ -332,9 +355,25 @@ vm_asm_result_t vm_assemble(const char *src)
     vm_asm_strip_endl(&src);
     vec_t jmplocs = vec_new(jmploc_t);
     vec_t replaces = vec_new(jmpfrom_t);
+    vec_t ends = vec_new(reg_t *);
     while (*src != '\0')
     {
-        if (*src == '[')
+        if (*src == '}')
+        {
+            if (ends->length == 0)
+            {
+                printf("error: unexpected close curly brace");
+                free(ret);
+                vec_del(jmplocs);
+                vec_del(replaces);
+                vec_del(ends);
+                return vm_asm_result_fail;
+            }
+            src += 1;
+            reg_t *target = *(reg_t **)vec_load_pop(ends);
+            *target = mem - ret;
+        }
+        else if (*src == '[')
         {
             src += 1;
             const char *first = src;
@@ -346,6 +385,8 @@ vm_asm_result_t vm_assemble(const char *src)
                     printf("error: expected ] before end of string\n");
                     free(ret);
                     vec_del(jmplocs);
+                    vec_del(replaces);
+                    vec_del(ends);
                     return vm_asm_result_fail;
                 }
             }
@@ -362,7 +403,7 @@ vm_asm_result_t vm_assemble(const char *src)
             int index = mem - ret;
             if (index + (1 << 12) > nalloc)
             {
-                nalloc = nalloc * 2 + (1 << 16);
+                nalloc = nalloc * 2 + (1 << 12);
                 ret = realloc(ret, nalloc);
             }
             const char *last = src;
@@ -376,28 +417,31 @@ vm_asm_result_t vm_assemble(const char *src)
                     printf("%c", *src);
                     src += 1;
                 }
-                printf("\n");
                 free(ret);
                 vec_del(jmplocs);
                 vec_del(replaces);
+                vec_del(ends);
                 return vm_asm_result_fail;
             }
             if (res == -1)
             {
                 printf("error: could not figure out opcode args\n");
+
                 free(ret);
                 vec_del(jmplocs);
                 vec_del(replaces);
+                vec_del(ends);
                 return vm_asm_result_fail;
             }
             vm_asm_strip(&src);
-            int nbytes = vm_asm_read_opcode(mem, res, &src, &replaces);
+            int nbytes = vm_asm_read_opcode(mem, res, &src, &replaces, &ends);
             if (nbytes == 0)
             {
                 printf("error: internal reader of opcodes is broken somhow\n");
                 free(ret);
                 vec_del(jmplocs);
                 vec_del(replaces);
+                vec_del(ends);
                 return vm_asm_result_fail;
             }
             mem += nbytes;
@@ -433,6 +477,7 @@ vm_asm_result_t vm_assemble(const char *src)
             free(ret);
             vec_del(jmplocs);
             vec_del(replaces);
+            vec_del(ends);
             return vm_asm_result_fail;
         }
     };
