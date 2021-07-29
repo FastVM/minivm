@@ -16,7 +16,7 @@ struct vec_s
 
 static vec_t vec_new(int elem_size)
 {
-  int allocated = 2;
+  int allocated = 4;
   vec_t ret = malloc(sizeof(struct vec_s) + elem_size * allocated);
   ret->length = 0;
   ret->size = elem_size;
@@ -26,7 +26,7 @@ static vec_t vec_new(int elem_size)
 
 static void vec_resize(vec_t *vecp, int ngrow)
 {
-  if ((*vecp)->length + (*vecp)->size * ngrow >= (*vecp)->allocated)
+  if ((*vecp)->length + (*vecp)->size * ngrow * 2 >= (*vecp)->allocated)
   {
     int nallocated = ((*vecp)->allocated + ngrow) * 4;
     *vecp = realloc(*vecp, nallocated);

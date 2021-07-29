@@ -55,7 +55,7 @@
         ret r0
     }
 
-    mov r2 16
+    mov r2 12
     mov r3 4
     add r4 r3 2
     
