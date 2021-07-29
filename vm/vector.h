@@ -1,10 +1,6 @@
 #pragma once
 
-#ifdef VM_USE_COMSO
-#include <cosmopolitan.h> // size_t
-#else
 #include <stdlib.h>
-#endif
 
 struct vec_s;
 
@@ -20,7 +16,7 @@ struct vec_s
 
 static vec_t vec_new(int elem_size)
 {
-  int allocated = 4;
+  int allocated = 2;
   vec_t ret = malloc(sizeof(struct vec_s) + elem_size * allocated);
   ret->length = 0;
   ret->size = elem_size;

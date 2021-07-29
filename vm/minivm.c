@@ -1,6 +1,8 @@
 #include <vm/vm.h>
+#include <vm/vector.h>
+#include <vm/debug.h>
 
-#define VM_FRAME_NUM ((16))
+#define VM_FRAME_NUM ((256))
 
 #ifdef __clang__
 #define vm_assume(expr) (__builtin_assume(expr))
@@ -43,12 +45,64 @@ typedef struct
 #define read_num (cur_bytecode_next(int))
 #define read_loc (cur_bytecode_next(int))
 
+void vm_print(nanbox_t val)
+{
+  if (nanbox_is_boolean(val))
+  {
+    bool log = nanbox_to_boolean(val);
+    if (log)
+    {
+      printf("#t");
+    }
+    else
+    {
+      printf("#f");
+    }
+  }
+  else if (nanbox_is_double(val))
+  {
+    number_t num = nanbox_to_double(val);
+    if (fmod(num, 1) == 0)
+    {
+      printf("%.0f", num);
+    }
+    else
+    {
+      printf("%f", num);
+    }
+  }
+  else if (nanbox_is_pointer(val))
+  {
+    vec_t vec = nanbox_to_pointer(val);
+    bool first = true;
+    printf("(");
+    vec_foreach(item, vec)
+    {
+      if (first)
+      {
+        first = false;
+      }
+      else
+      {
+        printf(" ");
+      }
+      nanbox_t *cur = item;
+      vm_print(*cur);
+    }
+    printf(")");
+  }
+  else
+  {
+    printf("unk");
+  }
+}
+
 void vm_run(opcode_t *basefunc)
 {
   int allocn = VM_FRAME_NUM;
-  stack_frame_t *frames_base = calloc(1, sizeof(stack_frame_t) * allocn);
+  stack_frame_t *frames_base = malloc(sizeof(stack_frame_t) * allocn);
   int locals_allocated = 16 * VM_FRAME_NUM;
-  nanbox_t *locals_base = calloc(1, sizeof(nanbox_t) * locals_allocated);
+  nanbox_t *locals_base = malloc(sizeof(nanbox_t) * locals_allocated);
 
   stack_frame_t *cur_frame = frames_base;
   nanbox_t *cur_locals = locals_base;
@@ -110,13 +164,18 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_RETURN] = &&do_return;
   ptrs[OPCODE_PRINTLN] = &&do_println;
   ptrs[OPCODE_ALLOCA] = &&do_alloca;
+  ptrs[OPCODE_ARRAY] = &&do_array;
+  ptrs[OPCODE_LENGTH] = &&do_length;
+  ptrs[OPCODE_DELETE] = &&do_delete;
+  ptrs[OPCODE_INDEX] = &&do_index;
+  ptrs[OPCODE_INDEX_NUM] = &&do_index_num;
   cur_frame->nregs = 256;
   vm_fetch;
   run_next_op;
 do_exit:
 {
-  free(locals_base);
   free(frames_base);
+  free(locals_base);
   return;
 }
 do_alloca:
@@ -137,6 +196,58 @@ do_return:
   cur_locals -= cur_frame->nregs;
   cur_locals[outreg] = val;
   vm_fetch;
+  run_next_op;
+}
+do_array:
+{
+  reg_t outreg = read_reg;
+  reg_t nargs = read_reg;
+  vec_t vec = vec_new(nanbox_t);
+  for (int i = 0; i < nargs; i++)
+  {
+    reg_t regno = read_reg;
+    vec_push(vec, cur_locals[regno]);
+  }
+  vm_fetch;
+  cur_locals[outreg] = nanbox_from_pointer(vec);
+  run_next_op;
+}
+do_length:
+{
+  reg_t outreg = read_reg;
+  reg_t reg = read_reg;
+  vm_fetch;
+  vec_t vec = nanbox_to_pointer(cur_locals[reg]);
+  cur_locals[outreg] = nanbox_from_double((double)vec_size(vec));
+  run_next_op;
+}
+do_delete:
+{
+  reg_t reg = read_reg;
+  vm_fetch;
+  vec_t vec = nanbox_to_pointer(cur_locals[reg]);
+  vec_del(vec);
+  run_next_op;
+}
+do_index:
+{
+  reg_t outreg = read_reg;
+  reg_t reg = read_reg;
+  reg_t ind = read_reg;
+  vm_fetch;
+  number_t index = nanbox_to_double(cur_locals[ind]);
+  vec_t vec = nanbox_to_pointer(cur_locals[reg]);
+  cur_locals[outreg] = *(nanbox_t *)vec_get(vec, (long)index);
+  run_next_op;
+}
+do_index_num:
+{
+  reg_t outreg = read_reg;
+  reg_t reg = read_reg;
+  number_t index = read_num;
+  vm_fetch;
+  vec_t vec = nanbox_to_pointer(cur_locals[reg]);
+  cur_locals[outreg] = *(nanbox_t *)vec_get(vec, (long)index);
   run_next_op;
 }
 do_call:
@@ -685,36 +796,10 @@ do_mod_num:
 do_println:
 {
   reg_t from = read_reg;
-  nanbox_t val = cur_locals[from];
-  if (nanbox_is_boolean(val))
-  {
-    bool log = nanbox_to_boolean(val);
-    if (log)
-    {
-      printf("true\n");
-    }
-    else
-    {
-      printf("false\n");
-    }
-  }
-  else if (nanbox_is_double(val))
-  {
-    number_t num = nanbox_to_double(val);
-    if (fmod(num, 1) == 0)
-    {
-      printf("%.0f\n", num);
-    }
-    else
-    {
-      printf("%f\n", num);
-    }
-  }
-  else
-  {
-    printf("unk\n");
-  }
   vm_fetch;
+  nanbox_t val = cur_locals[from];
+  vm_print(val);
+  printf("\n");
   run_next_op;
 }
 }

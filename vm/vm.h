@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef VM_USE_COMSO
-#include <cosmopolitan.h> // size_t
-#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -10,7 +7,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <vm/nanbox.h>
-#endif
 
 typedef int reg_t;
 typedef int integer_t;
@@ -72,6 +68,11 @@ enum opcode_t
     OPCODE_RETURN,
     OPCODE_PRINTLN,
     OPCODE_ALLOCA,
+    OPCODE_ARRAY,
+    OPCODE_LENGTH,
+    OPCODE_DELETE,
+    OPCODE_INDEX,
+    OPCODE_INDEX_NUM,
     OPCODE_MAX1,
     OPCODE_MAX2P = 128,
 };

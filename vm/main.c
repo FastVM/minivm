@@ -2,7 +2,7 @@
 #include <vm/asm.h>
 #include <vm/dis.h>
 #include <vm/vector.h>
-#include "ctype.h"
+#include <ctype.h>
 
 int vm_main_file_length(FILE *input)
 {

@@ -40,7 +40,7 @@ integer_t vm_asm_read_num(const char **const src)
 {
     const char *init = *src;
     bool negate = **src == '-';
-    if (negate || **src == '+')
+    if (**src == '-' || **src == '+')
     {
         *src += 1;
     }
@@ -57,7 +57,14 @@ integer_t vm_asm_read_num(const char **const src)
         *src = init;
         return 0;
     }
-    return ret;
+    if (negate)
+    {
+        return -ret;
+    }
+    else
+    {
+        return ret;
+    }
 }
 
 bool vm_asm_read_bool(const char **const src)
@@ -412,7 +419,7 @@ vm_asm_result_t vm_assemble(const char *src)
             {
                 printf("error: could not figure out opcode\n");
                 printf("line: ");
-                while (*src != '\n' && *src != '\r' && *src != '\0')
+                while (*src != '\0' && *src != '\n' && *src != '\r' && *src != '\0')
                 {
                     printf("%c", *src);
                     src += 1;
@@ -481,6 +488,9 @@ vm_asm_result_t vm_assemble(const char *src)
             return vm_asm_result_fail;
         }
     };
+    vec_del(jmplocs);
+    vec_del(replaces);
+    vec_del(ends);
     return (vm_asm_result_t){
         .bytecode = ret,
         .len = mem - ret,
