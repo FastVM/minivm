@@ -4,7 +4,7 @@
 #include <vm/gc.h>
 #include <vm/gcvec.h>
 
-#define VM_FRAME_NUM ((256))
+#define VM_FRAME_NUM ((32))
 
 #ifdef __clang__
 #define vm_assume(expr) (__builtin_assume(expr))
@@ -93,13 +93,13 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
 void vm_run(opcode_t *basefunc)
 {
   vm_gc_t gc = vm_gc_start();
-  float gc_growth = 2;
-  int gc_max = 1 << 16;
+  float gc_growth = 2.0;
+  int gc_max = 1 << 8;
 
   int allocn = VM_FRAME_NUM;
-  stack_frame_t *frames_base = malloc(sizeof(stack_frame_t) * allocn);
+  stack_frame_t *frames_base = calloc(1, sizeof(stack_frame_t) * allocn);
   int locals_allocated = 16 * VM_FRAME_NUM;
-  nanbox_t *locals_base = malloc(sizeof(nanbox_t) * locals_allocated);
+  nanbox_t *locals_base = calloc(1, sizeof(nanbox_t) * locals_allocated);
 
   stack_frame_t *cur_frame = frames_base;
   nanbox_t *cur_locals = locals_base;

@@ -106,6 +106,16 @@ void vm_main_file_copy_bin(FILE *out, FILE *input)
     }
 }
 
+FILE *vm_main_open_read(const char *src)
+{
+    return fopen(src, "r");
+}
+
+void vm_main_close_read(FILE *file, const char *src)
+{
+    fclose(file);
+}
+
 int main(int argc, const char **argv)
 {
     const char *mode = "run";
@@ -183,7 +193,7 @@ int main(int argc, const char **argv)
         const char *ext = vm_main_file_ext_ref(name);
         if (!strcmp(ext, ".bc"))
         {
-            FILE *file = fopen(name, "rb");
+            FILE *file = vm_main_open_read(name);
             if (file == NULL)
             {
                 printf("error: could not open file: %s\n", name);
@@ -209,11 +219,11 @@ int main(int argc, const char **argv)
             {
                 printf("error: internal mode error, cannot deal with: %s\n", mode);
             }
-            fclose(file);
+            vm_main_close_read(file, name);
         }
         else if (!strcmp(ext, ".asm"))
         {
-            FILE *file = fopen(name, "r");
+            FILE *file = vm_main_open_read(name);
             if (file == NULL)
             {
                 printf("error: could not open file: %s\n", name);
@@ -239,12 +249,12 @@ int main(int argc, const char **argv)
             {
                 printf("error: internal mode error, cannot deal with: %s\n", mode);
             }
-            fclose(file);
+            vm_main_close_read(file, name);
         }
         else
         {
             printf("error: could not figure file type from: %s\n", name);
-            FILE *file = fopen(name, "rb");
+            FILE *file = vm_main_open_read(name);
             if (file == NULL)
             {
                 printf("note: file cannot be read by process, possible typo?\n");
@@ -253,7 +263,7 @@ int main(int argc, const char **argv)
             {
                 printf("note: file found but needs to end in .asm or .bc\n");
             }
-            fclose(file);
+            vm_main_close_read(file, name);
             return 1;
         }
     }

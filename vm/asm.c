@@ -356,7 +356,7 @@ int vm_asm_read_opcode(opcode_t *buffer, opcode_t op, const char **const src, ve
 
 vm_asm_result_t vm_assemble(const char *src)
 {
-    int nalloc = 1 << 16;
+    int nalloc = 1 << 14;
     opcode_t *ret = malloc(nalloc);
     opcode_t *mem = ret;
     vm_asm_strip_endl(&src);
@@ -408,7 +408,7 @@ vm_asm_result_t vm_assemble(const char *src)
         else
         {
             int index = mem - ret;
-            if (index + (1 << 12) > nalloc)
+            if (index + (1 << 10) > nalloc)
             {
                 nalloc = nalloc * 2 + (1 << 12);
                 ret = realloc(ret, nalloc);
