@@ -41,19 +41,6 @@
     [pow2n.done]
         ret r0
     }
-    
-    proc r22 {
-        len r1 r0
-        jne [clean.base] r1 3
-    [clean.rec]
-        nth r1 r0 1
-        nth r2 r0 2
-        rec r2 (r2)
-        rec r1 (r1)
-    [clean.base]
-        del r0
-        ret r0
-    }
 
     mov r2 12
     mov r3 4
@@ -67,11 +54,9 @@
     add r6 r4 1
     call r7 r0(r5 r6)  
     call r8 r1(r7)
-    call r23 r22(r7)
     mov r9 1
     new r10 (r6 r8)  
     println r10 
-    del r10
 
     mov r18 0
     call r19 r0(r18 r4)
@@ -90,11 +75,9 @@
     mov r12 1
     call r13 r0(r12 r5)
     call r14 r1(r13)
-    call r23 r22(r13)
     mov r15 -1
     call r16 r0(r15 r5)
     call r17 r1(r16)
-    call r23 r22(r16)
     add r9 r14
     add r9 r17 
     add r10 1
@@ -102,13 +85,10 @@
 [inner.done]
     new r12 (r8 r5 r9)
     println r12
-    del r12
     add r5 2
     j [loop.redo]
 [loop.done]
     
     call r20 r1(r19)
-    call r23 r22(r19)
     new r21 (r4 r20)  
     println r21
-    del r21

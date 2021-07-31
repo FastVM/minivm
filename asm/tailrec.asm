@@ -1,8 +1,9 @@
 proc r0 {
+[add.redo]
     jeq [add.base] r1 0
     add r0 1
     sub r1 1
-    trec (r0 r1)
+    j [add.redo]
 [add.base]
     ret r0
 }

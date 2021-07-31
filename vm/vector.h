@@ -42,6 +42,7 @@ static void vec_resize(vec_t *vecp, int ngrow)
         *(typeof(value) *)&(vec)->values[(vec)->length] = value; \
         (vec)->length += (vec)->size;                            \
       })
+#define vec_set_size(vec, n) ((vec)->length = n * (vec)->size)
 #define vec_pop(vec) ((vec)->length -= (vec)->size)
 #define vec_del(vec) ((void)free(vec))
 #define vec_get(vec, index) ((vec)->values + index * (vec)->size)

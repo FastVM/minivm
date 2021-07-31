@@ -102,10 +102,6 @@ const char *vm_opcode_internal_name(opcode_t op)
         return "call";
     case OPCODE_REC:
         return "rec";
-    case OPCODE_TAIL_CALL:
-        return "tail_call";
-    case OPCODE_TAIL_REC:
-        return "tail_rec";
     case OPCODE_RETURN:
         return "return";
     case OPCODE_PRINTLN:
@@ -227,10 +223,6 @@ const char *vm_opcode_name(opcode_t op)
         return "call";
     case OPCODE_REC:
         return "rec";
-    case OPCODE_TAIL_CALL:
-        return "tcall";
-    case OPCODE_TAIL_REC:
-        return "trec";
     case OPCODE_RETURN:
         return "ret";
     case OPCODE_PRINTLN:
@@ -352,10 +344,6 @@ const char *vm_opcode_format(opcode_t op)
         return "rrc";
     case OPCODE_REC:
         return "rc";
-    case OPCODE_TAIL_CALL:
-        return "rc";
-    case OPCODE_TAIL_REC:
-        return "c";
     case OPCODE_RETURN:
         return "r";
     case OPCODE_PRINTLN:
