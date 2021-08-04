@@ -357,7 +357,7 @@ int vm_asm_read_opcode(opcode_t *buffer, opcode_t op, const char **const src, ve
 vm_asm_result_t vm_assemble(const char *src)
 {
     int nalloc = 1 << 14;
-    opcode_t *ret = malloc(nalloc);
+    opcode_t *ret = calloc(1, nalloc);
     opcode_t *mem = ret;
     vm_asm_strip_endl(&src);
     vec_t jmplocs = vec_new(jmploc_t);
@@ -457,13 +457,11 @@ vm_asm_result_t vm_assemble(const char *src)
     }
     *mem = OPCODE_EXIT;
     mem += 1;
-    vec_foreach(ref1, replaces)
+    vec_foreach(jmpfrom_t, jfrom, replaces)
     {
-        jmpfrom_t *jfrom = ref1;
         bool found = false;
-        vec_foreach(ref2, jmplocs)
+        vec_foreach(jmploc_t, jloc, jmplocs)
         {
-            jmploc_t *jloc = ref2;
             if (jloc->strlen != jfrom->strlen)
             {
                 continue;

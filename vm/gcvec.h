@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdlib.h>
 #include <vm/nanbox.h>
 #include <vm/gc.h>
 

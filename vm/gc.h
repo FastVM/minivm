@@ -13,6 +13,8 @@ struct vm_gc_t
 vm_gc_t vm_gc_start(void);
 void vm_gc_stop(vm_gc_t *gc);
 
+void vm_gc_run(vm_gc_t *gc, int len, nanbox_t *ptr);
+
 void vm_gc_mark(vm_gc_t *gc, int len, nanbox_t *ptr);
 void vm_gc_sweep(vm_gc_t *gc);
 

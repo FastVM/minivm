@@ -112,8 +112,6 @@ const char *vm_opcode_internal_name(opcode_t op)
         return "array";
     case OPCODE_LENGTH:
         return "array";
-    case OPCODE_DELETE:
-        return "delete";
     case OPCODE_INDEX:
         return "index";
     case OPCODE_INDEX_NUM:
@@ -233,8 +231,6 @@ const char *vm_opcode_name(opcode_t op)
         return "new";
     case OPCODE_LENGTH:
         return "len";
-    case OPCODE_DELETE:
-        return "del";
     case OPCODE_INDEX:
         return "nth";
     case OPCODE_INDEX_NUM:
@@ -354,8 +350,6 @@ const char *vm_opcode_format(opcode_t op)
         return "rc";
     case OPCODE_LENGTH:
         return "rr";
-    case OPCODE_DELETE:
-        return "r";
     case OPCODE_INDEX:
         return "rrr";
     case OPCODE_INDEX_NUM:

@@ -1,8 +1,6 @@
 #include <vm/gc.h>
 #include <vm/nanbox.h>
 #include <vm/vector.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 enum gc_mark_t;
 typedef enum gc_mark_t gc_mark_t;
@@ -28,7 +26,7 @@ void vm_gc_stop(vm_gc_t *gc)
 
 nanbox_t vm_gc_new(vm_gc_t *gc, int size)
 {
-    int *ptr = malloc(sizeof(nanbox_t) * size + sizeof(int) * 2);
+    int *ptr = calloc(1, sizeof(nanbox_t) * size + sizeof(int) * 2);
     vec_push(gc->ptrs, ptr);
     *ptr = GC_MARK_DELETE;
     ptr += 1;
@@ -63,15 +61,10 @@ void vm_gc_mark(vm_gc_t *gc, int len, nanbox_t *ptrs)
         {
             int *sub = nanbox_to_pointer(ptrs[i]);
             int mark = *(sub - 2);
-            if (mark == GC_MARK_KEEP)
-            {
-                continue;
-            }
             if (mark == GC_MARK_DELETE)
             {
                 *(sub - 2) = GC_MARK_KEEP;
                 vm_gc_mark(gc, *(sub - 1), (nanbox_t *)sub);
-                continue;
             }
         }
     }
@@ -96,4 +89,10 @@ void vm_gc_sweep(vm_gc_t *gc)
         }
     }
     vec_set_size(gc->ptrs, out);
+}
+
+void vm_gc_run(vm_gc_t *gc, int len, nanbox_t *ptrs)
+{
+    vm_gc_mark(gc, len, ptrs);
+    vm_gc_sweep(gc);
 }

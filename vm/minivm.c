@@ -161,7 +161,6 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_ALLOCA] = &&do_alloca;
   ptrs[OPCODE_ARRAY] = &&do_array;
   ptrs[OPCODE_LENGTH] = &&do_length;
-  ptrs[OPCODE_DELETE] = &&do_delete;
   ptrs[OPCODE_INDEX] = &&do_index;
   ptrs[OPCODE_INDEX_NUM] = &&do_index_num;
   cur_frame->nregs = 256;
@@ -200,8 +199,7 @@ do_array:
   reg_t nargs = read_reg;
   if (vec_size(gc.ptrs) >= gc_max)
   {
-    vm_gc_mark(&gc, (int)(cur_locals - locals_base + cur_frame->nregs), locals_base);
-    vm_gc_sweep(&gc);
+    vm_gc_run(&gc, (int)(cur_locals - locals_base + cur_frame->nregs), locals_base);
     gc_max = vec_size(gc.ptrs) * gc_growth;
   }
   nanbox_t vec = gcvec_new(&gc, nargs);
@@ -221,14 +219,6 @@ do_length:
   vm_fetch;
   nanbox_t vec = cur_locals[reg];
   cur_locals[outreg] = nanbox_from_double((double)gcvec_size(&gc, vec));
-  run_next_op;
-}
-do_delete:
-{
-  reg_t reg = read_reg;
-  vm_fetch;
-  // todo: make this do something
-  ((void)0);
   run_next_op;
 }
 do_index:

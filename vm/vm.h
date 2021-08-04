@@ -1,11 +1,6 @@
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <math.h>
-#include <string.h>
-#include <stdint.h>
+#include <vm/libc.h>
 #include <vm/nanbox.h>
 
 typedef int reg_t;
@@ -68,7 +63,6 @@ enum opcode_t
     OPCODE_ALLOCA,
     OPCODE_ARRAY,
     OPCODE_LENGTH,
-    OPCODE_DELETE,
     OPCODE_INDEX,
     OPCODE_INDEX_NUM,
     OPCODE_MAX1,

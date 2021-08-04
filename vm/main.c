@@ -2,7 +2,7 @@
 #include <vm/asm.h>
 #include <vm/dis.h>
 #include <vm/vector.h>
-#include <ctype.h>
+#include <vm/libc.h>
 
 int vm_main_file_length(FILE *input)
 {
@@ -90,10 +90,7 @@ void vm_main_file_copy_printable(FILE *out, FILE *input)
     while (!feof(input))
     {
         char c = fgetc(input);
-        if (isprint(c))
-        {
-            fputc(c, out);
-        }
+        fputc(c, out);
     }
 }
 

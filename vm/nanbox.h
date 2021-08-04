@@ -88,10 +88,7 @@
 #define NANBOX_AUX5_TYPE void *
 #endif
 
-#include <stddef.h>	 // size_t
-#include <stdint.h>	 // int64_t, int32_t
-#include <stdbool.h> // bool, true, false
-#include <string.h>	 // memset
+#include <vm/libc.h>
 
 /*
  * Macros to expand the prefix.

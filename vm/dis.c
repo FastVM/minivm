@@ -6,7 +6,7 @@ char *vm_dis(opcode_t *head)
 {
     opcode_t *bcbase = head;
     int alloc = 256;
-    char *base = malloc(alloc);
+    char *base = calloc(1, alloc);
     char *ret = base;
     int index = 0;
     while (true)
