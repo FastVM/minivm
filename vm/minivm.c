@@ -13,7 +13,7 @@
 #endif
 
 #define vm_fetch (next_op_value = ptrs[basefunc[cur_index]])
-#define next_op (cur_index++, next_op_value)
+#define next_op (cur_index += 1, next_op_value)
 
 typedef struct
 {
@@ -76,17 +76,17 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
   else
   {
     bool first = true;
-    printf("(");
+    printf("[");
     int len = gcvec_size(gc, val);
     for (int i = 0; i < len; i++)
     {
       if (i != 0)
       {
-        printf(" ");
+        printf(", ");
       }
       vm_print(gc, gcvec_get(gc, val, i));
     }
-    printf(")");
+    printf("]");
   }
 }
 
@@ -197,7 +197,7 @@ do_return:
 do_array:
 {
   reg_t outreg = read_reg;
-  reg_t nargs = read_reg;
+  int nargs = read_int;
   if (vec_size(gc.ptrs) >= gc_max)
   {
     vm_gc_run(&gc, (int)(cur_locals - locals_base + cur_frame->nregs), locals_base);
