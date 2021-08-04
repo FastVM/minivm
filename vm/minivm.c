@@ -155,6 +155,7 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_MOD] = &&do_mod;
   ptrs[OPCODE_MOD_NUM] = &&do_mod_num;
   ptrs[OPCODE_CALL] = &&do_call;
+  ptrs[OPCODE_STATIC_CALL] = &&do_static_call;
   ptrs[OPCODE_REC] = &&do_rec;
   ptrs[OPCODE_RETURN] = &&do_return;
   ptrs[OPCODE_PRINTLN] = &&do_println;
@@ -275,7 +276,45 @@ do_call:
   cur_frame->index = cur_index;
   cur_frame->func = cur_func;
   cur_frame->outreg = outreg;
-  cur_frame->nregs = nargs + 8;
+  cur_frame->nregs = nargs + 256;
+  cur_index = next_func;
+  cur_func = next_func;
+  vm_fetch;
+  run_next_op;
+}
+do_static_call:
+{
+  if (cur_frame - frames_base + 1 >= allocn)
+  {
+    int len = cur_frame - frames_base;
+    int alloc = allocn * 2;
+    frames_base = realloc(frames_base, sizeof(stack_frame_t) * alloc);
+    cur_frame = frames_base + len;
+    allocn = alloc - 4;
+  }
+  if (cur_locals - locals_base + cur_frame->nregs >= locals_allocated)
+  {
+    int len = cur_locals - locals_base;
+    int alloc = locals_allocated * 2;
+    locals_base = realloc(locals_base, sizeof(nanbox_t) * alloc);
+    cur_locals = locals_base + len;
+    locals_allocated = alloc;
+  }
+  reg_t outreg = read_reg;
+  int next_func = read_loc;
+  reg_t nargs = read_reg;
+  nanbox_t *next_locals = cur_locals + cur_frame->nregs;
+  for (int argno = 0; argno < nargs; argno++)
+  {
+    reg_t regno = read_reg;
+    next_locals[argno] = cur_locals[regno];
+  }
+  cur_locals = next_locals;
+  cur_frame++;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame->nregs = nargs + 256;
   cur_index = next_func;
   cur_func = next_func;
   vm_fetch;
@@ -312,7 +351,7 @@ do_rec:
   cur_frame->index = cur_index;
   cur_frame->func = cur_func;
   cur_frame->outreg = outreg;
-  cur_frame->nregs = nargs + 8;
+  cur_frame->nregs = nargs + 256;
   cur_index = cur_func;
   vm_fetch;
   run_next_op;
