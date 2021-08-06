@@ -54,11 +54,11 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
     bool log = nanbox_to_boolean(val);
     if (log)
     {
-      printf("#t");
+      printf("true");
     }
     else
     {
-      printf("#f");
+      printf("false");
     }
   }
   else if (nanbox_is_double(val))
@@ -93,7 +93,7 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
 void vm_run(opcode_t *basefunc)
 {
   vm_gc_t gc = vm_gc_start();
-  float gc_growth = 2.0;
+  float gc_growth = 4.0;
   int gc_max = 1 << 8;
 
   int allocn = VM_FRAME_NUM;
@@ -159,6 +159,7 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_REC] = &&do_rec;
   ptrs[OPCODE_RETURN] = &&do_return;
   ptrs[OPCODE_PRINTLN] = &&do_println;
+  ptrs[OPCODE_PUTCHAR] = &&do_putchar;
   ptrs[OPCODE_ALLOCA] = &&do_alloca;
   ptrs[OPCODE_ARRAY] = &&do_array;
   ptrs[OPCODE_LENGTH] = &&do_length;
@@ -800,6 +801,14 @@ do_println:
   nanbox_t val = cur_locals[from];
   vm_print(&gc, val);
   printf("\n");
+  run_next_op;
+}
+do_putchar:
+{
+  reg_t from = read_reg;
+  vm_fetch;
+  nanbox_t val = cur_locals[from];
+  printf("%c", (char)nanbox_to_double(val));
   run_next_op;
 }
 }
