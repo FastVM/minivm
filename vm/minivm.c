@@ -61,11 +61,11 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
     bool log = nanbox_to_boolean(val);
     if (log)
     {
-      printf("#t");
+      printf("true");
     }
     else
     {
-      printf("#f");
+      printf("false");
     }
   }
   else if (nanbox_is_double(val))
@@ -100,7 +100,7 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
 void vm_run(opcode_t *basefunc)
 {
   vm_gc_t gc = vm_gc_start();
-  float gc_growth = 8.0;
+  float gc_growth = 4.0;
   int gc_max = 1 << 8;
 
   int allocn = VM_FRAME_NUM;
