@@ -108,8 +108,8 @@ const char *vm_opcode_internal_name(opcode_t op)
         return "return";
     case OPCODE_PRINTLN:
         return "println";
-    case OPCODE_ALLOCA:
-        return "alloca";
+    case OPCODE_PUTCHAR:
+        return "putchar";
     case OPCODE_ARRAY:
         return "array";
     case OPCODE_LENGTH:
@@ -229,8 +229,8 @@ const char *vm_opcode_name(opcode_t op)
         return "ret";
     case OPCODE_PRINTLN:
         return "println";
-    case OPCODE_ALLOCA:
-        return "alloca";
+    case OPCODE_PUTCHAR:
+        return "putchar";
     case OPCODE_ARRAY:
         return "new";
     case OPCODE_LENGTH:
@@ -350,8 +350,8 @@ const char *vm_opcode_format(opcode_t op)
         return "r";
     case OPCODE_PRINTLN:
         return "r";
-    case OPCODE_ALLOCA:
-        return "n";
+    case OPCODE_PUTCHAR:
+        return "r";
     case OPCODE_ARRAY:
         return "rc";
     case OPCODE_LENGTH:
