@@ -1,6 +1,8 @@
 #include <vm/gc.h>
 #include <vm/nanbox.h>
 #include <vm/vector.h>
+#include <pthread.h>
+#include <unistd.h>
 
 enum gc_mark_t;
 typedef enum gc_mark_t gc_mark_t;
@@ -10,23 +12,53 @@ enum gc_mark_t
     GC_MARK_DELETE,
     GC_MARK_KEEP,
 };
-
-vm_gc_t vm_gc_start(void)
+void vm_gc_stack_end_set(vm_gc_t *gc, nanbox_t *stackptr)
 {
-    return (vm_gc_t){
-        .ptrs = vec_new(int *),
-    };
+    gc->stackptr = stackptr;
+}
+
+void vm_gc_mark_stack(vm_gc_t *gc)
+{
+    for (nanbox_t *ptr = gc->baseptr; ptr < gc->stackptr; ptr++)
+    {
+        if (nanbox_is_pointer(*ptr))
+        {
+            int *sub = nanbox_to_pointer(*ptr);
+            int mark = *(sub - 2);
+            if (mark != GC_MARK_KEEP)
+            {
+                *(sub - 2) = GC_MARK_KEEP;
+                vm_gc_mark(gc, *(sub - 1), (nanbox_t *)sub);
+            }
+        }
+    }
+}
+
+void vm_gc_run(vm_gc_t *gc)
+{
+    vm_gc_mark_stack(gc);
+    vm_gc_sweep(gc);
+}
+
+vm_gc_t *vm_gc_start(nanbox_t *baseptr)
+{
+    vm_gc_t *ret = vm_mem_alloc(sizeof(vm_gc_t));
+    ret->ptrs = vec_new(int *);
+    ret->baseptr = baseptr;
+    ret->maxlen = 256;
+    return ret;
 }
 
 void vm_gc_stop(vm_gc_t *gc)
 {
     vm_gc_sweep(gc);
     vec_del(gc->ptrs);
+    vm_mem_free(gc);
 }
 
 nanbox_t vm_gc_new(vm_gc_t *gc, int size)
 {
-    int *ptr = vm_mem_alloc( sizeof(nanbox_t) * size + sizeof(int) * 2);
+    int *ptr = vm_mem_alloc(sizeof(nanbox_t) * size + sizeof(int) * 2);
     vec_push(gc->ptrs, ptr);
     *ptr = GC_MARK_DELETE;
     ptr += 1;
@@ -60,8 +92,7 @@ void vm_gc_mark(vm_gc_t *gc, int len, nanbox_t *ptrs)
         if (nanbox_is_pointer(ptrs[i]))
         {
             int *sub = nanbox_to_pointer(ptrs[i]);
-            int mark = *(sub - 2);
-            if (mark == GC_MARK_DELETE)
+            if (*(sub - 2) != GC_MARK_KEEP)
             {
                 *(sub - 2) = GC_MARK_KEEP;
                 vm_gc_mark(gc, *(sub - 1), (nanbox_t *)sub);
@@ -89,10 +120,4 @@ void vm_gc_sweep(vm_gc_t *gc)
         }
     }
     vec_set_size(gc->ptrs, out);
-}
-
-void vm_gc_run(vm_gc_t *gc, int len, nanbox_t *ptrs)
-{
-    vm_gc_mark(gc, len, ptrs);
-    vm_gc_sweep(gc);
 }

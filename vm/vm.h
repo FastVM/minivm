@@ -70,4 +70,13 @@ enum opcode_t
     OPCODE_MAX2P = 128,
 };
 
+typedef struct
+{
+  int index;
+  int func;
+  int bytecode;
+  int outreg;
+  int nlocals;
+} stack_frame_t;
+
 void vm_run(opcode_t *mem);

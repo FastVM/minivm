@@ -9,10 +9,9 @@
 .vscode/*
 .history
 .history/src
-cosmopolitan.h
 bin
+lib
 build
 perf.*
 target
 *.bc
-ape.lds
