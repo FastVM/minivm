@@ -26,7 +26,7 @@ void vm_gc_stop(vm_gc_t *gc)
 
 nanbox_t vm_gc_new(vm_gc_t *gc, int size)
 {
-    int *ptr = calloc(1, sizeof(nanbox_t) * size + sizeof(int) * 2);
+    int *ptr = vm_mem_alloc( sizeof(nanbox_t) * size + sizeof(int) * 2);
     vec_push(gc->ptrs, ptr);
     *ptr = GC_MARK_DELETE;
     ptr += 1;
@@ -79,7 +79,7 @@ void vm_gc_sweep(vm_gc_t *gc)
         int *ptr = *(int **)vec_get(gc->ptrs, i);
         if (*ptr == GC_MARK_DELETE)
         {
-            free(ptr);
+            vm_mem_free(ptr);
         }
         else
         {

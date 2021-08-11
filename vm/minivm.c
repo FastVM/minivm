@@ -54,6 +54,40 @@ typedef struct
 #define read_num (cur_bytecode_next(int))
 #define read_loc (cur_bytecode_next(int))
 
+void vm_putn(long n)
+{
+  if (n < 0)
+  {
+    vm_putchar('-');
+    vm_putn(-n);
+  }
+  else
+  {
+    if (n >= 10)
+    {
+      vm_putn(n / 10);
+    }
+    vm_putchar(n % 10 + '0');
+  }
+}
+
+void vm_puts(const char *ptr)
+{
+  while (*ptr)
+  {
+    vm_putchar(*ptr);
+    ptr += 1;
+  }
+}
+
+void vm_putf(double num)
+{
+  if (fmod(num, 1) == 0)
+  {
+    vm_putn((long)num);
+  }
+}
+
 void vm_print(vm_gc_t *gc, nanbox_t val)
 {
   if (nanbox_is_boolean(val))
@@ -61,39 +95,33 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
     bool log = nanbox_to_boolean(val);
     if (log)
     {
-      printf("true");
+      vm_puts("true");
     }
     else
     {
-      printf("false");
+      vm_puts("false");
     }
   }
   else if (nanbox_is_double(val))
   {
     number_t num = nanbox_to_double(val);
-    if (fmod(num, 1) == 0)
-    {
-      printf("%.0f", num);
-    }
-    else
-    {
-      printf("%f", num);
-    }
+    vm_putf(num);
   }
   else
   {
     bool first = true;
-    printf("[");
+    vm_putchar('[');
     int len = gcvec_size(gc, val);
     for (int i = 0; i < len; i++)
     {
       if (i != 0)
       {
-        printf(", ");
+        vm_putchar(',');
+        vm_putchar(' ');
       }
       vm_print(gc, gcvec_get(gc, val, i));
     }
-    printf("]");
+    vm_putchar(']');
   }
 }
 
@@ -104,9 +132,9 @@ void vm_run(opcode_t *basefunc)
   int gc_max = 1 << 8;
 
   int allocn = VM_FRAME_NUM;
-  stack_frame_t *frames_base = calloc(1, sizeof(stack_frame_t) * allocn);
+  stack_frame_t *frames_base = vm_mem_alloc( sizeof(stack_frame_t) * allocn);
   int locals_allocated = VM_LOCALS_NUM;
-  nanbox_t *locals_base = calloc(1, sizeof(nanbox_t) * locals_allocated);
+  nanbox_t *locals_base = vm_mem_alloc( sizeof(nanbox_t) * locals_allocated);
 
   stack_frame_t *cur_frame = frames_base;
   nanbox_t *cur_locals = locals_base;
@@ -176,8 +204,8 @@ void vm_run(opcode_t *basefunc)
   run_next_op;
 do_exit:
 {
-  free(frames_base);
-  free(locals_base);
+  vm_mem_free(frames_base);
+  vm_mem_free(locals_base);
   vm_gc_stop(&gc);
   return;
 }
@@ -751,7 +779,7 @@ do_println:
   vm_fetch;
   nanbox_t val = cur_locals[from];
   vm_print(&gc, val);
-  printf("\n");
+  vm_putchar('\n');
   run_next_op;
 }
 do_putchar:
@@ -759,7 +787,7 @@ do_putchar:
   reg_t from = read_reg;
   vm_fetch;
   char val = (char)nanbox_to_double(cur_locals[from]);
-  printf("%c", val);
+  vm_putchar(val);
   run_next_op;
 }
 }

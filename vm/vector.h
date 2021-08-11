@@ -17,7 +17,7 @@ struct vec_s
 static vec_t vec_new(int elem_size)
 {
   int allocated = 4;
-  vec_t ret = calloc(1, sizeof(struct vec_s) + elem_size * allocated);
+  vec_t ret = vm_mem_alloc(sizeof(struct vec_s) + elem_size * allocated);
   ret->length = 0;
   ret->size = elem_size;
   ret->allocated = elem_size * allocated;
@@ -29,8 +29,15 @@ static void vec_resize(vec_t *vecp, int ngrow)
   if ((*vecp)->length + (*vecp)->size * ngrow * 2 >= (*vecp)->allocated)
   {
     int nallocated = ((*vecp)->allocated + ngrow) * 4;
-    *vecp = realloc(*vecp, nallocated);
-    (*vecp)->allocated = nallocated;
+    vec_t next = vm_mem_alloc(nallocated);
+    *next = **vecp;
+    next->allocated = nallocated;
+    for (int i = 0; i < (*vecp)->allocated; i++)
+    {
+      next->values[i] = (*vecp)->values[i];
+    }
+    vm_mem_free(*vecp);
+    *vecp = next;
   }
 }
 
