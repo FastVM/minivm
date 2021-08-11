@@ -1,6 +1,9 @@
+#ifdef VM_DEBUG
+#include <vm/debug.h>
+#endif
+
 #include <vm/vm.h>
 #include <vm/vector.h>
-#include <vm/debug.h>
 #include <vm/gc.h>
 #include <vm/gcvec.h>
 
@@ -82,7 +85,7 @@ void vm_puts(const char *ptr)
 
 void vm_putf(double num)
 {
-  if (fmod(num, 1) == 0)
+  if (vm_fmod(num, 1) == 0)
   {
     vm_putn((long)num);
   }
@@ -132,9 +135,9 @@ void vm_run(opcode_t *basefunc)
   int gc_max = 1 << 8;
 
   int allocn = VM_FRAME_NUM;
-  stack_frame_t *frames_base = vm_mem_alloc( sizeof(stack_frame_t) * allocn);
+  stack_frame_t *frames_base = vm_mem_alloc(sizeof(stack_frame_t) * allocn);
   int locals_allocated = VM_LOCALS_NUM;
-  nanbox_t *locals_base = vm_mem_alloc( sizeof(nanbox_t) * locals_allocated);
+  nanbox_t *locals_base = vm_mem_alloc(sizeof(nanbox_t) * locals_allocated);
 
   stack_frame_t *cur_frame = frames_base;
   nanbox_t *cur_locals = locals_base;
@@ -761,7 +764,7 @@ do_mod:
   reg_t lhs = read_reg;
   reg_t rhs = read_reg;
   vm_fetch;
-  cur_locals[to] = nanbox_from_double(fmod(nanbox_to_double(cur_locals[lhs]), nanbox_to_double(cur_locals[rhs])));
+  cur_locals[to] = nanbox_from_double(vm_fmod(nanbox_to_double(cur_locals[lhs]), nanbox_to_double(cur_locals[rhs])));
   run_next_op;
 }
 do_mod_num:
@@ -770,7 +773,7 @@ do_mod_num:
   reg_t lhs = read_reg;
   number_t rhs = read_num;
   vm_fetch;
-  cur_locals[to] = nanbox_from_double(fmod(nanbox_to_double(cur_locals[lhs]), rhs));
+  cur_locals[to] = nanbox_from_double(vm_fmod(nanbox_to_double(cur_locals[lhs]), rhs));
   run_next_op;
 }
 do_println:
