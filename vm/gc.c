@@ -1,8 +1,7 @@
 #include <vm/gc.h>
 #include <vm/nanbox.h>
 #include <vm/vector.h>
-#include <pthread.h>
-#include <unistd.h>
+#include <time.h>
 
 enum gc_mark_t;
 typedef enum gc_mark_t gc_mark_t;
@@ -12,6 +11,7 @@ enum gc_mark_t
     GC_MARK_DELETE,
     GC_MARK_KEEP,
 };
+
 void vm_gc_stack_end_set(vm_gc_t *gc, nanbox_t *stackptr)
 {
     gc->stackptr = stackptr;
@@ -34,10 +34,17 @@ void vm_gc_mark_stack(vm_gc_t *gc)
     }
 }
 
+double vm_gc_time = 0;
+
 void vm_gc_run(vm_gc_t *gc)
 {
+    struct timespec tstart;
+    clock_gettime(CLOCK_MONOTONIC, &tstart);
     vm_gc_mark_stack(gc);
     vm_gc_sweep(gc);
+    struct timespec tend;
+    clock_gettime(CLOCK_MONOTONIC, &tend);
+    vm_gc_time += ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
 }
 
 vm_gc_t *vm_gc_start(nanbox_t *baseptr)
@@ -54,6 +61,7 @@ void vm_gc_stop(vm_gc_t *gc)
     vm_gc_sweep(gc);
     vec_del(gc->ptrs);
     vm_mem_free(gc);
+    // printf("total gc time: %.3fs\n", vm_gc_time);
 }
 
 nanbox_t vm_gc_new(vm_gc_t *gc, int size)

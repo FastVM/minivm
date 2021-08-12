@@ -23,7 +23,7 @@
 #define next_op (cur_index += 1, next_op_value)
 #endif
 
-#define vm_fetch (next_op_value = ptrs[basefunc[cur_index]])
+#define vm_fetch (vm_assume(basefunc[cur_index] < OPCODE_MAX1), next_op_value = ptrs[basefunc[cur_index]])
 
 #define vm_set_frame(frame_arg)          \
   (                                      \
@@ -221,7 +221,7 @@ do_array:
   {
     gc->stackptr = cur_locals + cur_frame->nlocals;
     vm_gc_run(gc);
-    gc->maxlen = 2 + vec_size(gc->ptrs) * 8;
+    gc->maxlen = 1 + vec_size(gc->ptrs) * 8;
   }
   reg_t outreg = read_reg;
   int nargs = read_int;

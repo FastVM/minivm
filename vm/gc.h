@@ -23,8 +23,6 @@ void vm_gc_stack_end_set(vm_gc_t *gc, nanbox_t *end);
 struct vm_gc_t
 {
     vec_t ptrs;
-    pthread_t thread;
-    pthread_mutex_t lock;
     nanbox_t *baseptr;
     nanbox_t *stackptr;
     int maxlen;
