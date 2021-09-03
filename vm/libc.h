@@ -5,15 +5,16 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
+#include <mimalloc/include/mimalloc.h>
 #else
 #include <cosmopolitan.h>
 #endif
 
-#define vm_mem_free(ptr) (free(ptr))
-#define vm_mem_alloc(len) (calloc(1, len))
+#define vm_mem_free(ptr) (mi_free(ptr))
+#define vm_mem_alloc0(len) (mi_calloc(1, len))
+#define vm_mem_alloc(len) (mi_malloc(len))
+#define vm_mem_realloc(ptr, len) (mi_realloc(ptr, len))
 #define vm_putchar(chr) (putchar(chr))
-#define vm_mem_free(ptr) (free(ptr))
 #define vm_putchar(chr) (putchar(chr))
 
 #if defined(__GNUC__) || defined(__clang__)

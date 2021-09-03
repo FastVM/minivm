@@ -8,7 +8,7 @@
 #include <vm/gcvec.h>
 
 #define VM_FRAME_NUM ((1 << 16))
-#define VM_LOCALS_NUM ((1 << 24))
+#define VM_LOCALS_NUM ((1 << 22))
 #define VM_GLOBALS_NUM ((256))
 
 #ifdef __clang__
@@ -123,16 +123,16 @@ void vm_run(opcode_t *basefunc)
 {
 
   int allocn = VM_FRAME_NUM;
-  stack_frame_t *frames_base = vm_mem_alloc(sizeof(stack_frame_t) * allocn);
+  stack_frame_t *frames_base = vm_mem_alloc0(sizeof(stack_frame_t) * allocn);
   int locals_allocated = VM_LOCALS_NUM;
-  nanbox_t *locals_base = vm_mem_alloc(sizeof(nanbox_t) * locals_allocated);
+  nanbox_t *locals_base = vm_mem_alloc0(sizeof(nanbox_t) * locals_allocated);
 
   stack_frame_t *cur_frame = frames_base;
   nanbox_t *cur_locals = locals_base;
   int cur_index = 0;
   int cur_func = 0;
 
-  vm_gc_t *gc = vm_gc_start(locals_base);
+  vm_gc_t *gc = vm_gc_start();
 
   void *next_op_value;
   void *ptrs[OPCODE_MAX2P] = {NULL};
@@ -217,11 +217,9 @@ do_return:
 }
 do_array:
 {
-  if (vec_size(gc->ptrs) >= gc->maxlen)
+  if (gc->length >= gc->maxlen)
   {
-    gc->stackptr = cur_locals + cur_frame->nlocals;
-    vm_gc_run(gc);
-    gc->maxlen = 1 + vec_size(gc->ptrs) * 8;
+    vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals, cur_locals + locals_allocated);
   }
   reg_t outreg = read_reg;
   int nargs = read_int;
@@ -327,7 +325,6 @@ do_rec:
   cur_frame++;
   cur_index = cur_func;
   cur_frame->nlocals = read_int;
-  vm_gc_stack_end_set(gc, cur_locals + cur_frame->nlocals);
   vm_fetch;
   run_next_op;
 }
