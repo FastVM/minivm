@@ -66,6 +66,7 @@ enum opcode_t
     OPCODE_LENGTH,
     OPCODE_INDEX,
     OPCODE_INDEX_NUM,
+    OPCODE_FFI_CALL,
     OPCODE_MAX1,
     OPCODE_MAX2P = 128,
 };

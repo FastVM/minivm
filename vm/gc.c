@@ -72,13 +72,13 @@ void vm_gc_stop(vm_gc_t *gc)
     vm_gc_sweep(gc);
     vm_mem_free(gc->ptrs);
     vm_mem_free(gc);
-    printf("gc stats: runs: %i\n", vm_gc_count);
-    printf("gc stats: total: %.3fs\n", vm_gc_time);
-    if (vm_gc_count != 0)
-    {
-        printf("gc stats: per run: %.3fms\n", (vm_gc_time / (double)vm_gc_count * 1000));
-        printf("gc stats: pause max: %.3fms\n", vm_gc_max_pause * 1000);
-    }
+    // printf("gc stats: runs: %i\n", vm_gc_count);
+    // printf("gc stats: total: %.3fs\n", vm_gc_time);
+    // if (vm_gc_count != 0)
+    // {
+    //     printf("gc stats: per run: %.3fms\n", (vm_gc_time / (double)vm_gc_count * 1000));
+    //     printf("gc stats: pause max: %.3fms\n", vm_gc_max_pause * 1000);
+    // }
 }
 
 nanbox_t vm_gc_new(vm_gc_t *gc, int size)

@@ -6,6 +6,7 @@
 #include <vm/vector.h>
 #include <vm/gc.h>
 #include <vm/gcvec.h>
+#include <vm/ffiop.h>
 
 #define VM_FRAME_NUM ((1 << 16))
 #define VM_LOCALS_NUM ((1 << 22))
@@ -17,11 +18,7 @@
 #define vm_assume(expr) (__builtin_expect(expr, true))
 #endif
 
-#ifdef VM_DEBUG
-#define next_op (vm_print_opcode(cur_index, basefunc), cur_index += 1, next_op_value)
-#else
 #define next_op (cur_index += 1, next_op_value)
-#endif
 
 #define vm_fetch (vm_assume(basefunc[cur_index] < OPCODE_MAX1), next_op_value = ptrs[basefunc[cur_index]])
 
@@ -76,9 +73,37 @@ void vm_puts(const char *ptr)
 
 void vm_putf(double num)
 {
+  if (num < 0) {
+    vm_putchar('-');
+    num = -num;
+  }
   if (vm_fmod(num, 1) == 0)
   {
     vm_putn((long)num);
+  }
+  else
+  {
+    double rem = vm_fmod(vm_fmod(num, 1) + 1, 1);
+    if (rem > 0.999) {
+      vm_putn((long) num + 1);
+    }
+    else if (rem < 0.001)
+    {
+      vm_putn((long)num);
+    }
+    else
+    {
+      vm_putn((long)num);
+      vm_putchar('.');
+      long irem = rem * 1000;
+      if (irem < 10) {
+        vm_putchar('0');
+      }
+      if (irem < 100) {
+        vm_putchar('0');
+      }
+      vm_putn((long)(irem));
+    }
   }
 }
 
@@ -101,7 +126,7 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
     number_t num = nanbox_to_double(val);
     vm_putf(num);
   }
-  else
+  else if (nanbox_is_pointer(val))
   {
     bool first = true;
     vm_putchar('[');
@@ -116,6 +141,10 @@ void vm_print(vm_gc_t *gc, nanbox_t val)
       vm_print(gc, gcvec_get(gc, val, i));
     }
     vm_putchar(']');
+  }
+  else
+  {
+    vm_puts("?");
   }
 }
 
@@ -192,6 +221,7 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_LENGTH] = &&do_length;
   ptrs[OPCODE_INDEX] = &&do_index;
   ptrs[OPCODE_INDEX_NUM] = &&do_index_num;
+  ptrs[OPCODE_FFI_CALL] = &&do_ffi_call;
   cur_frame->nlocals = VM_GLOBALS_NUM;
   vm_fetch;
   run_next_op;
@@ -612,7 +642,7 @@ do_jump_if_greater_num:
   int to = read_loc;
   reg_t lhs = read_reg;
   number_t rhs = read_num;
-  if (nanbox_to_double(cur_locals[lhs]) >= rhs)
+  if (nanbox_to_double(cur_locals[lhs]) > rhs)
   {
     cur_index = to;
   }
@@ -780,6 +810,29 @@ do_putchar:
   vm_fetch;
   char val = (char)nanbox_to_double(cur_locals[from]);
   vm_putchar(val);
+  run_next_op;
+}
+do_ffi_call:
+{
+  reg_t reg_out = read_reg;
+  reg_t reg_library = read_reg;
+  reg_t reg_function = read_reg;
+  reg_t reg_retty = read_reg;
+  reg_t reg_argty = read_reg;
+  reg_t reg_arguments = read_reg;
+  vm_fetch;
+  vm_ffi_res_t res = vm_ffi_opcode(gc, cur_locals[reg_library], cur_locals[reg_function], cur_locals[reg_retty], cur_locals[reg_argty], cur_locals[reg_arguments]);
+  if (res.state != VM_FFI_NO_ERROR)
+  {
+    vm_puts("ffi error #");
+    vm_putn(res.state);
+    vm_puts("\n");
+    goto do_exit;
+  }
+  else
+  {
+    cur_locals[reg_out] = res.result;
+  }
   run_next_op;
 }
 }
