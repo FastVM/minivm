@@ -34,6 +34,10 @@ int vm_ffi_type_size(vm_gc_t *gc, nanbox_t type)
         vm_ffi_type repr = (int)nanbox_to_double(type);
         switch (repr)
         {
+        case VM_FFI_TYPE_VOID:
+            return 0;
+        case VM_FFI_TYPE_BOOL:
+            return sizeof(uint32_t);
         case VM_FFI_TYPE_INT8:
             return sizeof(int8_t);
         case VM_FFI_TYPE_INT16:
@@ -54,7 +58,7 @@ int vm_ffi_type_size(vm_gc_t *gc, nanbox_t type)
             return sizeof(float);
         case VM_FFI_TYPE_FLOAT64:
             return sizeof(double);
-        case VM_FFI_TYPE_TEXT:
+        case VM_FFI_TYPE_STRING:
             return sizeof(char *);
         }
     }
@@ -72,6 +76,10 @@ ffi_type *vm_ffi_get_type(vm_gc_t *gc, nanbox_t type)
         vm_ffi_type repr = (int)nanbox_to_double(type);
         switch (repr)
         {
+        case VM_FFI_TYPE_VOID:
+            return &ffi_type_void;
+        case VM_FFI_TYPE_BOOL:
+            return &ffi_type_uint32;
         case VM_FFI_TYPE_INT8:
             return &ffi_type_sint8;
         case VM_FFI_TYPE_INT16:
@@ -92,7 +100,7 @@ ffi_type *vm_ffi_get_type(vm_gc_t *gc, nanbox_t type)
             return &ffi_type_float;
         case VM_FFI_TYPE_FLOAT64:
             return &ffi_type_double;
-        case VM_FFI_TYPE_TEXT:
+        case VM_FFI_TYPE_STRING:
             return &ffi_type_pointer;
         default:
             printf("internal error: get type: unknown enum\n");
@@ -113,6 +121,16 @@ void *vm_ffi_cast_input(vm_gc_t *gc, nanbox_t type, nanbox_t value)
         vm_ffi_type repr = (int)nanbox_to_double(type);
         switch (repr)
         {
+        case VM_FFI_TYPE_VOID:
+        {
+            return NULL;
+        }
+        case VM_FFI_TYPE_BOOL:
+        {
+            uint32_t *ret = vm_mem_alloc(sizeof(uint32_t));
+            *ret = (uint32_t)nanbox_to_boolean(value);
+            return ret;
+        }
         case VM_FFI_TYPE_INT8:
         {
             int8_t *ret = vm_mem_alloc(sizeof(int8_t));
@@ -173,7 +191,7 @@ void *vm_ffi_cast_input(vm_gc_t *gc, nanbox_t type, nanbox_t value)
             *ret = (double)nanbox_to_double(value);
             return ret;
         }
-        case VM_FFI_TYPE_TEXT:
+        case VM_FFI_TYPE_STRING:
         {
             char **ret = vm_mem_alloc(sizeof(char *));
             *ret = vm_ffi_tostring(gc, value);
@@ -198,6 +216,14 @@ nanbox_t vm_ffi_cast_output(vm_gc_t *gc, nanbox_t type, void *value)
         vm_ffi_type repr = (int)nanbox_to_double(type);
         switch (repr)
         {
+        case VM_FFI_TYPE_VOID:
+        {
+            return nanbox_from_boolean(false);
+        }
+        case VM_FFI_TYPE_BOOL:
+        {
+            return nanbox_from_boolean((bool)*(uint32_t *)value);
+        }
         case VM_FFI_TYPE_INT8:
         {
             return nanbox_from_double((double)*(int8_t *)value);
@@ -238,7 +264,7 @@ nanbox_t vm_ffi_cast_output(vm_gc_t *gc, nanbox_t type, void *value)
         {
             return nanbox_from_double((double)*(double *)value);
         }
-        case VM_FFI_TYPE_TEXT:
+        case VM_FFI_TYPE_STRING:
         {
             return vm_ffi_from_string(gc, *(char**)value);
         }

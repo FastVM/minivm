@@ -11,6 +11,8 @@ typedef struct vm_ffi_res_t vm_ffi_res_t;
 
 enum vm_ffi_type
 {
+    VM_FFI_TYPE_VOID,
+    VM_FFI_TYPE_BOOL,
     VM_FFI_TYPE_CHAR,
     VM_FFI_TYPE_SCHAR,
     VM_FFI_TYPE_UCHAR,
@@ -24,7 +26,7 @@ enum vm_ffi_type
     VM_FFI_TYPE_FLOAT32,
     VM_FFI_TYPE_FLOAT64,
     VM_FFI_TYPE_UINT64,
-    VM_FFI_TYPE_TEXT,
+    VM_FFI_TYPE_STRING,
 };
 
 enum vm_ffi_error_t
