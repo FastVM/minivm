@@ -1,4 +1,5 @@
 #include <vm/ffiop.h>
+#include <limits.h>
 #include <dlfcn.h>
 #include <ffi.h>
 
@@ -36,6 +37,12 @@ int vm_ffi_type_size(vm_gc_t *gc, nanbox_t type)
         {
         case VM_FFI_TYPE_VOID:
             return 0;
+        case VM_FFI_TYPE_CHAR:
+            return sizeof(char);
+        case VM_FFI_TYPE_SCHAR:
+            return sizeof(signed char);
+        case VM_FFI_TYPE_UCHAR:
+            return sizeof(unsigned char);
         case VM_FFI_TYPE_BOOL:
             return sizeof(uint32_t);
         case VM_FFI_TYPE_INT8:
@@ -78,6 +85,16 @@ ffi_type *vm_ffi_get_type(vm_gc_t *gc, nanbox_t type)
         {
         case VM_FFI_TYPE_VOID:
             return &ffi_type_void;
+        case VM_FFI_TYPE_CHAR:
+#if CHAR_MIN < 0
+            return &ffi_type_schar;
+#elif
+            return &ffi_type_uchar;
+#endif
+        case VM_FFI_TYPE_SCHAR:
+            return &ffi_type_schar;
+        case VM_FFI_TYPE_UCHAR:
+            return &ffi_type_schar;
         case VM_FFI_TYPE_BOOL:
             return &ffi_type_uint32;
         case VM_FFI_TYPE_INT8:
@@ -124,6 +141,24 @@ void *vm_ffi_cast_input(vm_gc_t *gc, nanbox_t type, nanbox_t value)
         case VM_FFI_TYPE_VOID:
         {
             return NULL;
+        }
+        case VM_FFI_TYPE_CHAR:
+        {
+            char *ret = vm_mem_alloc(sizeof(char));
+            *ret = (char)nanbox_to_boolean(value);
+            return ret;
+        }
+        case VM_FFI_TYPE_SCHAR:
+        {
+            signed char *ret = vm_mem_alloc(sizeof(signed char));
+            *ret = (signed char)nanbox_to_boolean(value);
+            return ret;
+        }
+        case VM_FFI_TYPE_UCHAR:
+        {
+            unsigned char *ret = vm_mem_alloc(sizeof(unsigned char));
+            *ret = (unsigned char)nanbox_to_boolean(value);
+            return ret;
         }
         case VM_FFI_TYPE_BOOL:
         {
@@ -220,6 +255,18 @@ nanbox_t vm_ffi_cast_output(vm_gc_t *gc, nanbox_t type, void *value)
         {
             return nanbox_from_boolean(false);
         }
+        case VM_FFI_TYPE_CHAR:
+        {
+            return nanbox_from_double((double) * (char *)value);
+        }
+        case VM_FFI_TYPE_SCHAR:
+        {
+            return nanbox_from_double((double) * (signed char *)value);
+        }
+        case VM_FFI_TYPE_UCHAR:
+        {
+            return nanbox_from_double((double) * (unsigned char *)value);
+        }
         case VM_FFI_TYPE_BOOL:
         {
             return nanbox_from_boolean((bool)*(uint32_t *)value);
@@ -295,6 +342,7 @@ vm_ffi_res_t vm_ffi_opcode(vm_gc_t *gc, nanbox_t library, nanbox_t function, nan
     }
     if (handle == NULL)
     {
+        printf("%s\n", dlerror());
         return (vm_ffi_res_t){
             .state = VM_FFI_ERROR_OPENING,
         };

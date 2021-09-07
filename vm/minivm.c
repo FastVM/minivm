@@ -1,7 +1,3 @@
-#ifdef VM_DEBUG
-#include <vm/debug.h>
-#endif
-
 #include <vm/vm.h>
 #include <vm/vector.h>
 #include <vm/gc.h>
@@ -20,7 +16,7 @@
 
 #define next_op (cur_index += 1, next_op_value)
 
-#define vm_fetch (vm_assume(basefunc[cur_index] < OPCODE_MAX1), next_op_value = ptrs[basefunc[cur_index]])
+#define vm_fetch (vm_assume(basefunc[cur_index] < OPCODE_MAX1), vm_assume(ptrs[basefunc[cur_index]] != NULL), next_op_value = ptrs[basefunc[cur_index]])
 
 #define vm_set_frame(frame_arg)          \
   (                                      \
