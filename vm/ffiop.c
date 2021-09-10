@@ -71,7 +71,7 @@ int vm_ffi_type_size(vm_gc_t *gc, nanbox_t type)
     }
     else
     {
-        printf("internal error: type size: no generics yet\n");
+        puts("internal error: type size: no generics yet");
         exit(0);
     }
 }
@@ -120,13 +120,13 @@ ffi_type *vm_ffi_get_type(vm_gc_t *gc, nanbox_t type)
         case VM_FFI_TYPE_STRING:
             return &ffi_type_pointer;
         default:
-            printf("internal error: get type: unknown enum\n");
+            puts("internal error: get type: unknown enum");
             exit(0);
         }
     }
     else
     {
-        printf("internal error: get type: no generics yet\n");
+        puts("internal error: get type: no generics yet");
         exit(0);
     }
 }
@@ -233,13 +233,13 @@ void *vm_ffi_cast_input(vm_gc_t *gc, nanbox_t type, nanbox_t value)
             return ret;
         }
         default:
-            printf("internal error: cast input: unknown enum\n");
+            puts("internal error: cast input: unknown enum");
             exit(0);
         }
     }
     else
     {
-        printf("internal error: cast input: no generics yet\n");
+        puts("internal error: cast input: no generics yet");
         exit(0);
     }
 }
@@ -316,13 +316,13 @@ nanbox_t vm_ffi_cast_output(vm_gc_t *gc, nanbox_t type, void *value)
             return vm_ffi_from_string(gc, *(char**)value);
         }
         default:
-            printf("internal error: cast output: unknown enum\n");
+            puts("internal error: cast output: unknown enum");
             exit(0);
         }
     }
     else
     {
-        printf("internal error: cast output: no generics yet\n");
+        puts("internal error: cast output: no generics yet");
         exit(0);
     }
 }

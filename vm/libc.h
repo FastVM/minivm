@@ -16,7 +16,6 @@
 #define vm_mem_alloc(len) (mi_malloc(len))
 #define vm_mem_realloc(ptr, len) (mi_realloc(ptr, len))
 #define vm_putchar(chr) (putchar(chr))
-#define vm_putchar(chr) (putchar(chr))
 
 #if defined(__GNUC__) || defined(__clang__)
 #define vm_fmod(lhs, rhs) (__builtin_fmod((lhs), (rhs)))

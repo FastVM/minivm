@@ -15,8 +15,8 @@ enum gc_mark_t
 
 void vm_gc_mark_stack(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_t *end)
 {
-    nanbox_t *ptr = base;
-    while (ptr < useful)
+// #pragma omp parallel for
+    for (nanbox_t *ptr = base; ptr < useful; ptr++)
     {
         if (nanbox_is_pointer(*ptr))
         {
@@ -27,34 +27,32 @@ void vm_gc_mark_stack(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_t *e
                 vm_gc_mark(gc, *(sub + 1), (nanbox_t *)(sub + 2));
             }
         }
-        ptr++;
     }
-    while (!nanbox_is_empty(*ptr) && ptr < end)
+    for (nanbox_t *ptr = useful; !nanbox_is_empty(*ptr) && ptr < end; ptr++)
     {
         *ptr = nanbox_empty();
-        ptr++;
     }
 }
 
-int vm_gc_count = 0;
-double vm_gc_time = 0;
-double vm_gc_max_pause = 0;
+// int vm_gc_count_num = 0;
+// double vm_gc_time_num = 0;
+// double vm_gc_max_pause_num = 0;
 
 void vm_gc_run(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_t *end)
 {
-    struct timespec tstart;
-    clock_gettime(CLOCK_MONOTONIC, &tstart);
+    // struct timespec tstart;
+    // clock_gettime(CLOCK_MONOTONIC, &tstart);
     vm_gc_mark_stack(gc, base, useful, end);
     vm_gc_sweep(gc);
-    struct timespec tend;
-    clock_gettime(CLOCK_MONOTONIC, &tend);
-    double pause = ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
-    vm_gc_count += 1;
-    vm_gc_time += pause;
-    if (pause > vm_gc_max_pause)
-    {
-        vm_gc_max_pause = pause;
-    }
+    // struct timespec tend;
+    // clock_gettime(CLOCK_MONOTONIC, &tend);
+    // double pause = ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec);
+    // vm_gc_count_num += 1;
+    // vm_gc_time_num += pause;
+    // if (pause > vm_gc_max_pause_num)
+    // {
+    //     vm_gc_max_pause_num = pause;
+    // }
 }
 
 vm_gc_t *vm_gc_start(void)
