@@ -207,8 +207,17 @@ void vm_run(opcode_t *basefunc)
   ptrs[OPCODE_DIV_NUM] = &&do_div_num;
   ptrs[OPCODE_MOD] = &&do_mod;
   ptrs[OPCODE_MOD_NUM] = &&do_mod_num;
+  ptrs[OPCODE_CALL0] = &&do_call0;
+  ptrs[OPCODE_CALL1] = &&do_call1;
+  ptrs[OPCODE_CALL2] = &&do_call2;
   ptrs[OPCODE_CALL] = &&do_call;
+  ptrs[OPCODE_STATIC_CALL0] = &&do_static_call0;
+  ptrs[OPCODE_STATIC_CALL1] = &&do_static_call1;
+  ptrs[OPCODE_STATIC_CALL2] = &&do_static_call2;
   ptrs[OPCODE_STATIC_CALL] = &&do_static_call;
+  ptrs[OPCODE_REC0] = &&do_rec0;
+  ptrs[OPCODE_REC1] = &&do_rec1;
+  ptrs[OPCODE_REC2] = &&do_rec2;
   ptrs[OPCODE_REC] = &&do_rec;
   ptrs[OPCODE_RETURN] = &&do_return;
   ptrs[OPCODE_PRINTLN] = &&do_println;
@@ -289,6 +298,78 @@ do_index_num:
   cur_locals[outreg] = gcvec_get(gc, vec, (long)index);
   run_next_op;
 }
+do_call0:
+{
+  reg_t outreg = read_reg;
+  reg_t func = read_reg;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  nanbox_t funcv = cur_locals[func];
+  for (int i = 0; !nanbox_is_int(funcv); i++)
+  {
+    next_locals[i] = funcv;
+    funcv = gcvec_get(gc, funcv, 0);
+  }
+  int next_func = nanbox_to_int(funcv);
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = next_func;
+  cur_func = next_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
+do_call1:
+{
+  reg_t outreg = read_reg;
+  reg_t func = read_reg;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  next_locals[0] = cur_locals[read_reg];
+  nanbox_t funcv = cur_locals[func];
+  for (int i = 1; !nanbox_is_int(funcv); i++)
+  {
+    next_locals[i] = funcv;
+    funcv = gcvec_get(gc, funcv, 0);
+  }
+  int next_func = nanbox_to_int(funcv);
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = next_func;
+  cur_func = next_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
+do_call2:
+{
+  reg_t outreg = read_reg;
+  reg_t func = read_reg;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  next_locals[0] = cur_locals[read_reg];
+  next_locals[1] = cur_locals[read_reg];
+  nanbox_t funcv = cur_locals[func];
+  for (int i = 2; !nanbox_is_int(funcv); i++)
+  {
+    next_locals[i] = funcv;
+    funcv = gcvec_get(gc, funcv, 0);
+  }
+  int next_func = nanbox_to_int(funcv);
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = next_func;
+  cur_func = next_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
 do_call:
 {
   reg_t outreg = read_reg;
@@ -300,7 +381,64 @@ do_call:
     reg_t regno = read_reg;
     next_locals[argno] = cur_locals[regno];
   }
-  int next_func = nanbox_to_int(cur_locals[func]);
+  nanbox_t funcv = cur_locals[func];
+  for (int i = nargs; !nanbox_is_int(funcv); i++)
+  {
+    next_locals[i] = funcv;
+    funcv = gcvec_get(gc, funcv, 0);
+  }
+  int next_func = nanbox_to_int(funcv);
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = next_func;
+  cur_func = next_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
+do_static_call0:
+{
+  reg_t outreg = read_reg;
+  int next_func = read_loc;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = next_func;
+  cur_func = next_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
+do_static_call1:
+{
+  reg_t outreg = read_reg;
+  int next_func = read_loc;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  next_locals[0] = cur_locals[read_reg];
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = next_func;
+  cur_func = next_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
+do_static_call2:
+{
+  reg_t outreg = read_reg;
+  int next_func = read_loc;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  next_locals[0] = cur_locals[read_reg];
+  next_locals[1] = cur_locals[read_reg];
   cur_locals = next_locals;
   cur_frame->index = cur_index;
   cur_frame->func = cur_func;
@@ -334,6 +472,54 @@ do_static_call:
   vm_fetch;
   run_next_op;
 }
+do_rec0:
+{
+  reg_t outreg = read_reg;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  next_locals[0] = cur_locals[0];
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = cur_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
+do_rec1:
+{
+  reg_t outreg = read_reg;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  next_locals[0] = cur_locals[read_reg];
+  next_locals[1] = cur_locals[1];
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = cur_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
+do_rec2:
+{
+  reg_t outreg = read_reg;
+  nanbox_t *next_locals = cur_locals + cur_frame->nlocals;
+  next_locals[0] = cur_locals[read_reg];
+  next_locals[1] = cur_locals[read_reg];
+  next_locals[2] = cur_locals[2];
+  cur_locals = next_locals;
+  cur_frame->index = cur_index;
+  cur_frame->func = cur_func;
+  cur_frame->outreg = outreg;
+  cur_frame++;
+  cur_index = cur_func;
+  cur_frame->nlocals = read_int;
+  vm_fetch;
+  run_next_op;
+}
 do_rec:
 {
   reg_t outreg = read_reg;
@@ -344,6 +530,7 @@ do_rec:
     reg_t regno = read_reg;
     next_locals[argno] = cur_locals[regno];
   }
+  next_locals[nargs] = cur_locals[nargs];
   cur_locals = next_locals;
   cur_frame->index = cur_index;
   cur_frame->func = cur_func;
