@@ -1,10 +1,11 @@
 
 CC=gcc
+MICC=$(CC)
 
 BIN=bin
 LIB=lib
 
-SRCS=vm/minivm.c vm/gc.c vm/ffiop.c main/main.c
+SRCS=vm/minivm.c vm/gc.c main/main.c
 
 OPT=-O3
 
@@ -14,10 +15,11 @@ default: all
 
 all: $(BIN)/minivm
 
-$(BIN)/minivm: $(SRCS)
-	$(CC) $^ -o $@ $(CFLAGS) -lffi -ldl -I. -lm $(OPT)
+$(BIN)/minivm: $(SRCS) $(LIB)/libmimalloc.a
+	$(CC) $^ -o $@ $(CFLAGS)  -I. -lm $(OPT)
 
-# $(LIB)/libmimalloc.a: mimalloc
-# 	$(MAKE) --no-print-directory -f mimalloc.mak LIB=$(LIB)
+$(LIB)/libmimalloc.a: mimalloc
+	@$(MAKE) --no-print-directory -f mimalloc.mak CC=$(MICC)
+	cp minivm/lib/libmimalloc.a $@
 
 .dummy:

@@ -1,7 +1,7 @@
 #include <vm/gc.h>
 #include <vm/nanbox.h>
 
-#define VM_GC_MEM_GROW (3)
+#define VM_GC_MEM_GROW (2)
 
 enum gc_mark_t;
 typedef enum gc_mark_t gc_mark_t;

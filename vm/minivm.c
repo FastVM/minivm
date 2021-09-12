@@ -2,7 +2,6 @@
 #include <vm/vector.h>
 #include <vm/gc.h>
 #include <vm/gcvec.h>
-#include <vm/ffiop.h>
 
 #define VM_FRAME_NUM ((1 << 16))
 #define VM_LOCALS_NUM ((1 << 22))
@@ -247,7 +246,6 @@ void vm_run(opcode_t *basefunc)
     ptrs[OPCODE_LENGTH] = &&do_length;
     ptrs[OPCODE_INDEX] = &&do_index;
     ptrs[OPCODE_INDEX_NUM] = &&do_index_num;
-    ptrs[OPCODE_FFI_CALL] = &&do_ffi_call;
     cur_frame->nlocals = VM_GLOBALS_NUM;
     vm_fetch;
     run_next_op;
@@ -1008,29 +1006,6 @@ do_putchar:
     vm_fetch;
     char val = (char)nanbox_to_double(cur_locals[from]);
     vm_putchar(val);
-    run_next_op;
-}
-do_ffi_call:
-{
-    reg_t reg_out = read_reg;
-    reg_t reg_library = read_reg;
-    reg_t reg_function = read_reg;
-    reg_t reg_retty = read_reg;
-    reg_t reg_argty = read_reg;
-    reg_t reg_arguments = read_reg;
-    vm_fetch;
-    vm_ffi_res_t res = vm_ffi_opcode(gc, cur_locals[reg_library], cur_locals[reg_function], cur_locals[reg_retty], cur_locals[reg_argty], cur_locals[reg_arguments]);
-    if (res.state != VM_FFI_NO_ERROR)
-    {
-        vm_puts("ffi error #");
-        vm_putn(res.state);
-        vm_puts("\n");
-        goto do_exit;
-    }
-    else
-    {
-        cur_locals[reg_out] = res.result;
-    }
     run_next_op;
 }
 }

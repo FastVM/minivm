@@ -11,7 +11,7 @@
 #include <cosmopolitan.h>
 #endif
 
-#ifdef VM_MEM_MIMALLOC
+#if !defined(VM_MEM_NO_MI) && !defined(VM_COSMO)
 #define vm_mem_free(ptr) (mi_free(ptr))
 #define vm_mem_alloc0(len) (mi_calloc(1, len))
 #define vm_mem_alloc(len) (mi_malloc(len))
@@ -28,6 +28,8 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define vm_fmod(lhs, rhs) (__builtin_fmod((lhs), (rhs)))
 #else
+#ifndef VM_COSMO
 #include <math.h>
+#endif
 #define vm_fmod(lhs, rhs) fmod((lhs), (rhs))
 #endif
