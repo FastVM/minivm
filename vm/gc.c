@@ -104,7 +104,6 @@ void vm_gc_mark_stack_even(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox
     }
 }
 
-#if VM_GC_DEEP_OBJECTS
 void vm_gc_mark_even(vm_gc_t *gc, int len, nanbox_t *ptrs)
 {
     while (true)
@@ -146,25 +145,6 @@ void vm_gc_mark_even(vm_gc_t *gc, int len, nanbox_t *ptrs)
         len = nlen;
     }
 }
-#else
-void vm_gc_mark_even(vm_gc_t *gc, int len, nanbox_t *ptrs)
-{
-    int i = 0;
-    while (i < len)
-    {
-        if (nanbox_is_pointer(ptrs[i]))
-        {
-            int *sub = nanbox_to_pointer(ptrs[i]);
-            if (*sub == GC_MARK_0)
-            {
-                *sub = GC_MARK_1;
-                vm_gc_mark_even(gc, *(sub + 1), (nanbox_t *)(sub + 2));
-            }
-        }
-        i += 1;
-    }
-}
-#endif
 
 void vm_gc_sweep_even(vm_gc_t *gc)
 {
@@ -216,7 +196,6 @@ void vm_gc_mark_stack_odd(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_
     }
 }
 
-#if VM_GC_DEEP_OBJECTS
 void vm_gc_mark_odd(vm_gc_t *gc, int len, nanbox_t *ptrs)
 {
     while (true)
@@ -258,25 +237,6 @@ void vm_gc_mark_odd(vm_gc_t *gc, int len, nanbox_t *ptrs)
         len = nlen;
     }
 }
-#else
-void vm_gc_mark_odd(vm_gc_t *gc, int len, nanbox_t *ptrs)
-{
-    int i = 0;
-    while (i < len)
-    {
-        if (nanbox_is_pointer(ptrs[i]))
-        {
-            int *sub = nanbox_to_pointer(ptrs[i]);
-            if (*sub == GC_MARK_1)
-            {
-                *sub = GC_MARK_0;
-                vm_gc_mark_odd(gc, *(sub + 1), (nanbox_t *)(sub + 2));
-            }
-        }
-        i += 1;
-    }
-}
-#endif
 
 void vm_gc_sweep_odd(vm_gc_t *gc)
 {

@@ -12,7 +12,6 @@ enum opcode_t
 {
     OPCODE_EXIT,
     OPCODE_STORE_REG,
-    OPCODE_STORE_LOG,
     OPCODE_STORE_NUM,
     OPCODE_STORE_FUN,
     OPCODE_EQUAL,
@@ -76,17 +75,26 @@ enum opcode_t
     OPCODE_INDEX,
     OPCODE_INDEX_NUM,
     OPCODE_FFI_CALL,
+    OPCODE_TYPEOF,
     OPCODE_MAX1,
     OPCODE_MAX2P = 128,
 };
 
+typedef enum
+{
+    VM_TYPE_LOGICAL,
+    VM_TYPE_NUMBER,
+    VM_TYPE_ARRAY,
+    VM_TYPE_FUNCTION,
+} vm_type_t;
+
 typedef struct
 {
-  int index;
-  int func;
-  int bytecode;
-  int outreg;
-  int nlocals;
+    int index;
+    int func;
+    int bytecode;
+    int outreg;
+    int nlocals;
 } stack_frame_t;
 
 void vm_run(opcode_t *mem);

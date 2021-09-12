@@ -11,10 +11,18 @@
 #include <cosmopolitan.h>
 #endif
 
+#ifdef VM_MEM_MIMALLOC
 #define vm_mem_free(ptr) (mi_free(ptr))
 #define vm_mem_alloc0(len) (mi_calloc(1, len))
 #define vm_mem_alloc(len) (mi_malloc(len))
 #define vm_mem_realloc(ptr, len) (mi_realloc(ptr, len))
+#else
+#define vm_mem_free(ptr) (free(ptr))
+#define vm_mem_alloc0(len) (calloc(1, len))
+#define vm_mem_alloc(len) (malloc(len))
+#define vm_mem_realloc(ptr, len) (realloc(ptr, len))
+#endif
+
 #define vm_putchar(chr) (putchar(chr))
 
 #if defined(__GNUC__) || defined(__clang__)

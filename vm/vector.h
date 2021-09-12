@@ -26,18 +26,11 @@ static vec_t vec_new(int elem_size)
 
 static void vec_resize(vec_t *vecp, int ngrow)
 {
-  if ((*vecp)->length + (*vecp)->size * ngrow * 2 >= (*vecp)->allocated)
+  if ((*vecp)->length + (*vecp)->size * ngrow >= (*vecp)->allocated)
   {
     int nallocated = ((*vecp)->allocated + ngrow) * 4;
-    vec_t next = vm_mem_alloc(nallocated);
-    *next = **vecp;
-    next->allocated = nallocated;
-    for (int i = 0; i < (*vecp)->allocated; i++)
-    {
-      next->values[i] = (*vecp)->values[i];
-    }
-    vm_mem_free(*vecp);
-    *vecp = next;
+    *vecp = vm_mem_realloc(*vecp, sizeof(struct vec_s) + nallocated);
+    (*vecp)->allocated = nallocated;
   }
 }
 

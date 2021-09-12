@@ -1,17 +1,22 @@
 #include <vm/vector.h>
 #include <vm/vm.h>
 #include <vm/libc.h>
+#include <stdio.h>
 #ifdef VM_COSMO
 #include <cosmopolitan.h>
 #endif
 
-int main()
+int main(int argc, char **argv)
 {
-    vec_t ops = vec_new(opcode_t);
-    while (!feof(stdin))
+    FILE *file = fopen(argv[1], "rb");
+    vec_t ops = vec_new(char);
+    while (!feof(file))
     {
-        vec_push(ops, (opcode_t)(fgetc(stdin)));
+        char op = (fgetc(file));
+        vec_push(ops, op);
+        printf("%i < %i\n", ops->length, ops->allocated);
     }
-    vm_run(&ops->values[0]);
-    vec_del(ops);
+    fclose(file);
+    vm_run((opcode_t *)vec_get(ops, 0));
+    // vec_del(ops);
 }
