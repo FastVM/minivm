@@ -15,3 +15,6 @@ build
 perf.*
 target
 *.bc
+hello.c
+ape.lds
+scosmopolitan.h
