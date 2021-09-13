@@ -34,7 +34,7 @@ vm_gc_t *vm_gc_start(void)
     ret->maxlen = 16;
     ret->alloc = 16;
     ret->length = 0;
-    ret->ptrs = vm_mem_alloc(ret->alloc * sizeof(int *));
+    ret->ptrs = vm_mem_alloc(ret->alloc * sizeof(uint8_t *));
     ret->state = 0;
     return ret;
 }
@@ -44,7 +44,7 @@ void vm_gc_stop(vm_gc_t *gc)
     int max = gc->length;
     for (int i = 0; i < max; i++)
     {
-        int *ptr = gc->ptrs[i];
+        uint8_t *ptr = gc->ptrs[i];
         vm_mem_free(ptr);
     }
     vm_mem_free(gc->ptrs);
@@ -53,7 +53,7 @@ void vm_gc_stop(vm_gc_t *gc)
 
 nanbox_t vm_gc_new(vm_gc_t *gc, int size)
 {
-    int *ptr = vm_mem_alloc(sizeof(nanbox_t) * size + sizeof(int) * 2);
+    uint8_t *ptr = vm_mem_alloc(sizeof(nanbox_t) * size + sizeof(uint8_t) * 2);
     gc->ptrs[gc->length++] = ptr;
     *ptr = gc->state;
     *(ptr + 1) = size;
@@ -62,20 +62,20 @@ nanbox_t vm_gc_new(vm_gc_t *gc, int size)
 
 int vm_gc_sizeof(vm_gc_t *gc, nanbox_t ptr)
 {
-    int *head = nanbox_to_pointer(ptr);
+    uint8_t *head = nanbox_to_pointer(ptr);
     return *(head + 1);
 }
 
 nanbox_t vm_gc_get(vm_gc_t *gc, nanbox_t ptr, int nth)
 {
-    int *raw = nanbox_to_pointer(ptr);
+    uint8_t *raw = nanbox_to_pointer(ptr);
     nanbox_t *head = (nanbox_t *)(raw + 2);
     return head[nth];
 }
 
 void vm_gc_set(vm_gc_t *gc, nanbox_t ptr, int nth, nanbox_t val)
 {
-    int *raw = nanbox_to_pointer(ptr);
+    uint8_t *raw = nanbox_to_pointer(ptr);
     nanbox_t *head = (nanbox_t *)(raw + 2);
     head[nth] = val;
 }
@@ -90,7 +90,7 @@ void vm_gc_mark_stack_even(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox
     {
         if (nanbox_is_pointer(*ptr))
         {
-            int *sub = nanbox_to_pointer(*ptr);
+            uint8_t *sub = nanbox_to_pointer(*ptr);
             if (*sub == GC_MARK_0)
             {
                 *sub = GC_MARK_1;
@@ -115,7 +115,7 @@ void vm_gc_mark_even(vm_gc_t *gc, int len, nanbox_t *ptrs)
         {
             if (nanbox_is_pointer(ptrs[i]))
             {
-                int *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
                 if (*sub == GC_MARK_0)
                 {
                     *sub = GC_MARK_1;
@@ -132,7 +132,7 @@ void vm_gc_mark_even(vm_gc_t *gc, int len, nanbox_t *ptrs)
         {
             if (nanbox_is_pointer(ptrs[i]))
             {
-                int *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
                 if (*sub == GC_MARK_0)
                 {
                     *sub = GC_MARK_1;
@@ -152,7 +152,7 @@ void vm_gc_sweep_even(vm_gc_t *gc)
     int max = gc->length;
     for (int i = 0; i < max; i++)
     {
-        int *ptr = gc->ptrs[i];
+        uint8_t *ptr = gc->ptrs[i];
         if (*ptr == GC_MARK_0)
         {
             vm_mem_free(ptr);
@@ -168,7 +168,7 @@ void vm_gc_sweep_even(vm_gc_t *gc)
     if (gc->maxlen >= gc->alloc)
     {
         gc->alloc = newlen * 2;
-        gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(int *));
+        gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
     }
 }
 
@@ -182,7 +182,7 @@ void vm_gc_mark_stack_odd(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_
     {
         if (nanbox_is_pointer(*ptr))
         {
-            int *sub = nanbox_to_pointer(*ptr);
+            uint8_t *sub = nanbox_to_pointer(*ptr);
             if (*sub == GC_MARK_1)
             {
                 *sub = GC_MARK_0;
@@ -207,7 +207,7 @@ void vm_gc_mark_odd(vm_gc_t *gc, int len, nanbox_t *ptrs)
         {
             if (nanbox_is_pointer(ptrs[i]))
             {
-                int *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
                 if (*sub == GC_MARK_1)
                 {
                     *sub = GC_MARK_0;
@@ -224,7 +224,7 @@ void vm_gc_mark_odd(vm_gc_t *gc, int len, nanbox_t *ptrs)
         {
             if (nanbox_is_pointer(ptrs[i]))
             {
-                int *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
                 if (*sub == GC_MARK_1)
                 {
                     *sub = GC_MARK_0;
@@ -242,16 +242,17 @@ void vm_gc_sweep_odd(vm_gc_t *gc)
 {
     int out = 0;
     int max = gc->length;
+    int last = max;
     for (int i = 0; i < max; i++)
     {
-        int *ptr = gc->ptrs[i];
+        uint8_t *ptr = gc->ptrs[i];
         if (*ptr == GC_MARK_1)
         {
             vm_mem_free(ptr);
         }
         else
         {
-            gc->ptrs[out++] = gc->ptrs[i];
+            gc->ptrs[out++] = ptr;
         }
     }
     gc->length = out;
@@ -260,6 +261,6 @@ void vm_gc_sweep_odd(vm_gc_t *gc)
     if (gc->maxlen >= gc->alloc)
     {
         gc->alloc = newlen * 2;
-        gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(int *));
+        gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
     }
 }

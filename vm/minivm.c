@@ -707,7 +707,6 @@ do_jump_if_false:
     int to = read_loc;
     reg_t from = read_reg;
     if (nanbox_to_number(cur_locals[from]) == 0)
-        ;
     {
         cur_index = to;
     }

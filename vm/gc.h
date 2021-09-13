@@ -16,7 +16,7 @@ void vm_gc_set(vm_gc_t *gc, nanbox_t ptr, int index, nanbox_t value);
 
 struct vm_gc_t
 {
-    int **ptrs;
+    uint8_t **ptrs;
     int length;
     int alloc;
     int maxlen;
