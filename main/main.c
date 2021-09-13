@@ -12,6 +12,11 @@ int main(int argc, char **argv)
     for (int i = 1; i < argc; i++)
     {
         FILE *file = fopen(argv[i], "rb");
+        if (file == NULL)
+        {
+            printf("cannot open file: %s\n", argv[i]);
+            return 1;
+        }
         vec_t ops = vec_new(char);
         while (!feof(file))
         {

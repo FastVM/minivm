@@ -1,18 +1,16 @@
 #pragma once
 
 #include <vm/libc.h>
-#include <vm/nanbox.h>
+#include <vm/obj.h>
 
 typedef int reg_t;
-typedef int integer_t;
-typedef double number_t;
 typedef char opcode_t;
 
 enum opcode_t
 {
     OPCODE_EXIT,
     OPCODE_STORE_REG,
-    OPCODE_STORE_NUM,
+    OPCODE_STORE_INT,
     OPCODE_STORE_FUN,
     OPCODE_EQUAL,
     OPCODE_EQUAL_NUM,

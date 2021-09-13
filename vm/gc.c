@@ -1,5 +1,5 @@
 #include <vm/gc.h>
-#include <vm/nanbox.h>
+#include <vm/obj.h>
 
 #define VM_GC_MEM_GROW (2)
 
@@ -12,7 +12,7 @@ enum gc_mark_t
     GC_MARK_1 = 1,
 };
 
-void vm_gc_run(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_t *end)
+void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
 {
     if (gc->state == GC_MARK_0)
     {
@@ -51,32 +51,32 @@ void vm_gc_stop(vm_gc_t *gc)
     vm_mem_free(gc);
 }
 
-nanbox_t vm_gc_new(vm_gc_t *gc, int size)
+vm_obj_t vm_gc_new(vm_gc_t *gc, int size)
 {
-    uint8_t *ptr = vm_mem_alloc(sizeof(nanbox_t) * size + sizeof(uint8_t) * 2);
+    uint8_t *ptr = vm_mem_alloc(sizeof(vm_obj_t) * size + sizeof(uint8_t) * 2);
     gc->ptrs[gc->length++] = ptr;
     *ptr = gc->state;
     *(ptr + 1) = size;
-    return nanbox_from_pointer(ptr);
+    return vm_obj_of_ptr(ptr);
 }
 
-int vm_gc_sizeof(vm_gc_t *gc, nanbox_t ptr)
+int vm_gc_sizeof(vm_gc_t *gc, vm_obj_t ptr)
 {
-    uint8_t *head = nanbox_to_pointer(ptr);
+    uint8_t *head = vm_obj_to_ptr(ptr);
     return *(head + 1);
 }
 
-nanbox_t vm_gc_get(vm_gc_t *gc, nanbox_t ptr, int nth)
+vm_obj_t vm_gc_get(vm_gc_t *gc, vm_obj_t ptr, int nth)
 {
-    uint8_t *raw = nanbox_to_pointer(ptr);
-    nanbox_t *head = (nanbox_t *)(raw + 2);
+    uint8_t *raw = vm_obj_to_ptr(ptr);
+    vm_obj_t *head = (vm_obj_t *)(raw + 2);
     return head[nth];
 }
 
-void vm_gc_set(vm_gc_t *gc, nanbox_t ptr, int nth, nanbox_t val)
+void vm_gc_set(vm_gc_t *gc, vm_obj_t ptr, int nth, vm_obj_t val)
 {
-    uint8_t *raw = nanbox_to_pointer(ptr);
-    nanbox_t *head = (nanbox_t *)(raw + 2);
+    uint8_t *raw = vm_obj_to_ptr(ptr);
+    vm_obj_t *head = (vm_obj_t *)(raw + 2);
     head[nth] = val;
 }
 
@@ -84,43 +84,43 @@ void vm_gc_set(vm_gc_t *gc, nanbox_t ptr, int nth, nanbox_t val)
 
 // run when state is an even number
 
-void vm_gc_mark_stack_even(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_t *end)
+void vm_gc_mark_stack_even(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
 {
-    for (nanbox_t *ptr = base; ptr < useful; ptr++)
+    for (vm_obj_t *ptr = base; ptr < useful; ptr++)
     {
-        if (nanbox_is_pointer(*ptr))
+        if (vm_obj_is_ptr(*ptr))
         {
-            uint8_t *sub = nanbox_to_pointer(*ptr);
+            uint8_t *sub = vm_obj_to_ptr(*ptr);
             if (*sub == GC_MARK_0)
             {
                 *sub = GC_MARK_1;
-                vm_gc_mark_even(gc, *(sub + 1), (nanbox_t *)(sub + 2));
+                vm_gc_mark_even(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
             }
         }
     }
-    for (nanbox_t *ptr = useful; !nanbox_is_empty(*ptr) && ptr < end; ptr++)
+    for (vm_obj_t *ptr = useful; !vm_obj_is_dead(*ptr) && ptr < end; ptr++)
     {
-        *ptr = nanbox_empty();
+        *ptr = vm_obj_of_dead();
     }
 }
 
-void vm_gc_mark_even(vm_gc_t *gc, int len, nanbox_t *ptrs)
+void vm_gc_mark_even(vm_gc_t *gc, int len, vm_obj_t *ptrs)
 {
     while (true)
     {
-        nanbox_t *nptrs;
+        vm_obj_t *nptrs;
         int nlen;
         int i = 0;
         while (i < len)
         {
-            if (nanbox_is_pointer(ptrs[i]))
+            if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_0)
                 {
                     *sub = GC_MARK_1;
                     nlen = *(sub + 1);
-                    nptrs = (nanbox_t *)(sub + 2);
+                    nptrs = (vm_obj_t *)(sub + 2);
                     goto next;
                 }
             }
@@ -130,13 +130,13 @@ void vm_gc_mark_even(vm_gc_t *gc, int len, nanbox_t *ptrs)
     next:
         while (i < len)
         {
-            if (nanbox_is_pointer(ptrs[i]))
+            if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_0)
                 {
                     *sub = GC_MARK_1;
-                    vm_gc_mark_even(gc, *(sub + 1), (nanbox_t *)(sub + 2));
+                    vm_gc_mark_even(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
                 }
             }
             i += 1;
@@ -164,11 +164,14 @@ void vm_gc_sweep_even(vm_gc_t *gc)
     }
     gc->length = out;
     int newlen = 16 + out * VM_GC_MEM_GROW;
-    gc->maxlen = newlen;
-    if (gc->maxlen >= gc->alloc)
+    if (newlen > gc->maxlen)
     {
-        gc->alloc = newlen * 2;
-        gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
+        gc->maxlen = newlen;
+        if (gc->maxlen >= gc->alloc)
+        {
+            gc->alloc = newlen * 2;
+            gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
+        }
     }
 }
 
@@ -176,43 +179,43 @@ void vm_gc_sweep_even(vm_gc_t *gc)
 
 // run when state is an odd number
 
-void vm_gc_mark_stack_odd(vm_gc_t *gc, nanbox_t *base, nanbox_t *useful, nanbox_t *end)
+void vm_gc_mark_stack_odd(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
 {
-    for (nanbox_t *ptr = base; ptr < useful; ptr++)
+    for (vm_obj_t *ptr = base; ptr < useful; ptr++)
     {
-        if (nanbox_is_pointer(*ptr))
+        if (vm_obj_is_ptr(*ptr))
         {
-            uint8_t *sub = nanbox_to_pointer(*ptr);
+            uint8_t *sub = vm_obj_to_ptr(*ptr);
             if (*sub == GC_MARK_1)
             {
                 *sub = GC_MARK_0;
-                vm_gc_mark_odd(gc, *(sub + 1), (nanbox_t *)(sub + 2));
+                vm_gc_mark_odd(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
             }
         }
     }
-    for (nanbox_t *ptr = useful; !nanbox_is_empty(*ptr) && ptr < end; ptr++)
+    for (vm_obj_t *ptr = useful; !vm_obj_is_dead(*ptr) && ptr < end; ptr++)
     {
-        *ptr = nanbox_empty();
+        *ptr = vm_obj_of_dead();
     }
 }
 
-void vm_gc_mark_odd(vm_gc_t *gc, int len, nanbox_t *ptrs)
+void vm_gc_mark_odd(vm_gc_t *gc, int len, vm_obj_t *ptrs)
 {
     while (true)
     {
-        nanbox_t *nptrs;
+        vm_obj_t *nptrs;
         int nlen;
         int i = 0;
         while (i < len)
         {
-            if (nanbox_is_pointer(ptrs[i]))
+            if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_1)
                 {
                     *sub = GC_MARK_0;
                     nlen = *(sub + 1);
-                    nptrs = (nanbox_t *)(sub + 2);
+                    nptrs = (vm_obj_t *)(sub + 2);
                     goto next;
                 }
             }
@@ -222,13 +225,13 @@ void vm_gc_mark_odd(vm_gc_t *gc, int len, nanbox_t *ptrs)
     next:
         while (i < len)
         {
-            if (nanbox_is_pointer(ptrs[i]))
+            if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = nanbox_to_pointer(ptrs[i]);
+                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_1)
                 {
                     *sub = GC_MARK_0;
-                    vm_gc_mark_odd(gc, *(sub + 1), (nanbox_t *)(sub + 2));
+                    vm_gc_mark_odd(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
                 }
             }
             i += 1;
@@ -257,10 +260,13 @@ void vm_gc_sweep_odd(vm_gc_t *gc)
     }
     gc->length = out;
     int newlen = 16 + out * VM_GC_MEM_GROW;
-    gc->maxlen = newlen;
-    if (gc->maxlen >= gc->alloc)
+    if (newlen > gc->maxlen)
     {
-        gc->alloc = newlen * 2;
-        gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
+        gc->maxlen = newlen;
+        if (gc->maxlen >= gc->alloc)
+        {
+            gc->alloc = newlen * 2;
+            gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
+        }
     }
 }

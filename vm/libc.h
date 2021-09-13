@@ -24,12 +24,3 @@
 #endif
 
 #define vm_putchar(chr) (putchar(chr))
-
-#if defined(__GNUC__) || defined(__clang__)
-#define vm_fmod(lhs, rhs) (__builtin_fmod((lhs), (rhs)))
-#else
-#ifndef VM_COSMO
-#include <math.h>
-#endif
-#define vm_fmod(lhs, rhs) fmod((lhs), (rhs))
-#endif

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vm/nanbox.h>
+#include <vm/obj.h>
 #include <vm/gc.h>
 
 #define gcvec_new(gc, size) (vm_gc_new(gc, size))
