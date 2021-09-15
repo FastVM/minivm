@@ -8,7 +8,7 @@ void vm_backend_bfasm(opcode_t *basefunc)
 	int nregs = 0;
 	printf("  stk %i\n", 1 << 12);
 	printf("  [bits 8]\n");
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < 24; i++)
 	{
 		printf("  push 0\n");
 	}
@@ -45,7 +45,7 @@ void vm_backend_bfasm(opcode_t *basefunc)
 			printf("  jmp %%loc_%i\n", end);
 			printf("@fun_%i\n", cur_index);
 			rec = cur_index;
-			nregs = read_int + 2;
+			nregs = read_int;
 			for (int i = 2; i < nregs; i++)
 			{
 				printf("  push 0\n");
