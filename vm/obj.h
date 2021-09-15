@@ -1,3 +1,4 @@
+#pragma once
 
 #include <vm/nanbox.h>
 typedef nanbox_t vm_obj_t;

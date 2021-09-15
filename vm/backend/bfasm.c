@@ -1,22 +1,6 @@
+#include <vm/backend/back.h>
 
-#include <vm/vm.h>
-#include <vm/libc.h>
-#include <vm/obj.h>
-
-#define cur_bytecode_next(Type)                       \
-	(                                                 \
-		{                                             \
-			Type ret = *(Type *)&basefunc[cur_index]; \
-			cur_index += sizeof(Type);                \
-			ret;                                      \
-		})
-
-#define read_instr (cur_bytecode_next(opcode_t))
-#define read_reg (cur_bytecode_next(int))
-#define read_int (cur_bytecode_next(int))
-#define read_loc (cur_bytecode_next(int))
-
-void vm_bfc_compile(opcode_t *basefunc)
+void vm_backend_bfasm(opcode_t *basefunc)
 {
 	int n = 0;
 	int cur_index = 0;
@@ -66,9 +50,18 @@ void vm_bfc_compile(opcode_t *basefunc)
 			{
 				printf("  push 0\n");
 			}
-			printf("  push r2\n");
-			printf("  push r1\n");
-			// printf("  spt r1, %i\n", 1);
+			if (nregs >= 2)
+			{
+				printf("  push r2\n");
+			}
+			if (nregs >= 1)
+			{
+				printf("  push r1\n");
+			}
+			break;
+		}
+		case OPCODE_FUN_DONE:
+		{
 			break;
 		}
 		case OPCODE_STATIC_CALL0:
@@ -524,15 +517,13 @@ void vm_bfc_compile(opcode_t *basefunc)
 		}
 		case OPCODE_EXIT:
 		{
-			goto done;
+			return;
 		}
 		default:
 		{
 			fprintf(stderr, "unhandle opcode: %i\n", (int)op);
-			goto done;
+			return;
 		}
 		}
 	}
-done:
-	return;
 }
