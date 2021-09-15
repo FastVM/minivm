@@ -216,7 +216,7 @@ void vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			printf("r[%i+d]=+(r[%i+d]==r[%i+d]);", to, lhs, rhs);
+			printf("r[%i+d]=+(r[%i+d]===r[%i+d]);", to, lhs, rhs);
 			break;
 		}
 		case OPCODE_EQUAL_NUM:
@@ -224,7 +224,7 @@ void vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			printf("r[%i+d]=+(r[%i+d]<%i);", to, lhs, rhs);
+			printf("r[%i+d]=+(r[%i+d]===%i);", to, lhs, rhs);
 			break;
 		}
 		case OPCODE_NOT_EQUAL:
@@ -232,7 +232,7 @@ void vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			printf("r[%i+d]=+(r[%i+d]<r[%i+d]);", to, lhs, rhs);
+			printf("r[%i+d]=+(r[%i+d]!==r[%i+d]);", to, lhs, rhs);
 			break;
 		}
 		case OPCODE_NOT_EQUAL_NUM:
@@ -240,7 +240,7 @@ void vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			printf("r[%i+d]=+(r[%i+d]<%i);", to, lhs, rhs);
+			printf("r[%i+d]=+(r[%i+d]!==%i);", to, lhs, rhs);
 			break;
 		}
 		case OPCODE_LESS:
