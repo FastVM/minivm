@@ -1,6 +1,6 @@
 #include <vm/backend/back.h>
 
-void vm_backend_bfasm(opcode_t *basefunc)
+void vm_backend_bf(opcode_t *basefunc)
 {
 	int n = 0;
 	int cur_index = 0;

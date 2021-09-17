@@ -1,20 +1,22 @@
 #include <vm/backend/back.h>
 
-char * vm_backend_js(opcode_t *basefunc)
+char * vm_backend_lua(opcode_t *basefunc)
 {
 	int buflen = 0;
-	int bufalloc = 256;
+	int bufalloc = 16;
 	char *bufptr = malloc(bufalloc);
+	int n = 0;
 	int cur_index = 0;
+	int depth = 0;
 	int *nregs = alloca(sizeof(int) * 256);
 	int *rec = alloca(sizeof(int) * 256);
 	int *base = rec;
 	*rec = 0;
 	*nregs = 256;
-	PUT("var o=0,r=[],a,d=0,s=[0];b:while(1){switch(o|0){");
+	PUTLN("local funcs = {}");
 	while (true)
 	{
-		OUT("case %i:", cur_index);
+		OUTLN("::op%i::", cur_index);
 	nocase:;
 		opcode_t op = read_instr;
 		switch (op)
@@ -23,14 +25,14 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t from = read_reg;
-			OUT("r[%i+d]=r[%i+d];", reg, from);
+			OUTLN("reg%i = reg%i", reg, from);
 			break;
 		}
 		case OPCODE_STORE_INT:
 		{
 			reg_t reg = read_reg;
 			int n = read_int;
-			OUT("r[%i+d]=%i;", reg, n);
+			OUTLN("reg%i = %i", reg, n);
 			break;
 		}
 		case OPCODE_STORE_FUN:
@@ -44,14 +46,27 @@ char * vm_backend_js(opcode_t *basefunc)
 				return NULL;
 			}
 			*(++rec) = cur_index;
-			OUT("r[%i+d]=%i;", to, cur_index);
-			OUT("o=%i;continue b;", end);
-			OUT("case %i:", cur_index);
-			*(++nregs) = read_int;
+			OUTLN("::op%i::", cur_index);
+			PUTLN("do");
+			depth++;
+			OUTLN("reg%i = %i", to, cur_index);
+			PUTLN("local function rec(reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7)");
+			int cnregs = read_int;
+			depth++;
+			*(++nregs) = cnregs;
+			for (int i = 8; i < cnregs; i++)
+			{
+				OUTLN("local reg%i", i);
+			}
 			goto nocase;
 		}
 		case OPCODE_FUN_DONE:
 		{
+			depth--;
+			PUTLN("end");
+			OUTLN("funcs[%i] = rec", *rec);
+			depth--;
+			PUTLN("end");
 			rec--;
 			nregs--;
 			break;
@@ -59,161 +74,122 @@ char * vm_backend_js(opcode_t *basefunc)
 		case OPCODE_RETURN:
 		{
 			reg_t reg = read_reg;
-			OUT("a=r[%i+d];", reg);
-			PUT("d=s.pop();");
-			PUT("r[s.pop()+d]=a;");
-			PUT("o=s.pop();continue b;");
+
+			OUTLN("do return reg%i end", reg);
+
 			break;
 		}
 		case OPCODE_CALL0:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t func = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+			OUTLN("reg%i = funcs[reg%i]()", OUTLNreg, func);
 			break;
 		}
 		case OPCODE_CALL1:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t func = read_loc;
 			reg_t r1arg = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("r[d+%i]=r[%i+d];", *nregs, r1arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+			OUTLN("reg%i = funcs[reg%i](reg%i)", OUTLNreg, func, r1arg);
 			break;
 		}
 		case OPCODE_CALL2:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t func = read_loc;
 			reg_t r1arg = read_reg;
 			reg_t r2arg = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("r[d+%i]=r[%i+d];", *nregs, r1arg);
-			OUT("r[d+%i]=r[%i+d];", 1 + *nregs, r2arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+			OUTLN("reg%i = funcs[reg%i](reg%i, reg%i)", OUTLNreg, func, r1arg, r2arg);
 			break;
 		}
 		case OPCODE_CALL:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t func = read_loc;
 			int nargs = read_int;
-			OUT("s.push(%i,%i);", cur_index, outreg);
+
 			for (int i = 0; i < nargs; i++)
 			{
 				if (i != 0)
 				{
-					PUT(",");
 				}
-				int argreg = read_reg;
-				OUT("r[d+%i]=r[d+%i];", i + *nregs, argreg);
 			}
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+
 			break;
 		}
 		case OPCODE_STATIC_CALL0:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			int next_func = read_loc;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", next_func);
+			OUTLN("reg%i = funcs[%i]()", OUTLNreg, next_func);
 			break;
 		}
 		case OPCODE_STATIC_CALL1:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			int next_func = read_loc;
 			reg_t r1arg = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("r[d+%i]=r[%i+d];", *nregs, r1arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", next_func);
+			OUTLN("reg%i = funcs[%i](reg%i)", OUTLNreg, next_func, r1arg);
 			break;
 		}
 		case OPCODE_STATIC_CALL2:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			int next_func = read_loc;
 			reg_t r1arg = read_reg;
 			reg_t r2arg = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("r[%i+d]=r[%i+d];", *nregs, r1arg);
-			OUT("r[%i+d]=r[%i+d];", 1 + *nregs, r2arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", next_func);
+			OUTLN("reg%i = funcs[%i](reg%i, reg%i)", OUTLNreg, next_func, r1arg, r2arg);
 			break;
 		}
 		case OPCODE_STATIC_CALL:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			int next_func = read_loc;
 			int nargs = read_int;
-			OUT("s.push(%i,%i);", cur_index, outreg);
+
 			for (int i = 0; i < nargs; i++)
 			{
 				if (i != 0)
 				{
-					PUT(",");
 				}
-				int argreg = read_reg;
-				OUT("r[d+%i]=r[d+%i];", i + *nregs, argreg);
 			}
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", next_func);
+
 			break;
 		}
 		case OPCODE_REC0:
 		{
-			reg_t outreg = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", *rec);
+			reg_t OUTLNreg = read_reg;
+			OUTLN("reg%i = rec()", OUTLNreg);
 			break;
 		}
 		case OPCODE_REC1:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t r1arg = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("r[d+%i]=r[%i+d];", *nregs, r1arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", *rec);
+			OUTLN("reg%i = rec(reg%i)", OUTLNreg, r1arg);
 			break;
 		}
 		case OPCODE_REC2:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t r1arg = read_reg;
 			reg_t r2arg = read_reg;
-			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("r[%i+d]=r[%i+d];", *nregs, r1arg);
-			OUT("r[%i+d]=r[%i+d];", 1 + *nregs, r2arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", *rec);
+			OUTLN("reg%i = rec(reg%i, reg%i)", OUTLNreg, r1arg, r2arg);
 			break;
 		}
 		case OPCODE_REC:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			int nargs = read_int;
-			OUT("s.push(%i,%i);", cur_index, outreg);
+
 			for (int i = 0; i < nargs; i++)
 			{
 				if (i != 0)
 				{
-					PUT(",");
 				}
-				int argreg = read_reg;
-				OUT("r[d+%i]=r[d+%i];", i + *nregs, argreg);
 			}
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=%i;continue b;", *rec);
+
 			break;
 		}
 		case OPCODE_EQUAL:
@@ -221,7 +197,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=+(r[%i+d]===r[%i+d]);", to, lhs, rhs);
+			OUTLN("if reg%i == reg%i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_EQUAL_NUM:
@@ -229,7 +205,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("r[%i+d]=+(r[%i+d]===%i);", to, lhs, rhs);
+			OUTLN("if reg%i == %i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_NOT_EQUAL:
@@ -237,7 +213,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=+(r[%i+d]!==r[%i+d]);", to, lhs, rhs);
+			OUTLN("if reg%i ~= reg%i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_NOT_EQUAL_NUM:
@@ -245,7 +221,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("r[%i+d]=+(r[%i+d]!==%i);", to, lhs, rhs);
+			OUTLN("if reg%i ~= %i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_LESS:
@@ -253,7 +229,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=+(r[%i+d]<r[%i+d]);", to, lhs, rhs);
+			OUTLN("if reg%i < reg%i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_LESS_NUM:
@@ -261,7 +237,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("r[%i+d]=+(r[%i+d]<%i);", to, lhs, rhs);
+			OUTLN("if reg%i < %i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_GREATER:
@@ -269,7 +245,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=+(r[%i+d]>r[%i+d]);", to, lhs, rhs);
+			OUTLN("if reg%i > reg%i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_GREATER_NUM:
@@ -277,7 +253,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("r[%i+d]=+(r[%i+d]>%i);", to, lhs, rhs);
+			OUTLN("if reg%i > %i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_LESS_THAN_EQUAL:
@@ -285,7 +261,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=+(r[%i+d]<=r[%i+d]);", to, lhs, rhs);
+			OUTLN("if reg%i <= reg%i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_LESS_THAN_EQUAL_NUM:
@@ -293,7 +269,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("r[%i+d]=+(r[%i+d]<=%i);", to, lhs, rhs);
+			OUTLN("if reg%i <= %i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_GREATER_THAN_EQUAL:
@@ -301,7 +277,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=+(r[%i+d]>=r[%i+d]);", to, lhs, rhs);
+			OUTLN("if reg%i >= reg%i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_GREATER_THAN_EQUAL_NUM:
@@ -309,27 +285,27 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t to = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("r[%i+d]=+(r[%i+d]>=%i);", to, lhs, rhs);
+			OUTLN("if reg%i >= %i then reg%i = 1 else reg%i = 0 end", lhs, rhs, to, to);
 			break;
 		}
 		case OPCODE_JUMP_ALWAYS:
 		{
 			int loc = read_loc;
-			OUT("o=%i;continue b;", loc);
+			OUTLN("goto op%i", loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_FALSE:
 		{
 			int loc = read_loc;
 			reg_t reg = read_reg;
-			OUT("if(!r[%i+d]){o=%i;continue b;}", reg, loc);
+			OUTLN("if reg%i == 0 then goto op%i end", reg, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_TRUE:
 		{
 			int loc = read_loc;
 			reg_t reg = read_reg;
-			OUT("if(r[%i+d]){o=%i;continue b;}", reg, loc);
+			OUTLN("if reg%i ~= 0 then goto op%i end", reg, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_EQUAL:
@@ -337,7 +313,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("if(r[%i+d]===r[%i+d]){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i == reg%i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_EQUAL_NUM:
@@ -345,7 +321,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("if(r[%i+d]===%i){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i == %i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_NOT_EQUAL:
@@ -353,7 +329,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("if(r[%i+d]!==r[%i+d]){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i ~= reg%i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_NOT_EQUAL_NUM:
@@ -361,7 +337,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("if(r[%i+d]!==%i){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i ~= %i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_LESS:
@@ -369,7 +345,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("if(r[%i+d]<r[%i+d]){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i < reg%i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_LESS_NUM:
@@ -377,7 +353,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("if(r[%i+d]<%i){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i < %i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_GREATER:
@@ -385,7 +361,8 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("if(r[%i+d]>r[%i+d]){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i > reg%i then goto op%i end", lhs, rhs, loc);
+
 			break;
 		}
 		case OPCODE_JUMP_IF_GREATER_NUM:
@@ -393,7 +370,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("if(r[%i+d]>%i){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i > %i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_LESS_THAN_EQUAL:
@@ -401,7 +378,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("if(r[%i+d]<=r[%i+d]){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i <= reg%i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_LESS_THAN_EQUAL_NUM:
@@ -409,7 +386,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("if(r[%i+d]<=%i){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i <= %i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_GREATER_THAN_EQUAL:
@@ -417,7 +394,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("if(r[%i+d]>=r[%i+d]){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i >= reg%i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_JUMP_IF_GREATER_THAN_EQUAL_NUM:
@@ -425,35 +402,35 @@ char * vm_backend_js(opcode_t *basefunc)
 			int loc = read_loc;
 			reg_t lhs = read_reg;
 			int rhs = read_int;
-			OUT("if(r[%i+d]>=%i){o=%i;continue b;}", lhs, rhs, loc);
+			OUTLN("if reg%i >= %i then goto op%i end", lhs, rhs, loc);
 			break;
 		}
 		case OPCODE_INC:
 		{
 			reg_t reg = read_reg;
 			reg_t from = read_reg;
-			OUT("r[%i+d]+=r[%i+d];", reg, from);
+			OUTLN("reg%i = reg%i + reg%i", reg, reg, from);
 			break;
 		}
 		case OPCODE_INC_NUM:
 		{
 			reg_t reg = read_reg;
 			int n = read_int;
-			OUT("r[%i+d]+=%i;", reg, n);
+			OUTLN("reg%i = reg%i + %i", reg, reg, n);
 			break;
 		}
 		case OPCODE_DEC:
 		{
 			reg_t reg = read_reg;
 			reg_t from = read_reg;
-			OUT("r[%i+d]-=r[%i+d];", reg, from);
+			OUTLN("reg%i = reg%i - reg%i", reg, reg, from);
 			break;
 		}
 		case OPCODE_DEC_NUM:
 		{
 			reg_t reg = read_reg;
 			int n = read_int;
-			OUT("r[%i+d]-=%i;", reg, n);
+			OUTLN("reg%i = reg%i - %i", reg, reg, n);
 			break;
 		}
 		case OPCODE_ADD:
@@ -461,7 +438,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]+r[%i+d];", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i + reg%i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_ADD_NUM:
@@ -469,7 +446,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]+%i;", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i + %i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_SUB:
@@ -477,7 +454,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]-r[%i+d];", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i - reg%i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_SUB_NUM:
@@ -485,7 +462,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]-%i;", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i - %i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_MUL:
@@ -493,7 +470,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]*r[%i+d];", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i * reg%i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_MUL_NUM:
@@ -501,7 +478,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]*%i;", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i * %i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_DIV:
@@ -509,7 +486,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]/r[%i+d];", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i / reg%i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_DIV_NUM:
@@ -517,7 +494,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]/%i;", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i / %i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_MOD:
@@ -525,7 +502,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]%%r[%i+d];", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i %% reg%i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_MOD_NUM:
@@ -533,63 +510,68 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
 			reg_t rhs = read_reg;
-			OUT("r[%i+d]=r[%i+d]%%%i;", reg, lhs, rhs);
+			OUTLN("reg%i = reg%i %% %i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_ARRAY:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			int nargs = read_int;
-			OUT("r[%i+d]=[", outreg);
+			OUTLN("reg%i = {", OUTLNreg);
+			depth++;
 			for (int i = 0; i < nargs; i++)
 			{
 				reg_t reg = read_reg;
-				if (i != 0)
+				if (i != nargs - 1)
 				{
-					PUT(",");
+					OUTLN("reg%i,", reg);
 				}
-				OUT("r[%i+d]", reg);
+				else
+				{
+					OUTLN("reg%i", reg);
+				}
 			}
-			PUT("];");
+			depth--;
+			PUTLN("}");
 			break;
 		}
 		case OPCODE_LENGTH:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t reg = read_reg;
-			OUT("r[%i+d]=r[%i+d].length;", outreg, reg);
+			OUTLN("reg%i = #reg%i", OUTLNreg, reg);
 			break;
 		}
 		case OPCODE_INDEX:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t reg = read_reg;
 			reg_t ind = read_reg;
-			OUT("r[%i+d]=r[%i+d][r[%i+d]];", outreg, reg, ind);
+			OUTLN("reg%i = reg%i[reg%i+1]", OUTLNreg, reg, ind);
 			break;
 		}
 		case OPCODE_INDEX_NUM:
 		{
-			reg_t outreg = read_reg;
+			reg_t OUTLNreg = read_reg;
 			reg_t reg = read_reg;
 			int index = read_reg;
-			OUT("r[%i+d]=r[%i+d][%i];", outreg, reg, index);
+			OUTLN("reg%i = reg%i[%i]", OUTLNreg, reg, index + 1);
 			break;
 		}
 		case OPCODE_PRINTLN:
 		{
 			reg_t reg = read_reg;
-			OUT("console.log(r[%i+d]);", reg);
+			OUTLN("print(reg%i)", reg);
 			break;
 		}
 		case OPCODE_EXIT:
 		{
-			PUT("break b;}}");
 			goto done;
 		}
 		default:
 		{
 			fprintf(stderr, "unhandle opcode: %i\n", (int)op);
+			free(bufptr);
 			return NULL;
 		}
 		}

@@ -1,7 +1,7 @@
 #include <vm/gc.h>
 #include <vm/obj.h>
 
-#define VM_GC_MEM_GROW (2)
+#define VM_GC_MEM_GROW (1.001)
 
 enum gc_mark_t;
 typedef enum gc_mark_t gc_mark_t;
