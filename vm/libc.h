@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <mimalloc/include/mimalloc.h>
 #else
 #include <cosmopolitan.h>
@@ -24,3 +25,4 @@
 #endif
 
 #define vm_putchar(chr) (putchar(chr))
+#define vm_fmod(lhs, rhs) (fmod(lhs, rhs))

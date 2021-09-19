@@ -10,6 +10,7 @@ char * vm_backend_lua(opcode_t *basefunc)
 	int depth = 0;
 	int *nregs = alloca(sizeof(int) * 256);
 	int *rec = alloca(sizeof(int) * 256);
+	int *freg = alloca(sizeof(int) * 256);
 	int *base = rec;
 	*rec = 0;
 	*nregs = 256;
@@ -49,7 +50,7 @@ char * vm_backend_lua(opcode_t *basefunc)
 			OUTLN("::op%i::", cur_index);
 			PUTLN("do");
 			depth++;
-			OUTLN("reg%i = %i", to, cur_index);
+			*(++freg) = to;
 			PUTLN("local function rec(reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7)");
 			int cnregs = read_int;
 			depth++;
@@ -64,9 +65,11 @@ char * vm_backend_lua(opcode_t *basefunc)
 		{
 			depth--;
 			PUTLN("end");
+			OUTLN("reg%i = rec", *freg);
 			OUTLN("funcs[%i] = rec", *rec);
 			depth--;
 			PUTLN("end");
+			freg--;
 			rec--;
 			nregs--;
 			break;
@@ -81,31 +84,55 @@ char * vm_backend_lua(opcode_t *basefunc)
 		}
 		case OPCODE_CALL0:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t func = read_reg;
-			OUTLN("reg%i = funcs[reg%i]()", OUTLNreg, func);
+			OUTLN("if type(reg%i) ~= 'function' then", func);
+			depth++;
+			OUTLN("reg%i = reg%i[1](reg%i)", outreg, func, func);
+			depth--;
+			PUTLN("else");
+			depth++;
+			OUTLN("reg%i = reg%i()", outreg, func);
+			depth--;
+			PUTLN("end");
 			break;
 		}
 		case OPCODE_CALL1:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t func = read_loc;
 			reg_t r1arg = read_reg;
-			OUTLN("reg%i = funcs[reg%i](reg%i)", OUTLNreg, func, r1arg);
+			OUTLN("if type(reg%i) ~= 'function' then", func);
+			depth++;
+			OUTLN("reg%i = reg%i[1](reg%i, reg%i)", outreg, func, r1arg, func);
+			depth--;
+			PUTLN("else");
+			depth++;
+			OUTLN("reg%i = reg%i(reg%i)", outreg, func, r1arg);
+			depth--;
+			PUTLN("end");
 			break;
 		}
 		case OPCODE_CALL2:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t func = read_loc;
 			reg_t r1arg = read_reg;
 			reg_t r2arg = read_reg;
-			OUTLN("reg%i = funcs[reg%i](reg%i, reg%i)", OUTLNreg, func, r1arg, r2arg);
+			OUTLN("if type(reg%i) ~= 'function' then", func);
+			depth++;
+			OUTLN("reg%i = reg%i[1](reg%i, reg%i, reg%i)", outreg, func, r1arg, r2arg, func);
+			depth--;
+			PUTLN("else");
+			depth++;
+			OUTLN("reg%i = reg%i(reg%i, reg%i)", outreg, func, r1arg, r2arg);
+			depth--;
+			PUTLN("end");
 			break;
 		}
 		case OPCODE_CALL:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t func = read_loc;
 			int nargs = read_int;
 
@@ -120,31 +147,31 @@ char * vm_backend_lua(opcode_t *basefunc)
 		}
 		case OPCODE_STATIC_CALL0:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			int next_func = read_loc;
-			OUTLN("reg%i = funcs[%i]()", OUTLNreg, next_func);
+			OUTLN("reg%i = funcs[%i]()", outreg, next_func);
 			break;
 		}
 		case OPCODE_STATIC_CALL1:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			int next_func = read_loc;
 			reg_t r1arg = read_reg;
-			OUTLN("reg%i = funcs[%i](reg%i)", OUTLNreg, next_func, r1arg);
+			OUTLN("reg%i = funcs[%i](reg%i)", outreg, next_func, r1arg);
 			break;
 		}
 		case OPCODE_STATIC_CALL2:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			int next_func = read_loc;
 			reg_t r1arg = read_reg;
 			reg_t r2arg = read_reg;
-			OUTLN("reg%i = funcs[%i](reg%i, reg%i)", OUTLNreg, next_func, r1arg, r2arg);
+			OUTLN("reg%i = funcs[%i](reg%i, reg%i)", outreg, next_func, r1arg, r2arg);
 			break;
 		}
 		case OPCODE_STATIC_CALL:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			int next_func = read_loc;
 			int nargs = read_int;
 
@@ -159,28 +186,28 @@ char * vm_backend_lua(opcode_t *basefunc)
 		}
 		case OPCODE_REC0:
 		{
-			reg_t OUTLNreg = read_reg;
-			OUTLN("reg%i = rec()", OUTLNreg);
+			reg_t outreg = read_reg;
+			OUTLN("reg%i = rec()", outreg);
 			break;
 		}
 		case OPCODE_REC1:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t r1arg = read_reg;
-			OUTLN("reg%i = rec(reg%i)", OUTLNreg, r1arg);
+			OUTLN("reg%i = rec(reg%i)", outreg, r1arg);
 			break;
 		}
 		case OPCODE_REC2:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t r1arg = read_reg;
 			reg_t r2arg = read_reg;
-			OUTLN("reg%i = rec(reg%i, reg%i)", OUTLNreg, r1arg, r2arg);
+			OUTLN("reg%i = rec(reg%i, reg%i)", outreg, r1arg, r2arg);
 			break;
 		}
 		case OPCODE_REC:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			int nargs = read_int;
 
 			for (int i = 0; i < nargs; i++)
@@ -515,9 +542,9 @@ char * vm_backend_lua(opcode_t *basefunc)
 		}
 		case OPCODE_ARRAY:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			int nargs = read_int;
-			OUTLN("reg%i = {", OUTLNreg);
+			OUTLN("reg%i = {", outreg);
 			depth++;
 			for (int i = 0; i < nargs; i++)
 			{
@@ -537,25 +564,25 @@ char * vm_backend_lua(opcode_t *basefunc)
 		}
 		case OPCODE_LENGTH:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t reg = read_reg;
-			OUTLN("reg%i = #reg%i", OUTLNreg, reg);
+			OUTLN("reg%i = #reg%i", outreg, reg);
 			break;
 		}
 		case OPCODE_INDEX:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t reg = read_reg;
 			reg_t ind = read_reg;
-			OUTLN("reg%i = reg%i[reg%i+1]", OUTLNreg, reg, ind);
+			OUTLN("reg%i = reg%i[reg%i+1]", outreg, reg, ind);
 			break;
 		}
 		case OPCODE_INDEX_NUM:
 		{
-			reg_t OUTLNreg = read_reg;
+			reg_t outreg = read_reg;
 			reg_t reg = read_reg;
 			int index = read_reg;
-			OUTLN("reg%i = reg%i[%i]", OUTLNreg, reg, index + 1);
+			OUTLN("reg%i = reg%i[%i]", outreg, reg, index + 1);
 			break;
 		}
 		case OPCODE_PRINTLN:

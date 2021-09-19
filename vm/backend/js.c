@@ -11,7 +11,7 @@ char * vm_backend_js(opcode_t *basefunc)
 	int *base = rec;
 	*rec = 0;
 	*nregs = 256;
-	PUT("var o=0,r=[],a,d=0,s=[0];b:while(1){switch(o|0){");
+	PUT("var o=0,r=[],a,d=0,s=[0],c=Array.isArray;b:while(1){switch(o|0){");
 	while (true)
 	{
 		OUT("case %i:", cur_index);
@@ -70,7 +70,9 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t outreg = read_reg;
 			reg_t func = read_reg;
 			OUT("s.push(%i,%i);", cur_index, outreg);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+			OUT("o=r[%i+d];", func);
+			PUT("s.push(d);");
+			OUT("d+=%i;if(c(o)){r[d]=o;o=o[0];}continue b;", *nregs);
 			break;
 		}
 		case OPCODE_CALL1:
@@ -80,8 +82,9 @@ char * vm_backend_js(opcode_t *basefunc)
 			reg_t r1arg = read_reg;
 			OUT("s.push(%i,%i);", cur_index, outreg);
 			OUT("r[d+%i]=r[%i+d];", *nregs, r1arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+			OUT("o=r[%i+d];", func);
+			PUT("s.push(d);");
+			OUT("d+=%i;if(c(o)){r[d+1]=o;o=o[0];}continue b;", *nregs);
 			break;
 		}
 		case OPCODE_CALL2:
@@ -93,8 +96,9 @@ char * vm_backend_js(opcode_t *basefunc)
 			OUT("s.push(%i,%i);", cur_index, outreg);
 			OUT("r[d+%i]=r[%i+d];", *nregs, r1arg);
 			OUT("r[d+%i]=r[%i+d];", 1 + *nregs, r2arg);
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+			OUT("o=r[%i+d];", func);
+			PUT("s.push(d);");
+			OUT("d+=%i;if(c(o)){r[d+2]=o;o=o[0];}continue b;", *nregs);
 			break;
 		}
 		case OPCODE_CALL:
@@ -112,8 +116,9 @@ char * vm_backend_js(opcode_t *basefunc)
 				int argreg = read_reg;
 				OUT("r[d+%i]=r[d+%i];", i + *nregs, argreg);
 			}
-			OUT("s.push(d);d+=%i;", *nregs);
-			OUT("o=r[%i+d];s.push(d);d+=%i;continue b;", func, *nregs);
+			OUT("o=r[%i+d];", func);
+			PUT("s.push(d);");
+			OUT("d+=%i;if(c(o)){r[d+%i]=o;o=o[0];}continue b;", *nregs, nargs);
 			break;
 		}
 		case OPCODE_STATIC_CALL0:
