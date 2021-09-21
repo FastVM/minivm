@@ -1,6 +1,6 @@
 #include <vm/backend/back.h>
 
-char * vm_backend_lua(opcode_t *basefunc)
+char *vm_backend_lua(opcode_t *basefunc)
 {
 	int buflen = 0;
 	int bufalloc = 16;
@@ -549,14 +549,7 @@ char * vm_backend_lua(opcode_t *basefunc)
 			for (int i = 0; i < nargs; i++)
 			{
 				reg_t reg = read_reg;
-				if (i != nargs - 1)
-				{
-					OUTLN("reg%i,", reg);
-				}
-				else
-				{
-					OUTLN("reg%i", reg);
-				}
+				OUTLN("reg%i,", reg);
 			}
 			depth--;
 			PUTLN("}");

@@ -253,7 +253,7 @@ do_length:
     reg_t reg = read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_obj_of_num((double)gcvec_size(gc, vec));
+    cur_locals[outreg] = vm_obj_of_int(gcvec_size(gc, vec));
     run_next_op;
 }
 do_index:
@@ -262,9 +262,9 @@ do_index:
     reg_t reg = read_reg;
     reg_t ind = read_reg;
     vm_fetch;
-    vm_number_t index = vm_obj_to_num(cur_locals[ind]);
+    int index = vm_obj_to_int(cur_locals[ind]);
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = gcvec_get(gc, vec, (long)index);
+    cur_locals[outreg] = gcvec_get(gc, vec, index);
     run_next_op;
 }
 do_index_num:
@@ -531,9 +531,9 @@ do_store_reg:
 do_store_int:
 {
     reg_t to = read_reg;
-    vm_number_t from = read_int;
+    int from = read_int;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(from);
+    cur_locals[to] = vm_obj_of_int(from);
     run_next_op;
 }
 do_store_fun:
@@ -552,16 +552,16 @@ do_equal:
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) == vm_obj_to_num(cur_locals[rhs]))) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_eq(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_equal_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) == rhs)) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_ieq(cur_locals[lhs], rhs));
     run_next_op;
 }
 do_not_equal:
@@ -570,16 +570,16 @@ do_not_equal:
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) != vm_obj_to_num(cur_locals[rhs]))) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_neq(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_not_equal_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) != rhs)) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_ineq(cur_locals[lhs], rhs));
     run_next_op;
 }
 do_less:
@@ -588,16 +588,16 @@ do_less:
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) < vm_obj_to_num(cur_locals[rhs]))) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_lt(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_less_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) < rhs)) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_ilt(cur_locals[lhs], rhs));
     run_next_op;
 }
 do_greater:
@@ -606,16 +606,16 @@ do_greater:
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) > vm_obj_to_num(cur_locals[rhs]))) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_gt(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_greater_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) > rhs)) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_igt(cur_locals[lhs], rhs));
     run_next_op;
 }
 do_less_than_equal:
@@ -624,16 +624,16 @@ do_less_than_equal:
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) <= vm_obj_to_num(cur_locals[rhs]))) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_lte(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_less_than_equal_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) <= rhs)) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_ilte(cur_locals[lhs], rhs));
     run_next_op;
 }
 do_greater_than_equal:
@@ -642,16 +642,16 @@ do_greater_than_equal:
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) >= vm_obj_to_num(cur_locals[rhs]))) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_gte(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_greater_than_equal_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_num(((vm_obj_to_num(cur_locals[lhs]) >= rhs)) ? 1 : 0);
+    cur_locals[to] = vm_obj_of_int(vm_obj_igte(cur_locals[lhs], rhs));
     run_next_op;
 }
 do_jump_always:
@@ -688,7 +688,7 @@ do_jump_if_equal:
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
-    if (vm_obj_to_num(cur_locals[lhs]) == vm_obj_to_num(cur_locals[rhs]))
+    if (vm_obj_eq(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
     }
@@ -699,8 +699,8 @@ do_jump_if_equal_num:
 {
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
-    if (vm_obj_to_num(cur_locals[lhs]) == rhs)
+    int rhs = read_int;
+    if (vm_obj_ieq(cur_locals[lhs], rhs))
     {
         cur_index = to;
     }
@@ -712,7 +712,7 @@ do_jump_if_not_equal:
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
-    if (vm_obj_to_num(cur_locals[lhs]) != vm_obj_to_num(cur_locals[rhs]))
+    if (vm_obj_neq(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
     }
@@ -723,8 +723,8 @@ do_jump_if_not_equal_num:
 {
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
-    if (vm_obj_to_num(cur_locals[lhs]) != rhs)
+    int rhs = read_int;
+    if (vm_obj_ineq(cur_locals[lhs], rhs))
     {
         cur_index = to;
     }
@@ -736,7 +736,7 @@ do_jump_if_less:
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
-    if (vm_obj_to_num(cur_locals[lhs]) < vm_obj_to_num(cur_locals[rhs]))
+    if (vm_obj_lt(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
     }
@@ -747,8 +747,8 @@ do_jump_if_less_num:
 {
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
-    if (vm_obj_to_num(cur_locals[lhs]) < rhs)
+    int rhs = read_int;
+    if (vm_obj_ilt(cur_locals[lhs], rhs))
     {
         cur_index = to;
     }
@@ -760,7 +760,7 @@ do_jump_if_less_than_equal:
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
-    if (vm_obj_to_num(cur_locals[lhs]) <= vm_obj_to_num(cur_locals[rhs]))
+    if (vm_obj_lte(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
     }
@@ -771,8 +771,8 @@ do_jump_if_less_than_equal_num:
 {
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
-    if (vm_obj_to_num(cur_locals[lhs]) <= rhs)
+    int rhs = read_int;
+    if (vm_obj_ilte(cur_locals[lhs], rhs))
     {
         cur_index = to;
     }
@@ -784,7 +784,7 @@ do_jump_if_greater:
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
-    if (vm_obj_to_num(cur_locals[lhs]) > vm_obj_to_num(cur_locals[rhs]))
+    if (vm_obj_gt(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
     }
@@ -795,8 +795,8 @@ do_jump_if_greater_num:
 {
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
-    if (vm_obj_to_num(cur_locals[lhs]) > rhs)
+    int rhs = read_int;
+    if (vm_obj_igt(cur_locals[lhs], rhs))
     {
         cur_index = to;
     }
@@ -808,7 +808,7 @@ do_jump_if_greater_than_equal:
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
     reg_t rhs = read_reg;
-    if (vm_obj_to_num(cur_locals[lhs]) >= vm_obj_to_num(cur_locals[rhs]))
+    if (vm_obj_gte(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
     }
@@ -819,8 +819,8 @@ do_jump_if_greater_than_equal_num:
 {
     vm_loc_t to = read_loc;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
-    if (vm_obj_to_num(cur_locals[lhs]) >= rhs)
+    int rhs = read_int;
+    if (vm_obj_igte(cur_locals[lhs], rhs))
     {
         cur_index = to;
     }
@@ -838,7 +838,7 @@ do_inc:
 do_inc_num:
 {
     reg_t target = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
     cur_locals[target] = vm_obj_num_addc(cur_locals[target], rhs);
     run_next_op;
@@ -854,7 +854,7 @@ do_dec:
 do_dec_num:
 {
     reg_t target = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
     cur_locals[target] = vm_obj_num_subc(cur_locals[target], rhs);
     run_next_op;
@@ -872,7 +872,7 @@ do_add_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_addc(cur_locals[lhs], rhs);
     run_next_op;
@@ -890,7 +890,7 @@ do_mul_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_mulc(cur_locals[lhs], rhs);
     run_next_op;
@@ -908,7 +908,7 @@ do_sub_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_subc(cur_locals[lhs], rhs);
     run_next_op;
@@ -926,7 +926,7 @@ do_div_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_divc(cur_locals[lhs], rhs);
     run_next_op;
@@ -944,7 +944,7 @@ do_mod_num:
 {
     reg_t to = read_reg;
     reg_t lhs = read_reg;
-    vm_number_t rhs = read_int;
+    int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_modc(cur_locals[lhs], rhs);
     run_next_op;
