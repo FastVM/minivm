@@ -159,7 +159,7 @@ void vm_gc_sweep_even(vm_gc_t *gc)
         }
         else
         {
-            gc->ptrs[out++] = gc->ptrs[i];
+            gc->ptrs[out++] = ptr;
         }
     }
     gc->length = out;

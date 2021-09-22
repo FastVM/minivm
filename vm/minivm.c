@@ -8,15 +8,9 @@
 #define VM_LOCALS_NUM ((1 << 22))
 #define VM_GLOBALS_NUM ((256))
 
-#ifdef __clang__
-#define vm_assume(expr) (__builtin_assume(expr))
-#else
-#define vm_assume(expr) (__builtin_expect(expr, true))
-#endif
-
 #define next_op (cur_index += 1, next_op_value)
 
-#define vm_fetch (vm_assume(basefunc[cur_index] < OPCODE_MAX1), vm_assume(ptrs[basefunc[cur_index]] != NULL), next_op_value = ptrs[basefunc[cur_index]])
+#define vm_fetch (next_op_value = ptrs[basefunc[cur_index]])
 
 #define vm_set_frame(frame_arg)              \
     (                                        \
@@ -125,7 +119,7 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
     }
 }
 
-void vm_run(opcode_t *basefunc)
+void vm_run(const opcode_t *basefunc)
 {
 
     int allocn = VM_FRAME_NUM;

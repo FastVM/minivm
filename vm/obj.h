@@ -2,22 +2,27 @@
 
 #include <vm/nanbox.h>
 typedef nanbox_t vm_obj_t;
-typedef double vm_number_t;
 typedef int vm_loc_t;
+typedef double vm_number_t;
 
 static inline int vm_obj_to_int(vm_obj_t obj)
 {
 	return (int) nanbox_to_double(obj);
 }
 
-static inline double vm_obj_to_num(vm_obj_t obj)
+static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
 {
 	return nanbox_to_double(obj);
 }
 
-static inline int vm_obj_to_num_only(vm_obj_t obj)
+static inline vm_obj_t vm_obj_of_int(int obj)
 {
-	return nanbox_to_double(obj);
+	return nanbox_from_double((vm_number_t)obj);
+}
+
+static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
+{
+	return nanbox_from_double(obj);
 }
 
 static inline void *vm_obj_to_ptr(vm_obj_t obj)
@@ -28,16 +33,6 @@ static inline void *vm_obj_to_ptr(vm_obj_t obj)
 static inline int vm_obj_to_fun(vm_obj_t obj)
 {
 	return nanbox_to_int(obj);
-}
-
-static inline vm_obj_t vm_obj_of_int(int obj)
-{
-	return nanbox_from_double((double) obj);
-}
-
-static inline vm_obj_t vm_obj_of_num(double obj)
-{
-	return nanbox_from_double(obj);
 }
 
 static inline vm_obj_t vm_obj_of_ptr(void* obj)
@@ -72,22 +67,22 @@ static inline bool vm_obj_is_dead(vm_obj_t obj)
 
 static inline vm_obj_t vm_obj_num_add(vm_obj_t lhs, vm_obj_t rhs)
 {
-	return nanbox_from_double(nanbox_to_double(lhs) + nanbox_to_double(rhs));
+	return vm_obj_of_num(vm_obj_to_num(lhs) + vm_obj_to_num(rhs));
 }
 
 static inline vm_obj_t vm_obj_num_addc(vm_obj_t lhs, int rhs)
 {
-	return nanbox_from_double(nanbox_to_double(lhs) + rhs);
+	return vm_obj_of_num(vm_obj_to_num(lhs) + rhs);
 }
 
 static inline vm_obj_t vm_obj_num_sub(vm_obj_t lhs, vm_obj_t rhs)
 {
-	return nanbox_from_double(nanbox_to_double(lhs) - nanbox_to_double(rhs));
+	return vm_obj_of_num(vm_obj_to_num(lhs) - vm_obj_to_num(rhs));
 }
 
 static inline vm_obj_t vm_obj_num_subc(vm_obj_t lhs, int rhs)
 {
-	return nanbox_from_double(nanbox_to_double(lhs) - rhs);
+	return vm_obj_of_num(vm_obj_to_num(lhs) - rhs);
 }
 
 static inline vm_obj_t vm_obj_num_mul(vm_obj_t lhs, vm_obj_t rhs)
@@ -179,3 +174,4 @@ static inline bool vm_obj_ineq(vm_obj_t lhs, int rhs)
 {
 	return vm_obj_to_num(lhs) != rhs;
 }
+

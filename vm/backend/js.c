@@ -4,7 +4,7 @@ char * vm_backend_js(opcode_t *basefunc)
 {
 	int buflen = 0;
 	int bufalloc = 256;
-	char *bufptr = malloc(bufalloc);
+	char *bufptr = vm_mem_alloc(bufalloc);
 	int cur_index = 0;
 	int *nregs = alloca(sizeof(int) * 256);
 	int *rec = alloca(sizeof(int) * 256);

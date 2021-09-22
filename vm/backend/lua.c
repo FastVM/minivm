@@ -4,7 +4,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 {
 	int buflen = 0;
 	int bufalloc = 16;
-	char *bufptr = malloc(bufalloc);
+	char *bufptr = vm_mem_alloc(bufalloc);
 	int n = 0;
 	int cur_index = 0;
 	int depth = 0;
