@@ -174,4 +174,3 @@ static inline bool vm_obj_ineq(vm_obj_t lhs, int rhs)
 {
 	return vm_obj_to_num(lhs) != rhs;
 }
-

@@ -584,6 +584,12 @@ char *vm_backend_lua(opcode_t *basefunc)
 			OUTLN("print(reg%i)", reg);
 			break;
 		}
+		case OPCODE_PUTCHAR:
+		{
+			reg_t reg = read_reg;
+			OUTLN("io.write(string.char(reg%i))", reg);
+			break;
+		}
 		case OPCODE_EXIT:
 		{
 			goto done;

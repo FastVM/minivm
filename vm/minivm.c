@@ -4,8 +4,8 @@
 #include <vm/gcvec.h>
 #include <vm/obj.h>
 
-#define VM_FRAME_NUM ((1 << 16))
-#define VM_LOCALS_NUM ((1 << 22))
+#define VM_FRAME_NUM ((1 << 24))
+#define VM_LOCALS_NUM ((1 << 28))
 #define VM_GLOBALS_NUM ((256))
 
 #define next_op (cur_index += 1, next_op_value)
