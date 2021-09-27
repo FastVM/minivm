@@ -1,11 +1,10 @@
 #include <vm/vm.h>
-#include <vm/vector.h>
 #include <vm/gc.h>
 #include <vm/gcvec.h>
 #include <vm/obj.h>
 
-#define VM_FRAME_NUM ((1 << 24))
-#define VM_LOCALS_NUM ((1 << 28))
+#define VM_FRAME_NUM ((1 << 16))
+#define VM_LOCALS_NUM ((1 << 20))
 #define VM_GLOBALS_NUM ((256))
 
 #define next_op (cur_index += 1, next_op_value)
@@ -123,9 +122,9 @@ void vm_run(const opcode_t *basefunc)
 {
 
     int allocn = VM_FRAME_NUM;
-    stack_frame_t *frames_base = vm_mem_alloc0(sizeof(stack_frame_t) * allocn);
+    stack_frame_t *frames_base = vm_mem_alloc(sizeof(stack_frame_t) * allocn);
     int locals_allocated = VM_LOCALS_NUM;
-    vm_obj_t *locals_base = vm_mem_alloc0(sizeof(vm_obj_t) * locals_allocated);
+    vm_obj_t *locals_base = vm_mem_alloc(sizeof(vm_obj_t) * locals_allocated);
 
     stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
@@ -135,7 +134,7 @@ void vm_run(const opcode_t *basefunc)
     vm_gc_t *gc = vm_gc_start();
 
     void *next_op_value;
-    void *ptrs[OPCODE_MAX2P] = {NULL};
+    void *ptrs[OPCODE_MAX2P] = {};
     ptrs[OPCODE_EXIT] = &&do_exit;
     ptrs[OPCODE_STORE_REG] = &&do_store_reg;
     ptrs[OPCODE_STORE_INT] = &&do_store_int;

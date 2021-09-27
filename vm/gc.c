@@ -170,7 +170,13 @@ void vm_gc_sweep_even(vm_gc_t *gc)
         if (gc->maxlen >= gc->alloc)
         {
             gc->alloc = newlen * 2;
-            gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
+            uint8_t **k = vm_mem_alloc(gc->alloc * sizeof(uint8_t *));
+            for (int i = 0; i < out; i++)
+            {
+                k[i] = gc->ptrs[i];
+            }
+            vm_mem_free(gc->ptrs);
+            gc->ptrs = k;
         }
     }
 }
@@ -266,7 +272,13 @@ void vm_gc_sweep_odd(vm_gc_t *gc)
         if (gc->maxlen >= gc->alloc)
         {
             gc->alloc = newlen * 2;
-            gc->ptrs = vm_mem_realloc(gc->ptrs, gc->alloc * sizeof(uint8_t *));
+            uint8_t **k = vm_mem_alloc(gc->alloc * sizeof(uint8_t *));
+            for (int i = 0; i < out; i++)
+            {
+                k[i] = gc->ptrs[i];
+            }
+            vm_mem_free(gc->ptrs);
+            gc->ptrs = k;
         }
     }
 }

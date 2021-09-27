@@ -1,8 +1,14 @@
 
-#ifndef VM_COSMO
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#if defined(VM_NO_STD)
+void free(void *a);
+void *malloc(size_t b);
+void *realloc(void *a, size_t b);
+int putchar(int a);
+double fmod(double a, double b);
+#elif !defined(VM_COSMO)
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,12 +20,10 @@
 
 #if defined(VM_USE_MI)
 #define vm_mem_free(ptr) (mi_free(ptr))
-#define vm_mem_alloc0(len) (mi_calloc(1, len))
 #define vm_mem_alloc(len) (mi_malloc(len))
 #define vm_mem_realloc(ptr, len) (mi_realloc(ptr, len))
 #else
 #define vm_mem_free(ptr) (free(ptr))
-#define vm_mem_alloc0(len) (calloc(1, len))
 #define vm_mem_alloc(len) (malloc(len))
 #define vm_mem_realloc(ptr, len) (realloc(ptr, len))
 #endif

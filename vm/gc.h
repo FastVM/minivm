@@ -1,6 +1,5 @@
 #pragma once
 #include <vm/obj.h>
-#include <vm/vector.h>
 
 struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;

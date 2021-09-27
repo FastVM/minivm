@@ -1,7 +1,7 @@
 #include <vm/vector.h>
 #include <vm/vm.h>
 #include <vm/libc.h>
-#ifdef VM_COSMO
+#if defined(VM_COSMO)
 #include <cosmopolitan.h>
 #else
 #include <stdio.h>

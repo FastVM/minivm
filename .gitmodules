@@ -1,7 +1,3 @@
 [submodule "mimalloc"]
 	path = mimalloc
 	url = https://github.com/microsoft/mimalloc
-	
-[submodule "walloc"]
-	path = walloc
-	url = https://github.com/wingo/walloc
