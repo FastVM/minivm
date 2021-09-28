@@ -64,7 +64,7 @@ void vm_xrun(void)
 {
 	vm_xhp = 0;
 	vm_xhead = 0;
-	vm_run(vm_xprogram);
+	vm_run_no_xinstrs(vm_xprogram);
 }
 
 void *malloc(size_t size)

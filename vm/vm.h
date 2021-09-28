@@ -95,3 +95,4 @@ typedef struct
 } stack_frame_t;
 
 void vm_run(const opcode_t *mem);
+void vm_run_no_xinstrs(const opcode_t *mem);
