@@ -34,7 +34,7 @@ vm_gc_t *vm_gc_start(void)
     ret->maxlen = 16;
     ret->alloc = 16;
     ret->length = 0;
-    ret->ptrs = vm_mem_alloc(ret->alloc * sizeof(uint8_t *));
+    ret->ptrs = vm_mem_alloc(ret->alloc * sizeof(int *));
     ret->state = 0;
     return ret;
 }
@@ -44,7 +44,7 @@ void vm_gc_stop(vm_gc_t *gc)
     int max = gc->length;
     for (int i = 0; i < max; i++)
     {
-        uint8_t *ptr = gc->ptrs[i];
+        int *ptr = gc->ptrs[i];
         vm_mem_free(ptr);
     }
     vm_mem_free(gc->ptrs);
@@ -53,7 +53,7 @@ void vm_gc_stop(vm_gc_t *gc)
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, int size)
 {
-    uint8_t *ptr = vm_mem_alloc(sizeof(vm_obj_t) * size + sizeof(uint8_t) * 2);
+    int *ptr = vm_mem_alloc(sizeof(vm_obj_t) * size + sizeof(int) * 2);
     gc->ptrs[gc->length++] = ptr;
     *ptr = gc->state;
     *(ptr + 1) = size;
@@ -62,20 +62,20 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, int size)
 
 int vm_gc_sizeof(vm_gc_t *gc, vm_obj_t ptr)
 {
-    uint8_t *head = vm_obj_to_ptr(ptr);
+    int *head = vm_obj_to_ptr(ptr);
     return *(head + 1);
 }
 
 vm_obj_t vm_gc_get(vm_gc_t *gc, vm_obj_t ptr, int nth)
 {
-    uint8_t *raw = vm_obj_to_ptr(ptr);
+    int *raw = vm_obj_to_ptr(ptr);
     vm_obj_t *head = (vm_obj_t *)(raw + 2);
     return head[nth];
 }
 
 void vm_gc_set(vm_gc_t *gc, vm_obj_t ptr, int nth, vm_obj_t val)
 {
-    uint8_t *raw = vm_obj_to_ptr(ptr);
+    int *raw = vm_obj_to_ptr(ptr);
     vm_obj_t *head = (vm_obj_t *)(raw + 2);
     head[nth] = val;
 }
@@ -90,7 +90,7 @@ void vm_gc_mark_stack_even(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj
     {
         if (vm_obj_is_ptr(*ptr))
         {
-            uint8_t *sub = vm_obj_to_ptr(*ptr);
+            int *sub = vm_obj_to_ptr(*ptr);
             if (*sub == GC_MARK_0)
             {
                 *sub = GC_MARK_1;
@@ -115,7 +115,7 @@ void vm_gc_mark_even(vm_gc_t *gc, int len, vm_obj_t *ptrs)
         {
             if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
+                int *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_0)
                 {
                     *sub = GC_MARK_1;
@@ -132,7 +132,7 @@ void vm_gc_mark_even(vm_gc_t *gc, int len, vm_obj_t *ptrs)
         {
             if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
+                int *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_0)
                 {
                     *sub = GC_MARK_1;
@@ -152,7 +152,7 @@ void vm_gc_sweep_even(vm_gc_t *gc)
     int max = gc->length;
     for (int i = 0; i < max; i++)
     {
-        uint8_t *ptr = gc->ptrs[i];
+        int *ptr = gc->ptrs[i];
         if (*ptr == GC_MARK_0)
         {
             vm_mem_free(ptr);
@@ -170,7 +170,7 @@ void vm_gc_sweep_even(vm_gc_t *gc)
         if (gc->maxlen >= gc->alloc)
         {
             gc->alloc = newlen * 2;
-            uint8_t **k = vm_mem_alloc(gc->alloc * sizeof(uint8_t *));
+            int **k = vm_mem_alloc(gc->alloc * sizeof(int *));
             for (int i = 0; i < out; i++)
             {
                 k[i] = gc->ptrs[i];
@@ -191,7 +191,7 @@ void vm_gc_mark_stack_odd(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_
     {
         if (vm_obj_is_ptr(*ptr))
         {
-            uint8_t *sub = vm_obj_to_ptr(*ptr);
+            int *sub = vm_obj_to_ptr(*ptr);
             if (*sub == GC_MARK_1)
             {
                 *sub = GC_MARK_0;
@@ -216,7 +216,7 @@ void vm_gc_mark_odd(vm_gc_t *gc, int len, vm_obj_t *ptrs)
         {
             if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
+                int *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_1)
                 {
                     *sub = GC_MARK_0;
@@ -233,7 +233,7 @@ void vm_gc_mark_odd(vm_gc_t *gc, int len, vm_obj_t *ptrs)
         {
             if (vm_obj_is_ptr(ptrs[i]))
             {
-                uint8_t *sub = vm_obj_to_ptr(ptrs[i]);
+                int *sub = vm_obj_to_ptr(ptrs[i]);
                 if (*sub == GC_MARK_1)
                 {
                     *sub = GC_MARK_0;
@@ -254,7 +254,7 @@ void vm_gc_sweep_odd(vm_gc_t *gc)
     int last = max;
     for (int i = 0; i < max; i++)
     {
-        uint8_t *ptr = gc->ptrs[i];
+        int *ptr = gc->ptrs[i];
         if (*ptr == GC_MARK_1)
         {
             vm_mem_free(ptr);
@@ -272,7 +272,7 @@ void vm_gc_sweep_odd(vm_gc_t *gc)
         if (gc->maxlen >= gc->alloc)
         {
             gc->alloc = newlen * 2;
-            uint8_t **k = vm_mem_alloc(gc->alloc * sizeof(uint8_t *));
+            int **k = vm_mem_alloc(gc->alloc * sizeof(int *));
             for (int i = 0; i < out; i++)
             {
                 k[i] = gc->ptrs[i];

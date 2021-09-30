@@ -1,7 +1,25 @@
 #include <vm/backend/back.h>
 
-char * vm_backend_js(opcode_t *basefunc)
+enum
 {
+	VM_BACKEND_JS_NODE,
+	VM_BACKEND_JS_V8,
+};
+
+char * vm_backend_js(opcode_t *basefunc, const char *str)
+{
+	int jstype = VM_BACKEND_JS_NODE;
+	if (str != NULL)
+	{
+		if (!strcmp(str, "node"))
+		{
+			jstype = VM_BACKEND_JS_NODE;
+		}
+		if (!strcmp(str, "v8"))
+		{
+			jstype = VM_BACKEND_JS_V8;
+		}
+	}
 	int buflen = 0;
 	int bufalloc = 256;
 	char *bufptr = vm_mem_alloc(bufalloc);
@@ -26,6 +44,13 @@ char * vm_backend_js(opcode_t *basefunc)
 			OUT("r[%i+d]=r[%i+d];", reg, from);
 			break;
 		}
+		case OPCODE_STORE_BYTE:
+		{
+			reg_t reg = read_reg;
+			int n = read_byte;
+			OUT("r[%i+d]=%i;", reg, n);
+			break;
+		}
 		case OPCODE_STORE_INT:
 		{
 			reg_t reg = read_reg;
@@ -47,7 +72,7 @@ char * vm_backend_js(opcode_t *basefunc)
 			OUT("r[%i+d]=%i;", to, cur_index);
 			OUT("o=%i;continue b;", end);
 			OUT("case %i:", cur_index);
-			*(++nregs) = read_int;
+			*(++nregs) = read_byte;
 			goto nocase;
 		}
 		case OPCODE_FUN_DONE:
@@ -105,7 +130,7 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t outreg = read_reg;
 			reg_t func = read_loc;
-			int nargs = read_int;
+			int nargs = read_byte;
 			OUT("s.push(%i,%i);", cur_index, outreg);
 			for (int i = 0; i < nargs; i++)
 			{
@@ -158,7 +183,7 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t outreg = read_reg;
 			int next_func = read_loc;
-			int nargs = read_int;
+			int nargs = read_byte;
 			OUT("s.push(%i,%i);", cur_index, outreg);
 			for (int i = 0; i < nargs; i++)
 			{
@@ -206,7 +231,7 @@ char * vm_backend_js(opcode_t *basefunc)
 		case OPCODE_REC:
 		{
 			reg_t outreg = read_reg;
-			int nargs = read_int;
+			int nargs = read_byte;
 			OUT("s.push(%i,%i);", cur_index, outreg);
 			for (int i = 0; i < nargs; i++)
 			{
@@ -473,7 +498,7 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUT("r[%i+d]=r[%i+d]+%i;", reg, lhs, rhs);
 			break;
 		}
@@ -489,7 +514,7 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUT("r[%i+d]=r[%i+d]-%i;", reg, lhs, rhs);
 			break;
 		}
@@ -505,7 +530,7 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUT("r[%i+d]=r[%i+d]*%i;", reg, lhs, rhs);
 			break;
 		}
@@ -521,7 +546,8 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
+			OUT("r[%i+d]=r[%i+d]/%i;", reg, lhs, rhs);
 			OUT("r[%i+d]=r[%i+d]/%i;", reg, lhs, rhs);
 			break;
 		}
@@ -537,14 +563,14 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUT("r[%i+d]=r[%i+d]%%%i;", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_ARRAY:
 		{
 			reg_t outreg = read_reg;
-			int nargs = read_int;
+			int nargs = read_byte;
 			OUT("r[%i+d]=[", outreg);
 			for (int i = 0; i < nargs; i++)
 			{
@@ -577,14 +603,34 @@ char * vm_backend_js(opcode_t *basefunc)
 		{
 			reg_t outreg = read_reg;
 			reg_t reg = read_reg;
-			int index = read_reg;
+			int index = read_int;
 			OUT("r[%i+d]=r[%i+d][%i];", outreg, reg, index);
 			break;
 		}
 		case OPCODE_PRINTLN:
 		{
 			reg_t reg = read_reg;
-			OUT("console.log(r[%i+d]);", reg);
+			if (jstype == VM_BACKEND_JS_NODE)
+			{
+				OUT("console.log(r[%i+d]);", reg);
+			}
+			else if (jstype == VM_BACKEND_JS_V8)
+			{
+				OUT("print(r[%i+d]);", reg);
+			}
+			break;
+		}
+		case OPCODE_PUTCHAR:
+		{
+			reg_t reg = read_reg;
+			if (jstype == VM_BACKEND_JS_NODE)
+			{
+				OUT("process.stdout.write(String.fromCharCode(r[%i+d]));", reg);
+			}
+			else if (jstype == VM_BACKEND_JS_V8)
+			{
+				OUT("write(String.fromCharCode(r[%i+d]));", reg);
+			}
 			break;
 		}
 		case OPCODE_EXIT:

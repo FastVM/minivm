@@ -48,6 +48,7 @@ static inline void vm_internal_bufout(int *buflen, int *bufalloc, char **bufptr,
 		})
 
 #define read_instr (cur_bytecode_next(opcode_t))
-#define read_reg (cur_bytecode_next(int))
+#define read_byte (cur_bytecode_next(unsigned char))
+#define read_reg (cur_bytecode_next(unsigned char))
 #define read_int (cur_bytecode_next(int))
 #define read_loc (cur_bytecode_next(int))

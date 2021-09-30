@@ -32,7 +32,7 @@ static inline void *vm_obj_to_ptr(vm_obj_t obj)
 
 static inline int vm_obj_to_fun(vm_obj_t obj)
 {
-	return nanbox_to_int(obj);
+	return (int) nanbox_to_double(obj);
 }
 
 static inline vm_obj_t vm_obj_of_ptr(void* obj)
@@ -42,7 +42,7 @@ static inline vm_obj_t vm_obj_of_ptr(void* obj)
 
 static inline vm_obj_t vm_obj_of_fun(int obj)
 {
-	return nanbox_from_int(obj);
+	return nanbox_from_double((double) obj);
 }
 
 static inline vm_obj_t vm_obj_of_dead()

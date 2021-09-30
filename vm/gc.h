@@ -15,7 +15,7 @@ void vm_gc_set(vm_gc_t *gc, vm_obj_t ptr, int index, vm_obj_t value);
 
 struct vm_gc_t
 {
-    uint8_t **ptrs;
+    int **ptrs;
     int length;
     int alloc;
     int maxlen;

@@ -7,8 +7,6 @@ typedef void vm_putchar_func_t(int chr);
 
 int vm_xhead = 0;
 opcode_t vm_xprogram[1 << 16];
-int vm_xhp = 0;
-uint8_t vm_xh[(1 << 30)];
 int vm_use_the_putchar = 0;
 
 typedef struct
@@ -62,24 +60,14 @@ void vm_xadd(opcode_t o)
 
 void vm_xrun(void)
 {
-	vm_xhp = 0;
 	vm_xhead = 0;
-	vm_run_no_xinstrs(vm_xprogram);
-}
-
-void *malloc(size_t size)
-{
-	uint8_t *ret = &vm_xh[vm_xhp];
-	vm_xhp += size;
-	return ret;
+	vm_run(vm_xprogram);
 }
 
 void vm_xset_putchar()
 {
 	vm_use_the_putchar = 1;
 }
-
-void free(void *ptr) {}
 
 void _start()
 {

@@ -2,7 +2,7 @@
 CC=gcc
 BIN=bin
 
-SRCS=vm/minivm.c vm/gc.c main/main.c
+SRCS=vm/vm.c vm/gc.c main/main.c
 
 COSMO=ape.lds cosmopolitan.h crt.o ape.o cosmopolitan.a
 

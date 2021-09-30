@@ -29,6 +29,13 @@ char *vm_backend_lua(opcode_t *basefunc)
 			OUTLN("reg%i = reg%i", reg, from);
 			break;
 		}
+		case OPCODE_STORE_BYTE:
+		{
+			reg_t reg = read_reg;
+			int n = read_byte;
+			OUTLN("reg%i = %i", reg, n);
+			break;
+		}
 		case OPCODE_STORE_INT:
 		{
 			reg_t reg = read_reg;
@@ -39,7 +46,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		case OPCODE_STORE_FUN:
 		{
 			reg_t to = read_reg;
-			int end = read_int;
+			int end = read_loc;
 			if (rec - base > 250)
 			{
 				fprintf(stderr, "too much nesting\n");
@@ -52,7 +59,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 			depth++;
 			*(++freg) = to;
 			PUTLN("local function rec(reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7)");
-			int cnregs = read_int;
+			int cnregs = read_byte;
 			depth++;
 			*(++nregs) = cnregs;
 			for (int i = 8; i < cnregs; i++)
@@ -134,7 +141,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t outreg = read_reg;
 			reg_t func = read_loc;
-			int nargs = read_int;
+			int nargs = read_byte;
 
 			for (int i = 0; i < nargs; i++)
 			{
@@ -173,7 +180,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t outreg = read_reg;
 			int next_func = read_loc;
-			int nargs = read_int;
+			int nargs = read_byte;
 
 			for (int i = 0; i < nargs; i++)
 			{
@@ -208,7 +215,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		case OPCODE_REC:
 		{
 			reg_t outreg = read_reg;
-			int nargs = read_int;
+			int nargs = read_byte;
 
 			for (int i = 0; i < nargs; i++)
 			{
@@ -472,7 +479,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUTLN("reg%i = reg%i + %i", reg, lhs, rhs);
 			break;
 		}
@@ -488,7 +495,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUTLN("reg%i = reg%i - %i", reg, lhs, rhs);
 			break;
 		}
@@ -504,7 +511,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUTLN("reg%i = reg%i * %i", reg, lhs, rhs);
 			break;
 		}
@@ -520,7 +527,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUTLN("reg%i = reg%i / %i", reg, lhs, rhs);
 			break;
 		}
@@ -536,14 +543,14 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t reg = read_reg;
 			reg_t lhs = read_reg;
-			reg_t rhs = read_reg;
+			int rhs = read_int;
 			OUTLN("reg%i = reg%i %% %i", reg, lhs, rhs);
 			break;
 		}
 		case OPCODE_ARRAY:
 		{
 			reg_t outreg = read_reg;
-			int nargs = read_int;
+			int nargs = read_byte;
 			OUTLN("reg%i = {", outreg);
 			depth++;
 			for (int i = 0; i < nargs; i++)
@@ -574,7 +581,7 @@ char *vm_backend_lua(opcode_t *basefunc)
 		{
 			reg_t outreg = read_reg;
 			reg_t reg = read_reg;
-			int index = read_reg;
+			int index = read_int;
 			OUTLN("reg%i = reg%i[%i]", outreg, reg, index + 1);
 			break;
 		}

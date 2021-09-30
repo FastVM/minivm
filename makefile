@@ -5,7 +5,7 @@ MICC=$(CC)
 BIN=bin
 LIB=lib
 
-SRCS=vm/minivm.c vm/gc.c main/main.c
+SRCS=vm/vm.c vm/gc.c main/main.c
 
 OPT=-O3
 

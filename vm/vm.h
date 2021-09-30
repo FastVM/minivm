@@ -3,13 +3,14 @@
 #include <vm/libc.h>
 #include <vm/obj.h>
 
-typedef int reg_t;
+typedef unsigned char reg_t;
 typedef char opcode_t;
 
 enum opcode_t
 {
     OPCODE_EXIT,
     OPCODE_STORE_REG,
+    OPCODE_STORE_BYTE,
     OPCODE_STORE_INT,
     OPCODE_STORE_FUN,
     OPCODE_FUN_DONE,
@@ -90,9 +91,8 @@ typedef struct
     int index;
     int func;
     int bytecode;
-    int outreg;
-    int nlocals;
+    unsigned char outreg;
+    unsigned char nlocals;
 } stack_frame_t;
 
 void vm_run(const opcode_t *mem);
-void vm_run_no_xinstrs(const opcode_t *mem);

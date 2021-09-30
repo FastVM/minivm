@@ -5,7 +5,7 @@
 
 #define VM_FRAME_NUM ((1 << 16))
 #define VM_LOCALS_NUM ((1 << 20))
-#define VM_GLOBALS_NUM ((256))
+#define VM_GLOBALS_NUM ((255))
 
 #define next_op (cur_index += 1, next_op_value)
 
@@ -19,7 +19,8 @@
             cur_func = frame.func;           \
         })
 
-#define run_next_op goto *next_op;
+#define run_next_op            \
+    goto *next_op;
 #define cur_bytecode_next(Type)                       \
     (                                                 \
         {                                             \
@@ -28,7 +29,8 @@
             ret;                                      \
         })
 
-#define read_reg (cur_bytecode_next(int))
+#define read_byte (cur_bytecode_next(unsigned char))
+#define read_reg (cur_bytecode_next(unsigned char))
 #define read_int (cur_bytecode_next(int))
 #define read_loc (cur_bytecode_next(int))
 
@@ -120,11 +122,8 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
 
 void vm_run(const opcode_t *basefunc)
 {
-
-    int allocn = VM_FRAME_NUM;
-    stack_frame_t *frames_base = vm_mem_alloc(sizeof(stack_frame_t) * allocn);
-    int locals_allocated = VM_LOCALS_NUM;
-    vm_obj_t *locals_base = vm_mem_alloc(sizeof(vm_obj_t) * locals_allocated);
+    stack_frame_t *frames_base = vm_mem_alloc(sizeof(stack_frame_t) * VM_FRAME_NUM);
+    vm_obj_t *locals_base = vm_mem_alloc(sizeof(vm_obj_t) * VM_LOCALS_NUM);
 
     stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
@@ -137,6 +136,7 @@ void vm_run(const opcode_t *basefunc)
     void *ptrs[OPCODE_MAX2P] = {};
     ptrs[OPCODE_EXIT] = &&do_exit;
     ptrs[OPCODE_STORE_REG] = &&do_store_reg;
+    ptrs[OPCODE_STORE_BYTE] = &&do_store_byte;
     ptrs[OPCODE_STORE_INT] = &&do_store_int;
     ptrs[OPCODE_STORE_FUN] = &&do_store_fun;
     ptrs[OPCODE_EQUAL] = &&do_equal;
@@ -226,10 +226,10 @@ do_array:
 {
     if (gc->length >= gc->maxlen)
     {
-        vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals, cur_locals + locals_allocated);
+        vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals, cur_locals + VM_LOCALS_NUM);
     }
     reg_t outreg = read_reg;
-    int nargs = read_int;
+    int nargs = read_byte;
     vm_obj_t vec = gcvec_new(gc, nargs);
     for (int i = 0; i < nargs; i++)
     {
@@ -289,7 +289,7 @@ do_call0:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -313,7 +313,7 @@ do_call1:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -338,7 +338,7 @@ do_call2:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -367,7 +367,7 @@ do_call:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -383,7 +383,7 @@ do_static_call0:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -400,7 +400,7 @@ do_static_call1:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -418,7 +418,7 @@ do_static_call2:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -440,7 +440,7 @@ do_static_call:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -455,7 +455,7 @@ do_rec0:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -471,7 +471,7 @@ do_rec1:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -488,7 +488,7 @@ do_rec2:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -509,7 +509,7 @@ do_rec:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_int;
+    cur_frame->nlocals = read_byte;
     vm_fetch;
     run_next_op;
 }
@@ -519,6 +519,14 @@ do_store_reg:
     reg_t from = read_reg;
     vm_fetch;
     cur_locals[to] = cur_locals[from];
+    run_next_op;
+}
+do_store_byte:
+{
+    reg_t to = read_reg;
+    int from = (int) read_byte;
+    vm_fetch;
+    cur_locals[to] = vm_obj_of_int((int) from);
     run_next_op;
 }
 do_store_int:
