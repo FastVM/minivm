@@ -1,10 +1,30 @@
 #include <vm/gc.h>
+#include <vm/vm.h>
 #include <vm/obj.h>
 
-#define VM_GC_MEM_GROW (4)
+#define VM_MEM_MAX ((VM_FRAME_NUM) + (VM_LOCALS_NUM) + (VM_MEM_BYTES)*4)
+
+#define VM_GC_MEM_GROW (2)
 
 #define VM_GC_DELETE (0)
 #define VM_GC_KEEP (1)
+
+size_t vm_stats_memsize = VM_MEM_MAX;
+
+size_t vm_mem_top = 0;
+uint8_t vm_mem[VM_MEM_MAX];
+
+void *vm_mem_grow(size_t size)
+{
+    void *ret = &vm_mem[vm_mem_top];
+    vm_mem_top += size;
+    return ret;
+}
+
+void vm_mem_reset(void)
+{
+    vm_mem_top = 0;
+}
 
 int vm_gc_mark_entry_yes(vm_gc_t *gc, size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
 {
@@ -55,14 +75,13 @@ int vm_gc_mark_val_yes(vm_gc_t *gc, uint64_t ptr)
     }
     return 2;
 }
-void vm_print(vm_gc_t *gc, vm_obj_t obj);
 
 void vm_gc_mark_ptr_yes(vm_gc_t *gc, uint64_t ptr)
 {
     int res = vm_gc_mark_val_yes(gc, ptr);
     if (res == 2)
     {
-        exit(1);
+        return;
     }
 more:;
     size_t len = vm_gc_sizeof(gc, ptr);
@@ -178,28 +197,17 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
     }
 }
 
-vm_gc_t *vm_gc_start(void)
+void vm_gc_start(vm_gc_t *gc)
 {
-    vm_gc_t *ret = vm_mem_alloc(sizeof(vm_gc_t));
-    ret->last = 1;
-    ret->len1 = 0;
-    ret->len2 = 0;
-    ret->len3 = 0;
-    ret->objs1 = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
-    ret->objs2 = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
-    ret->objs3 = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
-    ret->swap = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
-    ret->big = 0;
-    return ret;
-}
-
-void vm_gc_stop(vm_gc_t *gc)
-{
-    vm_mem_free(gc->objs1);
-    vm_mem_free(gc->objs2);
-    vm_mem_free(gc->objs3);
-    vm_mem_free(gc->swap);
-    vm_mem_free(gc);
+    gc->last = 1;
+    gc->len1 = 0;
+    gc->len2 = 0;
+    gc->len3 = 0;
+    gc->objs1 = vm_mem_grow(VM_MEM_BYTES);
+    gc->objs2 = vm_mem_grow(VM_MEM_BYTES);
+    gc->objs3 = vm_mem_grow(VM_MEM_BYTES);
+    gc->swap = vm_mem_grow(VM_MEM_BYTES);
+    gc->big = 0;
 }
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
@@ -227,6 +235,7 @@ vm_gc_entry_t vm_gc_find_in(size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr
 {
     if (elems_len > 1)
     {
+
         size_t mid = elems_len >> 1;
         vm_gc_entry_t mid_entry = elems[mid];
         if (mid_entry.ptr > ptr)

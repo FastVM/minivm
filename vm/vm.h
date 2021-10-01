@@ -93,6 +93,6 @@ typedef struct
     int bytecode;
     unsigned char outreg;
     unsigned char nlocals;
-} stack_frame_t;
+} vm_stack_frame_t;
 
 void vm_run(const opcode_t *mem);

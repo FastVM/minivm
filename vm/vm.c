@@ -3,8 +3,6 @@
 #include <vm/gcvec.h>
 #include <vm/obj.h>
 
-#define VM_FRAME_NUM ((1 << 16))
-#define VM_LOCALS_NUM ((1 << 20))
 #define VM_GLOBALS_NUM ((255))
 
 #define next_op (cur_index += 1, next_op_value)
@@ -14,7 +12,7 @@
 #define vm_set_frame(frame_arg)              \
     (                                        \
         {                                    \
-            stack_frame_t frame = frame_arg; \
+            vm_stack_frame_t frame = frame_arg; \
             cur_index = frame.index;         \
             cur_func = frame.func;           \
         })
@@ -122,15 +120,17 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
 
 void vm_run(const opcode_t *basefunc)
 {
-    stack_frame_t *frames_base = vm_mem_alloc(sizeof(stack_frame_t) * VM_FRAME_NUM);
-    vm_obj_t *locals_base = vm_mem_alloc(sizeof(vm_obj_t) * VM_LOCALS_NUM);
+    vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAME_NUM);
+    vm_obj_t *locals_base = vm_mem_grow(sizeof(vm_obj_t) * VM_LOCALS_NUM);
 
-    stack_frame_t *cur_frame = frames_base;
+    vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
     vm_loc_t cur_index = 0;
     vm_loc_t cur_func = 0;
 
-    vm_gc_t *gc = vm_gc_start();
+    vm_gc_t raw_gc;
+    vm_gc_t *gc = &raw_gc;
+    vm_gc_start(gc);
 
     void *next_op_value;
     void *ptrs[OPCODE_MAX2P] = {};
@@ -204,9 +204,7 @@ void vm_run(const opcode_t *basefunc)
     run_next_op;
 do_exit:
 {
-    vm_mem_free(frames_base);
-    vm_mem_free(locals_base);
-    vm_gc_stop(gc);
+    vm_mem_reset();
     return;
 }
 do_return:

@@ -3,30 +3,21 @@
 #include <stdbool.h>
 #include <stddef.h>
 #if defined(VM_NO_STD)
-void free(void *a);
-void *malloc(size_t b);
-void *realloc(void *a, size_t b);
 int putchar(int a);
 double fmod(double a, double b);
 #elif !defined(VM_COSMO)
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <math.h>
-#include <mimalloc/include/mimalloc.h>
 #else
 #include <cosmopolitan.h>
 #endif
 
-#if defined(VM_USE_MI)
-#define vm_mem_free(ptr) (mi_free(ptr))
-#define vm_mem_alloc(len) (mi_malloc(len))
-#define vm_mem_realloc(ptr, len) (mi_realloc(ptr, len))
-#else
-#define vm_mem_free(ptr) (free(ptr))
-#define vm_mem_alloc(len) (malloc(len))
-#define vm_mem_realloc(ptr, len) (realloc(ptr, len))
-#endif
+#define VM_FRAME_NUM (sizeof(vm_stack_frame_t) * (1 << 17))
+#define VM_LOCALS_NUM (sizeof(vm_obj_t) * (1 << 20))
+#define VM_MEM_BYTES (sizeof(vm_gc_entry_t) * (1 << 24))
+
+void *vm_mem_grow(size_t size);
+void vm_mem_reset(void);
 
 #define vm_putchar(chr) (putchar(chr))
 #define vm_fmod(lhs, rhs) (fmod(lhs, rhs))

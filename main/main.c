@@ -1,11 +1,9 @@
-#include <vm/vector.h>
 #include <vm/vm.h>
 #include <vm/libc.h>
-#if defined(VM_COSMO)
-#include <cosmopolitan.h>
-#else
-#include <stdio.h>
-#endif
+
+#define VM_CAN_NO_OPEN "cannot open or read file\n"
+
+opcode_t vm_ops[1 << 16];
 
 int main(int argc, char **argv)
 {
@@ -28,20 +26,19 @@ int main(int argc, char **argv)
         FILE *file = fopen(argv[i], "rb");
         if (file == NULL)
         {
-            printf("cannot open file: %s\n", argv[i]);
+            for (const char *i = VM_CAN_NO_OPEN; *i != '\0'; i++)
+            {
+                putchar(*i);
+            }
             return 1;
         }
-        vec_t ops = vec_new(char);
+        opcode_t *ops = &vm_ops[0];
         while (!feof(file))
         {
-            char op = (fgetc(file));
-            vec_push(ops, op);
+            opcode_t op = (fgetc(file));
+            *(ops++) = op;
         }
         fclose(file);
-        for (int j = times; j > 0; j--) 
-        {
-            vm_run((opcode_t *)vec_get(ops, 0));
-        }
-        vec_del(ops);
+        vm_run(vm_ops);
     }
 }

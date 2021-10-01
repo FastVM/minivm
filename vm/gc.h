@@ -6,8 +6,7 @@ struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 
-vm_gc_t *vm_gc_start(void);
-void vm_gc_stop(vm_gc_t *gc);
+void vm_gc_start(vm_gc_t *out);
 void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *stop);
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, int len, vm_obj_t *values);
