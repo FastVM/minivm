@@ -3,282 +3,289 @@
 
 #define VM_GC_MEM_GROW (2)
 
-enum gc_mark_t;
-typedef enum gc_mark_t gc_mark_t;
+#define VM_GC_DELETE (0)
+#define VM_GC_KEEP (1)
 
-enum gc_mark_t
+int vm_gc_mark_entry_yes(vm_gc_t *gc, size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
 {
-    GC_MARK_0 = 0,
-    GC_MARK_1 = 1,
-};
-
-void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
-{
-    if (gc->state == GC_MARK_0)
+    if (elems_len > 1)
     {
-        vm_gc_mark_stack_even(gc, base, useful, end);
-        vm_gc_sweep_even(gc);
-        gc->state = GC_MARK_1;
+        size_t mid = elems_len >> 1;
+        vm_gc_entry_t mid_entry = elems[mid];
+        if (mid_entry.ptr > ptr)
+        {
+            return vm_gc_mark_entry_yes(gc, mid, elems, ptr);
+        }
+        if (mid_entry.ptr < ptr)
+        {
+            return vm_gc_mark_entry_yes(gc, elems_len - mid, elems + mid, ptr);
+        }
+        int ret = elems[mid].tag;
+        elems[mid].tag = VM_GC_KEEP;
+        return ret;
     }
     else
     {
-        vm_gc_mark_stack_odd(gc, base, useful, end);
-        vm_gc_sweep_odd(gc);
-        gc->state = GC_MARK_0;
+        if (elems[0].ptr == ptr)
+        {
+            int ret = elems[0].tag;
+            elems[0].tag = VM_GC_KEEP;
+            return ret;
+        }
+        return 2;
     }
+}
+
+void vm_gc_mark_ptr_yes(vm_gc_t *gc, uint64_t ptr)
+{
+    size_t nelems = gc->nelems;
+    int e1 = vm_gc_mark_entry_yes(gc, gc->len1, gc->objs1, ptr);
+    if (e1 == VM_GC_DELETE)
+    {
+        goto more;
+    }
+    if (e1 == VM_GC_KEEP)
+    {
+        return;
+    }
+    int e2 = vm_gc_mark_entry_yes(gc, gc->len2, gc->objs2, ptr);
+    if (e2 == VM_GC_DELETE)
+    {
+        goto more;
+    }
+    if (e2 == VM_GC_KEEP)
+    {
+        return;
+    }
+    return;
+    int e3 = vm_gc_mark_entry_yes(gc, gc->len3, gc->objs3, ptr);
+    if (e3 == VM_GC_DELETE)
+    {
+        goto more;
+    }
+    printf("internal error\n");
+    exit(1);
+more:;
+    size_t len = vm_gc_sizeof(gc, ptr);
+    // printf("len: %zu\n", len);
+    for (int i = 1; i <= len; i++)
+    {
+        vm_gc_entry_t ent = vm_gc_get(gc, ptr + i);
+        // printf("find: %zu\n", ptr + i);
+        // printf("ptr: %zu\n", ent.ptr);
+        // printf("is_ptr: %s\n", vm_obj_is_ptr(ent.obj) ? "true" : "false");
+        if (vm_obj_is_ptr(ent.obj))
+        {
+            vm_gc_mark_ptr_yes(gc, vm_obj_to_ptr(ent.obj));
+        }
+    }
+}
+
+void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
+{
+    if (gc->len1 < gc->big) {
+        return;
+    }
+    // printf("+ GC\n");
+    for (vm_obj_t *cur = base; cur < useful; cur++)
+    {
+        if (vm_obj_is_ptr(*cur))
+        {
+            vm_gc_mark_ptr_yes(gc, vm_obj_to_ptr(*cur));
+        }
+    }
+    size_t swaplen = 0;
+    size_t place2 = 0;
+    size_t place3 = 0;
+    while (true)
+    {
+        if (place2 >= gc->len2)
+        {
+            while (place3 < gc->len3)
+            {
+                if (gc->objs3[place3].tag != VM_GC_DELETE)
+                {
+                    gc->swap[swaplen] = gc->objs3[place3];
+                    swaplen++;
+                    place3++;
+                    for (size_t i = 0; i < gc->objs3[place3].len; i++)
+                    {
+                        gc->swap[swaplen] = gc->objs3[place3];
+                        swaplen++;
+                        place3++;
+                    }
+                }
+                else
+                {
+                    place3++;
+                }
+            }
+            break;
+        }
+        if (place3 >= gc->len3)
+        {
+            while (place2 < gc->len2)
+            {
+                if (gc->objs2[place2].tag != VM_GC_DELETE)
+                {
+                    gc->swap[swaplen] = gc->objs2[place2];
+                    swaplen++;
+                    place2++;
+                    for (size_t i = 0; i < gc->objs2[place2].len; i++)
+                    {
+                        gc->swap[swaplen] = gc->objs2[place2];
+                        swaplen++;
+                        place2++;
+                    }
+                }
+                else
+                {
+                    place2++;
+                }
+            }
+            break;
+        }
+        if (gc->objs2[place2].ptr < gc->objs3[place3].ptr)
+        {
+            if (gc->objs2[place2].tag != VM_GC_DELETE)
+            {
+                gc->swap[swaplen] = gc->objs2[place2];
+                swaplen++;
+                place2++;
+                for (size_t i = 0; i < gc->objs2[place2].len; i++)
+                {
+                    gc->swap[swaplen] = gc->objs2[place2];
+                    swaplen++;
+                    place2++;
+                }
+            }
+            else
+            {
+                place2++;
+            }
+        }
+        else
+        {
+            if (gc->objs3[place3].tag != VM_GC_DELETE)
+            {
+                gc->swap[swaplen] = gc->objs3[place3];
+                swaplen++;
+                place3++;
+                for (size_t i = 0; i < gc->objs3[place3].len; i++)
+                {
+                    gc->swap[swaplen] = gc->objs3[place3];
+                    swaplen++;
+                    place3++;
+                }
+            }
+            else
+            {
+                place3++;
+            }
+        }
+    }
+    void *newswap = gc->objs3;
+    gc->len3 = swaplen;
+    gc->objs3 = gc->swap;
+    gc->swap = newswap;
+    gc->len2 = gc->len1;
+    void *new1 = gc->objs2;
+    gc->objs2 = gc->objs1;
+    gc->len1 = 0;
+    gc->objs1 = new1;
+    gc->big = 0;
+    printf("%zu %zu %zu\n", gc->len1, gc->len2, gc->len3);
 }
 
 vm_gc_t *vm_gc_start(void)
 {
     vm_gc_t *ret = vm_mem_alloc(sizeof(vm_gc_t));
-    ret->maxlen = 16;
-    ret->alloc = 16;
-    ret->length = 0;
-    ret->ptrs = vm_mem_alloc(ret->alloc * sizeof(int *));
-    ret->state = 0;
+    ret->last = 1;
+    ret->len1 = 0;
+    ret->len2 = 0;
+    ret->len3 = 0;
+    ret->objs1 = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
+    ret->objs2 = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
+    ret->objs3 = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
+    ret->swap = vm_mem_alloc(sizeof(vm_gc_entry_t) * (1 << 29));
+    ret->big = 0;
     return ret;
 }
 
 void vm_gc_stop(vm_gc_t *gc)
 {
-    int max = gc->length;
-    for (int i = 0; i < max; i++)
-    {
-        int *ptr = gc->ptrs[i];
-        vm_mem_free(ptr);
-    }
-    vm_mem_free(gc->ptrs);
+    vm_mem_free(gc->objs1);
+    vm_mem_free(gc->objs2);
+    vm_mem_free(gc->objs3);
+    vm_mem_free(gc->swap);
     vm_mem_free(gc);
 }
 
-vm_obj_t vm_gc_new(vm_gc_t *gc, int size)
+vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
 {
-    int *ptr = vm_mem_alloc(sizeof(vm_obj_t) * size + sizeof(int) * 2);
-    gc->ptrs[gc->length++] = ptr;
-    *ptr = gc->state;
-    *(ptr + 1) = size;
-    return vm_obj_of_ptr(ptr);
-}
-
-int vm_gc_sizeof(vm_gc_t *gc, vm_obj_t ptr)
-{
-    int *head = vm_obj_to_ptr(ptr);
-    return *(head + 1);
-}
-
-vm_obj_t vm_gc_get(vm_gc_t *gc, vm_obj_t ptr, int nth)
-{
-    int *raw = vm_obj_to_ptr(ptr);
-    vm_obj_t *head = (vm_obj_t *)(raw + 2);
-    return head[nth];
-}
-
-void vm_gc_set(vm_gc_t *gc, vm_obj_t ptr, int nth, vm_obj_t val)
-{
-    int *raw = vm_obj_to_ptr(ptr);
-    vm_obj_t *head = (vm_obj_t *)(raw + 2);
-    head[nth] = val;
-}
-
-// all these functions happen twice, this is so the marks can cycle
-
-// run when state is an even number
-
-void vm_gc_mark_stack_even(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
-{
-    for (vm_obj_t *ptr = base; ptr < useful; ptr++)
+    uint64_t where = gc->last;
+    gc->last += size + 1;
+    gc->objs1[gc->len1++] = (vm_gc_entry_t){
+        .ptr = where,
+        .tag = VM_GC_DELETE,
+        .len = size,
+    };
+    for (int i = 0; i < size; i++)
     {
-        if (vm_obj_is_ptr(*ptr))
-        {
-            int *sub = vm_obj_to_ptr(*ptr);
-            if (*sub == GC_MARK_0)
-            {
-                *sub = GC_MARK_1;
-                vm_gc_mark_even(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
-            }
-        }
+        gc->objs1[gc->len1++] = (vm_gc_entry_t){
+            .ptr = where + i + 1,
+            .obj = values[i],
+        };
     }
-    for (vm_obj_t *ptr = useful; !vm_obj_is_dead(*ptr) && ptr < end; ptr++)
+    return vm_obj_of_ptr(where);
+}
+
+vm_gc_entry_t vm_gc_find_in(size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
+{
+    if (elems_len > 1)
     {
-        *ptr = vm_obj_of_dead();
+        size_t mid = elems_len >> 1;
+        vm_gc_entry_t mid_entry = elems[mid];
+        if (mid_entry.ptr > ptr)
+        {
+            return vm_gc_find_in(mid, elems, ptr);
+        }
+        if (mid_entry.ptr < ptr)
+        {
+            return vm_gc_find_in(elems_len - mid, elems + mid, ptr);
+        }
+        return mid_entry;
+    }
+    else
+    {
+        vm_gc_entry_t first_entry = elems[0];
+        if (first_entry.ptr == ptr)
+        {
+            return first_entry;
+        }
+        return (vm_gc_entry_t){
+            .ptr = 0,
+        };
     }
 }
 
-void vm_gc_mark_even(vm_gc_t *gc, int len, vm_obj_t *ptrs)
+vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr)
 {
-    while (true)
+    size_t nelems = gc->nelems;
+    vm_gc_entry_t e1 = vm_gc_find_in(gc->len1, gc->objs1, ptr);
+    if (e1.ptr != 0)
     {
-        vm_obj_t *nptrs;
-        int nlen;
-        int i = 0;
-        while (i < len)
-        {
-            if (vm_obj_is_ptr(ptrs[i]))
-            {
-                int *sub = vm_obj_to_ptr(ptrs[i]);
-                if (*sub == GC_MARK_0)
-                {
-                    *sub = GC_MARK_1;
-                    nlen = *(sub + 1);
-                    nptrs = (vm_obj_t *)(sub + 2);
-                    goto next;
-                }
-            }
-            i += 1;
-        }
-        return;
-    next:
-        while (i < len)
-        {
-            if (vm_obj_is_ptr(ptrs[i]))
-            {
-                int *sub = vm_obj_to_ptr(ptrs[i]);
-                if (*sub == GC_MARK_0)
-                {
-                    *sub = GC_MARK_1;
-                    vm_gc_mark_even(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
-                }
-            }
-            i += 1;
-        }
-        ptrs = nptrs;
-        len = nlen;
+        return e1;
     }
+    vm_gc_entry_t e2 = vm_gc_find_in(gc->len2, gc->objs2, ptr);
+    if (e2.ptr != 0)
+    {
+        return e2;
+    }
+    return vm_gc_find_in(gc->len3, gc->objs3, ptr);
 }
 
-void vm_gc_sweep_even(vm_gc_t *gc)
+int vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr)
 {
-    int out = 0;
-    int max = gc->length;
-    for (int i = 0; i < max; i++)
-    {
-        int *ptr = gc->ptrs[i];
-        if (*ptr == GC_MARK_0)
-        {
-            vm_mem_free(ptr);
-        }
-        else
-        {
-            gc->ptrs[out++] = ptr;
-        }
-    }
-    gc->length = out;
-    int newlen = 16 + out * VM_GC_MEM_GROW;
-    if (newlen > gc->maxlen)
-    {
-        gc->maxlen = newlen;
-        if (gc->maxlen >= gc->alloc)
-        {
-            gc->alloc = newlen * 2;
-            int **k = vm_mem_alloc(gc->alloc * sizeof(int *));
-            for (int i = 0; i < out; i++)
-            {
-                k[i] = gc->ptrs[i];
-            }
-            vm_mem_free(gc->ptrs);
-            gc->ptrs = k;
-        }
-    }
-}
-
-// duplicates of functions
-
-// run when state is an odd number
-
-void vm_gc_mark_stack_odd(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
-{
-    for (vm_obj_t *ptr = base; ptr < useful; ptr++)
-    {
-        if (vm_obj_is_ptr(*ptr))
-        {
-            int *sub = vm_obj_to_ptr(*ptr);
-            if (*sub == GC_MARK_1)
-            {
-                *sub = GC_MARK_0;
-                vm_gc_mark_odd(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
-            }
-        }
-    }
-    for (vm_obj_t *ptr = useful; !vm_obj_is_dead(*ptr) && ptr < end; ptr++)
-    {
-        *ptr = vm_obj_of_dead();
-    }
-}
-
-void vm_gc_mark_odd(vm_gc_t *gc, int len, vm_obj_t *ptrs)
-{
-    while (true)
-    {
-        vm_obj_t *nptrs;
-        int nlen;
-        int i = 0;
-        while (i < len)
-        {
-            if (vm_obj_is_ptr(ptrs[i]))
-            {
-                int *sub = vm_obj_to_ptr(ptrs[i]);
-                if (*sub == GC_MARK_1)
-                {
-                    *sub = GC_MARK_0;
-                    nlen = *(sub + 1);
-                    nptrs = (vm_obj_t *)(sub + 2);
-                    goto next;
-                }
-            }
-            i += 1;
-        }
-        return;
-    next:
-        while (i < len)
-        {
-            if (vm_obj_is_ptr(ptrs[i]))
-            {
-                int *sub = vm_obj_to_ptr(ptrs[i]);
-                if (*sub == GC_MARK_1)
-                {
-                    *sub = GC_MARK_0;
-                    vm_gc_mark_odd(gc, *(sub + 1), (vm_obj_t *)(sub + 2));
-                }
-            }
-            i += 1;
-        }
-        ptrs = nptrs;
-        len = nlen;
-    }
-}
-
-void vm_gc_sweep_odd(vm_gc_t *gc)
-{
-    int out = 0;
-    int max = gc->length;
-    int last = max;
-    for (int i = 0; i < max; i++)
-    {
-        int *ptr = gc->ptrs[i];
-        if (*ptr == GC_MARK_1)
-        {
-            vm_mem_free(ptr);
-        }
-        else
-        {
-            gc->ptrs[out++] = ptr;
-        }
-    }
-    gc->length = out;
-    int newlen = 16 + out * VM_GC_MEM_GROW;
-    if (newlen > gc->maxlen)
-    {
-        gc->maxlen = newlen;
-        if (gc->maxlen >= gc->alloc)
-        {
-            gc->alloc = newlen * 2;
-            int **k = vm_mem_alloc(gc->alloc * sizeof(int *));
-            for (int i = 0; i < out; i++)
-            {
-                k[i] = gc->ptrs[i];
-            }
-            vm_mem_free(gc->ptrs);
-            gc->ptrs = k;
-        }
-    }
+    return vm_gc_get(gc, ptr).len;
 }

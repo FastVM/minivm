@@ -25,9 +25,9 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 	return nanbox_from_double(obj);
 }
 
-static inline void *vm_obj_to_ptr(vm_obj_t obj)
+static inline long vm_obj_to_ptr(vm_obj_t obj)
 {
-	return nanbox_to_pointer(obj);
+	return obj.as_int64 - NANBOX_MIN_AUX;
 }
 
 static inline int vm_obj_to_fun(vm_obj_t obj)
@@ -35,9 +35,11 @@ static inline int vm_obj_to_fun(vm_obj_t obj)
 	return (int) nanbox_to_double(obj);
 }
 
-static inline vm_obj_t vm_obj_of_ptr(void* obj)
+static inline vm_obj_t vm_obj_of_ptr(long obj)
 {
-	return nanbox_from_pointer(obj);
+	vm_obj_t ret;
+	ret.as_int64 = obj + NANBOX_MIN_AUX;
+	return ret;
 }
 
 static inline vm_obj_t vm_obj_of_fun(int obj)
@@ -57,7 +59,7 @@ static inline bool vm_obj_is_num(vm_obj_t obj)
 
 static inline bool vm_obj_is_ptr(vm_obj_t obj)
 {
-	return nanbox_is_pointer(obj);
+	return obj.as_int64 >= NANBOX_MIN_AUX && obj.as_int64 <= NANBOX_MAX_AUX;
 }
 
 static inline bool vm_obj_is_dead(vm_obj_t obj)

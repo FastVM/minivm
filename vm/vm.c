@@ -224,18 +224,16 @@ do_return:
 }
 do_array:
 {
-    if (gc->length >= gc->maxlen)
-    {
-        vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals, cur_locals + VM_LOCALS_NUM);
-    }
+    vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals, cur_locals + VM_LOCALS_NUM);
     reg_t outreg = read_reg;
     int nargs = read_byte;
-    vm_obj_t vec = gcvec_new(gc, nargs);
+    vm_obj_t values[256];
     for (int i = 0; i < nargs; i++)
     {
         reg_t reg = read_reg;
-        gcvec_set(gc, vec, i, cur_locals[reg]);
+        values[i] = cur_locals[reg];
     }
+    vm_obj_t vec = gcvec_new(gc, nargs, values);
     vm_fetch;
     cur_locals[outreg] = vec;
     run_next_op;

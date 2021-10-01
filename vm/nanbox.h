@@ -73,7 +73,7 @@
  * bits of zero.)
  */
 #ifndef NANBOX_AUX1_TYPE
-#define NANBOX_AUX1_TYPE void *
+#define NANBOX_AUX1_TYPE uint64_t
 #endif
 #ifndef NANBOX_AUX2_TYPE
 #define NANBOX_AUX2_TYPE void *
