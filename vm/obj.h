@@ -5,6 +5,8 @@ typedef nanbox_t vm_obj_t;
 typedef int vm_loc_t;
 typedef double vm_number_t;
 
+#define VM_OBJ_PTR_BASE NANBOX_MIN_AUX
+
 static inline int vm_obj_to_int(vm_obj_t obj)
 {
 	return (int) nanbox_to_double(obj);
@@ -25,9 +27,9 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 	return nanbox_from_double(obj);
 }
 
-static inline long vm_obj_to_ptr(vm_obj_t obj)
+static inline uint64_t vm_obj_to_ptr(vm_obj_t obj)
 {
-	return obj.as_int64 - NANBOX_MIN_AUX;
+	return obj.as_int64;
 }
 
 static inline int vm_obj_to_fun(vm_obj_t obj)
@@ -35,10 +37,10 @@ static inline int vm_obj_to_fun(vm_obj_t obj)
 	return (int) nanbox_to_double(obj);
 }
 
-static inline vm_obj_t vm_obj_of_ptr(long obj)
+static inline vm_obj_t vm_obj_of_ptr(uint64_t obj)
 {
 	vm_obj_t ret;
-	ret.as_int64 = obj + NANBOX_MIN_AUX;
+	ret.as_int64 = obj;
 	return ret;
 }
 

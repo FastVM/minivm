@@ -209,7 +209,7 @@ void vm_gc_start(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
 {
     gc->base = base;
     gc->end = end;
-    gc->last = 1;
+    gc->last = VM_OBJ_PTR_BASE;
     gc->objs1 = vm_mem_grow(VM_MEM_BYTES);
     gc->objs2 = vm_mem_grow(VM_MEM_BYTES);
     gc->objs3 = vm_mem_grow(VM_MEM_BYTES);
@@ -236,7 +236,6 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
     gc->objs1[(*vm_objs_len(gc->objs1))++] = (vm_gc_entry_t){
         .ptr = gc->last++,
         .tag = VM_GC_DELETE,
-        .type = VM_GC_ENTRY_TYPE_PTR,
         .len = size,
     };
     for (int i = 0; i < size; i++)
@@ -244,7 +243,6 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
         gc->objs1[(*vm_objs_len(gc->objs1))++] = (vm_gc_entry_t){
             .ptr = gc->last++,
             .tag = VM_GC_DELETE,
-            .type = VM_GC_ENTRY_TYPE_OBJ,
             .obj = values[i],
         };
     }
@@ -253,37 +251,41 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
 
 vm_gc_entry_t vm_gc_find_in(size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
 {
-    if (elems_len > 1)
-    {
-        size_t mid = elems_len >> 1;
-        vm_gc_entry_t mid_entry = elems[mid];
-        if (mid_entry.ptr > ptr)
+    while (true) {
+        if (elems_len > 1)
         {
-            return vm_gc_find_in(mid, elems, ptr);
+            size_t mid = elems_len >> 1;
+            vm_gc_entry_t mid_entry = elems[mid];
+            if (mid_entry.ptr > ptr)
+            {
+                elems_len = mid;
+                continue;
+            }
+            if (mid_entry.ptr < ptr)
+            {
+                elems_len -= mid;
+                elems += mid;
+                continue;
+            }
+            return mid_entry;
         }
-        if (mid_entry.ptr < ptr)
+        else
         {
-            return vm_gc_find_in(elems_len - mid, elems + mid, ptr);
+            vm_gc_entry_t first_entry = elems[0];
+            if (first_entry.ptr == ptr)
+            {
+                return first_entry;
+            }
+            return (vm_gc_entry_t){
+                .ptr = 0,
+            };
         }
-        return mid_entry;
-    }
-    else
-    {
-        vm_gc_entry_t first_entry = elems[0];
-        if (first_entry.ptr == ptr)
-        {
-            return first_entry;
-        }
-        return (vm_gc_entry_t){
-            .ptr = 0,
-        };
     }
 }
 
 vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr)
 {
     uint32_t len;
-    size_t nelems = gc->nelems;
     vm_gc_entry_t e1 = vm_gc_find_in(*vm_objs_len(gc->objs1), gc->objs1, ptr);
     if (e1.ptr != 0)
     {

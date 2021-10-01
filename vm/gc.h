@@ -19,9 +19,8 @@ vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr);
 
 struct vm_gc_entry_t
 {
-    uint64_t ptr: 48;
-    int tag : 8;
-    int type : 8;
+    uint64_t ptr: 63;
+    int tag : 1;
     union
     {
         uint32_t len;
@@ -42,7 +41,6 @@ struct vm_gc_t
     vm_obj_t **cur_locals;
     vm_stack_frame_t **cur_frame;
     uint64_t last;
-    size_t nelems;
     bool die;
     pthread_t thread;
 };
