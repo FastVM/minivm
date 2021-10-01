@@ -120,8 +120,12 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
 
 void vm_run(const opcode_t *basefunc)
 {
-    vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAME_NUM);
-    vm_obj_t *locals_base = vm_mem_grow(sizeof(vm_obj_t) * VM_LOCALS_NUM);
+    vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAME_BYTES);
+    for (vm_stack_frame_t *cur = frames_base; cur < frames_base + VM_FRAME_BYTES; cur++)
+    {
+        cur->nlocals = 255;
+    }
+    vm_obj_t *locals_base = vm_mem_grow(VM_LOCALS_BYTES);
 
     vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
@@ -130,7 +134,7 @@ void vm_run(const opcode_t *basefunc)
 
     vm_gc_t raw_gc;
     vm_gc_t *gc = &raw_gc;
-    vm_gc_start(gc);
+    vm_gc_start(gc, locals_base, locals_base + VM_LOCALS_BYTES / sizeof(vm_obj_t));
 
     void *next_op_value;
     void *ptrs[OPCODE_MAX2P] = {};
@@ -222,7 +226,6 @@ do_return:
 }
 do_array:
 {
-    vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals);
     reg_t outreg = read_reg;
     int nargs = read_byte;
     vm_obj_t values[256];

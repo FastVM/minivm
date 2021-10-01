@@ -9,7 +9,7 @@ LLC=llc
 WASMLD=wasm-ld
 WASMOPT=wasm-opt
 
-SRCS:=vm/vm.c vm/gc.c vm/wasm.c vm/walloc.c
+SRCS:=vm/vm.c vm/gc.c vm/wasm.c
 
 OBJS=$(patsubst %.c,$(LIB)/%.o,$(SRCS))
 

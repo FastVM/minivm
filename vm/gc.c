@@ -1,8 +1,7 @@
 #include <vm/gc.h>
-#include <vm/vm.h>
 #include <vm/obj.h>
 
-#define VM_MEM_MAX ((VM_FRAME_NUM) + (VM_LOCALS_NUM) + (VM_MEM_BYTES)*4)
+#define VM_MEM_MAX ((VM_FRAME_BYTES) + (VM_LOCALS_BYTES) + (VM_MEM_BYTES)*4)
 
 #define VM_GC_MEM_GROW (2)
 
@@ -24,6 +23,11 @@ void *vm_mem_grow(size_t size)
 void vm_mem_reset(void)
 {
     vm_mem_top = 0;
+}
+
+uint32_t *vm_objs_len(vm_gc_entry_t *objs)
+{
+    return &objs[-1].len;
 }
 
 int vm_gc_mark_entry_yes(vm_gc_t *gc, size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
@@ -58,17 +62,17 @@ int vm_gc_mark_entry_yes(vm_gc_t *gc, size_t elems_len, vm_gc_entry_t *elems, ui
 
 int vm_gc_mark_val_yes(vm_gc_t *gc, uint64_t ptr)
 {
-    int e1 = vm_gc_mark_entry_yes(gc, gc->len1, gc->objs1, ptr);
+    int e1 = vm_gc_mark_entry_yes(gc, *vm_objs_len(gc->objs1), gc->objs1, ptr);
     if (e1 != 2)
     {
         return e1;
     }
-    int e2 = vm_gc_mark_entry_yes(gc, gc->len2, gc->objs2, ptr);
+    int e2 = vm_gc_mark_entry_yes(gc, *vm_objs_len(gc->objs2), gc->objs2, ptr);
     if (e2 != 2)
     {
         return e2;
     }
-    int e3 = vm_gc_mark_entry_yes(gc, gc->len3, gc->objs3, ptr);
+    int e3 = vm_gc_mark_entry_yes(gc, *vm_objs_len(gc->objs3), gc->objs3, ptr);
     if (e3 != 2)
     {
         return e3;
@@ -97,14 +101,9 @@ more:;
     }
 }
 
-
-void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
+void vm_gc_run1(vm_gc_t *gc)
 {
-    if (gc->len1 < gc->big)
-    {
-        return;
-    }
-    for (vm_obj_t *cur = base; cur < end; cur++)
+    for (vm_obj_t *cur = gc->base; cur < gc->end; cur++)
     {
         if (vm_obj_is_ptr(*cur))
         {
@@ -116,9 +115,9 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
     size_t place3 = 0;
     while (true)
     {
-        if (place2 >= gc->len2)
+        if (place2 >= *vm_objs_len(gc->objs2))
         {
-            while (place3 < gc->len3)
+            while (place3 < *vm_objs_len(gc->objs3))
             {
                 if (gc->objs3[place3].tag != VM_GC_DELETE)
                 {
@@ -133,9 +132,9 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
             }
             break;
         }
-        if (place3 >= gc->len3)
+        if (place3 >= *vm_objs_len(gc->objs3))
         {
-            while (place2 < gc->len2)
+            while (place2 < *vm_objs_len(gc->objs2))
             {
                 if (gc->objs2[place2].tag != VM_GC_DELETE)
                 {
@@ -178,42 +177,63 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
         }
     }
     void *newswap = gc->objs3;
-    gc->len3 = swaplen;
     gc->objs3 = gc->swap;
+    *vm_objs_len(gc->objs3) = swaplen;
     gc->swap = newswap;
-    gc->len2 = gc->len1;
     void *new1 = gc->objs2;
     gc->objs2 = gc->objs1;
-    gc->len1 = 0;
+    *vm_objs_len(gc->objs2) = *vm_objs_len(gc->objs1);
+    *vm_objs_len(new1) = 0;
     gc->objs1 = new1;
-    gc->big = swaplen * VM_GC_MEM_GROW;
-    for (int i = 0; i < gc->len2; i++)
+    for (int i = 0; i < *vm_objs_len(gc->objs2); i++)
     {
         gc->objs2[i].tag = VM_GC_DELETE;
     }
-    for (int i = 0; i < gc->len3; i++)
+    for (int i = 0; i < *vm_objs_len(gc->objs3); i++)
     {
         gc->objs3[i].tag = VM_GC_DELETE;
     }
 }
 
-void vm_gc_start(vm_gc_t *gc)
+void *vm_gc_run(void *gc_arg)
 {
+    vm_gc_t *gc = gc_arg;
+    while (!gc->die)
+    {
+        vm_gc_run1(gc);
+    }
+    return NULL;
+}
+
+void vm_gc_start(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
+{
+    gc->base = base;
+    gc->end = end;
     gc->last = 1;
-    gc->len1 = 0;
-    gc->len2 = 0;
-    gc->len3 = 0;
     gc->objs1 = vm_mem_grow(VM_MEM_BYTES);
     gc->objs2 = vm_mem_grow(VM_MEM_BYTES);
     gc->objs3 = vm_mem_grow(VM_MEM_BYTES);
     gc->swap = vm_mem_grow(VM_MEM_BYTES);
-    gc->big = 0;
+    gc->objs1 += 1;
+    gc->objs2 += 1;
+    gc->objs3 += 1;
+    gc->swap += 1;
+    gc->die = false;
+    gc->objs1[-1].len = 0;
+    gc->objs2[-1].len = 0;
+    gc->objs3[-1].len = 0;
+    pthread_create(&gc->thread, NULL, &vm_gc_run, gc);
+}
+
+void vm_gc_stop(vm_gc_t *gc) {
+    gc->die = true;
+    pthread_join(gc->thread, NULL);
 }
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
 {
     uint64_t where = gc->last;
-    gc->objs1[gc->len1++] = (vm_gc_entry_t){
+    gc->objs1[(*vm_objs_len(gc->objs1))++] = (vm_gc_entry_t){
         .ptr = gc->last++,
         .tag = VM_GC_DELETE,
         .type = VM_GC_ENTRY_TYPE_PTR,
@@ -221,7 +241,7 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
     };
     for (int i = 0; i < size; i++)
     {
-        gc->objs1[gc->len1++] = (vm_gc_entry_t){
+        gc->objs1[(*vm_objs_len(gc->objs1))++] = (vm_gc_entry_t){
             .ptr = gc->last++,
             .tag = VM_GC_DELETE,
             .type = VM_GC_ENTRY_TYPE_OBJ,
@@ -235,7 +255,6 @@ vm_gc_entry_t vm_gc_find_in(size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr
 {
     if (elems_len > 1)
     {
-
         size_t mid = elems_len >> 1;
         vm_gc_entry_t mid_entry = elems[mid];
         if (mid_entry.ptr > ptr)
@@ -265,17 +284,17 @@ vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr)
 {
     uint32_t len;
     size_t nelems = gc->nelems;
-    vm_gc_entry_t e1 = vm_gc_find_in(gc->len1, gc->objs1, ptr);
+    vm_gc_entry_t e1 = vm_gc_find_in(*vm_objs_len(gc->objs1), gc->objs1, ptr);
     if (e1.ptr != 0)
     {
         return e1;
     }
-    vm_gc_entry_t e2 = vm_gc_find_in(gc->len2, gc->objs2, ptr);
+    vm_gc_entry_t e2 = vm_gc_find_in(*vm_objs_len(gc->objs2), gc->objs2, ptr);
     if (e2.ptr != 0)
     {
         return e2;
     }
-    return vm_gc_find_in(gc->len3, gc->objs3, ptr);
+    return vm_gc_find_in(*vm_objs_len(gc->objs3), gc->objs3, ptr);
 }
 
 int vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr)

@@ -5,7 +5,7 @@
 
 opcode_t vm_ops[1 << 16];
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[argc])
 {
     int times = 0;
     int head = 1;

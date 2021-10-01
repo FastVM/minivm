@@ -12,8 +12,8 @@ double fmod(double a, double b);
 #include <cosmopolitan.h>
 #endif
 
-#define VM_FRAME_NUM (sizeof(vm_stack_frame_t) * (1 << 17))
-#define VM_LOCALS_NUM (sizeof(vm_obj_t) * (1 << 20))
+#define VM_FRAME_BYTES (sizeof(vm_stack_frame_t) * (1 << 12))
+#define VM_LOCALS_BYTES (sizeof(vm_obj_t) * ((1 << 12) * (1 << 4)))
 #define VM_MEM_BYTES (sizeof(vm_gc_entry_t) * (1 << 24))
 
 void *vm_mem_grow(size_t size);

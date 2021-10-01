@@ -1,13 +1,14 @@
 #pragma once
 #include <vm/libc.h>
 #include <vm/obj.h>
+#include <vm/vm.h>
+#include <pthread.h>
 
 struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 
-void vm_gc_start(vm_gc_t *out);
-void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *stop);
+void vm_gc_start(vm_gc_t *out, vm_obj_t *base, vm_obj_t *end);
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, int len, vm_obj_t *values);
 int vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr);
@@ -36,10 +37,12 @@ struct vm_gc_t
     vm_gc_entry_t *objs2;
     vm_gc_entry_t *objs3;
     vm_gc_entry_t *swap;
+    vm_obj_t *base;
+    vm_obj_t *end;
+    vm_obj_t **cur_locals;
+    vm_stack_frame_t **cur_frame;
     uint64_t last;
     size_t nelems;
-    size_t len1;
-    size_t len2;
-    size_t len3;
-    size_t big;
+    bool die;
+    pthread_t thread;
 };
