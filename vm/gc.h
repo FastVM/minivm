@@ -8,26 +8,28 @@ typedef struct vm_gc_entry_t vm_gc_entry_t;
 
 vm_gc_t *vm_gc_start(void);
 void vm_gc_stop(vm_gc_t *gc);
-void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end);
+void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *stop);
 
-vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values);
+vm_obj_t vm_gc_new(vm_gc_t *gc, int len, vm_obj_t *values);
 int vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr);
 vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr);
 
+#define VM_GC_ENTRY_TYPE_PTR 0
+#define VM_GC_ENTRY_TYPE_OBJ 1
+
 struct vm_gc_entry_t
 {
-    uint64_t ptr;
+    uint64_t ptr: 48;
+    int tag : 8;
+    int type : 8;
     union
     {
-        uint64_t u64;
-        struct
-        {
-            uint32_t tag;
-            uint32_t len;
-        };
+        uint32_t len;
         vm_obj_t obj;
     };
 };
+
+_Static_assert(sizeof(vm_gc_entry_t) == 16, "bad size");
 
 struct vm_gc_t
 {
@@ -41,6 +43,4 @@ struct vm_gc_t
     size_t len2;
     size_t len3;
     size_t big;
-    int mark_no;
-    int mark_yes;
 };

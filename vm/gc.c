@@ -1,7 +1,7 @@
 #include <vm/gc.h>
 #include <vm/obj.h>
 
-#define VM_GC_MEM_GROW (2)
+#define VM_GC_MEM_GROW (4)
 
 #define VM_GC_DELETE (0)
 #define VM_GC_KEEP (1)
@@ -36,44 +36,41 @@ int vm_gc_mark_entry_yes(vm_gc_t *gc, size_t elems_len, vm_gc_entry_t *elems, ui
     }
 }
 
-void vm_gc_mark_ptr_yes(vm_gc_t *gc, uint64_t ptr)
+int vm_gc_mark_val_yes(vm_gc_t *gc, uint64_t ptr)
 {
-    size_t nelems = gc->nelems;
     int e1 = vm_gc_mark_entry_yes(gc, gc->len1, gc->objs1, ptr);
-    if (e1 == VM_GC_DELETE)
+    if (e1 != 2)
     {
-        goto more;
-    }
-    if (e1 == VM_GC_KEEP)
-    {
-        return;
+        return e1;
     }
     int e2 = vm_gc_mark_entry_yes(gc, gc->len2, gc->objs2, ptr);
-    if (e2 == VM_GC_DELETE)
+    if (e2 != 2)
     {
-        goto more;
+        return e2;
     }
-    if (e2 == VM_GC_KEEP)
-    {
-        return;
-    }
-    return;
     int e3 = vm_gc_mark_entry_yes(gc, gc->len3, gc->objs3, ptr);
-    if (e3 == VM_GC_DELETE)
+    if (e3 != 2)
     {
-        goto more;
+        return e3;
     }
-    printf("internal error\n");
-    exit(1);
+    return 2;
+}
+void vm_print(vm_gc_t *gc, vm_obj_t obj);
+
+void vm_gc_mark_ptr_yes(vm_gc_t *gc, uint64_t ptr)
+{
+    int res = vm_gc_mark_val_yes(gc, ptr);
+    if (res == 2)
+    {
+        exit(1);
+    }
 more:;
     size_t len = vm_gc_sizeof(gc, ptr);
-    // printf("len: %zu\n", len);
+
     for (int i = 1; i <= len; i++)
     {
         vm_gc_entry_t ent = vm_gc_get(gc, ptr + i);
-        // printf("find: %zu\n", ptr + i);
-        // printf("ptr: %zu\n", ent.ptr);
-        // printf("is_ptr: %s\n", vm_obj_is_ptr(ent.obj) ? "true" : "false");
+        vm_gc_mark_val_yes(gc, ptr + i);
         if (vm_obj_is_ptr(ent.obj))
         {
             vm_gc_mark_ptr_yes(gc, vm_obj_to_ptr(ent.obj));
@@ -81,13 +78,14 @@ more:;
     }
 }
 
-void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
+
+void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
 {
-    if (gc->len1 < gc->big) {
+    if (gc->len1 < gc->big)
+    {
         return;
     }
-    // printf("+ GC\n");
-    for (vm_obj_t *cur = base; cur < useful; cur++)
+    for (vm_obj_t *cur = base; cur < end; cur++)
     {
         if (vm_obj_is_ptr(*cur))
         {
@@ -108,12 +106,6 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
                     gc->swap[swaplen] = gc->objs3[place3];
                     swaplen++;
                     place3++;
-                    for (size_t i = 0; i < gc->objs3[place3].len; i++)
-                    {
-                        gc->swap[swaplen] = gc->objs3[place3];
-                        swaplen++;
-                        place3++;
-                    }
                 }
                 else
                 {
@@ -131,12 +123,6 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
                     gc->swap[swaplen] = gc->objs2[place2];
                     swaplen++;
                     place2++;
-                    for (size_t i = 0; i < gc->objs2[place2].len; i++)
-                    {
-                        gc->swap[swaplen] = gc->objs2[place2];
-                        swaplen++;
-                        place2++;
-                    }
                 }
                 else
                 {
@@ -152,12 +138,6 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
                 gc->swap[swaplen] = gc->objs2[place2];
                 swaplen++;
                 place2++;
-                for (size_t i = 0; i < gc->objs2[place2].len; i++)
-                {
-                    gc->swap[swaplen] = gc->objs2[place2];
-                    swaplen++;
-                    place2++;
-                }
             }
             else
             {
@@ -171,12 +151,6 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
                 gc->swap[swaplen] = gc->objs3[place3];
                 swaplen++;
                 place3++;
-                for (size_t i = 0; i < gc->objs3[place3].len; i++)
-                {
-                    gc->swap[swaplen] = gc->objs3[place3];
-                    swaplen++;
-                    place3++;
-                }
             }
             else
             {
@@ -193,8 +167,15 @@ void vm_gc_run(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *useful, vm_obj_t *end)
     gc->objs2 = gc->objs1;
     gc->len1 = 0;
     gc->objs1 = new1;
-    gc->big = 0;
-    printf("%zu %zu %zu\n", gc->len1, gc->len2, gc->len3);
+    gc->big = swaplen * VM_GC_MEM_GROW;
+    for (int i = 0; i < gc->len2; i++)
+    {
+        gc->objs2[i].tag = VM_GC_DELETE;
+    }
+    for (int i = 0; i < gc->len3; i++)
+    {
+        gc->objs3[i].tag = VM_GC_DELETE;
+    }
 }
 
 vm_gc_t *vm_gc_start(void)
@@ -224,16 +205,18 @@ void vm_gc_stop(vm_gc_t *gc)
 vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
 {
     uint64_t where = gc->last;
-    gc->last += size + 1;
     gc->objs1[gc->len1++] = (vm_gc_entry_t){
-        .ptr = where,
+        .ptr = gc->last++,
         .tag = VM_GC_DELETE,
+        .type = VM_GC_ENTRY_TYPE_PTR,
         .len = size,
     };
     for (int i = 0; i < size; i++)
     {
         gc->objs1[gc->len1++] = (vm_gc_entry_t){
-            .ptr = where + i + 1,
+            .ptr = gc->last++,
+            .tag = VM_GC_DELETE,
+            .type = VM_GC_ENTRY_TYPE_OBJ,
             .obj = values[i],
         };
     }
@@ -271,6 +254,7 @@ vm_gc_entry_t vm_gc_find_in(size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr
 
 vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr)
 {
+    uint32_t len;
     size_t nelems = gc->nelems;
     vm_gc_entry_t e1 = vm_gc_find_in(gc->len1, gc->objs1, ptr);
     if (e1.ptr != 0)

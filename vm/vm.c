@@ -224,7 +224,7 @@ do_return:
 }
 do_array:
 {
-    vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals, cur_locals + VM_LOCALS_NUM);
+    vm_gc_run(gc, locals_base, cur_locals + cur_frame->nlocals);
     reg_t outreg = read_reg;
     int nargs = read_byte;
     vm_obj_t values[256];
