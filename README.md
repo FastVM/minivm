@@ -117,7 +117,13 @@ You may need to install a few dependencies:
 
 Most OSes should have these core libraries out of the box. Other than that, `pthreads` is only needed if you want to run MiniVM on bare metal.
 
+# Getting Started
+TODO(4984): Document API and maybe a short getting-started example.
+
 # Benchmarks
-TODO(4984): attach some benchmarks...
+TODO(4984): Attach some benchmarks...
+
+# Roadmap
+TODO(4989): Features you're planning to tackle next...
 
 > Note: MiniVM is wholly developed by Shaw (4984); this README was written by a friend of his who thinks he can be a bit too modest at times.
