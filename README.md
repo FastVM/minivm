@@ -16,7 +16,7 @@ Here are a few reasons why MiniVM is pretty neat:
 
 MiniVM is small and flexible enough to run just about any language under the sun (given you've taken the time to write a compiler for it). Front ends we've experimented with include Lua, Scheme, Paka, and others.
 
-# History
+## History
 This project started as an exploration into what it takes to build a fast interpreters. The first version was blocked out during a single Discord call, and ran a small lisp-like language.
 
 This original implementation was a plain stack machine, which, for whatever reason, was a tad faster than it should've been.
@@ -27,10 +27,10 @@ MiniVM's speed is in no small part due to its architecture. It's a register/stac
 
 Above all else, MiniVM is a constantly improving each day. We hope you find the journey to be as interesting as the final destination. If you're interested as to where the project is headed next, ping Shaw (`@4984#4984`) on [the Discord Server](https://discord.gg/UyvxuC5W5q).
 
-# Some Sweet Deets
+## Some Sweet Deets
 Below is a small discussion of the architecture of MiniVM, and the emergent properties because of these decisions.
 
-## A Register-Based VM
+### A Register-Based VM
 First and foremost, MiniVM is a register-based VM. This means that instructions are larger and operate on *registers*, as opposed to the *stack*. Because of this property, register-based VMs play nicely with modern hardware, and result in less instructions per unit of work done. Consider the following:
 
 ```
@@ -66,12 +66,12 @@ end_of_loop:
 
 Although each instruction is a bit more complex, there are way fewer instructions. And this per-instruction complexity isn't necessarily a bad thing: making instructions more complex offloads work to the host language (C, in this case), which means that the runtime can compile common complex instructions to efficient native code.
 
-## Wasm and Portability
+### Wasm and Portability
 MiniVM is a small pure-C project with few dependencies; for this reason it's pretty easy to compile to just about any target.
 
 This, of course, means that the MiniVM runtime can be compiled to Wasm: the resulting binary is only *12KiB* in size! This is small enough to embed in a website, if that's your cup of tea.
 
-## On `pthreads` and `putchar`
+### On `pthreads` and `putchar`
 
 > minivm performs better if pthreads are used but only really needs putchar.
 > pthreads can be disabled if the system has no threads
@@ -80,7 +80,7 @@ This, of course, means that the MiniVM runtime can be compiled to Wasm: the resu
 
 TODO: Expand this section.
 
-## Simple Type Model
+### Simple Type Model
 MiniVM implements 3 heavily-optimized core types:
 
 1. numbers (classic IEEE-754 doubles)
@@ -93,7 +93,7 @@ Each of the 3 core types heavily optimized through the use of NaN-tagging (cramm
 
 Because MiniVM is a register-based machine, it employs clever instructions to leverage common type layouts for better performance. For instance, to emulate closures arrays can be called as functions if the first item in that array is a function.
 
-# Installation
+## Installation
 Building from source is pretty simple:
 
 ```
@@ -117,13 +117,13 @@ You may need to install a few dependencies:
 
 Most OSes should have these core libraries out of the box. Other than that, `pthreads` is only needed if you want to run MiniVM on bare metal.
 
-# Getting Started
+## Getting Started
 TODO(4984): Document API and maybe a short getting-started example.
 
-# Benchmarks
+## Benchmarks
 TODO(4984): Attach some benchmarks...
 
-# Roadmap
+## Roadmap
 TODO(4989): Features you're planning to tackle next...
 
 > Note: MiniVM is wholly developed by Shaw (4984); this README was written by a friend of his who thinks he can be a bit too modest at times.
