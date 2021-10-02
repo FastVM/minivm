@@ -25,7 +25,7 @@ void vm_mem_reset(void)
     vm_mem_top = 0;
 }
 
-uint32_t *vm_objs_len(vm_gc_entry_t *objs)
+size_t *vm_objs_len(vm_gc_entry_t *objs)
 {
     return &objs[-1].len;
 }
@@ -193,14 +193,22 @@ void vm_gc_run1(vm_gc_t *gc)
     {
         gc->objs3[i].tag = VM_GC_DELETE;
     }
+    gc->max1 = *vm_objs_len(gc->objs3);
 }
 
-void *vm_gc_run(void *gc_arg)
+void *vm_gc_run_thread(void *gc_arg)
 {
     vm_gc_t *gc = gc_arg;
     while (!gc->die)
     {
+        pthread_mutex_lock(&gc->lock);
+        while (gc->not_collecting)
+        {
+            pthread_cond_wait(&gc->cond, &gc->lock);
+        }
         vm_gc_run1(gc);
+        gc->not_collecting = true;
+        pthread_mutex_unlock(&gc->lock);
     }
     return NULL;
 }
@@ -219,30 +227,45 @@ void vm_gc_start(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
     gc->objs3 += 1;
     gc->swap += 1;
     gc->die = false;
+    gc->not_collecting = false;
     gc->objs1[-1].len = 0;
     gc->objs2[-1].len = 0;
     gc->objs3[-1].len = 0;
-    pthread_create(&gc->thread, NULL, &vm_gc_run, gc);
+    gc->max1 = 0;
+    pthread_cond_init(&gc->cond, NULL);
+    pthread_mutex_init(&gc->lock, NULL);
+    pthread_create(&gc->thread, NULL, &vm_gc_run_thread, gc);
 }
 
-void vm_gc_stop(vm_gc_t *gc) {
+void vm_gc_stop(vm_gc_t *gc)
+{
     gc->die = true;
     pthread_join(gc->thread, NULL);
+    pthread_mutex_destroy(&gc->lock);
+    pthread_cond_destroy(&gc->cond);
 }
 
-vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
+vm_obj_t vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)
 {
+    if (*vm_objs_len(gc->objs1) >= gc->max1)
+    {
+        if (gc->not_collecting)
+        {
+            pthread_mutex_lock(&gc->lock);
+            gc->not_collecting = false;
+            pthread_cond_broadcast(&gc->cond);
+            pthread_mutex_unlock(&gc->lock);
+        }
+    }
     uint64_t where = gc->last;
     gc->objs1[(*vm_objs_len(gc->objs1))++] = (vm_gc_entry_t){
         .ptr = gc->last++,
-        .tag = VM_GC_DELETE,
         .len = size,
     };
     for (int i = 0; i < size; i++)
     {
         gc->objs1[(*vm_objs_len(gc->objs1))++] = (vm_gc_entry_t){
             .ptr = gc->last++,
-            .tag = VM_GC_DELETE,
             .obj = values[i],
         };
     }
@@ -251,41 +274,39 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, int size, vm_obj_t *values)
 
 vm_gc_entry_t vm_gc_find_in(size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
 {
-    while (true) {
-        if (elems_len > 1)
+    while (true)
+    {
+        size_t mid = elems_len >> 1;
+        vm_gc_entry_t mid_entry = elems[mid];
+        if (mid_entry.ptr > ptr)
         {
-            size_t mid = elems_len >> 1;
-            vm_gc_entry_t mid_entry = elems[mid];
-            if (mid_entry.ptr > ptr)
+            if (mid == 0)
             {
-                elems_len = mid;
-                continue;
+                return (vm_gc_entry_t){
+                    .ptr = 0,
+                };
             }
-            if (mid_entry.ptr < ptr)
-            {
-                elems_len -= mid;
-                elems += mid;
-                continue;
-            }
-            return mid_entry;
+            elems_len = mid;
+            continue;
         }
-        else
+        if (mid_entry.ptr < ptr)
         {
-            vm_gc_entry_t first_entry = elems[0];
-            if (first_entry.ptr == ptr)
+            if (mid == 0)
             {
-                return first_entry;
+                return (vm_gc_entry_t){
+                    .ptr = 0,
+                };
             }
-            return (vm_gc_entry_t){
-                .ptr = 0,
-            };
+            elems_len -= mid;
+            elems += mid;
+            continue;
         }
+        return mid_entry;
     }
 }
 
 vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr)
 {
-    uint32_t len;
     vm_gc_entry_t e1 = vm_gc_find_in(*vm_objs_len(gc->objs1), gc->objs1, ptr);
     if (e1.ptr != 0)
     {
@@ -299,7 +320,7 @@ vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr)
     return vm_gc_find_in(*vm_objs_len(gc->objs3), gc->objs3, ptr);
 }
 
-int vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr)
+size_t vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr)
 {
     return vm_gc_get(gc, ptr).len;
 }

@@ -10,8 +10,8 @@ typedef struct vm_gc_entry_t vm_gc_entry_t;
 
 void vm_gc_start(vm_gc_t *out, vm_obj_t *base, vm_obj_t *end);
 
-vm_obj_t vm_gc_new(vm_gc_t *gc, int len, vm_obj_t *values);
-int vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr);
+vm_obj_t vm_gc_new(vm_gc_t *gc, size_t len, vm_obj_t *values);
+size_t vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr);
 vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr);
 
 #define VM_GC_ENTRY_TYPE_PTR 0
@@ -19,11 +19,11 @@ vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr);
 
 struct vm_gc_entry_t
 {
-    uint64_t ptr: 63;
     int tag : 1;
+    uint64_t ptr : 63;
     union
     {
-        uint32_t len;
+        size_t len;
         vm_obj_t obj;
     };
 };
@@ -38,9 +38,11 @@ struct vm_gc_t
     vm_gc_entry_t *swap;
     vm_obj_t *base;
     vm_obj_t *end;
-    vm_obj_t **cur_locals;
-    vm_stack_frame_t **cur_frame;
+    size_t max1;
     uint64_t last;
     bool die;
+    bool not_collecting;
     pthread_t thread;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
 };
