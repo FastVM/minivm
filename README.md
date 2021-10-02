@@ -1,9 +1,6 @@
 ![The MiniVM Logo, looks like a brick according to some, some catfood according to others](MiniVM.svg)
 
 # MiniVM
-> "I haven't seen something this fast since we counted CPU cycles like emeralds!"
->
-> — Somebody, probably
 
 [![Link to Discord](https://img.shields.io/discord/814855814514737152?logo=discord&color=5865F2)](https://discord.gg/UyvxuC5W5q)
 
