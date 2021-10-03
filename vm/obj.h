@@ -29,7 +29,7 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 
 static inline uint64_t vm_obj_to_ptr(vm_obj_t obj)
 {
-	return obj.as_int64;
+	return obj.as_int64 - VM_OBJ_PTR_BASE;
 }
 
 static inline int vm_obj_to_fun(vm_obj_t obj)
@@ -40,7 +40,7 @@ static inline int vm_obj_to_fun(vm_obj_t obj)
 static inline vm_obj_t vm_obj_of_ptr(uint64_t obj)
 {
 	vm_obj_t ret;
-	ret.as_int64 = obj;
+	ret.as_int64 = obj + VM_OBJ_PTR_BASE;
 	return ret;
 }
 

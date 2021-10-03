@@ -26,7 +26,7 @@ $(BIN)/minivm.js: $(BIN)/minivm.wasm
 $(BIN)/minivm.wasm: $(OBJS)
 	@mkdir -p $(basename $@)
 	$(WASMLD) --export=vm_xrun --export=vm_xadd --export=vm_xset_putchar --allow-undefined -s $(OBJS) -o $@.unopt
-	$(WASMOPT) -O4 $@.unopt -o $@
+	$(WASMOPT) -Os $@.unopt -o $@
 
 $(OBJS): $(patsubst $(LIB)/%.ll,%.c,$@)
 	@mkdir -p $(basename $@)

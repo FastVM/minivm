@@ -234,8 +234,8 @@ do_array:
         reg_t reg = read_reg;
         values[i] = cur_locals[reg];
     }
-    vm_obj_t vec = gcvec_new(gc, nargs, values);
     vm_fetch;
+    vm_obj_t vec = gcvec_new(gc, nargs, values);
     cur_locals[outreg] = vec;
     run_next_op;
 }
