@@ -1,8 +1,10 @@
 #!/usr/bin/env v8
 
-const wasm = readbuffer(__VM_WASM_FILE_PATH__);
+let n = 1;
 
-const buf = new Uint8Array(readbuffer(arguments[0] ?? "out.bc"));
+const wasm = readbuffer(arguments[2] ?? __VM_WASM_FILE_PATH__);
+
+const buf = new Uint8Array(readbuffer(arguments[1] ?? "out.bc"));
 
 const putchar = (c) => {
 	write(String.fromCharCode(c));

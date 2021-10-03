@@ -1,7 +1,7 @@
 #include <vm/gc.h>
 #include <vm/obj.h>
 
-#define VM_MEM_MAX ((VM_FRAME_BYTES) + (VM_LOCALS_BYTES) + (VM_MEM_BYTES)*4)
+#define VM_MEM_MAX ((VM_FRAME_BYTES) + (VM_LOCALS_BYTES))
 
 #define VM_GC_MEM_GROW (1)
 
@@ -12,6 +12,10 @@ size_t vm_stats_memsize = VM_MEM_MAX;
 
 size_t vm_mem_top = 0;
 uint8_t vm_mem[VM_MEM_MAX];
+vm_gc_entry_t vm_gc_objs1[VM_MEM_UNITS];
+vm_gc_entry_t vm_gc_objs2[VM_MEM_UNITS];
+vm_gc_entry_t vm_gc_objs3[VM_MEM_UNITS];
+vm_gc_entry_t vm_gc_objs_swap[VM_MEM_UNITS];
 
 void *vm_mem_grow(size_t size)
 {
@@ -263,17 +267,13 @@ void vm_gc_start(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
     gc->base = base;
     gc->end = end;
     gc->last = 1;
-    gc->objs1 = vm_mem_grow(VM_MEM_BYTES);
-    gc->objs2 = vm_mem_grow(VM_MEM_BYTES);
-    gc->objs3 = vm_mem_grow(VM_MEM_BYTES);
-    gc->swap = vm_mem_grow(VM_MEM_BYTES);
-    gc->objs1 += 1;
-    gc->objs2 += 1;
-    gc->objs3 += 1;
-    gc->swap += 1;
-    gc->objs1[-1].xlen = 0;
-    gc->objs2[-1].xlen = 0;
-    gc->objs3[-1].xlen = 0;
+    gc->objs1 = &vm_gc_objs1[1];
+    gc->objs2 = &vm_gc_objs2[1];
+    gc->objs3 = &vm_gc_objs3[1];
+    gc->swap = &vm_gc_objs_swap[1];
+    *vm_objs_len(gc->objs1) = 0;
+    *vm_objs_len(gc->objs2) = 0;
+    *vm_objs_len(gc->objs3) = 0;
     gc->max1 = 0;
 #if defined(VM_GC_THREADS)
     gc->die = false;
