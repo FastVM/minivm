@@ -121,10 +121,6 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
 void vm_run(const opcode_t *basefunc)
 {
     vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAME_BYTES);
-    for (vm_stack_frame_t *cur = frames_base; cur < frames_base + VM_FRAME_BYTES; cur++)
-    {
-        cur->nlocals = 255;
-    }
     vm_obj_t *locals_base = vm_mem_grow(VM_LOCALS_BYTES);
 
     vm_stack_frame_t *cur_frame = frames_base;
@@ -962,7 +958,7 @@ do_putchar:
 {
     reg_t from = read_reg;
     vm_fetch;
-    char val = (char)vm_obj_to_num(cur_locals[from]);
+    int val = vm_obj_to_int(cur_locals[from]);
     vm_putchar(val);
     run_next_op;
 }

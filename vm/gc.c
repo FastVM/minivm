@@ -12,10 +12,11 @@ size_t vm_stats_memsize = VM_MEM_MAX;
 
 size_t vm_mem_top = 0;
 uint8_t vm_mem[VM_MEM_MAX];
+#if defined(VM_GC_NO_MALLOC)
 vm_gc_entry_t vm_gc_objs1[VM_MEM_UNITS];
 vm_gc_entry_t vm_gc_objs2[VM_MEM_UNITS];
 vm_gc_entry_t vm_gc_objs3[VM_MEM_UNITS];
-vm_gc_entry_t vm_gc_objs_swap[VM_MEM_UNITS];
+#endif
 
 void *vm_mem_grow(size_t size)
 {
@@ -29,102 +30,83 @@ void vm_mem_reset(void)
     vm_mem_top = 0;
 }
 
-size_t *vm_objs_len(vm_gc_entry_t *objs)
+uint64_t vm_gc_hash(uint64_t ptr)
 {
-    return &objs[-1].xlen;
+    ptr ^= ptr * 2654435761;
+    ptr >>= 8;
+    return ptr;
 }
 
-vm_gc_entry_t vm_gc_find_in(size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
+vm_gc_entry_t vm_gc_find_in(vm_gc_entry_t *elems, uint64_t ptr)
 {
-    while (true)
+    uint64_t head = vm_gc_hash(ptr);
+    do
     {
-        size_t mid = elems_len >> 1;
-        vm_gc_entry_t mid_entry = elems[mid];
-        if (mid_entry.ptr > ptr)
+        vm_gc_entry_t ent = elems[head % VM_MEM_UNITS];
+        if (ent.ptr == ptr)
         {
-            if (mid == 0)
-            {
-                return (vm_gc_entry_t){
-                    .ptr = 0,
-                };
-            }
-            elems_len = mid;
-            continue;
+            return ent;
         }
-        if (mid_entry.ptr < ptr)
+        if (ent.ptr == 0 || ent.ptr == 1)
         {
-            if (mid == 0)
-            {
-                return (vm_gc_entry_t){
-                    .ptr = 0,
-                };
-            }
-            elems_len -= mid;
-            elems += mid;
-            continue;
+            return ent;
         }
-        return mid_entry;
-    }
+        head++;
+    } while (true);
 }
 
 vm_gc_entry_t vm_gc_get(vm_gc_t *gc, uint64_t ptr)
 {
-    vm_gc_entry_t e1 = vm_gc_find_in(*vm_objs_len(gc->objs1), gc->objs1, ptr);
+    vm_gc_entry_t e1 = vm_gc_find_in(gc->objs1, ptr);
     if (e1.ptr != 0)
     {
         return e1;
     }
-    vm_gc_entry_t e2 = vm_gc_find_in(*vm_objs_len(gc->objs2), gc->objs2, ptr);
+    vm_gc_entry_t e2 = vm_gc_find_in(gc->objs2, ptr);
     if (e2.ptr != 0)
     {
         return e2;
     }
-    return vm_gc_find_in(*vm_objs_len(gc->objs3), gc->objs3, ptr);
+    return vm_gc_find_in(gc->objs3, ptr);
 }
 
-int vm_gc_mark_entry_yes(vm_gc_t *gc, size_t elems_len, vm_gc_entry_t *elems, uint64_t ptr)
+int vm_gc_mark_entry_yes(vm_gc_t *gc, vm_gc_entry_t *elems, uint64_t ptr)
 {
-    if (elems_len > 1)
+    uint64_t head = vm_gc_hash(ptr) % VM_MEM_UNITS;
+    do
     {
-        size_t mid = elems_len >> 1;
-        vm_gc_entry_t mid_entry = elems[mid];
-        if (mid_entry.ptr > ptr)
+        vm_gc_entry_t *ent = &elems[head];
+        if (ent->ptr == ptr)
         {
-            return vm_gc_mark_entry_yes(gc, mid, elems, ptr);
-        }
-        if (mid_entry.ptr < ptr)
-        {
-            return vm_gc_mark_entry_yes(gc, elems_len - mid, elems + mid, ptr);
-        }
-        int ret = elems[mid].tag;
-        elems[mid].tag = VM_GC_KEEP;
-        return ret;
-    }
-    else
-    {
-        if (elems[0].ptr == ptr)
-        {
-            int ret = elems[0].tag;
-            elems[0].tag = VM_GC_KEEP;
+            bool ret = ent->keep;
+            ent->keep = true;
             return ret;
         }
-        return 2;
-    }
+        if (ent->ptr == 0)
+        {
+            return 2;
+        }
+        head++;
+        if (head == VM_MEM_UNITS)
+        {
+            head = 0;
+        }
+    } while (true);
 }
 
 int vm_gc_mark_val_yes(vm_gc_t *gc, uint64_t ptr)
 {
-    int e1 = vm_gc_mark_entry_yes(gc, *vm_objs_len(gc->objs1), gc->objs1, ptr);
+    int e1 = vm_gc_mark_entry_yes(gc, gc->objs1, ptr);
     if (e1 != 2)
     {
         return e1;
     }
-    int e2 = vm_gc_mark_entry_yes(gc, *vm_objs_len(gc->objs2), gc->objs2, ptr);
+    int e2 = vm_gc_mark_entry_yes(gc, gc->objs2, ptr);
     if (e2 != 2)
     {
         return e2;
     }
-    int e3 = vm_gc_mark_entry_yes(gc, *vm_objs_len(gc->objs3), gc->objs3, ptr);
+    int e3 = vm_gc_mark_entry_yes(gc, gc->objs3, ptr);
     if (e3 != 2)
     {
         return e3;
@@ -134,32 +116,73 @@ int vm_gc_mark_val_yes(vm_gc_t *gc, uint64_t ptr)
 
 void vm_gc_mark_ptr_yes(vm_gc_t *gc, uint64_t ptr)
 {
-    int res = vm_gc_mark_val_yes(gc, ptr);
-    if (res == 2)
+    if (ptr == 0 || ptr == 1)
     {
         return;
     }
 more:;
     vm_gc_entry_t ent = vm_gc_get(gc, ptr);
-    if (vm_obj_is_ptr(ent.obj))
+    if (ent.root)
     {
-        vm_gc_mark_ptr_yes(gc, vm_obj_to_ptr(ent.obj));
+        return;
     }
     size_t len = ent.len;
-
-    for (int i = 1; i <= len; i++)
+    for (size_t i = 0; i < len; i++)
     {
         vm_gc_entry_t ent = vm_gc_get(gc, ptr + i);
-        vm_gc_mark_val_yes(gc, ptr + i);
-        if (vm_obj_is_ptr(ent.obj))
+        int res = vm_gc_mark_val_yes(gc, ptr + i);
+        if (res != VM_GC_KEEP && vm_obj_is_ptr(ent.obj))
         {
             vm_gc_mark_ptr_yes(gc, vm_obj_to_ptr(ent.obj));
         }
     }
 }
 
+void vm_gc_move(vm_gc_entry_t *to, vm_gc_entry_t value)
+{
+    uint64_t ind = vm_gc_hash(value.ptr) % VM_MEM_UNITS;
+    while (to[ind].ptr != 0)
+    {
+        ind++;
+        if (ind == VM_MEM_UNITS)
+        {
+            ind = 0;
+        }
+    }
+    to[ind] = value;
+}
+
+void vm_gc_delete(vm_gc_entry_t *to, uint64_t ptr)
+{
+    uint64_t ind = vm_gc_hash(ptr) % VM_MEM_UNITS;
+    while (to[ind].ptr != ptr)
+    {
+        ind++;
+        if (ind == VM_MEM_UNITS)
+        {
+            ind = 0;
+        }
+    }
+    to[ind].ptr = 0;
+    to[ind].obj = vm_obj_of_dead();
+}
+
+size_t vm_gc_count(vm_gc_entry_t *ents)
+{
+    size_t ret = 0;
+    for (size_t index = 0; index < VM_MEM_UNITS; index++)
+    {
+        if (ents[index].ptr != 0)
+        {
+            ret += 1;
+        }
+    }
+    return ret;
+}
+
 void vm_gc_run1(vm_gc_t *gc)
 {
+    printf("-> %zu : %zu : %zu\n", vm_gc_count(gc->objs1), vm_gc_count(gc->objs2), vm_gc_count(gc->objs3));
     for (vm_obj_t *cur = gc->base; cur < gc->end; cur++)
     {
         if (vm_obj_is_ptr(*cur))
@@ -167,80 +190,45 @@ void vm_gc_run1(vm_gc_t *gc)
             vm_gc_mark_ptr_yes(gc, vm_obj_to_ptr(*cur));
         }
     }
-    size_t swaplen = 0;
-    size_t place2 = 0;
-    size_t place3 = 0;
-    size_t len2 = *vm_objs_len(gc->objs2);
-    size_t len3 = *vm_objs_len(gc->objs3);
-    while (true)
+    for (size_t index = 0; index < VM_MEM_UNITS; index++)
     {
-        if (place2 >= len2)
+        gc->objs1[index].root = false;
+    }
+    for (size_t index = 0; index < VM_MEM_UNITS; index++)
+    {
+        vm_gc_entry_t *ent = &gc->objs2[index];
+        if (ent->ptr > 1)
         {
-            for (size_t cur = place3; cur < len3; cur++)
+            if (ent->keep)
             {
-                if (gc->objs3[cur].tag != VM_GC_DELETE)
-                {
-                    gc->swap[swaplen++] = gc->objs3[cur];
-                }
-            }
-            break;
-        }
-        if (place3 >= len3)
-        {
-            for (size_t cur = place2; cur < len2; cur++)
-            {
-                if (gc->objs2[cur].tag != VM_GC_DELETE)
-                {
-                    gc->swap[swaplen++] = gc->objs2[cur];
-                }
-            }
-            break;
-        }
-        if (gc->objs2[place2].ptr < gc->objs3[place3].ptr)
-        {
-            if (gc->objs2[place2].tag != VM_GC_DELETE)
-            {
-                gc->swap[swaplen] = gc->objs2[place2];
-                swaplen++;
-                place2++;
+                vm_gc_move(gc->objs3, *ent);
             }
             else
             {
-                place2++;
+                vm_gc_delete(gc->objs3, ent->ptr);
             }
+            ent->ptr = 0;
         }
-        else
+    }
+    for (size_t index = 0; index < VM_MEM_UNITS; index++)
+    {
+        vm_gc_entry_t *ent = &gc->objs3[index];
+        if (ent->ptr > 1)
         {
-            if (gc->objs3[place3].tag != VM_GC_DELETE)
+            if (!ent->keep)
             {
-                gc->swap[swaplen] = gc->objs3[place3];
-                swaplen++;
-                place3++;
+                ent->ptr = 0;
             }
             else
             {
-                place3++;
+                ent->keep = false;
             }
         }
     }
-    void *newswap = gc->objs3;
-    gc->objs3 = gc->swap;
-    *vm_objs_len(gc->objs3) = swaplen;
-    gc->swap = newswap;
     void *new1 = gc->objs2;
     gc->objs2 = gc->objs1;
-    *vm_objs_len(gc->objs2) = *vm_objs_len(gc->objs1);
-    *vm_objs_len(new1) = 0;
     gc->objs1 = new1;
-    for (int i = 0; i < *vm_objs_len(gc->objs2); i++)
-    {
-        gc->objs2[i].tag = VM_GC_DELETE;
-    }
-    for (int i = 0; i < *vm_objs_len(gc->objs3); i++)
-    {
-        gc->objs3[i].tag = VM_GC_DELETE;
-    }
-    gc->max1 = *vm_objs_len(gc->objs3) * VM_GC_MEM_GROW;
+    // printf("-> %zu : %zu : %zu\n", vm_gc_count(gc->objs1), vm_gc_count(gc->objs2), vm_gc_count(gc->objs3));
 }
 
 #if defined(VM_GC_THREADS)
@@ -249,14 +237,7 @@ void *vm_gc_run_thread(void *gc_arg)
     vm_gc_t *gc = gc_arg;
     while (!gc->die)
     {
-        pthread_mutex_lock(&gc->lock);
-        while (gc->not_collecting)
-        {
-            pthread_cond_wait(&gc->cond, &gc->lock);
-        }
         vm_gc_run1(gc);
-        gc->not_collecting = true;
-        pthread_mutex_unlock(&gc->lock);
     }
     return NULL;
 }
@@ -266,50 +247,44 @@ void vm_gc_start(vm_gc_t *gc, vm_obj_t *base, vm_obj_t *end)
 {
     gc->base = base;
     gc->end = end;
-    gc->last = 1;
-    gc->objs1 = &vm_gc_objs1[1];
-    gc->objs2 = &vm_gc_objs2[1];
-    gc->objs3 = &vm_gc_objs3[1];
-    gc->swap = &vm_gc_objs_swap[1];
-    *vm_objs_len(gc->objs1) = 0;
-    *vm_objs_len(gc->objs2) = 0;
-    *vm_objs_len(gc->objs3) = 0;
+    gc->last = 2;
+#if defined(VM_GC_NO_MALLOC)
+    gc->objs1 = &vm_gc_objs1[0];
+    gc->objs2 = &vm_gc_objs2[0];
+    gc->objs3 = &vm_gc_objs3[0];
+    for (size_t i = 0; i < VM_MEM_UNITS; i++)
+    {
+        vm_gc_objs1[i].ptr = 0;
+        vm_gc_objs2[i].ptr = 0;
+        vm_gc_objs3[i].ptr = 0;
+    }
+#else
+    gc->objs1 = calloc(1, sizeof(vm_gc_entry_t) * VM_MEM_UNITS);
+    gc->objs2 = calloc(1, sizeof(vm_gc_entry_t) * VM_MEM_UNITS);
+    gc->objs3 = calloc(1, sizeof(vm_gc_entry_t) * VM_MEM_UNITS);
+#endif
     gc->max1 = 0;
 #if defined(VM_GC_THREADS)
     gc->die = false;
-    gc->not_collecting = false;
-    pthread_cond_init(&gc->cond, NULL);
-    pthread_mutex_init(&gc->lock, NULL);
-    pthread_create(&gc->thread, NULL, &vm_gc_run_thread, gc);
+    // pthread_create(&gc->thread, NULL, &vm_gc_run_thread, gc);
 #endif
 }
 
 void vm_gc_stop(vm_gc_t *gc)
 {
+#if !defined(VM_GC_NO_MALLOC)
+    free(gc->objs1);
+    free(gc->objs2);
+    free(gc->objs3);
+#endif
 #if defined(VM_GC_THREADS)
     gc->die = true;
-    pthread_join(gc->thread, NULL);
-    pthread_mutex_destroy(&gc->lock);
-    pthread_cond_destroy(&gc->cond);
+    // pthread_join(gc->thread, NULL);
 #endif
 }
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)
 {
-    if (*vm_objs_len(gc->objs1) >= gc->max1)
-    {
-#if defined(VM_GC_THREADS)
-        if (gc->not_collecting)
-        {
-            gc->not_collecting = false;
-            pthread_mutex_lock(&gc->lock);
-            pthread_cond_broadcast(&gc->cond);
-            pthread_mutex_unlock(&gc->lock);
-        }
-#else
-        vm_gc_run1(gc);
-#endif
-    }
     if (size >= (1 << 15))
     {
         __builtin_trap();
@@ -319,18 +294,26 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)
         uint64_t where = gc->last;
         for (int i = size; i > 0; i--)
         {
-            gc->objs1[(*vm_objs_len(gc->objs1))++] = (vm_gc_entry_t){
-                .tag = VM_GC_DELETE,
+            if (gc->last % 10 == 0)
+            {
+                vm_gc_run1(gc);
+            }
+            uint64_t ptr = gc->last;
+            vm_gc_entry_t entry = (vm_gc_entry_t){
+                .keep = true,
+                .root = true,
                 .len = i,
-                .ptr = gc->last++,
+                .ptr = ptr,
                 .obj = values[size - i],
             };
+            gc->last += 1;
+            vm_gc_move(gc->objs1, entry);
         }
         return vm_obj_of_ptr(where);
     }
     else
     {
-        return vm_obj_of_ptr((uint64_t) 0);
+        return vm_obj_of_ptr(1);
     }
 }
 
@@ -341,7 +324,7 @@ vm_obj_t vm_gc_index(vm_gc_t *gc, uint64_t ptr, size_t index)
 
 size_t vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr)
 {
-    if (ptr == 0)
+    if (ptr == 1)
     {
         return 0;
     }

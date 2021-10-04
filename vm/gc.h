@@ -25,8 +25,9 @@ struct vm_gc_entry_t
     {
         struct
         {
-            bool tag : 1;
-            size_t len : 15;
+            bool keep : 1;
+            bool root : 1;
+            size_t len : 14;
             uint64_t ptr : 48;
         };
         size_t xlen;
@@ -41,16 +42,12 @@ struct vm_gc_t
     vm_gc_entry_t *objs1;
     vm_gc_entry_t *objs2;
     vm_gc_entry_t *objs3;
-    vm_gc_entry_t *swap;
     vm_obj_t *base;
     vm_obj_t *end;
     size_t max1;
-    uint64_t last: 48;
+    uint64_t last;
 #if defined(VM_GC_THREADS)
     bool die;
-    bool not_collecting;
     pthread_t thread;
-    pthread_mutex_t lock;
-    pthread_cond_t cond;
 #endif
 };

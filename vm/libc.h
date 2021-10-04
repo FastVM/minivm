@@ -14,7 +14,15 @@ double fmod(double a, double b);
 
 #define VM_FRAME_BYTES (sizeof(vm_stack_frame_t) * (1 << 16))
 #define VM_LOCALS_BYTES (sizeof(vm_obj_t) * ((1 << 16) * (1 << 4)))
-#define VM_MEM_UNITS ((1 << 24))
+
+#if defined(VM_GC_NO_MALLOC)
+#define VM_MEM_UNITS_LOG2 ((24))
+#else
+#define VM_MEM_UNITS_LOG2 ((22))
+void *calloc(size_t n, size_t size);
+void free(void *ptr);
+#endif
+#define VM_MEM_UNITS ((1 << VM_MEM_UNITS_LOG2))
 
 void *vm_mem_grow(size_t size);
 void vm_mem_reset(void);
