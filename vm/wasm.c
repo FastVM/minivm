@@ -17,7 +17,6 @@ void vm_xadd(opcode_t o)
 	vm_xprogram[vm_xhead++] = o;
 }
 
-#if defined(VM_EMCC)
 typedef void vm_putchar_func_t(int chr);
 
 int vm_use_the_putchar = 0;
@@ -89,4 +88,3 @@ void vm_xset_putchar()
 {
 	vm_use_the_putchar = 1;
 }
-#endif

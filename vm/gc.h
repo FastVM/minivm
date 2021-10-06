@@ -10,7 +10,6 @@ typedef struct vm_gc_entry_t vm_gc_entry_t;
 #include <vm/obj.h>
 #include <vm/vm.h>
 #if defined(VM_GC_THREADS)
-#include <signal.h>
 #include <pthread.h>
 #endif
 
@@ -54,10 +53,12 @@ struct vm_gc_t
 #if defined(VM_GC_THREADS)
     pthread_t thread;
 #endif
-    vm_gc_entry_t *objs[3];
+    vm_gc_entry_t *objs0;
+    vm_gc_entry_t *objs1;
+    vm_gc_entry_t *objs2;
+    vm_gc_entry_t *objs3;
     vm_obj_t *base;
     size_t nlocals;
     uint64_t last;
-    bool die;
     double usage;
 };

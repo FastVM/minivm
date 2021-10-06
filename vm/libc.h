@@ -12,11 +12,9 @@ double fmod(double a, double b);
 #include <cosmopolitan.h>
 #endif
 
-#define VM_MEM_UNITS_LOG2 (24)
- 
 #define VM_FRAMES_UNITS (1 << 16)
 #define VM_LOCALS_UNITS (VM_FRAMES_UNITS * 16)
-#define VM_MEM_UNITS (1 << VM_MEM_UNITS_LOG2)
+#define VM_MEM_UNITS (1 << 22)
 
 void *vm_mem_grow(size_t size);
 void vm_mem_reset(void);
