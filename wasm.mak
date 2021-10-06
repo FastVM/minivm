@@ -4,7 +4,7 @@ CWD:=$(shell pwd)
 BIN:=$(CWD)/bin
 LIB:=$(CWD)/lib
 
-CLANG=clang
+CLANG=clang-10
 LLC=llc
 WASMLD=wasm-ld
 WASMOPT=wasm-opt
@@ -26,7 +26,7 @@ $(BIN)/minivm.js: $(BIN)/minivm.wasm
 $(BIN)/minivm.wasm: $(OBJS)
 	@mkdir -p $(basename $@)
 	$(WASMLD) --export=vm_xrun --export=vm_xadd --export=vm_xset_putchar --allow-undefined -s $(OBJS) -o $@.unopt
-	$(WASMOPT) -Os $@.unopt -o $@
+	$(WASMOPT) -O4 $@.unopt -o $@
 
 $(OBJS): $(patsubst $(LIB)/%.ll,%.c,$@)
 	@mkdir -p $(basename $@)

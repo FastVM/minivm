@@ -3,10 +3,23 @@
 #include <vm/libc.h>
 #include <vm/vm.h>
 
-typedef void vm_putchar_func_t(int chr);
-
 int vm_xhead = 0;
 opcode_t vm_xprogram[1 << 16];
+
+void vm_xrun(void)
+{
+	vm_xhead = 0;
+	vm_run(vm_xprogram);
+}
+
+void vm_xadd(opcode_t o)
+{
+	vm_xprogram[vm_xhead++] = o;
+}
+
+#if defined(VM_EMCC)
+typedef void vm_putchar_func_t(int chr);
+
 int vm_use_the_putchar = 0;
 
 typedef struct
@@ -53,22 +66,6 @@ double fmod(double a, double b)
 	return (double)((long)a % (long)b);
 }
 
-void vm_xadd(opcode_t o)
-{
-	vm_xprogram[vm_xhead++] = o;
-}
-
-void vm_xrun(void)
-{
-	vm_xhead = 0;
-	vm_run(vm_xprogram);
-}
-
-void vm_xset_putchar()
-{
-	vm_use_the_putchar = 1;
-}
-
 void _start()
 {
 	while (1)
@@ -87,3 +84,9 @@ void _start()
 	}
 	vm_xrun();
 }
+
+void vm_xset_putchar()
+{
+	vm_use_the_putchar = 1;
+}
+#endif

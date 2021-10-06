@@ -27,11 +27,9 @@ void vm_mem_reset(void)
     vm_mem_top = 0;
 }
 
-size_t vm_gc_hash(uint64_t h)
-{
-    h ^= h * 2654435761;
-    h >>= 30;
-    return h % VM_MEM_UNITS;
+size_t vm_gc_hash(uint64_t h){
+    // return ((h ^ (h * 2654435761)) >> 29) % VM_MEM_UNITS;
+    return ((h * 2654435761) >> 29) % VM_MEM_UNITS;
 }
 
 vm_gc_entry_t vm_gc_find_in(vm_gc_entry_t *elems, uint64_t ptr)
@@ -80,7 +78,7 @@ enum
     VM_GC_NOT_FOUND,
 };
 
-bool vm_gc_mark_entry_yes(vm_gc_t *gc, vm_gc_entry_t *elems, uint64_t ptr)
+bool vm_gc_mark_entry_yes(vm_gc_entry_t *elems, uint64_t ptr)
 {
     size_t head = vm_gc_hash(ptr);
     do
@@ -105,14 +103,14 @@ bool vm_gc_mark_entry_yes(vm_gc_t *gc, vm_gc_entry_t *elems, uint64_t ptr)
 
 void vm_gc_mark_val_yes(vm_gc_t *gc, uint64_t ptr)
 {
-    bool okay = vm_gc_mark_entry_yes(gc, gc->objs[0], ptr);
+    bool okay = vm_gc_mark_entry_yes(gc->objs[0], ptr);
     if (!okay)
     {
-        okay = vm_gc_mark_entry_yes(gc, gc->objs[1], ptr);
-    }
-    if (!okay)
-    {
-        vm_gc_mark_entry_yes(gc, gc->objs[2], ptr);
+        okay = vm_gc_mark_entry_yes(gc->objs[1], ptr);
+        if (!okay)
+        {
+            vm_gc_mark_entry_yes(gc->objs[2], ptr);
+        }
     }
 }
 
@@ -245,10 +243,6 @@ void vm_gc_run1(vm_gc_t *gc)
             ent->ptr = 0;
         }
     }
-    for (size_t index = 0; index < VM_MEM_UNITS; index++)
-    {
-        gc->objs[2][index].keep = false;
-    }
     void *new1 = gc->objs[1];
     gc->objs[1] = gc->objs[0];
     gc->objs[0] = new1;
@@ -275,7 +269,7 @@ void vm_gc_start(vm_gc_t *gc, vm_obj_t *base, size_t nlocals)
     gc->base = base;
     gc->nlocals = nlocals;
     gc->last = 2;
-    gc->objs[0] = &vm_gc_objs1[0];
+    gc->objs[0] = &vm_gc_objs1[1];
     gc->objs[1] = &vm_gc_objs2[0];
     gc->objs[2] = &vm_gc_objs3[0];
     for (long i = 0; i < VM_MEM_UNITS; i++)
@@ -309,6 +303,12 @@ vm_obj_t vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)
         uint64_t where = gc->last;
         for (size_t i = size; i > 0; i--)
         {
+#if !defined(VM_GC_THREADS)
+            if (gc->last % (VM_MEM_UNITS / 4) == 0)
+            {
+                vm_gc_run1(gc);
+            }
+#endif
             uint64_t ptr = gc->last;
             vm_gc_entry_t entry = (vm_gc_entry_t){
                 .keep = true,

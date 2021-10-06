@@ -59,11 +59,11 @@ static inline vm_obj_t vm_obj_of_ptr(uint64_t obj)
 {
 	vm_obj_t ret;
 	ret.as_int64 = obj + VM_OBJ_PTR_BASE;
-	if (ret.as_int64 < NANBOX_MIN_AUX || ret.as_int64 > NANBOX_MAX_AUX)
-	{
-		printf("bad type: bad memory: %lx\n", obj);
-		__builtin_trap();
-	}
+	// if (ret.as_int64 < NANBOX_MIN_AUX || ret.as_int64 > NANBOX_MAX_AUX)
+	// {
+	// 	printf("bad type: bad memory: %lx\n", obj);
+	// 	__builtin_trap();
+	// }
 	return ret;
 }
 
