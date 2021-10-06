@@ -1,10 +1,11 @@
 #pragma once
 
 #include <vm/libc.h>
-#include <vm/obj.h>
 
 typedef unsigned char reg_t;
 typedef char opcode_t;
+
+#include <vm/obj.h>
 
 enum opcode_t
 {

@@ -1,5 +1,4 @@
 #include <vm/vm.h>
-#include <vm/gc.h>
 #include <vm/gcvec.h>
 #include <vm/obj.h>
 
@@ -120,8 +119,13 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
 
 void vm_run(const opcode_t *basefunc)
 {
-    vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAME_BYTES);
-    vm_obj_t *locals_base = vm_mem_grow(VM_LOCALS_BYTES);
+    vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
+    vm_obj_t *locals_base = vm_mem_grow(VM_LOCALS_UNITS * sizeof(vm_obj_t));
+
+    for (size_t i = 0; i < VM_LOCALS_UNITS; i++)
+    {
+        locals_base[i] = vm_obj_of_dead();
+    }
 
     vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
@@ -130,7 +134,7 @@ void vm_run(const opcode_t *basefunc)
 
     vm_gc_t raw_gc;
     vm_gc_t *gc = &raw_gc;
-    vm_gc_start(gc, locals_base, locals_base + VM_LOCALS_BYTES / sizeof(vm_obj_t));
+    vm_gc_start(gc, locals_base, VM_LOCALS_UNITS);
 
     void *next_op_value;
     void *ptrs[OPCODE_MAX2P] = {};
@@ -205,6 +209,7 @@ void vm_run(const opcode_t *basefunc)
 do_exit:
 {
     vm_mem_reset();
+    vm_gc_stop(gc);
     return;
 }
 do_return:
