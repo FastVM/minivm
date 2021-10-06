@@ -1,9 +1,7 @@
 #pragma once
 struct vm_gc_t;
-struct vm_gc_entry_stats_t;
 struct vm_gc_entry_t;
 typedef struct vm_gc_t vm_gc_t;
-typedef struct vm_gc_entry_stats_t vm_gc_entry_stats_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 
 #include <vm/libc.h>
@@ -22,13 +20,6 @@ vm_obj_t vm_gc_index(vm_gc_t *gc, uint64_t ptr, size_t index);
 
 #define VM_GC_ENTRY_TYPE_PTR 0
 #define VM_GC_ENTRY_TYPE_OBJ 1
-
-struct vm_gc_entry_stats_t
-{
-    size_t count;
-    size_t findall;
-    size_t maxfind;
-};
 
 struct vm_gc_entry_t
 {
@@ -56,7 +47,6 @@ struct vm_gc_t
     vm_gc_entry_t *objs0;
     vm_gc_entry_t *objs1;
     vm_gc_entry_t *objs2;
-    vm_gc_entry_t *objs3;
     vm_obj_t *base;
     size_t nlocals;
     uint64_t last;
