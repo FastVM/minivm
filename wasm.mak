@@ -4,7 +4,7 @@ CWD:=$(shell pwd)
 BIN:=$(CWD)/bin
 LIB:=$(CWD)/lib
 
-CLANG=clang-10
+CLANG=clang
 LLC=llc
 WASMLD=wasm-ld
 WASMOPT=wasm-opt
@@ -20,7 +20,7 @@ default: all
 all: $(BIN)/minivm.js
 
 $(BIN)/minivm.js: $(BIN)/minivm.wasm
-	@cat main/v8.js | sed "s:__VM_WASM_FILE_PATH__:'$(BIN)/minivm.wasm':" > $@
+	@cat main/$(HOST).js | sed "s:__VM_WASM_FILE_PATH__:'$(BIN)/minivm.wasm':" > $@
 	chmod +x $@
 
 $(BIN)/minivm.wasm: $(OBJS)

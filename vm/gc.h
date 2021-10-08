@@ -38,17 +38,18 @@ struct vm_gc_entry_t
 
 _Static_assert(sizeof(vm_gc_entry_t) == 16, "bad size");
 
-
 struct vm_gc_t
 {
 #if defined(VM_GC_THREADS)
     pthread_t thread;
 #endif
+#if defined(VM_GC_THREADS)
     vm_gc_entry_t *objs0;
+#endif
     vm_gc_entry_t *objs1;
     vm_gc_entry_t *objs2;
     vm_obj_t *base;
-    size_t nlocals;
     uint64_t last;
-    double usage;
+    size_t nlocals;
+    size_t calls;
 };
