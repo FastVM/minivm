@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vm/nanbox.h>
+#include "nanbox.h"
 typedef nanbox_t vm_obj_t;
 typedef int vm_loc_t;
 typedef double vm_number_t;

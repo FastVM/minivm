@@ -4,9 +4,9 @@ struct vm_gc_entry_t;
 typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 
-#include <vm/libc.h>
-#include <vm/obj.h>
-#include <vm/vm.h>
+#include "libc.h"
+#include "obj.h"
+#include "vm.h"
 #if defined(VM_GC_THREADS)
 #include <pthread.h>
 #endif
@@ -16,7 +16,7 @@ void vm_gc_stop(vm_gc_t *gc);
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, size_t len, vm_obj_t *values);
 size_t vm_gc_sizeof(vm_gc_t *gc, uint64_t ptr);
-vm_obj_t vm_gc_index(vm_gc_t *gc, uint64_t ptr, size_t index);
+vm_obj_t vm_gc_get_index(vm_gc_t *gc, uint64_t ptr, size_t index);
 
 #define VM_GC_ENTRY_TYPE_PTR 0
 #define VM_GC_ENTRY_TYPE_OBJ 1

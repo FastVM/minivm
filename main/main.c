@@ -1,5 +1,6 @@
-#include <vm/vm.h>
-#include <vm/libc.h>
+#include <stdio.h>
+#include "../vm/vm.h"
+#include "../vm/libc.h"
 
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
 

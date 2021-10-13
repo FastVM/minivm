@@ -1,6 +1,6 @@
-#include <vm/vm.h>
-#include <vm/gcvec.h>
-#include <vm/obj.h>
+#include "vm.h"
+#include "gc.h"
+#include "obj.h"
 
 #define VM_GLOBALS_NUM ((255))
 
@@ -68,7 +68,7 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
     {
         bool first = true;
         vm_putchar('[');
-        vm_number_t len = gcvec_size(gc, val);
+        vm_number_t len = vm_gc_sizeof(gc, vm_obj_to_ptr(val));
         if (len != 0)
         {
             while (true)
@@ -80,14 +80,14 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
                         vm_putchar(',');
                         vm_putchar(' ');
                     }
-                    vm_print(gc, gcvec_get(gc, val, i));
+                    vm_print(gc, vm_gc_get_index(gc, vm_obj_to_ptr(val), i));
                 }
-                vm_obj_t cur = gcvec_get(gc, val, len - 1);
+                vm_obj_t cur = vm_gc_get_index(gc, vm_obj_to_ptr(val), len - 1);
                 if (vm_obj_is_ptr(cur))
                 {
                     vm_putchar(';');
                     val = cur;
-                    len = gcvec_size(gc, val);
+                    len = vm_gc_sizeof(gc, vm_obj_to_ptr(val));
                     if (len == 0)
                     {
                         break;
@@ -236,7 +236,7 @@ do_array:
         values[i] = cur_locals[reg];
     }
     vm_fetch;
-    vm_obj_t vec = gcvec_new(gc, nargs, values);
+    vm_obj_t vec = vm_gc_new(gc, nargs, values);
     cur_locals[outreg] = vec;
     run_next_op;
 }
@@ -246,7 +246,7 @@ do_length:
     reg_t reg = read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_obj_of_int(gcvec_size(gc, vec));
+    cur_locals[outreg] = vm_obj_of_int(vm_gc_sizeof(gc, vm_obj_to_ptr(vec)));
     run_next_op;
 }
 do_index:
@@ -257,7 +257,7 @@ do_index:
     vm_fetch;
     int index = vm_obj_to_int(cur_locals[ind]);
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = gcvec_get(gc, vec, index);
+    cur_locals[outreg] = vm_gc_get_index(gc, vm_obj_to_ptr(vec), index);
     run_next_op;
 }
 do_index_num:
@@ -267,7 +267,7 @@ do_index_num:
     int index = read_int;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = gcvec_get(gc, vec, (long)index);
+    cur_locals[outreg] = vm_gc_get_index(gc, vm_obj_to_ptr(vec), (long)index);
     run_next_op;
 }
 do_call0:
@@ -279,7 +279,7 @@ do_call0:
     for (int i = 0; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = gcvec_get(gc, funcv, 0);
+        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -303,7 +303,7 @@ do_call1:
     for (int i = 1; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = gcvec_get(gc, funcv, 0);
+        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -328,7 +328,7 @@ do_call2:
     for (int i = 2; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = gcvec_get(gc, funcv, 0);
+        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -357,7 +357,7 @@ do_call:
     for (int i = nargs; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = gcvec_get(gc, funcv, 0);
+        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;

@@ -1,4 +1,4 @@
-#include <vm/vm.h>
+#include "vm.h"
 
 static inline void vm_asm_name(opcode_t name) {
 	switch (name) {

@@ -1,7 +1,7 @@
-#include <vm/libc.h>
+#include "libc.h"
 
-#include <vm/libc.h>
-#include <vm/vm.h>
+#include "libc.h"
+#include "vm.h"
 
 int vm_xhead = 0;
 opcode_t vm_xprogram[1 << 16];
