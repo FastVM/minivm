@@ -68,7 +68,10 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
     {
         bool first = true;
         vm_putchar('[');
-        vm_number_t len = vm_gc_sizeof(gc, vm_obj_to_ptr(val));
+        size_t len = vm_gc_sizeof(gc, vm_obj_to_ptr(val));
+        if (len >= 256) {
+            __builtin_trap();
+        }
         if (len != 0)
         {
             while (true)
@@ -113,7 +116,7 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
     }
     else
     {
-        vm_putchar('?');
+        __builtin_trap();
     }
 }
 

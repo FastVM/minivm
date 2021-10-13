@@ -5,29 +5,37 @@ typedef nanbox_t vm_obj_t;
 typedef int vm_loc_t;
 typedef double vm_number_t;
 
-#define VM_OBJ_PTR_BASE NANBOX_MIN_AUX
+#include "io.h"
+#define VM_MEM_BASE (NANBOX_MIN_AUX)
+#define VM_MEM_END (VM_MEM_BASE * 2)
 
-// static inline void vm_obj_error(void)
-// {
-// 	printf("bad type: expected different type\n");
-// 	__builtin_trap();
-// }
+#if defined(VM_DEBUG)
+static inline void vm_obj_error(void)
+{
+	vm_puts("bad type: expected different type\n");
+	__builtin_trap();
+}
+#endif
 
 static inline int vm_obj_to_int(vm_obj_t obj)
 {
-	// if (!nanbox_is_number(obj))
-	// {
-	// 	vm_obj_error();
-	// }
-	return (int) nanbox_to_double(obj);
+#if defined(VM_DEBUG)
+	if (!nanbox_is_number(obj))
+	{
+		vm_obj_error();
+	}
+#endif
+	return (int)nanbox_to_double(obj);
 }
 
 static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
 {
-	// if (!nanbox_is_number(obj))
-	// {
-	// 	vm_obj_error();
-	// }
+#if defined(VM_DEBUG)
+	if (!nanbox_is_number(obj))
+	{
+		vm_obj_error();
+	}
+#endif
 	return nanbox_to_double(obj);
 }
 
@@ -43,11 +51,13 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 
 static inline uint64_t vm_obj_to_ptr(vm_obj_t obj)
 {
-	// if (obj.as_int64 < NANBOX_MIN_AUX || obj.as_int64 > NANBOX_MAX_AUX)
-	// {
-	// 	vm_obj_error();
-	// }
-	return obj.as_int64 - VM_OBJ_PTR_BASE;
+#if defined(VM_DEBUG)
+	if (obj.as_int64 < VM_MEM_NULLPTR || obj.as_int64 > VM_MEM_END)
+	{
+		vm_obj_error();
+	}
+#endif
+	return obj.as_int64 - VM_MEM_BASE;
 }
 
 static inline int vm_obj_to_fun(vm_obj_t obj)
@@ -58,12 +68,14 @@ static inline int vm_obj_to_fun(vm_obj_t obj)
 static inline vm_obj_t vm_obj_of_ptr(uint64_t obj)
 {
 	vm_obj_t ret;
-	ret.as_int64 = obj + VM_OBJ_PTR_BASE;
-	// if (ret.as_int64 < NANBOX_MIN_AUX || ret.as_int64 > NANBOX_MAX_AUX)
-	// {
-	// 	printf("bad type: bad memory: %lx\n", obj);
-	// 	__builtin_trap();
-	// }
+	ret.as_int64 = obj + VM_MEM_BASE;
+#if defined(VM_DEBUG)
+	if (ret.as_int64 < VM_MEM_NULLPTR || ret.as_int64 > VM_MEM_END)
+	{
+		vm_puts("bad type: bad memory\n");
+		__builtin_trap();
+	}
+#endif
 	return ret;
 }
 

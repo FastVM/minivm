@@ -3,6 +3,7 @@ struct vm_gc_t;
 struct vm_gc_entry_t;
 typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
+typedef vm_gc_entry_t *vm_gc_entry_array_t;
 
 #include "libc.h"
 #include "obj.h"
@@ -11,7 +12,8 @@ typedef struct vm_gc_entry_t vm_gc_entry_t;
 #include <pthread.h>
 #endif
 
-void vm_gc_start(vm_gc_t *out, vm_obj_t *base, size_t nlocals);
+    void
+    vm_gc_start(vm_gc_t *out, vm_obj_t *base, size_t nlocals);
 void vm_gc_stop(vm_gc_t *gc);
 
 vm_obj_t vm_gc_new(vm_gc_t *gc, size_t len, vm_obj_t *values);
@@ -23,16 +25,7 @@ vm_obj_t vm_gc_get_index(vm_gc_t *gc, uint64_t ptr, size_t index);
 
 struct vm_gc_entry_t
 {
-    union
-    {
-        struct
-        {
-            bool keep : 1;
-            size_t len : 15;
-            uint64_t ptr : 48;
-        };
-        size_t xlen;
-    };
+    uint64_t ptr;
     vm_obj_t obj;
 };
 
@@ -44,10 +37,10 @@ struct vm_gc_t
     pthread_t thread;
 #endif
 #if defined(VM_GC_THREADS)
-    vm_gc_entry_t *objs0;
+    vm_gc_entry_array_t objs0;
 #endif
-    vm_gc_entry_t *objs1;
-    vm_gc_entry_t *objs2;
+    vm_gc_entry_array_t objs1;
+    vm_gc_entry_array_t objs2;
     vm_obj_t *base;
     uint64_t last;
     size_t nlocals;

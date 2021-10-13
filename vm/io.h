@@ -4,4 +4,4 @@
 #include "vm.h"
 
 void vm_puts(const char *src);
-void vm_print(void *gc, vm_obj_t mem);
+void vm_print(vm_gc_t *gc, vm_obj_t mem);
