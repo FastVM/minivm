@@ -6,7 +6,9 @@
 #define VM_FRAMES_UNITS (1 << 16)
 #define VM_LOCALS_UNITS (VM_FRAMES_UNITS * 16)
 
-#define VM_MEM_UNITS (1 << 22)
+#if !defined(NULL)
+#define NULL ((void*)0)
+#endif
 
 int putchar(int chr);
 double fmod(double a, double b);

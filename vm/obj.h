@@ -49,15 +49,9 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 	return nanbox_from_double(obj);
 }
 
-static inline uint64_t vm_obj_to_ptr(vm_obj_t obj)
+static inline void* vm_obj_to_ptr(vm_obj_t obj)
 {
-#if defined(VM_DEBUG)
-	if (obj.as_int64 < VM_MEM_NULLPTR || obj.as_int64 > VM_MEM_END)
-	{
-		vm_obj_error();
-	}
-#endif
-	return obj.as_int64 - VM_MEM_BASE;
+	return nanbox_to_pointer(obj);
 }
 
 static inline int vm_obj_to_fun(vm_obj_t obj)
@@ -65,18 +59,9 @@ static inline int vm_obj_to_fun(vm_obj_t obj)
 	return nanbox_to_int(obj);
 }
 
-static inline vm_obj_t vm_obj_of_ptr(uint64_t obj)
+static inline vm_obj_t vm_obj_of_ptr(void* obj)
 {
-	vm_obj_t ret;
-	ret.as_int64 = obj + VM_MEM_BASE;
-#if defined(VM_DEBUG)
-	if (ret.as_int64 < VM_MEM_NULLPTR || ret.as_int64 > VM_MEM_END)
-	{
-		vm_puts("bad type: bad memory\n");
-		__builtin_trap();
-	}
-#endif
-	return ret;
+	return nanbox_from_pointer(obj);
 }
 
 static inline vm_obj_t vm_obj_of_fun(int obj)
@@ -96,7 +81,7 @@ static inline bool vm_obj_is_num(vm_obj_t obj)
 
 static inline bool vm_obj_is_ptr(vm_obj_t obj)
 {
-	return obj.as_int64 >= NANBOX_MIN_AUX && obj.as_int64 <= NANBOX_MAX_AUX;
+	return nanbox_is_pointer(obj);
 }
 
 static inline bool vm_obj_is_dead(vm_obj_t obj)
