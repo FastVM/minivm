@@ -1,7 +1,6 @@
 #pragma once
 
 #include "libc.h"
-
 typedef unsigned char reg_t;
 typedef char opcode_t;
 
@@ -75,6 +74,7 @@ enum opcode_t
     OPCODE_LENGTH,
     OPCODE_INDEX,
     OPCODE_INDEX_NUM,
+    OPCODE_SYSCALL,
     OPCODE_MAX1,
     OPCODE_MAX2P = 128,
 };

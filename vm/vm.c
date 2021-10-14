@@ -1,6 +1,7 @@
 #include "vm.h"
 #include "gc.h"
 #include "obj.h"
+#include "sys.h"
 
 #define VM_GLOBALS_NUM ((255))
 
@@ -68,7 +69,7 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
     {
         bool first = true;
         vm_putchar('[');
-        size_t len = vm_gc_sizeof(gc, vm_obj_to_ptr(val));
+        size_t len = vm_gc_sizeof(vm_obj_to_ptr(val));
         if (len >= 256) {
             __builtin_trap();
         }
@@ -83,14 +84,14 @@ void vm_print(vm_gc_t *gc, vm_obj_t val)
                         vm_putchar(',');
                         vm_putchar(' ');
                     }
-                    vm_print(gc, vm_gc_get_index(gc, vm_obj_to_ptr(val), i));
+                    vm_print(gc, vm_gc_get_index(vm_obj_to_ptr(val), i));
                 }
-                vm_obj_t cur = vm_gc_get_index(gc, vm_obj_to_ptr(val), len - 1);
+                vm_obj_t cur = vm_gc_get_index(vm_obj_to_ptr(val), len - 1);
                 if (vm_obj_is_ptr(cur))
                 {
                     vm_putchar(';');
                     val = cur;
-                    len = vm_gc_sizeof(gc, vm_obj_to_ptr(val));
+                    len = vm_gc_sizeof(vm_obj_to_ptr(val));
                     if (len == 0)
                     {
                         break;
@@ -136,8 +137,8 @@ void vm_run(const opcode_t *basefunc)
     vm_loc_t cur_func = 0;
 
     vm_gc_t raw_gc;
-    vm_gc_t *gc = &raw_gc;
-    vm_gc_start(gc, locals_base, VM_LOCALS_UNITS);
+    vm_gc_start(&raw_gc);
+    void *sys = vm_sys_init(&raw_gc);
 
     void *next_op_value;
     void *ptrs[OPCODE_MAX2P] = {};
@@ -206,13 +207,14 @@ void vm_run(const opcode_t *basefunc)
     ptrs[OPCODE_LENGTH] = &&do_length;
     ptrs[OPCODE_INDEX] = &&do_index;
     ptrs[OPCODE_INDEX_NUM] = &&do_index_num;
+    ptrs[OPCODE_SYSCALL] = &&do_syscall;
     cur_frame->nlocals = VM_GLOBALS_NUM;
     vm_fetch;
     run_next_op;
 do_exit:
 {
     vm_mem_reset();
-    vm_gc_stop(gc);
+    vm_gc_stop(&raw_gc);
     return;
 }
 do_return:
@@ -239,7 +241,12 @@ do_array:
         values[i] = cur_locals[reg];
     }
     vm_fetch;
-    vm_obj_t vec = vm_gc_new(gc, nargs, values);
+    if (raw_gc.len == raw_gc.max)
+    {
+        vm_sys_mark(sys);
+        vm_gc_run1(&raw_gc, locals_base, cur_locals + cur_frame->nlocals);
+    }
+    vm_obj_t vec = vm_obj_of_ptr(vm_gc_new(&raw_gc, nargs, values));
     cur_locals[outreg] = vec;
     run_next_op;
 }
@@ -249,7 +256,7 @@ do_length:
     reg_t reg = read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_obj_of_int(vm_gc_sizeof(gc, vm_obj_to_ptr(vec)));
+    cur_locals[outreg] = vm_obj_of_int(vm_gc_sizeof(vm_obj_to_ptr(vec)));
     run_next_op;
 }
 do_index:
@@ -260,7 +267,7 @@ do_index:
     vm_fetch;
     int index = vm_obj_to_int(cur_locals[ind]);
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_gc_get_index(gc, vm_obj_to_ptr(vec), index);
+    cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), index);
     run_next_op;
 }
 do_index_num:
@@ -270,7 +277,7 @@ do_index_num:
     int index = read_int;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_gc_get_index(gc, vm_obj_to_ptr(vec), (long)index);
+    cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), (long)index);
     run_next_op;
 }
 do_call0:
@@ -282,7 +289,7 @@ do_call0:
     for (int i = 0; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
+        funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -306,7 +313,7 @@ do_call1:
     for (int i = 1; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
+        funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -331,7 +338,7 @@ do_call2:
     for (int i = 2; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
+        funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -360,7 +367,7 @@ do_call:
     for (int i = nargs; vm_obj_is_ptr(funcv); i++)
     {
         next_locals[i] = funcv;
-        funcv = vm_gc_get_index(gc, vm_obj_to_ptr(funcv), 0);
+        funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), 0);
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -958,7 +965,7 @@ do_println:
     reg_t from = read_reg;
     vm_fetch;
     vm_obj_t val = cur_locals[from];
-    vm_print(gc, val);
+    vm_print(&raw_gc, val);
     vm_putchar('\n');
     run_next_op;
 }
@@ -968,6 +975,13 @@ do_putchar:
     vm_fetch;
     int val = vm_obj_to_int(cur_locals[from]);
     vm_putchar(val);
+    run_next_op;
+}
+do_syscall: {
+    reg_t to = read_reg;
+    reg_t arg = read_reg;
+    vm_fetch;
+    cur_locals[to] = vm_syscall(sys, cur_locals[arg]);
     run_next_op;
 }
 }
