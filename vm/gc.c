@@ -19,8 +19,6 @@ void free(void *ptr);
 
 #define VM_MEM_MAX ((VM_FRAMES_UNITS * sizeof(vm_stack_frame_t)) + (VM_LOCALS_UNITS * sizeof(vm_obj_t)))
 
-#define VM_GC_MEM_GROW (1)
-
 size_t vm_stats_memsize = VM_MEM_MAX;
 
 size_t vm_mem_top = 0;

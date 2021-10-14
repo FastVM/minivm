@@ -22,7 +22,7 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent);
 #define VM_GC_ENTRY_TYPE_PTR 0
 #define VM_GC_ENTRY_TYPE_OBJ 1
 
-    struct vm_gc_entry_t
+struct vm_gc_entry_t
 {
     uint32_t len;
     uint32_t keep;

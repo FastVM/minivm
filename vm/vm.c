@@ -206,7 +206,6 @@ void vm_run(const opcode_t *basefunc)
     ptrs[OPCODE_ARRAY] = &&do_array;
     ptrs[OPCODE_LENGTH] = &&do_length;
     ptrs[OPCODE_INDEX] = &&do_index;
-    ptrs[OPCODE_INDEX_NUM] = &&do_index_num;
     ptrs[OPCODE_SYSCALL] = &&do_syscall;
     cur_frame->nlocals = VM_GLOBALS_NUM;
     vm_fetch;
@@ -268,16 +267,6 @@ do_index:
     int index = vm_obj_to_int(cur_locals[ind]);
     vm_obj_t vec = cur_locals[reg];
     cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), index);
-    run_next_op;
-}
-do_index_num:
-{
-    reg_t outreg = read_reg;
-    reg_t reg = read_reg;
-    int index = read_int;
-    vm_fetch;
-    vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), (long)index);
     run_next_op;
 }
 do_call0:
@@ -981,7 +970,7 @@ do_syscall: {
     reg_t to = read_reg;
     reg_t arg = read_reg;
     vm_fetch;
-    cur_locals[to] = vm_syscall(sys, cur_locals[arg]);
+    cur_locals[to] = vm_sys_call(sys, cur_locals[arg]);
     run_next_op;
 }
 }

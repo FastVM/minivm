@@ -130,8 +130,6 @@ static inline void vm_asm_name(opcode_t name) {
 		return "length";
 	case OPCODE_INDEX:
 		return "index";
-	case OPCODE_INDEX_NUM:
-		return "index";
 	}
 }
 
@@ -267,7 +265,5 @@ static inline void vm_asm_format(opcode_t name)
 		return "rr";
 	case OPCODE_INDEX:
 		return "rr";
-	case OPCODE_INDEX_NUM:
-		return "r4";
 	}
 }

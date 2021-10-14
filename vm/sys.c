@@ -1,7 +1,7 @@
 
 #include "sys.h"
 
-vm_obj_t vm_syscall(void *sys, vm_obj_t arg)
+vm_obj_t vm_sys_call(void *sys, vm_obj_t arg)
 {
 	return vm_obj_of_num(0);
 }
