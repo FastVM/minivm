@@ -345,7 +345,7 @@ do_call:
 {
     reg_t outreg = read_reg;
     reg_t func = read_reg;
-    reg_t nargs = read_reg;
+    reg_t nargs = read_byte;
     vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
     for (int argno = 0; argno < nargs; argno++)
     {
@@ -425,7 +425,7 @@ do_static_call:
 {
     reg_t outreg = read_reg;
     int next_func = read_loc;
-    reg_t nargs = read_reg;
+    reg_t nargs = read_byte;
     vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
     for (int argno = 0; argno < nargs; argno++)
     {
@@ -494,7 +494,7 @@ do_rec2:
 do_rec:
 {
     reg_t outreg = read_reg;
-    reg_t nargs = read_reg;
+    reg_t nargs = read_byte;
     vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
     for (int argno = 0; argno < nargs; argno++)
     {
