@@ -67,14 +67,14 @@ end_of_loop:
 Although each instruction is a bit more complex, there are way fewer instructions. And this per-instruction complexity isn't necessarily a bad thing: making instructions more complex offloads work to the host language (C, in this case), which means that the runtime can compile common complex instructions to efficient native code.
 
 ### Wasm and Portability
-MiniVM is a small pure-C project with few dependencies; for this reason it's pretty easy to compile to just about any target.
+MiniVM itself is a small pure-C project with few dependencies; for this reason it's pretty easy to compile to just about any target.
 
 This, of course, means that the MiniVM runtime can be compiled to Wasm: the resulting binary is only *12KiB* in size! This is small enough to embed in a website, if that's your cup of tea.
 
-### On `pthreads` and `putchar`
+### On `malloc` and `putchar`
 
 > minivm performs better if pthreads are used but only really needs putchar.
-> pthreads can be disabled if the system has no threads
+> malloc is required for memory allocations as of recent.
 >
 > — 4984
 

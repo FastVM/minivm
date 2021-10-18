@@ -88,7 +88,7 @@
 #define NANBOX_AUX5_TYPE void *
 #endif
 
-#include <vm/libc.h>
+#include "libc.h"
 
 /*
  * Macros to expand the prefix.

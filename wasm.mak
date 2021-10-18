@@ -24,12 +24,12 @@ $(BIN)/minivm.js: $(BIN)/minivm.wasm
 	chmod +x $@
 
 $(BIN)/minivm.wasm: $(OBJS)
-	@mkdir -p $(basename $@)
+	@mkdir -p $(dir $@)
 	$(WASMLD) --export=vm_xrun --export=vm_xadd --export=vm_xset_putchar --allow-undefined -s $(OBJS) -o $@.unopt
 	$(WASMOPT) -O4 $@.unopt -o $@
 
 $(OBJS): $(patsubst $(LIB)/%.ll,%.c,$@)
-	@mkdir -p $(basename $@)
+	@mkdir -p $(dir $@)
 	$(CLANG) $(CFLAGS) $(patsubst $(LIB)/%.o,%.c,$@) -o $(patsubst $(LIB)/%.o,$(LIB)/%.bc,$@)
 	$(LLC) -march=wasm32 -filetype=obj $(patsubst $(LIB)/%.o,$(LIB)/%.bc,$@) -o $@
 	
