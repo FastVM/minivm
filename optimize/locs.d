@@ -28,15 +28,11 @@ int[] indexToOffset(Instr[] instrs) {
 	return ret;
 }
 
-int[] offsetToIndex(Instr[] instrs) {
-	int[] ret;
-	int last = 0;
+int[int] offsetToIndex(Instr[] instrs) {
+	int[int] ret;
 	foreach (index, ref instr; instrs) {
-		while (ret.length < instr.offset) {
-			ret ~= last;
-		}
-		last = cast(int) index;
-		ret ~= last;
+		ret[instr.offset - 1] = cast(int) index;
+		ret[instr.offset] = cast(int) index;
 	}
 	return ret;
 }

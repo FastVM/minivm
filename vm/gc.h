@@ -24,9 +24,9 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent);
 
 struct vm_gc_entry_t
 {
-    uint32_t len;
-    uint32_t keep;
-    vm_obj_t obj[];
+    bool keep: 1;
+    uint32_t len : 31;
+    vm_obj_t obj[0];
 };
 
 struct vm_gc_t

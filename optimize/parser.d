@@ -65,14 +65,14 @@ Instr[] parse(ref Code code, Opcode[] end) {
 	while (code.code.length != 0) {
 		int offset =  code.offset;
 		Instr instr = code.readInstr;
-		instr.offset = offset;
+		instr.offset = code.offset;
 		if (end.canFind(instr.op)) {
 			break;
 		}
 		instrs ~= instr;
 	}
 	int[][int] branches = instrs.branches;
-	int[] o2i = instrs.offsetToIndex;
+	int[int] o2i = instrs.offsetToIndex;
 	int[] i2o = instrs.indexToOffset;
 	foreach (key, values; branches) {
 		instrs[o2i[key]].outJump = true;
