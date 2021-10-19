@@ -27,15 +27,17 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent);
 
 struct vm_gc_entry_t
 {
-    bool keep: 1;
-    uint32_t len : 31;
+    uint32_t len;
+    bool keep;
     vm_obj_t obj[0];
 };
 
 struct vm_gc_t
 {
-    // vm_gc_entry_array_t objs1;
     vm_gc_entry_t **objs;
+#if defined(VM_USE_MIMALLOC)
+    void *heap;
+#endif
     size_t len;
     size_t alloc;
     size_t max;

@@ -51,6 +51,12 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 
 static inline void* vm_obj_to_ptr(vm_obj_t obj)
 {
+#if defined(VM_DEBUG)
+	if (!nanbox_is_pointer(obj))
+	{
+		vm_obj_error();
+	}
+#endif
 	return nanbox_to_pointer(obj);
 }
 

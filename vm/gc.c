@@ -4,12 +4,10 @@
 #include "io.h"
 
 #if defined(VM_USE_MIMALLOC)
-void *mi_malloc(size_t size);
-void mi_free(void *ptr);
-void *mi_realloc(void *ptr, size_t size);
-#define vm_malloc mi_malloc
-#define vm_free mi_free
-#define vm_realloc mi_realloc
+#include <mimalloc.h>
+#define vm_malloc(size) (mi_heap_malloc(gc->heap (size)))
+#define vm_free(ptr) (mi_heap_free(gc->heap, (ptr)))
+#define vm_realloc(ptr, size) (mi_heap_realloc(gc->heap, (ptr), (size)))
 #else
 void *malloc(size_t size);
 void free(void *ptr);
@@ -42,10 +40,10 @@ void vm_mem_reset(void)
 
 void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
 {
-    if (ent->keep != 0) {
+    if (ent->keep) {
         return;
     }
-    ent->keep = 1;
+    ent->keep = true;
     for (size_t cur = 0; cur < ent->len; cur++)
     {
         vm_obj_t obj = ent->obj[cur];
@@ -73,6 +71,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         vm_gc_entry_t *ent = gc->objs[index];
         if (ent->keep)
         {
+            ent->keep = false;
             gc->objs[begin++] = ent;
         }
         else {
@@ -80,17 +79,13 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
             gc->objs[index] = NULL;
         }
     }
-    for (size_t index = 0; index < begin; index++)
-    {
-        gc->objs[index]->keep = 0;
-    }
     gc->len = begin;
-    size_t newmax = 4 + begin * 1.3;
+    size_t newmax = 4 + begin * 1.2;
     if (gc->max < newmax)
     {
         gc->max = newmax;
     }
-    if (gc->max >= gc->alloc) {
+    if (gc->max + 4 >= gc->alloc) {
         gc->alloc = 4 + gc->alloc * 2;
         gc->objs = vm_realloc(gc->objs, sizeof(vm_gc_entry_t *) * gc->alloc);
     }
@@ -102,6 +97,9 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
 
 void vm_gc_start(vm_gc_t *gc)
 {
+#if defined(VM_USE_MIMALLOC)
+    gc->heap = mi_heap_new();
+#endif
     gc->len = 0;
     gc->max = 4;
     gc->alloc = 4;
@@ -110,19 +108,23 @@ void vm_gc_start(vm_gc_t *gc)
 
 void vm_gc_stop(vm_gc_t *gc)
 {
+#if defined(VM_USE_MIMALLOC)
+    mi_heap_destroy(gc->heap);
+#else
     for (size_t index = 0; index < gc->len; index++)
     {
         vm_free(gc->objs[index]);
     }
     vm_free(gc->objs);
+#endif
 }
 
 vm_gc_entry_t *vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)
 {
-    vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t[size]));
+    vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size);
     *entry = (vm_gc_entry_t){
+        .keep = false,
         .len = size,
-        .keep = 0,
     };
     for (size_t i = 0; i < size; i++)
     {
