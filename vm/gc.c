@@ -4,7 +4,9 @@
 #include "io.h"
 
 #if defined(VM_USE_MIMALLOC)
-#include <mimalloc.h>
+void *mi_malloc(size_t size);
+void mi_free(void *ptr);
+void *mi_realloc(void *ptr, size_t size);
 #define vm_malloc(size) (mi_malloc((size)))
 #define vm_free(ptr) (mi_free((ptr)))
 #define vm_realloc(ptr, size) (mi_realloc((ptr), (size)))
