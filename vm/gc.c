@@ -5,9 +5,9 @@
 
 #if defined(VM_USE_MIMALLOC)
 #include <mimalloc.h>
-#define vm_malloc(size) (mi_heap_malloc(gc->heap (size)))
-#define vm_free(ptr) (mi_heap_free(gc->heap, (ptr)))
-#define vm_realloc(ptr, size) (mi_heap_realloc(gc->heap, (ptr), (size)))
+#define vm_malloc(size) (mi_malloc((size)))
+#define vm_free(ptr) (mi_free((ptr)))
+#define vm_realloc(ptr, size) (mi_realloc((ptr), (size)))
 #else
 void *malloc(size_t size);
 void free(void *ptr);
@@ -17,25 +17,14 @@ void *realloc(void *ptr, size_t size);
 #define vm_realloc realloc
 #endif
 
-#define VM_MEM_UNITS (1 << 26)
-
-#define VM_MEM_MAX ((VM_FRAMES_UNITS * sizeof(vm_stack_frame_t)) + (VM_LOCALS_UNITS * sizeof(vm_obj_t)))
-
-size_t vm_stats_memsize = VM_MEM_MAX;
-
-size_t vm_mem_top = 0;
-uint8_t vm_mem[VM_MEM_MAX];
-
 void *vm_mem_grow(size_t size)
 {
-    void *ret = &vm_mem[vm_mem_top];
-    vm_mem_top += size;
-    return ret;
+    return vm_malloc(size);
 }
 
-void vm_mem_reset(void)
+void vm_mem_reset(void *ptr)
 {
-    vm_mem_top = 0;
+    vm_free(ptr);
 }
 
 void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
@@ -80,7 +69,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         }
     }
     gc->len = begin;
-    size_t newmax = 4 + begin * 1.2;
+    size_t newmax = 4 + begin * 2;
     if (gc->max < newmax)
     {
         gc->max = newmax;
@@ -97,9 +86,6 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
 
 void vm_gc_start(vm_gc_t *gc)
 {
-#if defined(VM_USE_MIMALLOC)
-    gc->heap = mi_heap_new();
-#endif
     gc->len = 0;
     gc->max = 4;
     gc->alloc = 4;
@@ -108,15 +94,11 @@ void vm_gc_start(vm_gc_t *gc)
 
 void vm_gc_stop(vm_gc_t *gc)
 {
-#if defined(VM_USE_MIMALLOC)
-    mi_heap_destroy(gc->heap);
-#else
     for (size_t index = 0; index < gc->len; index++)
     {
         vm_free(gc->objs[index]);
     }
     vm_free(gc->objs);
-#endif
 }
 
 vm_gc_entry_t *vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)

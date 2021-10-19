@@ -35,9 +35,6 @@ struct vm_gc_entry_t
 struct vm_gc_t
 {
     vm_gc_entry_t **objs;
-#if defined(VM_USE_MIMALLOC)
-    void *heap;
-#endif
     size_t len;
     size_t alloc;
     size_t max;

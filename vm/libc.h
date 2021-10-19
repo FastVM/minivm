@@ -14,7 +14,7 @@ int putchar(int chr);
 double fmod(double a, double b);
 
 void *vm_mem_grow(size_t size);
-void vm_mem_reset(void);
+void vm_mem_reset(void *ptr);
 
 #define vm_putchar(chr) (putchar(chr))
 #define vm_fmod(lhs, rhs) (fmod(lhs, rhs))

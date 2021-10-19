@@ -220,8 +220,9 @@ void vm_run(const opcode_t *basefunc)
     run_next_op;
 do_exit:
 {
-    vm_mem_reset();
     vm_gc_stop(&raw_gc);
+    vm_mem_reset(frames_base);
+    vm_mem_reset(locals_base);
     return;
 }
 do_return:
