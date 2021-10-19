@@ -240,7 +240,7 @@ do_array:
         values[i] = cur_locals[reg];
     }
     vm_fetch;
-    if (raw_gc.len == raw_gc.max)
+    if (raw_gc.len >= raw_gc.max)
     {
         vm_sys_mark(sys);
         vm_gc_run1(&raw_gc, locals_base, cur_locals + cur_frame->nlocals);

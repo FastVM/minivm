@@ -4,6 +4,9 @@ struct vm_gc_entry_t;
 typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 
+#define VM_GC_ADD (1000)
+#define VM_GC_MUL (1.1)
+
 #include "libc.h"
 #include "obj.h"
 #include "vm.h"
@@ -34,5 +37,6 @@ struct vm_gc_t
     // vm_gc_entry_array_t objs1;
     vm_gc_entry_t **objs;
     size_t len;
+    size_t alloc;
     size_t max;
 };

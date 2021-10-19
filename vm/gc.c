@@ -6,13 +6,17 @@
 #if defined(VM_USE_MIMALLOC)
 void *mi_malloc(size_t size);
 void mi_free(void *ptr);
+void *mi_realloc(void *ptr, size_t size);
 #define vm_malloc mi_malloc
 #define vm_free mi_free
+#define vm_realloc mi_realloc
 #else
 void *malloc(size_t size);
 void free(void *ptr);
+void *realloc(void *ptr, size_t size);
 #define vm_malloc malloc
 #define vm_free free
+#define vm_realloc realloc
 #endif
 
 #define VM_MEM_UNITS (1 << 26)
@@ -81,10 +85,18 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         gc->objs[index]->keep = 0;
     }
     gc->len = begin;
-    size_t newmax = 4 + begin * 2;
+    size_t newmax = 4 + begin * 1.3;
     if (gc->max < newmax)
     {
         gc->max = newmax;
+    }
+    if (gc->max >= gc->alloc) {
+        gc->alloc = 4 + gc->alloc * 2;
+        gc->objs = vm_realloc(gc->objs, sizeof(vm_gc_entry_t *) * gc->alloc);
+    }
+    if (gc->alloc >= gc->max * 64) {
+        gc->alloc = 4 + gc->alloc / 16;
+        gc->objs = vm_realloc(gc->objs, sizeof(vm_gc_entry_t *) * gc->alloc);
     }
 }
 
@@ -92,7 +104,8 @@ void vm_gc_start(vm_gc_t *gc)
 {
     gc->len = 0;
     gc->max = 4;
-    gc->objs = vm_malloc(sizeof(vm_gc_entry_t *) * VM_MEM_UNITS);
+    gc->alloc = 4;
+    gc->objs = vm_malloc(sizeof(vm_gc_entry_t *) * gc->alloc);
 }
 
 void vm_gc_stop(vm_gc_t *gc)
