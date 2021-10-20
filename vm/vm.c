@@ -18,6 +18,7 @@
         })
 
 #if defined(VM_DEBUG)
+int printf(const char *fmt, ...);
 #define run_next_op                                                 \
     printf("%i -> %i\n", (int)cur_index, (int)basefunc[cur_index]); \
     goto *next_op;
@@ -35,6 +36,7 @@
             ret;                                      \
         })
 
+#define get_byte(index) (*(unsigned char *)&basefunc[cur_index + index])
 #define read_byte (cur_bytecode_next(unsigned char))
 #define read_reg (cur_bytecode_next(unsigned char))
 #define read_int (cur_bytecode_next(int))
@@ -209,11 +211,12 @@ void vm_run(const opcode_t *basefunc)
     ptrs[OPCODE_REC2] = &&do_rec2;
     ptrs[OPCODE_REC] = &&do_rec;
     ptrs[OPCODE_RETURN] = &&do_return;
-    ptrs[OPCODE_PRINTLN] = &&do_println;
     ptrs[OPCODE_PUTCHAR] = &&do_putchar;
-    ptrs[OPCODE_ARRAY] = &&do_array;
-    ptrs[OPCODE_LENGTH] = &&do_length;
-    ptrs[OPCODE_INDEX] = &&do_index;
+    ptrs[OPCODE_ARRAY_NEW] = &&do_array_new;
+    ptrs[OPCODE_ARRAY_LENGTH] = &&do_array_length;
+    ptrs[OPCODE_ARRAY_GET] = &&do_array_get;
+    ptrs[OPCODE_ARRAY_SET] = &&do_array_set;
+    ptrs[OPCODE_TYPE] = &&do_type;
     ptrs[OPCODE_SYSCALL] = &&do_syscall;
     cur_frame->nlocals = VM_GLOBALS_NUM;
     vm_fetch;
@@ -238,7 +241,29 @@ do_return:
     vm_fetch;
     run_next_op;
 }
-do_array:
+do_type: 
+{
+    reg_t outreg = read_reg;
+    reg_t valreg = read_reg;
+    vm_fetch;
+    vm_obj_t obj = cur_locals[valreg];
+    double num = -1;
+    if (vm_obj_is_num(obj))
+    {
+        num = 0;
+    }
+    if (vm_obj_is_ptr(obj))
+    {
+        num = 1;
+    }
+    if (vm_obj_is_fun(obj))
+    {
+        num = 2;
+    }
+    cur_locals[outreg] = vm_obj_of_num(num);
+    run_next_op;
+}
+do_array_new:
 {
     reg_t outreg = read_reg;
     int nargs = read_byte;
@@ -258,7 +283,7 @@ do_array:
     cur_locals[outreg] = vec;
     run_next_op;
 }
-do_length:
+do_array_length:
 {
     reg_t outreg = read_reg;
     reg_t reg = read_reg;
@@ -267,15 +292,27 @@ do_length:
     cur_locals[outreg] = vm_obj_of_int(vm_gc_sizeof(vm_obj_to_ptr(vec)));
     run_next_op;
 }
-do_index:
+do_array_get:
 {
     reg_t outreg = read_reg;
     reg_t reg = read_reg;
     reg_t ind = read_reg;
     vm_fetch;
-    int index = vm_obj_to_int(cur_locals[ind]);
     vm_obj_t vec = cur_locals[reg];
+    int index = vm_obj_to_int(cur_locals[ind]);
     cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), index);
+    run_next_op;
+}
+do_array_set:
+{
+    reg_t reg = read_reg;
+    reg_t ind = read_reg;
+    reg_t val = read_reg;
+    vm_fetch;
+    vm_obj_t vec = cur_locals[reg];
+    int index = vm_obj_to_int(cur_locals[ind]);
+    vm_obj_t value = cur_locals[val];
+    vm_gc_set_index(vm_obj_to_ptr(vec), index, value);
     run_next_op;
 }
 do_call0:
@@ -297,7 +334,7 @@ do_call0:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -321,7 +358,7 @@ do_call1:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -346,7 +383,7 @@ do_call2:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -375,7 +412,7 @@ do_call:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -391,7 +428,7 @@ do_static_call0:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -408,7 +445,7 @@ do_static_call1:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -426,7 +463,7 @@ do_static_call2:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -448,7 +485,7 @@ do_static_call:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -463,7 +500,7 @@ do_rec0:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -479,7 +516,7 @@ do_rec1:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -496,7 +533,7 @@ do_rec2:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -517,7 +554,7 @@ do_rec:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = read_byte;
+    cur_frame->nlocals = get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -956,15 +993,6 @@ do_mod_num:
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_modc(cur_locals[lhs], rhs);
-    run_next_op;
-}
-do_println:
-{
-    reg_t from = read_reg;
-    vm_fetch;
-    vm_obj_t val = cur_locals[from];
-    vm_print(&raw_gc, val);
-    vm_putchar('\n');
     run_next_op;
 }
 do_putchar:

@@ -14,3 +14,7 @@ void *vm_sys_init(vm_gc_t *gc)
 {
 	return NULL;
 }
+
+void vm_sys_deinit(void *obj)
+{
+}

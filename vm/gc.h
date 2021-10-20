@@ -19,6 +19,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high);
 vm_gc_entry_t *vm_gc_new(vm_gc_t *gc, size_t len, vm_obj_t *values);
 size_t vm_gc_sizeof(vm_gc_entry_t *ptr);
 vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, size_t index);
+void vm_gc_set_index(vm_gc_entry_t *ptr, size_t index, vm_obj_t value);
 
 void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent);
 

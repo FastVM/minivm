@@ -71,7 +71,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         }
     }
     gc->len = begin;
-    size_t newmax = 4 + begin * 2;
+    size_t newmax = 4 + begin * 1.5;
     if (gc->max < newmax)
     {
         gc->max = newmax;
@@ -118,9 +118,14 @@ vm_gc_entry_t *vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)
     return entry;
 }
 
-vm_obj_t vm_gc_get_index(vm_gc_entry_t* ptr, size_t index)
+vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, size_t index)
 {
     return ptr->obj[index];
+}
+
+void vm_gc_set_index(vm_gc_entry_t *ptr, size_t index, vm_obj_t value)
+{
+    ptr->obj[index] = value;
 }
 
 size_t vm_gc_sizeof(vm_gc_entry_t *ptr)

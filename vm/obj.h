@@ -90,6 +90,11 @@ static inline bool vm_obj_is_ptr(vm_obj_t obj)
 	return nanbox_is_pointer(obj);
 }
 
+static inline bool vm_obj_is_fun(vm_obj_t obj)
+{
+	return nanbox_is_int(obj);
+}
+
 static inline bool vm_obj_is_dead(vm_obj_t obj)
 {
 	return nanbox_is_empty(obj);
