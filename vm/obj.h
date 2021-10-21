@@ -9,34 +9,44 @@ typedef double vm_number_t;
 #define VM_MEM_BASE (NANBOX_MIN_AUX)
 #define VM_MEM_END (VM_MEM_BASE * 2)
 
-#if defined(VM_DEBUG)
-static inline void vm_obj_error(void)
+static inline bool vm_obj_is_num(vm_obj_t obj)
 {
-	vm_puts("bad type: expected different type\n");
-	__builtin_trap();
+	return nanbox_is_number(obj);
 }
-#endif
+
+static inline bool vm_obj_is_ptr(vm_obj_t obj)
+{
+	return nanbox_is_pointer(obj);
+}
+
+static inline bool vm_obj_is_fun(vm_obj_t obj)
+{
+	return nanbox_is_int(obj);
+}
+
+static inline bool vm_obj_is_dead(vm_obj_t obj)
+{
+	return nanbox_is_empty(obj);
+}
 
 static inline int vm_obj_to_int(vm_obj_t obj)
 {
-#if defined(VM_DEBUG)
-	if (!nanbox_is_number(obj))
-	{
-		vm_obj_error();
-	}
-#endif
 	return (int)nanbox_to_double(obj);
 }
 
 static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
 {
-#if defined(VM_DEBUG)
-	if (!nanbox_is_number(obj))
-	{
-		vm_obj_error();
-	}
-#endif
 	return nanbox_to_double(obj);
+}
+
+static inline bool vm_obj_is_zero(vm_obj_t obj)
+{
+	return vm_obj_to_num(obj) == 0;
+}
+
+static inline bool vm_obj_is_nonzero(vm_obj_t obj)
+{
+	return !(vm_obj_to_num(obj) == 0);
 }
 
 static inline vm_obj_t vm_obj_of_int(int obj)
@@ -51,12 +61,6 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 
 static inline void* vm_obj_to_ptr(vm_obj_t obj)
 {
-#if defined(VM_DEBUG)
-	if (!nanbox_is_pointer(obj))
-	{
-		vm_obj_error();
-	}
-#endif
 	return nanbox_to_pointer(obj);
 }
 
@@ -78,26 +82,6 @@ static inline vm_obj_t vm_obj_of_fun(int obj)
 static inline vm_obj_t vm_obj_of_dead()
 {
 	return nanbox_empty();
-}
-
-static inline bool vm_obj_is_num(vm_obj_t obj)
-{
-	return nanbox_is_number(obj);
-}
-
-static inline bool vm_obj_is_ptr(vm_obj_t obj)
-{
-	return nanbox_is_pointer(obj);
-}
-
-static inline bool vm_obj_is_fun(vm_obj_t obj)
-{
-	return nanbox_is_int(obj);
-}
-
-static inline bool vm_obj_is_dead(vm_obj_t obj)
-{
-	return nanbox_is_empty(obj);
 }
 
 static inline vm_obj_t vm_obj_num_add(vm_obj_t lhs, vm_obj_t rhs)

@@ -4,7 +4,7 @@
 
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
 
-opcode_t vm_ops[1 << 16];
+vm_opcode_t vm_ops[1 << 16];
 
 int main(int argc, char *argv[argc])
 {
@@ -19,13 +19,13 @@ int main(int argc, char *argv[argc])
             }
             return 1;
         }
-        opcode_t *ops = &vm_ops[0];
+        vm_opcode_t *ops = &vm_ops[0];
         while (!feof(file))
         {
-            opcode_t op = (fgetc(file));
+            vm_opcode_t op = (fgetc(file));
             *(ops++) = op;
         }
         fclose(file);
-        vm_run(vm_ops);
+        vm_run(ops - vm_ops, vm_ops);
     }
 }

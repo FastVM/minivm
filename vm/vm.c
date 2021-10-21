@@ -5,28 +5,15 @@
 
 #define VM_GLOBALS_NUM ((255))
 
-#define next_op (cur_index += 1, next_op_value)
-
-#define vm_fetch (next_op_value = ptrs[basefunc[cur_index]])
-
-#define vm_set_frame(frame_arg)              \
-    (                                        \
-        {                                    \
-            vm_stack_frame_t frame = frame_arg; \
-            cur_index = frame.index;         \
-            cur_func = frame.func;           \
-        })
-
 #if defined(VM_DEBUG)
 int printf(const char *fmt, ...);
 #define run_next_op                                                 \
-    printf("%i -> %i\n", (int)cur_index, (int)basefunc[cur_index]); \
+    printf("(%i -> %i)\n", (int)cur_index, (int)basefunc[cur_index]); \
     goto *next_op;
 #else
 #define run_next_op \
     goto *next_op;
 #endif
-
 
 #define cur_bytecode_next(Type)                       \
     (                                                 \
@@ -36,102 +23,16 @@ int printf(const char *fmt, ...);
             ret;                                      \
         })
 
-#define get_byte(index) (*(unsigned char *)&basefunc[cur_index + index])
-#define read_byte (cur_bytecode_next(unsigned char))
-#define read_reg (cur_bytecode_next(unsigned char))
+#define next_op (cur_index += 1, next_op_value)
+#define vm_fetch (next_op_value = ptrs[basefunc[cur_index]])
+
+#define get_byte(index) (*(uint8_t *)&basefunc[(cur_index) + (index)])
+#define read_byte (cur_bytecode_next(uint8_t))
+#define read_reg (cur_bytecode_next(uint8_t))
 #define read_int (cur_bytecode_next(int))
 #define read_loc (cur_bytecode_next(int))
 
-void vm_putn(long n)
-{
-    if (n < 0)
-    {
-        vm_putchar('-');
-        vm_putn(-n);
-    }
-    else
-    {
-        if (n >= 10)
-        {
-            vm_putn(n / 10);
-        }
-        vm_putchar(n % 10 + '0');
-    }
-}
-
-void vm_puts(const char *ptr)
-{
-    while (*ptr)
-    {
-        vm_putchar(*ptr);
-        ptr += 1;
-    }
-}
-
-void vm_print(vm_gc_t *gc, vm_obj_t val)
-{
-    if (vm_obj_is_num(val))
-    {
-        vm_number_t num = vm_obj_to_num(val);
-        vm_putn(num);
-    }
-    else if (vm_obj_is_ptr(val))
-    {
-        bool first = true;
-        vm_putchar('[');
-        size_t len = vm_gc_sizeof(vm_obj_to_ptr(val));
-        if (len >= 256) {
-            __builtin_trap();
-        }
-        if (len != 0)
-        {
-            while (true)
-            {
-                for (int i = 0; i < len - 1; i++)
-                {
-                    if (i != 0)
-                    {
-                        vm_putchar(',');
-                        vm_putchar(' ');
-                    }
-                    vm_print(gc, vm_gc_get_index(vm_obj_to_ptr(val), i));
-                }
-                vm_obj_t cur = vm_gc_get_index(vm_obj_to_ptr(val), len - 1);
-                if (vm_obj_is_ptr(cur))
-                {
-                    vm_putchar(';');
-                    val = cur;
-                    len = vm_gc_sizeof(vm_obj_to_ptr(val));
-                    if (len == 0)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        vm_putchar(' ');
-                    }
-                }
-                else
-                {
-                    if (len != 1)
-                    {
-                        vm_putchar(',');
-                        vm_putchar(' ');
-                    }
-                    vm_print(gc, cur);
-                    break;
-                }
-            }
-        }
-        vm_putchar(']');
-    }
-    else
-    {
-        __builtin_trap();
-    }
-}
-
-void vm_run(const opcode_t *basefunc)
+void vm_run(int len, const vm_opcode_t *basefunc)
 {
     vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
     vm_obj_t *locals_base = vm_mem_grow(VM_LOCALS_UNITS * sizeof(vm_obj_t));
@@ -151,78 +52,81 @@ void vm_run(const opcode_t *basefunc)
     void *sys = vm_sys_init(&raw_gc);
 
     void *next_op_value;
-    void *ptrs[OPCODE_MAX2P] = {};
-    ptrs[OPCODE_EXIT] = &&do_exit;
-    ptrs[OPCODE_STORE_REG] = &&do_store_reg;
-    ptrs[OPCODE_STORE_BYTE] = &&do_store_byte;
-    ptrs[OPCODE_STORE_INT] = &&do_store_int;
-    ptrs[OPCODE_STORE_FUN] = &&do_store_fun;
-    ptrs[OPCODE_EQUAL] = &&do_equal;
-    ptrs[OPCODE_EQUAL_NUM] = &&do_equal_num;
-    ptrs[OPCODE_NOT_EQUAL] = &&do_not_equal;
-    ptrs[OPCODE_NOT_EQUAL_NUM] = &&do_not_equal_num;
-    ptrs[OPCODE_LESS] = &&do_less;
-    ptrs[OPCODE_LESS_NUM] = &&do_less_num;
-    ptrs[OPCODE_GREATER] = &&do_greater;
-    ptrs[OPCODE_GREATER_NUM] = &&do_greater_num;
-    ptrs[OPCODE_LESS_THAN_EQUAL] = &&do_less_than_equal;
-    ptrs[OPCODE_LESS_THAN_EQUAL_NUM] = &&do_less_than_equal_num;
-    ptrs[OPCODE_GREATER_THAN_EQUAL] = &&do_greater_than_equal;
-    ptrs[OPCODE_GREATER_THAN_EQUAL_NUM] = &&do_greater_than_equal_num;
-    ptrs[OPCODE_JUMP_ALWAYS] = &&do_jump_always;
-    ptrs[OPCODE_JUMP_IF_FALSE] = &&do_jump_if_false;
-    ptrs[OPCODE_JUMP_IF_TRUE] = &&do_jump_if_true;
-    ptrs[OPCODE_JUMP_IF_EQUAL] = &&do_jump_if_equal;
-    ptrs[OPCODE_JUMP_IF_EQUAL_NUM] = &&do_jump_if_equal_num;
-    ptrs[OPCODE_JUMP_IF_NOT_EQUAL] = &&do_jump_if_not_equal;
-    ptrs[OPCODE_JUMP_IF_NOT_EQUAL_NUM] = &&do_jump_if_not_equal_num;
-    ptrs[OPCODE_JUMP_IF_LESS] = &&do_jump_if_less;
-    ptrs[OPCODE_JUMP_IF_LESS_NUM] = &&do_jump_if_less_num;
-    ptrs[OPCODE_JUMP_IF_GREATER] = &&do_jump_if_greater;
-    ptrs[OPCODE_JUMP_IF_GREATER_NUM] = &&do_jump_if_greater_num;
-    ptrs[OPCODE_JUMP_IF_LESS_THAN_EQUAL] = &&do_jump_if_less_than_equal;
-    ptrs[OPCODE_JUMP_IF_LESS_THAN_EQUAL_NUM] = &&do_jump_if_less_than_equal_num;
-    ptrs[OPCODE_JUMP_IF_GREATER_THAN_EQUAL] = &&do_jump_if_greater_than_equal;
-    ptrs[OPCODE_JUMP_IF_GREATER_THAN_EQUAL_NUM] = &&do_jump_if_greater_than_equal_num;
-    ptrs[OPCODE_INC] = &&do_inc;
-    ptrs[OPCODE_INC_NUM] = &&do_inc_num;
-    ptrs[OPCODE_DEC] = &&do_dec;
-    ptrs[OPCODE_DEC_NUM] = &&do_dec_num;
-    ptrs[OPCODE_ADD] = &&do_add;
-    ptrs[OPCODE_ADD_NUM] = &&do_add_num;
-    ptrs[OPCODE_SUB] = &&do_sub;
-    ptrs[OPCODE_SUB_NUM] = &&do_sub_num;
-    ptrs[OPCODE_MUL] = &&do_mul;
-    ptrs[OPCODE_MUL_NUM] = &&do_mul_num;
-    ptrs[OPCODE_DIV] = &&do_div;
-    ptrs[OPCODE_DIV_NUM] = &&do_div_num;
-    ptrs[OPCODE_MOD] = &&do_mod;
-    ptrs[OPCODE_MOD_NUM] = &&do_mod_num;
-    ptrs[OPCODE_CALL0] = &&do_call0;
-    ptrs[OPCODE_CALL1] = &&do_call1;
-    ptrs[OPCODE_CALL2] = &&do_call2;
-    ptrs[OPCODE_CALL] = &&do_call;
-    ptrs[OPCODE_STATIC_CALL0] = &&do_static_call0;
-    ptrs[OPCODE_STATIC_CALL1] = &&do_static_call1;
-    ptrs[OPCODE_STATIC_CALL2] = &&do_static_call2;
-    ptrs[OPCODE_STATIC_CALL] = &&do_static_call;
-    ptrs[OPCODE_REC0] = &&do_rec0;
-    ptrs[OPCODE_REC1] = &&do_rec1;
-    ptrs[OPCODE_REC2] = &&do_rec2;
-    ptrs[OPCODE_REC] = &&do_rec;
-    ptrs[OPCODE_RETURN] = &&do_return;
-    ptrs[OPCODE_PUTCHAR] = &&do_putchar;
-    ptrs[OPCODE_ARRAY_NEW] = &&do_array_new;
-    ptrs[OPCODE_ARRAY_LENGTH] = &&do_array_length;
-    ptrs[OPCODE_ARRAY_GET] = &&do_array_get;
-    ptrs[OPCODE_ARRAY_SET] = &&do_array_set;
-    ptrs[OPCODE_TYPE] = &&do_type;
-    ptrs[OPCODE_SYSCALL] = &&do_syscall;
-    cur_frame->nlocals = VM_GLOBALS_NUM;
+    void *ptrs[VM_OPCODE_MAX2P] = {};
+    ptrs[VM_OPCODE_EXIT] = &&do_exit;
+    ptrs[VM_OPCODE_STORE_REG] = &&do_store_reg;
+    ptrs[VM_OPCODE_STORE_BYTE] = &&do_store_byte;
+    ptrs[VM_OPCODE_STORE_INT] = &&do_store_int;
+    ptrs[VM_OPCODE_STORE_FUN] = &&do_store_fun;
+    ptrs[VM_OPCODE_EQUAL] = &&do_equal;
+    ptrs[VM_OPCODE_EQUAL_NUM] = &&do_equal_num;
+    ptrs[VM_OPCODE_NOT_EQUAL] = &&do_not_equal;
+    ptrs[VM_OPCODE_NOT_EQUAL_NUM] = &&do_not_equal_num;
+    ptrs[VM_OPCODE_LESS] = &&do_less;
+    ptrs[VM_OPCODE_LESS_NUM] = &&do_less_num;
+    ptrs[VM_OPCODE_GREATER] = &&do_greater;
+    ptrs[VM_OPCODE_GREATER_NUM] = &&do_greater_num;
+    ptrs[VM_OPCODE_LESS_THAN_EQUAL] = &&do_less_than_equal;
+    ptrs[VM_OPCODE_LESS_THAN_EQUAL_NUM] = &&do_less_than_equal_num;
+    ptrs[VM_OPCODE_GREATER_THAN_EQUAL] = &&do_greater_than_equal;
+    ptrs[VM_OPCODE_GREATER_THAN_EQUAL_NUM] = &&do_greater_than_equal_num;
+    ptrs[VM_OPCODE_JUMP_ALWAYS] = &&do_jump_always;
+    ptrs[VM_OPCODE_JUMP_IF_FALSE] = &&do_jump_if_false;
+    ptrs[VM_OPCODE_JUMP_IF_TRUE] = &&do_jump_if_true;
+    ptrs[VM_OPCODE_JUMP_IF_EQUAL] = &&do_jump_if_equal;
+    ptrs[VM_OPCODE_JUMP_IF_EQUAL_NUM] = &&do_jump_if_equal_num;
+    ptrs[VM_OPCODE_JUMP_IF_NOT_EQUAL] = &&do_jump_if_not_equal;
+    ptrs[VM_OPCODE_JUMP_IF_NOT_EQUAL_NUM] = &&do_jump_if_not_equal_num;
+    ptrs[VM_OPCODE_JUMP_IF_LESS] = &&do_jump_if_less;
+    ptrs[VM_OPCODE_JUMP_IF_LESS_NUM] = &&do_jump_if_less_num;
+    ptrs[VM_OPCODE_JUMP_IF_GREATER] = &&do_jump_if_greater;
+    ptrs[VM_OPCODE_JUMP_IF_GREATER_NUM] = &&do_jump_if_greater_num;
+    ptrs[VM_OPCODE_JUMP_IF_LESS_THAN_EQUAL] = &&do_jump_if_less_than_equal;
+    ptrs[VM_OPCODE_JUMP_IF_LESS_THAN_EQUAL_NUM] = &&do_jump_if_less_than_equal_num;
+    ptrs[VM_OPCODE_JUMP_IF_GREATER_THAN_EQUAL] = &&do_jump_if_greater_than_equal;
+    ptrs[VM_OPCODE_JUMP_IF_GREATER_THAN_EQUAL_NUM] = &&do_jump_if_greater_than_equal_num;
+    ptrs[VM_OPCODE_INC] = &&do_inc;
+    ptrs[VM_OPCODE_INC_NUM] = &&do_inc_num;
+    ptrs[VM_OPCODE_DEC] = &&do_dec;
+    ptrs[VM_OPCODE_DEC_NUM] = &&do_dec_num;
+    ptrs[VM_OPCODE_ADD] = &&do_add;
+    ptrs[VM_OPCODE_ADD_NUM] = &&do_add_num;
+    ptrs[VM_OPCODE_SUB] = &&do_sub;
+    ptrs[VM_OPCODE_SUB_NUM] = &&do_sub_num;
+    ptrs[VM_OPCODE_MUL] = &&do_mul;
+    ptrs[VM_OPCODE_MUL_NUM] = &&do_mul_num;
+    ptrs[VM_OPCODE_DIV] = &&do_div;
+    ptrs[VM_OPCODE_DIV_NUM] = &&do_div_num;
+    ptrs[VM_OPCODE_MOD] = &&do_mod;
+    ptrs[VM_OPCODE_MOD_NUM] = &&do_mod_num;
+    ptrs[VM_OPCODE_CALL0] = &&do_call0;
+    ptrs[VM_OPCODE_CALL1] = &&do_call1;
+    ptrs[VM_OPCODE_CALL2] = &&do_call2;
+    ptrs[VM_OPCODE_CALL] = &&do_call;
+    ptrs[VM_OPCODE_STATIC_CALL0] = &&do_static_call0;
+    ptrs[VM_OPCODE_STATIC_CALL1] = &&do_static_call1;
+    ptrs[VM_OPCODE_STATIC_CALL2] = &&do_static_call2;
+    ptrs[VM_OPCODE_STATIC_CALL] = &&do_static_call;
+    ptrs[VM_OPCODE_REC0] = &&do_rec0;
+    ptrs[VM_OPCODE_REC1] = &&do_rec1;
+    ptrs[VM_OPCODE_REC2] = &&do_rec2;
+    ptrs[VM_OPCODE_REC] = &&do_rec;
+    ptrs[VM_OPCODE_RETURN] = &&do_return;
+    ptrs[VM_OPCODE_PUTCHAR] = &&do_putchar;
+    ptrs[VM_OPCODE_ARRAY_NEW] = &&do_array_new;
+    ptrs[VM_OPCODE_ARRAY_LENGTH] = &&do_array_length;
+    ptrs[VM_OPCODE_ARRAY_GET] = &&do_array_get;
+    ptrs[VM_OPCODE_ARRAY_SET] = &&do_array_set;
+    ptrs[VM_OPCODE_TYPE] = &&do_type;
+    ptrs[VM_OPCODE_SYSCALL] = &&do_syscall;
+    cur_frame->locals = cur_locals;
+    cur_frame += 1;
+    cur_frame->locals = cur_locals + VM_GLOBALS_NUM;
     vm_fetch;
     run_next_op;
 do_exit:
 {
+    vm_sys_deinit(sys);
     vm_gc_stop(&raw_gc);
     vm_mem_reset(frames_base);
     vm_mem_reset(locals_base);
@@ -233,7 +137,7 @@ do_return:
     reg_t from = read_reg;
     vm_obj_t val = cur_locals[from];
     cur_frame--;
-    cur_locals -= cur_frame->nlocals;
+    cur_locals = (cur_frame - 1)->locals;
     cur_func = cur_frame->func;
     cur_index = cur_frame->index;
     reg_t outreg = cur_frame->outreg;
@@ -250,15 +154,15 @@ do_type:
     double num = -1;
     if (vm_obj_is_num(obj))
     {
-        num = 0;
+        num = VM_TYPE_NUMBER;
     }
     if (vm_obj_is_ptr(obj))
     {
-        num = 1;
+        num = VM_TYPE_ARRAY;
     }
     if (vm_obj_is_fun(obj))
     {
-        num = 2;
+        num = VM_TYPE_FUNCTION;
     }
     cur_locals[outreg] = vm_obj_of_num(num);
     run_next_op;
@@ -277,7 +181,7 @@ do_array_new:
     if (raw_gc.len >= raw_gc.max)
     {
         vm_sys_mark(sys);
-        vm_gc_run1(&raw_gc, locals_base, cur_locals + cur_frame->nlocals);
+        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
     }
     vm_obj_t vec = vm_obj_of_ptr(vm_gc_new(&raw_gc, nargs, values));
     cur_locals[outreg] = vec;
@@ -319,7 +223,7 @@ do_call0:
 {
     reg_t outreg = read_reg;
     reg_t func = read_reg;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     vm_obj_t funcv = cur_locals[func];
     for (int i = 0; vm_obj_is_ptr(funcv); i++)
     {
@@ -334,7 +238,7 @@ do_call0:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -342,7 +246,7 @@ do_call1:
 {
     reg_t outreg = read_reg;
     reg_t func = read_reg;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
     for (int i = 1; vm_obj_is_ptr(funcv); i++)
@@ -358,7 +262,7 @@ do_call1:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -366,7 +270,7 @@ do_call2:
 {
     reg_t outreg = read_reg;
     reg_t func = read_reg;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     next_locals[1] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
@@ -383,7 +287,7 @@ do_call2:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -392,7 +296,7 @@ do_call:
     reg_t outreg = read_reg;
     reg_t func = read_reg;
     int nargs = read_byte;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     for (int argno = 0; argno < nargs; argno++)
     {
         reg_t regno = read_reg;
@@ -412,7 +316,7 @@ do_call:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -420,7 +324,7 @@ do_static_call0:
 {
     reg_t outreg = read_reg;
     vm_loc_t next_func = read_loc;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     cur_locals = next_locals;
     cur_frame->index = cur_index;
     cur_frame->func = cur_func;
@@ -428,7 +332,7 @@ do_static_call0:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -436,7 +340,7 @@ do_static_call1:
 {
     reg_t outreg = read_reg;
     vm_loc_t next_func = read_loc;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     cur_locals = next_locals;
     cur_frame->index = cur_index;
@@ -445,7 +349,7 @@ do_static_call1:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -453,7 +357,7 @@ do_static_call2:
 {
     reg_t outreg = read_reg;
     vm_loc_t next_func = read_loc;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     next_locals[1] = cur_locals[read_reg];
     cur_locals = next_locals;
@@ -463,7 +367,7 @@ do_static_call2:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -472,7 +376,7 @@ do_static_call:
     reg_t outreg = read_reg;
     int next_func = read_loc;
     int nargs = read_byte;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     for (int argno = 0; argno < nargs; argno++)
     {
         reg_t regno = read_reg;
@@ -485,14 +389,14 @@ do_static_call:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
 do_rec0:
 {
     reg_t outreg = read_reg;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[0];
     cur_locals = next_locals;
     cur_frame->index = cur_index;
@@ -500,14 +404,14 @@ do_rec0:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
 do_rec1:
 {
     reg_t outreg = read_reg;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     next_locals[1] = cur_locals[1];
     cur_locals = next_locals;
@@ -516,14 +420,14 @@ do_rec1:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
 do_rec2:
 {
     reg_t outreg = read_reg;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     next_locals[1] = cur_locals[read_reg];
     next_locals[2] = cur_locals[2];
@@ -533,7 +437,7 @@ do_rec2:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -541,7 +445,7 @@ do_rec:
 {
     reg_t outreg = read_reg;
     int nargs = read_byte;
-    vm_obj_t *next_locals = cur_locals + cur_frame->nlocals;
+    vm_obj_t *next_locals = cur_frame->locals;
     for (int argno = 0; argno < nargs; argno++)
     {
         reg_t regno = read_reg;
@@ -554,7 +458,7 @@ do_rec:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = cur_func;
-    cur_frame->nlocals = get_byte(-1);
+    cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
 }
@@ -711,7 +615,7 @@ do_jump_if_false:
 {
     vm_loc_t to = read_loc;
     reg_t from = read_reg;
-    if (vm_obj_to_num(cur_locals[from]) == 0)
+    if (vm_obj_is_zero(cur_locals[from]))
     {
         cur_index = to;
     }
@@ -722,7 +626,7 @@ do_jump_if_true:
 {
     vm_loc_t to = read_loc;
     reg_t from = read_reg;
-    if (vm_obj_to_num(cur_locals[from]) != 0)
+    if (vm_obj_is_nonzero(cur_locals[from]))
     {
         cur_index = to;
     }
