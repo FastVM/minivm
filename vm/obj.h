@@ -6,8 +6,6 @@ typedef int vm_loc_t;
 typedef double vm_number_t;
 
 #include "io.h"
-#define VM_MEM_BASE (NANBOX_MIN_AUX)
-#define VM_MEM_END (VM_MEM_BASE * 2)
 
 static inline bool vm_obj_is_num(vm_obj_t obj)
 {
@@ -59,7 +57,7 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 	return nanbox_from_double(obj);
 }
 
-static inline void* vm_obj_to_ptr(vm_obj_t obj)
+static inline void *vm_obj_to_ptr(vm_obj_t obj)
 {
 	return nanbox_to_pointer(obj);
 }
@@ -69,7 +67,7 @@ static inline int vm_obj_to_fun(vm_obj_t obj)
 	return nanbox_to_int(obj);
 }
 
-static inline vm_obj_t vm_obj_of_ptr(void* obj)
+static inline vm_obj_t vm_obj_of_ptr(void *obj)
 {
 	return nanbox_from_pointer(obj);
 }

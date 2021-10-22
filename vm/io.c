@@ -48,40 +48,40 @@ void vm_print(vm_obj_t val)
 		{
 			while (true)
 			{
-				for (int i = 0; i < len - 1; i++)
+				for (int i = 0; i < len; i++)
 				{
 					if (i != 0)
 					{
 						vm_putchar(',');
 						vm_putchar(' ');
 					}
-					vm_print(vm_gc_get_index(vm_obj_to_ptr(val), i));
+					vm_print(vm_gc_get_index(vm_obj_to_ptr(val), vm_obj_of_int(i)));
 				}
-				vm_obj_t cur = vm_gc_get_index(vm_obj_to_ptr(val), len - 1);
-				if (vm_obj_is_ptr(cur))
-				{
-					vm_putchar(';');
-					val = cur;
-					len = vm_gc_sizeof(vm_obj_to_ptr(val));
-					if (len == 0)
-					{
-						break;
-					}
-					else
-					{
-						vm_putchar(' ');
-					}
-				}
-				else
-				{
-					if (len != 1)
-					{
-						vm_putchar(',');
-						vm_putchar(' ');
-					}
-					vm_print(cur);
-					break;
-				}
+				// vm_obj_t cur = vm_gc_get_index(vm_obj_to_ptr(val), len - 1);
+				// if (vm_obj_is_ptr(cur))
+				// {
+				// 	vm_putchar(';');
+				// 	val = cur;
+				// 	len = vm_gc_sizeof(vm_obj_to_ptr(val));
+				// 	if (len == 0)
+				// 	{
+				// 		break;
+				// 	}
+				// 	else
+				// 	{
+				// 		vm_putchar(' ');
+				// 	}
+				// }
+				// else
+				// {
+				// 	if (len != 1)
+				// 	{
+				// 		vm_putchar(',');
+				// 		vm_putchar(' ');
+				// 	}
+				// 	vm_print(cur);
+				// 	break;
+				// }
 			}
 		}
 		vm_putchar(']');

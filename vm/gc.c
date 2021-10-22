@@ -1,6 +1,5 @@
 #include "gc.h"
 #include "obj.h"
-#include "sys.h"
 #include "io.h"
 
 #if defined(VM_USE_MIMALLOC)
@@ -31,17 +30,28 @@ void vm_mem_reset(void *ptr)
 
 void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
 {
-    if (ent->keep) {
-        return;
-    }
-    ent->keep = true;
-    for (size_t cur = 0; cur < ent->len; cur++)
+    switch (ent->type)
     {
-        vm_obj_t obj = ent->obj[cur];
-        if (vm_obj_is_ptr(obj))
-        {
-            vm_gc_mark_ptr(gc, vm_obj_to_ptr(obj));
+    case VM_TYPE_ARRAY:
+    {
+        if (ent->keep) {
+            return;
         }
+        ent->keep = true;
+        for (size_t cur = 0; cur < ent->len / sizeof(vm_obj_t); cur++)
+        {
+            vm_obj_t obj = ((vm_obj_t*)ent->obj)[cur];
+            if (vm_obj_is_ptr(obj))
+            {
+                vm_gc_mark_ptr(gc, vm_obj_to_ptr(obj));
+            }
+        }
+        break;
+    }
+    case VM_TYPE_STRING:
+    {
+        break;
+    }
     }
 }
 
@@ -103,32 +113,123 @@ void vm_gc_stop(vm_gc_t *gc)
     vm_free(gc->objs);
 }
 
-vm_gc_entry_t *vm_gc_new(vm_gc_t *gc, size_t size, vm_obj_t *values)
+vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
 {
     vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size);
     *entry = (vm_gc_entry_t){
         .keep = false,
-        .len = size,
+        .type = VM_TYPE_ARRAY,
+        .len = size * sizeof(vm_obj_t),
     };
-    for (size_t i = 0; i < size; i++)
-    {
-        entry->obj[i] = values[i];
-    }
     gc->objs[gc->len++] = entry;
     return entry;
 }
 
-vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, size_t index)
+vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t size)
 {
-    return ptr->obj[index];
+    vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t) + sizeof(char) * size);
+    *entry = (vm_gc_entry_t){
+        .keep = false,
+        .type = VM_TYPE_STRING,
+        .len = size,
+    };
+    return entry;
 }
 
-void vm_gc_set_index(vm_gc_entry_t *ptr, size_t index, vm_obj_t value)
+int vm_gc_type(vm_gc_entry_t *ent)
 {
-    ptr->obj[index] = value;
+    return ent->type;
+}
+
+vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
+{
+    switch (ptr->type) {
+    case VM_TYPE_ARRAY:
+    {
+        return ((vm_obj_t*)ptr->obj)[vm_obj_to_int(index)];
+    }
+    case VM_TYPE_STRING:
+    {
+        return vm_obj_of_int(((char*)ptr->obj)[vm_obj_to_int(index)]);
+    }
+    }
+    __builtin_trap();
+}
+
+void vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value)
+{
+    switch (ptr->type) {
+    case VM_TYPE_ARRAY:
+    {
+        ((vm_obj_t*)ptr->obj)[vm_obj_to_int(index)] = value;
+        break;
+    }
+    case VM_TYPE_STRING:
+    {
+        ((char*)ptr->obj)[vm_obj_to_int(index)] = vm_obj_to_int(value);
+        break;
+    }
+    }
 }
 
 size_t vm_gc_sizeof(vm_gc_entry_t *ptr)
 {
-    return ptr->len;
+    switch (ptr->type) {
+    default:
+    {
+        __builtin_trap();
+    }
+    case VM_TYPE_ARRAY:
+    {
+        return ptr->len / sizeof(vm_obj_t);
+    }
+    case VM_TYPE_STRING:
+    {
+        return ptr->len;
+    }
+    }
+}
+
+vm_obj_t vm_gc_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
+{
+	vm_gc_entry_t *left = vm_obj_to_ptr(lhs);
+	vm_gc_entry_t *right = vm_obj_to_ptr(rhs);
+	int ret_type = vm_gc_type(left);
+	switch (ret_type)
+	{
+    default:
+    {
+        __builtin_trap();
+    }
+	case VM_TYPE_ARRAY:
+    {
+		int llen = vm_gc_sizeof(left);
+		int rlen = vm_gc_sizeof(right);
+		vm_gc_entry_t *ent = vm_gc_array_new(gc, llen + rlen);
+		for (int i = 0; i < llen; i++)
+		{
+			((vm_obj_t*)ent->obj)[i] = ((vm_obj_t*)left->obj)[i];
+		}
+		for (int i = 0; i < rlen; i++)
+		{
+			((vm_obj_t*)ent->obj)[llen + i] = ((vm_obj_t*)right->obj)[i];
+		}
+		return vm_obj_of_ptr(ent);
+    }
+	case VM_TYPE_STRING:
+	{
+		int llen = vm_gc_sizeof(left);
+		int rlen = vm_gc_sizeof(right);
+		vm_gc_entry_t *ent = vm_gc_string_new(gc, llen + rlen);
+		for (int i = 0; i < llen; i++)
+		{
+			((char*)ent->obj)[i] = ((char*)left->obj)[i];
+		}
+		for (int i = 0; i < rlen; i++)
+		{
+			((char*)ent->obj)[llen + i] = ((char*)right->obj)[i];
+		}
+		return vm_obj_of_ptr(ent);
+	}
+	}
 }
