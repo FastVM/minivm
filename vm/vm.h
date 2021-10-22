@@ -72,6 +72,9 @@ enum vm_opcode_t
     VM_OPCODE_PUTCHAR,
     VM_OPCODE_ARRAY_NEW,
     VM_OPCODE_STRING_NEW,
+    VM_OPCODE_BOX_NEW,
+    VM_OPCODE_BOX_GET,
+    VM_OPCODE_BOX_SET,
     VM_OPCODE_LENGTH,
     VM_OPCODE_INDEX_GET,
     VM_OPCODE_INDEX_SET,
@@ -86,6 +89,7 @@ typedef enum
     VM_TYPE_FUNCTION = 1,
     VM_TYPE_ARRAY = 2,
     VM_TYPE_STRING = 3,
+    VM_TYPE_BOX = 4,
 } vm_type_t;
 
 typedef struct

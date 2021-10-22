@@ -14,7 +14,7 @@
 })
 #endif
 
-#define VM_GLOBALS_NUM ((255))
+#define VM_GLOBALS_NUM (255)
 
 #if defined(VM_DEBUG_OPCODE)
 int printf(const char *fmt, ...);
@@ -121,6 +121,9 @@ void vm_run(int len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_PUTCHAR] = &&do_putchar;
     ptrs[VM_OPCODE_ARRAY_NEW] = &&do_array_new;
     ptrs[VM_OPCODE_STRING_NEW] = &&do_string_new;
+    ptrs[VM_OPCODE_BOX_NEW] = &&do_box_new;
+    ptrs[VM_OPCODE_BOX_GET] = &&do_get_box;
+    ptrs[VM_OPCODE_BOX_SET] = &&do_set_box;
     ptrs[VM_OPCODE_LENGTH] = &&do_length;
     ptrs[VM_OPCODE_INDEX_GET] = &&do_index_get;
     ptrs[VM_OPCODE_INDEX_SET] = &&do_index_set;
@@ -174,12 +177,12 @@ do_type:
 }
 do_string_new:
 {
-    reg_t outreg = read_reg;
-    int nargs = read_byte;
     if (raw_gc.len >= raw_gc.max)
     {
         vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
     }
+    reg_t outreg = read_reg;
+    int nargs = read_byte;
     vm_gc_entry_t *str = vm_gc_string_new(&raw_gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
@@ -191,12 +194,12 @@ do_string_new:
 }
 do_array_new:
 {
-    reg_t outreg = read_reg;
-    int nargs = read_byte;
     if (raw_gc.len >= raw_gc.max)
     {
         vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
     }
+    reg_t outreg = read_reg;
+    int nargs = read_byte;
     vm_gc_entry_t *vec = vm_gc_array_new(&raw_gc, nargs);
     for (int i = 0; i < nargs; i++)
     {
@@ -205,6 +208,36 @@ do_array_new:
     }
     vm_fetch;
     cur_locals[outreg] = vm_obj_of_ptr(vec);
+    run_next_op;
+}
+do_box_new:
+{
+    if (raw_gc.len >= raw_gc.max)
+    {
+        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
+    }
+    reg_t outreg = read_reg;
+    reg_t inreg = read_reg;
+    vm_fetch;
+    vm_gc_entry_t *box = vm_gc_box_new(&raw_gc);
+    vm_gc_set_box(box, cur_locals[inreg]);
+    cur_locals[outreg] = vm_obj_of_ptr(box);
+    run_next_op;
+}
+do_set_box:
+{
+    reg_t targetreg = read_reg;
+    reg_t valreg = read_reg;
+    vm_fetch;
+    vm_gc_set_box(vm_obj_to_ptr(cur_locals[targetreg]), cur_locals[valreg]);
+    run_next_op;
+}
+do_get_box:
+{
+    reg_t outreg = read_reg;
+    reg_t inreg = read_reg;
+    vm_fetch;
+    cur_locals[outreg] = vm_gc_get_box(vm_obj_to_ptr(cur_locals[inreg]));
     run_next_op;
 }
 do_length:

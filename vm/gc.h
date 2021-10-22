@@ -18,6 +18,10 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high);
 
 int vm_gc_type(vm_gc_entry_t *ent);
 
+vm_gc_entry_t *vm_gc_box_new(vm_gc_t *gc);
+vm_obj_t vm_gc_get_box(vm_gc_entry_t *ptr);
+void vm_gc_set_box(vm_gc_entry_t *ptr, vm_obj_t value);
+
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t len);
 vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t len);
 
