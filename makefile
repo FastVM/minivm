@@ -15,4 +15,7 @@ minivm $(BIN)/minivm: $(CFILES) main/main.c
 	@mkdir $(P) $(BIN)
 	$(CC) $^ -o $@ $(CFLAGS) -I. -lm $(OPT)
 
+clean: .dummy
+	: rm -r $(BIN)
+
 .dummy:
