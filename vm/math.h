@@ -98,6 +98,10 @@ static inline bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs);
 
 static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
 {
+	if (!vm_obj_is_ptr(rhs) || !vm_obj_is_ptr(lhs))
+	{
+		return false;
+	}
 	void *lent = vm_obj_to_ptr(lhs);
 	void *rent = vm_obj_to_ptr(rhs);
 	int type = vm_gc_type(lent);
