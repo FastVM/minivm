@@ -5,7 +5,7 @@ OPT=-O3
 BIN=bin
 P=-p
 
-CFILES=vm/vm.c vm/io.c vm/gc.c
+CFILES=vm/vm.c vm/io.c vm/gc.c vm/obj/map.c
 
 MIMALLOC=$(DL)-lmimalloc -DVM_USE_MIMALLOC $(DL)-lpthread
 

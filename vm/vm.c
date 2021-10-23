@@ -186,7 +186,7 @@ do_string_new:
     vm_gc_entry_t *str = vm_gc_string_new(&raw_gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
-        ((char*) str->obj)[i] = read_byte;
+        vm_gc_set_index(str, vm_obj_of_int(i), vm_obj_of_int(read_byte));
     }
     vm_fetch;
     cur_locals[outreg] = vm_obj_of_ptr(str);
