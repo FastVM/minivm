@@ -7,14 +7,12 @@ P=-p
 
 CFILES=vm/vm.c vm/io.c vm/gc.c vm/obj/map.c
 
-MIMALLOC=$(DL)-lmimalloc -DVM_USE_MIMALLOC $(DL)-lpthread
-
 default: all
 
 all: $(BIN)/minivm
 
 minivm $(BIN)/minivm: $(CFILES) main/main.c 
 	@mkdir $(P) $(BIN)
-	$(CC) $^ -o $@ $(CFLAGS) -I. -lm $(OPT) $(MIMALLOC)
+	$(CC) $^ -o $@ $(CFLAGS) -I. -lm $(OPT)
 
 .dummy:
