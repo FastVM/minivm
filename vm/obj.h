@@ -5,7 +5,28 @@ typedef nanbox_t vm_obj_t;
 typedef int vm_loc_t;
 typedef double vm_number_t;
 
-#include "io.h"
+typedef enum
+{
+	VM_TYPE_NONE = 0,
+	VM_TYPE_BOOL = 1,
+	VM_TYPE_NUMBER = 2,
+	VM_TYPE_FUNCTION = 3,
+	VM_TYPE_ARRAY = 4,
+	VM_TYPE_STRING = 5,
+	VM_TYPE_BOX = 6,
+} vm_type_t;
+
+// type check
+
+static inline bool vm_obj_is_none(vm_obj_t obj)
+{
+	return nanbox_is_null(obj);
+}
+
+static inline bool vm_obj_is_bool(vm_obj_t obj)
+{
+	return nanbox_is_boolean(obj);
+}
 
 static inline bool vm_obj_is_num(vm_obj_t obj)
 {
@@ -22,29 +43,17 @@ static inline bool vm_obj_is_fun(vm_obj_t obj)
 	return nanbox_is_int(obj);
 }
 
-static inline bool vm_obj_is_dead(vm_obj_t obj)
+
+// c to obj
+
+static inline vm_obj_t vm_obj_of_none(void)
 {
-	return nanbox_is_empty(obj);
+	return nanbox_null();
 }
 
-static inline int vm_obj_to_int(vm_obj_t obj)
+static inline vm_obj_t vm_obj_of_bool(bool obj)
 {
-	return (int)nanbox_to_double(obj);
-}
-
-static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
-{
-	return nanbox_to_double(obj);
-}
-
-static inline bool vm_obj_is_zero(vm_obj_t obj)
-{
-	return vm_obj_to_num(obj) == 0;
-}
-
-static inline bool vm_obj_is_nonzero(vm_obj_t obj)
-{
-	return !(vm_obj_to_num(obj) == 0);
+	return nanbox_from_boolean(obj);
 }
 
 static inline vm_obj_t vm_obj_of_int(int obj)
@@ -57,14 +66,9 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
 	return nanbox_from_double(obj);
 }
 
-static inline void *vm_obj_to_ptr(vm_obj_t obj)
+static inline vm_obj_t vm_obj_of_fun(int obj)
 {
-	return nanbox_to_pointer(obj);
-}
-
-static inline int vm_obj_to_fun(vm_obj_t obj)
-{
-	return nanbox_to_int(obj);
+	return nanbox_from_int(obj);
 }
 
 static inline vm_obj_t vm_obj_of_ptr(void *obj)
@@ -72,122 +76,29 @@ static inline vm_obj_t vm_obj_of_ptr(void *obj)
 	return nanbox_from_pointer(obj);
 }
 
-static inline vm_obj_t vm_obj_of_fun(int obj)
+// obj to c
+
+static inline bool vm_obj_to_bool(vm_obj_t obj)
 {
-	return nanbox_from_int(obj);
+	return !nanbox_is_false(obj);
 }
 
-static inline vm_obj_t vm_obj_of_dead()
+static inline int vm_obj_to_int(vm_obj_t obj)
 {
-	return nanbox_empty();
+	return (int)nanbox_to_double(obj);
 }
 
-static inline vm_obj_t vm_obj_num_add(vm_obj_t lhs, vm_obj_t rhs)
+static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
 {
-	return vm_obj_of_num(vm_obj_to_num(lhs) + vm_obj_to_num(rhs));
+	return nanbox_to_double(obj);
 }
 
-static inline vm_obj_t vm_obj_num_addc(vm_obj_t lhs, int rhs)
+static inline int vm_obj_to_fun(vm_obj_t obj)
 {
-	return vm_obj_of_num(vm_obj_to_num(lhs) + rhs);
+	return nanbox_to_int(obj);
 }
 
-static inline vm_obj_t vm_obj_num_sub(vm_obj_t lhs, vm_obj_t rhs)
+static inline void *vm_obj_to_ptr(vm_obj_t obj)
 {
-	return vm_obj_of_num(vm_obj_to_num(lhs) - vm_obj_to_num(rhs));
-}
-
-static inline vm_obj_t vm_obj_num_subc(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_of_num(vm_obj_to_num(lhs) - rhs);
-}
-
-static inline vm_obj_t vm_obj_num_mul(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_of_num(vm_obj_to_num(lhs) * vm_obj_to_num(rhs));
-}
-
-static inline vm_obj_t vm_obj_num_mulc(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_of_num(vm_obj_to_num(lhs) * rhs);
-}
-
-static inline vm_obj_t vm_obj_num_div(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_of_num(vm_obj_to_num(lhs) / vm_obj_to_num(rhs));
-}
-
-static inline vm_obj_t vm_obj_num_divc(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_of_num(vm_obj_to_num(lhs) / rhs);
-}
-
-static inline vm_obj_t vm_obj_num_mod(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_of_num(fmod(vm_obj_to_num(lhs), vm_obj_to_num(rhs)));
-}
-
-static inline vm_obj_t vm_obj_num_modc(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_of_num(fmod(vm_obj_to_num(lhs), rhs));
-}
-
-static inline bool vm_obj_lt(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_to_num(lhs) < vm_obj_to_num(rhs);
-}
-
-static inline bool vm_obj_ilt(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_to_num(lhs) < rhs;
-}
-
-static inline bool vm_obj_gt(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_to_num(lhs) > vm_obj_to_num(rhs);
-}
-
-static inline bool vm_obj_igt(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_to_num(lhs) > rhs;
-}
-
-static inline bool vm_obj_lte(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_to_num(lhs) <= vm_obj_to_num(rhs);
-}
-
-static inline bool vm_obj_ilte(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_to_num(lhs) <= rhs;
-}
-
-static inline bool vm_obj_gte(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_to_num(lhs) >= vm_obj_to_num(rhs);
-}
-
-static inline bool vm_obj_igte(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_to_num(lhs) >= rhs;
-}
-
-static inline bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_to_num(lhs) == vm_obj_to_num(rhs);
-}
-
-static inline bool vm_obj_ieq(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_to_num(lhs) == rhs;
-}
-
-static inline bool vm_obj_neq(vm_obj_t lhs, vm_obj_t rhs)
-{
-	return vm_obj_to_num(lhs) != vm_obj_to_num(rhs);
-}
-
-static inline bool vm_obj_ineq(vm_obj_t lhs, int rhs)
-{
-	return vm_obj_to_num(lhs) != rhs;
+	return nanbox_to_pointer(obj);
 }

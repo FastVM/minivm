@@ -10,6 +10,8 @@ enum vm_opcode_t
 {
     VM_OPCODE_EXIT,
     VM_OPCODE_STORE_REG,
+    VM_OPCODE_STORE_NONE,
+    VM_OPCODE_STORE_BOOL,
     VM_OPCODE_STORE_BYTE,
     VM_OPCODE_STORE_INT,
     VM_OPCODE_STORE_FUN,
@@ -82,16 +84,6 @@ enum vm_opcode_t
     VM_OPCODE_MAX1,
     VM_OPCODE_MAX2P = 128,
 };
-
-typedef enum
-{
-    VM_TYPE_NUMBER = 0,
-    VM_TYPE_FUNCTION = 1,
-    VM_TYPE_ARRAY = 2,
-    VM_TYPE_STRING = 3,
-    VM_TYPE_BOX = 4,
-} vm_type_t;
-
 typedef struct
 {
     int index;
