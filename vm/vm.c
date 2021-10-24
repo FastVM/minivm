@@ -7,7 +7,6 @@
 #define VM_GLOBALS_NUM (255)
 
 #if defined(VM_DEBUG_OPCODE)
-int printf(const char *fmt, ...);
 #define run_next_op                                                   \
     printf("(%i -> %i)\n", (int)cur_index, (int)basefunc[cur_index]); \
     goto *next_op;
@@ -111,9 +110,10 @@ void vm_run(int len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_REC] = &&do_rec;
     ptrs[VM_OPCODE_RETURN] = &&do_return;
     ptrs[VM_OPCODE_PUTCHAR] = &&do_putchar;
-    ptrs[VM_OPCODE_ARRAY_NEW] = &&do_array_new;
-    ptrs[VM_OPCODE_STRING_NEW] = &&do_string_new;
     ptrs[VM_OPCODE_BOX_NEW] = &&do_box_new;
+    ptrs[VM_OPCODE_STRING_NEW] = &&do_string_new;
+    ptrs[VM_OPCODE_ARRAY_NEW] = &&do_array_new;
+    ptrs[VM_OPCODE_MAP_NEW] = &&do_map_new;
     ptrs[VM_OPCODE_BOX_GET] = &&do_get_box;
     ptrs[VM_OPCODE_BOX_SET] = &&do_set_box;
     ptrs[VM_OPCODE_LENGTH] = &&do_length;
@@ -222,6 +222,18 @@ do_box_new:
     vm_gc_entry_t *box = vm_gc_box_new(&raw_gc);
     vm_gc_set_box(box, cur_locals[inreg]);
     cur_locals[outreg] = vm_obj_of_ptr(box);
+    run_next_op;
+}
+do_map_new:
+{
+    if (raw_gc.len >= raw_gc.max)
+    {
+        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
+    }
+    reg_t outreg = read_reg;
+    vm_fetch;
+    vm_gc_entry_t *map = vm_gc_map_new(&raw_gc);
+    cur_locals[outreg] = vm_obj_of_ptr(map);
     run_next_op;
 }
 do_set_box:

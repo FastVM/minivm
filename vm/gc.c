@@ -1,22 +1,7 @@
 #include "gc.h"
 #include "obj.h"
 #include "io.h"
-
-#if defined(VM_USE_MIMALLOC)
-void *mi_malloc(size_t size);
-void mi_free(void *ptr);
-void *mi_realloc(void *ptr, size_t size);
-#define vm_malloc(size) (mi_malloc((size)))
-#define vm_free(ptr) (mi_free((ptr)))
-#define vm_realloc(ptr, size) (mi_realloc((ptr), (size)))
-#else
-void *malloc(size_t size);
-void free(void *ptr);
-void *realloc(void *ptr, size_t size);
-#define vm_malloc malloc
-#define vm_free free
-#define vm_realloc realloc
-#endif
+#include "obj/map.h"
 
 void *vm_mem_grow(size_t size)
 {
@@ -26,6 +11,18 @@ void *vm_mem_grow(size_t size)
 void vm_mem_reset(void *ptr)
 {
     vm_free(ptr);
+}
+
+static inline void vm_gc_mark_map_entry(void *gc, vm_obj_t key, vm_obj_t val)
+{
+    if (vm_obj_is_ptr(key))
+    {
+        vm_gc_mark_ptr(gc, vm_obj_to_ptr(key));
+    }
+    if (vm_obj_is_ptr(val))
+    {
+        vm_gc_mark_ptr(gc, vm_obj_to_ptr(val));
+    }
 }
 
 void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
@@ -60,11 +57,35 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
         }
         break;
     }
+    case VM_TYPE_MAP:
+    {
+        vm_gc_entry_map_t *map_ent = (vm_gc_entry_map_t *)ent;
+        vm_map_for_pairs(map_ent->map, NULL, vm_gc_mark_map_entry);
+        break;
+    }
     case VM_TYPE_STRING:
     {
         break;
     }
     }
+}
+
+void vm_gc_free(vm_gc_entry_t *ent)
+{
+    switch (vm_gc_type(ent))
+    {
+    case VM_TYPE_MAP:
+    {
+        vm_gc_entry_map_t *map = (vm_gc_entry_map_t*) ent;
+        vm_map_del(map->map);
+        break;
+    }
+    default: 
+    {
+        break;
+    }
+    }
+    vm_free(ent);
 }
 
 void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
@@ -89,7 +110,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         }
         else
         {
-            vm_free(ent);
+            vm_gc_free(ent);
             gc->objs[index] = NULL;
         }
     }
@@ -109,8 +130,8 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
 void vm_gc_start(vm_gc_t *gc)
 {
     gc->len = 0;
-    gc->max = 4;
-    gc->alloc = 4;
+    gc->max = 8;
+    gc->alloc = 16;
     gc->objs = vm_malloc(sizeof(vm_gc_entry_t *) * gc->alloc);
 }
 
@@ -118,9 +139,22 @@ void vm_gc_stop(vm_gc_t *gc)
 {
     for (size_t index = 0; index < gc->len; index++)
     {
-        vm_free(gc->objs[index]);
+        vm_gc_free(gc->objs[index]);
     }
     vm_free(gc->objs);
+}
+
+vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc)
+{
+    vm_gc_entry_map_t *entry = vm_malloc(sizeof(vm_gc_entry_map_t));
+    *entry = (vm_gc_entry_map_t){
+        .keep = false,
+        .type = VM_TYPE_MAP,
+        .map = vm_map_new(),
+    };
+    vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
+    gc->objs[gc->len++] = obj;
+    return obj;
 }
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
@@ -184,6 +218,10 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
     {
         return ((vm_gc_entry_array_t *)ptr)->obj[vm_obj_to_int(index)];
     }
+    case VM_TYPE_MAP:
+    {
+        return vm_map_get_index(((vm_gc_entry_map_t *)ptr)->map, index);
+    }
     case VM_TYPE_STRING:
     {
         return vm_obj_of_int(((vm_gc_entry_string_t *)ptr)->obj[vm_obj_to_int(index)]);
@@ -199,6 +237,11 @@ void vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value)
     case VM_TYPE_ARRAY:
     {
         ((vm_gc_entry_array_t *)ptr)->obj[vm_obj_to_int(index)] = value;
+        return;
+    }
+    case VM_TYPE_MAP:
+    {
+        vm_map_set_index(((vm_gc_entry_map_t *)ptr)->map, index, value);
         return;
     }
     case VM_TYPE_STRING:
@@ -217,6 +260,10 @@ size_t vm_gc_sizeof(vm_gc_entry_t *ptr)
     case VM_TYPE_ARRAY:
     {
         return ((vm_gc_entry_array_t *)ptr)->len / sizeof(vm_obj_t);
+    }
+    case VM_TYPE_MAP:
+    {
+        return vm_map_sizeof(((vm_gc_entry_map_t *)ptr)->map);
     }
     case VM_TYPE_STRING:
     {

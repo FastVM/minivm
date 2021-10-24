@@ -1,6 +1,10 @@
 #include "map.h"
 #include "../obj.h"
 #include "../math.h"
+#define kmalloc vm_malloc
+#define kcalloc vm_calloc
+#define krealloc vm_realloc
+#define kfree vm_free
 #include "../klib/khash.h"
 
 size_t vm_map_hash_obj(vm_obj_t obj)
@@ -37,11 +41,18 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 		}
 		return 0;
 	}
+	if (vm_obj_is_none(obj))
+	{
+		return 0;
+	}
+	if (vm_obj_is_bool(obj))
+	{
+		return vm_obj_to_bool(obj);
+	}
 	if (vm_obj_is_num(obj))
 	{
-		double num = vm_obj_to_num(obj);
-		uint64_t n = *(uint64_t *)&num;
-		return n | ((1 << 8) - 1);
+		vm_number_t n = vm_obj_to_num(obj);
+		return ((size_t) n) ^ (size_t) (n * 1000L * 1000L);
 	}
 	if (vm_obj_is_fun(obj))
 	{
@@ -68,7 +79,7 @@ void vm_map_del(vm_map_t *map)
 
 void vm_map_set_index(vm_map_t *map, vm_obj_t key, vm_obj_t value)
 {
-	int ret;
+	int ret = 0;
 	size_t k = kh_put_omap((kh_omap_t *)map, key, &ret);
 	kh_value((kh_omap_t *)map, k) = value;
 }
@@ -77,4 +88,23 @@ vm_obj_t vm_map_get_index(vm_map_t *map, vm_obj_t key)
 {
 	size_t k = kh_get_omap((kh_omap_t *)map, key);
 	return kh_value((kh_omap_t *)map, k);
+}
+
+void vm_map_for_pairs(vm_map_t *map, void *state, void(*fn)(void *state, vm_obj_t key, vm_obj_t value))
+{
+	vm_obj_t key;
+	vm_obj_t value;
+	kh_foreach((kh_omap_t *)map, key, value, {
+		fn(state, key, value);
+	});
+}
+
+size_t vm_map_sizeof(vm_map_t *map)
+{
+	vm_obj_t key, value;
+	size_t ret;
+	kh_foreach((kh_omap_t *)map, key, value, {
+		ret += 1;
+	})
+	return ret;
 }

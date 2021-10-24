@@ -14,6 +14,7 @@ typedef enum
 	VM_TYPE_ARRAY = 4,
 	VM_TYPE_STRING = 5,
 	VM_TYPE_BOX = 6,
+	VM_TYPE_MAP = 7,
 } vm_type_t;
 
 // type check
