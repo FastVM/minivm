@@ -11,7 +11,7 @@ Here are a few reasons why MiniVM is pretty neat:
 - Built on a register-based ISA that beats luajit—*with the JIT on*—in some benchmarks. (See the benchmark section below).
 - Has a 3-buffer *pauseless* GC for latency-sensitive applications.
 - Supports a flexible data model, with NaN-boxing and pointer compaction, for efficient memory usage.
-- Leverages Cosmopolitan libc + WebAssembly for easy crossplatform portability.
+- Leverages Cosmopolitan libc + WebAssembly for easy cross platform portability.
 - ... check out the details section for more!
 
 MiniVM is small and flexible enough to run just about any language under the sun (given you've taken the time to write a compiler for it). Front ends we've experimented with include Lua, Scheme, Paka, and others.
@@ -66,30 +66,28 @@ end_of_loop:
 
 Although each instruction is a bit more complex, there are way fewer instructions. And this per-instruction complexity isn't necessarily a bad thing: making instructions more complex offloads work to the host language (C, in this case), which means that the runtime can compile common complex instructions to efficient native code.
 
-### Wasm and Portability
-MiniVM itself is a small pure-C project with few dependencies; for this reason it's pretty easy to compile to just about any target.
-
-This, of course, means that the MiniVM runtime can be compiled to Wasm: the resulting binary is only *12KiB* in size! This is small enough to embed in a website, if that's your cup of tea.
-
 ### On `malloc` and `putchar`
 
-> minivm performs better if pthreads are used but only really needs putchar.
-> malloc is required for memory allocations as of recent.
->
-> — 4984
+> `putchar` is the function all io boils down to eventually.
+> `malloc` is required for memory allocations as of recent.
 
-TODO: Expand this section.
+### Types
 
-### Simple Type Model
-MiniVM implements 3 heavily-optimized core types:
+Minivm has a growing number of core types. 
 
-1. numbers (classic IEEE-754 doubles)
-2. general-purpose arrays
-3. function pointers
-
-From these core types, common types are derived, including tuples, unions and tagged unions (enums), and closures.
-
-Each of the 3 core types heavily optimized through the use of NaN-tagging (cramming a 48-bit pointer into the mantissa of a NaN), and pauseless-gc-enabled pointer compaction.
+- none
+  - the lack of a value
+- boolean
+- number
+- box
+  - a valid reference to a single value
+- string
+  - mutable characters
+  - some unicode text
+- array
+  - unchanging in length
+- map 
+  - keys can be any type other than other maps
 
 Because MiniVM is a register-based machine, it employs clever instructions to leverage common type layouts for better performance. For instance, to emulate closures arrays can be called as functions if the first item in that array is a function.
 
@@ -102,21 +100,6 @@ cd minivm
 make
 ```
 
-The compiled binary will be in the `bin` folder. If you'd like to build using Wasm, instead of `make`, run the following:
-
-```
-make -f wasm.mak
-```
-
-You may need to install a few dependencies:
-
-- `putchar`
-- `pthread` (optional)
-- `libc` (if not using cosmo)
-- `fmod` (optional)
-
-Most OSes should have these core libraries out of the box. Other than that, `pthreads` is only needed if you want to run MiniVM on bare metal.
-
 ## Getting Started
 TODO(4984): Document API and maybe a short getting-started example.
 
@@ -124,6 +107,9 @@ TODO(4984): Document API and maybe a short getting-started example.
 TODO(4984): Attach some benchmarks...
 
 ## Roadmap
-TODO(4989): Features you're planning to tackle next...
+- write assembler for minivm bytecode
+- reducde dependancies to libc functions
+- add types
+- improve performane
 
 > Note: MiniVM is wholly developed by Shaw (4984); this README was written by a friend of his who thinks he can be a bit too modest at times.

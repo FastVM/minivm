@@ -2,9 +2,7 @@
 
 #include "../gc.h"
 
-struct vm_map_pair_t;
 typedef void *vm_map_t;
-typedef struct vm_map_pair_t vm_map_pair_t;
 
 vm_map_t *vm_map_new(void);
 void vm_map_del(vm_map_t *map);
