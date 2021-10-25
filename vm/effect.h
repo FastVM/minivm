@@ -1,0 +1,9 @@
+#pragma once
+
+enum
+{
+	VM_EFFECT_MATH_DIV = 1,	
+	VM_EFFECT_MATH_MOD = 2,	
+	VM_EFFECT_TYPE_CONCAT = 3,
+	VM_EFFECT_BOUNDS = 4,
+};

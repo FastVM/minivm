@@ -113,8 +113,10 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
 	{
 	case VM_TYPE_ARRAY:
 	{
-		size_t len = vm_gc_sizeof(lent);
-		if (len != vm_gc_sizeof(rent))
+		vm_gc_entry_array_t *ra = (vm_gc_entry_array_t *)lent;
+		vm_gc_entry_array_t *la = (vm_gc_entry_array_t *)lent;
+		size_t len = la->len;
+		if (len != ra->len)
 		{
 			return false;
 		}
@@ -130,8 +132,10 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
 	}
 	case VM_TYPE_STRING:
 	{
-		size_t len = vm_gc_sizeof(lent);
-		if (len != vm_gc_sizeof(rent))
+		vm_gc_entry_string_t *ra = (vm_gc_entry_string_t *)lent;
+		vm_gc_entry_string_t *la = (vm_gc_entry_string_t *)lent;
+		size_t len = la->len;
+		if (len != ra->len)
 		{
 			return false;
 		}

@@ -2,7 +2,8 @@
 #include "gc.h"
 #include "math.h"
 #include "obj.h"
-
+#include "effect.h"
+#include "obj/map.h"
 
 #define VM_GLOBALS_NUM (255)
 
@@ -14,6 +15,86 @@
 #define run_next_op \
     goto *next_op;
 #endif
+
+typedef struct
+{
+    vm_obj_t handler;
+    int depth;
+    int max;
+} find_handler_pair_t;
+
+static inline int find_handler_worker(void *state, vm_obj_t key, vm_obj_t val)
+{
+    find_handler_pair_t *pair = state;
+    int ikey = vm_obj_to_int(key);
+    if (ikey > pair->max)
+    {
+        return 0;
+    }
+    if (ikey >= pair->depth)
+    {
+        pair->handler = val;
+        pair->depth = ikey;
+    }
+    return 0;
+}
+
+static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t effect, size_t max_level)
+{
+    vm_obj_t res1 = vm_gc_get_index(handlers, effect);
+    vm_gc_entry_map_t *map = vm_obj_to_ptr(res1);
+    find_handler_pair_t pair = (find_handler_pair_t){
+        .max = max_level,
+        .depth = -1,
+    };
+    vm_map_for_pairs(map->map, &pair, &find_handler_worker);
+    return pair;
+}
+
+#define run_next_op_after_effect(outreg_, effect)                                                \
+    ({                                                                                           \
+        vm_reg_t copy_outreg = outreg_;                                                          \
+        vm_obj_t copy_effect = effect;                                                           \
+        vm_obj_t *next_locals = cur_frame->locals;                                               \
+        find_handler_pair_t pair = find_handler(handlers, copy_effect, cur_frame - frames_base); \
+        if (pair.depth == -1) {__builtin_trap();}\
+        vm_obj_t funcv = pair.handler;                                                           \
+        int level = pair.depth;                                                                  \
+        for (int i = 0; vm_obj_is_ptr(funcv); i++)                                               \
+        {                                                                                        \
+            next_locals[i] = funcv;                                                              \
+            funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));                     \
+        }                                                                                        \
+        vm_loc_t next_func = vm_obj_to_fun(funcv);                                               \
+        cur_locals = next_locals;                                                                \
+        cur_frame->index = cur_index;                                                            \
+        cur_frame->func = cur_func;                                                              \
+        cur_frame->outreg = copy_outreg;                                                         \
+        cur_frame++;                                                                             \
+        cur_index = next_func;                                                                   \
+        cur_func = next_func;                                                                    \
+        cur_frame->locals = cur_locals + get_byte(-1);                                           \
+        cur_effect->resume = cur_frame - frames_base;                                            \
+        cur_effect->exit = level;                                                                \
+        cur_effect++;                                                                            \
+        vm_fetch;                                                                                \
+    });                                                                                          \
+    run_next_op;
+
+#define gc_once ({                                           \
+    if (raw_gc.len >= raw_gc.max)                            \
+    {                                                        \
+        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals); \
+    }                                                        \
+})
+
+#define gc_new(TYPE, ...) ({                                 \
+    if (raw_gc.len >= raw_gc.max)                            \
+    {                                                        \
+        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals); \
+    }                                                        \
+    vm_gc_##TYPE##_new(__VA_ARGS__);                         \
+})
 
 #define cur_bytecode_next(Type)                       \
     (                                                 \
@@ -32,18 +113,28 @@
 #define read_int (cur_bytecode_next(int))
 #define read_loc (cur_bytecode_next(int))
 
-void vm_run(int len, const vm_opcode_t *basefunc)
+void vm_run(size_t len, const vm_opcode_t *basefunc, size_t start)
 {
+    vm_gc_t raw_gc;
+    vm_gc_start(&raw_gc);
+
     vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
     vm_obj_t *locals_base = vm_mem_grow(VM_LOCALS_UNITS * sizeof(vm_obj_t));
+    vm_handler_frame_t *effects_base = vm_mem_grow(256 * sizeof(vm_stack_frame_t));
 
     vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
-    vm_loc_t cur_index = 0;
-    vm_loc_t cur_func = 0;
+    vm_handler_frame_t *cur_effect = effects_base;
 
-    vm_gc_t raw_gc;
-    vm_gc_start(&raw_gc);
+    vm_loc_t cur_index = start;
+    vm_loc_t cur_func = start;
+
+    vm_gc_entry_t *handlers = gc_new(map, &raw_gc);
+    // vm_gc_entry_t *levels = gc_new(map, &raw_gc);
+    cur_locals[0] = vm_obj_of_ptr(handlers);
+    cur_locals += 1;
+    // cur_locals[1] = vm_obj_of_ptr(levels);
+    // cur_locals += 1;
 
     void *next_op_value;
     void *ptrs[VM_OPCODE_MAX2P] = {};
@@ -119,6 +210,10 @@ void vm_run(int len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_LENGTH] = &&do_length;
     ptrs[VM_OPCODE_INDEX_GET] = &&do_index_get;
     ptrs[VM_OPCODE_INDEX_SET] = &&do_index_set;
+    ptrs[VM_OPCODE_SET_HANDLER] = &&do_set_handler;
+    ptrs[VM_OPCODE_CALL_HANDLER] = &&do_call_handler;
+    ptrs[VM_OPCODE_RETURN_HANDLER] = &&do_return_handler;
+    ptrs[VM_OPCODE_EXIT_HANDLER] = &&do_exit_handler;
     ptrs[VM_OPCODE_TYPE] = &&do_type;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
@@ -130,25 +225,77 @@ do_exit:
     vm_gc_stop(&raw_gc);
     vm_mem_reset(frames_base);
     vm_mem_reset(locals_base);
+    vm_mem_reset(effects_base);
     return;
 }
-do_return:
+do_set_handler:
 {
-    reg_t from = read_reg;
+    vm_reg_t sym = read_reg;
+    vm_reg_t handler = read_reg;
+    vm_fetch;
+    vm_obj_t xmap = vm_gc_get_index(handlers, cur_locals[sym]);
+    if (vm_obj_is_dead(xmap))
+    {
+        xmap = vm_obj_of_ptr(gc_new(map, &raw_gc));
+        vm_gc_set_index(handlers, cur_locals[sym], xmap);
+    }
+    vm_obj_t my_frame = vm_obj_of_int(cur_frame - frames_base);
+    vm_gc_set_index(vm_obj_to_ptr(xmap), my_frame, cur_locals[handler]);
+    run_next_op;
+}
+do_call_handler:
+{
+    vm_reg_t outreg = read_reg;
+    vm_reg_t effect = read_reg;
+    run_next_op_after_effect(outreg, cur_locals[effect]);
+}
+do_return_handler:
+{
+    vm_reg_t from = read_reg;
+    cur_effect--;
+    cur_frame = frames_base + cur_effect->resume;
     vm_obj_t val = cur_locals[from];
     cur_frame--;
     cur_locals = (cur_frame - 1)->locals;
     cur_func = cur_frame->func;
     cur_index = cur_frame->index;
-    reg_t outreg = cur_frame->outreg;
+    vm_reg_t outreg = cur_frame->outreg;
+    cur_locals[outreg] = val;
+    vm_fetch;
+    run_next_op;
+}
+do_exit_handler:
+{
+    vm_reg_t from = read_reg;
+    cur_effect--;
+    cur_frame = 1 + frames_base + cur_effect->exit;
+    vm_obj_t val = cur_locals[from];
+    cur_frame--;
+    cur_locals = (cur_frame - 1)->locals;
+    cur_func = cur_frame->func;
+    cur_index = cur_frame->index;
+    vm_reg_t outreg = cur_frame->outreg;
+    cur_locals[outreg] = val;
+    vm_fetch;
+    run_next_op;
+}
+do_return:
+{
+    vm_reg_t from = read_reg;
+    vm_obj_t val = cur_locals[from];
+    cur_frame--;
+    cur_locals = (cur_frame - 1)->locals;
+    cur_func = cur_frame->func;
+    cur_index = cur_frame->index;
+    vm_reg_t outreg = cur_frame->outreg;
     cur_locals[outreg] = val;
     vm_fetch;
     run_next_op;
 }
 do_type:
 {
-    reg_t outreg = read_reg;
-    reg_t valreg = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t valreg = read_reg;
     vm_fetch;
     vm_obj_t obj = cur_locals[valreg];
     double num = -1;
@@ -177,13 +324,9 @@ do_type:
 }
 do_string_new:
 {
-    if (raw_gc.len >= raw_gc.max)
-    {
-        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
-    }
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     int nargs = read_byte;
-    vm_gc_entry_t *str = vm_gc_string_new(&raw_gc, nargs);
+    vm_gc_entry_t *str = gc_new(string, &raw_gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
         vm_gc_set_index(str, vm_obj_of_int(i), vm_obj_of_int(read_byte));
@@ -194,16 +337,12 @@ do_string_new:
 }
 do_array_new:
 {
-    if (raw_gc.len >= raw_gc.max)
-    {
-        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
-    }
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     int nargs = read_byte;
-    vm_gc_entry_t *vec = vm_gc_array_new(&raw_gc, nargs);
+    vm_gc_entry_t *vec = gc_new(array, &raw_gc, nargs);
     for (int i = 0; i < nargs; i++)
     {
-        reg_t vreg = read_reg;
+        vm_reg_t vreg = read_reg;
         vm_gc_set_index(vec, vm_obj_of_int(i), cur_locals[vreg]);
     }
     vm_fetch;
@@ -212,71 +351,67 @@ do_array_new:
 }
 do_box_new:
 {
-    if (raw_gc.len >= raw_gc.max)
-    {
-        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
-    }
-    reg_t outreg = read_reg;
-    reg_t inreg = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t inreg = read_reg;
     vm_fetch;
-    vm_gc_entry_t *box = vm_gc_box_new(&raw_gc);
+    vm_gc_entry_t *box = gc_new(box, &raw_gc);
     vm_gc_set_box(box, cur_locals[inreg]);
     cur_locals[outreg] = vm_obj_of_ptr(box);
     run_next_op;
 }
 do_map_new:
 {
-    if (raw_gc.len >= raw_gc.max)
-    {
-        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals);
-    }
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     vm_fetch;
-    vm_gc_entry_t *map = vm_gc_map_new(&raw_gc);
+    vm_gc_entry_t *map = gc_new(map, &raw_gc);
     cur_locals[outreg] = vm_obj_of_ptr(map);
     run_next_op;
 }
 do_set_box:
 {
-    reg_t targetreg = read_reg;
-    reg_t valreg = read_reg;
+    vm_reg_t targetreg = read_reg;
+    vm_reg_t valreg = read_reg;
     vm_fetch;
     vm_gc_set_box(vm_obj_to_ptr(cur_locals[targetreg]), cur_locals[valreg]);
     run_next_op;
 }
 do_get_box:
 {
-    reg_t outreg = read_reg;
-    reg_t inreg = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t inreg = read_reg;
     vm_fetch;
     cur_locals[outreg] = vm_gc_get_box(vm_obj_to_ptr(cur_locals[inreg]));
     run_next_op;
 }
 do_length:
 {
-    reg_t outreg = read_reg;
-    reg_t reg = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t reg = read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_obj_of_int(vm_gc_sizeof(vm_obj_to_ptr(vec)));
+    cur_locals[outreg] = vm_gc_sizeof(vm_obj_to_ptr(vec));
     run_next_op;
 }
 do_index_get:
 {
-    reg_t outreg = read_reg;
-    reg_t reg = read_reg;
-    reg_t ind = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t reg = read_reg;
+    vm_reg_t ind = read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
     cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), index);
+    if (vm_obj_is_dead(cur_locals[outreg]))
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_BOUNDS));
+    }
     run_next_op;
 }
 do_index_set:
 {
-    reg_t reg = read_reg;
-    reg_t ind = read_reg;
-    reg_t val = read_reg;
+    vm_reg_t reg = read_reg;
+    vm_reg_t ind = read_reg;
+    vm_reg_t val = read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
@@ -286,8 +421,8 @@ do_index_set:
 }
 do_call0:
 {
-    reg_t outreg = read_reg;
-    reg_t func = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t func = read_reg;
     vm_obj_t *next_locals = cur_frame->locals;
     vm_obj_t funcv = cur_locals[func];
     for (int i = 0; vm_obj_is_ptr(funcv); i++)
@@ -309,8 +444,8 @@ do_call0:
 }
 do_call1:
 {
-    reg_t outreg = read_reg;
-    reg_t func = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t func = read_reg;
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
@@ -333,8 +468,8 @@ do_call1:
 }
 do_call2:
 {
-    reg_t outreg = read_reg;
-    reg_t func = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t func = read_reg;
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     next_locals[1] = cur_locals[read_reg];
@@ -358,13 +493,13 @@ do_call2:
 }
 do_call:
 {
-    reg_t outreg = read_reg;
-    reg_t func = read_reg;
+    vm_reg_t outreg = read_reg;
+    vm_reg_t func = read_reg;
     int nargs = read_byte;
     vm_obj_t *next_locals = cur_frame->locals;
     for (int argno = 0; argno < nargs; argno++)
     {
-        reg_t regno = read_reg;
+        vm_reg_t regno = read_reg;
         next_locals[argno] = cur_locals[regno];
     }
     vm_obj_t funcv = cur_locals[func];
@@ -387,7 +522,7 @@ do_call:
 }
 do_static_call0:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     vm_loc_t next_func = read_loc;
     vm_obj_t *next_locals = cur_frame->locals;
     cur_locals = next_locals;
@@ -403,7 +538,7 @@ do_static_call0:
 }
 do_static_call1:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     vm_loc_t next_func = read_loc;
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
@@ -420,7 +555,7 @@ do_static_call1:
 }
 do_static_call2:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     vm_loc_t next_func = read_loc;
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
@@ -438,13 +573,13 @@ do_static_call2:
 }
 do_static_call:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     int next_func = read_loc;
     int nargs = read_byte;
     vm_obj_t *next_locals = cur_frame->locals;
     for (int argno = 0; argno < nargs; argno++)
     {
-        reg_t regno = read_reg;
+        vm_reg_t regno = read_reg;
         next_locals[argno] = cur_locals[regno];
     }
     cur_locals = next_locals;
@@ -460,7 +595,7 @@ do_static_call:
 }
 do_rec0:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[0];
     cur_locals = next_locals;
@@ -475,7 +610,7 @@ do_rec0:
 }
 do_rec1:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     next_locals[1] = cur_locals[1];
@@ -491,7 +626,7 @@ do_rec1:
 }
 do_rec2:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[0] = cur_locals[read_reg];
     next_locals[1] = cur_locals[read_reg];
@@ -508,12 +643,12 @@ do_rec2:
 }
 do_rec:
 {
-    reg_t outreg = read_reg;
+    vm_reg_t outreg = read_reg;
     int nargs = read_byte;
     vm_obj_t *next_locals = cur_frame->locals;
     for (int argno = 0; argno < nargs; argno++)
     {
-        reg_t regno = read_reg;
+        vm_reg_t regno = read_reg;
         next_locals[argno] = cur_locals[regno];
     }
     next_locals[nargs] = cur_locals[nargs];
@@ -529,15 +664,15 @@ do_rec:
 }
 do_store_none:
 {
-    reg_t to = read_reg;
-    reg_t from = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t from = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_none();
     run_next_op;
 }
 do_store_bool:
 {
-    reg_t to = read_reg;
+    vm_reg_t to = read_reg;
     int from = (int)read_byte;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool((bool)from);
@@ -545,15 +680,15 @@ do_store_bool:
 }
 do_store_reg:
 {
-    reg_t to = read_reg;
-    reg_t from = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t from = read_reg;
     vm_fetch;
     cur_locals[to] = cur_locals[from];
     run_next_op;
 }
 do_store_byte:
 {
-    reg_t to = read_reg;
+    vm_reg_t to = read_reg;
     int from = (int)read_byte;
     vm_fetch;
     cur_locals[to] = vm_obj_of_int((int)from);
@@ -561,7 +696,7 @@ do_store_byte:
 }
 do_store_int:
 {
-    reg_t to = read_reg;
+    vm_reg_t to = read_reg;
     int from = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_of_int(from);
@@ -569,27 +704,27 @@ do_store_int:
 }
 do_store_fun:
 {
-    reg_t to = read_reg;
+    vm_reg_t to = read_reg;
     vm_loc_t func_end = read_loc;
     vm_loc_t head = cur_index;
     cur_index = func_end;
     vm_fetch;
-    cur_locals[to] = vm_obj_of_fun(head);
+    cur_locals[to] = vm_obj_of_fun(head + 1);
     run_next_op;
 }
 do_equal:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_eq(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_equal_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_ieq(cur_locals[lhs], rhs));
@@ -597,17 +732,17 @@ do_equal_num:
 }
 do_not_equal:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_neq(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_not_equal_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_ineq(cur_locals[lhs], rhs));
@@ -615,17 +750,17 @@ do_not_equal_num:
 }
 do_less:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_lt(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_less_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_ilt(cur_locals[lhs], rhs));
@@ -633,17 +768,17 @@ do_less_num:
 }
 do_greater:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_gt(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_greater_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_igt(cur_locals[lhs], rhs));
@@ -651,17 +786,17 @@ do_greater_num:
 }
 do_less_than_equal:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_lte(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_less_than_equal_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_ilte(cur_locals[lhs], rhs));
@@ -669,17 +804,17 @@ do_less_than_equal_num:
 }
 do_greater_than_equal:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_gte(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_greater_than_equal_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_igte(cur_locals[lhs], rhs));
@@ -695,7 +830,7 @@ do_jump_always:
 do_jump_if_false:
 {
     vm_loc_t to = read_loc;
-    reg_t from = read_reg;
+    vm_reg_t from = read_reg;
     if (!vm_obj_to_bool(cur_locals[from]))
     {
         cur_index = to;
@@ -706,7 +841,7 @@ do_jump_if_false:
 do_jump_if_true:
 {
     vm_loc_t to = read_loc;
-    reg_t from = read_reg;
+    vm_reg_t from = read_reg;
     if (vm_obj_to_bool(cur_locals[from]))
     {
         cur_index = to;
@@ -717,8 +852,8 @@ do_jump_if_true:
 do_jump_if_equal:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     if (vm_obj_eq(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
@@ -729,7 +864,7 @@ do_jump_if_equal:
 do_jump_if_equal_num:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     if (vm_obj_ieq(cur_locals[lhs], rhs))
     {
@@ -741,8 +876,8 @@ do_jump_if_equal_num:
 do_jump_if_not_equal:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     if (vm_obj_neq(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
@@ -753,7 +888,7 @@ do_jump_if_not_equal:
 do_jump_if_not_equal_num:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     if (vm_obj_ineq(cur_locals[lhs], rhs))
     {
@@ -765,8 +900,8 @@ do_jump_if_not_equal_num:
 do_jump_if_less:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     if (vm_obj_lt(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
@@ -777,7 +912,7 @@ do_jump_if_less:
 do_jump_if_less_num:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     if (vm_obj_ilt(cur_locals[lhs], rhs))
     {
@@ -789,8 +924,8 @@ do_jump_if_less_num:
 do_jump_if_less_than_equal:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     if (vm_obj_lte(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
@@ -801,7 +936,7 @@ do_jump_if_less_than_equal:
 do_jump_if_less_than_equal_num:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     if (vm_obj_ilte(cur_locals[lhs], rhs))
     {
@@ -813,8 +948,8 @@ do_jump_if_less_than_equal_num:
 do_jump_if_greater:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     if (vm_obj_gt(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
@@ -825,7 +960,7 @@ do_jump_if_greater:
 do_jump_if_greater_num:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     if (vm_obj_igt(cur_locals[lhs], rhs))
     {
@@ -837,8 +972,8 @@ do_jump_if_greater_num:
 do_jump_if_greater_than_equal:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     if (vm_obj_gte(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to;
@@ -849,7 +984,7 @@ do_jump_if_greater_than_equal:
 do_jump_if_greater_than_equal_num:
 {
     vm_loc_t to = read_loc;
-    reg_t lhs = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     if (vm_obj_igte(cur_locals[lhs], rhs))
     {
@@ -860,15 +995,15 @@ do_jump_if_greater_than_equal_num:
 }
 do_inc:
 {
-    reg_t target = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t target = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[target] = vm_obj_num_add(cur_locals[target], cur_locals[rhs]);
     run_next_op;
 }
 do_inc_num:
 {
-    reg_t target = read_reg;
+    vm_reg_t target = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[target] = vm_obj_num_addc(cur_locals[target], rhs);
@@ -876,15 +1011,15 @@ do_inc_num:
 }
 do_dec:
 {
-    reg_t target = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t target = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[target] = vm_obj_num_sub(cur_locals[target], cur_locals[rhs]);
     run_next_op;
 }
 do_dec_num:
 {
-    reg_t target = read_reg;
+    vm_reg_t target = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[target] = vm_obj_num_subc(cur_locals[target], rhs);
@@ -892,17 +1027,17 @@ do_dec_num:
 }
 do_add:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_add(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_add_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_addc(cur_locals[lhs], rhs);
@@ -910,17 +1045,17 @@ do_add_num:
 }
 do_mul:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_mul(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_mul_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_mulc(cur_locals[lhs], rhs);
@@ -928,17 +1063,17 @@ do_mul_num:
 }
 do_sub:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_sub(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_sub_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
     cur_locals[to] = vm_obj_num_subc(cur_locals[lhs], rhs);
@@ -946,52 +1081,73 @@ do_sub_num:
 }
 do_div:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
+    if (vm_obj_to_num(cur_locals[rhs]) == 0)
+    {
+        run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_MATH_DIV));
+    }
     cur_locals[to] = vm_obj_num_div(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_div_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
+    if (rhs == 0)
+    {
+        run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_MATH_DIV));
+    }
     cur_locals[to] = vm_obj_num_divc(cur_locals[lhs], rhs);
     run_next_op;
 }
 do_mod:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
+    if (vm_obj_to_num(cur_locals[rhs]) == 0)
+    {
+        run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_MATH_MOD));
+    }
     cur_locals[to] = vm_obj_num_mod(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_mod_num:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
     int rhs = read_int;
     vm_fetch;
+    if (rhs == 0)
+    {
+        run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_MATH_MOD));
+    }
     cur_locals[to] = vm_obj_num_modc(cur_locals[lhs], rhs);
     run_next_op;
 }
 do_concat:
 {
-    reg_t to = read_reg;
-    reg_t lhs = read_reg;
-    reg_t rhs = read_reg;
+    vm_reg_t to = read_reg;
+    vm_reg_t lhs = read_reg;
+    vm_reg_t rhs = read_reg;
     vm_fetch;
+    gc_once;
     cur_locals[to] = vm_gc_concat(&raw_gc, cur_locals[lhs], cur_locals[rhs]);
+    if (vm_obj_is_dead(cur_locals[to]))
+    {
+        run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_TYPE_CONCAT));
+    }
     run_next_op;
 }
 do_putchar:
 {
-    reg_t from = read_reg;
+    vm_reg_t from = read_reg;
     vm_fetch;
     int val = vm_obj_to_int(cur_locals[from]);
     vm_putchar(val);

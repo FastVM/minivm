@@ -12,4 +12,4 @@ void vm_map_set_index(vm_map_t *map, vm_obj_t key, vm_obj_t value);
 vm_obj_t vm_map_get_index(vm_map_t *map, vm_obj_t key);
 size_t vm_map_sizeof(vm_map_t *map);
 
-void vm_map_for_pairs(vm_map_t *map, void *state, void(*fn)(void *state, vm_obj_t key, vm_obj_t value));
+void vm_map_for_pairs(vm_map_t *map, void *state, int(*fn)(void *state, vm_obj_t key, vm_obj_t value));

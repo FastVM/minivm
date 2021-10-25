@@ -15,8 +15,9 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 		}
 		case VM_TYPE_ARRAY:
 		{
+			vm_gc_entry_array_t *arr = (vm_gc_entry_array_t *)ent;
 			size_t ret = 0;
-			for (size_t i = 0; i < vm_gc_sizeof(ent); i++)
+			for (size_t i = 0; i < arr->len; i++)
 			{
 				ret += vm_map_hash_obj(vm_gc_get_index(ent, vm_obj_of_int(i)));
 				ret <<= 5;
@@ -25,8 +26,9 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 		}
 		case VM_TYPE_STRING:
 		{
+			vm_gc_entry_string_t *arr = (vm_gc_entry_string_t *)ent;
 			size_t ret = 0;
-			for (size_t i = 0; i < vm_gc_sizeof(ent); i++)
+			for (size_t i = 0; i < arr->len; i++)
 			{
 				ret += vm_map_hash_obj(vm_gc_get_index(ent, vm_obj_of_int(i)));
 				ret <<= 5;
@@ -161,13 +163,16 @@ vm_obj_t vm_map_get_index(vm_map_t *map, vm_obj_t key)
 	}
 }
 
-void vm_map_for_pairs(vm_map_t *map, void *state, void (*fn)(void *state, vm_obj_t key, vm_obj_t value))
+void vm_map_for_pairs(vm_map_t *map, void *state, int (*fn)(void *state, vm_obj_t key, vm_obj_t value))
 {
 	for (size_t i = 0; i < (1 << map->alloc); i++)
 	{
 		if (!vm_obj_is_dead(map->keys[i]))
 		{
-			fn(state, map->keys[i], map->values[i]);
+			int res = fn(state, map->keys[i], map->values[i]);
+			if (res) {
+				break;
+			}
 		}
 	}
 }

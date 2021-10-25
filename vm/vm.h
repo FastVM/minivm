@@ -1,7 +1,7 @@
 #pragma once
 
 #include "libc.h"
-typedef uint8_t reg_t;
+typedef uint8_t vm_reg_t;
 typedef char vm_opcode_t;
 
 #include "obj.h"
@@ -82,15 +82,30 @@ enum vm_opcode_t
     VM_OPCODE_INDEX_GET,
     VM_OPCODE_INDEX_SET,
     VM_OPCODE_TYPE,
+    VM_OPCODE_CALL_HANDLER,
+    VM_OPCODE_SET_HANDLER,
+    VM_OPCODE_RETURN_HANDLER,
+    VM_OPCODE_EXIT_HANDLER,
     VM_OPCODE_MAX1,
     VM_OPCODE_MAX2P = 128,
 };
+
 typedef struct
 {
     int index;
     int func;
-    reg_t outreg;
+    vm_reg_t outreg;
     void *locals;
 } vm_stack_frame_t;
 
-void vm_run(int len, const vm_opcode_t *mem);
+typedef struct
+{
+    int index;
+    int func;;
+    vm_reg_t outreg;
+    void *locals;
+    int resume;
+    int exit;
+} vm_handler_frame_t;
+
+void vm_run(size_t len, const vm_opcode_t *mem, size_t start);
