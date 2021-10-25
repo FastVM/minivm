@@ -2,7 +2,8 @@
 
 #include "../gc.h"
 
-typedef void *vm_map_t;
+struct vm_map_t;
+typedef struct vm_map_t vm_map_t;
 
 vm_map_t *vm_map_new(void);
 void vm_map_del(vm_map_t *map);

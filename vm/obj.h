@@ -19,6 +19,11 @@ typedef enum
 
 // type check
 
+static inline bool vm_obj_is_dead(vm_obj_t obj)
+{
+	return nanbox_is_empty(obj);
+}
+
 static inline bool vm_obj_is_none(vm_obj_t obj)
 {
 	return nanbox_is_null(obj);
@@ -46,6 +51,11 @@ static inline bool vm_obj_is_fun(vm_obj_t obj)
 
 
 // c to obj
+
+static inline vm_obj_t vm_obj_of_dead(void)
+{
+	return nanbox_empty();
+}
 
 static inline vm_obj_t vm_obj_of_none(void)
 {

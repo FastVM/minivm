@@ -37,7 +37,6 @@ void *calloc(size_t n, size_t size);
 void free(void *ptr);
 void *realloc(void *ptr, size_t size);
 #define vm_malloc(size) (malloc((size)))
-#define vm_calloc(n, size) (calloc((n), (size)))
 #define vm_free(ptr) (free((ptr)))
 #define vm_realloc(ptr, size) (realloc((ptr), (size)))
 #endif

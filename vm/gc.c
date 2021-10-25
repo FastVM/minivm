@@ -31,12 +31,12 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
     {
         return;
     }
+    ent->keep = true;
     switch (ent->type)
     {
     case VM_TYPE_BOX:
     {
         vm_gc_entry_box_t *box_ent = (vm_gc_entry_box_t *)ent;
-        ent->keep = true;
         vm_obj_t obj = box_ent->obj;
         if (vm_obj_is_ptr(obj))
         {
@@ -46,7 +46,6 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
     case VM_TYPE_ARRAY:
     {
         vm_gc_entry_array_t *arr_ent = (vm_gc_entry_array_t *)ent;
-        ent->keep = true;
         for (size_t cur = 0; cur < arr_ent->len / sizeof(vm_obj_t); cur++)
         {
             vm_obj_t obj = ((vm_obj_t *)arr_ent->obj)[cur];
@@ -60,7 +59,7 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
     case VM_TYPE_MAP:
     {
         vm_gc_entry_map_t *map_ent = (vm_gc_entry_map_t *)ent;
-        vm_map_for_pairs(map_ent->map, NULL, vm_gc_mark_map_entry);
+        vm_map_for_pairs(map_ent->map, gc, vm_gc_mark_map_entry);
         break;
     }
     case VM_TYPE_STRING:
@@ -90,6 +89,15 @@ void vm_gc_free(vm_gc_entry_t *ent)
 
 void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
 {
+    for (size_t index = 0; index < gc->len; index++)
+    {
+        if (gc->objs[index] == NULL)
+        {
+            __builtin_trap();
+        }
+        printf("in %zu: %p\n", index, gc->objs[index]);
+    }
+    printf("-> %zu\n", gc->len);
     for (vm_obj_t *base = low; base < high; base++)
     {
         vm_obj_t cur = *base;
@@ -103,7 +111,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
     for (size_t index = 0; index < gc->len; index++)
     {
         vm_gc_entry_t *ent = gc->objs[index];
-        if (ent->keep)
+        if (ent != NULL && ent->keep)
         {
             ent->keep = false;
             gc->objs[begin++] = ent;
@@ -115,15 +123,20 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         }
     }
     gc->len = begin;
-    size_t newmax = 4 + begin * 1.1;
+    size_t newmax = 4 + begin * 2;
     if (gc->max < newmax)
     {
         gc->max = newmax;
     }
-    if (gc->max + 4 >= gc->alloc)
+    if (newmax + 4 >= gc->alloc)
     {
         gc->alloc = 4 + gc->alloc * 2;
         gc->objs = vm_realloc(gc->objs, sizeof(vm_gc_entry_t *) * gc->alloc);
+    }
+    printf("<- %zu\n", gc->len);
+    for (size_t index = 0; index < gc->len; index++)
+    {
+        printf("out %zu: %p\n", index, gc->objs[index]);
     }
 }
 
@@ -153,6 +166,7 @@ vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc)
         .map = vm_map_new(),
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
+    printf("new map [@%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }
@@ -166,6 +180,7 @@ vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
         .len = size * sizeof(vm_obj_t),
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
+    printf("new array [%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }
@@ -179,6 +194,7 @@ vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t size)
         .len = size,
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
+    printf("new string [%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }
@@ -191,6 +207,7 @@ vm_gc_entry_t *vm_gc_box_new(vm_gc_t *gc)
         .type = VM_TYPE_BOX,
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
+    printf("new box [%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }
