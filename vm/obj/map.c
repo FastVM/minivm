@@ -47,7 +47,7 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 	if (vm_obj_is_num(obj))
 	{
 		vm_number_t n = vm_obj_to_num(obj);
-		return (size_t) n;
+		return (size_t) n ^ (size_t) (n * (1 << 16));
 	}
 	if (vm_obj_is_fun(obj))
 	{

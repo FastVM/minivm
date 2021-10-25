@@ -114,7 +114,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         }
     }
     gc->len = begin;
-    size_t newmax = 4 + begin * 2;
+    size_t newmax = 4 + begin * 1.5;
     if (gc->max < newmax)
     {
         gc->max = newmax;
