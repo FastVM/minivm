@@ -47,7 +47,7 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 	if (vm_obj_is_num(obj))
 	{
 		vm_number_t n = vm_obj_to_num(obj);
-		return ((size_t)n) ^ (size_t)(n * 1000L * 1000L);
+		return (size_t) n;
 	}
 	if (vm_obj_is_fun(obj))
 	{
@@ -93,10 +93,11 @@ void vm_map_grow(vm_map_t *map)
 
 void vm_map_set_index(vm_map_t *map, vm_obj_t key, vm_obj_t value)
 {
-	const size_t mask = (1 << map->alloc) - 1;
+	size_t mask = (1 << map->alloc) - 1;
 	if (map->used * 2 > mask)
 	{
 		vm_map_grow(map);
+		mask = (1 << map->alloc) - 1;
 	}
 	size_t hash = vm_map_hash_obj(key);
 	while(true)
@@ -122,9 +123,10 @@ void vm_map_set_index(vm_map_t *map, vm_obj_t key, vm_obj_t value)
 vm_map_t *vm_map_new(void)
 {
 	vm_map_t *ret = vm_malloc(sizeof(vm_map_t));
+	ret->used = 0;
 	ret->alloc = 1;
 	ret->keys = vm_malloc(sizeof(vm_obj_t) * (1 << ret->alloc));
-	for (size_t i = 0; i < (1 << (1 << ret->alloc)); i++)
+	for (size_t i = 0; i < (1 << ret->alloc); i++)
 	{
 		ret->keys[i] = vm_obj_of_dead();
 	}

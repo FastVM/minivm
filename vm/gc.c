@@ -5,7 +5,7 @@
 
 void *vm_mem_grow(size_t size)
 {
-    return vm_malloc(size);
+    return vm_calloc(1, size);
 }
 
 void vm_mem_reset(void *ptr)
@@ -89,15 +89,6 @@ void vm_gc_free(vm_gc_entry_t *ent)
 
 void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
 {
-    for (size_t index = 0; index < gc->len; index++)
-    {
-        if (gc->objs[index] == NULL)
-        {
-            __builtin_trap();
-        }
-        printf("in %zu: %p\n", index, gc->objs[index]);
-    }
-    printf("-> %zu\n", gc->len);
     for (vm_obj_t *base = low; base < high; base++)
     {
         vm_obj_t cur = *base;
@@ -133,11 +124,6 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         gc->alloc = 4 + gc->alloc * 2;
         gc->objs = vm_realloc(gc->objs, sizeof(vm_gc_entry_t *) * gc->alloc);
     }
-    printf("<- %zu\n", gc->len);
-    for (size_t index = 0; index < gc->len; index++)
-    {
-        printf("out %zu: %p\n", index, gc->objs[index]);
-    }
 }
 
 void vm_gc_start(vm_gc_t *gc)
@@ -166,7 +152,6 @@ vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc)
         .map = vm_map_new(),
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    printf("new map [@%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }
@@ -180,7 +165,6 @@ vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
         .len = size * sizeof(vm_obj_t),
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    printf("new array [%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }
@@ -194,7 +178,6 @@ vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t size)
         .len = size,
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    printf("new string [%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }
@@ -207,7 +190,6 @@ vm_gc_entry_t *vm_gc_box_new(vm_gc_t *gc)
         .type = VM_TYPE_BOX,
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    printf("new box [%zu]: %p (= %p)\n", gc->len, &gc->objs[gc->len], entry);
     gc->objs[gc->len++] = obj;
     return obj;
 }

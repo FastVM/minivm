@@ -29,6 +29,7 @@ void *mi_calloc(size_t n, size_t size);
 void mi_free(void *ptr);
 void *mi_realloc(void *ptr, size_t size);
 #define vm_malloc(size) (mi_malloc((size)))
+#define vm_calloc(n, size) (mi_calloc((n),(size)))
 #define vm_free(ptr) (mi_free((ptr)))
 #define vm_realloc(ptr, size) (mi_realloc((ptr), (size)))
 #else
@@ -37,6 +38,7 @@ void *calloc(size_t n, size_t size);
 void free(void *ptr);
 void *realloc(void *ptr, size_t size);
 #define vm_malloc(size) (malloc((size)))
+#define vm_calloc(n, size) (calloc((n),(size)))
 #define vm_free(ptr) (free((ptr)))
 #define vm_realloc(ptr, size) (realloc((ptr), (size)))
 #endif
