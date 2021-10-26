@@ -226,6 +226,11 @@ vm_obj_t *vm_gc_get_ref(vm_gc_entry_t *box)
     return ((vm_gc_entry_ref_t *)box)->ref;
 }
 
+void vm_gc_set_ref(vm_gc_entry_t *box, vm_obj_t value)
+{
+    *((vm_gc_entry_ref_t *)box)->ref = value;
+}
+
 void vm_gc_set_box(vm_gc_entry_t *box, vm_obj_t value)
 {
     ((vm_gc_entry_box_t *)box)->obj = value;

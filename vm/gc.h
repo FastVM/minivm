@@ -33,6 +33,7 @@ vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc);
 vm_obj_t vm_gc_deref(vm_gc_entry_t *ptr);
 void vm_gc_set_box(vm_gc_entry_t *ptr, vm_obj_t value);
 vm_obj_t *vm_gc_get_ref(vm_gc_entry_t *ptr);
+void vm_gc_set_ref(vm_gc_entry_t *ptr, vm_obj_t value);
 vm_obj_t vm_gc_get_box(vm_gc_entry_t *ptr);
 vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr);
 vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index);

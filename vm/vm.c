@@ -198,10 +198,6 @@ void vm_run(size_t len, const vm_opcode_t *basefunc, size_t start)
     ptrs[VM_OPCODE_STATIC_CALL1] = &&do_static_call1;
     ptrs[VM_OPCODE_STATIC_CALL2] = &&do_static_call2;
     ptrs[VM_OPCODE_STATIC_CALL] = &&do_static_call;
-    ptrs[VM_OPCODE_REC0] = &&do_rec0;
-    ptrs[VM_OPCODE_REC1] = &&do_rec1;
-    ptrs[VM_OPCODE_REC2] = &&do_rec2;
-    ptrs[VM_OPCODE_REC] = &&do_rec;
     ptrs[VM_OPCODE_RETURN] = &&do_return;
     ptrs[VM_OPCODE_PUTCHAR] = &&do_putchar;
     ptrs[VM_OPCODE_REF_NEW] = &&do_ref_new;
@@ -210,6 +206,7 @@ void vm_run(size_t len, const vm_opcode_t *basefunc, size_t start)
     ptrs[VM_OPCODE_ARRAY_NEW] = &&do_array_new;
     ptrs[VM_OPCODE_MAP_NEW] = &&do_map_new;
     ptrs[VM_OPCODE_REF_GET] = &&do_ref_get;
+    ptrs[VM_OPCODE_REF_SET] = &&do_ref_set;
     ptrs[VM_OPCODE_BOX_GET] = &&do_get_box;
     ptrs[VM_OPCODE_BOX_SET] = &&do_set_box;
     ptrs[VM_OPCODE_LENGTH] = &&do_length;
@@ -397,9 +394,15 @@ do_ref_get:
     vm_reg_t inreg = read_reg;
     vm_fetch;
     vm_obj_t *ref = vm_gc_get_ref(vm_obj_to_ptr(cur_locals[inreg]));
-    // printf("%li\n", ref - locals_base);
-    // printf("%lf\n", vm_obj_to_num(cur_locals[outreg]));
     cur_locals[outreg] = *ref;
+    run_next_op;
+}
+do_ref_set:
+{
+    vm_reg_t outreg = read_reg;
+    vm_reg_t inreg = read_reg;
+    vm_fetch;
+    vm_gc_set_ref(vm_obj_to_ptr(cur_locals[outreg]), cur_locals[inreg]);
     run_next_op;
 }
 do_get_box:
@@ -477,11 +480,6 @@ do_call1:
     next_locals[1] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
     if (vm_obj_is_ptr(funcv))
-    {
-        next_locals[0] = funcv;
-        funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
-    }
-    else
     {
         next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
@@ -621,75 +619,6 @@ do_static_call:
     cur_frame++;
     cur_index = next_func;
     cur_func = next_func;
-    cur_frame->locals = cur_locals + get_byte(-1);
-    vm_fetch;
-    run_next_op;
-}
-do_rec0:
-{
-    vm_reg_t outreg = read_reg;
-    vm_obj_t *next_locals = cur_frame->locals;
-    next_locals[0] = cur_locals[0];
-    cur_locals = next_locals;
-    cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
-    cur_frame->outreg = outreg;
-    cur_frame++;
-    cur_index = cur_func;
-    cur_frame->locals = cur_locals + get_byte(-1);
-    vm_fetch;
-    run_next_op;
-}
-do_rec1:
-{
-    vm_reg_t outreg = read_reg;
-    vm_obj_t *next_locals = cur_frame->locals;
-    next_locals[0] = cur_locals[read_reg];
-    next_locals[1] = cur_locals[1];
-    cur_locals = next_locals;
-    cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
-    cur_frame->outreg = outreg;
-    cur_frame++;
-    cur_index = cur_func;
-    cur_frame->locals = cur_locals + get_byte(-1);
-    vm_fetch;
-    run_next_op;
-}
-do_rec2:
-{
-    vm_reg_t outreg = read_reg;
-    vm_obj_t *next_locals = cur_frame->locals;
-    next_locals[0] = cur_locals[read_reg];
-    next_locals[1] = cur_locals[read_reg];
-    next_locals[2] = cur_locals[2];
-    cur_locals = next_locals;
-    cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
-    cur_frame->outreg = outreg;
-    cur_frame++;
-    cur_index = cur_func;
-    cur_frame->locals = cur_locals + get_byte(-1);
-    vm_fetch;
-    run_next_op;
-}
-do_rec:
-{
-    vm_reg_t outreg = read_reg;
-    int nargs = read_byte;
-    vm_obj_t *next_locals = cur_frame->locals;
-    for (int argno = 0; argno < nargs; argno++)
-    {
-        vm_reg_t regno = read_reg;
-        next_locals[argno] = cur_locals[regno];
-    }
-    next_locals[nargs] = cur_locals[nargs];
-    cur_locals = next_locals;
-    cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
-    cur_frame->outreg = outreg;
-    cur_frame++;
-    cur_index = cur_func;
     cur_frame->locals = cur_locals + get_byte(-1);
     vm_fetch;
     run_next_op;
