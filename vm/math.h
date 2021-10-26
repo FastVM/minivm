@@ -123,7 +123,9 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
 		for (size_t i = 0; i < len; i++)
 		{
 			vm_obj_t io = vm_obj_of_num(i);
-			if (!vm_obj_eq(vm_gc_get_index(lent, io), vm_gc_get_index(rent, io)))
+			vm_obj_t cl = vm_gc_get_index(lent, io);
+			vm_obj_t cr = vm_gc_get_index(rent, io);
+			if (vm_obj_to_int(cl) != vm_obj_to_int(cr))
 			{
 				return false;
 			}

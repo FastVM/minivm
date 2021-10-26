@@ -19,7 +19,7 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 			size_t ret = 0;
 			for (size_t i = 0; i < arr->len; i++)
 			{
-				ret += vm_map_hash_obj(vm_gc_get_index(ent, vm_obj_of_int(i)));
+				ret ^= vm_map_hash_obj(vm_gc_get_index(ent, vm_obj_of_int(i)));
 				ret <<= 5;
 			}
 			return ret;
@@ -30,7 +30,7 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 			size_t ret = 0;
 			for (size_t i = 0; i < arr->len; i++)
 			{
-				ret += vm_map_hash_obj(vm_gc_get_index(ent, vm_obj_of_int(i)));
+				ret ^= vm_map_hash_obj(vm_gc_get_index(ent, vm_obj_of_int(i)));
 				ret <<= 5;
 			}
 			return ret;

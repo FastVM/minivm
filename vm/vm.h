@@ -1,8 +1,8 @@
 #pragma once
 
 #include "libc.h"
-typedef uint8_t vm_reg_t;
-typedef char vm_opcode_t;
+typedef uint32_t vm_reg_t;
+typedef uint32_t vm_opcode_t;
 
 #include "obj.h"
 
@@ -12,7 +12,6 @@ enum vm_opcode_t
     VM_OPCODE_STORE_REG,
     VM_OPCODE_STORE_NONE,
     VM_OPCODE_STORE_BOOL,
-    VM_OPCODE_STORE_BYTE,
     VM_OPCODE_STORE_INT,
     VM_OPCODE_STORE_FUN,
     VM_OPCODE_FUN_DONE,

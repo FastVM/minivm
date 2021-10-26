@@ -48,7 +48,7 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
     case VM_TYPE_ARRAY:
     {
         vm_gc_entry_array_t *arr_ent = (vm_gc_entry_array_t *)ent;
-        for (size_t cur = 0; cur < arr_ent->len / sizeof(vm_obj_t); cur++)
+        for (size_t cur = 0; cur < arr_ent->len; cur++)
         {
             vm_obj_t obj = ((vm_obj_t *)arr_ent->obj)[cur];
             if (vm_obj_is_ptr(obj))
@@ -123,7 +123,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         }
     }
     gc->len = begin;
-    size_t newmax = 4 + begin * 1.5;
+    size_t newmax = 4 + begin * 2;
     if (gc->max < newmax)
     {
         gc->max = newmax;
@@ -171,7 +171,7 @@ vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
     *entry = (vm_gc_entry_array_t){
         .keep = false,
         .type = VM_TYPE_ARRAY,
-        .len = size * sizeof(vm_obj_t),
+        .len = size,
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
     gc->objs[gc->len++] = obj;
@@ -296,7 +296,7 @@ vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr)
     {
     case VM_TYPE_ARRAY:
     {
-        return vm_obj_of_int(((vm_gc_entry_array_t *)ptr)->len / sizeof(vm_obj_t));
+        return vm_obj_of_int(((vm_gc_entry_array_t *)ptr)->len);
     }
     case VM_TYPE_MAP:
     {
