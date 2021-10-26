@@ -77,11 +77,11 @@ void vm_gc_free(vm_gc_entry_t *ent)
     {
     case VM_TYPE_MAP:
     {
-        vm_gc_entry_map_t *map = (vm_gc_entry_map_t*) ent;
+        vm_gc_entry_map_t *map = (vm_gc_entry_map_t *)ent;
         vm_map_del(map->map);
         break;
     }
-    default: 
+    default:
     {
         break;
     }
@@ -97,14 +97,21 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         if (vm_obj_is_ptr(cur))
         {
             vm_gc_entry_t *ptr = vm_obj_to_ptr(cur);
-            vm_gc_mark_ptr(gc, ptr);
+            for (size_t index = 0; index < gc->len; index++)
+            {
+                if (gc->objs[index] == ptr)
+                {
+                    vm_gc_mark_ptr(gc, ptr);
+                    break;
+                }
+            }
         }
     }
     size_t begin = 0;
     for (size_t index = 0; index < gc->len; index++)
     {
         vm_gc_entry_t *ent = gc->objs[index];
-        if (ent != NULL && ent->keep)
+        if (ent->keep)
         {
             ent->keep = false;
             gc->objs[begin++] = ent;
@@ -196,9 +203,27 @@ vm_gc_entry_t *vm_gc_box_new(vm_gc_t *gc)
     return obj;
 }
 
+vm_gc_entry_t *vm_gc_ref_new(vm_gc_t *gc, vm_obj_t *value)
+{
+    vm_gc_entry_ref_t *entry = vm_malloc(sizeof(vm_gc_entry_ref_t));
+    *entry = (vm_gc_entry_ref_t){
+        .keep = false,
+        .type = VM_TYPE_REF,
+        .ref = value,
+    };
+    vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
+    gc->objs[gc->len++] = obj;
+    return obj;
+}
+
 vm_obj_t vm_gc_get_box(vm_gc_entry_t *box)
 {
     return ((vm_gc_entry_box_t *)box)->obj;
+}
+
+vm_obj_t *vm_gc_get_ref(vm_gc_entry_t *box)
+{
+    return ((vm_gc_entry_ref_t *)box)->ref;
 }
 
 void vm_gc_set_box(vm_gc_entry_t *box, vm_obj_t value)

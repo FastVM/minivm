@@ -72,10 +72,12 @@ enum vm_opcode_t
     VM_OPCODE_CALL,
     VM_OPCODE_RETURN,
     VM_OPCODE_PUTCHAR,
+    VM_OPCODE_REF_NEW,
     VM_OPCODE_BOX_NEW,
     VM_OPCODE_STRING_NEW,
     VM_OPCODE_ARRAY_NEW,
     VM_OPCODE_MAP_NEW,
+    VM_OPCODE_REF_GET,
     VM_OPCODE_BOX_GET,
     VM_OPCODE_BOX_SET,
     VM_OPCODE_LENGTH,
@@ -93,6 +95,7 @@ enum vm_opcode_t
 typedef struct
 {
     int index;
+    int nargs;
     int func;
     vm_reg_t outreg;
     void *locals;

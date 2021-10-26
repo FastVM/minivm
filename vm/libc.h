@@ -28,6 +28,7 @@ void *mi_malloc(size_t size);
 void *mi_calloc(size_t n, size_t size);
 void mi_free(void *ptr);
 void *mi_realloc(void *ptr, size_t size);
+bool mi_is_in_heap_region(void *ptr);
 #define vm_malloc(size) (mi_malloc((size)))
 #define vm_calloc(n, size) (mi_calloc((n),(size)))
 #define vm_free(ptr) (mi_free((ptr)))
