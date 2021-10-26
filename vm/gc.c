@@ -3,16 +3,6 @@
 #include "io.h"
 #include "obj/map.h"
 
-void *vm_mem_grow(size_t size)
-{
-    return vm_calloc(1, size);
-}
-
-void vm_mem_reset(void *ptr)
-{
-    vm_free(ptr);
-}
-
 static inline int vm_gc_mark_map_entry(void *gc, vm_obj_t key, vm_obj_t val)
 {
     if (vm_obj_is_ptr(key))
@@ -97,14 +87,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         if (vm_obj_is_ptr(cur))
         {
             vm_gc_entry_t *ptr = vm_obj_to_ptr(cur);
-            for (size_t index = 0; index < gc->len; index++)
-            {
-                if (gc->objs[index] == ptr)
-                {
-                    vm_gc_mark_ptr(gc, ptr);
-                    break;
-                }
-            }
+            vm_gc_mark_ptr(gc, ptr);
         }
     }
     size_t begin = 0;

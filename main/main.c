@@ -26,6 +26,8 @@ int main(int argc, char *argv[argc])
             *(ops++) = op;
         }
         fclose(file);
-        vm_run(ops - vm_ops, vm_ops, 0);
+        vm_state_t *state = vm_state_new();
+        vm_run(state, ops - vm_ops, vm_ops);
+        vm_state_del(state);
     }
 }

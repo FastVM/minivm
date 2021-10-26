@@ -2,6 +2,7 @@
 #include "gc.h"
 #include "math.h"
 #include "obj.h"
+#include "libc.h"
 #include "effect.h"
 #include "obj/map.h"
 
@@ -42,10 +43,11 @@ static inline int find_handler_worker(void *state, vm_obj_t key, vm_obj_t val)
 static inline find_handler_pair_t find_handler1(vm_gc_entry_t *handlers, vm_obj_t effect, size_t max_level)
 {
     vm_obj_t res1 = vm_gc_get_index(handlers, effect);
-    if (vm_obj_is_dead(res1)) {
-        return (find_handler_pair_t) {
+    if (vm_obj_is_dead(res1))
+    {
+        return (find_handler_pair_t){
             .depth = -1,
-        }; 
+        };
     }
     vm_gc_entry_map_t *map = vm_obj_to_ptr(res1);
     find_handler_pair_t pair = (find_handler_pair_t){
@@ -59,63 +61,65 @@ static inline find_handler_pair_t find_handler1(vm_gc_entry_t *handlers, vm_obj_
 static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t effect, size_t max_level)
 {
     find_handler_pair_t pair1 = find_handler1(handlers, effect, max_level);
-    if (pair1.depth >= 0) {
+    if (pair1.depth >= 0)
+    {
         return pair1;
     }
     find_handler_pair_t pair2 = find_handler1(handlers, vm_obj_of_int(VM_EFFECT_DEFAULT), max_level);
-    if (pair2.depth >= 0) {
+    if (pair2.depth >= 0)
+    {
         return pair2;
     }
-    return (find_handler_pair_t) {
+    return (find_handler_pair_t){
         .depth = -1,
     };
 }
 
-#define run_next_op_after_effect(outreg_, effect)                                                     \
-    ({                                                                                                \
-        vm_reg_t copy_outreg = outreg_;                                                               \
-        vm_obj_t copy_effect = effect;                                                                \
-        vm_obj_t *next_locals = cur_frame->locals;                                                    \
-        find_handler_pair_t pair = find_handler(handlers, copy_effect, cur_frame - frames_base);      \
-        if (pair.depth == -1)                                                                         \
-        {                                                                                             \
-            vm_puts("big time runtime error: no handler for fallthrogh (id: 0) was found\n");         \
-            goto do_exit;                                                                             \
-        }                                                                                             \
-        vm_obj_t funcv = pair.handler;                                                                \
-        int level = pair.depth;                                                                       \
-        for (int i = 0; vm_obj_is_ptr(funcv); i++)                                                    \
-        {                                                                                             \
-            next_locals[i] = funcv;                                                                   \
-            funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));                          \
-        }                                                                                             \
-        vm_loc_t next_func = vm_obj_to_fun(funcv);                                                    \
-        cur_locals = next_locals;                                                                     \
-        cur_frame->index = cur_index;                                                                 \
-        cur_frame->func = cur_func;                                                                   \
-        cur_frame->outreg = copy_outreg;                                                              \
-        cur_frame++;                                                                                  \
-        cur_index = next_func;                                                                        \
-        cur_func = next_func;                                                                         \
-        cur_frame->locals = cur_locals + get_word(-1);                                                \
-        cur_effect->resume = cur_frame - frames_base;                                                 \
-        cur_effect->exit = level;                                                                     \
-        cur_effect++;                                                                                 \
-        vm_fetch;                                                                                     \
-    });                                                                                               \
+#define run_next_op_after_effect(outreg_, effect)                                                \
+    ({                                                                                           \
+        vm_reg_t copy_outreg = outreg_;                                                          \
+        vm_obj_t copy_effect = effect;                                                           \
+        vm_obj_t *next_locals = cur_frame->locals;                                               \
+        find_handler_pair_t pair = find_handler(handlers, copy_effect, cur_frame - frames_base); \
+        if (pair.depth == -1)                                                                    \
+        {                                                                                        \
+            vm_puts("big time runtime error: no handler for fallthrogh (id: 0) was found\n");    \
+            goto do_exit;                                                                        \
+        }                                                                                        \
+        vm_obj_t funcv = pair.handler;                                                           \
+        int level = pair.depth;                                                                  \
+        for (int i = 0; vm_obj_is_ptr(funcv); i++)                                               \
+        {                                                                                        \
+            next_locals[i] = funcv;                                                              \
+            funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));                     \
+        }                                                                                        \
+        vm_loc_t next_func = vm_obj_to_fun(funcv);                                               \
+        cur_locals = next_locals;                                                                \
+        cur_frame->index = cur_index;                                                            \
+        cur_frame->func = cur_func;                                                              \
+        cur_frame->outreg = copy_outreg;                                                         \
+        cur_frame++;                                                                             \
+        cur_index = next_func;                                                                   \
+        cur_func = next_func;                                                                    \
+        cur_frame->locals = cur_locals + get_word(-1);                                           \
+        cur_effect->resume = cur_frame - frames_base;                                            \
+        cur_effect->exit = level;                                                                \
+        cur_effect++;                                                                            \
+        vm_fetch;                                                                                \
+    });                                                                                          \
     run_next_op;
 
 #define gc_once ({                                           \
-    if (raw_gc.len >= raw_gc.max)                            \
+    if (gc->len >= gc->max)                            \
     {                                                        \
-        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals); \
+        vm_gc_run1(gc, locals_base, cur_frame->locals); \
     }                                                        \
 })
 
 #define gc_new(TYPE, ...) ({                                 \
-    if (raw_gc.len >= raw_gc.max)                            \
+    if (gc->len >= gc->max)                            \
     {                                                        \
-        vm_gc_run1(&raw_gc, locals_base, cur_frame->locals); \
+        vm_gc_run1(gc, locals_base, cur_frame->locals); \
     }                                                        \
     vm_gc_##TYPE##_new(__VA_ARGS__);                         \
 })
@@ -137,25 +141,48 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
 #define read_int (cur_bytecode_next(int32_t))
 #define read_loc (cur_bytecode_next(uint32_t))
 
-void vm_run(size_t len, const vm_opcode_t *basefunc, size_t start)
+struct vm_state_t
 {
-    vm_gc_t raw_gc;
-    vm_gc_start(&raw_gc);
+    vm_gc_t *gc;
+    vm_gc_entry_t *global;
+};
 
-    vm_stack_frame_t *frames_base = vm_mem_grow(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
-    vm_obj_t *locals_base = vm_mem_grow(VM_LOCALS_UNITS * sizeof(vm_obj_t));
-    vm_handler_frame_t *effects_base = vm_mem_grow((1 << 12) * sizeof(vm_handler_frame_t));
+vm_state_t *vm_state_new(void)
+{
+    vm_state_t *state = vm_calloc(sizeof(vm_state_t));
+    vm_gc_t *gc = vm_calloc(sizeof(vm_gc_t));
+    vm_gc_start(gc);
+    state->gc = gc;
+    state->global = vm_gc_map_new(gc);
+    return state;
+}
+
+void vm_state_del(vm_state_t *state)
+{
+    vm_gc_stop(state->gc);
+    vm_free(state->gc);
+    vm_free(state);
+}
+
+void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
+{
+    vm_gc_t *gc = state->gc;
+
+    vm_stack_frame_t *frames_base = vm_calloc(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
+    vm_obj_t *locals_base = vm_calloc(VM_LOCALS_UNITS * sizeof(vm_obj_t));
+    vm_handler_frame_t *effects_base = vm_calloc((1 << 12) * sizeof(vm_handler_frame_t));
 
     vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
     vm_handler_frame_t *cur_effect = effects_base;
 
-    vm_loc_t cur_index = start;
-    vm_loc_t cur_func = start;
+    vm_loc_t cur_index = 0;
+    vm_loc_t cur_func = 0;
 
-    vm_gc_entry_t *handlers = gc_new(map, &raw_gc);
+    vm_gc_entry_t *handlers = gc_new(map, gc);
     cur_locals[0] = vm_obj_of_ptr(handlers);
     cur_locals += 1;
+    cur_locals[0] = vm_obj_of_ptr(state->global);
 
     void *next_op_value;
     void *ptrs[VM_OPCODE_MAX2P] = {};
@@ -241,10 +268,9 @@ void vm_run(size_t len, const vm_opcode_t *basefunc, size_t start)
     run_next_op;
 do_exit:
 {
-    vm_gc_stop(&raw_gc);
-    vm_mem_reset(frames_base);
-    vm_mem_reset(locals_base);
-    vm_mem_reset(effects_base);
+    vm_free(frames_base);
+    vm_free(locals_base);
+    vm_free(effects_base);
     return;
 }
 do_set_handler:
@@ -255,7 +281,7 @@ do_set_handler:
     vm_obj_t xmap = vm_gc_get_index(handlers, cur_locals[sym]);
     if (vm_obj_is_dead(xmap))
     {
-        xmap = vm_obj_of_ptr(gc_new(map, &raw_gc));
+        xmap = vm_obj_of_ptr(gc_new(map, gc));
         vm_gc_set_index(handlers, cur_locals[sym], xmap);
     }
     vm_obj_t my_frame = vm_obj_of_int(cur_frame - frames_base);
@@ -345,7 +371,7 @@ do_string_new:
 {
     vm_reg_t outreg = read_reg;
     int nargs = read_word;
-    vm_gc_entry_t *str = gc_new(string, &raw_gc, nargs);
+    vm_gc_entry_t *str = gc_new(string, gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
         vm_gc_set_index(str, vm_obj_of_int(i), vm_obj_of_int(read_word));
@@ -358,7 +384,7 @@ do_array_new:
 {
     vm_reg_t outreg = read_reg;
     int nargs = read_word;
-    vm_gc_entry_t *vec = gc_new(array, &raw_gc, nargs);
+    vm_gc_entry_t *vec = gc_new(array, gc, nargs);
     for (int i = 0; i < nargs; i++)
     {
         vm_reg_t vreg = read_reg;
@@ -373,7 +399,7 @@ do_ref_new:
     vm_reg_t outreg = read_reg;
     vm_reg_t inreg = read_reg;
     vm_fetch;
-    vm_gc_entry_t *box = gc_new(ref, &raw_gc, &cur_locals[inreg]);
+    vm_gc_entry_t *box = gc_new(ref, gc, &cur_locals[inreg]);
     cur_locals[outreg] = vm_obj_of_ptr(box);
     run_next_op;
 }
@@ -382,7 +408,7 @@ do_box_new:
     vm_reg_t outreg = read_reg;
     vm_reg_t inreg = read_reg;
     vm_fetch;
-    vm_gc_entry_t *box = gc_new(box, &raw_gc);
+    vm_gc_entry_t *box = gc_new(box, gc);
     vm_gc_set_box(box, cur_locals[inreg]);
     cur_locals[outreg] = vm_obj_of_ptr(box);
     run_next_op;
@@ -391,7 +417,7 @@ do_map_new:
 {
     vm_reg_t outreg = read_reg;
     vm_fetch;
-    vm_gc_entry_t *map = gc_new(map, &raw_gc);
+    vm_gc_entry_t *map = gc_new(map, gc);
     cur_locals[outreg] = vm_obj_of_ptr(map);
     run_next_op;
 }
@@ -1102,7 +1128,7 @@ do_concat:
     vm_reg_t rhs = read_reg;
     vm_fetch;
     gc_once;
-    cur_locals[to] = vm_gc_concat(&raw_gc, cur_locals[lhs], cur_locals[rhs]);
+    cur_locals[to] = vm_gc_concat(gc, cur_locals[lhs], cur_locals[rhs]);
     if (vm_obj_is_dead(cur_locals[to]))
     {
         run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_TYPE));
