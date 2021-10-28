@@ -230,7 +230,18 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
     {
     case VM_TYPE_ARRAY:
     {
-        return ((vm_gc_entry_array_t *)ptr)->obj[vm_obj_to_int(index)];
+        if (!vm_obj_is_num(index)) {
+            return vm_obj_of_dead();
+        }
+        vm_gc_entry_array_t *ent = (vm_gc_entry_array_t *)ptr;
+        int iind = vm_obj_to_int(index);
+        if (iind < 0) {
+            iind += ent->len;
+        }
+        if (iind >= ent->len) {
+            return vm_obj_of_dead();
+        }
+        return ent->obj[iind];
     }
     case VM_TYPE_MAP:
     {
@@ -238,7 +249,18 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
     }
     case VM_TYPE_STRING:
     {
-        return vm_obj_of_int(((vm_gc_entry_string_t *)ptr)->obj[vm_obj_to_int(index)]);
+        if (!vm_obj_is_num(index)) {
+            return vm_obj_of_dead();
+        }
+        vm_gc_entry_string_t *ent = (vm_gc_entry_string_t *)ptr;
+        int iind = vm_obj_to_int(index);
+        if (iind < 0) {
+            iind += ent->len;
+        }
+        if (iind >= ent->len) {
+            return vm_obj_of_dead();
+        }
+        return vm_obj_of_int(ent->obj[iind]);
     }
     default:
     {

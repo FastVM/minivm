@@ -421,21 +421,23 @@ do_map_new:
     cur_locals[outreg] = vm_obj_of_ptr(map);
     run_next_op;
 }
-do_set_box:
-{
-    vm_reg_t targetreg = read_reg;
-    vm_reg_t valreg = read_reg;
-    vm_fetch;
-    vm_gc_set_box(vm_obj_to_ptr(cur_locals[targetreg]), cur_locals[valreg]);
-    run_next_op;
-}
 do_ref_get:
 {
     vm_reg_t outreg = read_reg;
     vm_reg_t inreg = read_reg;
     vm_fetch;
-    vm_obj_t *ref = vm_gc_get_ref(vm_obj_to_ptr(cur_locals[inreg]));
-    cur_locals[outreg] = *ref;
+    vm_obj_t obj = cur_locals[inreg];
+    if (!vm_obj_is_ptr(obj))
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_gc_entry_t *ref = vm_obj_to_ptr(cur_locals[inreg]);
+    if (ref->type != VM_TYPE_REF)
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_obj_t *val = vm_gc_get_ref(ref);
+    cur_locals[outreg] = *val;
     run_next_op;
 }
 do_ref_set:
@@ -443,7 +445,35 @@ do_ref_set:
     vm_reg_t outreg = read_reg;
     vm_reg_t inreg = read_reg;
     vm_fetch;
-    vm_gc_set_ref(vm_obj_to_ptr(cur_locals[outreg]), cur_locals[inreg]);
+    vm_obj_t obj = cur_locals[outreg];
+    if (!vm_obj_is_ptr(obj))
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_gc_entry_t *ref = vm_obj_to_ptr(obj);
+    if (ref->type != VM_TYPE_REF)
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_gc_set_ref(ref, cur_locals[inreg]);
+    run_next_op;
+}
+do_set_box:
+{
+    vm_reg_t outreg = read_reg;
+    vm_reg_t inreg = read_reg;
+    vm_fetch;
+    vm_obj_t obj = cur_locals[outreg];
+    if (!vm_obj_is_ptr(obj))
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_gc_entry_t *box = vm_obj_to_ptr(obj);
+    if (box->type != VM_TYPE_REF)
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_gc_set_box(box, cur_locals[inreg]);
     run_next_op;
 }
 do_get_box:
@@ -451,7 +481,17 @@ do_get_box:
     vm_reg_t outreg = read_reg;
     vm_reg_t inreg = read_reg;
     vm_fetch;
-    cur_locals[outreg] = vm_gc_get_box(vm_obj_to_ptr(cur_locals[inreg]));
+    vm_obj_t obj = cur_locals[inreg];
+    if (!vm_obj_is_ptr(obj))
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_gc_entry_t *box = vm_obj_to_ptr(cur_locals[inreg]);
+    if (box->type != VM_TYPE_BOX)
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    cur_locals[outreg] = vm_gc_get_box(box);
     run_next_op;
 }
 do_length:
@@ -460,6 +500,9 @@ do_length:
     vm_reg_t reg = read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
+    if (!vm_obj_is_ptr(vec)) {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
     cur_locals[outreg] = vm_gc_sizeof(vm_obj_to_ptr(vec));
     run_next_op;
 }
@@ -471,6 +514,9 @@ do_index_get:
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
+    if (!vm_obj_is_ptr(vec)) {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
     cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), index);
     if (vm_obj_is_dead(cur_locals[outreg]))
     {
@@ -487,7 +533,13 @@ do_index_set:
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
     vm_obj_t value = cur_locals[val];
-    vm_gc_set_index(vm_obj_to_ptr(vec), index, value);
+    if (!vm_obj_is_ptr(vec)) {
+        run_next_op_after_effect(reg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    vm_obj_t res = vm_gc_set_index(vm_obj_to_ptr(vec), index, value);
+    if (vm_obj_is_dead(res)) {
+        run_next_op_after_effect(reg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
     run_next_op;
 }
 do_tail_call0:
@@ -498,6 +550,14 @@ do_tail_call0:
     {
         cur_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
+    }
+    if (!vm_obj_is_fun(funcv)) {
+        cur_frame--;
+        cur_locals = (cur_frame - 1)->locals;
+        cur_func = cur_frame->func;
+        cur_index = cur_frame->index;
+        vm_reg_t outreg = cur_frame->outreg;
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
@@ -515,6 +575,14 @@ do_tail_call1:
         cur_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
+    if (!vm_obj_is_fun(funcv)) {
+        cur_frame--;
+        cur_locals = (cur_frame - 1)->locals;
+        cur_func = cur_frame->func;
+        cur_index = cur_frame->index;
+        vm_reg_t outreg = cur_frame->outreg;
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
+    }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
     cur_func = next_func;
@@ -531,6 +599,14 @@ do_tail_call2:
     {
         cur_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
+    }
+    if (!vm_obj_is_fun(funcv)) {
+        cur_frame--;
+        cur_locals = (cur_frame - 1)->locals;
+        cur_func = cur_frame->func;
+        cur_index = cur_frame->index;
+        vm_reg_t outreg = cur_frame->outreg;
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
@@ -554,6 +630,14 @@ do_tail_call:
         next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
+    if (!vm_obj_is_fun(funcv)) {
+        cur_frame--;
+        cur_locals = (cur_frame - 1)->locals;
+        cur_func = cur_frame->func;
+        cur_index = cur_frame->index;
+        vm_reg_t outreg = cur_frame->outreg;
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
+    }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
     cur_func = next_func;
@@ -570,6 +654,9 @@ do_call0:
     {
         next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
+    }
+    if (!vm_obj_is_fun(funcv)) {
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -595,6 +682,9 @@ do_call1:
         next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
+    if (!vm_obj_is_fun(funcv)) {
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
+    }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
     cur_frame->index = cur_index;
@@ -619,6 +709,9 @@ do_call2:
     {
         next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
+    }
+    if (!vm_obj_is_fun(funcv)) {
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -648,6 +741,9 @@ do_call:
     {
         next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
+    }
+    if (!vm_obj_is_fun(funcv)) {
+        run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
     }
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
@@ -1127,8 +1223,16 @@ do_concat:
     vm_reg_t lhs = read_reg;
     vm_reg_t rhs = read_reg;
     vm_fetch;
+    vm_obj_t o1 = cur_locals[lhs];
+    vm_obj_t o2 = cur_locals[rhs];
+    if (!vm_obj_is_ptr(o1)) {
+        run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    if (!vm_obj_is_ptr(o2)) {
+        run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
     gc_once;
-    cur_locals[to] = vm_gc_concat(gc, cur_locals[lhs], cur_locals[rhs]);
+    cur_locals[to] = vm_gc_concat(gc, o1, o2);
     if (vm_obj_is_dead(cur_locals[to]))
     {
         run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_TYPE));
