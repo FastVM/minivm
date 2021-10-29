@@ -5,7 +5,7 @@ typedef nanbox_t vm_obj_t;
 typedef int vm_loc_t;
 typedef double vm_number_t;
 
-typedef enum
+enum
 {
     VM_TYPE_NONE = 0,
     VM_TYPE_BOOL = 1,
@@ -16,7 +16,7 @@ typedef enum
     VM_TYPE_BOX = 6,
     VM_TYPE_MAP = 7,
     VM_TYPE_REF = 8,
-} vm_type_t;
+};
 
 // type check
 

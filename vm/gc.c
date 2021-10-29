@@ -3,20 +3,20 @@
 #include "io.h"
 #include "obj/map.h"
 
-static inline int vm_gc_mark_map_entry(void *gc, vm_obj_t key, vm_obj_t val)
+static inline int vm_gc_mark_map_entry(void *state, vm_obj_t key, vm_obj_t val)
 {
     if (vm_obj_is_ptr(key))
     {
-        vm_gc_mark_ptr(gc, vm_obj_to_ptr(key));
+        vm_gc_mark_ptr(vm_obj_to_ptr(key));
     }
     if (vm_obj_is_ptr(val))
     {
-        vm_gc_mark_ptr(gc, vm_obj_to_ptr(val));
+        vm_gc_mark_ptr(vm_obj_to_ptr(val));
     }
     return 0;
 }
 
-void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
+void vm_gc_mark_ptr(vm_gc_entry_t *ent)
 {
     if (ent->keep)
     {
@@ -31,7 +31,7 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
         vm_obj_t obj = box_ent->obj;
         if (vm_obj_is_ptr(obj))
         {
-            vm_gc_mark_ptr(gc, vm_obj_to_ptr(obj));
+            vm_gc_mark_ptr(vm_obj_to_ptr(obj));
         }
         break;
     }
@@ -43,7 +43,7 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
             vm_obj_t obj = ((vm_obj_t *)arr_ent->obj)[cur];
             if (vm_obj_is_ptr(obj))
             {
-                vm_gc_mark_ptr(gc, vm_obj_to_ptr(obj));
+                vm_gc_mark_ptr(vm_obj_to_ptr(obj));
             }
         }
         break;
@@ -51,7 +51,7 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
     case VM_TYPE_MAP:
     {
         vm_gc_entry_map_t *map_ent = (vm_gc_entry_map_t *)ent;
-        vm_map_for_pairs(map_ent->map, gc, vm_gc_mark_map_entry);
+        vm_map_for_pairs(map_ent->map, NULL, vm_gc_mark_map_entry);
         break;
     }
     case VM_TYPE_STRING:
@@ -87,7 +87,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
         if (vm_obj_is_ptr(cur))
         {
             vm_gc_entry_t *ptr = vm_obj_to_ptr(cur);
-            vm_gc_mark_ptr(gc, ptr);
+            vm_gc_mark_ptr(ptr);
         }
     }
     size_t begin = 0;

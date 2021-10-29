@@ -18,16 +18,15 @@ typedef vm_obj_t vm_gc_concat_t(void *gc, vm_obj_t lhs, vm_obj_t rhs);
 void vm_gc_start(vm_gc_t *out);
 void vm_gc_stop(vm_gc_t *gc);
 
-void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent);
+void vm_gc_mark_ptr(vm_gc_entry_t *ent);
 void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high);
 
 int vm_gc_type(vm_gc_entry_t *ent);
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t len);
 vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t len);
-vm_gc_entry_t *vm_gc_ref_new(vm_gc_t *gc, vm_obj_t *value);
-vm_gc_entry_t *vm_gc_box_new(vm_gc_t *gc);
 vm_gc_entry_t *vm_gc_ref_new(vm_gc_t *gc, vm_obj_t* value);
+vm_gc_entry_t *vm_gc_box_new(vm_gc_t *gc);
 vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc);
 
 vm_obj_t vm_gc_deref(vm_gc_entry_t *ptr);
