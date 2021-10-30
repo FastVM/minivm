@@ -2,3 +2,6 @@
     path = mimalloc
     url = https://github.com/microsoft/mimalloc
     branch = master
+[submodule "mir"]
+	path = mir
+	url = https://github.com/vnmakarov/mir
