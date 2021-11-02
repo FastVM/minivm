@@ -1,6 +1,13 @@
-#include <stdio.h>
 #include "../vm/vm.h"
 #include "../vm/libc.h"
+
+struct FILE;
+typedef struct FILE FILE;
+
+FILE *fopen(const char *src, const char *name);
+int fclose(FILE *);
+int feof(FILE *);
+int fgetc(FILE *);
 
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
 

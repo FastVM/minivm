@@ -574,9 +574,9 @@ do_tail_call0:
 {
     vm_reg_t func = read_reg;
     vm_obj_t funcv = cur_locals[func];
+    cur_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        cur_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
@@ -601,9 +601,9 @@ do_tail_call1:
     vm_reg_t func = read_reg;
     cur_locals[1] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
+    cur_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        cur_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
@@ -629,9 +629,9 @@ do_tail_call2:
     cur_locals[1] = cur_locals[read_reg];
     cur_locals[2] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
+    cur_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        cur_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
@@ -662,9 +662,9 @@ do_tail_call:
         next_locals[argno] = cur_locals[regno];
     }
     vm_obj_t funcv = cur_locals[func];
+    cur_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
@@ -690,9 +690,9 @@ do_call0:
     vm_reg_t func = read_reg;
     vm_obj_t *next_locals = cur_frame->locals;
     vm_obj_t funcv = cur_locals[func];
+    next_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
@@ -720,9 +720,9 @@ do_call1:
     vm_obj_t *next_locals = cur_frame->locals;
     next_locals[1] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
+    next_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
@@ -751,9 +751,9 @@ do_call2:
     next_locals[1] = cur_locals[read_reg];
     next_locals[2] = cur_locals[read_reg];
     vm_obj_t funcv = cur_locals[func];
+    next_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
@@ -786,9 +786,9 @@ do_call:
         next_locals[argno] = cur_locals[regno];
     }
     vm_obj_t funcv = cur_locals[func];
+    next_locals[0] = funcv;
     if (vm_obj_is_ptr(funcv))
     {
-        next_locals[0] = funcv;
         funcv = vm_gc_get_index(vm_obj_to_ptr(funcv), vm_obj_of_int(0));
     }
 #if defined(VM_USE_TYPES)
