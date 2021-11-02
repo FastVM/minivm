@@ -96,11 +96,9 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
         vm_loc_t next_func = vm_obj_to_fun(funcv);                                               \
         cur_locals = next_locals;                                                                \
         cur_frame->index = cur_index;                                                            \
-        cur_frame->func = cur_func;                                                              \
         cur_frame->outreg = copy_outreg;                                                         \
         cur_frame++;                                                                             \
         cur_index = next_func;                                                                   \
-        cur_func = next_func;                                                                    \
         cur_frame->locals = cur_locals + get_word(-1);                                           \
         cur_effect->resume = cur_frame - frames_base;                                            \
         cur_effect->exit = level;                                                                \
@@ -177,7 +175,6 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     vm_handler_frame_t *cur_effect = effects_base;
 
     vm_loc_t cur_index = 0;
-    vm_loc_t cur_func = 0;
 
     vm_gc_entry_t *handlers = gc_new(map, gc);
     cur_locals[0] = vm_obj_of_ptr(handlers);
@@ -234,14 +231,18 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_MOD] = &&do_mod;
     ptrs[VM_OPCODE_MOD_NUM] = &&do_mod_num;
     ptrs[VM_OPCODE_CONCAT] = &&do_concat;
-    ptrs[VM_OPCODE_CALL0] = &&do_call0;
-    ptrs[VM_OPCODE_CALL1] = &&do_call1;
-    ptrs[VM_OPCODE_CALL2] = &&do_call2;
-    ptrs[VM_OPCODE_CALL] = &&do_call;
+    ptrs[VM_OPCODE_STATIC_CALL0] = &&do_static_call0;
+    ptrs[VM_OPCODE_STATIC_CALL1] = &&do_static_call1;
+    ptrs[VM_OPCODE_STATIC_CALL2] = &&do_static_call2;
+    ptrs[VM_OPCODE_STATIC_CALL] = &&do_static_call;
     ptrs[VM_OPCODE_TAIL_CALL0] = &&do_tail_call0;
     ptrs[VM_OPCODE_TAIL_CALL1] = &&do_tail_call1;
     ptrs[VM_OPCODE_TAIL_CALL2] = &&do_tail_call2;
     ptrs[VM_OPCODE_TAIL_CALL] = &&do_tail_call;
+    ptrs[VM_OPCODE_CALL0] = &&do_call0;
+    ptrs[VM_OPCODE_CALL1] = &&do_call1;
+    ptrs[VM_OPCODE_CALL2] = &&do_call2;
+    ptrs[VM_OPCODE_CALL] = &&do_call;
     ptrs[VM_OPCODE_RETURN] = &&do_return;
     ptrs[VM_OPCODE_PUTCHAR] = &&do_putchar;
     ptrs[VM_OPCODE_REF_NEW] = &&do_ref_new;
@@ -302,7 +303,6 @@ do_return_handler:
     vm_obj_t val = cur_locals[from];
     cur_frame--;
     cur_locals = (cur_frame - 1)->locals;
-    cur_func = cur_frame->func;
     cur_index = cur_frame->index;
     vm_reg_t outreg = cur_frame->outreg;
     cur_locals[outreg] = val;
@@ -317,7 +317,6 @@ do_exit_handler:
     vm_obj_t val = cur_locals[from];
     cur_frame--;
     cur_locals = (cur_frame - 1)->locals;
-    cur_func = cur_frame->func;
     cur_index = cur_frame->index;
     vm_reg_t outreg = cur_frame->outreg;
     cur_locals[outreg] = val;
@@ -330,7 +329,6 @@ do_return:
     vm_obj_t val = cur_locals[from];
     cur_frame--;
     cur_locals = (cur_frame - 1)->locals;
-    cur_func = cur_frame->func;
     cur_index = cur_frame->index;
     vm_reg_t outreg = cur_frame->outreg;
     cur_locals[outreg] = val;
@@ -584,7 +582,6 @@ do_tail_call0:
     {
         cur_frame--;
         cur_locals = (cur_frame - 1)->locals;
-        cur_func = cur_frame->func;
         cur_index = cur_frame->index;
         vm_reg_t outreg = cur_frame->outreg;
         run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
@@ -592,7 +589,6 @@ do_tail_call0:
 #endif
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
-    cur_func = next_func;
     vm_fetch;
     run_next_op;
 }
@@ -611,7 +607,6 @@ do_tail_call1:
     {
         cur_frame--;
         cur_locals = (cur_frame - 1)->locals;
-        cur_func = cur_frame->func;
         cur_index = cur_frame->index;
         vm_reg_t outreg = cur_frame->outreg;
         run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
@@ -619,7 +614,6 @@ do_tail_call1:
 #endif
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
-    cur_func = next_func;
     vm_fetch;
     run_next_op;
 }
@@ -639,7 +633,6 @@ do_tail_call2:
     {
         cur_frame--;
         cur_locals = (cur_frame - 1)->locals;
-        cur_func = cur_frame->func;
         cur_index = cur_frame->index;
         vm_reg_t outreg = cur_frame->outreg;
         run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
@@ -647,7 +640,6 @@ do_tail_call2:
 #endif
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
-    cur_func = next_func;
     vm_fetch;
     run_next_op;
 }
@@ -672,7 +664,6 @@ do_tail_call:
     {
         cur_frame--;
         cur_locals = (cur_frame - 1)->locals;
-        cur_func = cur_frame->func;
         cur_index = cur_frame->index;
         vm_reg_t outreg = cur_frame->outreg;
         run_next_op_after_effect(outreg, vm_obj_of_int(VM_EFFECT_TYPE));
@@ -680,7 +671,71 @@ do_tail_call:
 #endif
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_index = next_func;
-    cur_func = next_func;
+    vm_fetch;
+    run_next_op;
+}
+do_static_call0:
+{
+    vm_reg_t outreg = read_reg;
+    vm_loc_t next_func = read_loc;
+    vm_obj_t *next_locals = cur_frame->locals;
+    cur_locals = next_locals;
+    cur_frame->index = cur_index;
+    cur_frame->outreg = outreg;
+    cur_frame++;
+    cur_index = next_func;
+    cur_frame->locals = cur_locals + get_word(-1);
+    vm_fetch;
+    run_next_op;
+}
+do_static_call1:
+{
+    vm_reg_t outreg = read_reg;
+    vm_loc_t next_func = read_loc;
+    vm_obj_t *next_locals = cur_frame->locals;
+    next_locals[1] = cur_locals[read_reg];
+    cur_locals = next_locals;
+    cur_frame->index = cur_index;
+    cur_frame->outreg = outreg;
+    cur_frame++;
+    cur_index = next_func;
+    cur_frame->locals = cur_locals + get_word(-1);
+    vm_fetch;
+    run_next_op;
+}
+do_static_call2:
+{
+    vm_reg_t outreg = read_reg;
+    vm_loc_t next_func = read_loc;
+    vm_obj_t *next_locals = cur_frame->locals;
+    next_locals[1] = cur_locals[read_reg];
+    next_locals[2] = cur_locals[read_reg];
+    cur_locals = next_locals;
+    cur_frame->index = cur_index;
+    cur_frame->outreg = outreg;
+    cur_frame++;
+    cur_index = next_func;
+    cur_frame->locals = cur_locals + get_word(-1);
+    vm_fetch;
+    run_next_op;
+}
+do_static_call:
+{
+    vm_reg_t outreg = read_reg;
+    vm_loc_t next_func = read_loc;
+    int nargs = read_word;
+    vm_obj_t *next_locals = cur_frame->locals;
+    for (int argno = 1; argno <= nargs; argno++)
+    {
+        vm_reg_t regno = read_reg;
+        next_locals[argno] = cur_locals[regno];
+    }
+    cur_locals = next_locals;
+    cur_frame->index = cur_index;
+    cur_frame->outreg = outreg;
+    cur_frame++;
+    cur_index = next_func;
+    cur_frame->locals = cur_locals + get_word(-1);
     vm_fetch;
     run_next_op;
 }
@@ -704,11 +759,9 @@ do_call0:
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
     cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = next_func;
-    cur_func = next_func;
     cur_frame->locals = cur_locals + get_word(-1);
     vm_fetch;
     run_next_op;
@@ -734,11 +787,9 @@ do_call1:
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
     cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = next_func;
-    cur_func = next_func;
     cur_frame->locals = cur_locals + get_word(-1);
     vm_fetch;
     run_next_op;
@@ -765,11 +816,9 @@ do_call2:
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
     cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = next_func;
-    cur_func = next_func;
     cur_frame->locals = cur_locals + get_word(-1);
     vm_fetch;
     run_next_op;
@@ -800,11 +849,9 @@ do_call:
     vm_loc_t next_func = vm_obj_to_fun(funcv);
     cur_locals = next_locals;
     cur_frame->index = cur_index;
-    cur_frame->func = cur_func;
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = next_func;
-    cur_func = next_func;
     cur_frame->locals = cur_locals + get_word(-1);
     vm_fetch;
     run_next_op;

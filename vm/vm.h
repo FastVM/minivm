@@ -60,6 +60,10 @@ enum vm_opcode_t
     VM_OPCODE_MOD,
     VM_OPCODE_MOD_NUM,
     VM_OPCODE_CONCAT,
+    VM_OPCODE_STATIC_CALL0,
+    VM_OPCODE_STATIC_CALL1,
+    VM_OPCODE_STATIC_CALL2,
+    VM_OPCODE_STATIC_CALL,
     VM_OPCODE_TAIL_CALL0,
     VM_OPCODE_TAIL_CALL1,
     VM_OPCODE_TAIL_CALL2,
@@ -95,7 +99,6 @@ typedef struct
 {
     int index;
     int nargs;
-    int func;
     vm_reg_t outreg;
     void *locals;
 } vm_stack_frame_t;
@@ -103,7 +106,6 @@ typedef struct
 typedef struct
 {
     int index;
-    int func;;
     vm_reg_t outreg;
     void *locals;
     int resume;
