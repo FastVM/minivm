@@ -251,7 +251,7 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_ARRAY_NEW] = &&do_array_new;
     ptrs[VM_OPCODE_MAP_NEW] = &&do_map_new;
     ptrs[VM_OPCODE_REF_GET] = &&do_ref_get;
-    ptrs[VM_OPCODE_REF_SET] = &&do_ref_set;
+    // ptrs[VM_OPCODE_REF_SET] = &&do_ref_set;
     ptrs[VM_OPCODE_BOX_GET] = &&do_get_box;
     ptrs[VM_OPCODE_BOX_SET] = &&do_set_box;
     ptrs[VM_OPCODE_LENGTH] = &&do_length;
@@ -432,36 +432,8 @@ do_ref_get:
     }
 #endif
     vm_gc_entry_t *ref = vm_obj_to_ptr(cur_locals[inreg]);
-#if defined(VM_USE_TYPES)
-    if (ref->type != VM_TYPE_REF)
-    {
-        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
-    }
-#endif
     vm_obj_t *val = vm_gc_get_ref(ref);
     cur_locals[outreg] = *val;
-    run_next_op;
-}
-do_ref_set:
-{
-    vm_reg_t outreg = read_reg;
-    vm_reg_t inreg = read_reg;
-    vm_fetch;
-    vm_obj_t obj = cur_locals[outreg];
-#if defined(VM_USE_TYPES)
-    if (!vm_obj_is_ptr(obj))
-    {
-        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
-    }
-#endif
-    vm_gc_entry_t *ref = vm_obj_to_ptr(obj);
-#if defined(VM_USE_TYPES)
-    if (ref->type != VM_TYPE_REF)
-    {
-        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
-    }
-#endif
-    vm_gc_set_ref(ref, cur_locals[inreg]);
     run_next_op;
 }
 do_set_box:
@@ -477,14 +449,8 @@ do_set_box:
     }
 #endif
     vm_gc_entry_t *box = vm_obj_to_ptr(obj);
-#if defined(VM_USE_TYPES)
-    if (box->type != VM_TYPE_REF)
-    {
-        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
-    }
     vm_gc_set_box(box, cur_locals[inreg]);
     run_next_op;
-#endif
 }
 do_get_box:
 {
@@ -499,12 +465,6 @@ do_get_box:
     }
 #endif
     vm_gc_entry_t *box = vm_obj_to_ptr(cur_locals[inreg]);
-#if defined(VM_USE_TYPES)
-    if (box->type != VM_TYPE_BOX)
-    {
-        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
-    }
-#endif
     cur_locals[outreg] = vm_gc_get_box(box);
     run_next_op;
 }
