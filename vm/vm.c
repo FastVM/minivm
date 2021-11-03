@@ -1413,8 +1413,8 @@ do_concat:
     {
         run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_TYPE));
     }
-    run_next_op;
 #endif
+    run_next_op;
 }
 do_putchar:
 {

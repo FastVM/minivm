@@ -331,7 +331,7 @@ vm_obj_t vm_gc_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     {
     default:
     {
-        __builtin_trap();
+        return vm_obj_of_dead();
     }
     case VM_TYPE_ARRAY:
     {
