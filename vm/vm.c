@@ -107,18 +107,7 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
     });                                                                                          \
     run_next_op;
 
-#define gc_once ({                                      \
-    if (gc->len >= gc->max)                             \
-    {                                                   \
-        vm_gc_run1(gc, locals_base, cur_frame->locals); \
-    }                                                   \
-})
-
 #define gc_new(TYPE, ...) ({                            \
-    if (gc->len >= gc->max)                             \
-    {                                                   \
-        vm_gc_run1(gc, locals_base, cur_frame->locals); \
-    }                                                   \
     vm_gc_##TYPE##_new(__VA_ARGS__);                    \
 })
 
@@ -169,6 +158,8 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     vm_stack_frame_t *frames_base = vm_calloc(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
     vm_obj_t *locals_base = vm_calloc(VM_LOCALS_UNITS * sizeof(vm_obj_t));
     vm_handler_frame_t *effects_base = vm_calloc((1 << 12) * sizeof(vm_handler_frame_t));
+    gc->low = locals_base;
+    gc->high = locals_base + VM_LOCALS_UNITS;
 
     vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
@@ -1366,7 +1357,6 @@ do_concat:
         run_next_op_after_effect(to, vm_obj_of_num(VM_EFFECT_TYPE));
     }
 #endif
-    gc_once;
     cur_locals[to] = vm_gc_concat(gc, o1, o2);
 #if defined(VM_USE_TYPES)
     if (vm_obj_is_dead(cur_locals[to]))

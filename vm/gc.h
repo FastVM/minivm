@@ -18,9 +18,6 @@ typedef vm_obj_t vm_gc_concat_t(void *gc, vm_obj_t lhs, vm_obj_t rhs);
 void vm_gc_start(vm_gc_t *out);
 void vm_gc_stop(vm_gc_t *gc);
 
-void vm_gc_mark_ptr(vm_gc_entry_t *ent);
-void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high);
-
 int vm_gc_type(vm_gc_entry_t *ent);
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t len);
@@ -41,14 +38,15 @@ vm_obj_t vm_gc_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs);
 
 struct vm_gc_t
 {
-    vm_gc_entry_t **objs;
-    size_t len;
-    size_t alloc;
-    size_t max;
+    vm_gc_entry_t *first;
+    size_t remain;
+    vm_obj_t *low;
+    vm_obj_t *high;
 };
 
 struct vm_gc_entry_t
 {
+    vm_gc_entry_t *next;
     bool keep: 1;
     uint32_t type: 31;
     uint32_t data;
@@ -56,6 +54,7 @@ struct vm_gc_entry_t
 
 typedef struct
 {
+    vm_gc_entry_t *next;
     bool keep: 1;
     uint32_t type: 31;
     uint32_t len;
@@ -64,6 +63,7 @@ typedef struct
 
 typedef struct
 {
+    vm_gc_entry_t *next;
     bool keep: 1;
     uint32_t type: 31;
     uint32_t len;
@@ -72,6 +72,7 @@ typedef struct
 
 typedef struct
 {
+    vm_gc_entry_t *next;
     bool keep: 1;
     uint32_t type: 31;
     uint32_t data;
@@ -80,6 +81,7 @@ typedef struct
 
 typedef struct
 {
+    vm_gc_entry_t *next;
     bool keep: 1;
     uint32_t type: 31;
     uint32_t data;
@@ -88,6 +90,7 @@ typedef struct
 
 typedef struct
 {
+    vm_gc_entry_t *next;
     bool keep: 1;
     uint32_t type: 31;
     uint32_t data;
