@@ -1,6 +1,5 @@
 #include "gc.h"
 #include "obj.h"
-#include "io.h"
 #include "obj/map.h"
 
 void vm_gc_mark_ptr(vm_gc_entry_t *ent);

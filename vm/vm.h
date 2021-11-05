@@ -2,8 +2,6 @@
 
 #include "libc.h"
 
-struct vm_state_t;
-typedef struct vm_state_t vm_state_t;
 typedef uint32_t vm_reg_t;
 typedef uint32_t vm_opcode_t;
 
@@ -111,7 +109,3 @@ typedef struct
     int resume;
     int exit;
 } vm_handler_frame_t;
-
-void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *mem);
-vm_state_t *vm_state_new(void);
-void vm_state_del(vm_state_t *);

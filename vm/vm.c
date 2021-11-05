@@ -6,6 +6,7 @@
 #include "effect.h"
 #include "obj/map.h"
 #include "sys/sys.h"
+#include "state.h"
 
 #define VM_GLOBALS_NUM (1024)
 
@@ -82,11 +83,6 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
         vm_obj_t copy_effect = effect;                                                           \
         vm_obj_t *next_locals = cur_frame->locals;                                               \
         find_handler_pair_t pair = find_handler(handlers, copy_effect, cur_frame - frames_base); \
-        if (pair.depth == -1)                                                                    \
-        {                                                                                        \
-            vm_puts("big time runtime error: no handler for fallthrogh (id: 0) was found\n");    \
-            goto do_exit;                                                                        \
-        }                                                                                        \
         vm_obj_t funcv = pair.handler;                                                           \
         int level = pair.depth;                                                                  \
         for (int i = 0; vm_obj_is_ptr(funcv); i++)                                               \
@@ -128,29 +124,6 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
 #define read_reg (cur_bytecode_next(uint32_t))
 #define read_int (cur_bytecode_next(int32_t))
 #define read_loc (cur_bytecode_next(uint32_t))
-
-struct vm_state_t
-{
-    vm_gc_t *gc;
-    vm_gc_entry_t *global;
-};
-
-vm_state_t *vm_state_new(void)
-{
-    vm_state_t *state = vm_calloc(sizeof(vm_state_t));
-    vm_gc_t *gc = vm_calloc(sizeof(vm_gc_t));
-    vm_gc_start(gc);
-    state->gc = gc;
-    state->global = vm_gc_map_new(gc);
-    return state;
-}
-
-void vm_state_del(vm_state_t *state)
-{
-    vm_gc_stop(state->gc);
-    vm_free(state->gc);
-    vm_free(state);
-}
 
 void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
 {
@@ -1381,7 +1354,7 @@ do_putchar:
     vm_reg_t from = read_reg;
     vm_fetch;
     int val = vm_obj_to_int(cur_locals[from]);
-    vm_putchar(val);
+    state->putchar(state, val);
     run_next_op;
 }
 }

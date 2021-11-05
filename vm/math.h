@@ -2,7 +2,6 @@
 
 #include "obj.h"
 #include "gc.h"
-#include "io.h"
 
 static inline vm_obj_t vm_obj_num_add(vm_obj_t lhs, vm_obj_t rhs)
 {

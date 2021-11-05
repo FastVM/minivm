@@ -1,5 +1,6 @@
 #include "../vm/vm.h"
 #include "../vm/libc.h"
+#include "../vm/state.h"
 
 struct FILE;
 typedef struct FILE FILE;
@@ -21,7 +22,7 @@ int main(int argc, char *argv[argc])
         {
             for (const char *i = VM_CAN_NOT_OPEN; *i != '\0'; i++)
             {
-                putchar(*i);
+                vm_putchar(*i);
             }
             return 1;
         }
