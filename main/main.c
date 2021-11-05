@@ -6,12 +6,11 @@ typedef struct FILE FILE;
 
 FILE *fopen(const char *src, const char *name);
 int fclose(FILE *);
-int feof(FILE *);
-int fgetc(FILE *);
+size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
 
-vm_opcode_t vm_ops[1 << 16];
+vm_opcode_t vm_ops[1 << 24];
 
 int main(int argc, char *argv[argc])
 {
@@ -27,9 +26,14 @@ int main(int argc, char *argv[argc])
             return 1;
         }
         vm_opcode_t *ops = &vm_ops[0];
-        while (!feof(file))
+        while (true)
         {
-            vm_opcode_t op = (fgetc(file));
+            vm_opcode_t op;
+            int size = fread(ops, 4, 1, file);
+            if (size == 0)
+            {
+                break;
+            }
             *(ops++) = op;
         }
         fclose(file);
