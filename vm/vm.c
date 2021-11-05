@@ -127,11 +127,14 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
 
 void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
 {
-    vm_gc_t *gc = state->gc;
+    vm_loc_t cur_index = 0;
+    
 
     vm_stack_frame_t *frames_base = vm_calloc(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
     vm_obj_t *locals_base = vm_calloc(VM_LOCALS_UNITS * sizeof(vm_obj_t));
     vm_handler_frame_t *effects_base = vm_calloc((1 << 12) * sizeof(vm_handler_frame_t));
+  
+    vm_gc_t *gc = state->gc;
     gc->low = locals_base;
     gc->high = locals_base + VM_LOCALS_UNITS;
 
@@ -139,7 +142,6 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     vm_obj_t *cur_locals = locals_base;
     vm_handler_frame_t *cur_effect = effects_base;
 
-    vm_loc_t cur_index = 0;
 
     vm_gc_entry_t *handlers = gc_new(map, gc);
     cur_locals[0] = vm_obj_of_ptr(handlers);

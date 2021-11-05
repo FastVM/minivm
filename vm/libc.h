@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define VM_FRAMES_UNITS (1 << 16)
+#define VM_FRAMES_UNITS (1 << 12)
 #define VM_LOCALS_UNITS (VM_FRAMES_UNITS * 16)
 
 #if !defined(NULL)

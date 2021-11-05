@@ -49,7 +49,7 @@ size_t vm_map_hash_obj(vm_obj_t obj)
     if (vm_obj_is_num(obj))
     {
         vm_number_t n = vm_obj_to_num(obj);
-        return (size_t) n ^ (size_t) (n * (1 << 16));
+        return ((size_t) n ^ (size_t) (n * (1 << 20))) * 2654435769;
     }
     if (vm_obj_is_fun(obj))
     {
@@ -68,7 +68,7 @@ struct vm_map_t
 
 void vm_map_grow(vm_map_t *map)
 {
-    size_t new_alloc = map->alloc + 1;
+    size_t new_alloc = map->alloc + 2;
     vm_obj_t *keys = vm_malloc(sizeof(vm_obj_t) * (1 << new_alloc));
     vm_obj_t *values = vm_malloc(sizeof(vm_obj_t) * (1 << new_alloc));
     for (size_t i = 0; i < (1 << new_alloc); i++)
