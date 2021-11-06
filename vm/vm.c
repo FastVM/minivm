@@ -228,7 +228,7 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_CALL_HANDLER] = &&do_call_handler;
     ptrs[VM_OPCODE_RETURN_HANDLER] = &&do_return_handler;
     ptrs[VM_OPCODE_EXIT_HANDLER] = &&do_exit_handler;
-    // ptrs[VM_OPCODE_SYS_EXEC] = &&do_sys_exec;
+    ptrs[VM_OPCODE_EXEC] = &&do_exec;
     ptrs[VM_OPCODE_TYPE] = &&do_type;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
@@ -291,14 +291,19 @@ do_exit_handler:
     vm_fetch;
     run_next_op;
 }
-// do_sys_exec:
-// {
-//     vm_reg_t out = read_reg;
-//     vm_reg_t in = read_reg;
-//     vm_fetch;
-//     cur_locals[out] = vm_sys_exec(gc, cur_locals[in]);
-//     run_next_op;
-// }
+do_exec:
+{
+    vm_reg_t in = read_reg;
+    vm_fetch;
+    vm_gc_entry_array_t *ent = vm_obj_to_ptr(cur_locals[in]);
+    vm_opcode_t *ops = vm_malloc(ent->len);
+    for (size_t i = 0; i < ent->len; i++)
+    {
+        ops[i] = vm_obj_to_int(ent->obj[i]);
+    }
+    vm_run(state, ent->len, ops);
+    run_next_op;
+}
 do_return:
 {
     vm_reg_t from = read_reg;
