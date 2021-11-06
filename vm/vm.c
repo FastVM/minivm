@@ -128,7 +128,6 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
 void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
 {
     vm_loc_t cur_index = 0;
-    
 
     vm_stack_frame_t *frames_base = vm_calloc(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
     vm_obj_t *locals_base = vm_calloc(VM_LOCALS_UNITS * sizeof(vm_obj_t));
@@ -293,15 +292,21 @@ do_exit_handler:
 }
 do_exec:
 {
+    vm_state_t *newstate = vm_state_new();
     vm_reg_t in = read_reg;
-    vm_fetch;
-    vm_gc_entry_array_t *ent = vm_obj_to_ptr(cur_locals[in]);
-    vm_opcode_t *ops = vm_malloc(ent->len);
-    for (size_t i = 0; i < ent->len; i++)
+    vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
+    int len = vm_obj_to_int(vm_gc_sizeof(ent));
+    vm_opcode_t *xops = vm_calloc(sizeof(vm_opcode_t) * len);
+    for (int i = 0; i < len; i++)
     {
-        ops[i] = vm_obj_to_int(ent->obj[i]);
+        vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
+        double n = vm_obj_to_num(obj);
+        xops[i] = (vm_opcode_t) n;
     }
-    vm_run(state, ent->len, ops);
+
+    vm_run(newstate, len, xops);
+    vm_state_del(newstate);
+    vm_fetch;
     run_next_op;
 }
 do_return:

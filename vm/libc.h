@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#if defined(VM_DEBUG_OPCODE)
+int printf(const char *fmt, ...);
+#endif
+
 #define VM_FRAMES_UNITS (1 << 12)
 #define VM_LOCALS_UNITS (VM_FRAMES_UNITS * 16)
 
@@ -14,7 +18,12 @@
 int putchar(int chr);
 double fmod(double a, double b);
 
+#if defined(VM_DEBUG_PUTCHAR)
+int printf(const char *fmt, ...);
+#define vm_putchar(chr) (printf("[%hhu]\n", chr))
+#else
 #define vm_putchar(chr) (putchar(chr))
+#endif
 #define vm_fmod(lhs, rhs) (fmod(lhs, rhs))
 
 #if defined(VM_USE_MIMALLOC)
