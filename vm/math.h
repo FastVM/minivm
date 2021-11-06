@@ -133,7 +133,7 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
     }
     case VM_TYPE_STRING:
     {
-        vm_gc_entry_string_t *ra = (vm_gc_entry_string_t *)lent;
+        vm_gc_entry_string_t *ra = (vm_gc_entry_string_t *)rent;
         vm_gc_entry_string_t *la = (vm_gc_entry_string_t *)lent;
         size_t len = la->len;
         if (len != ra->len)
