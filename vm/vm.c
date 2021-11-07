@@ -88,7 +88,7 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
             {\
                 state->putchar(state, *src);\
             }\
-            goto do_exit;\
+            __builtin_trap();\
         }\
         vm_obj_t funcv = pair.handler;                                                           \
         int level = pair.depth;                                                                  \
@@ -231,6 +231,7 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_EXIT_HANDLER] = &&do_exit_handler;
     ptrs[VM_OPCODE_EXEC] = &&do_exec;
     ptrs[VM_OPCODE_TYPE] = &&do_type;
+    ptrs[VM_OPCODE_EXTEND] = &&do_extend;
     ptrs[VM_OPCODE_PUSH] = &&do_push;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
@@ -370,6 +371,23 @@ do_push:
     vm_fetch;
     vm_obj_t to = cur_locals[toreg];
     vm_obj_t from = cur_locals[fromreg];
+    #if defined(VM_USE_TYPES)
+    if (!vm_obj_is_ptr(to))
+    {
+        run_next_op_after_effect(toreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+    #endif
+    vm_gc_entry_t *ptr = vm_obj_to_ptr(to);
+    vm_gc_set_index(ptr, vm_gc_sizeof(ptr), from);
+    run_next_op;
+}
+do_extend:
+{
+    vm_reg_t toreg = vm_read;
+    vm_reg_t fromreg = vm_read;
+    vm_fetch;
+    vm_obj_t to = cur_locals[toreg];
+    vm_obj_t from = cur_locals[fromreg];
 #if defined(VM_USE_TYPES)
     if (!vm_obj_is_ptr(to))
     {
@@ -382,7 +400,7 @@ do_push:
         run_next_op_after_effect(toreg, vm_obj_of_num(VM_EFFECT_TYPE));
     }
 #endif
-    vm_obj_t res = vm_gc_push(vm_obj_to_ptr(to), vm_obj_to_ptr(from));
+    vm_obj_t res = vm_gc_extend(vm_obj_to_ptr(to), vm_obj_to_ptr(from));
 #if defined(VM_USE_TYPES)
     if (vm_obj_is_dead(from))
     {

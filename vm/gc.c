@@ -307,7 +307,7 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
     }
 }
 
-vm_obj_t vm_gc_push(vm_gc_entry_t *to, vm_gc_entry_t *from)
+vm_obj_t vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from)
 {
     if (to->type != VM_TYPE_ARRAY)
     {
@@ -355,6 +355,10 @@ vm_obj_t vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value)
             int alloc = 4 + i * 2;
             arr->obj = vm_realloc(arr->obj, sizeof(vm_obj_t) * alloc);
             arr->alloc = alloc;
+        }
+        if (i >= arr->len)
+        {
+            arr->len = i + 1;
         }
         arr->obj[i] = value;
         return vm_obj_of_none();
