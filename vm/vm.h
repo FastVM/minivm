@@ -91,6 +91,7 @@ enum vm_opcode_t
     VM_OPCODE_EXEC,
     VM_OPCODE_EXTEND,
     VM_OPCODE_PUSH,
+    VM_OPCODE_INDEX_GET_NUM,
     VM_OPCODE_MAX1,
     VM_OPCODE_MAX2P = 128,
 };

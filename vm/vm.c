@@ -233,6 +233,7 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_TYPE] = &&do_type;
     ptrs[VM_OPCODE_EXTEND] = &&do_extend;
     ptrs[VM_OPCODE_PUSH] = &&do_push;
+    ptrs[VM_OPCODE_INDEX_GET_NUM] = &&do_index_get_num;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
     cur_frame->locals = cur_locals + VM_GLOBALS_NUM;
@@ -572,6 +573,26 @@ do_index_get:
     }
 #endif
     cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), index);
+    if (vm_obj_is_dead(cur_locals[outreg]))
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_BOUNDS));
+    }
+    run_next_op;
+}
+do_index_get_num:
+{
+    vm_reg_t outreg = vm_read;
+    vm_reg_t reg = vm_read;
+    int ind = vm_read;
+    vm_fetch;
+    vm_obj_t vec = cur_locals[reg];
+#if defined(VM_USE_TYPES)
+    if (!vm_obj_is_ptr(vec))
+    {
+        run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+#endif
+    cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), vm_obj_of_int(ind));
     if (vm_obj_is_dead(cur_locals[outreg]))
     {
         run_next_op_after_effect(outreg, vm_obj_of_num(VM_EFFECT_BOUNDS));
