@@ -148,10 +148,6 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
         }
         return true;
     }
-    case VM_TYPE_BOX:
-    {
-        return vm_obj_eq(vm_gc_get_box(lent), vm_gc_get_box(rent));
-    }
     }
     return false;
 }

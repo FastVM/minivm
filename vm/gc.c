@@ -1,22 +1,8 @@
 #include "gc.h"
 #include "obj.h"
-#include "obj/map.h"
 
 void vm_gc_mark_ptr(vm_gc_entry_t *ent);
 void vm_gc_free(vm_gc_entry_t *ent);
-
-static inline int vm_gc_mark_map_entry(void *state, vm_obj_t key, vm_obj_t val)
-{
-    if (vm_obj_is_ptr(key))
-    {
-        vm_gc_mark_ptr(vm_obj_to_ptr(key));
-    }
-    if (vm_obj_is_ptr(val))
-    {
-        vm_gc_mark_ptr(vm_obj_to_ptr(val));
-    }
-    return 0;
-}
 
 void vm_gc_mark_ptr(vm_gc_entry_t *ent)
 {
@@ -27,16 +13,6 @@ void vm_gc_mark_ptr(vm_gc_entry_t *ent)
     ent->keep = true;
     switch (ent->type)
     {
-    case VM_TYPE_BOX:
-    {
-        vm_gc_entry_box_t *box_ent = (vm_gc_entry_box_t *)ent;
-        vm_obj_t obj = box_ent->obj;
-        if (vm_obj_is_ptr(obj))
-        {
-            vm_gc_mark_ptr(vm_obj_to_ptr(obj));
-        }
-        break;
-    }
     case VM_TYPE_ARRAY:
     {
         vm_gc_entry_array_t *arr_ent = (vm_gc_entry_array_t *)ent;
@@ -50,12 +26,6 @@ void vm_gc_mark_ptr(vm_gc_entry_t *ent)
         }
         break;
     }
-    case VM_TYPE_MAP:
-    {
-        vm_gc_entry_map_t *map_ent = (vm_gc_entry_map_t *)ent;
-        vm_map_for_pairs(map_ent->map, NULL, vm_gc_mark_map_entry);
-        break;
-    }
     case VM_TYPE_STRING:
     {
         break;
@@ -65,19 +35,6 @@ void vm_gc_mark_ptr(vm_gc_entry_t *ent)
 
 void vm_gc_free(vm_gc_entry_t *ent)
 {
-    switch (vm_gc_type(ent))
-    {
-    case VM_TYPE_MAP:
-    {
-        vm_gc_entry_map_t *map = (vm_gc_entry_map_t *)ent;
-        vm_map_del(map->map);
-        break;
-    }
-    default:
-    {
-        break;
-    }
-    }
     vm_free(ent);
 }
 
@@ -146,24 +103,6 @@ void vm_gc_stop(vm_gc_t *gc)
     }
 }
 
-vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc)
-{
-    gc->remain--;
-    if (gc->remain == 0) {
-        vm_gc_run1(gc);
-    }
-    vm_gc_entry_map_t *entry = vm_malloc(sizeof(vm_gc_entry_map_t));
-    *entry = (vm_gc_entry_map_t){
-        .next = gc->first,
-        .keep = false,
-        .type = VM_TYPE_MAP,
-        .map = vm_map_new(),
-    };
-    vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    gc->first = (vm_gc_entry_t *) entry;
-    return obj;
-}
-
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
 {
     gc->remain--;
@@ -202,61 +141,6 @@ vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t size)
     return obj;
 }
 
-vm_gc_entry_t *vm_gc_box_new(vm_gc_t *gc)
-{
-    gc->remain--;
-    if (gc->remain == 0) {
-        vm_gc_run1(gc);
-    }
-    vm_gc_entry_box_t *entry = vm_malloc(sizeof(vm_gc_entry_box_t));
-    *entry = (vm_gc_entry_box_t){
-        .next = gc->first,
-        .keep = false,
-        .type = VM_TYPE_BOX,
-    };
-    vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    gc->first = (vm_gc_entry_t *) entry;
-    return obj;
-}
-
-vm_gc_entry_t *vm_gc_ref_new(vm_gc_t *gc, vm_obj_t *value)
-{
-    gc->remain--;
-    if (gc->remain == 0) {
-        vm_gc_run1(gc);
-    }
-    vm_gc_entry_ref_t *entry = vm_malloc(sizeof(vm_gc_entry_ref_t));
-    *entry = (vm_gc_entry_ref_t){
-        .next = gc->first,
-        .keep = false,
-        .type = VM_TYPE_REF,
-        .ref = value,
-    };
-    vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    gc->first = (vm_gc_entry_t *) entry;
-    return obj;
-}
-
-vm_obj_t vm_gc_get_box(vm_gc_entry_t *box)
-{
-    return ((vm_gc_entry_box_t *)box)->obj;
-}
-
-vm_obj_t *vm_gc_get_ref(vm_gc_entry_t *box)
-{
-    return ((vm_gc_entry_ref_t *)box)->ref;
-}
-
-void vm_gc_set_ref(vm_gc_entry_t *box, vm_obj_t value)
-{
-    *((vm_gc_entry_ref_t *)box)->ref = value;
-}
-
-void vm_gc_set_box(vm_gc_entry_t *box, vm_obj_t value)
-{
-    ((vm_gc_entry_box_t *)box)->obj = value;
-}
-
 int vm_gc_type(vm_gc_entry_t *ent)
 {
     return ent->type;
@@ -280,10 +164,6 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
             return vm_obj_of_dead();
         }
         return ent->obj[iind];
-    }
-    case VM_TYPE_MAP:
-    {
-        return vm_map_get_index(((vm_gc_entry_map_t *)ptr)->map, index);
     }
     case VM_TYPE_STRING:
     {
@@ -363,11 +243,6 @@ vm_obj_t vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value)
         arr->obj[i] = value;
         return vm_obj_of_none();
     }
-    case VM_TYPE_MAP:
-    {
-        vm_map_set_index(((vm_gc_entry_map_t *)ptr)->map, index, value);
-        return vm_obj_of_none();
-    }
     case VM_TYPE_STRING:
     {
         ((vm_gc_entry_string_t *)ptr)->obj[vm_obj_to_int(index)] = vm_obj_to_int(value);
@@ -387,10 +262,6 @@ vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr)
     case VM_TYPE_ARRAY:
     {
         return vm_obj_of_int(((vm_gc_entry_array_t *)ptr)->len);
-    }
-    case VM_TYPE_MAP:
-    {
-        return vm_obj_of_int(vm_map_sizeof(((vm_gc_entry_map_t *)ptr)->map));
     }
     case VM_TYPE_STRING:
     {

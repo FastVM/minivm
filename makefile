@@ -6,7 +6,7 @@ MICC=$(CC)
 P=-p
 FPIC=-fPIC
 
-CFILES=vm/vm.c vm/state.c vm/gc.c vm/obj/map.c main/main.c
+CFILES=vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS=$(CFILES:%.c=%.o)
 
 BINS=bin/minivm

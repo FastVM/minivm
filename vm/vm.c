@@ -4,8 +4,6 @@
 #include "obj.h"
 #include "libc.h"
 #include "effect.h"
-#include "obj/map.h"
-#include "sys/sys.h"
 #include "state.h"
 
 #define VM_GLOBALS_NUM (1024)
@@ -230,64 +228,6 @@ do_array_new:
     }
     vm_fetch;
     cur_locals[outreg] = vm_obj_of_ptr(vec);
-    run_next_op;
-}
-do_ref_new:
-{
-    vm_reg_t outreg = vm_read;
-    vm_reg_t inreg = vm_read;
-    vm_fetch;
-    vm_gc_entry_t *box = gc_new(ref, gc, &cur_locals[inreg]);
-    cur_locals[outreg] = vm_obj_of_ptr(box);
-    run_next_op;
-}
-do_box_new:
-{
-    vm_reg_t outreg = vm_read;
-    vm_reg_t inreg = vm_read;
-    vm_fetch;
-    vm_gc_entry_t *box = gc_new(box, gc);
-    vm_gc_set_box(box, cur_locals[inreg]);
-    cur_locals[outreg] = vm_obj_of_ptr(box);
-    run_next_op;
-}
-do_map_new:
-{
-    vm_reg_t outreg = vm_read;
-    vm_fetch;
-    vm_gc_entry_t *map = gc_new(map, gc);
-    cur_locals[outreg] = vm_obj_of_ptr(map);
-    run_next_op;
-}
-do_ref_get:
-{
-    vm_reg_t outreg = vm_read;
-    vm_reg_t inreg = vm_read;
-    vm_fetch;
-    vm_obj_t obj = cur_locals[inreg];
-    vm_gc_entry_t *ref = vm_obj_to_ptr(cur_locals[inreg]);
-    vm_obj_t *val = vm_gc_get_ref(ref);
-    cur_locals[outreg] = *val;
-    run_next_op;
-}
-do_set_box:
-{
-    vm_reg_t outreg = vm_read;
-    vm_reg_t inreg = vm_read;
-    vm_fetch;
-    vm_obj_t obj = cur_locals[outreg];
-    vm_gc_entry_t *box = vm_obj_to_ptr(obj);
-    vm_gc_set_box(box, cur_locals[inreg]);
-    run_next_op;
-}
-do_get_box:
-{
-    vm_reg_t outreg = vm_read;
-    vm_reg_t inreg = vm_read;
-    vm_fetch;
-    vm_obj_t obj = cur_locals[inreg];
-    vm_gc_entry_t *box = vm_obj_to_ptr(cur_locals[inreg]);
-    cur_locals[outreg] = vm_gc_get_box(box);
     run_next_op;
 }
 do_length:

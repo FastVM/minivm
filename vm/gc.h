@@ -71,30 +71,3 @@ typedef struct
     uint32_t len;
     uint8_t obj[0];
 } vm_gc_entry_string_t;
-
-typedef struct
-{
-    vm_gc_entry_t *next;
-    bool keep: 1;
-    uint32_t type: 31;
-    uint32_t data;
-    vm_obj_t obj;
-} vm_gc_entry_box_t;
-
-typedef struct
-{
-    vm_gc_entry_t *next;
-    bool keep: 1;
-    uint32_t type: 31;
-    uint32_t data;
-    vm_obj_t *ref;
-} vm_gc_entry_ref_t;
-
-typedef struct
-{
-    vm_gc_entry_t *next;
-    bool keep: 1;
-    uint32_t type: 31;
-    uint32_t data;
-    void *map;
-} vm_gc_entry_map_t;
