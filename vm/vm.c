@@ -170,6 +170,7 @@ do_read:
             break;
         }
     }
+    fclose(in);
     vm_gc_entry_t *ent = gc_new(string, gc, where);
     for (int i = 0; i < where; i++)
     {
