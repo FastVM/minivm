@@ -30,7 +30,7 @@ int vm_main_run(char *src, size_t argc, char **argv)
     while (true)
     {
         vm_opcode_t op;
-        int size = fread(ops, 4, 1, file);
+        int size = fread(&op, 4, 1, file);
         if (size == 0)
         {
             break;
