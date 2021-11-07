@@ -231,6 +231,7 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_EXIT_HANDLER] = &&do_exit_handler;
     ptrs[VM_OPCODE_EXEC] = &&do_exec;
     ptrs[VM_OPCODE_TYPE] = &&do_type;
+    ptrs[VM_OPCODE_PUSH] = &&do_push;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
     cur_frame->locals = cur_locals + VM_GLOBALS_NUM;
@@ -313,13 +314,16 @@ do_exec:
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
     int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
     vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * xlen);
+    FILE *out = fopen("exec.bc", "wb");
     for (int i = 0; i < xlen; i++)
     {
         vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
         double n = vm_obj_to_num(obj);
         xops[i] = (vm_opcode_t) n;
         // printf("num: %i\n", xops[i]);
+        fwrite(&xops[i], 1, sizeof(vm_opcode_t), out);
     }
+    fclose(out);
     vm_gc_entry_t *vargs = vm_obj_to_ptr(cur_locals[argreg]);
     int nargs = vm_obj_to_int(vm_gc_sizeof(vargs));
     char **args = vm_malloc(sizeof(const char *) * nargs);
@@ -357,6 +361,34 @@ do_return:
     vm_reg_t outreg = cur_frame->outreg;
     cur_locals[outreg] = val;
     vm_fetch;
+    run_next_op;
+}
+do_push:
+{
+    vm_reg_t toreg = vm_read;
+    vm_reg_t fromreg = vm_read;
+    vm_fetch;
+    vm_obj_t to = cur_locals[toreg];
+    vm_obj_t from = cur_locals[fromreg];
+#if defined(VM_USE_TYPES)
+    if (!vm_obj_is_ptr(to))
+    {
+        run_next_op_after_effect(toreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+#endif
+#if defined(VM_USE_TYPES)
+    if (!vm_obj_is_ptr(from))
+    {
+        run_next_op_after_effect(toreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+#endif
+    vm_obj_t res = vm_gc_push(vm_obj_to_ptr(to), vm_obj_to_ptr(from));
+#if defined(VM_USE_TYPES)
+    if (vm_obj_is_dead(from))
+    {
+        run_next_op_after_effect(toreg, vm_obj_of_num(VM_EFFECT_TYPE));
+    }
+#endif
     run_next_op;
 }
 do_type:

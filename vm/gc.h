@@ -31,6 +31,7 @@ void vm_gc_set_box(vm_gc_entry_t *ptr, vm_obj_t value);
 vm_obj_t *vm_gc_get_ref(vm_gc_entry_t *ptr);
 void vm_gc_set_ref(vm_gc_entry_t *ptr, vm_obj_t value);
 vm_obj_t vm_gc_get_box(vm_gc_entry_t *ptr);
+vm_obj_t vm_gc_push(vm_gc_entry_t *to, vm_gc_entry_t *from);
 vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr);
 vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index);
 vm_obj_t vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value);
@@ -58,7 +59,8 @@ typedef struct
     bool keep: 1;
     uint32_t type: 31;
     uint32_t len;
-    vm_obj_t obj[0];
+    uint32_t alloc;
+    vm_obj_t *obj;
 } vm_gc_entry_array_t;
 
 typedef struct

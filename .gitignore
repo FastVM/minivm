@@ -19,3 +19,4 @@ hello.c
 ape.lds
 scosmopolitan.h
 *.dep
+*.core

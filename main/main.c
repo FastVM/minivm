@@ -2,13 +2,6 @@
 #include "../vm/libc.h"
 #include "../vm/state.h"
 
-struct FILE;
-typedef struct FILE FILE;
-
-FILE *fopen(const char *src, const char *name);
-int fclose(FILE *);
-size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
-
 #define VM_CAN_NOT_RUN "cannot run vm: not enough args\n"
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
 

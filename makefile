@@ -1,11 +1,11 @@
 
-OPT=-O3
+OPT=-Os
 
 BIN=bin
 LIB=lib
 P=-p
 
-CFILES=vm/vm.c vm/io.c vm/gc.c vm/obj/map.c
+CFILES=vm/vm.c vm/gc.c vm/state.c vm/obj/map.c
 
 default: all
 
