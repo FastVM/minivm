@@ -2,8 +2,8 @@
 
 #include "libc.h"
 
-typedef uint32_t vm_reg_t;
-typedef uint32_t vm_opcode_t;
+typedef int32_t vm_reg_t;
+typedef int32_t vm_opcode_t;
 
 #include "obj.h"
 

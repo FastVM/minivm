@@ -224,7 +224,6 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_ARRAY_NEW] = &&do_array_new;
     ptrs[VM_OPCODE_MAP_NEW] = &&do_map_new;
     ptrs[VM_OPCODE_REF_GET] = &&do_ref_get;
-    // ptrs[VM_OPCODE_REF_SET] = &&do_ref_set;
     ptrs[VM_OPCODE_BOX_GET] = &&do_get_box;
     ptrs[VM_OPCODE_BOX_SET] = &&do_set_box;
     ptrs[VM_OPCODE_LENGTH] = &&do_length;
@@ -301,20 +300,40 @@ do_exit_handler:
 }
 do_exec:
 {
-    vm_state_t *newstate = vm_state_new(0, NULL);
     vm_reg_t in = read_reg;
+    vm_reg_t argreg = read_reg;
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
     int len = vm_obj_to_int(vm_gc_sizeof(ent));
-    vm_opcode_t *xops = vm_calloc(sizeof(vm_opcode_t) * len);
+    vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * len);
     for (int i = 0; i < len; i++)
     {
         vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
         double n = vm_obj_to_num(obj);
         xops[i] = (vm_opcode_t) n;
     }
-
+    vm_gc_entry_t *vargs = vm_obj_to_ptr(cur_locals[argreg]);
+    int nargs = vm_obj_to_int(vm_gc_sizeof(vargs));
+    char **args = vm_malloc(sizeof(const char *) * nargs);
+    for (int i = 0; i < nargs; i++)
+    {
+        vm_obj_t obj = vm_gc_get_index(vargs, vm_obj_of_int(i));
+        vm_gc_entry_t *arg = vm_obj_to_ptr(obj);
+        int alen = vm_obj_to_int(vm_gc_sizeof(arg));
+        args[i] = vm_malloc(sizeof(char) * (alen + 1));
+        for (int j = 0; j < alen; j++)
+        {
+            args[i][j] = vm_obj_to_int(vm_gc_get_index(arg, vm_obj_of_int(j)));
+        }
+        args[i][alen] = '\0';
+    }
+    vm_state_t *newstate = vm_state_new(nargs, (const char**) args);
     vm_run(newstate, len, xops);
     vm_state_del(newstate);
+    for (int i = 0; i < nargs; i++) {
+        vm_free(args[i]);
+    }
+    vm_free(args);
+    vm_free(xops);
     vm_fetch;
     run_next_op;
 }
