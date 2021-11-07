@@ -14,6 +14,6 @@ struct vm_state_t
 };
 
 void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *mem);
-vm_state_t *vm_state_new(void);
+vm_state_t *vm_state_new(size_t n, const char *args[n]);
 void vm_state_del(vm_state_t *);
 

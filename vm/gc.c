@@ -83,6 +83,10 @@ void vm_gc_free(vm_gc_entry_t *ent)
 
 void vm_gc_run1(vm_gc_t *gc)
 {
+    if (gc->low == NULL)
+    {
+        return;
+    }
     for (vm_obj_t *base = gc->low; base < gc->high; base++)
     {
         vm_obj_t cur = *base;

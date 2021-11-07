@@ -83,6 +83,13 @@ static inline find_handler_pair_t find_handler(vm_gc_entry_t *handlers, vm_obj_t
         vm_obj_t copy_effect = effect;                                                           \
         vm_obj_t *next_locals = cur_frame->locals;                                               \
         find_handler_pair_t pair = find_handler(handlers, copy_effect, cur_frame - frames_base); \
+        if (pair.depth == -1) {\
+            for (const char *src = "error: handler"; *src != '\0'; src += 1)\
+            {\
+                state->putchar(state, *src);\
+            }\
+            goto do_exit;\
+        }\
         vm_obj_t funcv = pair.handler;                                                           \
         int level = pair.depth;                                                                  \
         for (int i = 0; vm_obj_is_ptr(funcv); i++)                                               \
@@ -236,6 +243,8 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     run_next_op;
 do_exit:
 {
+    state->gc->low = NULL;
+    state->gc->high = NULL;
     vm_free(frames_base);
     vm_free(locals_base);
     vm_free(effects_base);
@@ -292,7 +301,7 @@ do_exit_handler:
 }
 do_exec:
 {
-    vm_state_t *newstate = vm_state_new();
+    vm_state_t *newstate = vm_state_new(0, NULL);
     vm_reg_t in = read_reg;
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
     int len = vm_obj_to_int(vm_gc_sizeof(ent));
