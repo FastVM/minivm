@@ -20,3 +20,4 @@ ape.lds
 scosmopolitan.h
 *.dep
 *.core
+minivm
