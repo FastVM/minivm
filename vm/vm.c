@@ -122,7 +122,7 @@ do_dump:
     for (int i = 0; i < xlen; i++)
     {
         vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
-        vm_opcode_t op = vm_obj_to_num(obj);
+        vm_opcode_t op = vm_obj_to_int(obj);
         fwrite(&op, 1, sizeof(vm_opcode_t), out);
     }
     fclose(out);
@@ -170,11 +170,9 @@ do_read:
             break;
         }
     }
-    fclose(in);
     vm_gc_entry_t *ent = gc_new(string, gc, where);
     for (int i = 0; i < where; i++)
     {
-        vm_putchar(str[i]);
         vm_gc_set_index(ent, vm_obj_of_int(i), vm_obj_of_int(str[i]));
     }
     vm_free(str);
@@ -202,8 +200,8 @@ do_write:
     for (int i = 0; i < xlen; i++)
     {
         vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
-        vm_opcode_t op = vm_obj_to_num(obj);
-        fwrite(&op, 1, sizeof(vm_opcode_t), out);
+        uint8_t op = vm_obj_to_num(obj);
+        fwrite(&op, 1, sizeof(uint8_t), out);
     }
     fclose(out);
     run_next_op;
