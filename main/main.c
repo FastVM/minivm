@@ -53,6 +53,14 @@ int main(int argc, char *argv[argc])
     for (size_t i = 0; i < nargs; i++)
     {
         FILE *file = fopen(argv[i + 2], "rb");
+        if (file == NULL)
+        {
+            for (const char *i = VM_CAN_NOT_OPEN; *i != '\0'; i++)
+            {
+                vm_putchar(*i);
+            }
+            return 1;
+        }
         args[i] = csrc;
         while (true)
         {
@@ -61,6 +69,7 @@ int main(int argc, char *argv[argc])
             if (size < 2048) {
                 *csrc = '\0';
                 csrc += 1;
+                fclose(file);
                 break;
             }
         }

@@ -14,7 +14,7 @@ BINS=bin/minivm
 default: bin/minivm
 
 minivm bin/minivm: $(OBJS)
-	: mkdir bin
+	: mkdir -pbin
 	$(CC) $(OBJS) -obin/minivm -lm $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) $(basename $@)
