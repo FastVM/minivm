@@ -29,6 +29,14 @@
             ret;                                             \
         })
 
+#define vm_read_reg                              \
+    (                                                        \
+        {                                                    \
+            vm_opcode_t ret = basefunc[cur_index];        \
+            cur_index += 1; \
+            ret;                                             \
+        })
+
 #define next_op (cur_index += 1, next_op_value)
 #define vm_fetch (next_op_value = ptrs[basefunc[cur_index]])
 
@@ -98,8 +106,8 @@ do_exit:
 }
 do_exec:
 {
-    vm_reg_t in = vm_read;
-    vm_reg_t argreg = vm_read;
+    vm_reg_t in = vm_read_reg;
+    vm_reg_t argreg = vm_read_reg;
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
     int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
     vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * xlen);
@@ -129,7 +137,6 @@ do_exec:
         args[i][alen] = '\0';
     }
     vm_state_t *newstate = vm_state_new(nargs, (const char**) args);
-    newstate->putchar = state->putchar;
     vm_run(newstate, xlen, xops);
     vm_state_del(newstate);
     for (int i = 0; i < nargs; i++) {
@@ -142,7 +149,7 @@ do_exec:
 }
 do_return:
 {
-    vm_reg_t from = vm_read;
+    vm_reg_t from = vm_read_reg;
     vm_obj_t val = cur_locals[from];
     cur_frame--;
     cur_locals = (cur_frame - 1)->locals;
@@ -154,8 +161,8 @@ do_return:
 }
 do_push:
 {
-    vm_reg_t toreg = vm_read;
-    vm_reg_t fromreg = vm_read;
+    vm_reg_t toreg = vm_read_reg;
+    vm_reg_t fromreg = vm_read_reg;
     vm_fetch;
     vm_obj_t to = cur_locals[toreg];
     vm_obj_t from = cur_locals[fromreg];
@@ -165,8 +172,8 @@ do_push:
 }
 do_extend:
 {
-    vm_reg_t toreg = vm_read;
-    vm_reg_t fromreg = vm_read;
+    vm_reg_t toreg = vm_read_reg;
+    vm_reg_t fromreg = vm_read_reg;
     vm_fetch;
     vm_obj_t to = cur_locals[toreg];
     vm_obj_t from = cur_locals[fromreg];
@@ -175,8 +182,8 @@ do_extend:
 }
 do_type:
 {
-    vm_reg_t outreg = vm_read;
-    vm_reg_t valreg = vm_read;
+    vm_reg_t outreg = vm_read_reg;
+    vm_reg_t valreg = vm_read_reg;
     vm_fetch;
     vm_obj_t obj = cur_locals[valreg];
     double num = -1;
@@ -205,7 +212,7 @@ do_type:
 }
 do_string_new:
 {
-    vm_reg_t outreg = vm_read;
+    vm_reg_t outreg = vm_read_reg;
     int nargs = vm_read;
     vm_gc_entry_t *str = gc_new(string, gc, nargs);
     for (size_t i = 0; i < nargs; i++)
@@ -218,12 +225,12 @@ do_string_new:
 }
 do_array_new:
 {
-    vm_reg_t outreg = vm_read;
+    vm_reg_t outreg = vm_read_reg;
     int nargs = vm_read;
     vm_gc_entry_t *vec = gc_new(array, gc, nargs);
     for (int i = 0; i < nargs; i++)
     {
-        vm_reg_t vreg = vm_read;
+        vm_reg_t vreg = vm_read_reg;
         vm_gc_set_index(vec, vm_obj_of_int(i), cur_locals[vreg]);
     }
     vm_fetch;
@@ -232,8 +239,8 @@ do_array_new:
 }
 do_length:
 {
-    vm_reg_t outreg = vm_read;
-    vm_reg_t reg = vm_read;
+    vm_reg_t outreg = vm_read_reg;
+    vm_reg_t reg = vm_read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
     cur_locals[outreg] = vm_gc_sizeof(vm_obj_to_ptr(vec));
@@ -241,9 +248,9 @@ do_length:
 }
 do_index_get:
 {
-    vm_reg_t outreg = vm_read;
-    vm_reg_t reg = vm_read;
-    vm_reg_t ind = vm_read;
+    vm_reg_t outreg = vm_read_reg;
+    vm_reg_t reg = vm_read_reg;
+    vm_reg_t ind = vm_read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
@@ -252,9 +259,9 @@ do_index_get:
 }
 do_index_set:
 {
-    vm_reg_t reg = vm_read;
-    vm_reg_t ind = vm_read;
-    vm_reg_t val = vm_read;
+    vm_reg_t reg = vm_read_reg;
+    vm_reg_t ind = vm_read_reg;
+    vm_reg_t val = vm_read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
@@ -264,13 +271,13 @@ do_index_set:
 }
 do_static_call:
 {
-    vm_reg_t outreg = vm_read;
+    vm_reg_t outreg = vm_read_reg;
     vm_loc_t next_func = vm_read;
     int nargs = vm_read;
     vm_obj_t *next_locals = cur_frame->locals;
     for (int argno = 1; argno <= nargs; argno++)
     {
-        vm_reg_t regno = vm_read;
+        vm_reg_t regno = vm_read_reg;
         next_locals[argno] = cur_locals[regno];
     }
     cur_locals = next_locals;
@@ -284,14 +291,14 @@ do_static_call:
 }
 do_store_none:
 {
-    vm_reg_t to = vm_read;
+    vm_reg_t to = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_none();
     run_next_op;
 }
 do_store_bool:
 {
-    vm_reg_t to = vm_read;
+    vm_reg_t to = vm_read_reg;
     int from = (int)vm_read;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool((bool)from);
@@ -299,15 +306,15 @@ do_store_bool:
 }
 do_store_reg:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t from = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t from = vm_read_reg;
     vm_fetch;
     cur_locals[to] = cur_locals[from];
     run_next_op;
 }
 do_store_int:
 {
-    vm_reg_t to = vm_read;
+    vm_reg_t to = vm_read_reg;
     int from = vm_read;
     vm_fetch;
     cur_locals[to] = vm_obj_of_int(from);
@@ -315,7 +322,7 @@ do_store_int:
 }
 do_store_fun:
 {
-    vm_reg_t to = vm_read;
+    vm_reg_t to = vm_read_reg;
     vm_loc_t func_end = vm_read;
     vm_loc_t head = cur_index;
     cur_index = func_end;
@@ -325,54 +332,54 @@ do_store_fun:
 }
 do_equal:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_eq(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_not_equal:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_neq(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_less:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_lt(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_greater:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_gt(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_less_than_equal:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_lte(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
 }
 do_greater_than_equal:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_of_bool(vm_obj_gte(cur_locals[lhs], cur_locals[rhs]));
     run_next_op;
@@ -388,7 +395,7 @@ do_branch_false:
 {
     vm_loc_t to1 = vm_read;
     vm_loc_t to2 = vm_read;
-    vm_reg_t from = vm_read;
+    vm_reg_t from = vm_read_reg;
     if (!vm_obj_to_bool(cur_locals[from]))
     {
         cur_index = to1;
@@ -404,7 +411,7 @@ do_branch_true:
 {
     vm_loc_t to1 = vm_read;
     vm_loc_t to2 = vm_read;
-    vm_reg_t from = vm_read;
+    vm_reg_t from = vm_read_reg;
     if (vm_obj_to_bool(cur_locals[from]))
     {
         cur_index = to1;
@@ -420,8 +427,8 @@ do_branch_equal:
 {
     vm_loc_t to1 = vm_read;
     vm_loc_t to2 = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     if (vm_obj_eq(cur_locals[lhs], cur_locals[rhs]))
     {
         cur_index = to1;
@@ -435,54 +442,54 @@ do_branch_equal:
 }
 do_add:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_add(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_mul:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_mul(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_sub:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_sub(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_div:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_div(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_mod:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     cur_locals[to] = vm_obj_num_mod(cur_locals[lhs], cur_locals[rhs]);
     run_next_op;
 }
 do_concat:
 {
-    vm_reg_t to = vm_read;
-    vm_reg_t lhs = vm_read;
-    vm_reg_t rhs = vm_read;
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
     vm_fetch;
     vm_obj_t o1 = cur_locals[lhs];
     vm_obj_t o2 = cur_locals[rhs];
@@ -491,7 +498,7 @@ do_concat:
 }
 do_putchar:
 {
-    vm_reg_t from = vm_read;
+    vm_reg_t from = vm_read_reg;
     vm_fetch;
     int val = vm_obj_to_int(cur_locals[from]);
     state->putchar(state, val);

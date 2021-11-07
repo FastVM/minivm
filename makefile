@@ -5,9 +5,9 @@ OPT_C=-Ofast
 CFILES=vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS=$(CFILES:%.c=%.o)
 
-default: minivm
+default: $(OUT)
 
-minivm $(OUT): $(OBJS)
+$(OUT): $(OBJS)
 	: mkdir -p bin
 	$(CC) $(OBJS) -o $(OUT) -lm $(LFLAGS)
 
@@ -20,4 +20,4 @@ info:
 .dummy:
 
 clean: .dummy
-	rm -f $(OBJS) bin/minivm
+	rm -f $(OBJS) $(OUT)
