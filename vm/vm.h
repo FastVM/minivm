@@ -40,6 +40,9 @@ enum vm_opcode_t
     VM_OPCODE_EXEC = 28,
     VM_OPCODE_EXTEND = 29,
     VM_OPCODE_PUSH = 30,
+    VM_OPCODE_DUMP = 31,
+    VM_OPCODE_READ = 32,
+    VM_OPCODE_WRITE = 33,
     VM_OPCODE_MAX1,
     VM_OPCODE_MAX2P = 128,
 };

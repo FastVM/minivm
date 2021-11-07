@@ -1,6 +1,6 @@
 OUT=minivm
 
-OPT_C=-Ofast
+OPT=-Ofast
 
 CFILES=vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS=$(CFILES:%.c=%.o)
@@ -12,10 +12,7 @@ $(OUT): $(OBJS)
 	$(CC) $(OBJS) -o $(OUT) -lm $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) $(basename $@)
-	$(CC) -c $(OPT_C) -o $@ $(@:%.o=%.c) $(CFLAGS)
-
-info:
-	@echo $(XCUR)
+	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)
 
 .dummy:
 

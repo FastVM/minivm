@@ -29,13 +29,7 @@
             ret;                                             \
         })
 
-#define vm_read_reg                              \
-    (                                                        \
-        {                                                    \
-            vm_opcode_t ret = basefunc[cur_index];        \
-            cur_index += 1; \
-            ret;                                             \
-        })
+#define vm_read_reg vm_read
 
 #define next_op (cur_index += 1, next_op_value)
 #define vm_fetch (next_op_value = ptrs[basefunc[cur_index]])
@@ -91,6 +85,9 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_TYPE] = &&do_type;
     ptrs[VM_OPCODE_EXTEND] = &&do_extend;
     ptrs[VM_OPCODE_PUSH] = &&do_push;
+    ptrs[VM_OPCODE_DUMP] = &&do_dump;
+    ptrs[VM_OPCODE_WRITE] = &&do_write;
+    ptrs[VM_OPCODE_READ] = &&do_read;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
     cur_frame->locals = cur_locals + VM_GLOBALS_NUM;
@@ -104,23 +101,130 @@ do_exit:
     vm_free(locals_base);
     return;
 }
+do_dump:
+{
+    vm_reg_t namreg = vm_read_reg;
+    vm_reg_t inreg = vm_read_reg;
+    vm_fetch;
+    vm_gc_entry_t *sname = vm_obj_to_ptr(cur_locals[namreg]);
+    int slen = vm_obj_to_int(vm_gc_sizeof(sname));
+    char *name = vm_malloc(sizeof(char) * (slen + 1));
+    for (int i = 0; i < slen; i++)
+    {
+        vm_obj_t obj = vm_gc_get_index(sname, vm_obj_of_int(i));
+        name[i] = vm_obj_to_num(obj);
+    }
+    name[slen] = '\0';
+    vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[inreg]);
+    int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
+    FILE *out = fopen(name, "wb");
+    vm_free(name);
+    for (int i = 0; i < xlen; i++)
+    {
+        vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
+        vm_opcode_t op = vm_obj_to_num(obj);
+        fwrite(&op, 1, sizeof(vm_opcode_t), out);
+    }
+    fclose(out);
+    run_next_op;
+}
+do_read:
+{
+    vm_reg_t outreg = vm_read_reg;
+    vm_reg_t namereg = vm_read_reg;
+    vm_fetch;
+    vm_gc_entry_t *sname = vm_obj_to_ptr(cur_locals[namereg]);
+    int slen = vm_obj_to_int(vm_gc_sizeof(sname));
+    char *name = vm_malloc(sizeof(char) * (slen + 1));
+    for (int i = 0; i < slen; i++)
+    {
+        vm_obj_t obj = vm_gc_get_index(sname, vm_obj_of_int(i));
+        name[i] = vm_obj_to_num(obj);
+    }
+    name[slen] = '\0';
+    int where = 0;
+    int nalloc = 64;
+    FILE *in = fopen(name, "rb");
+    vm_free(name);
+    if (in == NULL) {
+        cur_locals[outreg] = vm_obj_of_none();
+        run_next_op;
+    }
+    char *str = vm_malloc(sizeof(char) * nalloc);
+    while (true)
+    {
+        char buf[2048];
+        int n = fread(buf, 1, 2048, in);
+        for (int i = 0; i < n; i++)
+        {
+            if (where + 4 >= nalloc)
+            {
+                nalloc = 4 + nalloc * 2;
+                str = vm_realloc(str, sizeof(char) * nalloc);
+            }
+            str[where] = buf[i];
+            where += 1;
+        }
+        if (n < 2048)
+        {
+            break;
+        }
+    }
+    fclose(in);
+    vm_gc_entry_t *ent = gc_new(string, gc, where);
+    for (int i = 0; i < where; i++)
+    {
+        vm_putchar(str[i]);
+        vm_gc_set_index(ent, vm_obj_of_int(i), vm_obj_of_int(str[i]));
+    }
+    vm_free(str);
+    cur_locals[outreg] = vm_obj_of_ptr(ent);
+    run_next_op;
+}
+do_write:
+{
+    vm_reg_t outreg = vm_read_reg;
+    vm_reg_t inreg = vm_read_reg;
+    vm_fetch;
+    vm_gc_entry_t *sname = vm_obj_to_ptr(cur_locals[outreg]);
+    int slen = vm_obj_to_int(vm_gc_sizeof(sname));
+    char *name = vm_malloc(sizeof(char) * (slen + 1));
+    for (int i = 0; i < slen; i++)
+    {
+        vm_obj_t obj = vm_gc_get_index(sname, vm_obj_of_int(i));
+        name[i] = vm_obj_to_num(obj);
+    }
+    name[slen] = '\0';
+    vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[inreg]);
+    int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
+    FILE *out = fopen(name, "wb");
+    vm_free(name);
+    for (int i = 0; i < xlen; i++)
+    {
+        vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
+        vm_opcode_t op = vm_obj_to_num(obj);
+        fwrite(&op, 1, sizeof(vm_opcode_t), out);
+    }
+    fclose(out);
+    run_next_op;
+}
 do_exec:
 {
     vm_reg_t in = vm_read_reg;
     vm_reg_t argreg = vm_read_reg;
+    vm_fetch;
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
     int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
     vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * xlen);
-    FILE *out = fopen("exec.bc", "wb");
+    // FILE *out = fopen("exec.bc", "wb");
     for (int i = 0; i < xlen; i++)
     {
         vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
         double n = vm_obj_to_num(obj);
         xops[i] = (vm_opcode_t) n;
-        // printf("num: %i\n", xops[i]);
-        fwrite(&xops[i], 1, sizeof(vm_opcode_t), out);
+        // fwrite(&xops[i], 1, sizeof(vm_opcode_t), out);
     }
-    fclose(out);
+    // fclose(out);
     vm_gc_entry_t *vargs = vm_obj_to_ptr(cur_locals[argreg]);
     int nargs = vm_obj_to_int(vm_gc_sizeof(vargs));
     char **args = vm_malloc(sizeof(const char *) * nargs);
@@ -144,7 +248,6 @@ do_exec:
     }
     vm_free(args);
     vm_free(xops);
-    vm_fetch;
     run_next_op;
 }
 do_return:
