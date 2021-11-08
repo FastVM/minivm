@@ -13,9 +13,7 @@ enum
     VM_TYPE_FUNCTION = 3,
     VM_TYPE_ARRAY = 4,
     VM_TYPE_STRING = 5,
-    VM_TYPE_BOX = 6,
-    VM_TYPE_MAP = 7,
-    VM_TYPE_REF = 8,
+    VM_TYPE_MAP = 6,
 };
 
 // type check
