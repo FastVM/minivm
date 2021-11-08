@@ -104,10 +104,6 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
     void *lent = vm_obj_to_ptr(lhs);
     void *rent = vm_obj_to_ptr(rhs);
     int type = vm_gc_type(lent);
-    if (type != vm_gc_type(rent))
-    {
-        return false;
-    }
     switch (type)
     {
     case VM_TYPE_ARRAY:
@@ -122,7 +118,7 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
             vm_obj_t io = vm_obj_of_num(i);
             vm_obj_t cl = vm_gc_get_index(lent, io);
             vm_obj_t cr = vm_gc_get_index(rent, io);
-            if (vm_obj_to_int(cl) != vm_obj_to_int(cr))
+            if (!vm_obj_eq(cl, cr))
             {
                 return false;
             }
@@ -141,7 +137,7 @@ static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
             vm_obj_t io = vm_obj_of_num(i);
             vm_obj_t cl = vm_gc_get_index(lent, io);
             vm_obj_t cr = vm_gc_get_index(rent, io);
-            if (vm_obj_to_int(cl) != vm_obj_to_int(cr))
+            if (!vm_obj_eq(cl, cr))
             {
                 return false;
             }
