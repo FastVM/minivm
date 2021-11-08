@@ -1,6 +1,6 @@
 OUT=minivm
 
-OPT=-Ofast
+OPT=-O2
 
 CFILES=vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS=$(CFILES:%.c=%.o)
@@ -11,7 +11,7 @@ $(OUT): $(OBJS)
 	: mkdir -p bin
 	$(CC) $(OBJS) -o $(OUT) -lm $(LFLAGS)
 
-$(OBJS): $(@:%.o=%.c) $(basename $@)
+$(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)
 
 .dummy:

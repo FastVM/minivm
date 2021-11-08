@@ -33,8 +33,8 @@ int printf(const char *fmt, ...);
 #else
 #define vm_putchar(chr) (putchar(chr))
 #endif
-#define vm_fmod(lhs, rhs) (fmod(lhs, rhs))
 
+#define vm_fmod(lhs, rhs) (fmod(lhs, rhs))
 
 void *malloc(size_t size);
 void *calloc(size_t n, size_t size);

@@ -5,8 +5,6 @@
 #define VM_CAN_NOT_RUN "cannot run vm: not enough args\n"
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
 
-vm_opcode_t vm_ops[1 << 24];
-char vm_srcs[1 << 24];
 
 int vm_main_run(char *src, size_t argc, char **argv)
 {
@@ -19,6 +17,7 @@ int vm_main_run(char *src, size_t argc, char **argv)
         }
         return 1;
     }
+    vm_opcode_t *vm_ops = vm_malloc(1 << 24);
     vm_opcode_t *ops = &vm_ops[0];
     while (true)
     {
@@ -34,11 +33,13 @@ int vm_main_run(char *src, size_t argc, char **argv)
     vm_state_t *state = vm_state_new(argc, (const char **) argv);
     vm_run(state, ops - vm_ops, vm_ops);
     vm_state_del(state);
+    vm_free(vm_ops);
     return 0;
 }
 
 int main(int argc, char *argv[argc])
 {
+
     if (argc < 2)
     {
         for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++)
