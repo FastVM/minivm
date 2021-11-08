@@ -2,7 +2,7 @@ OUT=minivm
 
 OPT=-O2
 
-CFILES=vm/vm.c vm/state.c vm/map.c vm/gc.c main/main.c
+CFILES=vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS=$(CFILES:%.c=%.o)
 
 default: $(OUT)

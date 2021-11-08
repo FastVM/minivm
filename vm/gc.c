@@ -1,21 +1,5 @@
 #include "gc.h"
 #include "obj.h"
-#include "map.h"
-
-void vm_gc_mark_ptr(vm_gc_entry_t *ent);
-
-static inline int vm_gc_mark_map_entry(void *state, vm_obj_t key, vm_obj_t val)
-{
-    if (vm_obj_is_ptr(key))
-    {
-        vm_gc_mark_ptr(vm_obj_to_ptr(key));
-    }
-    if (vm_obj_is_ptr(val))
-    {
-        vm_gc_mark_ptr(vm_obj_to_ptr(val));
-    }
-    return 0;
-}
 
 void vm_gc_mark_ptr(vm_gc_entry_t *ent)
 {
@@ -43,22 +27,11 @@ void vm_gc_mark_ptr(vm_gc_entry_t *ent)
     {
         break;
     }
-    case VM_TYPE_MAP:
-    {
-        vm_gc_entry_map_t *map_ent = (vm_gc_entry_map_t *)ent;
-        vm_map_for_pairs(map_ent->map, NULL, vm_gc_mark_map_entry);
-        break;
-    }
     }
 }
 
 void vm_gc_free(vm_gc_entry_t *ent)
 {
-    if (ent->type == VM_TYPE_MAP)
-    {
-        vm_gc_entry_map_t *map = (vm_gc_entry_map_t *)ent;
-        vm_map_del(map->map);
-    }
     vm_free(ent);
 }
 
@@ -159,24 +132,6 @@ vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t size)
         .keep = false,
         .type = VM_TYPE_STRING,
         .len = size,
-    };
-    vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
-    gc->first = (vm_gc_entry_t *) entry;
-    return obj;
-}
-
-vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc)
-{
-    gc->remain--;
-    if (gc->remain == 0) {
-        vm_gc_run1(gc);
-    }
-    vm_gc_entry_map_t *entry = vm_malloc(sizeof(vm_gc_entry_map_t));
-    *entry = (vm_gc_entry_map_t){
-        .next = gc->first,
-        .keep = false,
-        .type = VM_TYPE_MAP,
-        .map = vm_map_new(),
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
     gc->first = (vm_gc_entry_t *) entry;
@@ -285,11 +240,6 @@ vm_obj_t vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value)
         arr->obj[i] = value;
         return vm_obj_of_none();
     }
-    case VM_TYPE_MAP:
-    {
-        vm_map_set_index(((vm_gc_entry_map_t *)ptr)->map, index, value);
-        return vm_obj_of_none();
-    }
     case VM_TYPE_STRING:
     {
         ((vm_gc_entry_string_t *)ptr)->obj[vm_obj_to_int(index)] = vm_obj_to_int(value);
@@ -313,10 +263,6 @@ vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr)
     case VM_TYPE_STRING:
     {
         return vm_obj_of_int(((vm_gc_entry_string_t *)ptr)->len);
-    }
-    case VM_TYPE_MAP:
-    {
-        return vm_obj_of_int(vm_map_sizeof(((vm_gc_entry_map_t *)ptr)->map));
     }
     default:
     {

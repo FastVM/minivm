@@ -88,7 +88,6 @@ void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_DUMP] = &&do_dump;
     ptrs[VM_OPCODE_WRITE] = &&do_write;
     ptrs[VM_OPCODE_READ] = &&do_read;
-    ptrs[VM_OPCODE_MAP_NEW] = &&do_map_new;
     ptrs[VM_OPCODE_LOAD_GLOBAL] = &&do_load_global;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
@@ -102,13 +101,6 @@ do_exit:
     vm_free(frames_base);
     vm_free(locals_base);
     return;
-}
-do_map_new:
-{
-    vm_reg_t out = vm_read_reg;
-    vm_fetch;
-    cur_locals[out] = vm_obj_of_ptr(gc_new(map, gc));
-    run_next_op;
 }
 do_load_global:
 {
