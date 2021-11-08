@@ -125,14 +125,16 @@ do_dump:
     }
     name[slen] = '\0';
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[inreg]);
+    uint8_t size = sizeof(vm_opcode_t); 
     int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
     FILE *out = fopen(name, "wb");
+    fwrite(&size, 1, 1, out);
     vm_free(name);
     for (int i = 0; i < xlen; i++)
     {
         vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
         vm_opcode_t op = vm_obj_to_int(obj);
-        fwrite(&op, 1, sizeof(vm_opcode_t), out);
+        fwrite(&op, sizeof(vm_opcode_t), 1,  out);
     }
     fclose(out);
     run_next_op;

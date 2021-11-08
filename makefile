@@ -1,6 +1,6 @@
 OUT=minivm
 
-OPT=-O2
+OPT=-Os
 
 CFILES=vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS=$(CFILES:%.c=%.o)

@@ -17,12 +17,19 @@ int vm_main_run(char *src, size_t argc, char **argv)
         }
         return 1;
     }
+    uint8_t nver = 2;
+    fread(&nver, 1, 1, file);
     vm_opcode_t *vm_ops = vm_malloc(1 << 24);
     vm_opcode_t *ops = &vm_ops[0];
     while (true)
     {
         vm_opcode_t op;
-        int size = fread(&op, 4, 1, file);
+        int size = fread(&op, sizeof(vm_opcode_t), 1, file);
+        if (nver != sizeof(vm_opcode_t))
+        {
+            uint8_t xbuf[nver - sizeof(vm_opcode_t)];
+            fread(xbuf, nver - sizeof(vm_opcode_t), 1, file);
+        }
         if (size == 0)
         {
             break;
@@ -39,7 +46,6 @@ int vm_main_run(char *src, size_t argc, char **argv)
 
 int main(int argc, char *argv[argc])
 {
-
     if (argc < 2)
     {
         for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++)
