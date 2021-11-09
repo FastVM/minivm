@@ -10,7 +10,7 @@
 
 #if defined(VM_DEBUG_OPCODE)
 #define run_next_op                                                   \
-    printf("(%i -> %i)\n", (int)cur_index, (int)basefunc[cur_index]); \
+    printf("%i -> %i\n", (int)cur_index, (int)basefunc[cur_index]); \
     goto *next_op;
 #else
 #define run_next_op \

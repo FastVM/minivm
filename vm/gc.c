@@ -150,7 +150,11 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
     case VM_TYPE_ARRAY:
     {
         if (!vm_obj_is_num(index)) {
+#if defined(VM_DEBUG_BOUNDS)
             return vm_obj_of_dead();
+#else
+            __builtin_trap();
+#endif
         }
         vm_gc_entry_array_t *ent = (vm_gc_entry_array_t *)ptr;
         int iind = vm_obj_to_int(index);
@@ -158,14 +162,22 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
             iind += ent->len;
         }
         if (iind >= ent->len) {
+#if defined(VM_DEBUG_BOUNDS)
             return vm_obj_of_dead();
+#else
+            __builtin_trap();
+#endif
         }
         return ent->obj[iind];
     }
     case VM_TYPE_STRING:
     {
         if (!vm_obj_is_num(index)) {
+#if defined(VM_DEBUG_BOUNDS)
             return vm_obj_of_dead();
+#else
+            __builtin_trap();
+#endif
         }
         vm_gc_entry_string_t *ent = (vm_gc_entry_string_t *)ptr;
         int iind = vm_obj_to_int(index);
@@ -173,13 +185,21 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
             iind += ent->len;
         }
         if (iind >= ent->len) {
+#if defined(VM_DEBUG_BOUNDS)
             return vm_obj_of_dead();
+#else
+            __builtin_trap();
+#endif
         }
         return vm_obj_of_int(ent->obj[iind]);
     }
     default:
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     }
 }
@@ -188,17 +208,29 @@ vm_obj_t vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from)
 {
     if (to->type != VM_TYPE_ARRAY)
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     if (from->type != VM_TYPE_ARRAY)
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     switch (to->type)
     {
     default: 
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     case VM_TYPE_ARRAY:
     {
@@ -247,7 +279,11 @@ vm_obj_t vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value)
     }
     default:
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     }
 }
@@ -266,7 +302,11 @@ vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr)
     }
     default:
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     }
 }
@@ -278,13 +318,21 @@ vm_obj_t vm_gc_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     int ret_type = vm_gc_type(left);
     if (ret_type != vm_gc_type(right))
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     switch (ret_type)
     {
     default:
     {
+#if defined(VM_DEBUG_BOUNDS)
         return vm_obj_of_dead();
+#else
+        __builtin_trap();
+#endif
     }
     case VM_TYPE_ARRAY:
     {

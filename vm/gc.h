@@ -22,7 +22,6 @@ int vm_gc_type(vm_gc_entry_t *ent);
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t len);
 vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t len);
-vm_gc_entry_t *vm_gc_map_new(vm_gc_t *gc);
 
 vm_obj_t vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from);
 vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr);
@@ -64,12 +63,3 @@ typedef struct
     uint32_t len;
     uint8_t obj[0];
 } vm_gc_entry_string_t;
-
-typedef struct
-{
-    vm_gc_entry_t *next;
-    bool keep: 1;
-    uint32_t type: 31;
-    uint32_t data;
-    void *map;
-} vm_gc_entry_map_t;
