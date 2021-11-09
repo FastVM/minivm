@@ -116,23 +116,23 @@ do_dump:
     vm_reg_t inreg = vm_read_reg;
     vm_fetch;
     vm_gc_entry_t *sname = vm_obj_to_ptr(cur_locals[namreg]);
-    int slen = vm_obj_to_int(vm_gc_sizeof(sname));
+    int slen = vm_gc_sizeof(sname);
     char *name = vm_malloc(sizeof(char) * (slen + 1));
     for (int i = 0; i < slen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(sname, vm_obj_of_int(i));
+        vm_obj_t obj = vm_gc_get_index(sname, i);
         name[i] = vm_obj_to_num(obj);
     }
     name[slen] = '\0';
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[inreg]);
     uint8_t size = sizeof(vm_opcode_t); 
-    int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
+    int xlen = vm_gc_sizeof(ent);
     FILE *out = fopen(name, "wb");
     fwrite(&size, 1, 1, out);
     vm_free(name);
     for (int i = 0; i < xlen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
+        vm_obj_t obj = vm_gc_get_index(ent, i);
         vm_opcode_t op = vm_obj_to_int(obj);
         fwrite(&op, sizeof(vm_opcode_t), 1,  out);
     }
@@ -145,11 +145,11 @@ do_read:
     vm_reg_t namereg = vm_read_reg;
     vm_fetch;
     vm_gc_entry_t *sname = vm_obj_to_ptr(cur_locals[namereg]);
-    int slen = vm_obj_to_int(vm_gc_sizeof(sname));
+    int slen = vm_gc_sizeof(sname);
     char *name = vm_malloc(sizeof(char) * (slen + 1));
     for (int i = 0; i < slen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(sname, vm_obj_of_int(i));
+        vm_obj_t obj = vm_gc_get_index(sname, i);
         name[i] = vm_obj_to_num(obj);
     }
     name[slen] = '\0';
@@ -185,7 +185,7 @@ do_read:
     vm_gc_entry_t *ent = gc_new(string, gc, where);
     for (int i = 0; i < where; i++)
     {
-        vm_gc_set_index(ent, vm_obj_of_int(i), vm_obj_of_int(str[i]));
+        vm_gc_set_index(ent, i, vm_obj_of_int(str[i]));
     }
     vm_free(str);
     cur_locals[outreg] = vm_obj_of_ptr(ent);
@@ -197,21 +197,21 @@ do_write:
     vm_reg_t inreg = vm_read_reg;
     vm_fetch;
     vm_gc_entry_t *sname = vm_obj_to_ptr(cur_locals[outreg]);
-    int slen = vm_obj_to_int(vm_gc_sizeof(sname));
+    int slen = vm_gc_sizeof(sname);
     char *name = vm_malloc(sizeof(char) * (slen + 1));
     for (int i = 0; i < slen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(sname, vm_obj_of_int(i));
+        vm_obj_t obj = vm_gc_get_index(sname, i);
         name[i] = vm_obj_to_num(obj);
     }
     name[slen] = '\0';
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[inreg]);
-    int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
+    int xlen = vm_gc_sizeof(ent);
     FILE *out = fopen(name, "wb");
     vm_free(name);
     for (int i = 0; i < xlen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
+        vm_obj_t obj = vm_gc_get_index(ent, i);
         uint8_t op = vm_obj_to_num(obj);
         fwrite(&op, 1, sizeof(uint8_t), out);
     }
@@ -224,29 +224,26 @@ do_exec:
     vm_reg_t argreg = vm_read_reg;
     vm_fetch;
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
-    int xlen = vm_obj_to_int(vm_gc_sizeof(ent));
+    int xlen = vm_gc_sizeof(ent);
     vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * xlen);
-    // FILE *out = fopen("exec.bc", "wb");
     for (int i = 0; i < xlen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(ent, vm_obj_of_int(i));
+        vm_obj_t obj = vm_gc_get_index(ent, i);
         double n = vm_obj_to_num(obj);
         xops[i] = (vm_opcode_t) n;
-        // fwrite(&xops[i], 1, sizeof(vm_opcode_t), out);
     }
-    // fclose(out);
     vm_gc_entry_t *vargs = vm_obj_to_ptr(cur_locals[argreg]);
-    int nargs = vm_obj_to_int(vm_gc_sizeof(vargs));
+    int nargs = vm_gc_sizeof(vargs);
     char **args = vm_malloc(sizeof(const char *) * nargs);
     for (int i = 0; i < nargs; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(vargs, vm_obj_of_int(i));
+        vm_obj_t obj = vm_gc_get_index(vargs, i);
         vm_gc_entry_t *arg = vm_obj_to_ptr(obj);
-        int alen = vm_obj_to_int(vm_gc_sizeof(arg));
+        int alen = vm_gc_sizeof(arg);
         args[i] = vm_malloc(sizeof(char) * (alen + 1));
         for (int j = 0; j < alen; j++)
         {
-            args[i][j] = vm_obj_to_int(vm_gc_get_index(arg, vm_obj_of_int(j)));
+            args[i][j] = vm_obj_to_int(vm_gc_get_index(arg, j));
         }
         args[i][alen] = '\0';
     }
@@ -290,7 +287,7 @@ do_extend:
     vm_fetch;
     vm_obj_t to = cur_locals[toreg];
     vm_obj_t from = cur_locals[fromreg];
-    vm_obj_t res = vm_gc_extend(vm_obj_to_ptr(to), vm_obj_to_ptr(from));
+    vm_gc_extend(vm_obj_to_ptr(to), vm_obj_to_ptr(from));
     run_next_op;
 }
 do_type:
@@ -330,7 +327,7 @@ do_string_new:
     vm_gc_entry_t *str = gc_new(string, gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
-        vm_gc_set_index(str, vm_obj_of_int(i), vm_obj_of_int(vm_read));
+        vm_gc_set_index(str, i, vm_obj_of_int(vm_read));
     }
     vm_fetch;
     cur_locals[outreg] = vm_obj_of_ptr(str);
@@ -344,7 +341,7 @@ do_array_new:
     for (int i = 0; i < nargs; i++)
     {
         vm_reg_t vreg = vm_read_reg;
-        vm_gc_set_index(vec, vm_obj_of_int(i), cur_locals[vreg]);
+        vm_gc_set_index(vec, i, cur_locals[vreg]);
     }
     vm_fetch;
     cur_locals[outreg] = vm_obj_of_ptr(vec);
@@ -356,7 +353,7 @@ do_length:
     vm_reg_t reg = vm_read_reg;
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
-    cur_locals[outreg] = vm_gc_sizeof(vm_obj_to_ptr(vec));
+    cur_locals[outreg] = vm_obj_of_int(vm_gc_sizeof(vm_obj_to_ptr(vec)));
     run_next_op;
 }
 do_index_get:
@@ -367,7 +364,7 @@ do_index_get:
     vm_fetch;
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
-    cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), index);
+    cur_locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), vm_obj_to_int(index));
     run_next_op;
 }
 do_index_set:
@@ -379,7 +376,7 @@ do_index_set:
     vm_obj_t vec = cur_locals[reg];
     vm_obj_t index = cur_locals[ind];
     vm_obj_t value = cur_locals[val];
-    vm_obj_t res = vm_gc_set_index(vm_obj_to_ptr(vec), index, value);
+    vm_gc_set_index(vm_obj_to_ptr(vec), vm_obj_to_int(index), value);
     run_next_op;
 }
 do_static_call:

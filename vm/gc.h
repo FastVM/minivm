@@ -10,11 +10,6 @@ typedef struct vm_gc_obj_t vm_gc_obj_t;
 #include "obj.h"
 #include "vm.h"
 
-typedef size_t vm_gc_sizeof_t(void *ptr);
-typedef vm_obj_t vm_gc_get_index_t(void *ptr, vm_obj_t index);
-typedef void vm_gc_set_index_t(void *ptr, vm_obj_t index, vm_obj_t value);
-typedef vm_obj_t vm_gc_concat_t(void *gc, vm_obj_t lhs, vm_obj_t rhs);
-
 void vm_gc_start(vm_gc_t *out);
 void vm_gc_stop(vm_gc_t *gc);
 
@@ -23,10 +18,10 @@ int vm_gc_type(vm_gc_entry_t *ent);
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t len);
 vm_gc_entry_t *vm_gc_string_new(vm_gc_t *gc, size_t len);
 
-vm_obj_t vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from);
-vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr);
-vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index);
-vm_obj_t vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value);
+void vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from);
+int vm_gc_sizeof(vm_gc_entry_t *ptr);
+vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, int index);
+void vm_gc_set_index(vm_gc_entry_t *ptr, int index, vm_obj_t value);
 vm_obj_t vm_gc_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs);
 
 struct vm_gc_t

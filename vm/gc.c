@@ -30,11 +30,6 @@ void vm_gc_mark_ptr(vm_gc_entry_t *ent)
     }
 }
 
-void vm_gc_free(vm_gc_entry_t *ent)
-{
-    vm_free(ent);
-}
-
 void vm_gc_run1(vm_gc_t *gc)
 {
     if (gc->low == NULL)
@@ -67,7 +62,7 @@ void vm_gc_run1(vm_gc_t *gc)
         }
         else
         {
-            vm_gc_free(ent);
+            vm_free(ent);
         }
     }
     gc->remain = (gc->high - gc->low) + n * 2;
@@ -95,7 +90,7 @@ void vm_gc_stop(vm_gc_t *gc)
     while (first != NULL)
     {
         vm_gc_entry_t *next = first->next;
-        vm_gc_free(first);
+        vm_free(first);
         first = next;
     }
 }
@@ -143,94 +138,54 @@ int vm_gc_type(vm_gc_entry_t *ent)
     return ent->type;
 }
 
-vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_obj_t index)
+vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, int iind)
 {
     switch (ptr->type)
     {
     case VM_TYPE_ARRAY:
     {
-        if (!vm_obj_is_num(index)) {
-#if defined(VM_DEBUG_BOUNDS)
-            return vm_obj_of_dead();
-#else
-            __builtin_trap();
-#endif
-        }
         vm_gc_entry_array_t *ent = (vm_gc_entry_array_t *)ptr;
-        int iind = vm_obj_to_int(index);
         if (iind < 0) {
             iind += ent->len;
         }
         if (iind >= ent->len) {
-#if defined(VM_DEBUG_BOUNDS)
-            return vm_obj_of_dead();
-#else
             __builtin_trap();
-#endif
         }
         return ent->obj[iind];
     }
     case VM_TYPE_STRING:
     {
-        if (!vm_obj_is_num(index)) {
-#if defined(VM_DEBUG_BOUNDS)
-            return vm_obj_of_dead();
-#else
-            __builtin_trap();
-#endif
-        }
         vm_gc_entry_string_t *ent = (vm_gc_entry_string_t *)ptr;
-        int iind = vm_obj_to_int(index);
         if (iind < 0) {
             iind += ent->len;
         }
         if (iind >= ent->len) {
-#if defined(VM_DEBUG_BOUNDS)
-            return vm_obj_of_dead();
-#else
             __builtin_trap();
-#endif
         }
         return vm_obj_of_int(ent->obj[iind]);
     }
     default:
     {
-#if defined(VM_DEBUG_BOUNDS)
-        return vm_obj_of_dead();
-#else
         __builtin_trap();
-#endif
     }
     }
 }
 
-vm_obj_t vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from)
+void vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from)
 {
     if (to->type != VM_TYPE_ARRAY)
     {
-#if defined(VM_DEBUG_BOUNDS)
-        return vm_obj_of_dead();
-#else
         __builtin_trap();
-#endif
     }
     if (from->type != VM_TYPE_ARRAY)
     {
-#if defined(VM_DEBUG_BOUNDS)
-        return vm_obj_of_dead();
-#else
         __builtin_trap();
-#endif
     }
     switch (to->type)
     {
     default: 
     {
-#if defined(VM_DEBUG_BOUNDS)
-        return vm_obj_of_dead();
-#else
         __builtin_trap();
-#endif
     }
     case VM_TYPE_ARRAY:
     {
@@ -246,67 +201,62 @@ vm_obj_t vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from)
         {
             ato->obj[ato->len++] = afrom->obj[i];
         }
-        return vm_obj_of_none();
+        return;
     }
     }
 }
 
-vm_obj_t vm_gc_set_index(vm_gc_entry_t *ptr, vm_obj_t index, vm_obj_t value)
+void vm_gc_set_index(vm_gc_entry_t *ptr, int index, vm_obj_t value)
 {
     switch (ptr->type)
     {
     case VM_TYPE_ARRAY:
     {
         vm_gc_entry_array_t *arr = (vm_gc_entry_array_t *)ptr;
-        int i = vm_obj_to_int(index);
-        if (i >= arr->alloc)
+        if (index >= arr->alloc)
         {
-            int alloc = 4 + i * 2;
+            int alloc = 4 + index * 2;
             arr->obj = vm_realloc(arr->obj, sizeof(vm_obj_t) * alloc);
             arr->alloc = alloc;
         }
-        if (i >= arr->len)
+        if (index >= arr->len)
         {
-            arr->len = i + 1;
+            for (int i = arr->len; i < index; i++)
+            {
+                arr->obj[i] = vm_obj_of_none();
+            }
+            arr->len = index + 1;
         }
-        arr->obj[i] = value;
-        return vm_obj_of_none();
+        arr->obj[index] = value;
+        return;
     }
     case VM_TYPE_STRING:
     {
-        ((vm_gc_entry_string_t *)ptr)->obj[vm_obj_to_int(index)] = vm_obj_to_int(value);
-        return vm_obj_of_none();
+        ((vm_gc_entry_string_t *)ptr)->obj[index] = vm_obj_to_int(value);
+        return;
     }
     default:
     {
-#if defined(VM_DEBUG_BOUNDS)
-        return vm_obj_of_dead();
-#else
         __builtin_trap();
-#endif
     }
     }
 }
 
-vm_obj_t vm_gc_sizeof(vm_gc_entry_t *ptr)
+int vm_gc_sizeof(vm_gc_entry_t *ptr)
 {
     switch (ptr->type)
     {
     case VM_TYPE_ARRAY:
     {
-        return vm_obj_of_int(((vm_gc_entry_array_t *)ptr)->len);
+        return ((vm_gc_entry_array_t *)ptr)->len;
     }
     case VM_TYPE_STRING:
     {
-        return vm_obj_of_int(((vm_gc_entry_string_t *)ptr)->len);
+        return ((vm_gc_entry_string_t *)ptr)->len;
     }
     default:
     {
-#if defined(VM_DEBUG_BOUNDS)
-        return vm_obj_of_dead();
-#else
         __builtin_trap();
-#endif
     }
     }
 }

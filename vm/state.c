@@ -23,9 +23,9 @@ vm_gc_entry_t *vm_state_global_from(vm_gc_t *gc, size_t len, const char **args)
         vm_gc_entry_t *ent = vm_gc_string_new(gc, vm_state_strlen(args[i]));
         for (const char *src = args[i]; *src != '\0'; src++)
         {
-            vm_gc_set_index(ent, vm_obj_of_int(src - args[i]), vm_obj_of_int(*src));
+            vm_gc_set_index(ent, src - args[i], vm_obj_of_int(*src));
         }
-        vm_gc_set_index(global, vm_obj_of_int(i), vm_obj_of_ptr(ent));
+        vm_gc_set_index(global, i, vm_obj_of_ptr(ent));
     }
     return global;
 }
