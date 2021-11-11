@@ -32,8 +32,8 @@ vm_gc_entry_t *vm_state_global_from(vm_gc_t *gc, size_t len, const char **args)
 
 vm_state_t *vm_state_new(size_t len, const char **args)
 {
-    vm_state_t *state = vm_calloc(sizeof(vm_state_t));
-    vm_gc_t *gc = vm_calloc(sizeof(vm_gc_t));
+    vm_state_t *state = vm_malloc(sizeof(vm_state_t));
+    vm_gc_t *gc = vm_malloc(sizeof(vm_gc_t));
     vm_gc_start(gc);
     state->gc = gc;
     state->global = vm_state_global_from(state->gc, len, args);

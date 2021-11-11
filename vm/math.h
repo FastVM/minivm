@@ -93,60 +93,6 @@ static inline bool vm_obj_igte(vm_obj_t lhs, int rhs)
     return vm_obj_to_num(lhs) >= rhs;
 }
 
-static inline bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs);
-
-static inline bool vm_obj_eq_mem(vm_obj_t lhs, vm_obj_t rhs)
-{
-    if (!vm_obj_is_ptr(rhs) || !vm_obj_is_ptr(lhs))
-    {
-        return false;
-    }
-    void *lent = vm_obj_to_ptr(lhs);
-    void *rent = vm_obj_to_ptr(rhs);
-    int type = vm_gc_type(lent);
-    switch (type)
-    {
-    case VM_TYPE_ARRAY:
-    {
-        size_t len = vm_gc_sizeof(lent);
-        if (len != vm_gc_sizeof(rent))
-        {
-            return false;
-        }
-        for (size_t i = 0; i < len; i++)
-        {
-            vm_obj_t io = vm_obj_of_num(i);
-            vm_obj_t cl = vm_gc_get_index(lent, i);
-            vm_obj_t cr = vm_gc_get_index(rent, i);
-            if (!vm_obj_eq(cl, cr))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-    case VM_TYPE_STRING:
-    {
-        size_t len = vm_gc_sizeof(lent);
-        if (len != vm_gc_sizeof(rent))
-        {
-            return false;
-        }
-        for (size_t i = 0; i < len; i++)
-        {
-            vm_obj_t cl = vm_gc_get_index(lent, i);
-            vm_obj_t cr = vm_gc_get_index(rent, i);
-            if (!vm_obj_eq(cl, cr))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-    }
-    return false;
-}
-
 static inline bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs)
 {
     if (vm_obj_is_num(lhs))
@@ -175,18 +121,27 @@ static inline bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs)
             return false;
         }
     }
-    if (vm_obj_is_fun(lhs))
+    if (!vm_obj_is_ptr(rhs) || !vm_obj_is_ptr(lhs))
     {
-        if (vm_obj_is_num(rhs))
-        {
-            return vm_obj_to_fun(lhs) == vm_obj_to_fun(rhs);
-        }
-        else
+        return false;
+    }
+    vm_gc_entry_t *lent = vm_obj_to_ptr(lhs);
+    vm_gc_entry_t *rent = vm_obj_to_ptr(rhs);
+    size_t len = vm_gc_sizeof(lent);
+    if (len != vm_gc_sizeof(rent))
+    {
+        return false;
+    }
+    for (size_t i = 0; i < len; i++)
+    {
+        vm_obj_t cl = vm_gc_get_index(lent, i);
+        vm_obj_t cr = vm_gc_get_index(rent, i);
+        if (!vm_obj_eq(cl, cr))
         {
             return false;
         }
     }
-    return vm_obj_eq_mem(lhs, rhs);
+    return true;
 }
 
 static inline bool vm_obj_ieq(vm_obj_t lhs, int rhs)

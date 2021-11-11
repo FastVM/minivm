@@ -65,7 +65,8 @@ void vm_gc_run1(vm_gc_t *gc)
             vm_free(ent);
         }
     }
-    gc->remain = (gc->high - gc->low) + n * 2;
+    // gc->remain = (gc->high - gc->low) + n * 2;
+    gc->remain = n * 2;
     gc->first = last;
 }
 

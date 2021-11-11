@@ -3,14 +3,20 @@
 #include "math.h"
 #include "obj.h"
 #include "libc.h"
-#include "effect.h"
 #include "state.h"
 
 #define VM_GLOBALS_NUM (1024)
 
+void os_putn(size_t n);
+void os_puts(const char *str);
+
 #if defined(VM_DEBUG_OPCODE)
+// #define run_next_op                                                   \
+//     printf("%i -> %i\n", (int)cur_index, (int)basefunc[cur_index]); \
+//     goto *next_op;
 #define run_next_op                                                   \
-    printf("%i -> %i\n", (int)cur_index, (int)basefunc[cur_index]); \
+    os_putn(cur_index)                                                   \
+    os_puts("\n")                                                   \
     goto *next_op;
 #else
 #define run_next_op \
@@ -36,12 +42,12 @@
 
 #define vm_read_ahead(index) (*(vm_opcode_t *)&basefunc[(cur_index) + (index)])
 
-void vm_run(vm_state_t *state, size_t len, const vm_opcode_t *basefunc)
+void vm_run(vm_state_t *state, const vm_opcode_t *basefunc)
 {
     vm_loc_t cur_index = 0;
 
-    vm_stack_frame_t *frames_base = vm_calloc(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
-    vm_obj_t *locals_base = vm_calloc(VM_LOCALS_UNITS * sizeof(vm_obj_t));
+    vm_stack_frame_t *frames_base = vm_malloc(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
+    vm_obj_t *locals_base = vm_malloc(VM_LOCALS_UNITS * sizeof(vm_obj_t));
   
     vm_gc_t *gc = state->gc;
     gc->low = locals_base;
@@ -248,7 +254,7 @@ do_exec:
         args[i][alen] = '\0';
     }
     vm_state_t *newstate = vm_state_new(nargs, (const char**) args);
-    vm_run(newstate, xlen, xops);
+    vm_run(newstate, xops);
     vm_state_del(newstate);
     for (int i = 0; i < nargs; i++) {
         vm_free(args[i]);
@@ -308,10 +314,6 @@ do_type:
     if (vm_obj_is_num(obj))
     {
         num = VM_TYPE_NUMBER;
-    }
-    if (vm_obj_is_fun(obj))
-    {
-        num = VM_TYPE_FUNCTION;
     }
     if (vm_obj_is_ptr(obj))
     {
@@ -428,16 +430,6 @@ do_store_int:
     int from = vm_read;
     vm_fetch;
     cur_locals[to] = vm_obj_of_int(from);
-    run_next_op;
-}
-do_store_fun:
-{
-    vm_reg_t to = vm_read_reg;
-    vm_loc_t func_end = vm_read;
-    vm_loc_t head = cur_index;
-    cur_index = func_end;
-    vm_fetch;
-    cur_locals[to] = vm_obj_of_fun(head + 1);
     run_next_op;
 }
 do_equal:
