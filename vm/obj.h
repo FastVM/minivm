@@ -5,12 +5,13 @@ typedef nanbox_t vm_obj_t;
 typedef int vm_loc_t;
 typedef double vm_number_t;
 
+extern uint8_t *os_mem_base;
+
 enum
 {
-    VM_TYPE_NONE = 0,
-    VM_TYPE_BOOL = 1,
-    VM_TYPE_NUMBER = 2,
-    VM_TYPE_FUNCTION = 3,
+    VM_TYPE_NONE = 1,
+    VM_TYPE_BOOL = 2,
+    VM_TYPE_NUMBER = 3,
     VM_TYPE_ARRAY = 4,
     VM_TYPE_STRING = 5,
 };
@@ -34,19 +35,17 @@ static inline bool vm_obj_is_bool(vm_obj_t obj)
 
 static inline bool vm_obj_is_num(vm_obj_t obj)
 {
-    return nanbox_is_number(obj);
+    return nanbox_is_double(obj);
 }
 
 static inline bool vm_obj_is_ptr(vm_obj_t obj)
 {
+#if defined(VM_OS)
+    return obj.as_bits.tag == 0x00010000;
+#else
     return nanbox_is_pointer(obj);
+#endif
 }
-
-static inline bool vm_obj_is_fun(vm_obj_t obj)
-{
-    return nanbox_is_int(obj);
-}
-
 
 // c to obj
 
@@ -75,14 +74,16 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj)
     return nanbox_from_double(obj);
 }
 
-static inline vm_obj_t vm_obj_of_fun(int obj)
-{
-    return nanbox_from_int(obj);
-}
-
 static inline vm_obj_t vm_obj_of_ptr(void *obj)
 {
+#if defined(VM_OS)
+    nanbox_t ret;
+    ret.as_bits.tag = 0x00010000;
+    ret.as_bits.payload = (uint8_t *) obj - os_mem_base;
+    return ret;
+#else
     return nanbox_from_pointer(obj);
+#endif
 }
 
 // obj to c
@@ -114,17 +115,6 @@ static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
     return nanbox_to_double(obj);
 }
 
-static inline int vm_obj_to_fun(vm_obj_t obj)
-{
-#if defined(VM_DEBUG_OBJ)
-    if (!vm_obj_is_fun(obj))
-    {
-        __builtin_trap();
-    }
-#endif
-    return nanbox_to_int(obj);
-}
-
 static inline void *vm_obj_to_ptr(vm_obj_t obj)
 {
 #if defined(VM_DEBUG_OBJ)
@@ -133,5 +123,9 @@ static inline void *vm_obj_to_ptr(vm_obj_t obj)
         __builtin_trap();
     }
 #endif
+#if defined(VM_OS)
+    return &os_mem_base[obj.as_bits.payload];
+#else
     return nanbox_to_pointer(obj);
+#endif
 }
