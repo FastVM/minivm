@@ -7,17 +7,22 @@
 
 #define VM_GLOBALS_NUM (1024)
 
+#if defined(VM_OS)
 void os_putn(size_t n);
 void os_puts(const char *str);
+#endif
 
 #if defined(VM_DEBUG_OPCODE)
-// #define run_next_op                                                   \
-//     printf("%i -> %i\n", (int)cur_index, (int)basefunc[cur_index]); \
-//     goto *next_op;
+#if !defined(VM_OS)
 #define run_next_op                                                   \
-    os_putn(cur_index)                                                   \
-    os_puts("\n")                                                   \
+    printf("%i -> %i\n", (int)cur_index, (int)basefunc[cur_index]); \
     goto *next_op;
+#else
+#define run_next_op                                                   \
+    os_putn(cur_index);                                              \
+    os_puts("\n");                                                   \
+    goto *next_op;
+#endif
 #else
 #define run_next_op \
     goto *next_op;
@@ -59,7 +64,7 @@ void vm_run(vm_state_t *state, const vm_opcode_t *basefunc)
     cur_locals[0] = vm_obj_of_ptr(state->global);
 
     void *next_op_value;
-    void *ptrs[VM_OPCODE_MAX2P] = {};
+    void *ptrs[VM_OPCODE_MAX1];
     ptrs[VM_OPCODE_EXIT] = &&do_exit;
     ptrs[VM_OPCODE_STORE_REG] = &&do_store_reg;
     ptrs[VM_OPCODE_STORE_NONE] = &&do_store_none;
