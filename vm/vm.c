@@ -47,12 +47,17 @@ void os_puts(const char *str);
 
 #define vm_read_ahead(index) (*(vm_opcode_t *)&basefunc[(cur_index) + (index)])
 
+vm_stack_frame_t vm_frames_base[VM_FRAMES_UNITS];
+vm_obj_t vm_locals_base[VM_LOCALS_UNITS];
+vm_opcode_t vm_xops[1 << 16];
+
 void vm_run(vm_state_t *state, const vm_opcode_t *basefunc)
 {
+vm_reboot:;
     vm_loc_t cur_index = 0;
 
-    vm_stack_frame_t *frames_base = vm_malloc(VM_FRAMES_UNITS * sizeof(vm_stack_frame_t));
-    vm_obj_t *locals_base = vm_malloc(VM_LOCALS_UNITS * sizeof(vm_obj_t));
+    vm_stack_frame_t *frames_base = &vm_frames_base[0];
+    vm_obj_t *locals_base = &vm_locals_base[0];
   
     vm_gc_t *gc = state->gc;
     gc->low = locals_base;
@@ -61,7 +66,7 @@ void vm_run(vm_state_t *state, const vm_opcode_t *basefunc)
     vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
 
-    cur_locals[0] = vm_obj_of_ptr(state->global);
+    cur_locals[0] = state->global;
 
     void *next_op_value;
     void *ptrs[VM_OPCODE_MAX1];
@@ -96,9 +101,15 @@ void vm_run(vm_state_t *state, const vm_opcode_t *basefunc)
     ptrs[VM_OPCODE_TYPE] = &&do_type;
     ptrs[VM_OPCODE_EXTEND] = &&do_extend;
     ptrs[VM_OPCODE_PUSH] = &&do_push;
+#if defined(VM_OS)
+    ptrs[VM_OPCODE_DUMP] = &&do_os_error;
+    ptrs[VM_OPCODE_WRITE] = &&do_os_error;
+    ptrs[VM_OPCODE_READ] = &&do_os_error;
+#else
     ptrs[VM_OPCODE_DUMP] = &&do_dump;
     ptrs[VM_OPCODE_WRITE] = &&do_write;
     ptrs[VM_OPCODE_READ] = &&do_read;
+#endif
     ptrs[VM_OPCODE_LOAD_GLOBAL] = &&do_load_global;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
@@ -109,8 +120,6 @@ do_exit:
 {
     state->gc->low = NULL;
     state->gc->high = NULL;
-    vm_free(frames_base);
-    vm_free(locals_base);
     return;
 }
 do_load_global:
@@ -121,6 +130,15 @@ do_load_global:
     cur_locals[out] = locals_base[global];
     run_next_op;
 }
+#if defined(VM_OS)
+do_os_error:
+{
+    putchar('?');
+    putchar('?');
+    putchar('?');
+    putchar('\n');
+}
+#else
 do_dump:
 {
     vm_reg_t namreg = vm_read_reg;
@@ -229,6 +247,7 @@ do_write:
     fclose(out);
     run_next_op;
 }
+#endif
 do_exec:
 {
     vm_reg_t in = vm_read_reg;
@@ -236,36 +255,16 @@ do_exec:
     vm_fetch;
     vm_gc_entry_t *ent = vm_obj_to_ptr(cur_locals[in]);
     int xlen = vm_gc_sizeof(ent);
-    vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * xlen);
+    vm_opcode_t *xops = &vm_xops[0];
     for (int i = 0; i < xlen; i++)
     {
         vm_obj_t obj = vm_gc_get_index(ent, i);
         double n = vm_obj_to_num(obj);
         xops[i] = (vm_opcode_t) n;
     }
-    vm_gc_entry_t *vargs = vm_obj_to_ptr(cur_locals[argreg]);
-    int nargs = vm_gc_sizeof(vargs);
-    char **args = vm_malloc(sizeof(const char *) * nargs);
-    for (int i = 0; i < nargs; i++)
-    {
-        vm_obj_t obj = vm_gc_get_index(vargs, i);
-        vm_gc_entry_t *arg = vm_obj_to_ptr(obj);
-        int alen = vm_gc_sizeof(arg);
-        args[i] = vm_malloc(sizeof(char) * (alen + 1));
-        for (int j = 0; j < alen; j++)
-        {
-            args[i][j] = vm_obj_to_int(vm_gc_get_index(arg, j));
-        }
-        args[i][alen] = '\0';
-    }
-    vm_state_t *newstate = vm_state_new(nargs, (const char**) args);
-    vm_run(newstate, xops);
-    vm_state_del(newstate);
-    for (int i = 0; i < nargs; i++) {
-        vm_free(args[i]);
-    }
-    vm_free(args);
-    vm_free(xops);
+    state->global = cur_locals[argreg];
+    basefunc = xops;
+    goto vm_reboot;
     run_next_op;
 }
 do_return:

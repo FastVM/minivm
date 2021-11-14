@@ -9,7 +9,7 @@ typedef struct vm_state_t vm_state_t;
 struct vm_state_t
 {
     vm_gc_t *gc;
-    vm_gc_entry_t *global;
+    vm_obj_t global;
     void (*putchar)(vm_state_t *state, char chr);
 };
 
