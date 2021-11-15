@@ -5,7 +5,7 @@
 #include "libc.h"
 #include "state.h"
 
-#define VM_GLOBALS_NUM (1024)
+#define VM_GLOBALS_NUM (1 << 12)
 
 #if defined(VM_OS)
 void os_putn(size_t n);
@@ -48,7 +48,7 @@ void os_puts(const char *str);
 #define vm_read_ahead(index) (*(vm_opcode_t *)&basefunc[(cur_index) + (index)])
 
 vm_stack_frame_t vm_frames_base[VM_FRAMES_UNITS];
-vm_obj_t vm_locals_base[VM_LOCALS_UNITS];
+vm_obj_t vm_locals_base[VM_LOCALS_UNITS + VM_GLOBALS_NUM];
 vm_opcode_t vm_xops[1 << 16];
 
 void vm_run(vm_state_t *state, const vm_opcode_t *basefunc)
