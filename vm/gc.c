@@ -58,13 +58,6 @@ void vm_gc_run1(vm_gc_t *gc)
     gc->first = last;
 }
 
-
-void *vm_gc_run(void *arg) 
-{
-    vm_gc_t *gc = arg;
-    return NULL;
-}
-
 void vm_gc_start(vm_gc_t *gc)
 {
     gc->remain = 1000;
@@ -94,8 +87,8 @@ vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
     *entry = (vm_gc_entry_t){
         .next = gc->first,
         .keep = false,
-        .len = size,
         .alloc = size,
+        .len = size,
         .obj = vm_malloc(sizeof(vm_obj_t) * size),
     };
     vm_gc_entry_t *obj = (vm_gc_entry_t *)entry;
@@ -103,25 +96,38 @@ vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
     return obj;
 }
 
-vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, int iind)
+vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, int index)
 {
-    vm_gc_entry_t *ent = (vm_gc_entry_t *)ptr;
-    if (iind < 0) {
-        iind += ent->len;
+    if (index < 0) {
+        index += ptr->len;
     }
-    if (iind >= ent->len) {
+    if (index >= ptr->len) {
         __builtin_trap();
     }
-    return ent->obj[iind];
+    return ptr->obj[index];
 }
 
-void vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from)
+void vm_gc_set_index(vm_gc_entry_t *ptr, int index, vm_obj_t value)
 {
-    vm_gc_entry_t *ato = (vm_gc_entry_t *)to;
-    vm_gc_entry_t *afrom = (vm_gc_entry_t *)from;
+    if (index < 0) {
+        index += ptr->len;
+    }
+    if (index >= ptr->len) {
+        __builtin_trap();
+    }
+    ptr->obj[index] = value;
+}
+
+int vm_gc_sizeof(vm_gc_entry_t *ptr)
+{
+    return ((vm_gc_entry_t *)ptr)->len;
+}
+
+void vm_gc_extend(vm_gc_entry_t *ato, vm_gc_entry_t *afrom)
+{
     if (ato->len + afrom->len >= ato->alloc)
     {
-        int alloc = 4 + (ato->len + afrom->len) * 2;
+        int alloc = (ato->len + afrom->len) * 2;
         ato->obj = vm_realloc(ato->obj, sizeof(vm_obj_t) * alloc);
         ato->alloc = alloc;
     }
@@ -132,30 +138,15 @@ void vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from)
     return;
 }
 
-void vm_gc_set_index(vm_gc_entry_t *ptr, int index, vm_obj_t value)
+void vm_gc_push(vm_gc_entry_t *ato, vm_obj_t from)
 {
-    vm_gc_entry_t *arr = (vm_gc_entry_t *)ptr;
-    if (index >= arr->alloc)
+    if (ato->len + 2 >= ato->alloc)
     {
-        int alloc = 4 + index * 2;
-        arr->obj = vm_realloc(arr->obj, sizeof(vm_obj_t) * alloc);
-        arr->alloc = alloc;
+        int alloc = (ato->len + 1) * 2;
+        ato->obj = vm_realloc(ato->obj, sizeof(vm_obj_t) * alloc);
+        ato->alloc = alloc;
     }
-    if (index >= arr->len)
-    {
-        for (int i = arr->len; i < index; i++)
-        {
-            arr->obj[i] = vm_obj_of_none();
-        }
-        arr->len = index + 1;
-    }
-    arr->obj[index] = value;
-    return;
-}
-
-int vm_gc_sizeof(vm_gc_entry_t *ptr)
-{
-    return ((vm_gc_entry_t *)ptr)->len;
+    ato->obj[ato->len++] = from;
 }
 
 vm_obj_t vm_gc_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)

@@ -288,7 +288,7 @@ do_push:
     vm_obj_t to = cur_locals[toreg];
     vm_obj_t from = cur_locals[fromreg];
     vm_gc_entry_t *ptr = vm_obj_to_ptr(to);
-    vm_gc_set_index(ptr, vm_gc_sizeof(ptr), from);
+    vm_gc_push(vm_obj_to_ptr(to), from);
     run_next_op;
 }
 do_extend:

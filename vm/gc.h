@@ -17,6 +17,7 @@ int vm_gc_type(vm_gc_entry_t *ent);
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t len);
 
+void vm_gc_push(vm_gc_entry_t *to, vm_obj_t from);
 void vm_gc_extend(vm_gc_entry_t *to, vm_gc_entry_t *from);
 int vm_gc_sizeof(vm_gc_entry_t *ptr);
 vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, int index);
