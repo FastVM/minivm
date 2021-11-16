@@ -212,7 +212,7 @@ do_read:
         }
     }
     fclose(in);
-    vm_gc_entry_t *ent = gc_new(string, gc, where);
+    vm_gc_entry_t *ent = gc_new(array, gc, where);
     for (int i = 0; i < where; i++)
     {
         vm_gc_set_index(ent, i, vm_obj_of_int(str[i]));
@@ -322,7 +322,7 @@ do_type:
     }
     if (vm_obj_is_ptr(obj))
     {
-        num = vm_gc_type(vm_obj_to_ptr(obj));
+        num = VM_TYPE_ARRAY;
     }
     cur_locals[outreg] = vm_obj_of_num(num);
     run_next_op;
@@ -331,7 +331,7 @@ do_string_new:
 {
     vm_reg_t outreg = vm_read_reg;
     int nargs = vm_read;
-    vm_gc_entry_t *str = gc_new(string, gc, nargs);
+    vm_gc_entry_t *str = gc_new(array, gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
         vm_gc_set_index(str, i, vm_obj_of_int(vm_read));
