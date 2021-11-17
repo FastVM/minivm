@@ -18,24 +18,50 @@ int vm_main_run(char *src, size_t argc, char **argv)
         }
         return 1;
     }
-    uint8_t nver = 2;
-    fread(&nver, 1, 1, file);
     vm_opcode_t *vm_ops = vm_malloc(1 << 24);
-    vm_opcode_t *ops = &vm_ops[0];
-    while (true)
+    uint8_t nver = 0;
+    fread(&nver, 1, 1, file);
+    if (nver <= 2)
     {
-        vm_opcode_t op;
-        int size = fread(&op, sizeof(vm_opcode_t), 1, file);
-        if (nver != sizeof(vm_opcode_t))
+        vm_opcode_t *ops = &vm_ops[0];
+        while (true)
         {
-            uint8_t xbuf[nver - sizeof(vm_opcode_t)];
-            fread(xbuf, nver - sizeof(vm_opcode_t), 1, file);
+            uint16_t op = 0;
+            int size = fread(&op, nver, 1, file);
+            if (size == 0)
+            {
+                break;
+            }
+            *(ops++) = op;
         }
-        if (size == 0)
+    }
+    else if (nver <= 4)
+    {
+        vm_opcode_t *ops = &vm_ops[0];
+        while (true)
         {
-            break;
+            uint32_t op = 0;
+            int size = fread(&op, nver, 1, file);
+            if (size == 0)
+            {
+                break;
+            }
+            *(ops++) = op;
         }
-        *(ops++) = op;
+    }
+    else if (nver <= 8)
+    {
+        vm_opcode_t *ops = &vm_ops[0];
+        while (true)
+        {
+            uint64_t op = 0;
+            int size = fread(&op, nver, 1, file);
+            if (size == 0)
+            {
+                break;
+            }
+            *(ops++) = op;
+        }
     }
     fclose(file);
     vm_state_t *state = vm_state_new(argc, (const char **) argv);
