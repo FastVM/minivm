@@ -37,6 +37,7 @@ struct vm_gc_entry_t
     vm_gc_entry_t *next;
     uint32_t keep: 1;
     uint32_t alloc: 31;
-    uint32_t len;
+    uint32_t type: 1;
+    uint32_t len: 31;
     vm_obj_t *obj;
 };

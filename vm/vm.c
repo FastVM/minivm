@@ -111,7 +111,6 @@ vm_reboot:;
     ptrs[VM_OPCODE_READ] = &&do_read;
 #endif
     ptrs[VM_OPCODE_LOAD_GLOBAL] = &&do_load_global;
-    ptrs[VM_OPCODE_BRANCH_NUM] = &&do_branch_num;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
     cur_frame->locals = cur_locals + VM_GLOBALS_NUM;
@@ -511,14 +510,6 @@ do_branch_true:
     {
         cur_index = to2;
     }
-    vm_fetch;
-    run_next_op;
-}
-do_branch_num:
-{
-    vm_reg_t from = vm_read_reg;
-    int offset = vm_obj_to_int(cur_locals[from]);
-    cur_index = vm_read_ahead(offset);
     vm_fetch;
     run_next_op;
 }
