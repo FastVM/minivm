@@ -28,10 +28,6 @@ void os_puts(const char *str);
     goto *next_op;
 #endif
 
-#define gc_new(TYPE, ...) ({                            \
-    vm_gc_##TYPE##_new(__VA_ARGS__);                    \
-})
-
 #define vm_read                              \
     (                                                        \
         {                                                    \
@@ -193,7 +189,7 @@ do_read:
     char *str = vm_malloc(sizeof(char) * nalloc);
     while (true)
     {
-        char buf[2048];
+        uint8_t buf[2048];
         int n = fread(buf, 1, 2048, in);
         for (int i = 0; i < n; i++)
         {
@@ -211,7 +207,7 @@ do_read:
         }
     }
     fclose(in);
-    vm_gc_entry_t *ent = gc_new(array, gc, where);
+    vm_gc_entry_t *ent = vm_gc_array_new(gc, where);
     for (int i = 0; i < where; i++)
     {
         vm_gc_set_index(ent, i, vm_obj_of_int(str[i]));
@@ -330,7 +326,7 @@ do_string_new:
 {
     vm_reg_t outreg = vm_read_reg;
     int nargs = vm_read;
-    vm_gc_entry_t *str = gc_new(array, gc, nargs);
+    vm_gc_entry_t *str = vm_gc_array_new(gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
         vm_gc_set_index(str, i, vm_obj_of_int(vm_read));
@@ -343,7 +339,7 @@ do_array_new:
 {
     vm_reg_t outreg = vm_read_reg;
     int nargs = vm_read;
-    vm_gc_entry_t *vec = gc_new(array, gc, nargs);
+    vm_gc_entry_t *vec = vm_gc_array_new(gc, nargs);
     for (int i = 0; i < nargs; i++)
     {
         vm_reg_t vreg = vm_read_reg;
