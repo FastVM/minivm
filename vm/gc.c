@@ -301,7 +301,7 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     {
         for (int i = 0; i < llen; i++)
         {
-            ent->ptr[i] = left->arr[i];
+            ent->arr[i] = left->arr[i];
         }
         break;
     }
@@ -309,7 +309,7 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     {
         for (int i = 0; i < llen; i++)
         {
-            ent->ptr[i] = left->ptr[i];
+            ent->arr[i] = left->ptr[i];
         }
         break;
     }
@@ -320,7 +320,7 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     {
         for (int i = 0; i < rlen; i++)
         {
-            ent->ptr[llen + i] = right->arr[i];
+            ent->arr[llen + i] = right->arr[i];
         }
         break;
     }
@@ -328,7 +328,7 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     {
         for (int i = 0; i < rlen; i++)
         {
-            ent->ptr[llen + i] = right->ptr[i];
+            ent->arr[llen + i] = right->ptr[i];
         }
         break;
     }
