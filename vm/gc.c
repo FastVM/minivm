@@ -51,6 +51,7 @@ void vm_gc_run1(vm_gc_t *gc)
         }
         else
         {
+            vm_free(ent->obj);
             vm_free(ent);
         }
     }
@@ -79,10 +80,10 @@ void vm_gc_stop(vm_gc_t *gc)
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
 {
-    gc->remain--;
-    if (gc->remain == 0) {
-        vm_gc_run1(gc);
-    }
+    // gc->remain--;
+    // if (gc->remain == 0) {
+    //     vm_gc_run1(gc);
+    // }
     vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t));
     *entry = (vm_gc_entry_t){
         .next = gc->first,

@@ -414,7 +414,6 @@ do_dynamic_call:
         next_locals[argno] = cur_locals[regno];
     }
     vm_obj_t next_func = cur_locals[funcreg];
-    printf("(reg: %i)\n", funcreg);
     cur_locals = next_locals;
     cur_frame->index = cur_index;
     cur_frame->outreg = outreg;
