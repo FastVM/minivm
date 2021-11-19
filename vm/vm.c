@@ -5,7 +5,7 @@
 #include "libc.h"
 #include "state.h"
 
-#define VM_GLOBALS_NUM (1 << 12)
+#define VM_GLOBALS_NUM (1 << 8)
 
 #if defined(VM_OS)
 void os_putn(size_t n);
@@ -55,12 +55,10 @@ vm_reboot:;
     vm_stack_frame_t *frames_base = &vm_frames_base[0];
     vm_obj_t *locals_base = &vm_locals_base[0];
   
-    vm_gc_t *gc = state->gc;
-    gc->low = locals_base;
-    gc->high = locals_base + VM_LOCALS_UNITS;
-
     vm_stack_frame_t *cur_frame = frames_base;
     vm_obj_t *cur_locals = locals_base;
+
+    vm_gc_t *gc = state->gc;
 
     cur_locals[0] = state->global;
 
@@ -108,6 +106,8 @@ vm_reboot:;
 #endif
     ptrs[VM_OPCODE_LOAD_GLOBAL] = &&do_load_global;
     ptrs[VM_OPCODE_DYNAMIC_CALL] = &&do_dynamic_call;
+    ptrs[VM_OPCODE_STATIC_ARRAY_NEW] = &&do_static_array_new;
+    ptrs[VM_OPCODE_STATIC_CONCAT] = &&do_static_concat;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
     cur_frame->locals = cur_locals + VM_GLOBALS_NUM;
@@ -115,8 +115,7 @@ vm_reboot:;
     run_next_op;
 do_exit:
 {
-    state->gc->low = NULL;
-    state->gc->high = NULL;
+    gc->first = NULL;
     return;
 }
 do_load_global:
@@ -338,9 +337,25 @@ do_string_new:
 }
 do_array_new:
 {
+    vm_gc_run1(gc, locals_base, cur_frame->locals);
     vm_reg_t outreg = vm_read_reg;
     int nargs = vm_read;
     vm_gc_entry_t *vec = vm_gc_array_new(gc, nargs);
+    for (int i = 0; i < nargs; i++)
+    {
+        vm_reg_t vreg = vm_read_reg;
+        vm_gc_set_index(vec, i, cur_locals[vreg]);
+    }
+    vm_fetch;
+    cur_locals[outreg] = vm_obj_of_ptr(vec);
+    run_next_op;
+}
+do_static_array_new:
+{
+    vm_gc_run1(gc, locals_base, cur_frame->locals);
+    vm_reg_t outreg = vm_read_reg;
+    int nargs = vm_read;
+    vm_gc_entry_t *vec = vm_gc_static_array_new(gc, nargs);
     for (int i = 0; i < nargs; i++)
     {
         vm_reg_t vreg = vm_read_reg;
@@ -419,7 +434,6 @@ do_dynamic_call:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = (vm_loc_t) vm_obj_to_int(next_func);
-
     cur_frame->locals = cur_locals + vm_read_ahead(-1);
     vm_fetch;
     run_next_op;
@@ -579,6 +593,7 @@ do_mod:
 }
 do_concat:
 {
+    vm_gc_run1(gc, locals_base, cur_frame->locals);
     vm_reg_t to = vm_read_reg;
     vm_reg_t lhs = vm_read_reg;
     vm_reg_t rhs = vm_read_reg;
@@ -586,6 +601,18 @@ do_concat:
     vm_obj_t o1 = cur_locals[lhs];
     vm_obj_t o2 = cur_locals[rhs];
     cur_locals[to] = vm_gc_concat(gc, o1, o2);
+    run_next_op;
+}
+do_static_concat:
+{
+    vm_gc_run1(gc, locals_base, cur_frame->locals);
+    vm_reg_t to = vm_read_reg;
+    vm_reg_t lhs = vm_read_reg;
+    vm_reg_t rhs = vm_read_reg;
+    vm_fetch;
+    vm_obj_t o1 = cur_locals[lhs];
+    vm_obj_t o2 = cur_locals[rhs];
+    cur_locals[to] = vm_gc_static_concat(gc, o1, o2);
     run_next_op;
 }
 do_putchar:

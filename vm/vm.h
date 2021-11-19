@@ -45,14 +45,15 @@ enum vm_opcode_t
     VM_OPCODE_WRITE = 33,
     VM_OPCODE_LOAD_GLOBAL = 34,
     VM_OPCODE_DYNAMIC_CALL = 35,
+    VM_OPCODE_STATIC_ARRAY_NEW = 36,
+    VM_OPCODE_STATIC_CONCAT = 37,
     VM_OPCODE_MAX1,
     VM_OPCODE_MAX2P = 128,
 };
 
 typedef struct
 {
-    int index;
-    int nargs;
+    vm_obj_t *locals;
     vm_reg_t outreg;
-    void *locals;
+    int index;
 } vm_stack_frame_t;
