@@ -107,6 +107,7 @@ vm_reboot:;
     ptrs[VM_OPCODE_READ] = &&do_read;
 #endif
     ptrs[VM_OPCODE_LOAD_GLOBAL] = &&do_load_global;
+    ptrs[VM_OPCODE_DYNAMIC_CALL] = &&do_dynamic_call;
     cur_frame->locals = cur_locals;
     cur_frame += 1;
     cur_frame->locals = cur_locals + VM_GLOBALS_NUM;
@@ -397,6 +398,29 @@ do_static_call:
     cur_frame->outreg = outreg;
     cur_frame++;
     cur_index = next_func;
+    cur_frame->locals = cur_locals + vm_read_ahead(-1);
+    vm_fetch;
+    run_next_op;
+}
+do_dynamic_call:
+{
+    vm_reg_t outreg = vm_read_reg;
+    vm_reg_t funcreg = vm_read;
+    int nargs = vm_read;
+    vm_obj_t *next_locals = cur_frame->locals;
+    for (int argno = 1; argno <= nargs; argno++)
+    {
+        vm_reg_t regno = vm_read_reg;
+        next_locals[argno] = cur_locals[regno];
+    }
+    vm_obj_t next_func = cur_locals[funcreg];
+    printf("(reg: %i)\n", funcreg);
+    cur_locals = next_locals;
+    cur_frame->index = cur_index;
+    cur_frame->outreg = outreg;
+    cur_frame++;
+    cur_index = (vm_loc_t) vm_obj_to_int(next_func);
+
     cur_frame->locals = cur_locals + vm_read_ahead(-1);
     vm_fetch;
     run_next_op;

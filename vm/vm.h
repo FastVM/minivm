@@ -44,6 +44,7 @@ enum vm_opcode_t
     VM_OPCODE_READ = 32,
     VM_OPCODE_WRITE = 33,
     VM_OPCODE_LOAD_GLOBAL = 34,
+    VM_OPCODE_DYNAMIC_CALL = 35,
     VM_OPCODE_MAX1,
     VM_OPCODE_MAX2P = 128,
 };
