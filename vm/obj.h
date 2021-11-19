@@ -97,34 +97,41 @@ static inline bool vm_obj_to_bool(vm_obj_t obj)
 
 static inline int vm_obj_to_int(vm_obj_t obj)
 {
-#if defined(VM_DEBUG_OBJ)
     if (!vm_obj_is_num(obj))
     {
+#if defined(VM_DEBUG_OBJ)
+        __builtin_trap();
+#else
+        __builtin_unreachable(); 
+#endif
         __builtin_trap();
     }
-#endif
     return (int)nanbox_to_double(obj);
 }
 
 static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
 {
-#if defined(VM_DEBUG_OBJ)
     if (!vm_obj_is_num(obj))
     {
+#if defined(VM_DEBUG_OBJ)
         __builtin_trap();
-    }
+#else
+        __builtin_unreachable(); 
 #endif
+    }
     return nanbox_to_double(obj);
 }
 
 static inline void *vm_obj_to_ptr(vm_obj_t obj)
 {
-#if defined(VM_DEBUG_OBJ)
     if (!vm_obj_is_ptr(obj))
     {
+#if defined(VM_DEBUG_OBJ)
         __builtin_trap();
-    }
+#else
+        __builtin_unreachable(); 
 #endif
+    }
 #if defined(VM_OS)
     return &os_mem_base[obj.as_bits.payload];
 #else
