@@ -33,27 +33,16 @@ struct vm_gc_t
     int64_t remain;
 };
 
-enum vm_gc_entry_type_t
-{
+enum {
     VM_GC_ENTRY_TYPE_ARRAY,
     VM_GC_ENTRY_TYPE_STATIC_ARRAY,
 };
 
-// for use in sizeof
-typedef struct vm_gc_entry_base_t
-{
-    vm_gc_entry_t *next;
-    uint32_t keep: 1;
-    uint32_t alloc: 31;
-    uint32_t type: 2;
-    uint32_t len: 30;
-} vm_gc_entry_base_t;
-
 struct vm_gc_entry_t
 {
     vm_gc_entry_t *next;
-    uint32_t keep: 1;
-    uint32_t alloc: 31;
+    uint32_t keep: 2;
+    uint32_t alloc: 30;
     uint32_t type: 2;
     uint32_t len: 30;
     union
