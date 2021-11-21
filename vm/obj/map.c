@@ -159,13 +159,13 @@ vm_obj_t vm_map_get_index(vm_map_t *map, vm_obj_t key)
     }
 }
 
-void vm_map_for_pairs(vm_map_t *map, void *state, int (*fn)(void *state, vm_obj_t key, vm_obj_t value))
+void vm_map_for_pairs(vm_map_t *map, void *state, size_t (*fn)(void *state, vm_obj_t key, vm_obj_t value))
 {
     for (size_t i = 0; i < (1 << map->alloc); i++)
     {
         if (!vm_obj_is_dead(map->keys[i]))
         {
-            int res = fn(state, map->keys[i], map->values[i]);
+            size_t res = fn(state, map->keys[i], map->values[i]);
             if (res) {
                 break;
             }

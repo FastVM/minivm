@@ -55,5 +55,5 @@ typedef struct
 {
     vm_obj_t *locals;
     vm_reg_t outreg;
-    int index;
+    size_t index;
 } vm_stack_frame_t;

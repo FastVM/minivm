@@ -38,7 +38,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
     {
         return;
     }
-    for (vm_obj_t *base = low; base < high; base++)
+    for (vm_obj_t *base = low; base < low + VM_LOCALS_UNITS; base++)
     {
         vm_obj_t cur = *base;
         if (vm_obj_is_ptr(cur))
@@ -72,13 +72,14 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
             no++;
         }
     }
-    gc->remain = yes * 1;
+    // printf("keep: %zu / %zu (%.2f%%)\n", yes, no + yes, 100.0 * yes / (no + yes));
+    gc->remain = yes * 1.5;
     gc->first = last;
 }
 
 void vm_gc_start(vm_gc_t *gc)
 {
-    gc->remain = 1;
+    gc->remain = 100;
     gc->first = NULL;
 }
 
@@ -98,6 +99,7 @@ void vm_gc_stop(vm_gc_t *gc)
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
 {
+    gc->remain -= 1;
     vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t));
     *entry = (vm_gc_entry_t){
         .next = gc->first,
@@ -114,6 +116,7 @@ vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)
 
 vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t size)
 {
+    gc->remain -= 1;
     vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * (size - 1));
     *entry = (vm_gc_entry_t){
         .next = gc->first,
@@ -126,7 +129,7 @@ vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t size)
     return entry;
 }
 
-vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, int index)
+vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_int_t index)
 {
     if (index < 0) {
         index += ptr->len;
@@ -141,7 +144,7 @@ vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, int index)
     }
 }
 
-void vm_gc_set_index(vm_gc_entry_t *ptr, int index, vm_obj_t value)
+void vm_gc_set_index(vm_gc_entry_t *ptr, vm_int_t index, vm_obj_t value)
 {
     if (index < 0) {
         index += ptr->len;
@@ -156,16 +159,16 @@ void vm_gc_set_index(vm_gc_entry_t *ptr, int index, vm_obj_t value)
     }
 }
 
-int vm_gc_sizeof(vm_gc_entry_t *ptr)
+vm_int_t vm_gc_sizeof(vm_gc_entry_t *ptr)
 {
-    return ((vm_gc_entry_t *)ptr)->len;
+    return ptr->len;
 }
 
 void vm_gc_extend(vm_gc_entry_t *ato, vm_gc_entry_t *afrom)
 {
     if (ato->len + afrom->len + 1 >= ato->alloc)
     {
-        int alloc = (ato->len + afrom->len) * 2;
+        vm_int_t alloc = (ato->len + afrom->len) * 2;
         ato->ptr = vm_realloc(ato->ptr, sizeof(vm_obj_t) * alloc);
         ato->alloc = alloc;
     }
@@ -190,7 +193,7 @@ void vm_gc_push(vm_gc_entry_t *ato, vm_obj_t from)
 {
     if (ato->len + 2 >= ato->alloc)
     {
-        int alloc = (ato->len + 1) * 2;
+        vm_int_t alloc = (ato->len + 1) * 2;
         ato->ptr = vm_realloc(ato->ptr, sizeof(vm_obj_t) * alloc);
         ato->alloc = alloc;
     }
@@ -201,33 +204,33 @@ vm_obj_t vm_gc_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
 {
     vm_gc_entry_t *left = vm_obj_to_ptr(lhs);
     vm_gc_entry_t *right = vm_obj_to_ptr(rhs);
-    int llen = left->len;
-    int rlen = right->len;
+    vm_int_t llen = left->len;
+    vm_int_t rlen = right->len;
     vm_gc_entry_t *ent = vm_gc_array_new(gc, llen + rlen);
     if (left->type == VM_GC_ENTRY_TYPE_STATIC_ARRAY)
     {
-        for (int i = 0; i < llen; i++)
+        for (vm_int_t i = 0; i < llen; i++)
         {
             ent->ptr[i] = left->arr[i];
         }
     }
     else
     {
-        for (int i = 0; i < llen; i++)
+        for (vm_int_t i = 0; i < llen; i++)
         {
             ent->ptr[i] = left->ptr[i];
         }
     }
     if (left->type == VM_GC_ENTRY_TYPE_STATIC_ARRAY)
     {
-        for (int i = 0; i < rlen; i++)
+        for (vm_int_t i = 0; i < rlen; i++)
         {
             ent->ptr[llen + i] = right->arr[i];
         }
     }
     else
     {
-        for (int i = 0; i < rlen; i++)
+        for (vm_int_t i = 0; i < rlen; i++)
         {
             ent->ptr[llen + i] = right->ptr[i];
         }
@@ -239,33 +242,33 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
 {
     vm_gc_entry_t *left = vm_obj_to_ptr(lhs);
     vm_gc_entry_t *right = vm_obj_to_ptr(rhs);
-    int llen = left->len;
-    int rlen = right->len;
+    vm_int_t llen = left->len;
+    vm_int_t rlen = right->len;
     vm_gc_entry_t *ent = vm_gc_static_array_new(gc, llen + rlen);
     if (left->type == VM_GC_ENTRY_TYPE_STATIC_ARRAY)
     {
-        for (int i = 0; i < llen; i++)
+        for (vm_int_t i = 0; i < llen; i++)
         {
             ent->ptr[i] = left->arr[i];
         }
     }
     else
     {
-        for (int i = 0; i < llen; i++)
+        for (vm_int_t i = 0; i < llen; i++)
         {
             ent->ptr[i] = left->ptr[i];
         }
     }
     if (left->type == VM_GC_ENTRY_TYPE_STATIC_ARRAY)
     {
-        for (int i = 0; i < rlen; i++)
+        for (vm_int_t i = 0; i < rlen; i++)
         {
             ent->ptr[llen + i] = right->arr[i];
         }
     }
     else
     {
-        for (int i = 0; i < rlen; i++)
+        for (vm_int_t i = 0; i < rlen; i++)
         {
             ent->ptr[llen + i] = right->ptr[i];
         }
