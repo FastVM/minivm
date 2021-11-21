@@ -8,19 +8,22 @@ typedef struct vm_state_t vm_state_t;
 
 struct vm_state_t
 {
-    vm_gc_t *restrict gc;
-    vm_opcode_t *restrict xops;
+    vm_gc_t *gc;
+    vm_opcode_t *xops;
     void (*putchar)(vm_state_t *state, char chr);
 
     size_t index;
     size_t nops;
-    const vm_opcode_t *restrict ops; 
+    const vm_opcode_t *ops; 
     
     vm_stack_frame_t *frames;
     vm_stack_frame_t *frame;
     
     vm_obj_t *globals;
     vm_obj_t *locals;
+
+    vm_state_t *next;
+    ptrdiff_t gas;
 };
 
 void vm_run(vm_state_t *state);

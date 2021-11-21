@@ -52,6 +52,9 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args)
     state->index = 0;
     state->nops = 0;
     state->ops = NULL;
+
+    state->gas = -1;
+    state->next = NULL;
     return state;
 }
 

@@ -7,6 +7,15 @@ typedef int16_t vm_opcode_t;
 
 #include "obj.h"
 
+typedef union
+{
+    enum {
+        VM_RUN_SOME_DEAD,
+        VM_RUN_SOME_OUT_OF_GAS,
+        VM_RUN_SOME_FORK,
+    } tag;
+} vm_run_some_t;
+
 enum vm_opcode_t
 {
     VM_OPCODE_EXIT = 0,
@@ -57,3 +66,7 @@ typedef struct
     vm_reg_t outreg;
     size_t index;
 } vm_stack_frame_t;
+
+#include "state.h"
+
+vm_run_some_t vm_run_some(vm_state_t *state);

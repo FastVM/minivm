@@ -71,7 +71,6 @@ int vm_main_run(vm_char_t *src, size_t argc, vm_char_t **argv)
     vm_state_t *state = vm_state_new(argc, (const char **) argv);
     vm_state_set_ops(state, nops, vm_ops);
     vm_run(state);
-    vm_state_del(state);
     return 0;
 }
 
