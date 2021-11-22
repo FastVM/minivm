@@ -19,7 +19,7 @@ void os_puts(const char *str);
 #define vm_run_next_op() \
     goto *ptrs[vm_read()]
 
-#if defined(VM_NO_SCHEDULE)
+#if !defined(VM_NO_SCHEDULE)
 #define vm_run_op(index_) \
     index = index_; \
     if (gas-- == 0) { vm_run_exit(((vm_run_some_t) {.tag = VM_RUN_SOME_OUT_OF_GAS})); } \

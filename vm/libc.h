@@ -17,8 +17,8 @@ size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 int printf(const char *fmt, ...);
 #endif
 
-#define VM_FRAMES_UNITS (1 << 12)
-#define VM_LOCALS_UNITS (VM_FRAMES_UNITS * 16)
+#define VM_FRAMES_UNITS (1 << 8)
+#define VM_LOCALS_UNITS (VM_FRAMES_UNITS * 32)
 
 #if !defined(NULL)
 #define NULL ((void*)0)
