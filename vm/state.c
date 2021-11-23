@@ -33,14 +33,12 @@ vm_obj_t vm_state_global_from(vm_gc_t *gc, size_t len, const vm_char_t **args)
 vm_state_t *vm_state_new(size_t len, const vm_char_t **args)
 {
     vm_state_t *state = vm_malloc(sizeof(vm_state_t));
-    vm_gc_t *gc = vm_malloc(sizeof(vm_gc_t));
-    vm_gc_start(gc);
-    state->gc = gc;
+    vm_gc_start(&state->gc);
     state->frames = vm_malloc(sizeof(vm_stack_frame_t) * VM_FRAMES_UNITS);
     state->globals = vm_malloc(sizeof(vm_obj_t) * VM_LOCALS_UNITS);
     state->xops = vm_malloc(sizeof(vm_opcode_t) * (1 << 16));
     state->putchar = &vm_state_putchar_default;
-    state->globals[0] = vm_state_global_from(state->gc, len, args);
+    state->globals[0] = vm_state_global_from(&state->gc, len, args);
 
     state->frame = state->frames;
     state->locals = state->globals;
@@ -53,8 +51,6 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args)
     state->nops = 0;
     state->ops = NULL;
 
-    state->gas = -1;
-    state->next = NULL;
     return state;
 }
 
@@ -66,10 +62,9 @@ void vm_state_set_ops(vm_state_t *state, size_t nops, const vm_opcode_t *ops)
 
 void vm_state_del(vm_state_t *state)
 {
-    vm_gc_stop(state->gc);
+    vm_gc_stop(&state->gc);
     vm_free(state->frames);
     vm_free(state->globals);
     vm_free(state->xops);
-    vm_free(state->gc);
     vm_free(state);
 }

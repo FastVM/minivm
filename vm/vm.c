@@ -3,6 +3,7 @@
 #include "math.h"
 #include "obj.h"
 #include "libc.h"
+#include "thread.h"
 #include "state.h"
 
 #if defined(VM_OS)
@@ -10,58 +11,48 @@ void os_putn(size_t n);
 void os_puts(const char *str);
 #endif
 
-#define vm_run_exit(ret_) \
+#define vm_defer() \
     state->locals = locals; \
     state->index = index; \
-    state->gas = gas; \
-    return (ret_);
+    vm_pool_add_work(state->pool, &vm_run_some_vp, state); \
+    return;
 
 #define vm_run_next_op() \
     goto *ptrs[vm_read()]
 
-#if !defined(VM_NO_SCHEDULE)
+// #define vm_run_op(index_) \
+    // index = index_; \
+    // vm_run_next_op();
+
 #define vm_run_op(index_) \
     index = index_; \
-    if (gas-- == 0) { vm_run_exit(((vm_run_some_t) {.tag = VM_RUN_SOME_OUT_OF_GAS})); } \
-    else { vm_run_next_op(); }
-#else
-#define vm_run_op(index_) \
-    index = index_; \
-    vm_run_next_op()
-#endif
+    if (gas-- > 0) { vm_run_next_op(); } \
+    else { vm_defer(); }
 
 #define vm_read() (ops[index++])
 #define vm_read_at(index_) (*(vm_opcode_t *)&ops[(index_)])
 
-static inline vm_state_t *vm_run_some_rec(vm_state_t *cur)
-{
-    if (cur == NULL)
-    {
-        return NULL;
-    }
-    vm_state_t *ret = vm_run_some_rec(cur->next);
-    cur->next = ret;
-    cur->gas = 256;
-    vm_run_some_t res = vm_run_some(cur);
-    if (res.tag == VM_RUN_SOME_DEAD) {
-        vm_state_t *next = cur->next;
-        vm_state_del(cur);
-        return next;
-    }
-    return cur;
+void vm_run_some_vp(void *state_vp) {
+    vm_state_t *state = state_vp;
+    vm_run_some(state);
+}
+
+void vm_run_state(vm_pool_t *pool, vm_state_t *state) {
+    state->pool = pool;
+    vm_pool_add_work(state->pool, &vm_run_some_vp, state);
 }
 
 void vm_run(vm_state_t *state)
 {
-    while (state != NULL)
-    {
-        state = vm_run_some_rec(state);
-    }
+    vm_pool_t *pool = vm_pool_create(16);
+    vm_run_state(pool, state);
+    vm_pool_wait(pool);
+    vm_pool_destroy(pool);
 }
 
-vm_run_some_t vm_run_some(vm_state_t *state)
+void vm_run_some(vm_state_t *state)
 {
-    ptrdiff_t gas = state->gas;
+    size_t gas = 1 << 10;
     const vm_opcode_t *ops = state->ops;
     vm_obj_t *locals = state->locals;
     size_t index = state->index;
@@ -108,9 +99,8 @@ vm_run_some_t vm_run_some(vm_state_t *state)
     vm_run_next_op();
 do_exit:
 {
-    vm_run_exit(((vm_run_some_t) {
-        .tag = VM_RUN_SOME_DEAD,
-    }));
+    vm_state_del(state);
+    return;
 }
 do_load_global:
 {
@@ -119,15 +109,6 @@ do_load_global:
     locals[out] = locals[global];
     vm_run_next_op();
 }
-#if defined(VM_OS)
-do_os_error:
-{
-    putchar('?');
-    putchar('?');
-    putchar('?');
-    putchar('\n');
-}
-#else
 do_dump:
 {
     vm_reg_t namreg = vm_read();
@@ -158,7 +139,7 @@ do_dump:
 }
 do_read:
 {
-    vm_gc_run1(state->gc, state->globals, state->frame->locals);
+    vm_gc_run1(&state->gc, state->globals, state->frame->locals);
     vm_reg_t outreg = vm_read();
     vm_reg_t namereg = vm_read();
     vm_gc_entry_t *sname = vm_obj_to_ptr(locals[namereg]);
@@ -199,7 +180,7 @@ do_read:
         }
     }
     fclose(in);
-    vm_gc_entry_t *ent = vm_gc_array_new(state->gc, where);
+    vm_gc_entry_t *ent = vm_gc_array_new(&state->gc, where);
     for (vm_int_t i = 0; i < where; i++)
     {
         vm_gc_set_index(ent, i, vm_obj_of_int(str[i]));
@@ -234,7 +215,6 @@ do_write:
     fclose(out);
     vm_run_next_op();
 }
-#endif
 do_exec:
 {
     vm_reg_t in = vm_read();
@@ -249,10 +229,9 @@ do_exec:
         xops[i] = (vm_opcode_t) n;
     }
     vm_state_t *xstate = vm_state_new(0, NULL);
-    xstate->globals[0] = locals[argreg];
+    xstate->globals[0] = vm_gc_dup(&xstate->gc, locals[argreg]);
     vm_state_set_ops(xstate, xlen, xops);
-    xstate->next = state->next;
-    state->next = xstate;
+    vm_run_state(state->pool, xstate);
     vm_run_next_op();
 }
 do_return:
@@ -313,7 +292,7 @@ do_string_new:
 {
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
-    vm_gc_entry_t *str = vm_gc_array_new(state->gc, nargs);
+    vm_gc_entry_t *str = vm_gc_array_new(&state->gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
         vm_number_t num = vm_read();
@@ -324,10 +303,10 @@ do_string_new:
 }
 do_array_new:
 {
-    vm_gc_run1(state->gc, state->globals, state->frame->locals);
+    vm_gc_run1(&state->gc, state->globals, state->frame->locals);
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
-    vm_gc_entry_t *vec = vm_gc_array_new(state->gc, nargs);
+    vm_gc_entry_t *vec = vm_gc_array_new(&state->gc, nargs);
     for (vm_int_t i = 0; i < nargs; i++)
     {
         vm_reg_t vreg = vm_read();
@@ -338,10 +317,10 @@ do_array_new:
 }
 do_static_array_new:
 {
-    vm_gc_run1(state->gc, state->globals, state->frame->locals);
+    vm_gc_run1(&state->gc, state->globals, state->frame->locals);
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
-    vm_gc_entry_t *vec = vm_gc_static_array_new(state->gc, nargs);
+    vm_gc_entry_t *vec = vm_gc_static_array_new(&state->gc, nargs);
     for (vm_int_t i = 0; i < nargs; i++)
     {
         vm_reg_t vreg = vm_read();
@@ -552,24 +531,24 @@ do_mod:
 }
 do_concat:
 {
-    vm_gc_run1(state->gc, state->globals, state->frame->locals);
+    vm_gc_run1(&state->gc, state->globals, state->frame->locals);
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();
     vm_obj_t o1 = locals[lhs];
     vm_obj_t o2 = locals[rhs];
-    locals[to] = vm_gc_concat(state->gc, o1, o2);
+    locals[to] = vm_gc_concat(&state->gc, o1, o2);
     vm_run_next_op();
 }
 do_static_concat:
 {
-    vm_gc_run1(state->gc, state->globals, state->frame->locals);
+    vm_gc_run1(&state->gc, state->globals, state->frame->locals);
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();
     vm_obj_t o1 = locals[lhs];
     vm_obj_t o2 = locals[rhs];
-    locals[to] = vm_gc_static_concat(state->gc, o1, o2);
+    locals[to] = vm_gc_static_concat(&state->gc, o1, o2);
     vm_run_next_op();
 }
 do_putchar:

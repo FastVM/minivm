@@ -68,5 +68,8 @@ typedef struct
 } vm_stack_frame_t;
 
 #include "state.h"
+#include "thread.h"
 
-vm_run_some_t vm_run_some(vm_state_t *state);
+void vm_run(vm_state_t *state);
+void vm_run_some(vm_state_t *state);
+void vm_run_some_rec(vm_state_t **cur);

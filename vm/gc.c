@@ -275,3 +275,29 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     }
     return vm_obj_of_ptr(ent);
 }
+
+vm_obj_t vm_gc_dup(vm_gc_t *gc, vm_obj_t obj)
+{
+    if (!vm_obj_is_ptr(obj)) {
+        return obj;
+    }
+    vm_gc_entry_t *ent = vm_obj_to_ptr(obj);
+    if (ent->type == VM_GC_ENTRY_TYPE_STATIC_ARRAY)
+    {
+        vm_gc_entry_t *ret = vm_gc_static_array_new(gc, ent->len);
+        for (size_t i = 0; i < ent->len; i++)
+        {
+            ret->arr[i] = vm_gc_dup(gc, ent->arr[i]);
+        }
+        return vm_obj_of_ptr(ret);
+    }
+    else
+    {
+        vm_gc_entry_t *ret = vm_gc_static_array_new(gc, ent->len);
+        for (size_t i = 0; i < ent->len; i++)
+        {
+            ret->ptr[i] = vm_gc_dup(gc, ent->ptr[i]);
+        }
+        return vm_obj_of_ptr(ret);
+    }
+}
