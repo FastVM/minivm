@@ -278,7 +278,8 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
 
 vm_obj_t vm_gc_dup(vm_gc_t *gc, vm_obj_t obj)
 {
-    if (!vm_obj_is_ptr(obj)) {
+    if (!vm_obj_is_ptr(obj))
+    {
         return obj;
     }
     vm_gc_entry_t *ent = vm_obj_to_ptr(obj);
@@ -293,7 +294,7 @@ vm_obj_t vm_gc_dup(vm_gc_t *gc, vm_obj_t obj)
     }
     else
     {
-        vm_gc_entry_t *ret = vm_gc_static_array_new(gc, ent->len);
+        vm_gc_entry_t *ret = vm_gc_array_new(gc, ent->len);
         for (size_t i = 0; i < ent->len; i++)
         {
             ret->ptr[i] = vm_gc_dup(gc, ent->ptr[i]);

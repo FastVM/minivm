@@ -52,7 +52,7 @@ void vm_run(vm_state_t *state)
 
 void vm_run_some(vm_state_t *state)
 {
-    size_t gas = 1 << 10;
+    size_t gas = 1 << 12;
     const vm_opcode_t *ops = state->ops;
     vm_obj_t *locals = state->locals;
     size_t index = state->index;
