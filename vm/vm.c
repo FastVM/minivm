@@ -85,13 +85,21 @@ void vm_run_some(vm_state_t *state)
         [VM_OPCODE_STATIC_CALL1] = &&do_static_call1,
         [VM_OPCODE_STATIC_CALL2] = &&do_static_call2,
         [VM_OPCODE_STATIC_CALL3] = &&do_static_call3,
-        [VM_OPCODE_BRANCH_BOOL] = &&do_branch_bool,
         [VM_OPCODE_BRANCH_EQUAL] = &&do_branch_equal,
         [VM_OPCODE_BRANCH_NOT_EQUAL] = &&do_branch_not_equal,
         [VM_OPCODE_BRANCH_LESS] = &&do_branch_less,
         [VM_OPCODE_BRANCH_GREATER] = &&do_branch_greater,
         [VM_OPCODE_BRANCH_LESS_THAN_EQUAL] = &&do_branch_less_than_equal,
         [VM_OPCODE_BRANCH_GREATER_THAN_EQUAL] = &&do_branch_greater_than_equal,
+        [VM_OPCODE_BRANCH_BOOL] = &&do_branch_bool,
+        [VM_OPCODE_INC] = &&do_inc,
+        [VM_OPCODE_DEC] = &&do_dec,
+        [VM_OPCODE_BRANCH_EQUAL_INT] = &&do_branch_equal_int,
+        [VM_OPCODE_BRANCH_NOT_EQUAL_INT] = &&do_branch_not_equal_int,
+        [VM_OPCODE_BRANCH_LESS_INT] = &&do_branch_less_int,
+        [VM_OPCODE_BRANCH_GREATER_INT] = &&do_branch_greater_int,
+        [VM_OPCODE_BRANCH_LESS_THAN_EQUAL_INT] = &&do_branch_less_than_equal_int,
+        [VM_OPCODE_BRANCH_GREATER_THAN_EQUAL_INT] = &&do_branch_greater_than_equal_int,
     };
     vm_run_next_op();
 do_exit:
@@ -211,20 +219,20 @@ do_add:
     locals[to] = vm_obj_num_add(locals[lhs], locals[rhs]);
     vm_run_next_op();
 }
-do_mul:
-{
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_num_mul(locals[lhs], locals[rhs]);
-    vm_run_next_op();
-}
 do_sub:
 {
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();
     locals[to] = vm_obj_num_sub(locals[lhs], locals[rhs]);
+    vm_run_next_op();
+}
+do_mul:
+{
+    vm_reg_t to = vm_read();
+    vm_reg_t lhs = vm_read();
+    vm_reg_t rhs = vm_read();
+    locals[to] = vm_obj_num_mul(locals[lhs], locals[rhs]);
     vm_run_next_op();
 }
 do_div:
@@ -703,6 +711,112 @@ do_branch_bool:
 {
     vm_reg_t from = vm_read();
     if (vm_obj_to_bool(locals[from]))
+    {
+        vm_loc_t jt = vm_read_at(index + 1);
+        vm_run_op(jt);
+    }
+    else
+    {
+        vm_loc_t jf = vm_read_at(index);
+        vm_run_op(jf);
+    }
+}
+do_inc:
+{
+    vm_reg_t to = vm_read();
+    vm_reg_t lhs = vm_read();
+    vm_int_t rhs = vm_read();
+    locals[to] = vm_obj_num_addc(locals[lhs], rhs);
+    vm_run_next_op();
+}
+do_dec:
+{
+    vm_reg_t to = vm_read();
+    vm_reg_t lhs = vm_read();
+    vm_int_t rhs = vm_read();
+    locals[to] = vm_obj_num_subc(locals[lhs], rhs);
+    vm_run_next_op();
+}
+do_branch_equal_int:
+{
+    vm_obj_t lhs = locals[vm_read()];
+    vm_int_t rhs = vm_read();
+    if (vm_obj_ieq(lhs, rhs))
+    {
+        vm_loc_t jt = vm_read_at(index + 1);
+        vm_run_op(jt);
+    }
+    else
+    {
+        vm_loc_t jf = vm_read_at(index);
+        vm_run_op(jf);
+    }
+}
+do_branch_not_equal_int:
+{
+    vm_obj_t lhs = locals[vm_read()];
+    vm_int_t rhs = vm_read();
+    if (vm_obj_ineq(lhs, rhs))
+    {
+        vm_loc_t jt = vm_read_at(index + 1);
+        vm_run_op(jt);
+    }
+    else
+    {
+        vm_loc_t jf = vm_read_at(index);
+        vm_run_op(jf);
+    }
+}
+do_branch_less_int:
+{
+    vm_obj_t lhs = locals[vm_read()];
+    vm_int_t rhs = vm_read();
+    if (vm_obj_ilt(lhs, rhs))
+    {
+        vm_loc_t jt = vm_read_at(index + 1);
+        vm_run_op(jt);
+    }
+    else
+    {
+        vm_loc_t jf = vm_read_at(index);
+        vm_run_op(jf);
+    }
+}
+do_branch_greater_int:
+{
+    vm_obj_t lhs = locals[vm_read()];
+    vm_int_t rhs = vm_read();
+    if (vm_obj_igt(lhs, rhs))
+    {
+        vm_loc_t jt = vm_read_at(index + 1);
+        vm_run_op(jt);
+    }
+    else
+    {
+        vm_loc_t jf = vm_read_at(index);
+        vm_run_op(jf);
+    }
+}
+do_branch_less_than_equal_int:
+{
+    vm_obj_t lhs = locals[vm_read()];
+    vm_int_t rhs = vm_read();
+    if (vm_obj_ilte(lhs, rhs))
+    {
+        vm_loc_t jt = vm_read_at(index + 1);
+        vm_run_op(jt);
+    }
+    else
+    {
+        vm_loc_t jf = vm_read_at(index);
+        vm_run_op(jf);
+    }
+}
+do_branch_greater_than_equal_int:
+{
+    vm_obj_t lhs = locals[vm_read()];
+    vm_int_t rhs = vm_read();
+    if (vm_obj_igte(lhs, rhs))
     {
         vm_loc_t jt = vm_read_at(index + 1);
         vm_run_op(jt);
