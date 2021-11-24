@@ -24,8 +24,6 @@ struct vm_state_t
     vm_obj_t *locals;
 
     ptrdiff_t gas;
-
-    vm_pool_t *pool;
 };
 
 vm_state_t *vm_state_new(size_t n, const char *args[n]);
