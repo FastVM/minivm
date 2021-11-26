@@ -5,7 +5,9 @@
 #define VM_CAN_NOT_RUN "cannot run vm: not enough args\n"
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
 
+#if defined(VM_TIME_MAIN)
 #include <sys/time.h>
+#endif
 
 int vm_main_run(vm_char_t *src, size_t argc, vm_char_t **argv)
 {

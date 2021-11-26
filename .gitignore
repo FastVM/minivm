@@ -21,3 +21,5 @@ scosmopolitan.h
 *.dep
 *.core
 minivm
+*.dbg
+cosmo

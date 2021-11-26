@@ -3,7 +3,6 @@
 #include "math.h"
 #include "obj.h"
 #include "libc.h"
-#include "thread.h"
 #include "state.h"
 
 #if defined(VM_OS)

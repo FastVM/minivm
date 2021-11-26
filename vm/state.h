@@ -5,7 +5,6 @@ typedef struct vm_state_t vm_state_t;
 
 #include "vm.h"
 #include "gc.h"
-#include "thread.h"
 
 struct vm_state_t
 {
@@ -22,8 +21,6 @@ struct vm_state_t
     
     vm_obj_t *globals;
     vm_obj_t *locals;
-
-    ptrdiff_t gas;
 };
 
 vm_state_t *vm_state_new(size_t n, const char *args[n]);
