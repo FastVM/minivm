@@ -1,9 +1,16 @@
-OUT=minivm
+OUT = minivm
 
-OPT=-Os
+OPT ?= -Ofast
 
-CFILES=vm/vm.c vm/state.c vm/gc.c main/main.c
-OBJS=$(CFILES:%.c=%.o)
+CFILES = vm/vm.c vm/state.c vm/gc.c main/main.c
+OBJS = $(CFILES:%.c=%.o)
+
+LTO ?= 0
+
+LTO_1 = -flto
+LTO_0 = 
+CFLAGS += $(LTO_$(LTO))
+LFLAGS += $(LTO_$(LTO)) 
 
 default: $(OUT)
 
