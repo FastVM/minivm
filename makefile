@@ -14,6 +14,9 @@ LFLAGS += $(LTO_$(LTO))
 
 default: $(OUT)
 
+lib$(OUT).a: $(OBJS)
+	ar rcs lib$(OUT).a $(OBJS)
+
 $(OUT): $(OBJS)
 	: mkdir -p bin
 	$(CC) $(OBJS) -o $(OUT) -lc -lm $(LFLAGS)
