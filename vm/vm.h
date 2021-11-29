@@ -2,8 +2,8 @@
 
 #include "libc.h"
 
-typedef int16_t vm_reg_t;
-typedef int16_t vm_opcode_t;
+typedef int32_t vm_reg_t;
+typedef int32_t vm_opcode_t;
 
 #include "obj.h"
 
@@ -44,14 +44,42 @@ enum vm_opcode_t
     VM_OPCODE_READ = 32,
     VM_OPCODE_WRITE = 33,
     VM_OPCODE_LOAD_GLOBAL = 34,
+    VM_OPCODE_DYNAMIC_CALL = 35,
+    VM_OPCODE_STATIC_ARRAY_NEW = 36,
+    VM_OPCODE_STATIC_CONCAT = 37,
+    VM_OPCODE_STATIC_CALL0 = 38,
+    VM_OPCODE_STATIC_CALL1 = 39,
+    VM_OPCODE_STATIC_CALL2 = 41,
+    VM_OPCODE_STATIC_CALL3 = 42,
+    VM_OPCODE_BRANCH_EQUAL = 43,
+    VM_OPCODE_BRANCH_NOT_EQUAL = 44,
+    VM_OPCODE_BRANCH_LESS = 45,
+    VM_OPCODE_BRANCH_GREATER = 46,
+    VM_OPCODE_BRANCH_LESS_THAN_EQUAL = 47,
+    VM_OPCODE_BRANCH_GREATER_THAN_EQUAL = 48,
+    VM_OPCODE_BRANCH_BOOL = 49,
+    VM_OPCODE_INC = 50,
+    VM_OPCODE_DEC = 51,
+    VM_OPCODE_BRANCH_EQUAL_INT = 52,
+    VM_OPCODE_BRANCH_NOT_EQUAL_INT = 53,
+    VM_OPCODE_BRANCH_LESS_INT = 54,
+    VM_OPCODE_BRANCH_GREATER_INT = 55,
+    VM_OPCODE_BRANCH_LESS_THAN_EQUAL_INT = 56,
+    VM_OPCODE_BRANCH_GREATER_THAN_EQUAL_INT = 57,
+
     VM_OPCODE_MAX1,
     VM_OPCODE_MAX2P = 128,
 };
 
 typedef struct
 {
-    int index;
-    int nargs;
+    vm_obj_t *locals;
     vm_reg_t outreg;
-    void *locals;
+    size_t index;
 } vm_stack_frame_t;
+
+#include "state.h"
+
+void vm_run(vm_state_t *state);
+void vm_run_some(vm_state_t *state);
+void vm_run_some_rec(vm_state_t **cur);

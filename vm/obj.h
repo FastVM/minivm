@@ -2,7 +2,10 @@
 
 #include "nanbox.h"
 typedef nanbox_t vm_obj_t;
+typedef char vm_char_t;
+typedef int vm_int_t;
 typedef int vm_loc_t;
+// typedef double vm_number_t;
 typedef double vm_number_t;
 
 #if defined(VM_OS)
@@ -95,7 +98,7 @@ static inline bool vm_obj_to_bool(vm_obj_t obj)
     return !nanbox_is_false(obj);
 }
 
-static inline int vm_obj_to_int(vm_obj_t obj)
+static inline vm_int_t vm_obj_to_int(vm_obj_t obj)
 {
     if (!vm_obj_is_num(obj))
     {
@@ -104,9 +107,7 @@ static inline int vm_obj_to_int(vm_obj_t obj)
 #else
         __builtin_unreachable(); 
 #endif
-        __builtin_trap();
-    }
-    return (int)nanbox_to_double(obj);
+    return (vm_int_t)nanbox_to_double(obj);
 }
 
 static inline vm_number_t vm_obj_to_num(vm_obj_t obj)
