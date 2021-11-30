@@ -107,6 +107,7 @@ static inline vm_int_t vm_obj_to_int(vm_obj_t obj)
 #else
         __builtin_unreachable(); 
 #endif
+    }
     return (vm_int_t)nanbox_to_double(obj);
 }
 
