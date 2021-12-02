@@ -10,12 +10,18 @@ void os_putn(size_t n);
 void os_puts(const char *str);
 #endif
 
+#if defined(VM_DEBUG_OPCODE)
+int printf(const char *, ...);
+#define vm_run_next_op() \
+    ({ \
+        vm_opcode_t op = vm_read(); \
+        printf("%i: %i\n", (int) (index - 1), (int) op); \
+        goto *ptrs[op]; \
+    })
+#else
 #define vm_run_next_op() \
     goto *ptrs[vm_read()]
-
-// #define vm_run_op(index_) \
-    // index = index_; \
-    // vm_run_next_op();
+#endif
 
 #define vm_run_op(index_) \
     index = index_; \
