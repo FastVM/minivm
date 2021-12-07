@@ -60,7 +60,7 @@ void vm_run_some(vm_state_t *state)
         [VM_OPCODE_LESS_THAN_EQUAL] = &&do_less_than_equal,
         [VM_OPCODE_GREATER_THAN_EQUAL] = &&do_greater_than_equal,
         [VM_OPCODE_JUMP] = &&do_jump,
-        [VM_OPCODE_BRANCH_TRUE] = &&do_branch_true,
+        [VM_OPCODE_FUNC] = &&do_func,
         [VM_OPCODE_ADD] = &&do_add,
         [VM_OPCODE_SUB] = &&do_sub,
         [VM_OPCODE_MUL] = &&do_mul,
@@ -202,19 +202,10 @@ do_jump:
     vm_loc_t to = vm_read();
     vm_run_op(to);
 }
-do_branch_true:
+do_func:
 {
-    vm_loc_t to1 = vm_read();
-    vm_loc_t to2 = vm_read();
-    vm_reg_t from = vm_read();
-    if (vm_obj_to_bool(locals[from]))
-    {
-        vm_run_op(to1);
-    }
-    else
-    {
-        vm_run_op(to2);
-    }
+    vm_loc_t to = vm_read();
+    vm_run_op(to);
 }
 do_add:
 {
