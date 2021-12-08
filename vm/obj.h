@@ -18,7 +18,6 @@ enum
     VM_TYPE_BOOL = 2,
     VM_TYPE_NUMBER = 3,
     VM_TYPE_ARRAY = 4,
-    VM_TYPE_STRING = 5,
 };
 
 // type check

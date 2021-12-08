@@ -81,9 +81,6 @@ Minivm has a growing number of core types.
 - number
 - box
   - a valid reference to a single value
-- string
-  - mutable characters
-  - some unicode text
 - array
   - unchanging in length
 - map 
