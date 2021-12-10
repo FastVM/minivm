@@ -32,12 +32,8 @@ void vm_gc_mark_ptr(vm_gc_entry_t *ent)
     }
 }
 
-void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
+void vm_gc_run1_impl(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
 {
-    if (gc->remain > 0)
-    {
-        return;
-    }
     for (vm_obj_t *base = low; base < low + VM_LOCALS_UNITS; base++)
     {
         vm_obj_t cur = *base;
@@ -72,10 +68,49 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
             no++;
         }
     }
-    // printf("keep: %zu / %zu (%.2f%%)\n", yes, no + yes, 100.0 * yes / (no + yes));
     gc->remain = yes * 1.5;
     gc->first = last;
 }
+
+#if defined(VM_TIME_GC)
+#include <time.h>
+static struct timespec vm_gc_time_diff(struct timespec start, struct timespec end)
+{
+    struct timespec temp;
+    if ((end.tv_nsec-start.tv_nsec)<0) {
+        temp.tv_sec = end.tv_sec-start.tv_sec-1;
+        temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+    } else {
+        temp.tv_sec = end.tv_sec-start.tv_sec;
+        temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+    }
+    return temp;
+}
+
+static size_t vm_gc_total_time_usage = 0;
+
+void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high) {
+    if (gc->remain > 0)
+    {
+        return;
+    }
+    struct timespec time1 = {0};
+    struct timespec time2 = {0};
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    vm_gc_run1_impl(gc, low, high);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
+    size_t nsec = vm_gc_time_diff(time1, time2).tv_nsec;
+    vm_gc_total_time_usage += nsec;
+}
+#else
+void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high) {
+    if (gc->remain > 0)
+    {
+        return;
+    }
+    vm_gc_run1_impl(gc, low, high);
+}
+#endif
 
 void vm_gc_start(vm_gc_t *gc)
 {
@@ -95,6 +130,9 @@ void vm_gc_stop(vm_gc_t *gc)
         vm_free(first);
         first = next;
     }
+#if defined(VM_TIME_GC)
+    printf("%lims total\n", vm_gc_total_time_usage / 1000 / 1000);
+#endif
 }
 
 vm_gc_entry_t *vm_gc_array_new(vm_gc_t *gc, size_t size)

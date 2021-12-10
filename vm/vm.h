@@ -73,9 +73,9 @@ enum vm_opcode_t
 
 typedef struct
 {
-    vm_obj_t *locals;
     vm_reg_t outreg;
-    size_t index;
+    vm_opcode_t index;
+    vm_opcode_t nlocals;
 } vm_stack_frame_t;
 
 #include "state.h"

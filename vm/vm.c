@@ -43,7 +43,7 @@ void vm_run_some(vm_state_t *state)
 {
     const vm_opcode_t *ops = state->ops;
     vm_obj_t *globals = state->globals;
-    vm_obj_t *locals = state->locals;
+    vm_obj_t *locals = state->globals + state->nlocals;
     size_t index = state->index;
     vm_stack_frame_t *frame = state->frame;
     vm_gc_t *gc = &state->gc;
@@ -117,7 +117,7 @@ do_return:
     vm_reg_t from = vm_read();
     vm_obj_t val = locals[from];
     frame--;
-    locals = (frame - 1)->locals;
+    locals = locals - frame->nlocals;
     vm_reg_t outreg = frame->outreg;
     locals[outreg] = val;
     vm_run_op(frame->index);
@@ -249,7 +249,7 @@ do_mod:
 }
 do_concat:
 {
-    vm_gc_run1(gc, globals, frame->locals);
+    vm_gc_run1(gc, globals, locals + frame->nlocals);
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();
@@ -263,7 +263,7 @@ do_static_call:
     vm_reg_t outreg = vm_read();
     vm_loc_t next_func = vm_read();
     vm_int_t nargs = vm_read();
-    vm_obj_t *next_locals = frame->locals;
+    vm_obj_t *next_locals = locals + frame->nlocals;
     for (vm_int_t argno = 1; argno <= nargs; argno++)
     {
         vm_reg_t regno = vm_read();
@@ -273,7 +273,7 @@ do_static_call:
     frame->index = index;
     frame->outreg = outreg;
     frame++;
-    frame->locals = locals + vm_read_at(next_func - 1);
+    frame->nlocals = vm_read_at(next_func - 1);
     vm_run_op(next_func);
 }
 do_putchar:
@@ -298,7 +298,7 @@ do_string_new:
 }
 do_array_new:
 {
-    vm_gc_run1(gc, globals, frame->locals);
+    vm_gc_run1(gc, globals, locals + frame->nlocals);
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
     vm_gc_entry_t *vec = vm_gc_array_new(gc, nargs);
@@ -432,7 +432,7 @@ do_dump:
 }
 do_read:
 {
-    vm_gc_run1(gc, globals, frame->locals);
+    vm_gc_run1(gc, globals, locals + frame->nlocals);
     vm_reg_t outreg = vm_read();
     vm_reg_t namereg = vm_read();
     vm_gc_entry_t *sname = vm_obj_to_ptr(locals[namereg]);
@@ -520,7 +520,7 @@ do_dynamic_call:
     vm_reg_t outreg = vm_read();
     vm_reg_t funcreg = vm_read();
     vm_int_t nargs = vm_read();
-    vm_obj_t *next_locals = frame->locals;
+    vm_obj_t *next_locals = locals + frame->nlocals;
     for (vm_int_t argno = 1; argno <= nargs; argno++)
     {
         vm_reg_t regno = vm_read();
@@ -531,12 +531,12 @@ do_dynamic_call:
     frame->index = index;
     frame->outreg = outreg;
     frame++;
-    frame->locals = locals + vm_read_at(next_func - 1);
+    frame->nlocals = vm_read_at(next_func - 1);
     vm_run_op(next_func);
 }
 do_static_array_new:
 {
-    vm_gc_run1(gc, globals, frame->locals);
+    vm_gc_run1(gc, globals, locals + frame->nlocals);
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
     vm_gc_entry_t *vec = vm_gc_static_array_new(gc, nargs);
@@ -550,7 +550,7 @@ do_static_array_new:
 }
 do_static_concat:
 {
-    vm_gc_run1(gc, globals, frame->locals);
+    vm_gc_run1(gc, globals, locals + frame->nlocals);
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();
@@ -563,46 +563,46 @@ do_static_call0:
 {
     vm_reg_t outreg = vm_read();
     vm_loc_t next_func = vm_read();
-    vm_obj_t *next_locals = frame->locals;
+    vm_obj_t *next_locals = locals + frame->nlocals;
     locals = next_locals;
     frame->index = index;
     frame->outreg = outreg;
     frame++;
-    frame->locals = locals + vm_read_at(next_func - 1);
+    frame->nlocals = vm_read_at(next_func - 1);
     vm_run_op(next_func);
 }
 do_static_call1:
 {
     vm_reg_t outreg = vm_read();
     vm_loc_t next_func = vm_read();
-    vm_obj_t *next_locals = frame->locals;
+    vm_obj_t *next_locals = locals + frame->nlocals;
     next_locals[1] = locals[vm_read()];
     locals = next_locals;
     frame->index = index;
     frame->outreg = outreg;
     frame++;
-    frame->locals = locals + vm_read_at(next_func - 1);
+    frame->nlocals = vm_read_at(next_func - 1);
     vm_run_op(next_func);
 }
 do_static_call2:
 {
     vm_reg_t outreg = vm_read();
     vm_loc_t next_func = vm_read();
-    vm_obj_t *next_locals = frame->locals;
+    vm_obj_t *next_locals = locals + frame->nlocals;
     next_locals[1] = locals[vm_read()];
     next_locals[2] = locals[vm_read()];
     locals = next_locals;
     frame->index = index;
     frame->outreg = outreg;
     frame++;
-    frame->locals = locals + vm_read_at(next_func - 1);
+    frame->nlocals = vm_read_at(next_func - 1);
     vm_run_op(next_func);
 }
 do_static_call3:
 {
     vm_reg_t outreg = vm_read();
     vm_loc_t next_func = vm_read();
-    vm_obj_t *next_locals = frame->locals;
+    vm_obj_t *next_locals = locals + frame->nlocals;
     next_locals[1] = locals[vm_read()];
     next_locals[2] = locals[vm_read()];
     next_locals[3] = locals[vm_read()];
@@ -610,7 +610,7 @@ do_static_call3:
     frame->index = index;
     frame->outreg = outreg;
     frame++;
-    frame->locals = locals + vm_read_at(next_func - 1);
+    frame->nlocals = vm_read_at(next_func - 1);
     vm_run_op(next_func);
 }
 do_branch_equal:

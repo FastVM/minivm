@@ -20,7 +20,7 @@ struct vm_state_t
     vm_stack_frame_t *frame;
     
     vm_obj_t *globals;
-    vm_obj_t *locals;
+    size_t nlocals;
 };
 
 vm_state_t *vm_state_new(size_t n, const char *args[n]);

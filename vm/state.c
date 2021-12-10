@@ -41,11 +41,11 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args)
     state->globals[0] = vm_state_global_from(&state->gc, len, args);
 
     state->frame = state->frames;
-    state->locals = state->globals;
+    state->nlocals = 0;
     
-    state->frame->locals = state->locals;
+    state->frame->nlocals = 0;
     state->frame += 1;
-    state->frame->locals = state->locals + 256;
+    state->frame->nlocals = 256;
 
     state->index = 0;
     state->nops = 0;
