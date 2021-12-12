@@ -1,4 +1,4 @@
-OUT = minivm
+
 
 OPT ?= -Ofast
 
@@ -12,14 +12,16 @@ LTO_0 =
 CFLAGS += $(LTO_$(LTO))
 LFLAGS += $(LTO_$(LTO)) 
 
+OUT = minivm
+
 default: $(OUT)
 
-lib$(OUT).a: $(OBJS)
-	ar rcs lib$(OUT).a $(OBJS)
+libminivm.a: $(OBJS)
+	ar rcs libminivm.a $(OBJS)
 
-$(OUT): $(OBJS)
+minivm: $(OBJS)
 	: mkdir -p bin
-	$(CC) $(OBJS) -o $(OUT) -lc -lm $(LFLAGS)
+	$(CC) $(OBJS) -o minivm -lc -lm $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)
@@ -30,11 +32,11 @@ clean: .dummy
 	rm -f $(OBJS) $(OUT)
 
 cosmo:
-	test cosmo || test cosmopolitan.zip || wget https://justine.lol/cosmopolitan/cosmopolitan.zip
-	test cosmo || (mkdir -p cosmo && cd cosmo && 7z x ../cosmopolitan.zip)
+	test ! -f cosmopolitan.zip && wget https://justine.lol/cosmopolitan/cosmopolitan.zip || true
+	test ! -d cosmo && mkdir cosmo && cd cosmo && 7z x ../cosmopolitan.zip || true
 
 minivm.com: cosmo
 	$(CC) $(OPT) -static -fno-pie -mno-red-zone -nostdlib -nostdinc \
 		-fno-omit-frame-pointer -o minivm.com.dbg $(CFILES) -Wl,--gc-sections -fuse-ld=bfd \
-		-Wl,-T,cosmo/ape.lds cosmo/crt.o cosmo/ape.o cosmo/cosmopolitan.a
+		-Wl,-T,cosmo/ape.lds cosmo/crt.o cosmo/ape.o cosmo/cosmopolitan.a $(CFLAGS)
 	objcopy -S -O binary minivm.com.dbg minivm.com
