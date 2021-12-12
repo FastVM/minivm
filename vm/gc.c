@@ -1,15 +1,18 @@
 #include "gc.h"
 #include "obj.h"
 
+#define gc_mem(gc) (&gc->base[gc->up * gc->alloc])
+#define gc_xmem(gc) (&gc->base[!gc->up * gc->alloc])
+
 bool vm_gc_owns(vm_gc_t *gc, vm_gc_entry_t *ent)
 {
-    return (void *) &gc->mem[0] <= (void *) ent && (void *) ent < (void *) &gc->mem[gc->alloc];
+    return (void *) &gc_mem(gc)[0] <= (void *) ent && (void *) ent < (void *) &gc_mem(gc)[gc->alloc];
 }
 
 bool vm_gc_xowns(vm_gc_t *gc, vm_gc_entry_t *ent)
 {
-    // printf("%p in [%p .. %p]\n", ent, &gc->xmem[0], &gc->xmem[gc->alloc]);
-    return (void *) &gc->xmem[0] <= (void *) ent && (void *) ent < (void *) &gc->xmem[gc->alloc];
+    // printf("%p in [%p .. %p]\n", ent, &gc_xmem(gc)[0], &gc_xmem(gc)[gc->alloc]);
+    return (void *) &gc_xmem(gc)[0] <= (void *) ent && (void *) ent < (void *) &gc_xmem(gc)[gc->alloc];
 }
 
 void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
@@ -57,7 +60,7 @@ void vm_gc_update_any(vm_gc_t *gc, vm_obj_t *obj)
     {
         return;
     }
-    vm_gc_entry_t *put = (void *) &gc->xmem[ent->ptr];
+    vm_gc_entry_t *put = (void *) &gc_xmem(gc)[ent->ptr];
     *obj = vm_obj_of_ptr(gc, put);
     for (size_t cur = 0; cur < put->len; cur++)
     {
@@ -82,13 +85,13 @@ size_t vm_gc_run1_move(vm_gc_t *gc)
     size_t no = 0;
     while (pos < max)
     {
-        vm_gc_entry_t *ent = (void *) &gc->mem[pos];
+        vm_gc_entry_t *ent = (void *) &gc_mem(gc)[pos];
         size_t count = sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * ent->len;
         if (ent->keep)
         // if (true)
         {
             ent->ptr = out;
-            vm_gc_entry_t *put = (void *) &gc->xmem[out];
+            vm_gc_entry_t *put = (void *) &gc_xmem(gc)[out];
             put->keep = false;
             put->len = ent->len;
             for (size_t i = 0; i < ent->len; i++)
@@ -116,12 +119,8 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
     vm_gc_run1_mark(gc, low, high);
     size_t len = vm_gc_run1_move(gc);
     vm_gc_run1_update(gc, low, high);
-    uint8_t *old_mem = gc->mem;
-    uint8_t *old_xmem = gc->xmem;
-    // printf("%zu %zu\n", gc->len, len);
+    gc->up = !gc->up;
     gc->len = len;
-    gc->xmem = old_mem;
-    gc->mem = old_xmem;
     if (gc->len * 2 > gc->max)
     {
         gc->max = gc->len * 2;
@@ -133,19 +132,18 @@ void vm_gc_start(vm_gc_t *gc)
     gc->max = 0;
     gc->alloc = (1 << 10) * (1 << 10) * 64;
     gc->len = 0;
-    gc->mem = vm_malloc(gc->alloc);
-    gc->xmem = vm_malloc(gc->alloc);
+    gc->base = vm_malloc(gc->alloc * 2);
 }
 
 void vm_gc_stop(vm_gc_t *gc)
 {
-    vm_free(gc->mem);
-    vm_free(gc->xmem);
+    vm_free(gc_mem(gc));
+    vm_free(gc_xmem(gc));
 }
 
 vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t size)
 {
-    vm_gc_entry_t *entry = (vm_gc_entry_t *) &gc->mem[gc->len];
+    vm_gc_entry_t *entry = (vm_gc_entry_t *) &gc_mem(gc)[gc->len];
     *entry = (vm_gc_entry_t){
         .keep = false,
         .len = size,
@@ -187,17 +185,17 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
     return vm_obj_of_ptr(gc, ent);
 }
 
-vm_obj_t vm_gc_dup(vm_gc_t *gc, vm_obj_t obj)
+vm_obj_t vm_gc_dup(vm_gc_t *out, vm_gc_t *in, vm_obj_t obj)
 {
     if (!vm_obj_is_ptr(obj))
     {
         return obj;
     }
-    vm_gc_entry_t *ent = vm_obj_to_ptr(gc, obj);
-    vm_gc_entry_t *ret = vm_gc_static_array_new(gc, ent->len);
+    vm_gc_entry_t *ent = vm_obj_to_ptr(in, obj);
+    vm_gc_entry_t *ret = vm_gc_static_array_new(out, ent->len);
     for (size_t i = 0; i < ent->len; i++)
     {
-        ret->arr[i] = vm_gc_dup(gc, ent->arr[i]);
+        ret->arr[i] = vm_gc_dup(out, in, ent->arr[i]);
     }
-    return vm_obj_of_ptr(gc, ret);
+    return vm_obj_of_ptr(out, ret);
 }

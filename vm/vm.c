@@ -350,7 +350,7 @@ do_exec:
         xops[i] = (vm_opcode_t) n;
     }
     vm_state_t *xstate = vm_state_new(0, NULL);
-    xstate->globals[0] = vm_gc_dup(&xstate->gc, locals[argreg]);
+    xstate->globals[0] = vm_gc_dup(&xstate->gc, gc, locals[argreg]);
     vm_state_set_ops(xstate, xlen, xops);
     vm_run_state(xstate);
     vm_run_next_op();

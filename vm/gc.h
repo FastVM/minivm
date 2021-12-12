@@ -6,16 +6,15 @@ typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 typedef struct vm_gc_obj_t vm_gc_obj_t;
 
-#include "obj.h"
-#include "libc.h"
+#include "type.h"
 
 struct vm_gc_t
 {
-    uint8_t *mem;
-    uint8_t *xmem;
+    uint8_t *base;
     size_t len;
     size_t alloc;
     size_t max;
+    bool up;
 };
 
 enum {
@@ -39,7 +38,7 @@ void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high);
 
 vm_int_t vm_gc_type(vm_gc_entry_t *ent);
 
-vm_obj_t vm_gc_dup(vm_gc_t *gc, vm_obj_t obj);
+vm_obj_t vm_gc_dup(vm_gc_t *out, vm_gc_t *in, vm_obj_t obj);
 
 vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t len);
 
