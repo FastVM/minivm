@@ -6,7 +6,7 @@ size_t vm_map_hash_obj(vm_obj_t obj)
 {
     if (vm_obj_is_ptr(obj))
     {
-        vm_gc_entry_t *ent = vm_obj_to_ptr(obj);
+        vm_gc_entry_t *ent = vm_obj_to_ptr(gc, obj);
         switch (vm_gc_type(ent))
         {
         case VM_TYPE_ARRAY:
@@ -108,7 +108,7 @@ void vm_map_set_index(vm_map_t *map, vm_obj_t key, vm_obj_t value)
             break;
         }
 
-        if (vm_obj_eq(key, map->keys[hash & mask]))
+        if (vm_obj_eq(gc, key, map->keys[hash & mask]))
         {
             map->values[hash & mask] = value;
             break;
@@ -150,7 +150,7 @@ vm_obj_t vm_map_get_index(vm_map_t *map, vm_obj_t key)
             return vm_obj_of_dead();
         }
 
-        if (vm_obj_eq(key, map->keys[hash & mask]))
+        if (vm_obj_eq(gc, key, map->keys[hash & mask]))
         {
             return map->values[hash & mask];
         }

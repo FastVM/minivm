@@ -150,7 +150,7 @@ do_equal:
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_eq(locals[lhs], locals[rhs]));
+    locals[to] = vm_obj_of_bool(vm_obj_eq(gc, locals[lhs], locals[rhs]));
     vm_run_next_op();
 }
 do_not_equal:
@@ -158,7 +158,7 @@ do_not_equal:
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_neq(locals[lhs], locals[rhs]));
+    locals[to] = vm_obj_of_bool(vm_obj_neq(gc, locals[lhs], locals[rhs]));
     vm_run_next_op();
 }
 do_less:
@@ -277,9 +277,9 @@ do_string_new:
     for (size_t i = 0; i < nargs; i++)
     {
         vm_number_t num = vm_read();
-        vm_gc_set_index(str, i, vm_obj_of_int(num));
+        vm_gc_set_index(gc, str, i, vm_obj_of_int(num));
     }
-    locals[outreg] = vm_obj_of_ptr(str);
+    locals[outreg] = vm_obj_of_ptr(gc, str);
     vm_run_next_op();
 }
 do_length:
@@ -287,7 +287,7 @@ do_length:
     vm_reg_t outreg = vm_read();
     vm_reg_t reg = vm_read();
     vm_obj_t vec = locals[reg];
-    locals[outreg] = vm_obj_of_int(vm_gc_sizeof(vm_obj_to_ptr(vec)));
+    locals[outreg] = vm_obj_of_int(vm_gc_sizeof(gc, vm_obj_to_ptr(gc, vec)));
     vm_run_next_op();
 }
 do_index_get:
@@ -297,7 +297,7 @@ do_index_get:
     vm_reg_t ind = vm_read();
     vm_obj_t vec = locals[reg];
     vm_obj_t oindex = locals[ind];
-    locals[outreg] = vm_gc_get_index(vm_obj_to_ptr(vec), vm_obj_to_int(oindex));
+    locals[outreg] = vm_gc_get_index(gc, vm_obj_to_ptr(gc, vec), vm_obj_to_int(oindex));
     vm_run_next_op();
 }
 do_index_set:
@@ -308,7 +308,7 @@ do_index_set:
     vm_obj_t vec = locals[reg];
     vm_obj_t oindex = locals[ind];
     vm_obj_t value = locals[val];
-    vm_gc_set_index(vm_obj_to_ptr(vec), vm_obj_to_int(oindex), value);
+    vm_gc_set_index(gc, vm_obj_to_ptr(gc, vec), vm_obj_to_int(oindex), value);
     vm_run_next_op();
 }
 do_type:
@@ -340,12 +340,12 @@ do_exec:
 {
     vm_reg_t in = vm_read();
     vm_reg_t argreg = vm_read();
-    vm_gc_entry_t *ent = vm_obj_to_ptr(locals[in]);
-    vm_int_t xlen = vm_gc_sizeof(ent);
+    vm_gc_entry_t *ent = vm_obj_to_ptr(gc, locals[in]);
+    vm_int_t xlen = vm_gc_sizeof(gc, ent);
     vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * xlen);
     for (vm_int_t i = 0; i < xlen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(ent, i);
+        vm_obj_t obj = vm_gc_get_index(gc, ent, i);
         double n = vm_obj_to_num(obj);
         xops[i] = (vm_opcode_t) n;
     }
@@ -359,24 +359,24 @@ do_dump:
 {
     vm_reg_t namreg = vm_read();
     vm_reg_t inreg = vm_read();
-    vm_gc_entry_t *sname = vm_obj_to_ptr(locals[namreg]);
-    vm_int_t slen = vm_gc_sizeof(sname);
+    vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namreg]);
+    vm_int_t slen = vm_gc_sizeof(gc, sname);
     vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
     for (vm_int_t i = 0; i < slen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(sname, i);
+        vm_obj_t obj = vm_gc_get_index(gc, sname, i);
         name[i] = vm_obj_to_num(obj);
     }
     name[slen] = '\0';
-    vm_gc_entry_t *ent = vm_obj_to_ptr(locals[inreg]);
+    vm_gc_entry_t *ent = vm_obj_to_ptr(gc, locals[inreg]);
     uint8_t size = sizeof(vm_opcode_t); 
-    vm_int_t xlen = vm_gc_sizeof(ent);
+    vm_int_t xlen = vm_gc_sizeof(gc, ent);
     FILE *out = fopen(name, "wb");
     fwrite(&size, 1, 1, out);
     vm_free(name);
     for (vm_int_t i = 0; i < xlen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(ent, i);
+        vm_obj_t obj = vm_gc_get_index(gc, ent, i);
         vm_opcode_t op = vm_obj_to_int(obj);
         fwrite(&op, sizeof(vm_opcode_t), 1,  out);
     }
@@ -387,12 +387,12 @@ do_read:
 {
     vm_reg_t outreg = vm_read();
     vm_reg_t namereg = vm_read();
-    vm_gc_entry_t *sname = vm_obj_to_ptr(locals[namereg]);
-    vm_int_t slen = vm_gc_sizeof(sname);
+    vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namereg]);
+    vm_int_t slen = vm_gc_sizeof(gc, sname);
     vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
     for (vm_int_t i = 0; i < slen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(sname, i);
+        vm_obj_t obj = vm_gc_get_index(gc, sname, i);
         name[i] = vm_obj_to_num(obj);
     }
     name[slen] = '\0';
@@ -428,32 +428,32 @@ do_read:
     vm_gc_entry_t *ent = vm_gc_static_array_new(gc, where);
     for (vm_int_t i = 0; i < where; i++)
     {
-        vm_gc_set_index(ent, i, vm_obj_of_int(str[i]));
+        vm_gc_set_index(gc, ent, i, vm_obj_of_int(str[i]));
     }
     vm_free(str);
-    locals[outreg] = vm_obj_of_ptr(ent);
+    locals[outreg] = vm_obj_of_ptr(gc, ent);
     vm_run_next_op();
 }
 do_write:
 {
     vm_reg_t outreg = vm_read();
     vm_reg_t inreg = vm_read();
-    vm_gc_entry_t *sname = vm_obj_to_ptr(locals[outreg]);
-    vm_int_t slen = vm_gc_sizeof(sname);
+    vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[outreg]);
+    vm_int_t slen = vm_gc_sizeof(gc, sname);
     vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
     for (vm_int_t i = 0; i < slen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(sname, i);
+        vm_obj_t obj = vm_gc_get_index(gc, sname, i);
         name[i] = vm_obj_to_num(obj);
     }
     name[slen] = '\0';
-    vm_gc_entry_t *ent = vm_obj_to_ptr(locals[inreg]);
-    vm_int_t xlen = vm_gc_sizeof(ent);
+    vm_gc_entry_t *ent = vm_obj_to_ptr(gc, locals[inreg]);
+    vm_int_t xlen = vm_gc_sizeof(gc, ent);
     FILE *out = fopen(name, "wb");
     vm_free(name);
     for (vm_int_t i = 0; i < xlen; i++)
     {
-        vm_obj_t obj = vm_gc_get_index(ent, i);
+        vm_obj_t obj = vm_gc_get_index(gc, ent, i);
         uint8_t op = vm_obj_to_num(obj);
         fwrite(&op, 1, sizeof(uint8_t), out);
     }
@@ -495,9 +495,9 @@ do_static_array_new:
     for (vm_int_t i = 0; i < nargs; i++)
     {
         vm_reg_t vreg = vm_read();
-        vm_gc_set_index(vec, i, locals[vreg]);
+        vm_gc_set_index(gc, vec, i, locals[vreg]);
     }
-    locals[outreg] = vm_obj_of_ptr(vec);
+    locals[outreg] = vm_obj_of_ptr(gc, vec);
     vm_run_next_op();
 }
 do_static_concat:
@@ -569,7 +569,7 @@ do_branch_equal:
 {
     vm_obj_t lhs = locals[vm_read()];
     vm_obj_t rhs = locals[vm_read()];
-    if (vm_obj_eq(lhs, rhs))
+    if (vm_obj_eq(gc, lhs, rhs))
     {
         vm_loc_t jt = vm_read_at(index + 1);
         vm_run_op(jt);
@@ -584,7 +584,7 @@ do_branch_not_equal:
 {
     vm_obj_t lhs = locals[vm_read()];
     vm_obj_t rhs = locals[vm_read()];
-    if (vm_obj_neq(lhs, rhs))
+    if (vm_obj_neq(gc, lhs, rhs))
     {
         vm_loc_t jt = vm_read_at(index + 1);
         vm_run_op(jt);

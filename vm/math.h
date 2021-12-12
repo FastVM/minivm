@@ -93,7 +93,7 @@ static inline bool vm_obj_igte(vm_obj_t lhs, vm_int_t rhs)
     return vm_obj_to_num(lhs) >= rhs;
 }
 
-static inline bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs)
+static inline bool vm_obj_eq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
 {
     if (vm_obj_is_num(lhs))
     {
@@ -125,18 +125,18 @@ static inline bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs)
     {
         return false;
     }
-    vm_gc_entry_t *lent = vm_obj_to_ptr(lhs);
-    vm_gc_entry_t *rent = vm_obj_to_ptr(rhs);
-    size_t len = vm_gc_sizeof(lent);
-    if (len != vm_gc_sizeof(rent))
+    vm_gc_entry_t *lent = vm_obj_to_ptr(gc, lhs);
+    vm_gc_entry_t *rent = vm_obj_to_ptr(gc, rhs);
+    size_t len = vm_gc_sizeof(gc, lent);
+    if (len != vm_gc_sizeof(gc, rent))
     {
         return false;
     }
     for (size_t i = 0; i < len; i++)
     {
-        vm_obj_t cl = vm_gc_get_index(lent, i);
-        vm_obj_t cr = vm_gc_get_index(rent, i);
-        if (!vm_obj_eq(cl, cr))
+        vm_obj_t cl = vm_gc_get_index(gc, lent, i);
+        vm_obj_t cr = vm_gc_get_index(gc, rent, i);
+        if (!vm_obj_eq(gc, cl, cr))
         {
             return false;
         }
@@ -153,9 +153,9 @@ static inline bool vm_obj_ieq(vm_obj_t lhs, vm_int_t rhs)
     return false;
 }
 
-static inline bool vm_obj_neq(vm_obj_t lhs, vm_obj_t rhs)
+static inline bool vm_obj_neq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
 {
-    return !vm_obj_eq(lhs, rhs);
+    return !vm_obj_eq(gc, lhs, rhs);
 }
 
 static inline bool vm_obj_ineq(vm_obj_t lhs, vm_int_t rhs)

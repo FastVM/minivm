@@ -20,7 +20,7 @@ int vm_main_run(vm_char_t *src, size_t argc, vm_char_t **argv)
         }
         return 1;
     }
-    vm_opcode_t *vm_ops = vm_malloc(1 << 20);
+    vm_opcode_t *vm_ops = vm_malloc(1 << 24);
     size_t nops = 0;
     uint8_t nver = 0;
     fread(&nver, 1, 1, file);

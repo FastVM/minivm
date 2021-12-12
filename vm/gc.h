@@ -43,7 +43,7 @@ vm_obj_t vm_gc_dup(vm_gc_t *gc, vm_obj_t obj);
 
 vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t len);
 
-vm_int_t vm_gc_sizeof(vm_gc_entry_t *ptr);
-vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_int_t index);
-void vm_gc_set_index(vm_gc_entry_t *ptr, vm_int_t index, vm_obj_t value);
+vm_int_t vm_gc_sizeof(vm_gc_t *gc, vm_gc_entry_t *ptr);
+vm_obj_t vm_gc_get_index(vm_gc_t *gc, vm_gc_entry_t *ptr, vm_int_t index);
+void vm_gc_set_index(vm_gc_t *gc, vm_gc_entry_t *ptr, vm_int_t index, vm_obj_t value);
 vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs);
