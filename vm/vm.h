@@ -27,19 +27,19 @@ enum vm_opcode_t
     VM_OPCODE_MUL = 15,
     VM_OPCODE_DIV = 16,
     VM_OPCODE_MOD = 17,
-    VM_OPCODE_CONCAT = 18,
+    // empty    
     VM_OPCODE_STATIC_CALL = 19,
     VM_OPCODE_RETURN = 20,
     VM_OPCODE_PUTCHAR = 21,
     VM_OPCODE_STRING_NEW = 22,
-    VM_OPCODE_ARRAY_NEW = 23,
+    // empty    
     VM_OPCODE_LENGTH = 24,
     VM_OPCODE_INDEX_GET = 25,
     VM_OPCODE_INDEX_SET = 26,
     VM_OPCODE_TYPE = 27,
     VM_OPCODE_EXEC = 28,
-    VM_OPCODE_EXTEND = 29,
-    VM_OPCODE_PUSH = 30,
+    // empty    
+    // empty    
     VM_OPCODE_DUMP = 31,
     VM_OPCODE_READ = 32,
     VM_OPCODE_WRITE = 33,

@@ -18,9 +18,9 @@ static inline size_t vm_state_strlen(const vm_char_t *str)
 
 vm_obj_t vm_state_global_from(vm_gc_t *gc, size_t len, const vm_char_t **args)
 {
-    vm_gc_entry_t *global = vm_gc_array_new(gc, len);
+    vm_gc_entry_t *global = vm_gc_static_array_new(gc, len);
     for (size_t i = 0; i < len; i++) {
-        vm_gc_entry_t *ent = vm_gc_array_new(gc, vm_state_strlen(args[i]));
+        vm_gc_entry_t *ent = vm_gc_static_array_new(gc, vm_state_strlen(args[i]));
         for (const vm_char_t *src = args[i]; *src != '\0'; src++)
         {
             vm_gc_set_index(ent, src - args[i], vm_obj_of_int(*src));

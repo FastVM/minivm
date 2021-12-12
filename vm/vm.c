@@ -66,19 +66,15 @@ void vm_run_some(vm_state_t *state)
         [VM_OPCODE_MUL] = &&do_mul,
         [VM_OPCODE_DIV] = &&do_div,
         [VM_OPCODE_MOD] = &&do_mod,
-        [VM_OPCODE_CONCAT] = &&do_concat,
         [VM_OPCODE_STATIC_CALL] = &&do_static_call,
         [VM_OPCODE_RETURN] = &&do_return,
         [VM_OPCODE_PUTCHAR] = &&do_putchar,
         [VM_OPCODE_STRING_NEW] = &&do_string_new,
-        [VM_OPCODE_ARRAY_NEW] = &&do_array_new,
         [VM_OPCODE_LENGTH] = &&do_length,
         [VM_OPCODE_INDEX_GET] = &&do_index_get,
         [VM_OPCODE_INDEX_SET] = &&do_index_set,
         [VM_OPCODE_EXEC] = &&do_exec,
         [VM_OPCODE_TYPE] = &&do_type,
-        [VM_OPCODE_EXTEND] = &&do_extend,
-        [VM_OPCODE_PUSH] = &&do_push,
         [VM_OPCODE_DUMP] = &&do_dump,
         [VM_OPCODE_WRITE] = &&do_write,
         [VM_OPCODE_READ] = &&do_read,
@@ -247,17 +243,6 @@ do_mod:
     locals[to] = vm_obj_num_mod(locals[lhs], locals[rhs]);
     vm_run_next_op();
 }
-do_concat:
-{
-    vm_gc_run1(gc, globals, locals + frame->nlocals);
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    vm_obj_t o1 = locals[lhs];
-    vm_obj_t o2 = locals[rhs];
-    locals[to] = vm_gc_concat(gc, o1, o2);
-    vm_run_next_op();
-}
 do_static_call:
 {
     vm_reg_t outreg = vm_read();
@@ -287,27 +272,13 @@ do_string_new:
 {
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
-    vm_gc_entry_t *str = vm_gc_array_new(gc, nargs);
+    vm_gc_entry_t *str = vm_gc_static_array_new(gc, nargs);
     for (size_t i = 0; i < nargs; i++)
     {
         vm_number_t num = vm_read();
         vm_gc_set_index(str, i, vm_obj_of_int(num));
     }
     locals[outreg] = vm_obj_of_ptr(str);
-    vm_run_next_op();
-}
-do_array_new:
-{
-    vm_gc_run1(gc, globals, locals + frame->nlocals);
-    vm_reg_t outreg = vm_read();
-    vm_int_t nargs = vm_read();
-    vm_gc_entry_t *vec = vm_gc_array_new(gc, nargs);
-    for (vm_int_t i = 0; i < nargs; i++)
-    {
-        vm_reg_t vreg = vm_read();
-        vm_gc_set_index(vec, i, locals[vreg]);
-    }
-    locals[outreg] = vm_obj_of_ptr(vec);
     vm_run_next_op();
 }
 do_length:
@@ -383,25 +354,6 @@ do_exec:
     vm_run_state(xstate);
     vm_run_next_op();
 }
-do_extend:
-{
-    vm_reg_t toreg = vm_read();
-    vm_reg_t fromreg = vm_read();
-    vm_obj_t to = locals[toreg];
-    vm_obj_t from = locals[fromreg];
-    vm_gc_extend(vm_obj_to_ptr(to), vm_obj_to_ptr(from));
-    vm_run_next_op();
-}
-do_push:
-{
-    vm_reg_t toreg = vm_read();
-    vm_reg_t fromreg = vm_read();
-    vm_obj_t to = locals[toreg];
-    vm_obj_t from = locals[fromreg];
-    vm_gc_entry_t *ptr = vm_obj_to_ptr(to);
-    vm_gc_push(vm_obj_to_ptr(to), from);
-    vm_run_next_op();
-}
 do_dump:
 {
     vm_reg_t namreg = vm_read();
@@ -473,7 +425,7 @@ do_read:
         }
     }
     fclose(in);
-    vm_gc_entry_t *ent = vm_gc_array_new(gc, where);
+    vm_gc_entry_t *ent = vm_gc_static_array_new(gc, where);
     for (vm_int_t i = 0; i < where; i++)
     {
         vm_gc_set_index(ent, i, vm_obj_of_int(str[i]));
