@@ -11,8 +11,11 @@ typedef struct vm_gc_obj_t vm_gc_obj_t;
 
 struct vm_gc_t
 {
-    vm_gc_entry_t *first;
-    int64_t remain;
+    uint8_t *mem;
+    uint8_t *xmem;
+    size_t len;
+    size_t alloc;
+    size_t max;
 };
 
 enum {
@@ -22,9 +25,8 @@ enum {
 
 struct vm_gc_entry_t
 {
-    vm_gc_entry_t *next;
     uint32_t keep: 1;
-    uint32_t alloc: 31;
+    uint32_t ptr: 31;
     uint32_t len;
     vm_obj_t arr[0];
 };

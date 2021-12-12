@@ -270,6 +270,7 @@ do_putchar:
 }
 do_string_new:
 {
+    vm_gc_run1(gc, globals, locals + frame->nlocals);
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
     vm_gc_entry_t *str = vm_gc_static_array_new(gc, nargs);
@@ -384,7 +385,6 @@ do_dump:
 }
 do_read:
 {
-    vm_gc_run1(gc, globals, locals + frame->nlocals);
     vm_reg_t outreg = vm_read();
     vm_reg_t namereg = vm_read();
     vm_gc_entry_t *sname = vm_obj_to_ptr(locals[namereg]);

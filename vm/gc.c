@@ -1,6 +1,19 @@
 #include "gc.h"
 #include "obj.h"
 
+#define VM_GC_PAD 0
+
+bool vm_gc_owns(vm_gc_t *gc, vm_gc_entry_t *ent)
+{
+    return (void *) &gc->mem[0] <= (void *) ent && (void *) ent < (void *) &gc->mem[gc->alloc];
+}
+
+bool vm_gc_xowns(vm_gc_t *gc, vm_gc_entry_t *ent)
+{
+    // printf("%p in [%p .. %p]\n", ent, &gc->xmem[0], &gc->xmem[gc->alloc]);
+    return (void *) &gc->xmem[0] <= (void *) ent && (void *) ent < (void *) &gc->xmem[gc->alloc];
+}
+
 void vm_gc_mark_ptr(vm_gc_entry_t *ent)
 {
     if (ent->keep)
@@ -18,100 +31,151 @@ void vm_gc_mark_ptr(vm_gc_entry_t *ent)
     }
 }
 
-void vm_gc_run1_impl(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
+void vm_gc_run1_mark(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
 {
     for (vm_obj_t *base = low; base < low + VM_LOCALS_UNITS; base++)
     {
-        vm_obj_t cur = *base;
-        if (vm_obj_is_ptr(cur))
+        vm_obj_t obj = *base;
+        if (vm_obj_is_ptr(obj))
         {
-            vm_gc_entry_t *ptr = vm_obj_to_ptr(cur);
+            vm_gc_entry_t *ptr = vm_obj_to_ptr(obj);
+            if (!vm_gc_owns(gc, ptr))
+            {
+                continue;
+            }
             vm_gc_mark_ptr(ptr);
         }
     }
-    size_t begin = 0;
-    vm_gc_entry_t *first = gc->first;
-    vm_gc_entry_t *last = NULL;
-    size_t yes = 0;
-    size_t no = 0;
-    while (first != NULL)
-    {
-        vm_gc_entry_t *ent = first;
-        first = first->next;
-        if (ent->keep)
-        {
-            ent->keep = false;
-            ent->next = last;
-            last = ent;
-            yes++;
-        }
-        else
-        {
-            vm_free(ent);
-            no++;
-        }
-    }
-    gc->remain = yes * 2;
-    gc->first = last;
 }
 
-void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high) {
-    if (gc->remain > 0)
+void vm_gc_update_any(vm_gc_t *gc, vm_obj_t *obj)
+{
+    if (!vm_obj_is_ptr(*obj))
     {
         return;
     }
-    vm_gc_run1_impl(gc, low, high);
+    vm_gc_entry_t *ent = vm_obj_to_ptr(*obj);
+    if (vm_gc_xowns(gc, ent))
+    {
+        return;
+    }
+    if (!vm_gc_owns(gc, ent))
+    {
+        __builtin_trap();
+    }
+    if (ent->ptr > gc->len)
+    {
+        __builtin_trap();
+    }
+    vm_gc_entry_t *put = (void *) &gc->xmem[ent->ptr];
+    *obj = vm_obj_of_ptr(put);
+    for (size_t cur = 0; cur < put->len; cur++)
+    {
+        vm_gc_update_any(gc, &put->arr[cur]);
+    }
+}
+
+void vm_gc_run1_update(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
+{
+    for (vm_obj_t *base = low; base < low + VM_LOCALS_UNITS; base++)
+    {
+        vm_gc_update_any(gc, base);
+    }
+}
+
+size_t vm_gc_run1_move(vm_gc_t *gc)
+{
+    size_t max = gc->len;
+    size_t pos = 0;
+    size_t out = 0;
+    size_t yes = 0;
+    size_t no = 0;
+    while (pos < max)
+    {
+        vm_gc_entry_t *ent = (void *) &gc->mem[pos];
+        size_t count = sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * ent->len + VM_GC_PAD;
+        if (ent->keep)
+        // if (true)
+        {
+            ent->ptr = out;
+            vm_gc_entry_t *put = (void *) &gc->xmem[out];
+            put->keep = false;
+            put->len = ent->len;
+            for (size_t i = 0; i < ent->len; i++)
+            {
+                put->arr[i] = ent->arr[i];
+            }
+            yes += 1;
+            out += count;
+        }
+        else
+        {
+            no += 1;
+        }
+        pos += count;
+    }
+    return out;
+}
+
+void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low, vm_obj_t *high)
+{
+    if (gc->max > gc->len)
+    {
+        return;
+    }
+    vm_gc_run1_mark(gc, low, high);
+    size_t len = vm_gc_run1_move(gc);
+    vm_gc_run1_update(gc, low, high);
+    uint8_t *old_mem = gc->mem;
+    uint8_t *old_xmem = gc->xmem;
+    // printf("%zu %zu\n", gc->len, len);
+    gc->len = len;
+    gc->xmem = old_mem;
+    gc->mem = old_xmem;
+    // gc->max = 1 + gc->len * 2;
+    gc->max = gc->len * 2;
+    // printf("%.2f%%\n", (double) (gc->len * 100) / gc->alloc);
 }
 
 void vm_gc_start(vm_gc_t *gc)
 {
-    gc->remain = 100;
-    gc->first = NULL;
+    gc->max = 0;
+    gc->len = 0;
+    gc->alloc = 1L << 28;
+    gc->mem = vm_malloc(gc->alloc);
+    gc->xmem = vm_malloc(gc->alloc);
 }
 
 void vm_gc_stop(vm_gc_t *gc)
 {
-    vm_gc_entry_t *first = gc->first;
-    while (first != NULL)
-    {
-        vm_gc_entry_t *next = first->next;
-        vm_free(first);
-        first = next;
-    }
+    printf("%.2f%%\n", (double) (gc->len * 100) / gc->alloc);
 }
 
 vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t size)
 {
-    gc->remain -= 1;
-    vm_gc_entry_t *entry = vm_malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size);
+    vm_gc_entry_t *entry = (vm_gc_entry_t *) &gc->mem[gc->len];
     *entry = (vm_gc_entry_t){
-        .next = gc->first,
         .keep = false,
-        .alloc = size,
         .len = size,
     };
-    gc->first = entry;
+    gc->len += sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size + VM_GC_PAD;
     return entry;
 }
 
 vm_obj_t vm_gc_get_index(vm_gc_entry_t *ptr, vm_int_t index)
 {
-    if (index < 0) {
-        index += ptr->len;
-    }
-    if (index >= ptr->len) {
-        __builtin_trap();
+    if (index >= ptr->len)
+    {
+        __builtin_unreachable();
     }
     return ptr->arr[index];
 }
 
 void vm_gc_set_index(vm_gc_entry_t *ptr, vm_int_t index, vm_obj_t value)
 {
-    if (index < 0) {
-        index += ptr->len;
-    }
-    if (index >= ptr->len) {
-        __builtin_trap();
+    if (index >= ptr->len)
+    {
+        __builtin_unreachable();
     }
     ptr->arr[index] = value;
 }
