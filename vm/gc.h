@@ -26,8 +26,7 @@ enum {
 
 struct vm_gc_entry_t
 {
-    uint32_t keep: 1;
-    uint32_t len: 31;
+    uint32_t data;
     vm_obj_t arr[0];
 };
 
@@ -36,8 +35,6 @@ struct vm_gc_entry_t
 void vm_gc_start(vm_gc_t *out);
 void vm_gc_stop(vm_gc_t *gc);
 void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low);
-
-vm_int_t vm_gc_type(vm_gc_entry_t *ent);
 
 vm_obj_t vm_gc_dup(vm_gc_t *out, vm_gc_t *in, vm_obj_t obj);
 

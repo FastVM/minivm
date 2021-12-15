@@ -2,6 +2,10 @@
 #include "obj.h"
 #include "config.h"
 
+#define VM_GC_DATA_TYPE uint32_t
+#define VM_GC_HIGHEST_BIT (sizeof(VM_GC_DATA_TYPE) * 8 - 1)
+#define VM_GC_MASK (1 << VM_GC_HIGHEST_BIT)
+
 #define gc_mem(gc) (gc->mem)
 #define gc_xmem(gc) (gc->xmem)
 
@@ -17,12 +21,13 @@ bool vm_gc_xowns(vm_gc_t *gc, vm_gc_entry_t *ent)
 
 void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent)
 {
-    if (ent->keep)
+    if (ent->data >= (VM_GC_MASK))
     {
         return;
     }
-    ent->keep = true;
-    for (size_t cur = 0; cur < ent->len; cur++)
+    size_t data = ent->data;
+    ent->data |= (VM_GC_MASK);
+    for (size_t cur = 0; cur < data; cur++)
     {
         vm_obj_t obj = ent->arr[cur];
         if (vm_obj_is_ptr(obj))
@@ -56,9 +61,9 @@ void vm_gc_update_any(vm_gc_t *gc, vm_obj_t *obj)
     {
         return;
     }
-    vm_gc_entry_t *put = (void *) &gc_xmem(gc)[ent->len];
+    vm_gc_entry_t *put = (void *) &gc_xmem(gc)[ent->data];
     *obj = vm_obj_of_ptr(gc, put);
-    for (size_t cur = 0; cur < put->len; cur++)
+    for (size_t cur = 0; cur < put->data; cur++)
     {
         vm_gc_update_any(gc, &put->arr[cur]);
     }
@@ -82,17 +87,17 @@ size_t vm_gc_run1_move(vm_gc_t *gc)
     while (pos < max)
     {
         vm_gc_entry_t *ent = (void *) &gc_mem(gc)[pos];
-        size_t count = sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * ent->len;
-        if (ent->keep)
+        size_t count = sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * (ent->data & ~(VM_GC_MASK));
+        if (ent->data >= (VM_GC_MASK))
         {
             vm_gc_entry_t *put = (void *) &gc_xmem(gc)[out];
-            put->keep = false;
-            put->len = ent->len;
-            for (size_t i = 0; i < ent->len; i++)
+            size_t len = ent->data & ~(VM_GC_MASK);
+            put->data = len;
+            for (size_t i = 0; i < len; i++)
             {
                 put->arr[i] = ent->arr[i];
             }
-            ent->len = out;
+            ent->data = out;
             yes += 1;
             out += count;
         }
@@ -105,23 +110,60 @@ size_t vm_gc_run1_move(vm_gc_t *gc)
     return out;
 }
 
+void vm_gc_run1_impl(vm_gc_t *gc, vm_obj_t *low)
+{
+    vm_gc_run1_mark(gc, low);
+    size_t len = vm_gc_run1_move(gc);
+    vm_gc_run1_update(gc, low);
+    gc->up = !gc->up;
+    gc->len = len;
+
+#if VM_SHRINK_GC_CAP
+    gc->max = gc->len * (VM_MEM_GROWTH);
+#else
+    if (gc->len * 2 > gc->max)
+    {
+        gc->max = gc->len * (VM_MEM_GROWTH);
+    }
+#endif
+
+    gc->xmem = (&gc->base[!gc->up * gc->alloc]);
+    gc->mem = (&gc->base[gc->up * gc->alloc]);
+}
+
+#if defined(VM_TIME_GC)
+#include <sys/time.h>
+int printf(const char *fmt, ...);
+#endif
+
 void vm_gc_run1(vm_gc_t *gc, vm_obj_t *low)
 {
     if (gc->max > gc->len)
     {
         return;
     }
-    vm_gc_run1_mark(gc, low);
-    size_t len = vm_gc_run1_move(gc);
-    vm_gc_run1_update(gc, low);
-    gc->up = !gc->up;
-    gc->len = len;
-    if (gc->len * 2 > gc->max)
-    {
-        gc->max = gc->len * 2;
-    }
-    gc->xmem = (&gc->base[!gc->up * gc->alloc]);
-    gc->mem = (&gc->base[gc->up * gc->alloc]);
+#if defined(VM_TIME_GC)
+    double size = (double) gc->len / 1000 / 1000;
+
+    struct timeval start;
+    gettimeofday(&start,NULL);
+
+    vm_gc_run1_impl(gc, low);
+  
+
+    struct timeval end;
+    gettimeofday(&end,NULL);
+
+    double diff = (double)((1000000 + end.tv_usec - start.tv_usec) % 1000000) / 1000;
+    static double total = 0;
+    total += diff;
+
+    double endsize = (double) gc->len / 1000 / 1000;
+
+    printf("%.0lfms (+ %.3lfms) (%.3lfMiB -> %.3lfMiB)\n", total, diff, size, endsize);
+#else
+    vm_gc_run1_impl(gc, low);
+#endif
 }
 
 void vm_gc_start(vm_gc_t *gc)
@@ -144,8 +186,7 @@ vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t size)
 {
     vm_gc_entry_t *entry = (vm_gc_entry_t *) &gc_mem(gc)[gc->len];
     *entry = (vm_gc_entry_t){
-        .keep = false,
-        .len = size,
+        .data = size,
     };
     gc->len += sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size;
     return entry;
@@ -163,15 +204,15 @@ void vm_gc_set_index(vm_gc_t *gc, vm_gc_entry_t *ptr, vm_int_t index, vm_obj_t v
 
 vm_int_t vm_gc_sizeof(vm_gc_t *gc, vm_gc_entry_t *ptr)
 {
-    return ptr->len;
+    return ptr->data;
 }
 
 vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs)
 {
     vm_gc_entry_t *left = vm_obj_to_ptr(gc, lhs);
     vm_gc_entry_t *right = vm_obj_to_ptr(gc, rhs);
-    vm_int_t llen = left->len;
-    vm_int_t rlen = right->len;
+    vm_int_t llen = left->data;
+    vm_int_t rlen = right->data;
     vm_gc_entry_t *ent = vm_gc_static_array_new(gc, llen + rlen);
     for (vm_int_t i = 0; i < llen; i++)
     {
@@ -191,8 +232,8 @@ vm_obj_t vm_gc_dup(vm_gc_t *out, vm_gc_t *in, vm_obj_t obj)
         return obj;
     }
     vm_gc_entry_t *ent = vm_obj_to_ptr(in, obj);
-    vm_gc_entry_t *ret = vm_gc_static_array_new(out, ent->len);
-    for (size_t i = 0; i < ent->len; i++)
+    vm_gc_entry_t *ret = vm_gc_static_array_new(out, ent->data);
+    for (size_t i = 0; i < ent->data; i++)
     {
         ret->arr[i] = vm_gc_dup(out, in, ent->arr[i]);
     }
