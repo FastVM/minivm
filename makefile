@@ -1,6 +1,6 @@
 
 
-OPT ?= -Ofast
+OPT ?= -Os -flto -DVM_USE_NAN=0
 
 CFILES = vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS = $(CFILES:%.c=%.o)
@@ -21,7 +21,7 @@ libminivm.a: $(OBJS)
 
 minivm: $(OBJS)
 	: mkdir -p bin
-	$(CC) $(OBJS) -o minivm -lc -lm $(LFLAGS)
+	$(CC) $(OPT) $(OBJS) -o minivm -lc -lm $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)

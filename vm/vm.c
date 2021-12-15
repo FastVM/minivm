@@ -270,7 +270,7 @@ do_putchar:
 }
 do_string_new:
 {
-    vm_gc_run1(gc, globals, locals + frame->nlocals);
+    vm_gc_run1(gc, globals);
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
     vm_gc_entry_t *str = vm_gc_static_array_new(gc, nargs);
@@ -316,7 +316,7 @@ do_type:
     vm_reg_t outreg = vm_read();
     vm_reg_t valreg = vm_read();
     vm_obj_t obj = locals[valreg];
-    double num = -1;
+    vm_number_t num = -1;
     if (vm_obj_is_none(obj))
     {
         num = VM_TYPE_NONE;
@@ -346,7 +346,7 @@ do_exec:
     for (vm_int_t i = 0; i < xlen; i++)
     {
         vm_obj_t obj = vm_gc_get_index(gc, ent, i);
-        double n = vm_obj_to_num(obj);
+        vm_number_t n = vm_obj_to_num(obj);
         xops[i] = (vm_opcode_t) n;
     }
     vm_state_t *xstate = vm_state_new(0, NULL);
@@ -488,7 +488,7 @@ do_dynamic_call:
 }
 do_static_array_new:
 {
-    vm_gc_run1(gc, globals, locals + frame->nlocals);
+    vm_gc_run1(gc, globals);
     vm_reg_t outreg = vm_read();
     vm_int_t nargs = vm_read();
     vm_gc_entry_t *vec = vm_gc_static_array_new(gc, nargs);
@@ -502,7 +502,7 @@ do_static_array_new:
 }
 do_static_concat:
 {
-    vm_gc_run1(gc, globals, locals + frame->nlocals);
+    vm_gc_run1(gc, globals);
     vm_reg_t to = vm_read();
     vm_reg_t lhs = vm_read();
     vm_reg_t rhs = vm_read();

@@ -1,6 +1,7 @@
 #include "../vm/vm.h"
 #include "../vm/libc.h"
 #include "../vm/state.h"
+#include "../vm/config.h"
 
 #define VM_CAN_NOT_RUN "cannot run vm: not enough args\n"
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
@@ -20,7 +21,7 @@ int vm_main_run(vm_char_t *src, size_t argc, vm_char_t **argv)
         }
         return 1;
     }
-    vm_opcode_t *vm_ops = vm_malloc(1 << 24);
+    vm_opcode_t *vm_ops = vm_malloc(sizeof(vm_opcode_t) * VM_OPS_UNITS);
     size_t nops = 0;
     uint8_t nver = 0;
     fread(&nver, 1, 1, file);

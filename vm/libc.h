@@ -23,9 +23,6 @@ int fclose(FILE *);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 
-#define VM_FRAMES_UNITS (1 << 14)
-#define VM_LOCALS_UNITS (VM_FRAMES_UNITS * 16)
-
 #define NULL ((void*)0)
 
 int putchar(int chr);
