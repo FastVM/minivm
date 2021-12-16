@@ -14,12 +14,12 @@ enum vm_opcode_t
     VM_OPCODE_STORE_NONE = 2,
     VM_OPCODE_STORE_BOOL = 3,
     VM_OPCODE_STORE_INT = 4,
-    VM_OPCODE_EQUAL = 5,
-    VM_OPCODE_NOT_EQUAL = 6,
-    VM_OPCODE_LESS = 7,
-    VM_OPCODE_GREATER = 8,
-    VM_OPCODE_LESS_THAN_EQUAL = 9,
-    VM_OPCODE_GREATER_THAN_EQUAL = 10,
+    // empty
+    // empty
+    // empty
+    // empty
+    // empty
+    // empty
     VM_OPCODE_JUMP = 11,
     VM_OPCODE_FUNC = 12,
     VM_OPCODE_ADD = 13,

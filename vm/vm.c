@@ -53,12 +53,6 @@ void vm_run_some(vm_state_t *state)
         [VM_OPCODE_STORE_NONE] = &&do_store_none,
         [VM_OPCODE_STORE_BOOL] = &&do_store_bool,
         [VM_OPCODE_STORE_INT] = &&do_store_int,
-        [VM_OPCODE_EQUAL] = &&do_equal,
-        [VM_OPCODE_NOT_EQUAL] = &&do_not_equal,
-        [VM_OPCODE_LESS] = &&do_less,
-        [VM_OPCODE_GREATER] = &&do_greater,
-        [VM_OPCODE_LESS_THAN_EQUAL] = &&do_less_than_equal,
-        [VM_OPCODE_GREATER_THAN_EQUAL] = &&do_greater_than_equal,
         [VM_OPCODE_JUMP] = &&do_jump,
         [VM_OPCODE_FUNC] = &&do_func,
         [VM_OPCODE_ADD] = &&do_add,
@@ -143,54 +137,6 @@ do_store_int:
     vm_reg_t to = vm_read();
     vm_int_t from = vm_read();
     locals[to] = vm_obj_of_int(from);
-    vm_run_next_op();
-}
-do_equal:
-{
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_eq(gc, locals[lhs], locals[rhs]));
-    vm_run_next_op();
-}
-do_not_equal:
-{
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_neq(gc, locals[lhs], locals[rhs]));
-    vm_run_next_op();
-}
-do_less:
-{
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_lt(locals[lhs], locals[rhs]));
-    vm_run_next_op();
-}
-do_greater:
-{
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_gt(locals[lhs], locals[rhs]));
-    vm_run_next_op();
-}
-do_less_than_equal:
-{
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_lte(locals[lhs], locals[rhs]));
-    vm_run_next_op();
-}
-do_greater_than_equal:
-{
-    vm_reg_t to = vm_read();
-    vm_reg_t lhs = vm_read();
-    vm_reg_t rhs = vm_read();
-    locals[to] = vm_obj_of_bool(vm_obj_gte(locals[lhs], locals[rhs]));
     vm_run_next_op();
 }
 do_jump:
