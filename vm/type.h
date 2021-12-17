@@ -1,15 +1,5 @@
 #pragma once
 
-#if defined(VM_USE_NAN)
-#if VM_USE_NAN
-#define VM_NANBOX 1
-#else
-#define VM_NANBOX 0
-#endif
-#else
-#define VM_NANBOX 1
-#endif
-
 #include "libc.h"
 
 typedef char vm_char_t;

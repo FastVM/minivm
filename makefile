@@ -1,6 +1,6 @@
 
 
-OPT ?= -Ofast -DVM_USE_NAN=0
+OPT ?= -Ofast
 
 CFILES = vm/vm.c vm/state.c vm/gc.c main/main.c
 OBJS = $(CFILES:%.c=%.o)
