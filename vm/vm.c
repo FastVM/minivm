@@ -285,6 +285,7 @@ do_exec : {
   xstate->globals[0] = vm_gc_dup(&xstate->gc, gc, locals[argreg]);
   vm_state_set_ops(xstate, xlen, xops);
   vm_run_state(xstate);
+  vm_free(xops);
   vm_run_next_op();
 }
 do_dump : {
