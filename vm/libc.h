@@ -23,7 +23,7 @@ int fclose(FILE *);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 
-#define NULL ((void*)0)
+#define NULL ((void *)0)
 
 int putchar(int chr);
 double fmod(double a, double b);
@@ -36,5 +36,5 @@ void *malloc(size_t size);
 void *realloc(void *ptr, size_t n);
 void free(void *ptr);
 #define vm_malloc(size) (malloc((size)))
-#define vm_realloc(ptr, size) (realloc((ptr),(size)))
+#define vm_realloc(ptr, size) (realloc((ptr), (size)))
 #define vm_free(ptr) (free((ptr)))
