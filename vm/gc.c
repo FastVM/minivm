@@ -4,7 +4,7 @@
 
 #define VM_GC_DATA_TYPE uint32_t
 #define VM_GC_HIGHEST_BIT (sizeof(VM_GC_DATA_TYPE) * 8 - 1)
-#define VM_GC_MASK (1 << VM_GC_HIGHEST_BIT)
+#define VM_GC_MASK (1L << VM_GC_HIGHEST_BIT)
 
 #define gc_mem(gc) (gc->mem)
 #define gc_xmem(gc) (gc->xmem)

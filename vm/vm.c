@@ -12,14 +12,22 @@ void os_puts(const char *str);
 
 #if defined(VM_DEBUG_OPCODE)
 int printf(const char *, ...);
-#define vm_run_next_op()                                                       \
+#define vm_debug_op(index_, op_) ({ printf("%i: %i\n", index_, op_); })
+#else
+#define vm_debug_op(index_, op_) ({})
+#endif
+
+#define vm_run_next_op_forced()                                                \
   ({                                                                           \
     vm_opcode_t op = vm_read();                                                \
-    printf("%i: %i\n", (int)(index - 1), (int)op);                             \
+    vm_debug_op(index - 1, op);                                                \
     goto *ptrs[op];                                                            \
   })
+
+#if defined(VM_DEBUG_DEFER)
+#define vm_run_next_op() ({ goto vm_defer; })
 #else
-#define vm_run_next_op() goto *ptrs[vm_read()]
+#define vm_run_next_op() vm_run_next_op_forced()
 #endif
 
 #define vm_run_op(index_)                                                      \
@@ -29,17 +37,23 @@ int printf(const char *, ...);
 #define vm_read() (ops[index++])
 #define vm_read_at(index_) (*(vm_opcode_t *)&ops[(index_)])
 
-void vm_run_state(vm_state_t *state) { vm_run_some(state); }
+void vm_run_state(vm_state_t *state) {
+  size_t i = 0;
+  while (vm_run_some(state)) {
+    i += 1;
+  }
+  printf("%zu\n", i);
+}
 
 void vm_run(vm_state_t *state) { vm_run_state(state); }
 
-void vm_run_some(vm_state_t *state) {
+bool vm_run_some(vm_state_t *state) {
   const vm_opcode_t *ops = state->ops;
-  vm_obj_t *globals = state->globals;
-  vm_obj_t *locals = state->globals + state->nlocals;
+  vm_obj_t *const globals = state->globals;
+  vm_obj_t *locals = globals + state->nlocals;
   size_t index = state->index;
-  vm_stack_frame_t *frame = state->frame;
-  vm_gc_t *gc = &state->gc;
+  vm_stack_frame_t *frame = state->frames + state->framenum;
+  vm_gc_t *const gc = &state->gc;
   void *ptrs[] = {
       [VM_OPCODE_EXIT] = &&do_exit,
       [VM_OPCODE_STORE_REG] = &&do_store_reg,
@@ -90,10 +104,16 @@ void vm_run_some(vm_state_t *state) {
       [VM_OPCODE_BRANCH_GREATER_THAN_EQUAL_INT] =
           &&do_branch_greater_than_equal_int,
   };
-  vm_run_next_op();
+  vm_run_next_op_forced();
+vm_defer : {
+  state->nlocals = locals - globals;
+  state->index = index;
+  state->framenum = frame - state->frames;
+  return true;
+}
 do_exit : {
   vm_state_del(state);
-  return;
+  return false;
 }
 do_return : {
   vm_reg_t from = vm_read();
@@ -189,7 +209,7 @@ do_static_call : {
 do_putchar : {
   vm_reg_t from = vm_read();
   vm_int_t val = vm_obj_to_int(locals[from]);
-  state->putchar(state, val);
+  vm_putchar(val);
   vm_run_next_op();
 }
 do_string_new : {

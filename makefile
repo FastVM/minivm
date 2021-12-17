@@ -2,7 +2,7 @@
 
 OPT ?= -Ofast
 
-CFILES = vm/vm.c vm/state.c vm/gc.c main/main.c
+CFILES = vm/vm.c vm/state.c vm/gc.c vm/save.c main/main.c
 OBJS = $(CFILES:%.c=%.o)
 
 LTO ?= 0
@@ -21,7 +21,7 @@ libminivm.a: $(OBJS)
 
 minivm: $(OBJS)
 	: mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o minivm -lc -lm $(LFLAGS)
+	$(CC) -fuse-ld=$(LD) $(OPT) $(OBJS) -o minivm -lc -lm $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)

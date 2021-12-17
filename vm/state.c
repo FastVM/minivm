@@ -31,16 +31,14 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args) {
   vm_gc_start(&state->gc);
   state->frames = vm_malloc(sizeof(vm_stack_frame_t) * VM_FRAMES_UNITS);
   state->globals = vm_malloc(sizeof(vm_obj_t) * VM_LOCALS_UNITS);
-  state->xops = vm_malloc(sizeof(vm_opcode_t) * VM_OPS_UNITS);
-  state->putchar = &vm_state_putchar_default;
   state->globals[0] = vm_state_global_from(&state->gc, len, args);
 
-  state->frame = state->frames;
+  state->framenum = 0;
   state->nlocals = 0;
 
-  state->frame->nlocals = 0;
-  state->frame += 1;
-  state->frame->nlocals = 256;
+  state->frames[state->framenum].nlocals = 0;
+  state->framenum += 1;
+  state->frames[state->framenum].nlocals = 256;
 
   state->index = 0;
   state->nops = 0;
@@ -58,6 +56,5 @@ void vm_state_del(vm_state_t *state) {
   vm_gc_stop(&state->gc);
   vm_free(state->frames);
   vm_free(state->globals);
-  vm_free(state->xops);
   vm_free(state);
 }

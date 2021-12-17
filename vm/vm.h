@@ -80,5 +80,5 @@ typedef struct {
 #include "state.h"
 
 void vm_run(vm_state_t *state);
-void vm_run_some(vm_state_t *state);
+bool vm_run_some(vm_state_t *state);
 void vm_run_some_rec(vm_state_t **cur);

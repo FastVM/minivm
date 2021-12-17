@@ -8,15 +8,13 @@ typedef struct vm_state_t vm_state_t;
 
 struct vm_state_t {
   vm_gc_t gc;
-  vm_opcode_t *xops;
-  void (*putchar)(vm_state_t *state, char chr);
 
   size_t index;
   size_t nops;
   const vm_opcode_t *ops;
 
   vm_stack_frame_t *frames;
-  vm_stack_frame_t *frame;
+  size_t framenum;
 
   vm_obj_t *globals;
   size_t nlocals;
