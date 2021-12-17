@@ -42,7 +42,6 @@ void vm_run_state(vm_state_t *state) {
   while (vm_run_some(state)) {
     i += 1;
   }
-  printf("%zu\n", i);
 }
 
 void vm_run(vm_state_t *state) { vm_run_state(state); }
