@@ -4,6 +4,7 @@
 #include "math.h"
 #include "obj.h"
 #include "state.h"
+#include "save.h"
 
 #if defined(VM_OS)
 void os_putn(size_t n);
@@ -40,6 +41,12 @@ int printf(const char *, ...);
 void vm_run_state(vm_state_t *state) {
   size_t i = 0;
   while (vm_run_some(state)) {
+    vm_save_t save;
+    vm_save_init(&save);
+    vm_save_state(&save, state);
+    vm_save_rewind(&save);
+    vm_save_get_state(&save, state);
+    vm_save_deinit(&save);
     i += 1;
   }
 }

@@ -17,18 +17,19 @@ struct vm_save_t {
 
 // set and reset a state
 void vm_save_init(vm_save_t *out);
-void vm_save_deinit(vm_save_t *del);
+void vm_save_deinit(vm_save_t *save);
+void vm_save_rewind(vm_save_t *save);
 
 // various serializers
 void vm_save_byte(vm_save_t *save, uint8_t val);
 void vm_save_uint(vm_save_t *save, uint32_t val);
-void vm_save_state(vm_save_t *save, vm_state_t *state);
 void vm_save_obj(vm_save_t *save, vm_obj_t obj);
-void vm_save_gc(vm_save_t *save, vm_gc_t *gc);
+void vm_save_gc(vm_save_t *save, vm_gc_t gc);
+void vm_save_state(vm_save_t *save, vm_state_t *state);
 
 // various deserializers
-void vm_save_get_byte(vm_save_t *save, uint8_t byte);
-void vm_save_get_state(vm_save_t *save, vm_state_t *state);
-void vm_save_get_obj(vm_save_t *save, vm_obj_t obj);
-void vm_save_get_gc(vm_save_t *save, vm_gc_t *gc);
-
+uint8_t vm_save_get_byte(vm_save_t *save);
+uint32_t vm_save_get_uint(vm_save_t *save);
+vm_obj_t vm_save_get_obj(vm_save_t *save);
+void vm_save_get_gc(vm_save_t *save, vm_gc_t *state);
+void vm_save_get_state(vm_save_t *save, vm_state_t *gc);
