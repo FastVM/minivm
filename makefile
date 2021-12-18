@@ -21,7 +21,7 @@ libminivm.a: $(OBJS)
 
 minivm: $(OBJS)
 	: mkdir -p bin
-	$(CC) -fuse-ld=$(LD) $(OPT) $(OBJS) -o minivm -lc -lm $(LFLAGS)
+	$(CC) $(OPT) $(OBJS) -o minivm -lc -lm $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)
