@@ -68,8 +68,6 @@ size_t vm_gc_run1_move(vm_gc_t *gc) {
   size_t max = gc->len;
   size_t pos = 0;
   size_t out = 0;
-  size_t yes = 0;
-  size_t no = 0;
   while (pos < max) {
     vm_gc_entry_t *ent = (void *)&gc_mem(gc)[pos];
     size_t count =
@@ -82,10 +80,7 @@ size_t vm_gc_run1_move(vm_gc_t *gc) {
         put->arr[i] = ent->arr[i];
       }
       ent->data = out;
-      yes += 1;
       out += count;
-    } else {
-      no += 1;
     }
     pos += count;
   }
@@ -106,7 +101,6 @@ void vm_gc_run1_impl(vm_gc_t *gc, vm_obj_t *low) {
     gc->max = gc->len * (VM_MEM_GROWTH);
   }
 #endif
-
   gc->xmem = (&gc->base[!gc->up * gc->alloc]);
   gc->mem = (&gc->base[gc->up * gc->alloc]);
 }

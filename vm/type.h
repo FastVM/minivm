@@ -13,8 +13,8 @@ typedef struct {
 } vm_obj_t;
 
 enum {
-  VM_TYPE_NONE = 3,
-  VM_TYPE_BOOL = 2,
-  VM_TYPE_ARRAY = 1,
-  VM_TYPE_NUMBER = 0,
+  VM_TYPE_NONE = 0,
+  VM_TYPE_BOOL = 1,
+  VM_TYPE_NUMBER = 2,
+  VM_TYPE_ARRAY = 3,
 };

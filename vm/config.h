@@ -13,11 +13,11 @@
 #endif
 
 #if !defined(VM_MEM_MAX)
-#define VM_MEM_MAX (1024 * 1024 * 256)
+#define VM_MEM_MAX (1000 * 1000 * 100)
 #endif
 
 #if !defined(VM_MEM_MIN)
-#define VM_MEM_MIN (0)
+#define VM_MEM_MIN (1000 * 1000)
 #endif
 
 #if !defined(VM_MEM_GROWTH)

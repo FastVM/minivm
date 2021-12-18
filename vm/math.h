@@ -36,7 +36,7 @@ static inline vm_obj_t vm_obj_num_divc(vm_obj_t lhs, vm_int_t rhs) {
 }
 
 static inline vm_obj_t vm_obj_num_mod(vm_obj_t lhs, vm_obj_t rhs) {
-  return vm_obj_of_num(fmod(vm_obj_to_num(lhs), vm_obj_to_num(rhs)));
+  return vm_obj_of_num(vm_obj_to_num(lhs) % vm_obj_to_num(rhs));
 }
 
 static inline vm_obj_t vm_obj_num_modc(vm_obj_t lhs, vm_int_t rhs) {

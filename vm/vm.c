@@ -3,8 +3,8 @@
 #include "libc.h"
 #include "math.h"
 #include "obj.h"
-#include "state.h"
 #include "save.h"
+#include "state.h"
 
 #if defined(VM_OS)
 void os_putn(size_t n);
@@ -13,7 +13,7 @@ void os_puts(const char *str);
 
 #if defined(VM_DEBUG_OPCODE)
 int printf(const char *, ...);
-#define vm_debug_op(index_, op_) ({ printf("%i: %i\n", index_, op_); })
+#define vm_debug_op(index_, op_) ({ printf("[%i: %i]\n", (int) index_, (int) op_); })
 #else
 #define vm_debug_op(index_, op_) ({})
 #endif
@@ -39,15 +39,16 @@ int printf(const char *, ...);
 #define vm_read_at(index_) (*(vm_opcode_t *)&ops[(index_)])
 
 void vm_run_state(vm_state_t *state) {
-  size_t i = 0;
   while (vm_run_some(state)) {
     vm_save_t save;
     vm_save_init(&save);
     vm_save_state(&save, state);
     vm_save_rewind(&save);
-    vm_save_get_state(&save, state);
+    vm_state_t *s2 = vm_state_new(0, NULL);
+    vm_save_get_state(&save, s2);
+    vm_state_del(state);
+    state = s2;
     vm_save_deinit(&save);
-    i += 1;
   }
 }
 
@@ -60,7 +61,7 @@ bool vm_run_some(vm_state_t *state) {
   size_t index = state->index;
   vm_stack_frame_t *frame = state->frames + state->framenum;
   vm_gc_t *const gc = &state->gc;
-  void *ptrs[] = {
+  static void *ptrs[] = {
       [VM_OPCODE_EXIT] = &&do_exit,
       [VM_OPCODE_STORE_REG] = &&do_store_reg,
       [VM_OPCODE_STORE_NONE] = &&do_store_none,
@@ -292,7 +293,6 @@ do_exec : {
   xstate->globals[0] = vm_gc_dup(&xstate->gc, gc, locals[argreg]);
   vm_state_set_ops(xstate, xlen, xops);
   vm_run_state(xstate);
-  vm_free(xops);
   vm_run_next_op();
 }
 do_dump : {
