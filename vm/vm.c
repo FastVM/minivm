@@ -3,8 +3,6 @@
 #include "libc.h"
 #include "math.h"
 #include "obj.h"
-#include "save.h"
-#include "state.h"
 
 #if defined(VM_OS)
 void os_putn(size_t n);
@@ -13,23 +11,18 @@ void os_puts(const char *str);
 
 #if defined(VM_DEBUG_OPCODE)
 int printf(const char *, ...);
-#define vm_debug_op(index_, op_) ({ printf("[%i: %i]\n", (int) index_, (int) op_); })
+#define vm_debug_op(index_, op_)                                               \
+  ({ printf("[%i: %i]\n", (int)index_, (int)op_); })
 #else
 #define vm_debug_op(index_, op_) ({})
 #endif
 
-#define vm_run_next_op_forced()                                                \
+#define vm_run_next_op()                                                \
   ({                                                                           \
     vm_opcode_t op = vm_read();                                                \
     vm_debug_op(index - 1, op);                                                \
     goto *ptrs[op];                                                            \
   })
-
-#if defined(VM_DEBUG_DEFER)
-#define vm_run_next_op() ({ goto vm_defer; })
-#else
-#define vm_run_next_op() vm_run_next_op_forced()
-#endif
 
 #define vm_run_op(index_)                                                      \
   index = index_;                                                              \
@@ -38,23 +31,29 @@ int printf(const char *, ...);
 #define vm_read() (ops[index++])
 #define vm_read_at(index_) (*(vm_opcode_t *)&ops[(index_)])
 
-void vm_run_state(vm_state_t *state) {
-  while (vm_run_some(state)) {
-    vm_save_t save;
-    vm_save_init(&save);
-    vm_save_state(&save, state);
-    vm_save_rewind(&save);
-    vm_state_t *s2 = vm_state_new(0, NULL);
-    vm_save_get_state(&save, s2);
-    vm_state_del(state);
-    state = s2;
-    vm_save_deinit(&save);
-  }
+#define vm_run_write()                                                         \
+  ({                                                                           \
+    state->nlocals = locals - globals;                                         \
+    state->index = index;                                                      \
+    state->framenum = frame - state->frames;                                   \
+  })
+
+vm_save_t vm_state_to_save(vm_state_t *state) {
+  vm_save_t save;
+  vm_save_init(&save);
+  vm_save_state(&save, state);
+  vm_save_rewind(&save);
+  return save;
 }
 
-void vm_run(vm_state_t *state) { vm_run_state(state); }
+void vm_run_save(vm_save_t save, size_t n, const vm_char_t *args[n]) {
+  vm_state_t *state = vm_state_new(0, NULL);
+  vm_save_get_state(&save, state);
+  state->globals[0] = vm_state_global_from(&state->gc, n, args);
+  vm_run(state);
+}
 
-bool vm_run_some(vm_state_t *state) {
+void vm_run(vm_state_t *state) {
   const vm_opcode_t *ops = state->ops;
   vm_obj_t *const globals = state->globals;
   vm_obj_t *locals = globals + state->nlocals;
@@ -82,6 +81,7 @@ bool vm_run_some(vm_state_t *state) {
       [VM_OPCODE_INDEX_GET] = &&do_index_get,
       [VM_OPCODE_INDEX_SET] = &&do_index_set,
       [VM_OPCODE_EXEC] = &&do_exec,
+      [VM_OPCODE_SAVE] = &&do_save,
       [VM_OPCODE_TYPE] = &&do_type,
       [VM_OPCODE_DUMP] = &&do_dump,
       [VM_OPCODE_WRITE] = &&do_write,
@@ -111,16 +111,10 @@ bool vm_run_some(vm_state_t *state) {
       [VM_OPCODE_BRANCH_GREATER_THAN_EQUAL_INT] =
           &&do_branch_greater_than_equal_int,
   };
-  vm_run_next_op_forced();
-vm_defer : {
-  state->nlocals = locals - globals;
-  state->index = index;
-  state->framenum = frame - state->frames;
-  return true;
-}
+  vm_run_next_op();
 do_exit : {
   vm_state_del(state);
-  return false;
+  return;
 }
 do_return : {
   vm_reg_t from = vm_read();
@@ -292,12 +286,13 @@ do_exec : {
   vm_state_t *xstate = vm_state_new(0, NULL);
   xstate->globals[0] = vm_gc_dup(&xstate->gc, gc, locals[argreg]);
   vm_state_set_ops(xstate, xlen, xops);
-  vm_run_state(xstate);
+  vm_run(xstate);
   vm_run_next_op();
 }
-do_dump : {
+do_save : {
   vm_reg_t namreg = vm_read();
-  vm_reg_t inreg = vm_read();
+  vm_run_write();
+
   vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namreg]);
   vm_int_t slen = vm_gc_sizeof(gc, sname);
   vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
@@ -306,12 +301,42 @@ do_dump : {
     name[i] = vm_obj_to_num(obj);
   }
   name[slen] = '\0';
+
+  vm_save_t save;
+  vm_save_init(&save);
+  vm_save_state(&save, state);
+  FILE *out = fopen(name, "wb");
+  vm_free(name);
+  uint8_t z = 0;
+  fwrite(&z, 1, 1, out);
+  fwrite(save.str, 1, save.len, out);
+  fclose(out);
+  vm_save_deinit(&save);
+#if 0
+  vm_run_next_op();
+#else
+  goto do_exit;
+#endif
+}
+do_dump : {
+  vm_reg_t namreg = vm_read();
+  vm_reg_t inreg = vm_read();
+
+  vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namreg]);
+  vm_int_t slen = vm_gc_sizeof(gc, sname);
+  vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
+  for (vm_int_t i = 0; i < slen; i++) {
+    vm_obj_t obj = vm_gc_get_index(gc, sname, i);
+    name[i] = vm_obj_to_num(obj);
+  }
+  name[slen] = '\0';
+  
   vm_gc_entry_t *ent = vm_obj_to_ptr(gc, locals[inreg]);
   uint8_t size = sizeof(vm_opcode_t);
   vm_int_t xlen = vm_gc_sizeof(gc, ent);
   FILE *out = fopen(name, "wb");
-  fwrite(&size, 1, 1, out);
   vm_free(name);
+  fwrite(&size, 1, 1, out);
   for (vm_int_t i = 0; i < xlen; i++) {
     vm_obj_t obj = vm_gc_get_index(gc, ent, i);
     vm_opcode_t op = vm_obj_to_int(obj);
