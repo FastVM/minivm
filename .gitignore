@@ -21,5 +21,8 @@ scosmopolitan.h
 *.dep
 *.core
 minivm
+minivm.js
+minivm.wasm
 *.dbg
 cosmo
+data

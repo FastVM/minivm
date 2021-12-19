@@ -19,9 +19,9 @@ default: $(OUT)
 libminivm.a: $(OBJS)
 	ar rcs libminivm.a $(OBJS)
 
-minivm: $(OBJS)
+$(OUT): $(OBJS)
 	: mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o minivm -lc -lm $(LFLAGS)
+	$(CC) $(OPT) $(OBJS) -o $(OUT) -lc $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)
