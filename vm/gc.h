@@ -1,10 +1,16 @@
 #pragma once
+
+#include "libc.h"
+
 struct vm_gc_t;
 struct vm_gc_entry_t;
 struct vm_gc_obj_t;
 typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 typedef struct vm_gc_obj_t vm_gc_obj_t;
+
+bool vm_gc_owns(vm_gc_t *gc, vm_gc_entry_t *ent);
+bool vm_gc_xowns(vm_gc_t *gc, vm_gc_entry_t *ent);
 
 #include "type.h"
 

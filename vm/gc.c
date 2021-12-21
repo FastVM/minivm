@@ -52,9 +52,13 @@ void vm_gc_update_any(vm_gc_t *gc, vm_obj_t *obj) {
     return;
   }
   vm_gc_entry_t *put = (void *)&gc_xmem(gc)[ent->data];
-  *obj = vm_obj_of_ptr(gc, put);
-  for (size_t cur = 0; cur < put->data; cur++) {
-    vm_gc_update_any(gc, &put->arr[cur]);
+  if (!vm_gc_xowns(gc, put)) {
+    *obj = vm_obj_of_none();
+  } else {
+    *obj = vm_obj_of_xptr(gc, put);
+    for (size_t cur = 0; cur < put->data; cur++) {
+      vm_gc_update_any(gc, &put->arr[cur]);
+    }
   }
 }
 

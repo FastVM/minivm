@@ -1,5 +1,6 @@
 
 #include "save.h"
+#include "config.h"
 
 void vm_save_init(vm_save_t *out) {
   *out = (vm_save_t){
@@ -29,7 +30,7 @@ void vm_save_uint(vm_save_t *save, uint32_t val) {
 }
 
 void vm_save_state(vm_save_t *save, vm_state_t *state) {
-  vm_save_gc(save, state->gc);
+  vm_save_gc(save, &state->gc);
   vm_save_uint(save, state->index);
   vm_save_uint(save, state->nops);
   for (size_t i = 0; i < state->nops; i++) {
@@ -42,29 +43,57 @@ void vm_save_state(vm_save_t *save, vm_state_t *state) {
     vm_save_uint(save, state->frames[i].nlocals);
   }
   vm_save_uint(save, state->nlocals);
-  size_t max = state->nlocals + 512;
+  size_t max = state->nlocals + state->frames[state->framenum].nlocals;
   for (size_t i = 0; i < max; i++) {
-    vm_save_obj(save, state->globals[i]);
+    vm_save_obj(save, &state->gc, state->globals[i]);
   }
 }
 
-void vm_save_obj(vm_save_t *save, vm_obj_t obj) {
-  vm_save_byte(save, obj.type);
-  if (obj.value < 0) {
-    vm_save_byte(save, 1);
-    vm_save_uint(save, 0 - obj.value);
-  } else {
+void vm_save_obj(vm_save_t *save, vm_gc_t *gc, vm_obj_t obj) {
+  if (vm_obj_is_none(obj)) {
     vm_save_byte(save, 0);
-    vm_save_uint(save, obj.value);
+  } else if (vm_obj_is_bool(obj)) {
+    if (vm_obj_to_bool(obj) == false) {
+      vm_save_byte(save, 1);
+    } else {
+      vm_save_byte(save, 2);
+    }
+  } else if (vm_obj_is_num(obj)) {
+    vm_number_t num = vm_obj_to_num(obj);
+    if (num < 0) {
+      vm_save_byte(save, 3);
+      vm_save_uint(save, -num);
+    } else {
+      vm_save_byte(save, 4);
+      vm_save_uint(save, num);
+    }
+  } else if (vm_obj_is_ptr(obj)) {
+    vm_gc_entry_t *ptr = vm_obj_to_ptr(gc, obj);
+    if (!vm_gc_owns(gc, ptr)) {
+      vm_save_byte(save, 5);
+      uint32_t v = (uint8_t *)ptr - gc->mem;
+      vm_save_uint(save, v);
+    } else {
+      vm_save_byte(save, 0);
+    }
+  } else {
+    __builtin_trap();
   }
 }
 
-void vm_save_gc(vm_save_t *save, vm_gc_t gc) {
-  vm_save_byte(save, gc.up);
-  vm_save_uint(save, gc.len);
-  vm_save_uint(save, gc.max);
-  for (size_t i = 0; i < gc.len; i++) {
-    vm_save_byte(save, gc.mem[i]);
+void vm_save_gc(vm_save_t *save, vm_gc_t *gc) {
+  vm_save_byte(save, gc->up);
+  vm_save_uint(save, gc->len);
+  vm_save_uint(save, gc->max);
+  size_t pos = 0;
+  while (pos < gc->len) {
+    vm_gc_entry_t *ent = (vm_gc_entry_t *)&gc->mem[pos];
+    size_t count = sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * ent->data;
+    vm_save_uint(save, ent->data);
+    for (size_t i = 0; i < ent->data; i++) {
+      vm_save_obj(save, gc, ent->arr[i]);
+    }
+    pos += count;
   }
 }
 
@@ -95,36 +124,53 @@ void vm_save_get_state(vm_save_t *save, vm_state_t *state) {
     state->frames[i].nlocals = vm_save_get_uint(save);
   }
   state->nlocals = vm_save_get_uint(save);
-  size_t max = state->nlocals + 512;
+  size_t max = state->nlocals + state->frames[state->framenum].nlocals;
   for (size_t i = 0; i < max; i++) {
-    state->globals[i] = vm_save_get_obj(save);
+    state->globals[i] = vm_save_get_obj(save, &state->gc);
+  }
+  for (size_t i = max; i < VM_LOCALS_UNITS; i++) {
+    state->globals[i] = vm_obj_of_none();
   }
 }
 
-vm_obj_t vm_save_get_obj(vm_save_t *save) {
+vm_obj_t vm_save_get_obj(vm_save_t *save, vm_gc_t *gc) {
   uint8_t tag = vm_save_get_byte(save);
-  bool inv = vm_save_get_byte(save);
-  uint32_t val = vm_save_get_uint(save);
-  if (inv == 1) {
-    return (vm_obj_t){
-        .type = tag,
-        .value = 0 - (int32_t)val,
-    };
-  } else {
-    return (vm_obj_t){
-        .type = tag,
-        .value = (int32_t)val,
-    };
+  switch (tag) {
+  case 0: {
+    return vm_obj_of_none();
   }
+  case 1: {
+    return vm_obj_of_bool(false);
+  }
+  case 2: {
+    return vm_obj_of_bool(true);
+  }
+  case 3: {
+    return vm_obj_of_num(-vm_save_get_uint(save));
+  }
+  case 4: {
+    return vm_obj_of_num(vm_save_get_uint(save));
+  }
+  case 5: {
+    uint32_t v = vm_save_get_uint(save);
+    return vm_obj_of_ptr(gc, gc->mem + v);
+  }
+  }
+  __builtin_trap();
 }
 
 void vm_save_get_gc(vm_save_t *save, vm_gc_t *gc) {
   gc->up = vm_save_get_byte(save);
   gc->len = vm_save_get_uint(save);
   gc->max = vm_save_get_uint(save);
-  gc->xmem = (&gc->base[!gc->up * gc->alloc]);
-  gc->mem = (&gc->base[gc->up * gc->alloc]);
-  for (size_t i = 0; i < gc->len; i++) {
-    gc->mem[i] = vm_save_get_byte(save);
+  size_t pos = 0;
+  while (pos < gc->len) {
+    vm_gc_entry_t *ent = (vm_gc_entry_t *)&gc->mem[pos];
+    ent->data = vm_save_get_uint(save);
+    size_t count = sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * ent->data;
+    for (size_t i = 0; i < ent->data; i++) {
+      ent->arr[i] = vm_save_get_obj(save, gc);
+    }
+    pos += count;
   }
 }
