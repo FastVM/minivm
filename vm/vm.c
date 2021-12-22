@@ -290,6 +290,8 @@ do_exec : {
   vm_run_next_op();
 }
 do_save : {
+  gc->max = 0;
+  vm_gc_run1(gc, globals);
   vm_reg_t namreg = vm_read();
   vm_run_write();
 
