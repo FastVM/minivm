@@ -44,6 +44,7 @@ void vm_save_state(vm_save_t *save, vm_state_t *state) {
   }
   vm_save_uint(save, state->nlocals);
   size_t max = state->nlocals + state->frames[state->framenum].nlocals;
+  // size_t max = VM_LOCALS_UNITS;
   for (size_t i = 0; i < max; i++) {
     vm_save_obj(save, &state->gc, state->globals[i]);
   }
@@ -69,22 +70,20 @@ void vm_save_obj(vm_save_t *save, vm_gc_t *gc, vm_obj_t obj) {
     }
   } else if (vm_obj_is_ptr(obj)) {
     vm_gc_entry_t *ptr = vm_obj_to_ptr(gc, obj);
-    if (!vm_gc_owns(gc, ptr)) {
+    // if (!vm_gc_owns(gc, ptr)) {
       vm_save_byte(save, 5);
       uint32_t v = (uint8_t *)ptr - gc->mem;
       vm_save_uint(save, v);
-    } else {
-      vm_save_byte(save, 0);
-    }
+    // } else {
+    //   vm_save_byte(save, 0);
+    // }
   } else {
     __builtin_trap();
   }
 }
 
 void vm_save_gc(vm_save_t *save, vm_gc_t *gc) {
-  vm_save_byte(save, gc->up);
   vm_save_uint(save, gc->len);
-  vm_save_uint(save, gc->max);
   size_t pos = 0;
   while (pos < gc->len) {
     vm_gc_entry_t *ent = (vm_gc_entry_t *)&gc->mem[pos];
@@ -125,6 +124,7 @@ void vm_save_get_state(vm_save_t *save, vm_state_t *state) {
   }
   state->nlocals = vm_save_get_uint(save);
   size_t max = state->nlocals + state->frames[state->framenum].nlocals;
+  // size_t max = VM_LOCALS_UNITS;
   for (size_t i = 0; i < max; i++) {
     state->globals[i] = vm_save_get_obj(save, &state->gc);
   }
@@ -160,9 +160,8 @@ vm_obj_t vm_save_get_obj(vm_save_t *save, vm_gc_t *gc) {
 }
 
 void vm_save_get_gc(vm_save_t *save, vm_gc_t *gc) {
-  gc->up = vm_save_get_byte(save);
   gc->len = vm_save_get_uint(save);
-  gc->max = vm_save_get_uint(save);
+  gc->max = 0;
   size_t pos = 0;
   while (pos < gc->len) {
     vm_gc_entry_t *ent = (vm_gc_entry_t *)&gc->mem[pos];
