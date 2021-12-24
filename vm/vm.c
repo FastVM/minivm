@@ -290,12 +290,13 @@ do_exec : {
   vm_run_next_op();
 }
 do_save : {
-  gc->max = 0;
-  vm_gc_run1(gc, globals);
   vm_reg_t namreg = vm_read();
   vm_run_write();
 
   vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namreg]);
+  locals[namreg] = vm_obj_of_none();
+  gc->max = 0;
+  vm_gc_run1(gc, globals);
   vm_int_t slen = vm_gc_sizeof(gc, sname);
   vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
   for (vm_int_t i = 0; i < slen; i++) {

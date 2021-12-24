@@ -38,7 +38,7 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args) {
 
   state->frames[state->framenum].nlocals = 0;
   state->framenum += 1;
-  state->frames[state->framenum].nlocals = 16;
+  state->frames[state->framenum].nlocals = 256;
 
   state->index = 0;
   state->nops = 0;
