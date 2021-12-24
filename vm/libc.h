@@ -1,5 +1,14 @@
 #pragma once
 
+#if defined(VM_EMCC)
+
+#include <emscripten.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+#else
+
 typedef __SIZE_TYPE__ size_t;
 typedef __INT8_TYPE__ int8_t;
 
@@ -18,12 +27,15 @@ typedef _Bool bool;
 struct FILE;
 typedef struct FILE FILE;
 
+#define NULL ((void *)0)
+
+#endif
+
 FILE *fopen(const char *src, const char *name);
 int fclose(FILE *);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 
-#define NULL ((void *)0)
 
 int putchar(int chr);
 double fmod(double a, double b);
