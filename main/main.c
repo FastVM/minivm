@@ -81,18 +81,55 @@ int vm_main_run(const vm_char_t *src, size_t argc, const vm_char_t **argv) {
   }
 }
 
+#if defined(VM_EMCC)
+
+static size_t vm_main_nargs = 1;
+static const char *vm_main_args_space[1 << 6] = {"./bin/minivm"};
+
+static size_t vm_main_strlen(const char *src) {
+  size_t n = 0;
+  while (*src != '\0') {
+    n += 1;
+    src += 1;
+  }
+  return n;
+} 
+
+int printf(const char *fmt, ...);
+
+void vm_main_add_arg(const char *src) {
+  size_t len = vm_main_strlen(src) + 1;
+  char *xsrc = vm_malloc(len);
+  for (size_t i = 0; i < len; i++) {
+    xsrc[i] = src[i];
+  }
+  vm_main_args_space[vm_main_nargs++] = xsrc;
+}
+
+int vm_main_default(void) {
+  if (vm_main_nargs < 2) {
+    for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++) {
+      vm_putchar(*i);
+    }
+    return 2;
+  }
+  vm_int_t ret = vm_main_run(vm_main_args_space[1], vm_main_nargs - 2, &vm_main_args_space[2]);
+  return ret;
+}
+
+#else
+
 int main(int argc, const char *argv[argc]) {
   if (argc < 2) {
     for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++) {
       vm_putchar(*i);
     }
   }
-  const char *file = argv[1];
 #if defined(VM_TIME_MAIN)
   struct timeval start;
   gettimeofday(&start, NULL);
 
-  vm_int_t ret = vm_main_run(file, argc - 2, &argv[2]);
+  vm_int_t ret = vm_main_run(argv[1], argc - 2, &argv[2]);
 
   struct timeval end;
   gettimeofday(&end, NULL);
@@ -100,7 +137,9 @@ int main(int argc, const char *argv[argc]) {
   printf("%.3lf\n",
          (double)((1000000 + end.tv_usec - start.tv_usec) % 1000000) / 1000.0);
 #else
-  vm_int_t ret = vm_main_run(file, argc - 2, &argv[2]);
+  vm_int_t ret = vm_main_run(argv[1], argc - 2, &argv[2]);
 #endif
   return ret;
 }
+
+#endif

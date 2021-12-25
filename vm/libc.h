@@ -1,14 +1,5 @@
 #pragma once
 
-#if defined(VM_EMCC)
-
-#include <emscripten.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-
-#else
-
 typedef __SIZE_TYPE__ size_t;
 typedef __INT8_TYPE__ int8_t;
 
@@ -29,20 +20,22 @@ typedef struct FILE FILE;
 
 #define NULL ((void *)0)
 
-#endif
-
 FILE *fopen(const char *src, const char *name);
 int fclose(FILE *);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 
-
+#if defined(VM_EMCC)
+int printf(const char *fmt, ...);
+#define vm_putchar(chr_)                                                       \
+  ({                                                                           \
+    char chr = chr_;                                                           \
+    printf("%c", (chr));                                                      \
+  })
+#else
 int putchar(int chr);
-double fmod(double a, double b);
-
-#define vm_putchar(chr) (putchar(chr))
-
-#define vm_fmod(lhs, rhs) (fmod(lhs, rhs))
+#define vm_putchar(chr) (putchar((chr)))
+#endif
 
 void *malloc(size_t size);
 void *realloc(void *ptr, size_t n);
