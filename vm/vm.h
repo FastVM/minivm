@@ -75,5 +75,5 @@ typedef struct {
 #include "state.h"
 #include "save.h"
 
-void vm_run(vm_state_t *state);
-void vm_run_save(vm_save_t save, size_t n, const vm_char_t *args[n]);
+vm_state_t *vm_run(vm_state_t *state);
+vm_state_t *vm_run_save(vm_save_t save, size_t n, const vm_char_t *args[n]);
