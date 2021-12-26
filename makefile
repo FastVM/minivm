@@ -2,7 +2,13 @@
 
 OPT ?= -Ofast
 
-CFILES = vm/vm.c vm/state.c vm/gc.c vm/save.c main/main.c
+VM_API ?= 0
+VM_API_0 =
+VM_API_1 = vm/api.c
+
+$(info $(VM_API_$(VM_API)))
+
+CFILES = vm/vm.c vm/state.c vm/gc.c vm/save.c $(VM_API_$(VM_API)) main/main.c
 OBJS = $(CFILES:%.c=%.o)
 
 LTO ?= 0

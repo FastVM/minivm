@@ -15,24 +15,23 @@ typedef _Bool bool;
 #define true ((bool)1)
 #define false ((bool)0)
 
-struct FILE;
-typedef struct FILE FILE;
-
 #define NULL ((void *)0)
 
-FILE *fopen(const char *src, const char *name);
-int fclose(FILE *);
-size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
-size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
-
 #if defined(VM_EMCC)
+#include <emscripten.h>
+char *emscripten_run_script_string(const char *script);
+size_t strlen(const char *src);
+
 int printf(const char *fmt, ...);
 #define vm_putchar(chr_)                                                       \
   ({                                                                           \
     char chr = chr_;                                                           \
-    printf("%c", (chr));                                                      \
+    printf("%c", (chr));                                                       \
   })
 #else
+struct FILE;
+typedef struct FILE FILE;
+
 int putchar(int chr);
 #define vm_putchar(chr) (putchar((chr)))
 #endif
@@ -43,3 +42,14 @@ void free(void *ptr);
 #define vm_malloc(size) (malloc((size)))
 #define vm_realloc(ptr, size) (realloc((ptr), (size)))
 #define vm_free(ptr) (free((ptr)))
+
+FILE *fopen(const char *src, const char *name);
+int fclose(FILE *);
+size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
+
+#if defined(VM_EMCC)
+#define VM_API EMSCRIPTEN_KEEPALIVE
+#else
+#define VM_API
+#endif

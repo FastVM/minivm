@@ -49,9 +49,6 @@ static inline vm_obj_t vm_obj_of_num(vm_number_t obj) {
 }
 
 static inline vm_obj_t vm_obj_of_ptr(vm_gc_t *gc, void *obj) {
-  if (!vm_gc_owns(gc, obj)) {
-    __builtin_trap();
-  }
   return (vm_obj_t){
       .type = VM_TYPE_ARRAY,
       .value = (uint8_t *)obj - gc->base,
@@ -59,9 +56,6 @@ static inline vm_obj_t vm_obj_of_ptr(vm_gc_t *gc, void *obj) {
 }
 
 static inline vm_obj_t vm_obj_of_xptr(vm_gc_t *gc, void *obj) {
-  if (!vm_gc_xowns(gc, obj)) {
-    __builtin_trap();
-  }
   return (vm_obj_t){
       .type = VM_TYPE_ARRAY,
       .value = (uint8_t *)obj - gc->base,

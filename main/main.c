@@ -1,8 +1,8 @@
 #include "../vm/config.h"
 #include "../vm/libc.h"
+#include "../vm/save.h"
 #include "../vm/state.h"
 #include "../vm/vm.h"
-#include "../vm/save.h"
 
 #define VM_CAN_NOT_RUN "cannot run vm: not enough args\n"
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
@@ -11,7 +11,8 @@
 #include <sys/time.h>
 #endif
 
-vm_state_t *vm_main_run(const vm_char_t *src, size_t argc, const vm_char_t **argv) {
+vm_state_t *vm_main_run(const vm_char_t *src, size_t argc,
+                        const vm_char_t **argv) {
   FILE *file = fopen(src, "rb");
   if (file == NULL) {
     for (const vm_char_t *i = VM_CAN_NOT_OPEN; *i != '\0'; i++) {
@@ -92,11 +93,11 @@ static size_t vm_main_strlen(const char *src) {
     src += 1;
   }
   return n;
-} 
+}
 
 int printf(const char *fmt, ...);
 
-void vm_main_add_arg(const char *src) {
+VM_API void vm_main_add_arg(const char *src) {
   size_t len = vm_main_strlen(src) + 1;
   char *xsrc = vm_malloc(len);
   for (size_t i = 0; i < len; i++) {
@@ -105,14 +106,15 @@ void vm_main_add_arg(const char *src) {
   vm_main_args_space[vm_main_nargs++] = xsrc;
 }
 
-vm_state_t *vm_main_default(void) {
+VM_API vm_state_t *vm_main_default(void) {
   if (vm_main_nargs < 2) {
     for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++) {
       vm_putchar(*i);
     }
     return NULL;
   }
-  return vm_main_run(vm_main_args_space[1], vm_main_nargs - 2, &vm_main_args_space[2]);
+  return vm_main_run(vm_main_args_space[1], vm_main_nargs - 2,
+                     &vm_main_args_space[2]);
 }
 
 #else
@@ -123,23 +125,24 @@ int main(int argc, const char *argv[argc]) {
       vm_putchar(*i);
     }
   }
-// #if defined(VM_TIME_MAIN)
-//   struct timeval start;
-//   gettimeofday(&start, NULL);
+  // #if defined(VM_TIME_MAIN)
+  //   struct timeval start;
+  //   gettimeofday(&start, NULL);
 
-//   vm_int_t ret = vm_main_run(argv[1], argc - 2, &argv[2]);
+  //   vm_int_t ret = vm_main_run(argv[1], argc - 2, &argv[2]);
 
-//   struct timeval end;
-//   gettimeofday(&end, NULL);
+  //   struct timeval end;
+  //   gettimeofday(&end, NULL);
 
-//   printf("%.3lf\n",
-//          (double)((1000000 + end.tv_usec - start.tv_usec) % 1000000) / 1000.0);
-// #else
+  //   printf("%.3lf\n",
+  //          (double)((1000000 + end.tv_usec - start.tv_usec) % 1000000) /
+  //          1000.0);
+  // #else
   vm_state_t *ret = vm_main_run(argv[1], argc - 2, &argv[2]);
   while (ret != NULL) {
     ret = vm_run(ret);
   }
-// #endif
+  // #endif
   return 0;
 }
 

@@ -54,7 +54,7 @@ void vm_state_set_ops(vm_state_t *state, size_t nops, const vm_opcode_t *ops) {
 
 void vm_state_del(vm_state_t *state) {
   vm_gc_stop(&state->gc);
-  vm_free((void*) state->ops);
+  vm_free((void *)state->ops);
   vm_free(state->frames);
   vm_free(state->globals);
   vm_free(state);
