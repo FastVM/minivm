@@ -10,9 +10,13 @@ void os_puts(const char *str);
 #endif
 
 #if defined(VM_EMCC)
-EM_JS(void, vm_do_eval, (size_t out, const char *src), {
-  window.vm_do_eval_func(out, UTF8ToString(src));
-});
+
+EM_JS(void, vm_do_eval, (size_t out, const char *src),
+      { Module.vm_do_eval_func(out, UTF8ToString(src)); });
+
+EM_JS(void, vm_do_file_put, (const char *src),
+      { Module.vm_do_file_put_func(UTF8ToString(src)); });
+
 #endif
 
 #if defined(VM_DEBUG_OPCODE)
@@ -381,14 +385,17 @@ do_read : {
   name[slen] = '\0';
   if (name[0] == '#') {
     locals[outreg] = vm_obj_of_none();
-  #if defined(VM_EMCC)
+#if defined(VM_EMCC)
     vm_do_eval(locals - globals + outreg, name + 1);
     vm_free(name);
     vm_run_defer();
-  #else
+#else
     vm_run_next_op();
-  #endif
+#endif
   } else {
+#if defined(VM_EMCC)
+  vm_do_file_put(name);
+#endif
     vm_int_t where = 0;
     vm_int_t nalloc = 64;
     FILE *in = fopen(name, "rb");
