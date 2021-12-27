@@ -18,6 +18,10 @@ struct vm_state_t {
 
   vm_obj_t *globals;
   size_t nlocals;
+  
+  vm_obj_t *tmpbuf;
+  size_t tmphead;
+  size_t tmpsize;
 };
 
 vm_state_t *vm_state_new(size_t n, const char *args[n]);

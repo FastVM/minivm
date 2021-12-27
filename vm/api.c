@@ -3,10 +3,14 @@
 #include "libc.h"
 #include "type.h"
 
-static vm_obj_t *vm_objdup(vm_obj_t obj) {
-  vm_obj_t *ret = vm_malloc(sizeof(vm_obj_t));
-  *ret = obj;
-  return ret;
+VM_API void vm_api_reset(vm_state_t *state) {
+  state->tmphead = 0;
+}
+
+static vm_obj_t *vm_objdup(vm_state_t *state, vm_obj_t obj) {
+  vm_obj_t *ptr = &state->tmpbuf[state->tmphead++ % state->tmpsize];
+  *ptr = obj;
+  return ptr;
 }
 
 VM_API bool vm_api_is_none(vm_state_t *state, vm_obj_t *obj) {
@@ -20,13 +24,13 @@ VM_API bool vm_api_is_num(vm_state_t *state, vm_obj_t *obj) {
 }
 
 VM_API vm_obj_t *vm_api_of_none(vm_state_t *state) {
-  return vm_objdup(vm_obj_of_none());
+  return vm_objdup(state, vm_obj_of_none());
 }
 VM_API vm_obj_t *vm_api_of_bool(vm_state_t *state, bool obj) {
-  return vm_objdup(vm_obj_of_bool(obj));
+  return vm_objdup(state, vm_obj_of_bool(obj));
 }
 VM_API vm_obj_t *vm_api_of_num(vm_state_t *state, vm_number_t obj) {
-  return vm_objdup(vm_obj_of_num(obj));
+  return vm_objdup(state, vm_obj_of_num(obj));
 }
 
 VM_API bool vm_api_to_bool(vm_state_t *state, vm_obj_t *obj) {
@@ -41,7 +45,7 @@ VM_API vm_obj_t *vm_api_new(vm_state_t *state, size_t size) {
   for (size_t i = 0; i < size; i++) {
     vm_gc_set_index(&state->gc, ret, i, vm_obj_of_none());
   }
-  return vm_objdup(vm_obj_of_ptr(&state->gc, ret));
+  return vm_objdup(state, vm_obj_of_ptr(&state->gc, ret));
 }
 
 VM_API void vm_api_set(vm_state_t *state, vm_obj_t *obj, size_t index,
@@ -50,7 +54,7 @@ VM_API void vm_api_set(vm_state_t *state, vm_obj_t *obj, size_t index,
 }
 
 VM_API vm_obj_t *vm_api_get(vm_state_t *state, vm_obj_t *obj, size_t index) {
-  return vm_objdup(vm_gc_get_index(&state->gc, vm_obj_to_ptr(&state->gc, *obj), index));
+  return vm_objdup(state, vm_gc_get_index(&state->gc, vm_obj_to_ptr(&state->gc, *obj), index));
 }
 
 VM_API size_t vm_api_len(vm_state_t *state, vm_obj_t *obj) {
@@ -59,7 +63,7 @@ VM_API size_t vm_api_len(vm_state_t *state, vm_obj_t *obj) {
 
 VM_API vm_obj_t *vm_api_concat(vm_state_t *state, vm_obj_t *lhs,
                                vm_obj_t *rhs) {
-  return vm_objdup(vm_gc_static_concat(&state->gc, *lhs, *rhs));
+  return vm_objdup(state, vm_gc_static_concat(&state->gc, *lhs, *rhs));
 }
 
 VM_API vm_obj_t *vm_api_str(vm_state_t *state, size_t len, const char *str) {
@@ -67,7 +71,7 @@ VM_API vm_obj_t *vm_api_str(vm_state_t *state, size_t len, const char *str) {
   for (size_t i = 0; i < len; i++) {
     vm_gc_set_index(&state->gc, ret, i, vm_obj_of_num(str[i]));
   }
-  return vm_objdup(vm_obj_of_ptr(&state->gc, ret));
+  return vm_objdup(state, vm_obj_of_ptr(&state->gc, ret));
 }
 
 VM_API void vm_api_stack_set(vm_state_t *state, size_t n, vm_obj_t *obj) {
@@ -81,5 +85,5 @@ VM_API vm_obj_t *vm_api_stack_get(vm_state_t *state, size_t n) {
   if (n < 0) {
     n += VM_LOCALS_UNITS;
   }
-  return vm_objdup(state->globals[n]);
+  return vm_objdup(state, state->globals[n]);
 }
