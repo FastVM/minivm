@@ -108,7 +108,6 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_DUMP] = &&do_dump,
       [VM_OPCODE_WRITE] = &&do_write,
       [VM_OPCODE_READ] = &&do_read,
-      [VM_OPCODE_LOAD_GLOBAL] = &&do_load_global,
       [VM_OPCODE_DYNAMIC_CALL] = &&do_dynamic_call,
       [VM_OPCODE_STATIC_ARRAY_NEW] = &&do_static_array_new,
       [VM_OPCODE_STATIC_CONCAT] = &&do_static_concat,
@@ -451,12 +450,6 @@ do_write : {
     fwrite(&op, 1, sizeof(uint8_t), out);
   }
   fclose(out);
-  vm_run_next_op();
-}
-do_load_global : {
-  vm_reg_t out = vm_read();
-  vm_reg_t global = vm_read();
-  locals[out] = locals[global];
   vm_run_next_op();
 }
 do_dynamic_call : {
