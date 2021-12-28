@@ -45,7 +45,7 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args) {
   state->ops = NULL;
 
   state->tmphead = 0;
-  state->tmpsize = 1 << 20;
+  state->tmpsize = 16;
   state->tmpbuf = vm_malloc(sizeof(vm_obj_t) * state->tmpsize);
 
   return state;
