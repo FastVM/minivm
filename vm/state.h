@@ -22,8 +22,11 @@ struct vm_state_t {
   vm_obj_t *tmpbuf;
   size_t tmphead;
   size_t tmpsize;
+
+  void **jumps;
 };
 
+void vm_state_ptrs(vm_state_t *state, void **ptrs);
 vm_state_t *vm_state_new(size_t n, const char *args[n]);
 void vm_state_del(vm_state_t *state);
 void vm_state_set_ops(vm_state_t *state, size_t n, const vm_opcode_t *ops);

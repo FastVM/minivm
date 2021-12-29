@@ -48,16 +48,29 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args) {
   state->tmpsize = 16;
   state->tmpbuf = vm_malloc(sizeof(vm_obj_t) * state->tmpsize);
 
+  state->jumps = NULL;
+
   return state;
 }
 
 void vm_state_set_ops(vm_state_t *state, size_t nops, const vm_opcode_t *ops) {
+  state->jumps = vm_malloc(sizeof(void *) * nops);
   state->nops = nops;
   state->ops = ops;
 }
 
+void vm_state_ptrs(vm_state_t *state, void **ptrs) {
+  for (size_t i = 0; i < state->nops; i++) {
+    vm_opcode_t op = state->ops[i];
+    if (op >= 0 && op < VM_OPCODE_MAX1 && ptrs[op] != NULL) {
+      state->jumps[i] = ptrs[op];
+    }
+  }
+}
+
 void vm_state_del(vm_state_t *state) {
   vm_gc_stop(&state->gc);
+  vm_free(state->jumps);
   vm_free((void *)state->ops);
   vm_free(state->frames);
   vm_free(state->globals);
