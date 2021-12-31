@@ -130,7 +130,9 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_BRANCH_GREATER_THAN_EQUAL_INT] =
           &&do_branch_greater_than_equal_int,
   };
-  vm_state_ptrs(state, ptrs);
+  if (state->jumps == NULL) {
+    vm_state_ptrs(state, ptrs);
+  }
   void *const *const jumps = (void *const *const) state->jumps;
   vm_run_next_op_forced();
 do_exit : {
