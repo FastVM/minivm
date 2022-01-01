@@ -92,3 +92,35 @@ VM_API vm_int_t vm_api_stack_get(vm_state_t *state, size_t n) {
   }
   return vm_objdup(state, state->globals[n]);
 }
+
+#if defined(VM_EMCC)
+
+#include "vm.h"
+
+EM_JS(void, vm_do_emcc_save, (size_t val, uint8_t *ptr), {
+  let ret = [];
+  for (let i = 0; i < val; i++) {
+    ret.push(Module.HEAP8[ptr + i]);
+  }
+  Module.vm_do_saved(ret);
+});
+
+VM_API void vm_api_save(vm_state_t *state) {
+  vm_save_t save;
+  vm_save_init(&save);
+  vm_save_state(&save, state);
+  vm_do_emcc_save(save.len, save.str);
+  vm_save_deinit(&save);
+}
+
+VM_API vm_state_t *vm_api_load_save(size_t len, uint8_t *str) {
+  vm_save_t save = (vm_save_t) {
+    .len = 0,
+    .str = str,
+  };
+  vm_state_t *state = vm_state_new(0, NULL);
+  vm_save_get_state(&save, state);
+  return state;
+}
+
+#endif
