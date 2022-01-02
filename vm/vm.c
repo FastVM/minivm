@@ -43,9 +43,11 @@ int printf(const char *, ...);
 #define vm_run_next_op() vm_run_next_op_forced()
 
 #if defined(VM_BRANCH_DEFER)
+#define vm_run_dec_defer() ({if (remain-- <= 0) vm_run_defer(); else vm_run_next_op();}) 
 #define vm_run_op(index_)                                                      \
   index = index_;                                                              \
-  vm_run_defer();
+  vm_run_dec_defer();
+
 #else
 #define vm_run_op(index_)                                                      \
   index = index_;                                                              \
@@ -79,6 +81,9 @@ vm_state_t *vm_run_save(vm_save_t save, size_t n,
 }
 
 VM_API vm_state_t *vm_run(vm_state_t *state) {
+#if defined(VM_BRANCH_DEFER)
+  int remain = 200;
+#endif
   const vm_opcode_t *ops = state->ops;
   vm_obj_t *const globals = state->globals;
   vm_obj_t *locals = globals + state->nlocals;
