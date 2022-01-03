@@ -27,7 +27,7 @@ libminivm.a: $(OBJS)
 
 $(OUT): $(OBJS)
 	: mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o $(OUT) -lc $(LFLAGS)
+	$(CC) $(OPT) $(OBJS) -o $(OUT) -lc -lm $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)

@@ -22,45 +22,11 @@ void vm_save_byte(vm_save_t *save, uint8_t val) {
   save->str[save->len++] = val;
 }
 
-void vm_save_uint_len(vm_save_t *save, uint8_t len, uint32_t val) {
-  if (len == 1) {
-    vm_save_byte(save, (val >> 0) & 0xFF);
-  } else if (len == 2) {
-    vm_save_byte(save, (val >> 8) & 0xFF);
-    vm_save_byte(save, (val >> 0) & 0xFF);
-  } else if (len == 3) {
-    vm_save_byte(save, (val >> 16) & 0xFF);
-    vm_save_byte(save, (val >> 8) & 0xFF);
-    vm_save_byte(save, (val >> 0) & 0xFF);
-  } else {
-    vm_save_byte(save, (val >> 24) & 0xFF);
-    vm_save_byte(save, (val >> 16) & 0xFF);
-    vm_save_byte(save, (val >> 8) & 0xFF);
-    vm_save_byte(save, (val >> 0) & 0xFF);
-  }
-}
-
 void vm_save_uint(vm_save_t *save, uint32_t val) {
-  if (val < 252) {
-    vm_save_byte(save, val);
-  } else {
-    uint8_t len = 0;
-    val -= 252;
-    if (val < (1 << 8)) {
-      len = 1;
-      vm_save_byte(save, 252);
-    } else if (val < (1 << 16)) {
-      len = 2;
-      vm_save_byte(save, 253);
-    } else if (val < (1 << 24)) {
-      len = 3;
-      vm_save_byte(save, 254);
-    } else {
-      len = 4;
-      vm_save_byte(save, 255);
-    }
-    vm_save_uint_len(save, len, val);
-  }
+  vm_save_byte(save, (val >> 24) & 0xFF);
+  vm_save_byte(save, (val >> 16) & 0xFF);
+  vm_save_byte(save, (val >> 8) & 0xFF);
+  vm_save_byte(save, (val >> 0) & 0xFF);
 }
 
 void vm_save_state(vm_save_t *save, vm_state_t *state) {
@@ -89,55 +55,27 @@ void vm_save_state(vm_save_t *save, vm_state_t *state) {
 
 void vm_save_obj(vm_save_t *save, vm_gc_t *gc, vm_obj_t obj) {
   if (vm_obj_is_none(obj)) {
-    vm_save_byte(save, 255);
+    vm_save_byte(save, 0);
   } else if (vm_obj_is_bool(obj)) {
     if (vm_obj_to_bool(obj) == false) {
-      vm_save_byte(save, 254);
+      vm_save_byte(save, 1);
     } else {
-      vm_save_byte(save, 253);
+      vm_save_byte(save, 2);
     }
   } else if (vm_obj_is_num(obj)) {
     vm_number_t num = vm_obj_to_num(obj);
     if (num < 0) {
       num = -num;
-      uint8_t len = 0;
-      if (num < (1 << 8)) {
-        len = 1;
-        vm_save_byte(save, 252);
-      } else if (num < (1 << 16)) {
-        len = 2;
-        vm_save_byte(save, 251);
-      } else if (num < (1 << 24)) {
-        len = 3;
-        vm_save_byte(save, 250);
-      } else {
-        len = 4;
-        vm_save_byte(save, 249);
-      }
-      vm_save_uint_len(save, len, num);
-    } else if (num < 244) {
-      vm_save_byte(save, num);
+      vm_save_byte(save, 3);
     } else {
-      num -= 243;
-      uint8_t len = 0;
-      if (num < (1 << 8)) {
-        len = 1;
-        vm_save_byte(save, 248);
-      } else if (num < (1 << 16)) {
-        len = 2;
-        vm_save_byte(save, 247);
-      } else if (num < (1 << 24)) {
-        len = 3;
-        vm_save_byte(save, 246);
-      } else {
-        len = 4;
-        vm_save_byte(save, 245);
-      }
-      vm_save_uint_len(save, len, num);
+      vm_save_byte(save, 4);
     }
+    vm_save_uint(save, num);
+    vm_number_t part = fmod(num, 1) * (1 << 24);
+    vm_save_uint(save, part);
   } else if (vm_obj_is_ptr(obj)) {
-    vm_gc_entry_t *ptr = vm_obj_to_ptr(gc, obj);
-    vm_save_byte(save, 244);
+    vm_gc_entry_t *ptr = vm_obj_to_ptr(obj);
+    vm_save_byte(save, 5);
     uint32_t v = (uint8_t *)ptr - gc->mem;
     vm_save_uint(save, v);
   } else {
@@ -161,48 +99,12 @@ void vm_save_gc(vm_save_t *save, vm_gc_t *gc) {
 
 uint8_t vm_save_get_byte(vm_save_t *save) { return save->str[save->len++]; }
 
-uint32_t vm_save_get_uint_len(vm_save_t *save, size_t len) {
-  switch (len) {
-  case 1: {
-    uint32_t h0 = ((uint32_t)vm_save_get_byte(save)) << 0;
-    return h0;
-  }
-  case 2: {
-    uint32_t h1 = ((uint32_t)vm_save_get_byte(save)) << 8;
-    uint32_t h0 = ((uint32_t)vm_save_get_byte(save)) << 0;
-    return h1 + h0;
-  }
-  case 3: {
-    uint32_t h2 = ((uint32_t)vm_save_get_byte(save)) << 16;
-    uint32_t h1 = ((uint32_t)vm_save_get_byte(save)) << 8;
-    uint32_t h0 = ((uint32_t)vm_save_get_byte(save)) << 0;
-    return h2 + h1 + h0;
-  }
-  case 4: {
-    uint32_t h3 = ((uint32_t)vm_save_get_byte(save)) << 24;
-    uint32_t h2 = ((uint32_t)vm_save_get_byte(save)) << 16;
-    uint32_t h1 = ((uint32_t)vm_save_get_byte(save)) << 8;
-    uint32_t h0 = ((uint32_t)vm_save_get_byte(save)) << 0;
-    return h3 + h2 + h1 + h0;
-  }
-  }
-  __builtin_trap();
-}
-
 uint32_t vm_save_get_uint(vm_save_t *save) {
-  uint8_t tag = vm_save_get_byte(save);
-  switch (tag) {
-  default: 
-    return tag;
-  case 252:
-    return vm_save_get_uint_len(save, 1) + 252;
-  case 253:
-    return vm_save_get_uint_len(save, 2) + 252;
-  case 254:
-    return vm_save_get_uint_len(save, 3) + 252;
-  case 255:
-    return vm_save_get_uint_len(save, 4) + 252;
-  }
+  uint32_t h3 = ((uint32_t)vm_save_get_byte(save)) << 24;
+  uint32_t h2 = ((uint32_t)vm_save_get_byte(save)) << 16;
+  uint32_t h1 = ((uint32_t)vm_save_get_byte(save)) << 8;
+  uint32_t h0 = ((uint32_t)vm_save_get_byte(save)) << 0;
+  return h3 + h2 + h1 + h0;
 }
 
 void vm_save_get_state(vm_save_t *save, vm_state_t *state) {
@@ -234,48 +136,33 @@ void vm_save_get_state(vm_save_t *save, vm_state_t *state) {
 vm_obj_t vm_save_get_obj(vm_save_t *save, vm_gc_t *gc) {
   uint8_t tag = vm_save_get_byte(save);
   switch (tag) {
-  case 255: {
+  case 0: {
     return vm_obj_of_none();
   }
-  case 254: {
+  case 1: {
     return vm_obj_of_bool(false);
   }
-  case 253: {
+  case 2: {
     return vm_obj_of_bool(true);
   }
-  case 252: {
-    return vm_obj_of_num(-vm_save_get_uint_len(save, 1));
+  case 3: {
+    vm_number_t big = vm_save_get_uint(save);
+    vm_number_t small = vm_save_get_uint(save);
+    return vm_obj_of_num(-(big + small * (1 << 24)));
   }
-  case 251: {
-    return vm_obj_of_num(-vm_save_get_uint_len(save, 2));
+  case 4: {
+    vm_number_t big = vm_save_get_uint(save);
+    vm_number_t small = vm_save_get_uint(save);
+    return vm_obj_of_num(big + small * (1 << 24));
   }
-  case 250: {
-    return vm_obj_of_num(-vm_save_get_uint_len(save, 3));
-  }
-  case 249: {
-    return vm_obj_of_num(-vm_save_get_uint_len(save, 4));
-  }
-  case 248: {
-    return vm_obj_of_num(243 + vm_save_get_uint_len(save, 1));
-  }
-  case 247: {
-    return vm_obj_of_num(243 + vm_save_get_uint_len(save, 2));
-  }
-  case 246: {
-    return vm_obj_of_num(243 + vm_save_get_uint_len(save, 3));
-  }
-  case 245: {
-    return vm_obj_of_num(243 + vm_save_get_uint_len(save, 4));
-  }
-  case 244: {
+  case 5: {
     uint32_t v = vm_save_get_uint(save);
-    return vm_obj_of_ptr(gc, gc->mem + v);
+    return vm_obj_of_ptr(gc->mem + v);
   }
   default: {
-    return vm_obj_of_num(tag);
+    __builtin_trap();
   }
   }
-  __builtin_trap();
 }
 
 void vm_save_get_gc(vm_save_t *save, vm_gc_t *gc) {

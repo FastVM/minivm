@@ -19,11 +19,11 @@ vm_obj_t vm_state_global_from(vm_gc_t *gc, size_t len, const vm_char_t **args) {
   for (size_t i = 0; i < len; i++) {
     vm_gc_entry_t *ent = vm_gc_static_array_new(gc, vm_state_strlen(args[i]));
     for (const vm_char_t *src = args[i]; *src != '\0'; src++) {
-      vm_gc_set_index(gc, ent, src - args[i], vm_obj_of_int(*src));
+      vm_gc_set_index(gc, ent, src - args[i], vm_obj_of_num(*src));
     }
-    vm_gc_set_index(gc, global, i, vm_obj_of_ptr(gc, ent));
+    vm_gc_set_index(gc, global, i, vm_obj_of_ptr(ent));
   }
-  return vm_obj_of_ptr(gc, global);
+  return vm_obj_of_ptr(global);
 }
 
 vm_state_t *vm_state_new(size_t len, const vm_char_t **args) {

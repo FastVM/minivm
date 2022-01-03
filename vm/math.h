@@ -36,11 +36,11 @@ static inline vm_obj_t vm_obj_num_divc(vm_obj_t lhs, vm_int_t rhs) {
 }
 
 static inline vm_obj_t vm_obj_num_mod(vm_obj_t lhs, vm_obj_t rhs) {
-  return vm_obj_of_num(vm_obj_to_num(lhs) % vm_obj_to_num(rhs));
+  return vm_obj_of_num(fmod(vm_obj_to_num(lhs), vm_obj_to_num(rhs)));
 }
 
 static inline vm_obj_t vm_obj_num_modc(vm_obj_t lhs, vm_int_t rhs) {
-  return vm_obj_of_num(vm_obj_to_num(lhs) % rhs);
+  return vm_obj_of_num(fmod(vm_obj_to_num(lhs), rhs));
 }
 
 static inline bool vm_obj_lt(vm_obj_t lhs, vm_obj_t rhs) {
@@ -96,8 +96,8 @@ static inline bool vm_obj_eq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
   if (!vm_obj_is_ptr(rhs) || !vm_obj_is_ptr(lhs)) {
     return false;
   }
-  vm_gc_entry_t *lent = vm_obj_to_ptr(gc, lhs);
-  vm_gc_entry_t *rent = vm_obj_to_ptr(gc, rhs);
+  vm_gc_entry_t *lent = vm_obj_to_ptr(lhs);
+  vm_gc_entry_t *rent = vm_obj_to_ptr(rhs);
   size_t len = vm_gc_sizeof(gc, lent);
   if (len != vm_gc_sizeof(gc, rent)) {
     return false;
