@@ -10,14 +10,10 @@ void os_puts(const char *str);
 #endif
 
 #if defined(VM_EMCC)
-
 EM_JS(void, vm_do_eval, (size_t out, const char *src),
       { Module.vm_do_eval_func(out, UTF8ToString(src)); });
-
 EM_JS(void, vm_do_file_put, (const char *src),
       { Module.vm_do_file_put_func(UTF8ToString(src)); });
-
-
 
 #endif
 
@@ -38,12 +34,22 @@ int printf(const char *, ...);
     return state;                                                              \
   })
 
-#define vm_run_next_op_forced() ({ goto *jumps[index++]; })
+#define vm_run_next_op_forced()                                                \
+  ({                                                                           \
+    vm_debug_op(index, ops[index]);                                            \
+    goto *jumps[index++];                                                      \
+  })
 
 #define vm_run_next_op() vm_run_next_op_forced()
 
 #if defined(VM_BRANCH_DEFER)
-#define vm_run_dec_defer() ({if (remain-- <= 0) vm_run_defer(); else vm_run_next_op();}) 
+#define vm_run_dec_defer()                                                     \
+  ({                                                                           \
+    if (remain-- <= 0)                                                         \
+      vm_run_defer();                                                          \
+    else                                                                       \
+      vm_run_next_op();                                                        \
+  })
 #define vm_run_op(index_)                                                      \
   index = index_;                                                              \
   vm_run_dec_defer();
@@ -72,8 +78,7 @@ vm_save_t vm_state_to_save(vm_state_t *state) {
   return save;
 }
 
-vm_state_t *vm_run_save(vm_save_t save, size_t n,
-                               const vm_char_t *args[n]) {
+vm_state_t *vm_run_save(vm_save_t save, size_t n, const vm_char_t *args[n]) {
   vm_state_t *state = vm_state_new(0, NULL);
   vm_save_get_state(&save, state);
   state->globals[0] = vm_state_global_from(&state->gc, n, args);
