@@ -101,6 +101,8 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_STORE_NONE] = &&do_store_none,
       [VM_OPCODE_STORE_BOOL] = &&do_store_bool,
       [VM_OPCODE_STORE_INT] = &&do_store_int,
+      [VM_OPCODE_LOAD_GLOBAL] = &&do_load_global,
+      [VM_OPCODE_SWAP_REG] = &&do_swap_reg,
       [VM_OPCODE_JUMP] = &&do_jump,
       [VM_OPCODE_FUNC] = &&do_func,
       [VM_OPCODE_ADD] = &&do_add,
@@ -187,6 +189,21 @@ do_store_int : {
   vm_reg_t to = vm_read();
   vm_int_t from = vm_read();
   locals[to] = vm_obj_of_num(from);
+  vm_run_next_op();
+}
+do_load_global : {
+  vm_reg_t to = vm_read();
+  vm_reg_t from = vm_read();
+  locals[to] = globals[from];
+  vm_run_next_op();
+}
+do_swap_reg : {
+  vm_reg_t r1 = vm_read();
+  vm_reg_t r2 = vm_read();
+  vm_obj_t v1 = locals[r1];
+  vm_obj_t v2 = locals[r2];
+  locals[r1] = v2;
+  locals[r2] = v1;
   vm_run_next_op();
 }
 do_jump : {
