@@ -103,6 +103,8 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_STORE_INT] = &&do_store_int,
       [VM_OPCODE_LOAD_GLOBAL] = &&do_load_global,
       [VM_OPCODE_SWAP_REG] = &&do_swap_reg,
+      [VM_OPCODE_INDEX_GET_INT] = &&do_index_get_int,
+      [VM_OPCODE_INDEX_SET_INT] = &&do_index_set_int,
       [VM_OPCODE_JUMP] = &&do_jump,
       [VM_OPCODE_FUNC] = &&do_func,
       [VM_OPCODE_ADD] = &&do_add,
@@ -204,6 +206,23 @@ do_swap_reg : {
   vm_obj_t v2 = locals[r2];
   locals[r1] = v2;
   locals[r2] = v1;
+  vm_run_next_op();
+}
+do_index_get_int : {
+  vm_reg_t outreg = vm_read();
+  vm_reg_t reg = vm_read();
+  vm_reg_t ind = vm_read();
+  vm_obj_t vec = locals[reg];
+  locals[outreg] = vm_gc_get_index(gc, vm_obj_to_ptr(vec), ind);
+  vm_run_next_op();
+}
+do_index_set_int : {
+  vm_reg_t reg = vm_read();
+  vm_reg_t ind = vm_read();
+  vm_reg_t val = vm_read();
+  vm_obj_t vec = locals[reg];
+  vm_obj_t value = locals[val];
+  vm_gc_set_index(gc, vm_obj_to_ptr(vec), ind, value);
   vm_run_next_op();
 }
 do_jump : {
