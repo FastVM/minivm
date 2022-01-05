@@ -20,6 +20,8 @@ LFLAGS += $(LTO_$(LTO))
 
 OUT = minivm
 
+STDLIB=-lc -lm
+
 default: $(OUT)
 
 libminivm.a: $(OBJS)
@@ -27,7 +29,7 @@ libminivm.a: $(OBJS)
 
 $(OUT): $(OBJS)
 	: mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o $(OUT) -lc -lm $(LFLAGS)
+	$(CC) $(OPT) $(OBJS) -o $(OUT) $(STDLIB) $(LFLAGS)
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)
