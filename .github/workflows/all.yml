@@ -12,6 +12,17 @@ jobs:
         with:
           name: minivm-linux
           path: minivm
+  macos-opt:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: make CC=cc OPT='-Os -ffast-math'
+      - uses: actions/upload-artifact@v2
+        with:
+          name: minivm-macos
+          path: minivm
   windows-opt:
     runs-on: windows-latest
     steps:
