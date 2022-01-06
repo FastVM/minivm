@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - run: make CC=c OPT='-Os -ffast-math'
+      - run: make CC=cc OPT='-Os -ffast-math'
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-linux
