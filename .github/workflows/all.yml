@@ -11,7 +11,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-linux
-          path: bin/minivm
+          path: minivm
   windows-opt:
     runs-on: windows-latest
     steps:
@@ -25,4 +25,4 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-windows.exe
-          path: bin/minivm.exe
+          path: minivm.exe
