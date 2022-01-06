@@ -1,0 +1,28 @@
+name: Builds
+on: [push]
+jobs:
+  linux-opt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: make CC=c OPT='-Os -ffast-math'
+      - uses: actions/upload-artifact@v2
+        with:
+          name: minivm-linux
+          path: bin/minivm
+  windows-opt:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+      - run: make CC=gcc OPT=-Os STDLIB= bin/minivm
+      - uses: actions/upload-artifact@v2
+        with:
+          name: minivm-windows.exe
+          path: bin/minivm.exe
