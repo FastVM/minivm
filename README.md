@@ -4,26 +4,20 @@
 
 [![Link to Discord](https://img.shields.io/discord/814855814514737152?logo=discord&color=5865F2)](https://discord.gg/UyvxuC5W5q)
 
-MiniVM is a small and fast cross-language VM written in good ol' C, meaning it can compile and run just about anywhere.
+**MiniVM is a small and fast cross-language Virtual Machine (VM) written in good ol' C**, meaning it can compile and run just about anywhere. Here are a few reasons why MiniVM is pretty neat:
 
-Here are a few reasons why MiniVM is pretty neat:
-
-- Built on a register-based ISA that beats luajit—*with the JIT on*—in some benchmarks. (See the benchmark section below).
-- Has a 3-buffer *pauseless* GC for latency-sensitive applications.
-- Supports a flexible data model, with NaN-boxing and pointer compaction, for efficient memory usage.
+- Built on a register-based ISA that beats luajit—*with the JIT on*—in some benchmarks. (See the [benchmarks](#benchmarks) section below).
+- Has an effecient GC that can handle large amounts of allocations and deallocations efficiently. (Again, check the benchmarks).
+- Supports a flexible data model with a number of optimizations to minimize memory usage.
 - Leverages Cosmopolitan libc + WebAssembly for easy cross platform portability.
-- ... check out the details section for more!
+- ... check out the [details](#some-sweet-deets) section for more!
 
-MiniVM is small and flexible enough to run just about any language under the sun (given you've taken the time to write a compiler for it). Front ends we've experimented with include Lua, Scheme, Paka, and others.
+MiniVM is small and flexible enough to run just about any language under the sun (given you've taken the time to write a compiler for it). Front ends we've experimented with include Lua, Scheme, Paka, and others. You can try out the [Paka frontend to MiniVM online](https://fastvm.github.io/xori)!
 
 ## History
 This project started as an exploration into what it takes to build a fast interpreters. The first version was blocked out during a single Discord call, and ran a small lisp-like language.
 
-This original implementation was a plain stack machine, which, for whatever reason, was a tad faster than it should've been.
-
-Leveraging this tiny 1,000 LoC base, MiniVM matured into something a bit bigger, but only slightly. It now runs a language close to ASM, and has gotten quite a lot faster over time.
-
-MiniVM's speed is in no small part due to its architecture. It's a register/stack machine with carefully-selected opcodes that are designed to work well with common data-access patterns.
+This original implementation was a plain stack machine, which, for whatever reason, was a tad faster than it should've been. Leveraging this tiny 1,000 LoC base, MiniVM matured into something a bit bigger, but only slightly. It now runs a language close to ASM, and has gotten quite a lot faster over time. MiniVM's speed is in no small part due to its architecture. It's a register/stack machine with carefully-selected opcodes that are designed to work well with common data-access patterns.
 
 Above all else, MiniVM is a constantly improving each day. We hope you find the journey to be as interesting as the final destination. If you're interested as to where the project is headed next, ping Shaw (`@4984#4984`) on [the Discord Server](https://discord.gg/UyvxuC5W5q).
 
@@ -68,8 +62,20 @@ Although each instruction is a bit more complex, there are way fewer instruction
 
 ### On `malloc` and `putchar`
 
-> `putchar` is the function all io boils down to eventually.
+MiniVM's only dependencies are [9 functions](https://github.com/FastVM/minivm/blob/main/vm/libc.h) in `libc`:
+
+```
+fmod, putchar, malloc, realloc, free, fopen, fclose, fwrite, fread
+```
+
+Only `malloc` and `putchar` are relied on heavily, though:
+
+> `putchar` is the function all IO boils down to eventually.
 > `malloc` is required for memory allocations as of recent.
+>
+> — Shaw
+
+The entire codebase is highly configurable, allowing users of MiniVM to choose the optimal feature set that supports their application.
 
 ### Types
 
@@ -106,20 +112,43 @@ The best way to get familliar with MiniVM and its opcodes is to read through the
 
 The top of the bytecode file is the usual entry point. MiniVM can be build as a library with `make VM_MAIN=`.
 
-The most common way to get code running on minivm is to use [Paka](https://github.com/fastvm/paka). For those looking to try paka and minivm online use [XorI](https://fastvm.github.io/xori).
+The most common way to get code running on MiniVM is to use [Paka](https://github.com/fastvm/paka). For those looking to try paka and minivm online use [XorI](https://fastvm.github.io/xori).
 
 ## Benchmarks
+Taking benchmarks is hard. Benchmarks are fraught with peril and don't always tell the full story: if you want to know how your application will perform in a language, no benchmarks will be a substitute for that. We tried to be fair, methodical, and thorough in our benchmarking; despite this, remember to take these results with a grain of salt.
 
-### Recursive Fibonacci: Functions and Math
-> ![Fibonacci Runtime](fib.png)
+All benchmarks were run in hyperfine on a `2020 MacBook Air M1` with `8GB RAM` running `Big Sur 11.2.3`. The implementations we benchmarks are idiomatic and consistent between target benchmark languages. All benchmarks may be found in the [Paka repository](https://github.com/FastVM/paka/tree/main/bench) if you'd like to run them on your machine.
 
 ### Binary Trees: Allocations and GC
-> ![Binary Trees Graph](tree.png)
+![Binary Trees Graph](tree.png)
+
+As you can see, MiniVM (no JIT) beats luajit with the JIT on in this benchmark. MiniVM has a custom-built allocator and GC, which beats out luajit's slower modified version of `malloc`. MiniVM also is a hair faster that C for tree sizes above 13 (C is compiled ahead-of time, using `clang` with the `-Ofast` flag for best performance). For tree sizes less that 13, beats Node JS due to having a faster startup time. Overall, MiniVM's performance is about on par with JIT'd and compiled languages on this benchmark.
+
+The binary tree benchmark measures the time it takes to create a balanced binary tree of a given depth and sum the values in each node to produce a total for the tree. This measures how well the language runtime handles a large number of repeated allocations and deallocations (no memory pooling is used or allowed).
+
+### Recursive Fibonacci: Functions and Math
+![Fibonacci Runtime](fib.png)
+
+As you can see, `minivm` (no JIT) is a hair slower than Node JS (JIT) but beats `luajit --joff` by a fair margin (no JIT).
+
+The recursive fibonacci benchmark computes `fib(35)` in a recursive manner (not memoized). This mostly measures the performance of basic mathematical operations and the overhead of function calls. The code for `fib` in Paka (a minivm frontend) is:
+
+```
+def fib(n) {
+    if n < 2 {
+        return n
+    } else {
+        return fib(n - 1) + fib(n - 2)
+    }
+}
+```
+
+We compile this Paka straight to minivm bytecode, there isn't any subsequent optimization of the bytecode by hand.
 
 ## Roadmap
-- write assembler for minivm bytecode
-- reducde dependancies to libc functions
-- add types
-- improve performane
+- Write assembler for minivm bytecode.
+- Reducde dependencies to `libc` functions.
+- Add types.
+- Improve performance.
 
-> Note: MiniVM is wholly developed by Shaw (4984); this README was written by a friend of his who thinks he can be a bit too modest at times.
+> Note: MiniVM is wholly developed by [Shaw](https://github.com/ShawSumma) (4984); this README was written by a [friend](https://github.com/slightknack) of his who thinks he can be a bit too modest at times.
