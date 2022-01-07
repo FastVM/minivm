@@ -21,9 +21,9 @@ vm_obj_t vm_state_global_from(vm_gc_t *gc, size_t len, const vm_char_t **args) {
     for (const vm_char_t *src = args[i]; *src != '\0'; src++) {
       vm_gc_set_index(gc, ent, src - args[i], vm_obj_of_num(*src));
     }
-    vm_gc_set_index(gc, global, i, vm_obj_of_ptr(ent));
+    vm_gc_set_index(gc, global, i, vm_obj_of_ptr(gc, ent));
   }
-  return vm_obj_of_ptr(global);
+  return vm_obj_of_ptr(gc, global);
 }
 
 vm_state_t *vm_state_new(size_t len, const vm_char_t **args) {

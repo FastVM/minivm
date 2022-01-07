@@ -74,7 +74,7 @@ void vm_save_obj(vm_save_t *save, vm_gc_t *gc, vm_obj_t obj) {
     vm_number_t part = fmod(num, 1) * (1 << 24);
     vm_save_uint(save, part);
   } else if (vm_obj_is_ptr(obj)) {
-    vm_gc_entry_t *ptr = vm_obj_to_ptr(obj);
+    vm_gc_entry_t *ptr = vm_obj_to_ptr(gc, obj);
     vm_save_byte(save, 5);
     uint32_t v = (uint8_t *)ptr - gc->mem;
     vm_save_uint(save, v);
@@ -157,7 +157,7 @@ vm_obj_t vm_save_get_obj(vm_save_t *save, vm_gc_t *gc) {
   }
   case 5: {
     uint32_t v = vm_save_get_uint(save);
-    return vm_obj_of_ptr(gc->mem + v);
+    return vm_obj_of_ptr(gc, gc->mem + v);
   }
   default: {
     __builtin_trap();

@@ -73,18 +73,17 @@ Although each instruction is a bit more complex, there are way fewer instruction
 
 ### Types
 
-Minivm has a growing number of core types. 
+Minivm has a select set of core types. 
 
 - none
   - the lack of a value
 - boolean
+  - true or false
 - number
-- box
-  - a valid reference to a single value
+  - configurable to be C's `int32_t num: 30;` or C's `double num;`
 - array
   - unchanging in length
-- map 
-  - keys can be any type other than other maps
+  - mutable by default
 
 Because MiniVM is a register-based machine, it employs clever instructions to leverage common type layouts for better performance. For instance, to emulate closures arrays can be called as functions if the first item in that array is a function.
 
@@ -97,11 +96,25 @@ cd minivm
 make
 ```
 
+One can also use the artifacts from github actions.
+
+[MiniVM Binaries](https://github.com/FastVM/minivm/actions) for Linux, MacOS and Windows can be found here. Click the text next to a green check mark and download the linux-opt, macos-opt or windows-opt single file binary.
+
 ## Getting Started
-TODO(4984): Document API and maybe a short getting-started example.
+MiniVM has a growing and fairly unstable API.
+The best way to get familliar with MiniVM and its opcodes is to read through the headers in the `vm/` directory.
+
+The top of the bytecode file is the usual entry point. MiniVM can be build as a library with `make VM_MAIN=`.
+
+The most common way to get code running on minivm is to use [Paka](https://github.com/fastvm/paka). For those looking to try paka and minivm online use [XorI](https://fastvm.github.io/xori).
 
 ## Benchmarks
-TODO(4984): Attach some benchmarks...
+
+Double Recursive Fibonacci: Functions and Math
+!![Fibonacci Runtime](fib.png)
+
+Binary Trees: Allocations and GC
+![Binary Trees Graph](tree.png)
 
 ## Roadmap
 - write assembler for minivm bytecode

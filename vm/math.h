@@ -96,8 +96,8 @@ static inline bool vm_obj_eq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
   if (!vm_obj_is_ptr(rhs) || !vm_obj_is_ptr(lhs)) {
     return false;
   }
-  vm_gc_entry_t *lent = vm_obj_to_ptr(lhs);
-  vm_gc_entry_t *rent = vm_obj_to_ptr(rhs);
+  vm_gc_entry_t *lent = vm_obj_to_ptr(gc, lhs);
+  vm_gc_entry_t *rent = vm_obj_to_ptr(gc, rhs);
   size_t len = vm_gc_sizeof(gc, lent);
   if (len != vm_gc_sizeof(gc, rent)) {
     return false;

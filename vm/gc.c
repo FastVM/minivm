@@ -28,7 +28,7 @@ void vm_gc_mark_ptr(vm_gc_t *gc, vm_gc_entry_t *ent) {
   for (size_t cur = 0; cur < data; cur++) {
     vm_obj_t obj = ent->arr[cur];
     if (vm_obj_is_ptr(obj)) {
-      vm_gc_mark_ptr(gc, vm_obj_to_ptr(obj));
+      vm_gc_mark_ptr(gc, vm_obj_to_ptr(gc, obj));
     }
   }
 }
@@ -37,7 +37,7 @@ void vm_gc_run1_mark(vm_gc_t *gc, vm_obj_t *low) {
   for (vm_obj_t *base = low; base < low + VM_LOCALS_UNITS; base++) {
     vm_obj_t obj = *base;
     if (vm_obj_is_ptr(obj)) {
-      vm_gc_entry_t *ptr = vm_obj_to_ptr(obj);
+      vm_gc_entry_t *ptr = vm_obj_to_ptr(gc, obj);
       vm_gc_mark_ptr(gc, ptr);
     }
   }
@@ -47,12 +47,12 @@ void vm_gc_update_any(vm_gc_t *gc, vm_obj_t *obj) {
   if (!vm_obj_is_ptr(*obj)) {
     return;
   }
-  vm_gc_entry_t *ent = vm_obj_to_ptr(*obj);
+  vm_gc_entry_t *ent = vm_obj_to_ptr(gc, *obj);
   if (vm_gc_xowns(gc, ent)) {
     return;
   }
   vm_gc_entry_t *put = (void *)&gc_xmem(gc)[ent->data];
-  *obj = vm_obj_of_ptr(put);
+  *obj = vm_obj_of_ptr(gc, put);
   for (size_t cur = 0; cur < put->data; cur++) {
     vm_gc_update_any(gc, &put->arr[cur]);
   }
@@ -172,8 +172,8 @@ void vm_gc_set_index(vm_gc_t *gc, vm_gc_entry_t *ptr, vm_int_t index,
 vm_int_t vm_gc_sizeof(vm_gc_t *gc, vm_gc_entry_t *ptr) { return ptr->data; }
 
 vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
-  vm_gc_entry_t *left = vm_obj_to_ptr(lhs);
-  vm_gc_entry_t *right = vm_obj_to_ptr(rhs);
+  vm_gc_entry_t *left = vm_obj_to_ptr(gc, lhs);
+  vm_gc_entry_t *right = vm_obj_to_ptr(gc, rhs);
   vm_int_t llen = left->data;
   vm_int_t rlen = right->data;
   vm_gc_entry_t *ent = vm_gc_static_array_new(gc, llen + rlen);
@@ -183,17 +183,17 @@ vm_obj_t vm_gc_static_concat(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
   for (vm_int_t i = 0; i < rlen; i++) {
     ent->arr[llen + i] = right->arr[i];
   }
-  return vm_obj_of_ptr(ent);
+  return vm_obj_of_ptr(gc, ent);
 }
 
 vm_obj_t vm_gc_dup(vm_gc_t *out, vm_gc_t *in, vm_obj_t obj) {
   if (!vm_obj_is_ptr(obj)) {
     return obj;
   }
-  vm_gc_entry_t *ent = vm_obj_to_ptr(obj);
+  vm_gc_entry_t *ent = vm_obj_to_ptr(in, obj);
   vm_gc_entry_t *ret = vm_gc_static_array_new(out, ent->data);
   for (size_t i = 0; i < ent->data; i++) {
     ret->arr[i] = vm_gc_dup(out, in, ent->arr[i]);
   }
-  return vm_obj_of_ptr(ret);
+  return vm_obj_of_ptr(out, ret);
 }
