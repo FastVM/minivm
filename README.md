@@ -110,11 +110,11 @@ The most common way to get code running on minivm is to use [Paka](https://githu
 
 ## Benchmarks
 
-Double Recursive Fibonacci: Functions and Math
-!![Fibonacci Runtime](fib.png)
+> Recursive Fibonacci: Functions and Math
+> ![Fibonacci Runtime](fib.png)
 
-Binary Trees: Allocations and GC
-![Binary Trees Graph](tree.png)
+> Binary Trees: Allocations and GC
+> ![Binary Trees Graph](tree.png)
 
 ## Roadmap
 - write assembler for minivm bytecode
