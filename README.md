@@ -7,7 +7,7 @@
 **MiniVM is a small and fast cross-language Virtual Machine (VM) written in good ol' C**, meaning it can compile and run just about anywhere. Here are a few reasons why MiniVM is pretty neat:
 
 - Built on a register-based ISA that beats luajit—*with the JIT on*—in some benchmarks. (See the [benchmarks](#benchmarks) section below).
-- Has an effecient GC that can handle large amounts of allocations and deallocations efficiently. (Again, check the benchmarks).
+- Has an efficient GC that can handle large amounts of allocations and deallocations efficiently. (Again, check the benchmarks).
 - Supports a flexible data model with a number of optimizations to minimize memory usage.
 - Leverages Cosmopolitan libc + WebAssembly for easy cross platform portability.
 - ... check out the [details](#some-sweet-deets) section for more!
