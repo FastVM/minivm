@@ -147,7 +147,7 @@ We compile this Paka straight to minivm bytecode, there isn't any subsequent opt
 
 ## Roadmap
 - Write assembler for minivm bytecode.
-- Reducde dependencies to `libc` functions.
+- Reduce dependencies to `libc` functions.
 - Add types.
 - Improve performance.
 
