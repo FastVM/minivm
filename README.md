@@ -15,11 +15,11 @@
 MiniVM is small and flexible enough to run just about any language under the sun (given you've taken the time to write a compiler for it). Front ends we've experimented with include Lua, Scheme, Paka, and others. You can try out the [Paka frontend to MiniVM online](https://fastvm.github.io/xori)!
 
 ## History
-This project started as an exploration into what it takes to build a fast interpreters. The first version was blocked out during a single Discord call, and ran a small lisp-like language.
+This project started as an exploration into what it takes to build a fast interpreter. The first version was blocked out during a single Discord call, and ran a small lisp-like language.
 
-This original implementation was a plain stack machine, which, for whatever reason, was a tad faster than it should've been. Leveraging this tiny 1,000 LoC base, MiniVM matured into something a bit bigger, but only slightly. It now runs a language close to ASM, and has gotten quite a lot faster over time. MiniVM's speed is in no small part due to its architecture. It's a register/stack machine with carefully-selected opcodes that are designed to work well with common data-access patterns.
+This original implementation was a plain stack machine, which, for whatever reason, was a tad faster than it should've been. Leveraging this tiny 1,000 LoC base, MiniVM matured into something a bit bigger, but only slightly. It now runs a language close to ASM, and has got quite faster over time. MiniVM's speed is in no small part due to its architecture. It's a register/stack machine with carefully-selected opcodes that are designed to work well with common data-access patterns.
 
-Above all else, MiniVM is a constantly improving each day. We hope you find the journey to be as interesting as the final destination. If you're interested as to where the project is headed next, ping Shaw (`@4984#4984`) on [the Discord Server](https://discord.gg/UyvxuC5W5q).
+Above all else, MiniVM is constantly improving every day. We hope you find the journey to be as interesting as the final destination. If you're interested as to where the project is headed next, ping Shaw (`@4984#4984`) on [the Discord Server](https://discord.gg/UyvxuC5W5q).
 
 ## Some Sweet Deets
 Below is a small discussion of the architecture of MiniVM, and the emergent properties because of these decisions.
@@ -108,16 +108,16 @@ One can also use the artifacts from github actions.
 
 ## Getting Started
 MiniVM has a growing and fairly unstable API.
-The best way to get familliar with MiniVM and its opcodes is to read through the headers in the `vm/` directory.
+The best way to get familiar with MiniVM and its opcodes is to read through the headers in the `vm/` directory.
 
-The top of the bytecode file is the usual entry point. MiniVM can be build as a library with `make VM_MAIN=`.
+The top of the bytecode file is the usual entry point. MiniVM can be built as a library with `make VM_MAIN=`.
 
 The most common way to get code running on MiniVM is to use [Paka](https://github.com/fastvm/paka). For those looking to try paka and minivm online use [XorI](https://fastvm.github.io/xori).
 
 ## Benchmarks
 Taking benchmarks is hard. Benchmarks are fraught with peril and don't always tell the full story: if you want to know how your application will perform in a language, no benchmarks will be a substitute for that. We tried to be fair, methodical, and thorough in our benchmarking; despite this, remember to take these results with a grain of salt.
 
-All benchmarks were run in hyperfine on a `2020 MacBook Air M1` with `8GB RAM` running `Big Sur 11.2.3`. The implementations we benchmarks are idiomatic and consistent between target benchmark languages. All benchmarks may be found in the [Paka repository](https://github.com/FastVM/paka/tree/main/bench) if you'd like to run them on your machine.
+All benchmarks were run in hyperfine on a `2020 MacBook Air M1` with `8GB RAM` running `Big Sur 11.2.3`. The implementations we benchmarked are idiomatic and consistent between target benchmark languages. All benchmarks may be found in the [Paka repository](https://github.com/FastVM/paka/tree/main/bench) if you'd like to run them on your machine.
 
 ### Binary Trees: Allocations and GC
 ![Binary Trees Graph](tree.png)
