@@ -32,7 +32,7 @@ int printf(const char *fmt, ...);
 struct FILE;
 typedef struct FILE FILE;
 
-#if defined(VM_USE_FP)
+#if defined(VM_USE_FLOAT)
 double fmod(double lhs, double rhs);
 double pow(double lhs, double rhs);
 #else

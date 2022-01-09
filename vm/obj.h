@@ -3,7 +3,7 @@
 #include "gc.h"
 #include "type.h"
 
-#if defined(VM_USE_FP)
+#if defined(VM_USE_FLOAT)
 static inline bool vm_obj_is_none(vm_obj_t obj) { return nanbox_is_empty(obj); }
 static inline bool vm_obj_is_bool(vm_obj_t obj) {
   return nanbox_is_boolean(obj);
