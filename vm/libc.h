@@ -32,7 +32,11 @@ int printf(const char *fmt, ...);
 struct FILE;
 typedef struct FILE FILE;
 
+#if defined(VM_USE_FP)
 double fmod(double lhs, double rhs);
+#else
+#define fmod(lhs, rhs) ((lhs) % (rhs))
+#endif
 int putchar(int chr);
 #define vm_putchar(chr) (putchar((chr)))
 #endif
