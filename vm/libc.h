@@ -34,11 +34,26 @@ typedef struct FILE FILE;
 
 #if defined(VM_USE_FP)
 double fmod(double lhs, double rhs);
+double pow(double lhs, double rhs);
 #else
-#define fmod(lhs, rhs) ((lhs) % (rhs))
+#define pow(lhs_arg_, rhs_arg_)                                                \
+  ({                                                                           \
+    int32_t lhs_ = lhs_arg_;                                                   \
+    uint16_t rhs_ = rhs_arg_;                                                  \
+    int res_ = 1;                                                              \
+    while (rhs_ > 0) {                                                         \
+      if (rhs_ % 2 == 1) {                                                     \
+        res_ *= lhs_;                                                          \
+      }                                                                        \
+      rhs_ /= 2;                                                               \
+      lhs_ *= lhs_;                                                            \
+    }                                                                          \
+    res_;                                                                      \
+  })
+#define fmod(lhs_, rhs_) ((lhs_) % (rhs_))
 #endif
 int putchar(int chr);
-#define vm_putchar(chr) (putchar((chr)))
+#define vm_putchar(chr_) (putchar((chr_)))
 #endif
 
 void *malloc(size_t size);

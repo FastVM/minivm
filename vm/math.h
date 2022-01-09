@@ -43,6 +43,15 @@ static inline vm_obj_t vm_obj_num_modc(vm_obj_t lhs, vm_int_t rhs) {
   return vm_obj_of_num(fmod(vm_obj_to_num(lhs), rhs));
 }
 
+
+static inline vm_obj_t vm_obj_num_pow(vm_obj_t lhs, vm_obj_t rhs) {
+  return vm_obj_of_num(pow(vm_obj_to_num(lhs), vm_obj_to_num(rhs)));
+}
+
+static inline vm_obj_t vm_obj_num_powc(vm_obj_t lhs, vm_int_t rhs) {
+  return vm_obj_of_num(pow(vm_obj_to_num(lhs), rhs));
+}
+
 static inline bool vm_obj_lt(vm_obj_t lhs, vm_obj_t rhs) {
   return vm_obj_to_num(lhs) < vm_obj_to_num(rhs);
 }

@@ -112,6 +112,7 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_MUL] = &&do_mul,
       [VM_OPCODE_DIV] = &&do_div,
       [VM_OPCODE_MOD] = &&do_mod,
+      [VM_OPCODE_POW] = &&do_pow,
       [VM_OPCODE_STATIC_CALL] = &&do_static_call,
       [VM_OPCODE_RETURN] = &&do_return,
       [VM_OPCODE_PUTCHAR] = &&do_putchar,
@@ -139,8 +140,8 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_BRANCH_LESS_THAN_EQUAL] = &&do_branch_less_than_equal,
       [VM_OPCODE_BRANCH_GREATER_THAN_EQUAL] = &&do_branch_greater_than_equal,
       [VM_OPCODE_BRANCH_BOOL] = &&do_branch_bool,
-      [VM_OPCODE_INC] = &&do_inc,
-      [VM_OPCODE_DEC] = &&do_dec,
+      [VM_OPCODE_ADD_INT] = &&do_inc,
+      [VM_OPCODE_SUB_INT] = &&do_dec,
       [VM_OPCODE_BRANCH_EQUAL_INT] = &&do_branch_equal_int,
       [VM_OPCODE_BRANCH_NOT_EQUAL_INT] = &&do_branch_not_equal_int,
       [VM_OPCODE_BRANCH_LESS_INT] = &&do_branch_less_int,
@@ -148,6 +149,10 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_BRANCH_LESS_THAN_EQUAL_INT] = &&do_branch_less_than_equal_int,
       [VM_OPCODE_BRANCH_GREATER_THAN_EQUAL_INT] =
           &&do_branch_greater_than_equal_int,
+      [VM_OPCODE_MUL_INT] = &&do_mul_int,
+      [VM_OPCODE_DIV_INT] = &&do_div_int,
+      [VM_OPCODE_MOD_INT] = &&do_mod_int,
+      [VM_OPCODE_POW_INT] = &&do_pow_int,
   };
   if (state->jumps == NULL) {
     vm_state_ptrs(state, ptrs);
@@ -266,6 +271,13 @@ do_mod : {
   vm_reg_t lhs = vm_read();
   vm_reg_t rhs = vm_read();
   locals[to] = vm_obj_num_mod(locals[lhs], locals[rhs]);
+  vm_run_next_op();
+}
+do_pow : {
+  vm_reg_t to = vm_read();
+  vm_reg_t lhs = vm_read();
+  vm_reg_t rhs = vm_read();
+  locals[to] = vm_obj_num_pow(locals[lhs], locals[rhs]);
   vm_run_next_op();
 }
 do_static_call : {
@@ -749,5 +761,33 @@ do_branch_greater_than_equal_int : {
     vm_loc_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
+}
+do_mul_int : {
+  vm_reg_t to = vm_read();
+  vm_reg_t lhs = vm_read();
+  vm_reg_t rhs = vm_read();
+  locals[to] = vm_obj_num_mulc(locals[lhs], rhs);
+  vm_run_next_op();
+}
+do_div_int : {
+  vm_reg_t to = vm_read();
+  vm_reg_t lhs = vm_read();
+  vm_reg_t rhs = vm_read();
+  locals[to] = vm_obj_num_divc(locals[lhs], rhs);
+  vm_run_next_op();
+}
+do_mod_int : {
+  vm_reg_t to = vm_read();
+  vm_reg_t lhs = vm_read();
+  vm_reg_t rhs = vm_read();
+  locals[to] = vm_obj_num_modc(locals[lhs], rhs);
+  vm_run_next_op();
+}
+do_pow_int : {
+  vm_reg_t to = vm_read();
+  vm_reg_t lhs = vm_read();
+  vm_reg_t rhs = vm_read();
+  locals[to] = vm_obj_num_powc(locals[lhs], rhs);
+  vm_run_next_op();
 }
 }
