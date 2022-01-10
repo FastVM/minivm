@@ -70,10 +70,6 @@ void vm_state_ptrs(vm_state_t *state, void **ptrs) {
 }
 
 void vm_state_del(vm_state_t *state) {
-  if (state == NULL) {
-    return;
-  }
-  vm_state_del(state->next);
   vm_gc_stop(&state->gc);
   vm_free(state->tmpbuf);
   vm_free(state->jumps);

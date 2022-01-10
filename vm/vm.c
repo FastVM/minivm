@@ -82,7 +82,7 @@ vm_state_t *vm_run_save(vm_save_t save, size_t n, const vm_char_t *args[n]) {
   vm_state_t *state = vm_state_new(0, NULL);
   vm_save_get_state(&save, state);
   state->globals[0] = vm_state_global_from(&state->gc, n, args);
-  return vm_run(state);
+  return state;
 }
 
 VM_API vm_state_t *vm_run(vm_state_t *state) {
@@ -160,6 +160,7 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
   void *const *const jumps = (void *const *const)state->jumps;
   vm_run_next_op_forced();
 do_exit : {
+  vm_state_del(state);
   return NULL;
 }
 do_return : {
@@ -371,7 +372,7 @@ do_exec : {
   vm_state_t *xstate = vm_state_new(0, NULL);
   xstate->globals[0] = vm_gc_dup(&xstate->gc, gc, locals[argreg]);
   vm_state_set_ops(xstate, xlen, xops);
-  xstate->next = state;
+  vm_state_del(state);
   return xstate;
 }
 do_save : {
@@ -400,11 +401,8 @@ do_save : {
   fwrite(save.str, 1, save.len, out);
   fclose(out);
   vm_save_deinit(&save);
-#if 0
-  vm_run_next_op();
-#else
-  goto do_exit;
-#endif
+  vm_state_del(state);
+  return NULL;
 }
 do_dump : {
   vm_reg_t namreg = vm_read();

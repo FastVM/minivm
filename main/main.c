@@ -48,11 +48,7 @@ vm_state_t *vm_main_run(const vm_char_t *src, size_t argc,
       vm_save_byte(&save, byte);
     }
     vm_save_rewind(&save);
-    vm_state_t *state = vm_state_new(0, NULL);
-    vm_save_get_state(&save, state);
-    state->globals[0] = vm_state_global_from(&state->gc, argc, argv);
-    vm_save_deinit(&save);
-    return state;
+    return vm_run_save(save, argc, argv);
   } else {
     size_t nops = 0;
     vm_opcode_t *vm_ops = vm_malloc(sizeof(vm_opcode_t) * VM_OPS_UNITS);
@@ -148,12 +144,8 @@ int main(int argc, const char *argv[argc]) {
   } else {
     vm_state_t *cur = vm_main_run(argv[1], argc - 2, &argv[2]);
     while (cur != NULL) {
-      vm_state_t *next = vm_run(cur);
-      if (next == NULL) {
-        break;
-      }
+      cur = vm_run(cur);
     }
-    vm_state_del(cur);
   }
   return 0;
 }
