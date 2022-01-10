@@ -19,8 +19,11 @@ typedef _Bool bool;
 
 #if defined(VM_EMCC)
 #include <emscripten.h>
+
 char *emscripten_run_script_string(const char *script);
 size_t strlen(const char *src);
+double fmod(double lhs, double rhs);
+double pow(double lhs, double rhs);
 
 int printf(const char *fmt, ...);
 #define vm_putchar(chr_)                                                       \

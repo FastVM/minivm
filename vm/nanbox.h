@@ -452,7 +452,6 @@ static inline bool NANBOX_NAME(_is_number)(NANBOX_T val) {
 static inline NANBOX_T NANBOX_NAME(_from_double)(double d) {
   NANBOX_T val;
   val.as_double = d;
-         val.as_bits.tag <= NANBOX_MAX_DOUBLE_TAG);
   return val;
 }
 static inline double NANBOX_NAME(_to_double)(NANBOX_T val) {
