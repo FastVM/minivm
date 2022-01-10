@@ -1,5 +1,3 @@
-
-
 OPT ?= -Ofast
 
 VM_API ?= 0
