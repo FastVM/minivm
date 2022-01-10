@@ -136,6 +136,7 @@ int main(int argc, const char *argv[argc]) {
     for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++) {
       vm_putchar(*i);
     }
+    return 0;
   }
   if (vm_main_str_eq(argv[1], "--dis")) {
     vm_state_t *cur = vm_main_run(argv[2], argc - 3, &argv[3]);
