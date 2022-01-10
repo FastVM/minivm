@@ -160,10 +160,6 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
   void *const *const jumps = (void *const *const)state->jumps;
   vm_run_next_op_forced();
 do_exit : {
-#if defined(VM_EMCC)
-#else
-  vm_state_del(state);
-#endif
   return NULL;
 }
 do_return : {
@@ -375,6 +371,7 @@ do_exec : {
   vm_state_t *xstate = vm_state_new(0, NULL);
   xstate->globals[0] = vm_gc_dup(&xstate->gc, gc, locals[argreg]);
   vm_state_set_ops(xstate, xlen, xops);
+  xstate->next = state;
   return xstate;
 }
 do_save : {

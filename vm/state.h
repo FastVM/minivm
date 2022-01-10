@@ -24,6 +24,8 @@ struct vm_state_t {
   size_t tmpsize;
 
   void **jumps;
+
+  vm_state_t *next;
 };
 
 void vm_state_ptrs(vm_state_t *state, void **ptrs);

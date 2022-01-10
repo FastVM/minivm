@@ -48,6 +48,8 @@ vm_state_t *vm_state_new(size_t len, const vm_char_t **args) {
   state->tmpsize = 16;
   state->tmpbuf = vm_malloc(sizeof(vm_obj_t) * state->tmpsize);
 
+  state->next = NULL;
+
   return state;
 }
 
@@ -68,7 +70,12 @@ void vm_state_ptrs(vm_state_t *state, void **ptrs) {
 }
 
 void vm_state_del(vm_state_t *state) {
+  if (state == NULL) {
+    return;
+  }
+  vm_state_del(state->next);
   vm_gc_stop(&state->gc);
+  vm_free(state->tmpbuf);
   vm_free(state->jumps);
   vm_free((void *)state->ops);
   vm_free(state->frames);

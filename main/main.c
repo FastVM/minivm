@@ -125,24 +125,14 @@ int main(int argc, const char *argv[argc]) {
       vm_putchar(*i);
     }
   }
-  // #if defined(VM_TIME_MAIN)
-  //   struct timeval start;
-  //   gettimeofday(&start, NULL);
-
-  //   vm_int_t ret = vm_main_run(argv[1], argc - 2, &argv[2]);
-
-  //   struct timeval end;
-  //   gettimeofday(&end, NULL);
-
-  //   printf("%.3lf\n",
-  //          (double)((1000000 + end.tv_usec - start.tv_usec) % 1000000) /
-  //          1000.0);
-  // #else
-  vm_state_t *ret = vm_main_run(argv[1], argc - 2, &argv[2]);
-  while (ret != NULL) {
-    ret = vm_run(ret);
+  vm_state_t *cur = vm_main_run(argv[1], argc - 2, &argv[2]);
+  while (cur != NULL) {
+    vm_state_t *next = vm_run(cur);
+    if (next == NULL) {
+      break;
+    }
   }
-  // #endif
+  vm_state_del(cur);
   return 0;
 }
 
