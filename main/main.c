@@ -3,6 +3,7 @@
 #include "../vm/save.h"
 #include "../vm/state.h"
 #include "../vm/vm.h"
+#include "../vm/pass/print.h"
 
 #define VM_CAN_NOT_RUN "cannot run vm: not enough args\n"
 #define VM_CAN_NOT_OPEN "cannot open or read file\n"
@@ -10,6 +11,19 @@
 #if defined(VM_TIME_MAIN)
 #include <sys/time.h>
 #endif
+
+bool vm_main_str_eq(const char *a, const char *b) {
+  while (true) {
+    if (*a != *b) {
+      return false;
+    }
+    if (*a == '\0') {
+      return true;
+    }
+    a++;
+    b++;
+  }
+}
 
 vm_state_t *vm_main_run(const vm_char_t *src, size_t argc,
                         const vm_char_t **argv) {
@@ -34,7 +48,9 @@ vm_state_t *vm_main_run(const vm_char_t *src, size_t argc,
       vm_save_byte(&save, byte);
     }
     vm_save_rewind(&save);
-    vm_state_t *state = vm_run_save(save, argc, argv);
+    vm_state_t *state = vm_state_new(0, NULL);
+    vm_save_get_state(&save, state);
+    state->globals[0] = vm_state_global_from(&state->gc, argc, argv);
     vm_save_deinit(&save);
     return state;
   } else {
@@ -77,7 +93,7 @@ vm_state_t *vm_main_run(const vm_char_t *src, size_t argc,
     fclose(file);
     vm_state_t *state = vm_state_new(argc, (const char **)argv);
     vm_state_set_ops(state, nops, vm_ops);
-    return vm_run(state);
+    return state;
   }
 }
 
@@ -125,14 +141,20 @@ int main(int argc, const char *argv[argc]) {
       vm_putchar(*i);
     }
   }
-  vm_state_t *cur = vm_main_run(argv[1], argc - 2, &argv[2]);
-  while (cur != NULL) {
-    vm_state_t *next = vm_run(cur);
-    if (next == NULL) {
-      break;
+  if (vm_main_str_eq(argv[1], "--dis")) {
+    vm_state_t *cur = vm_main_run(argv[2], argc - 3, &argv[3]);
+    vm_pass_print(cur->nops, cur->ops);
+    vm_state_del(cur);
+  } else {
+    vm_state_t *cur = vm_main_run(argv[1], argc - 2, &argv[2]);
+    while (cur != NULL) {
+      vm_state_t *next = vm_run(cur);
+      if (next == NULL) {
+        break;
+      }
     }
+    vm_state_del(cur);
   }
-  vm_state_del(cur);
   return 0;
 }
 

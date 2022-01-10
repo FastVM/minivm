@@ -8,9 +8,9 @@ VM_API_1 = vm/api.c
 
 VM_MAIN = main/main.c
 
-$(info $(VM_API_$(VM_API)))
+PASSES = vm/pass/print.c
 
-CFILES = vm/vm.c vm/state.c vm/gc.c vm/save.c $(VM_API_$(VM_API)) $(VM_MAIN)
+CFILES = $(PASSES) vm/vm.c vm/state.c vm/gc.c vm/save.c $(VM_API_$(VM_API)) $(VM_MAIN)
 OBJS = $(CFILES:%.c=%.o)
 
 LTO ?= 0
