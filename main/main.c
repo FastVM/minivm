@@ -131,10 +131,10 @@ VM_API vm_state_t *vm_main_default(void) {
 
 #else
 
-/* Usage:
- *
- * minivm [--dis] FILE
- */
+// Usage:
+//
+// minivm [--dis] FILE
+//
 int main(int argc, const char *argv[argc]) {
   if (argc < 2) {
     for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++) {
