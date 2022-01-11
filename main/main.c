@@ -143,7 +143,7 @@ int main(int argc, const char *argv[argc]) {
     return 1;
   }
   if (vm_main_str_eq(argv[1], "--dis")) {
-    if (argc < 4) {
+    if (argc < 3) {
       for (const char *i = VM_CAN_NOT_RUN; *i != '\0'; i++) {
         vm_putchar(*i);
       }
