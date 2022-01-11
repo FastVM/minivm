@@ -126,7 +126,6 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_DUMP] = &&do_dump,
       [VM_OPCODE_WRITE] = &&do_write,
       [VM_OPCODE_READ] = &&do_read,
-      [VM_OPCODE_DYNAMIC_CALL] = &&do_dynamic_call,
       [VM_OPCODE_STATIC_ARRAY_NEW] = &&do_static_array_new,
       [VM_OPCODE_STATIC_CONCAT] = &&do_static_concat,
       [VM_OPCODE_STATIC_CALL0] = &&do_static_call0,
@@ -511,23 +510,6 @@ do_write : {
   }
   fclose(out);
   vm_run_next_op();
-}
-do_dynamic_call : {
-  vm_reg_t outreg = vm_read();
-  vm_reg_t funcreg = vm_read();
-  vm_int_t nargs = vm_read();
-  vm_obj_t *next_locals = locals + frame->nlocals;
-  for (vm_int_t argno = 1; argno <= nargs; argno++) {
-    vm_reg_t regno = vm_read();
-    next_locals[argno] = locals[regno];
-  }
-  vm_int_t next_func = vm_obj_to_num(locals[funcreg]);
-  locals = next_locals;
-  frame->index = index;
-  frame->outreg = outreg;
-  frame++;
-  frame->nlocals = vm_read_at(next_func - 1);
-  vm_run_op(next_func);
 }
 do_static_array_new : {
   vm_gc_run1(gc, globals);

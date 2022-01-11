@@ -154,19 +154,6 @@ void vm_pass_print(size_t nops, const vm_opcode_t *ops) {
       printf("write r%i r%i\n",vm_read(), vm_read());
       break;
     }
-    case VM_OPCODE_DYNAMIC_CALL: {
-      printf("dynamic_call r%i r%i ",vm_read(), vm_read());
-      printf("(");
-      size_t n = vm_read();
-      for (size_t i = 0; i < n; i++) {
-        if (i != 0) {
-          printf(" ");
-        }
-        printf("r%i",vm_read());
-      }
-      printf(")\n");
-      break;
-    }
     case VM_OPCODE_STATIC_ARRAY_NEW: {
       printf("static_array_new r%i ",vm_read());
       printf("(");
