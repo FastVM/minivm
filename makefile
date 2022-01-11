@@ -1,4 +1,4 @@
-OPT ?= -Ofast
+OPT ?= -Os
 
 VM_API ?= 0
 VM_API_0 =
@@ -10,13 +10,6 @@ PASSES = vm/pass/print.c
 
 CFILES = $(PASSES) vm/vm.c vm/state.c vm/gc.c vm/save.c $(VM_API_$(VM_API)) $(VM_MAIN)
 OBJS = $(CFILES:%.c=%.o)
-
-LTO ?= 0
-
-LTO_1 = -flto
-LTO_0 = 
-CFLAGS += $(LTO_$(LTO))
-LFLAGS += $(LTO_$(LTO)) 
 
 OUT = minivm
 
