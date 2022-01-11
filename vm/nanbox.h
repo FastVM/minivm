@@ -311,13 +311,13 @@ static inline bool vm_nanbox_is_aux(vm_nanbox_t val) {
 
 // Define nanbox_xxx and nanbox_is_xxx for deleted, undefined and null.
 #define NANBOX_IMMIDIATE_VALUE_FUNCTIONS(NAME, TAG)                            \
-  static inline vm_nanbox_t NANBOX_NAME(_##NAME)(void) {                       \
+  static inline vm_nanbox_t vm_nanbox_##NAME(void) {                       \
     vm_nanbox_t val;                                                           \
     val.as_bits.tag = TAG;                                                     \
     val.as_bits.payload = 0;                                                   \
     return val;                                                                \
   }                                                                            \
-  static inline bool NANBOX_NAME(_is_##NAME)(vm_nanbox_t val) {                \
+  static inline bool vm_nanbox_is_##NAME(vm_nanbox_t val) {                \
     return val.as_bits.tag == TAG;                                             \
   }
 NANBOX_IMMIDIATE_VALUE_FUNCTIONS(deleted, NANBOX_DELETED_VALUE_TAG)
@@ -347,13 +347,13 @@ static inline bool vm_nanbox_is_aux(vm_nanbox_t val) {
 // Define nanbox_is_yyy, nanbox_to_yyy and nanbox_from_yyy for
 // boolean, int, pointer and aux1-aux5
 #define NANBOX_TAGGED_VALUE_FUNCTIONS(NAME, TYPE, TAG)                         \
-  static inline bool NANBOX_NAME(_is_##NAME)(vm_nanbox_t val) {                \
+  static inline bool vm_nanbox_is_##NAME(vm_nanbox_t val) {                \
     return val.as_bits.tag == TAG;                                             \
   }                                                                            \
-  static inline TYPE NANBOX_NAME(_to_##NAME)(vm_nanbox_t val) {                \
+  static inline TYPE vm_nanbox_to_##NAME(vm_nanbox_t val) {                \
     return (TYPE)val.as_bits.payload;                                          \
   }                                                                            \
-  static inline vm_nanbox_t NANBOX_NAME(_from_##NAME)(TYPE a) {                \
+  static inline vm_nanbox_t vm_nanbox_from_##NAME(TYPE a) {                \
     vm_nanbox_t val;                                                           \
     val.as_bits.tag = TAG;                                                     \
     val.as_bits.payload = (int32_t)a;                                          \
