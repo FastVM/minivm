@@ -10,7 +10,7 @@ typedef int32_t vm_opcode_t;
 enum vm_opcode_t {
   VM_OPCODE_EXIT = 0,
   VM_OPCODE_STORE_REG = 1,
-  VM_OPCODE_STORE_NONE = 2,
+  // empty 2
   VM_OPCODE_STORE_BOOL = 3,
   VM_OPCODE_STORE_INT = 4,
   VM_OPCODE_LOAD_GLOBAL = 5,
@@ -35,9 +35,9 @@ enum vm_opcode_t {
   VM_OPCODE_LENGTH = 24,
   VM_OPCODE_INDEX_GET = 25,
   VM_OPCODE_INDEX_SET = 26,
-  VM_OPCODE_TYPE = 27,
-  VM_OPCODE_EXEC = 28,
-  VM_OPCODE_SAVE = 29,
+  // empty 27
+  // empty 28
+  // empty 29
   // empty 30
   VM_OPCODE_DUMP = 31,
   VM_OPCODE_READ = 32,
@@ -82,7 +82,5 @@ typedef struct {
 } vm_stack_frame_t;
 
 #include "state.h"
-#include "save.h"
 
 VM_API vm_state_t *vm_run(vm_state_t *state);
-vm_state_t *vm_run_save(vm_save_t save, size_t n, const vm_char_t *args[n]);

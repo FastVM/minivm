@@ -17,28 +17,9 @@ typedef _Bool bool;
 
 #define NULL ((void *)0)
 
-#if defined(VM_EMCC)
-#include <emscripten.h>
-
-char *emscripten_run_script_string(const char *script);
-size_t strlen(const char *src);
-double fmod(double lhs, double rhs);
-double pow(double lhs, double rhs);
-
-int printf(const char *fmt, ...);
-#define vm_putchar(chr_)                                                       \
-  ({                                                                           \
-    char chr = chr_;                                                           \
-    printf("%c", (chr));                                                       \
-  })
-#else
 struct FILE;
 typedef struct FILE FILE;
 
-#if defined(VM_USE_FLOAT)
-double fmod(double lhs, double rhs);
-double pow(double lhs, double rhs);
-#else
 #define pow(lhs_arg_, rhs_arg_)                                                \
   ({                                                                           \
     int32_t lhs_ = lhs_arg_;                                                   \
@@ -54,10 +35,9 @@ double pow(double lhs, double rhs);
     res_;                                                                      \
   })
 #define fmod(lhs_, rhs_) ((lhs_) % (rhs_))
-#endif
+
 int putchar(int chr);
 #define vm_putchar(chr_) (putchar((chr_)))
-#endif
 
 void *malloc(size_t size);
 void *realloc(void *ptr, size_t n);
@@ -71,8 +51,4 @@ int fclose(FILE *);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 
-#if defined(VM_EMCC)
-#define VM_API EMSCRIPTEN_KEEPALIVE
-#else
 #define VM_API
-#endif

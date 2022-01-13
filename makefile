@@ -1,14 +1,8 @@
 OPT ?= -Os
 
-VM_API ?= 0
-VM_API_0 =
-VM_API_1 = vm/api.c
-
 VM_MAIN = main/main.c
 
-PASSES = vm/pass/print.c
-
-CFILES = $(PASSES) vm/vm.c vm/state.c vm/gc.c vm/save.c $(VM_API_$(VM_API)) $(VM_MAIN)
+CFILES = vm/vm.c vm/state.c vm/gc.c $(VM_MAIN)
 OBJS = $(CFILES:%.c=%.o)
 
 OUT = minivm

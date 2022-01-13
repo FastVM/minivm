@@ -84,86 +84,12 @@ static inline bool vm_obj_igte(vm_obj_t lhs, vm_int_t rhs) {
   return vm_obj_to_num(lhs) >= rhs;
 }
 
-int printf(const char *fmt, ...);
-
-static inline void vm_obj_eq_print(vm_gc_t *gc, vm_obj_t val) {
-  if (vm_obj_is_ptr(val)) {
-    printf("[");
-    vm_gc_entry_t *ent = vm_obj_to_ptr(gc, val);
-    size_t size = vm_gc_sizeof(gc, ent);
-    for (size_t i = 0; i < size; i++) {
-      if (i != 0) {
-        printf(", ");
-      }
-      vm_obj_eq_print(gc, vm_gc_get_index(gc, ent, i));
-    }
-    printf("]");
-  }
-  if (vm_obj_is_num(val)) {
-    printf("%i", vm_obj_to_num(val));
-  }
-  if (vm_obj_is_bool(val)) {
-    if (vm_obj_to_bool(val)) {
-      printf("true");
-    } else {
-      printf("false");
-    }
-  }
-  if (vm_obj_is_none(val)) {
-    printf("none");
-  }
-}
-
 static inline bool vm_obj_eq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
-  if (lhs.itype != rhs.itype) {
-    vm_obj_eq_print(gc, lhs);
-    printf(" == ");
-    vm_obj_eq_print(gc, rhs);
-    printf("\n");
-  }
-  if (vm_obj_is_num(lhs)) {
-    if (vm_obj_is_num(rhs)) {
-      return vm_obj_to_num(lhs) == vm_obj_to_num(rhs);
-    } else {
-      return false;
-    }
-  }
-  if (vm_obj_is_none(lhs)) {
-    return vm_obj_is_none(rhs);
-  }
-  if (vm_obj_is_bool(lhs)) {
-    if (vm_obj_is_bool(rhs)) {
-      return vm_obj_to_bool(lhs) == vm_obj_to_bool(rhs);
-    } else {
-      return false;
-      // __builtin_trap();
-    }
-  }
-  if (!vm_obj_is_ptr(rhs) || !vm_obj_is_ptr(lhs)) {
-      // __builtin_trap();
-    return false;
-  }
-  vm_gc_entry_t *lent = vm_obj_to_ptr(gc, lhs);
-  vm_gc_entry_t *rent = vm_obj_to_ptr(gc, rhs);
-  size_t len = vm_gc_sizeof(gc, lent);
-  if (len != vm_gc_sizeof(gc, rent)) {
-    return false;
-  }
-  for (size_t i = 0; i < len; i++) {
-    vm_obj_t cl = vm_gc_get_index(gc, lent, i);
-    vm_obj_t cr = vm_gc_get_index(gc, rent, i);
-    if (!vm_obj_eq(gc, cl, cr)) {
-      return false;
-    }
-  }
-  return true;
+  return lhs.num == rhs.num;
 }
 
 static inline bool vm_obj_ieq(vm_obj_t lhs, vm_int_t rhs) {
-  if (vm_obj_is_num(lhs)) {
-    return vm_obj_to_num(lhs) == rhs;
-  }
-  return false;
+  return lhs.num == rhs;
 }
 
 static inline bool vm_obj_neq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {

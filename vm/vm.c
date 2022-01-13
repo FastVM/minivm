@@ -4,19 +4,6 @@
 #include "math.h"
 #include "obj.h"
 
-#if defined(VM_OS)
-void os_putn(size_t n);
-void os_puts(const char *str);
-#endif
-
-#if defined(VM_EMCC)
-EM_JS(void, vm_do_eval, (size_t out, const char *src),
-      { Module.vm_do_eval_func(out, UTF8ToString(src)); });
-EM_JS(void, vm_do_file_put, (const char *src),
-      { Module.vm_do_file_put_func(UTF8ToString(src)); });
-
-#endif
-
 #if defined(VM_DEBUG_OPCODE)
 int printf(const char *, ...);
 #define vm_debug_op(index_, op_)                                               \
@@ -70,21 +57,6 @@ int printf(const char *, ...);
     state->framenum = frame - state->frames;                                   \
   })
 
-vm_save_t vm_state_to_save(vm_state_t *state) {
-  vm_save_t save;
-  vm_save_init(&save);
-  vm_save_state(&save, state);
-  vm_save_rewind(&save);
-  return save;
-}
-
-vm_state_t *vm_run_save(vm_save_t save, size_t n, const vm_char_t *args[n]) {
-  vm_state_t *state = vm_state_new(0, NULL);
-  vm_save_get_state(&save, state);
-  state->globals[0] = vm_state_global_from(&state->gc, n, args);
-  return state;
-}
-
 VM_API vm_state_t *vm_run(vm_state_t *state) {
 #if defined(VM_BRANCH_DEFER)
   int remain = 1000;
@@ -98,7 +70,6 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
   static void *ptrs[] = {
       [VM_OPCODE_EXIT] = &&do_exit,
       [VM_OPCODE_STORE_REG] = &&do_store_reg,
-      [VM_OPCODE_STORE_NONE] = &&do_store_none,
       [VM_OPCODE_STORE_BOOL] = &&do_store_bool,
       [VM_OPCODE_STORE_INT] = &&do_store_int,
       [VM_OPCODE_LOAD_GLOBAL] = &&do_load_global,
@@ -120,9 +91,6 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_LENGTH] = &&do_length,
       [VM_OPCODE_INDEX_GET] = &&do_index_get,
       [VM_OPCODE_INDEX_SET] = &&do_index_set,
-      [VM_OPCODE_EXEC] = &&do_exec,
-      [VM_OPCODE_SAVE] = &&do_save,
-      [VM_OPCODE_TYPE] = &&do_type,
       [VM_OPCODE_DUMP] = &&do_dump,
       [VM_OPCODE_WRITE] = &&do_write,
       [VM_OPCODE_READ] = &&do_read,
@@ -170,11 +138,6 @@ do_return : {
   vm_reg_t outreg = frame->outreg;
   locals[outreg] = val;
   vm_run_op(frame->index);
-}
-do_store_none : {
-  vm_reg_t to = vm_read();
-  locals[to] = vm_obj_of_none();
-  vm_run_next_op();
 }
 do_store_bool : {
   vm_reg_t to = vm_read();
@@ -336,71 +299,6 @@ do_index_set : {
   vm_gc_set_index(gc, vm_obj_to_ptr(gc, vec), vm_obj_to_num(oindex), value);
   vm_run_next_op();
 }
-do_type : {
-  vm_reg_t outreg = vm_read();
-  vm_reg_t valreg = vm_read();
-  vm_obj_t obj = locals[valreg];
-  vm_number_t num = -1;
-  if (vm_obj_is_none(obj)) {
-    num = 0;
-  }
-  if (vm_obj_is_bool(obj)) {
-    num = 1;
-  }
-  if (vm_obj_is_num(obj)) {
-    num = 2;
-  }
-  if (vm_obj_is_ptr(obj)) {
-    num = 3;
-  }
-  locals[outreg] = vm_obj_of_num(num);
-  vm_run_next_op();
-}
-do_exec : {
-  vm_reg_t in = vm_read();
-  vm_reg_t argreg = vm_read();
-  vm_gc_entry_t *ent = vm_obj_to_ptr(gc, locals[in]);
-  vm_int_t xlen = vm_gc_sizeof(gc, ent);
-  vm_opcode_t *xops = vm_malloc(sizeof(vm_opcode_t) * xlen);
-  for (vm_int_t i = 0; i < xlen; i++) {
-    vm_obj_t obj = vm_gc_get_index(gc, ent, i);
-    vm_number_t n = vm_obj_to_num(obj);
-    xops[i] = (vm_opcode_t)n;
-  }
-  vm_state_t *xstate = vm_state_new(0, NULL);
-  xstate->globals[0] = vm_gc_dup(&xstate->gc, gc, locals[argreg]);
-  vm_state_set_ops(xstate, xlen, xops);
-  vm_state_del(state);
-  return xstate;
-}
-do_save : {
-  vm_reg_t namreg = vm_read();
-  vm_run_write();
-
-  vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namreg]);
-  locals[namreg] = vm_obj_of_none();
-  gc->max = 0;
-  vm_int_t slen = vm_gc_sizeof(gc, sname);
-  vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
-  for (vm_int_t i = 0; i < slen; i++) {
-    vm_obj_t obj = vm_gc_get_index(gc, sname, i);
-    name[i] = vm_obj_to_num(obj);
-  }
-  name[slen] = '\0';
-
-  vm_save_t save;
-  vm_save_init(&save);
-  vm_save_state(&save, state);
-  FILE *out = fopen(name, "wb");
-  vm_free(name);
-  uint8_t z = 0;
-  fwrite(&z, 1, 1, out);
-  fwrite(save.str, 1, save.len, out);
-  fclose(out);
-  vm_save_deinit(&save);
-  vm_state_del(state);
-  return NULL;
-}
 do_dump : {
   vm_reg_t namreg = vm_read();
   vm_reg_t inreg = vm_read();
@@ -439,52 +337,38 @@ do_read : {
     name[i] = vm_obj_to_num(obj);
   }
   name[slen] = '\0';
-  if (name[0] == '#') {
-    locals[outreg] = vm_obj_of_none();
-#if defined(VM_EMCC)
-    vm_do_eval(locals - globals + outreg, name + 1);
-    vm_free(name);
-    vm_run_defer();
-#else
-    vm_run_next_op();
-#endif
-  } else {
-#if defined(VM_EMCC)
-    vm_do_file_put(name);
-#endif
-    vm_int_t where = 0;
-    vm_int_t nalloc = 64;
-    FILE *in = fopen(name, "rb");
-    vm_free(name);
-    if (in == NULL) {
-      locals[outreg] = vm_obj_of_none();
-      vm_run_next_op();
-    }
-    vm_char_t *str = vm_malloc(sizeof(vm_char_t) * nalloc);
-    while (true) {
-      uint8_t buf[2048];
-      vm_int_t n = fread(buf, 1, 2048, in);
-      for (vm_int_t i = 0; i < n; i++) {
-        if (where + 4 >= nalloc) {
-          nalloc = 4 + nalloc * 2;
-          str = vm_realloc(str, sizeof(vm_char_t) * nalloc);
-        }
-        str[where] = buf[i];
-        where += 1;
-      }
-      if (n < 2048) {
-        break;
-      }
-    }
-    fclose(in);
-    vm_gc_entry_t *ent = vm_gc_static_array_new(gc, where);
-    for (vm_int_t i = 0; i < where; i++) {
-      vm_gc_set_index(gc, ent, i, vm_obj_of_num(str[i]));
-    }
-    vm_free(str);
-    locals[outreg] = vm_obj_of_ptr(gc, ent);
+  vm_int_t where = 0;
+  vm_int_t nalloc = 64;
+  FILE *in = fopen(name, "rb");
+  vm_free(name);
+  if (in == NULL) {
+    locals[outreg] = vm_obj_of_ptr(gc, vm_gc_static_array_new(gc, 0));
     vm_run_next_op();
   }
+  vm_char_t *str = vm_malloc(sizeof(vm_char_t) * nalloc);
+  while (true) {
+    uint8_t buf[2048];
+    vm_int_t n = fread(buf, 1, 2048, in);
+    for (vm_int_t i = 0; i < n; i++) {
+      if (where + 4 >= nalloc) {
+        nalloc = 4 + nalloc * 2;
+        str = vm_realloc(str, sizeof(vm_char_t) * nalloc);
+      }
+      str[where] = buf[i];
+      where += 1;
+    }
+    if (n < 2048) {
+      break;
+    }
+  }
+  fclose(in);
+  vm_gc_entry_t *ent = vm_gc_static_array_new(gc, where);
+  for (vm_int_t i = 0; i < where; i++) {
+    vm_gc_set_index(gc, ent, i, vm_obj_of_num(str[i]));
+  }
+  vm_free(str);
+  locals[outreg] = vm_obj_of_ptr(gc, ent);
+  vm_run_next_op();
 }
 do_write : {
   vm_reg_t outreg = vm_read();

@@ -39,8 +39,6 @@ struct vm_gc_entry_t {
 void vm_gc_start(vm_gc_t *out);
 void vm_gc_stop(vm_gc_t *gc);
 
-vm_obj_t vm_gc_dup(vm_gc_t *out, vm_gc_t *in, vm_obj_t obj);
-
 vm_gc_entry_t *vm_gc_static_array_new(vm_gc_t *gc, size_t len);
 
 vm_int_t vm_gc_sizeof(vm_gc_t *gc, vm_gc_entry_t *ptr);
