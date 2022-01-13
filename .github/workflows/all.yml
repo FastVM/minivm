@@ -24,17 +24,3 @@ jobs:
         with:
           name: minivm-macos
           path: minivm
-  windows-opt:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-      - uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-      - run: make CC=gcc OPT=-Os STDLIB= minivm
-      - uses: actions/upload-artifact@v2
-        with:
-          name: minivm-windows.exe
-          path: minivm.exe
