@@ -84,11 +84,14 @@ static inline bool vm_obj_igte(vm_obj_t lhs, vm_int_t rhs) {
   return vm_obj_to_num(lhs) >= rhs;
 }
 
+int printf(const char *fmt, ...);
+
 static inline bool vm_obj_eq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
   if (vm_obj_is_num(lhs)) {
     if (vm_obj_is_num(rhs)) {
       return vm_obj_to_num(lhs) == vm_obj_to_num(rhs);
     } else {
+      // __builtin_trap();
       return false;
     }
   }
@@ -100,9 +103,11 @@ static inline bool vm_obj_eq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
       return vm_obj_to_bool(lhs) == vm_obj_to_bool(rhs);
     } else {
       return false;
+      // __builtin_trap();
     }
   }
   if (!vm_obj_is_ptr(rhs) || !vm_obj_is_ptr(lhs)) {
+      // __builtin_trap();
     return false;
   }
   vm_gc_entry_t *lent = vm_obj_to_ptr(gc, lhs);

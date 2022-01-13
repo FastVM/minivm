@@ -225,27 +225,27 @@ void vm_pass_print(size_t nops, const vm_opcode_t *ops) {
       break;
     }
     case VM_OPCODE_BRANCH_EQUAL_INT: {
-      printf("branch_equal_int r%i r%i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
+      printf("branch_equal_int r%i %i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
       break;
     }
     case VM_OPCODE_BRANCH_NOT_EQUAL_INT: {
-      printf("branch_not_equal_int r%i r%i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
+      printf("branch_not_equal_int r%i %i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
       break;
     }
     case VM_OPCODE_BRANCH_LESS_INT: {
-      printf("branch_less_int r%i r%i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
+      printf("branch_less_int r%i %i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
       break;
     }
     case VM_OPCODE_BRANCH_GREATER_INT: {
-      printf("branch_greater_int r%i r%i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
+      printf("branch_greater_int r%i %i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
       break;
     }
     case VM_OPCODE_BRANCH_LESS_THAN_EQUAL_INT: {
-      printf("branch_less_than_equal_int r%i r%i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
+      printf("branch_less_than_equal_int r%i %i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
       break;
     }
     case VM_OPCODE_BRANCH_GREATER_THAN_EQUAL_INT: {
-      printf("branch_greater_than_equal_int r%i r%i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
+      printf("branch_greater_than_equal_int r%i %i l%i l%i\n",vm_read(), vm_read(), vm_read(), vm_read());
       break;
     }
     case VM_OPCODE_MUL_INT: {

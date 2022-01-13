@@ -299,7 +299,6 @@ do_putchar : {
   vm_run_next_op();
 }
 do_string_new : {
-  vm_gc_run1(gc, globals);
   vm_reg_t outreg = vm_read();
   vm_int_t nargs = vm_read();
   vm_gc_entry_t *str = vm_gc_static_array_new(gc, nargs);
@@ -381,7 +380,6 @@ do_save : {
   vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namreg]);
   locals[namreg] = vm_obj_of_none();
   gc->max = 0;
-  vm_gc_run1(gc, globals);
   vm_int_t slen = vm_gc_sizeof(gc, sname);
   vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
   for (vm_int_t i = 0; i < slen; i++) {
@@ -512,7 +510,6 @@ do_write : {
   vm_run_next_op();
 }
 do_static_array_new : {
-  vm_gc_run1(gc, globals);
   vm_reg_t outreg = vm_read();
   vm_int_t nargs = vm_read();
   vm_gc_entry_t *vec = vm_gc_static_array_new(gc, nargs);
@@ -524,7 +521,6 @@ do_static_array_new : {
   vm_run_next_op();
 }
 do_static_concat : {
-  vm_gc_run1(gc, globals);
   vm_reg_t to = vm_read();
   vm_reg_t lhs = vm_read();
   vm_reg_t rhs = vm_read();
