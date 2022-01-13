@@ -5,8 +5,6 @@
 typedef int32_t vm_reg_t;
 typedef int32_t vm_opcode_t;
 
-#include "obj.h"
-
 enum vm_opcode_t {
   VM_OPCODE_EXIT = 0,
   VM_OPCODE_STORE_REG = 1,
@@ -83,4 +81,4 @@ typedef struct {
 
 #include "state.h"
 
-VM_API vm_state_t *vm_run(vm_state_t *state);
+void vm_run(vm_state_t *state);

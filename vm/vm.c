@@ -2,50 +2,15 @@
 #include "gc.h"
 #include "libc.h"
 #include "math.h"
-#include "obj.h"
 
-#if defined(VM_DEBUG_OPCODE)
-int printf(const char *, ...);
-#define vm_debug_op(index_, op_)                                               \
-  ({ printf("[%i: %i]\n", (int)index_, (int)op_); })
-#else
-#define vm_debug_op(index_, op_) ({})
-#endif
-
-#define vm_run_defer()                                                         \
+#define vm_run_next_op()                                                \
   ({                                                                           \
-    state->nlocals = locals - state->globals;                                  \
-    state->index = index;                                                      \
-    state->framenum = frame - state->frames;                                   \
-    state->gc = *gc;                                                           \
-    return state;                                                              \
+    goto *ptrs[ops[index++]];                                                      \
   })
 
-#define vm_run_next_op_forced()                                                \
-  ({                                                                           \
-    vm_debug_op(index, ops[index]);                                            \
-    goto *jumps[index++];                                                      \
-  })
-
-#define vm_run_next_op() vm_run_next_op_forced()
-
-#if defined(VM_BRANCH_DEFER)
-#define vm_run_dec_defer()                                                     \
-  ({                                                                           \
-    if (remain-- <= 0)                                                         \
-      vm_run_defer();                                                          \
-    else                                                                       \
-      vm_run_next_op();                                                        \
-  })
-#define vm_run_op(index_)                                                      \
-  index = index_;                                                              \
-  vm_run_dec_defer();
-
-#else
 #define vm_run_op(index_)                                                      \
   index = index_;                                                              \
   vm_run_next_op();
-#endif
 
 #define vm_read() (ops[index++])
 #define vm_read_at(index_) (*(vm_opcode_t *)&ops[(index_)])
@@ -57,16 +22,12 @@ int printf(const char *, ...);
     state->framenum = frame - state->frames;                                   \
   })
 
-VM_API vm_state_t *vm_run(vm_state_t *state) {
-#if defined(VM_BRANCH_DEFER)
-  int remain = 1000;
-#endif
+void vm_run(vm_state_t *state) {
   const vm_opcode_t *ops = state->ops;
   vm_obj_t *const globals = state->globals;
   vm_obj_t *locals = globals + state->nlocals;
   size_t index = state->index;
   vm_stack_frame_t *frame = state->frames + state->framenum;
-  vm_gc_t *const gc = &state->gc;
   static void *ptrs[] = {
       [VM_OPCODE_EXIT] = &&do_exit,
       [VM_OPCODE_STORE_REG] = &&do_store_reg,
@@ -121,14 +82,10 @@ VM_API vm_state_t *vm_run(vm_state_t *state) {
       [VM_OPCODE_MOD_INT] = &&do_mod_int,
       [VM_OPCODE_POW_INT] = &&do_pow_int,
   };
-  if (state->jumps == NULL) {
-    vm_state_ptrs(state, ptrs);
-  }
-  void *const *const jumps = (void *const *const)state->jumps;
-  vm_run_next_op_forced();
+  vm_run_next_op();
 do_exit : {
   vm_state_del(state);
-  return NULL;
+  return;
 }
 do_return : {
   vm_reg_t from = vm_read();
@@ -142,7 +99,7 @@ do_return : {
 do_store_bool : {
   vm_reg_t to = vm_read();
   vm_int_t from = (int)vm_read();
-  locals[to] = vm_obj_of_bool((bool)from);
+  locals[to] = (vm_obj_t){.log = (bool)from};
   vm_run_next_op();
 }
 do_store_reg : {
@@ -154,7 +111,7 @@ do_store_reg : {
 do_store_int : {
   vm_reg_t to = vm_read();
   vm_int_t from = vm_read();
-  locals[to] = vm_obj_of_num(from);
+  locals[to] = (vm_obj_t){.num = from};
   vm_run_next_op();
 }
 do_load_global : {
@@ -177,7 +134,7 @@ do_index_get_int : {
   vm_reg_t reg = vm_read();
   vm_reg_t ind = vm_read();
   vm_obj_t vec = locals[reg];
-  locals[outreg] = vm_gc_get_index(gc, vm_obj_to_ptr(gc, vec), ind);
+  locals[outreg] = vec.ptr->arr[ind];
   vm_run_next_op();
 }
 do_index_set_int : {
@@ -186,15 +143,15 @@ do_index_set_int : {
   vm_reg_t val = vm_read();
   vm_obj_t vec = locals[reg];
   vm_obj_t value = locals[val];
-  vm_gc_set_index(gc, vm_obj_to_ptr(gc, vec), ind, value);
+  vec.ptr->arr[ind] = value;
   vm_run_next_op();
 }
 do_jump : {
-  vm_loc_t to = vm_read();
+  vm_reg_t to = vm_read();
   vm_run_op(to);
 }
 do_func : {
-  vm_loc_t to = vm_read();
+  vm_reg_t to = vm_read();
   vm_run_op(to);
 }
 do_add : {
@@ -241,7 +198,7 @@ do_pow : {
 }
 do_static_call : {
   vm_reg_t outreg = vm_read();
-  vm_loc_t next_func = vm_read();
+  vm_reg_t next_func = vm_read();
   vm_int_t nargs = vm_read();
   vm_obj_t *next_locals = locals + frame->nlocals;
   for (vm_int_t argno = 1; argno <= nargs; argno++) {
@@ -257,26 +214,26 @@ do_static_call : {
 }
 do_putchar : {
   vm_reg_t from = vm_read();
-  vm_int_t val = vm_obj_to_num(locals[from]);
-  vm_putchar(val);
+  vm_int_t val = locals[from].num;
+  printf("%c", val);
   vm_run_next_op();
 }
 do_string_new : {
   vm_reg_t outreg = vm_read();
   vm_int_t nargs = vm_read();
-  vm_gc_entry_t *str = vm_gc_static_array_new(gc, nargs);
+  vm_gc_entry_t *str = vm_gc_static_array_new(nargs);
   for (size_t i = 0; i < nargs; i++) {
     vm_number_t num = vm_read();
-    vm_gc_set_index(gc, str, i, vm_obj_of_num(num));
+    str->arr[i] = (vm_obj_t){.num = num};
   }
-  locals[outreg] = vm_obj_of_ptr(gc, str);
+  locals[outreg] = (vm_obj_t){.ptr = str};
   vm_run_next_op();
 }
 do_length : {
   vm_reg_t outreg = vm_read();
   vm_reg_t reg = vm_read();
   vm_obj_t vec = locals[reg];
-  locals[outreg] = vm_obj_of_num(vm_gc_sizeof(gc, vm_obj_to_ptr(gc, vec)));
+  locals[outreg] = (vm_obj_t){.num = vec.ptr->len};
   vm_run_next_op();
 }
 do_index_get : {
@@ -285,8 +242,7 @@ do_index_get : {
   vm_reg_t ind = vm_read();
   vm_obj_t vec = locals[reg];
   vm_obj_t oindex = locals[ind];
-  locals[outreg] =
-      vm_gc_get_index(gc, vm_obj_to_ptr(gc, vec), vm_obj_to_num(oindex));
+  locals[outreg] = vec.ptr->arr[oindex.num];
   vm_run_next_op();
 }
 do_index_set : {
@@ -296,31 +252,31 @@ do_index_set : {
   vm_obj_t vec = locals[reg];
   vm_obj_t oindex = locals[ind];
   vm_obj_t value = locals[val];
-  vm_gc_set_index(gc, vm_obj_to_ptr(gc, vec), vm_obj_to_num(oindex), value);
+  vec.ptr->arr[oindex.num] = value;
   vm_run_next_op();
 }
 do_dump : {
   vm_reg_t namreg = vm_read();
   vm_reg_t inreg = vm_read();
 
-  vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namreg]);
-  vm_int_t slen = vm_gc_sizeof(gc, sname);
+  vm_gc_entry_t *sname = locals[namreg].ptr;
+  vm_int_t slen = sname->len;
   vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
   for (vm_int_t i = 0; i < slen; i++) {
-    vm_obj_t obj = vm_gc_get_index(gc, sname, i);
-    name[i] = vm_obj_to_num(obj);
+    vm_obj_t obj = sname->arr[i];
+    name[i] = obj.num;
   }
   name[slen] = '\0';
 
-  vm_gc_entry_t *ent = vm_obj_to_ptr(gc, locals[inreg]);
-  uint8_t size = sizeof(vm_opcode_t);
-  vm_int_t xlen = vm_gc_sizeof(gc, ent);
+  vm_gc_entry_t *ent = locals[inreg].ptr;
+  size_t size = sizeof(vm_opcode_t);
+  vm_int_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
   vm_free(name);
   fwrite(&size, 1, 1, out);
   for (vm_int_t i = 0; i < xlen; i++) {
-    vm_obj_t obj = vm_gc_get_index(gc, ent, i);
-    vm_opcode_t op = vm_obj_to_num(obj);
+    vm_obj_t obj = ent->arr[i];
+    vm_opcode_t op = obj.num;
     fwrite(&op, sizeof(vm_opcode_t), 1, out);
   }
   fclose(out);
@@ -329,12 +285,12 @@ do_dump : {
 do_read : {
   vm_reg_t outreg = vm_read();
   vm_reg_t namereg = vm_read();
-  vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[namereg]);
-  vm_int_t slen = vm_gc_sizeof(gc, sname);
+  vm_gc_entry_t *sname = locals[namereg].ptr;
+  vm_int_t slen = sname->len;
   vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
   for (vm_int_t i = 0; i < slen; i++) {
-    vm_obj_t obj = vm_gc_get_index(gc, sname, i);
-    name[i] = vm_obj_to_num(obj);
+    vm_obj_t obj = sname->arr[i];
+    name[i] = obj.num;
   }
   name[slen] = '\0';
   vm_int_t where = 0;
@@ -342,12 +298,12 @@ do_read : {
   FILE *in = fopen(name, "rb");
   vm_free(name);
   if (in == NULL) {
-    locals[outreg] = vm_obj_of_ptr(gc, vm_gc_static_array_new(gc, 0));
+    locals[outreg] = (vm_obj_t){.ptr = vm_gc_static_array_new(0)};
     vm_run_next_op();
   }
   vm_char_t *str = vm_malloc(sizeof(vm_char_t) * nalloc);
   while (true) {
-    uint8_t buf[2048];
+    char buf[2048];
     vm_int_t n = fread(buf, 1, 2048, in);
     for (vm_int_t i = 0; i < n; i++) {
       if (where + 4 >= nalloc) {
@@ -362,33 +318,33 @@ do_read : {
     }
   }
   fclose(in);
-  vm_gc_entry_t *ent = vm_gc_static_array_new(gc, where);
+  vm_gc_entry_t *ent = vm_gc_static_array_new(where);
   for (vm_int_t i = 0; i < where; i++) {
-    vm_gc_set_index(gc, ent, i, vm_obj_of_num(str[i]));
+    ent->arr[i] = (vm_obj_t){.num = str[i]};
   }
   vm_free(str);
-  locals[outreg] = vm_obj_of_ptr(gc, ent);
+  locals[outreg] = (vm_obj_t){.ptr = ent};
   vm_run_next_op();
 }
 do_write : {
   vm_reg_t outreg = vm_read();
   vm_reg_t inreg = vm_read();
-  vm_gc_entry_t *sname = vm_obj_to_ptr(gc, locals[outreg]);
-  vm_int_t slen = vm_gc_sizeof(gc, sname);
+  vm_gc_entry_t *sname = locals[outreg].ptr;
+  vm_int_t slen = sname->len;
   vm_char_t *name = vm_malloc(sizeof(vm_char_t) * (slen + 1));
   for (vm_int_t i = 0; i < slen; i++) {
-    vm_obj_t obj = vm_gc_get_index(gc, sname, i);
-    name[i] = vm_obj_to_num(obj);
+    vm_obj_t obj = sname->arr[i];
+    name[i] = obj.num;
   }
   name[slen] = '\0';
-  vm_gc_entry_t *ent = vm_obj_to_ptr(gc, locals[inreg]);
-  vm_int_t xlen = vm_gc_sizeof(gc, ent);
+  vm_gc_entry_t *ent = locals[inreg].ptr;
+  vm_int_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
   vm_free(name);
   for (vm_int_t i = 0; i < xlen; i++) {
-    vm_obj_t obj = vm_gc_get_index(gc, ent, i);
-    uint8_t op = vm_obj_to_num(obj);
-    fwrite(&op, 1, sizeof(uint8_t), out);
+    vm_obj_t obj = ent->arr[i];
+    char op = obj.num;
+    fwrite(&op, 1, sizeof(char), out);
   }
   fclose(out);
   vm_run_next_op();
@@ -396,12 +352,12 @@ do_write : {
 do_static_array_new : {
   vm_reg_t outreg = vm_read();
   vm_int_t nargs = vm_read();
-  vm_gc_entry_t *vec = vm_gc_static_array_new(gc, nargs);
+  vm_gc_entry_t *vec = vm_gc_static_array_new(nargs);
   for (vm_int_t i = 0; i < nargs; i++) {
     vm_reg_t vreg = vm_read();
-    vm_gc_set_index(gc, vec, i, locals[vreg]);
+    vec->arr[i] = locals[vreg];
   }
-  locals[outreg] = vm_obj_of_ptr(gc, vec);
+  locals[outreg] = (vm_obj_t){.ptr = vec};
   vm_run_next_op();
 }
 do_static_concat : {
@@ -410,12 +366,12 @@ do_static_concat : {
   vm_reg_t rhs = vm_read();
   vm_obj_t o1 = locals[lhs];
   vm_obj_t o2 = locals[rhs];
-  locals[to] = vm_gc_static_concat(gc, o1, o2);
+  locals[to] = vm_gc_static_concat(o1, o2);
   vm_run_next_op();
 }
 do_static_call0 : {
   vm_reg_t outreg = vm_read();
-  vm_loc_t next_func = vm_read();
+  vm_reg_t next_func = vm_read();
   vm_obj_t *next_locals = locals + frame->nlocals;
   locals = next_locals;
   frame->index = index;
@@ -426,7 +382,7 @@ do_static_call0 : {
 }
 do_static_call1 : {
   vm_reg_t outreg = vm_read();
-  vm_loc_t next_func = vm_read();
+  vm_reg_t next_func = vm_read();
   vm_obj_t *next_locals = locals + frame->nlocals;
   next_locals[1] = locals[vm_read()];
   locals = next_locals;
@@ -438,7 +394,7 @@ do_static_call1 : {
 }
 do_static_call2 : {
   vm_reg_t outreg = vm_read();
-  vm_loc_t next_func = vm_read();
+  vm_reg_t next_func = vm_read();
   vm_obj_t *next_locals = locals + frame->nlocals;
   next_locals[1] = locals[vm_read()];
   next_locals[2] = locals[vm_read()];
@@ -451,7 +407,7 @@ do_static_call2 : {
 }
 do_static_call3 : {
   vm_reg_t outreg = vm_read();
-  vm_loc_t next_func = vm_read();
+  vm_reg_t next_func = vm_read();
   vm_obj_t *next_locals = locals + frame->nlocals;
   next_locals[1] = locals[vm_read()];
   next_locals[2] = locals[vm_read()];
@@ -466,22 +422,22 @@ do_static_call3 : {
 do_branch_equal : {
   vm_obj_t lhs = locals[vm_read()];
   vm_obj_t rhs = locals[vm_read()];
-  if (vm_obj_eq(gc, lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+  if (vm_obj_eq(lhs, rhs)) {
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
 do_branch_not_equal : {
   vm_obj_t lhs = locals[vm_read()];
   vm_obj_t rhs = locals[vm_read()];
-  if (vm_obj_neq(gc, lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+  if (vm_obj_neq(lhs, rhs)) {
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -489,10 +445,10 @@ do_branch_less : {
   vm_obj_t lhs = locals[vm_read()];
   vm_obj_t rhs = locals[vm_read()];
   if (vm_obj_lt(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -500,10 +456,10 @@ do_branch_greater : {
   vm_obj_t lhs = locals[vm_read()];
   vm_obj_t rhs = locals[vm_read()];
   if (vm_obj_gt(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -511,10 +467,10 @@ do_branch_less_than_equal : {
   vm_obj_t lhs = locals[vm_read()];
   vm_obj_t rhs = locals[vm_read()];
   if (vm_obj_lte(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -522,20 +478,20 @@ do_branch_greater_than_equal : {
   vm_obj_t lhs = locals[vm_read()];
   vm_obj_t rhs = locals[vm_read()];
   if (vm_obj_gte(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
 do_branch_bool : {
   vm_reg_t from = vm_read();
-  if (vm_obj_to_bool(locals[from])) {
-    vm_loc_t jt = vm_read_at(index + 1);
+  if (locals[from].log) {
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -557,10 +513,10 @@ do_branch_equal_int : {
   vm_obj_t lhs = locals[vm_read()];
   vm_int_t rhs = vm_read();
   if (vm_obj_ieq(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -568,10 +524,10 @@ do_branch_not_equal_int : {
   vm_obj_t lhs = locals[vm_read()];
   vm_int_t rhs = vm_read();
   if (vm_obj_ineq(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -579,10 +535,10 @@ do_branch_less_int : {
   vm_obj_t lhs = locals[vm_read()];
   vm_int_t rhs = vm_read();
   if (vm_obj_ilt(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -590,10 +546,10 @@ do_branch_greater_int : {
   vm_obj_t lhs = locals[vm_read()];
   vm_int_t rhs = vm_read();
   if (vm_obj_igt(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -601,10 +557,10 @@ do_branch_less_than_equal_int : {
   vm_obj_t lhs = locals[vm_read()];
   vm_int_t rhs = vm_read();
   if (vm_obj_ilte(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }
@@ -612,10 +568,10 @@ do_branch_greater_than_equal_int : {
   vm_obj_t lhs = locals[vm_read()];
   vm_int_t rhs = vm_read();
   if (vm_obj_igte(lhs, rhs)) {
-    vm_loc_t jt = vm_read_at(index + 1);
+    vm_reg_t jt = vm_read_at(index + 1);
     vm_run_op(jt);
   } else {
-    vm_loc_t jf = vm_read_at(index);
+    vm_reg_t jf = vm_read_at(index);
     vm_run_op(jf);
   }
 }

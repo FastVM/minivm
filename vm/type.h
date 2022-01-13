@@ -8,6 +8,6 @@ typedef int32_t vm_number_t;
 
 typedef union {
     bool log;
-    int32_t num;
-    uint32_t ptr;
+    intptr_t num;
+    vm_gc_entry_t *ptr;
 } vm_obj_t;

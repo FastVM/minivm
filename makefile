@@ -8,6 +8,7 @@ OBJS = $(CFILES:%.c=%.o)
 OUT = minivm
 
 STDLIB=-lc -lm
+LIBGC=-lgc
 
 default: $(OUT)
 
@@ -16,7 +17,7 @@ libminivm.a: $(OBJS)
 
 $(OUT): $(OBJS)
 	: mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o $(OUT) $(STDLIB) $(LFLAGS)
+	$(CC) $(OPT) $(OBJS) -o $(OUT) $(STDLIB) $(LIBGC) $(LFLAGS) -L/usr/local/lib/ -L/usr/local/
 
 $(OBJS): $(@:%.o=%.c) 
 	$(CC) -c $(OPT) -o $@ $(@:%.o=%.c) $(CFLAGS)
