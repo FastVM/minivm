@@ -86,12 +86,45 @@ static inline bool vm_obj_igte(vm_obj_t lhs, vm_int_t rhs) {
 
 int printf(const char *fmt, ...);
 
+static inline void vm_obj_eq_print(vm_gc_t *gc, vm_obj_t val) {
+  if (vm_obj_is_ptr(val)) {
+    printf("[");
+    vm_gc_entry_t *ent = vm_obj_to_ptr(gc, val);
+    size_t size = vm_gc_sizeof(gc, ent);
+    for (size_t i = 0; i < size; i++) {
+      if (i != 0) {
+        printf(", ");
+      }
+      vm_obj_eq_print(gc, vm_gc_get_index(gc, ent, i));
+    }
+    printf("]");
+  }
+  if (vm_obj_is_num(val)) {
+    printf("%i", vm_obj_to_num(val));
+  }
+  if (vm_obj_is_bool(val)) {
+    if (vm_obj_to_bool(val)) {
+      printf("true");
+    } else {
+      printf("false");
+    }
+  }
+  if (vm_obj_is_none(val)) {
+    printf("none");
+  }
+}
+
 static inline bool vm_obj_eq(vm_gc_t *gc, vm_obj_t lhs, vm_obj_t rhs) {
+  if (lhs.itype != rhs.itype) {
+    vm_obj_eq_print(gc, lhs);
+    printf(" == ");
+    vm_obj_eq_print(gc, rhs);
+    printf("\n");
+  }
   if (vm_obj_is_num(lhs)) {
     if (vm_obj_is_num(rhs)) {
       return vm_obj_to_num(lhs) == vm_obj_to_num(rhs);
     } else {
-      // __builtin_trap();
       return false;
     }
   }

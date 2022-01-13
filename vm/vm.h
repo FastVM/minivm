@@ -17,7 +17,8 @@ enum vm_opcode_t {
   VM_OPCODE_SWAP_REG = 6,
   VM_OPCODE_INDEX_GET_INT = 7,
   VM_OPCODE_INDEX_SET_INT = 8,
-  // empty
+  // empty 9
+  // empty 10
   VM_OPCODE_JUMP = 11,
   VM_OPCODE_FUNC = 12,
   VM_OPCODE_ADD = 13,
@@ -30,23 +31,24 @@ enum vm_opcode_t {
   VM_OPCODE_RETURN = 20,
   VM_OPCODE_PUTCHAR = 21,
   VM_OPCODE_STRING_NEW = 22,
-  // empty
+  // empty 23
   VM_OPCODE_LENGTH = 24,
   VM_OPCODE_INDEX_GET = 25,
   VM_OPCODE_INDEX_SET = 26,
   VM_OPCODE_TYPE = 27,
   VM_OPCODE_EXEC = 28,
   VM_OPCODE_SAVE = 29,
-  // empty
+  // empty 30
   VM_OPCODE_DUMP = 31,
   VM_OPCODE_READ = 32,
   VM_OPCODE_WRITE = 33,
-  // empty
+  // empty 34
+  // empty 35
   VM_OPCODE_STATIC_ARRAY_NEW = 36,
   VM_OPCODE_STATIC_CONCAT = 37,
   VM_OPCODE_STATIC_CALL0 = 38,
   VM_OPCODE_STATIC_CALL1 = 39,
-  // empty
+  // empty 40
   VM_OPCODE_STATIC_CALL2 = 41,
   VM_OPCODE_STATIC_CALL3 = 42,
   VM_OPCODE_BRANCH_EQUAL = 43,
