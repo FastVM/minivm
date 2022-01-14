@@ -22,14 +22,7 @@ int fclose(FILE *);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 
-typedef struct {
-  int32_t outreg;
-  int32_t index;
-  int32_t nlocals;
-} vm_stack_frame_t;
-
 union vm_obj_t {
-  _Bool log;
   int32_t num;
   vm_gc_entry_t *ptr;
 };
@@ -61,6 +54,7 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals, vm_obj_
   void *ptrs[] = {
       [0] = &&do_exit,
       [1] = &&do_store_reg,
+      [2] = &&do_branch_bool,
       [3] = &&do_store_int,
       [4] = &&do_jump,
       [5] = &&do_jump,
@@ -69,7 +63,6 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals, vm_obj_
       [8] = &&do_mul,
       [9] = &&do_div,
       [10] = &&do_mod,
-      [11] = &&do_pow,
       [12] = &&do_static_call,
       [13] = &&do_return,
       [14] = &&do_putchar,
@@ -85,8 +78,6 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals, vm_obj_
       [24] = &&do_branch_equal,
       [25] = &&do_branch_less,
       [26] = &&do_branch_less_than_equal,
-      [27] = &&do_branch_bool,
-      [28] = &&do_inc,
   };
 
   goto *ptrs[ops[index++]];
@@ -95,6 +86,16 @@ do_exit : {
 }
 do_return : {
   return locals[ops[index]];
+}
+do_branch_bool : {
+  int32_t from = ops[index++];
+  if (locals[from].num) {
+    index = ops[index + 1];
+    goto *ptrs[ops[index++]];
+  } else {
+    index = ops[index];
+    goto *ptrs[ops[index++]];
+  }
 }
 do_store_reg : {
   int32_t to = ops[index++];
@@ -145,21 +146,6 @@ do_mod : {
   int32_t lhs = ops[index++];
   int32_t rhs = ops[index++];
   locals[to] = (vm_obj_t){.num = locals[lhs].num % locals[rhs].num};
-  goto *ptrs[ops[index++]];
-}
-do_pow : {
-  int32_t to = ops[index++];
-  int32_t lhs = locals[ops[index++]].num;
-  int32_t rhs = locals[ops[index++]].num;
-  int32_t res = 1;
-  while (rhs > 0) {
-    if (rhs % 2 == 1) {
-      res *= lhs;
-    }
-    rhs /= 2;
-    lhs *= rhs;
-  }
-  locals[to] = (vm_obj_t){.num = res};
   goto *ptrs[ops[index++]];
 }
 do_static_call : {
@@ -224,11 +210,11 @@ do_dump : {
   name[slen] = '\0';
 
   vm_gc_entry_t *ent = locals[inreg].ptr;
-  size_t size = sizeof(int32_t);
+  // size_t size = sizeof(int32_t);
   int32_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
   free(name);
-  fwrite(&size, 1, 1, out);
+  // fwrite(&size, 1, 1, out);
   for (int32_t i = 0; i < xlen; i++) {
     vm_obj_t obj = ent->arr[i];
     int32_t op = obj.num;
@@ -362,23 +348,7 @@ do_branch_less_than_equal : {
     goto *ptrs[ops[index++]];
   }
 }
-do_branch_bool : {
-  int32_t from = ops[index++];
-  if (locals[from].log) {
-    index = ops[index + 1];
-    goto *ptrs[ops[index++]];
-  } else {
-    index = ops[index];
-    goto *ptrs[ops[index++]];
-  }
-}
-do_inc : {
-  int32_t to = ops[index++];
-  int32_t lhs = ops[index++];
-  int32_t rhs = ops[index++];
-  locals[to] = (vm_obj_t){.num = locals[lhs].num + (rhs)};
-  goto *ptrs[ops[index++]];
-}
+
 }
 
 void vm_run(const int32_t *ops, int nargs, const char **args) {
@@ -397,19 +367,18 @@ int main(int argc, const char **argv) {
     printf("cannot run vm: file to run could not be read\n");
     return 2;
   }
-  unsigned char nver = 0;
-  fread(&nver, 1, 1, file);
-  if (nver != 4) {
-    printf("cannot run vm: bytecode file header wanted 4: got %hhu\n", nver);
-    return 3;
-  }
-  int32_t *ops = malloc(sizeof(int32_t) * (1 << 20));
+  size_t nalloc = 1 << 8;
+  int32_t *ops = malloc(sizeof(int32_t) * nalloc);
   size_t nops = 0;
   for (;;) {
     int32_t op = 0;
     size_t size = fread(&op, sizeof(int32_t), 1, file);
     if (size == 0) {
       break;
+    }
+    if (nops + 4 > nalloc) {
+      nalloc *= 4;
+      ops = realloc(ops, sizeof(int32_t) * nalloc);
     }
     ops[nops++] = op;
   }
