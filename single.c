@@ -9,11 +9,12 @@ typedef struct FILE FILE;
 typedef union vm_obj_t vm_obj_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 
+void exit(int code);
 size_t strlen(const char *str);
 
-void *GC_malloc(size_t size);
-void *GC_realloc(void *ptr, size_t n);
-void GC_free(void *ptr);
+void *malloc(size_t size);
+void *realloc(void *ptr, size_t n);
+void free(void *ptr);
 
 int printf(const char *src, ...);
 FILE *fopen(const char *src, const char *name);
@@ -38,12 +39,8 @@ struct vm_gc_entry_t {
   vm_obj_t arr[0];
 };
 
-void GC_init(void);
-void *GC_malloc(size_t size);
-
 vm_gc_entry_t *vm_gc_static_array_new(size_t size) {
-  vm_gc_entry_t *ent =
-      GC_malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size);
+  vm_gc_entry_t *ent = malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size);
   ent->len = size;
   return ent;
 }
@@ -60,16 +57,10 @@ vm_obj_t vm_global_from(size_t len, const char **args) {
   return (vm_obj_t){.ptr = global};
 }
 
-void vm_run(const int32_t *ops, size_t nargs, const char **args) {
-  vm_obj_t *locals = GC_malloc(sizeof(vm_obj_t) * (1 << 16));
-  locals[0] = vm_global_from(nargs, args);
-  size_t index = 0;
-  vm_stack_frame_t *frame = GC_malloc(sizeof(vm_stack_frame_t) * (1 << 12));
-  frame->nlocals = 256;
-  static void *ptrs[] = {
+vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals, vm_obj_t *next_locals) {
+  void *ptrs[] = {
       [0] = &&do_exit,
       [1] = &&do_store_reg,
-      [2] = &&do_store_bool,
       [3] = &&do_store_int,
       [4] = &&do_jump,
       [5] = &&do_jump,
@@ -97,22 +88,13 @@ void vm_run(const int32_t *ops, size_t nargs, const char **args) {
       [27] = &&do_branch_bool,
       [28] = &&do_inc,
   };
+
   goto *ptrs[ops[index++]];
-do_exit : { return; }
-do_return : {
-  vm_obj_t val = locals[ops[index++]];
-  frame--;
-  locals = locals - frame->nlocals;
-  int32_t outreg = frame->outreg;
-  locals[outreg] = val;
-  index = frame->index;
-  goto *ptrs[ops[index++]];
+do_exit : {
+  exit(0);
 }
-do_store_bool : {
-  int32_t to = ops[index++];
-  int32_t from = (int)ops[index++];
-  locals[to] = (vm_obj_t){.log = (_Bool)from};
-  goto *ptrs[ops[index++]];
+do_return : {
+  return locals[ops[index]];
 }
 do_store_reg : {
   int32_t to = ops[index++];
@@ -184,17 +166,11 @@ do_static_call : {
   int32_t outreg = ops[index++];
   int32_t next_func = ops[index++];
   int32_t nargs = ops[index++];
-  vm_obj_t *next_locals = locals + frame->nlocals;
   for (int32_t argno = 1; argno <= nargs; argno++) {
     int32_t regno = ops[index++];
     next_locals[argno] = locals[regno];
   }
-  locals = next_locals;
-  frame->index = index;
-  frame->outreg = outreg;
-  frame++;
-  frame->nlocals = ops[next_func - 1];
-  index = next_func;
+  locals[outreg] = vm_run_from(ops, next_func, next_locals, next_locals + ops[next_func-1]);
   goto *ptrs[ops[index++]];
 }
 do_putchar : {
@@ -240,7 +216,7 @@ do_dump : {
 
   vm_gc_entry_t *sname = locals[namreg].ptr;
   int32_t slen = sname->len;
-  char *name = GC_malloc(sizeof(char) * (slen + 1));
+  char *name = malloc(sizeof(char) * (slen + 1));
   for (int32_t i = 0; i < slen; i++) {
     vm_obj_t obj = sname->arr[i];
     name[i] = obj.num;
@@ -251,6 +227,7 @@ do_dump : {
   size_t size = sizeof(int32_t);
   int32_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
+  free(name);
   fwrite(&size, 1, 1, out);
   for (int32_t i = 0; i < xlen; i++) {
     vm_obj_t obj = ent->arr[i];
@@ -265,7 +242,7 @@ do_read : {
   int32_t namereg = ops[index++];
   vm_gc_entry_t *sname = locals[namereg].ptr;
   int32_t slen = sname->len;
-  char *name = GC_malloc(sizeof(char) * (slen + 1));
+  char *name = malloc(sizeof(char) * (slen + 1));
   for (int32_t i = 0; i < slen; i++) {
     vm_obj_t obj = sname->arr[i];
     name[i] = obj.num;
@@ -274,18 +251,19 @@ do_read : {
   int32_t where = 0;
   int32_t nalloc = 64;
   FILE *in = fopen(name, "rb");
+  free(name);
   if (in == (void *)0) {
     locals[outreg] = (vm_obj_t){.ptr = vm_gc_static_array_new(0)};
     goto *ptrs[ops[index++]];
   }
-  char *str = GC_malloc(sizeof(char) * nalloc);
+  char *str = malloc(sizeof(char) * nalloc);
   for (;;) {
     char buf[2048];
     int32_t n = fread(buf, 1, 2048, in);
     for (int32_t i = 0; i < n; i++) {
       if (where + 4 >= nalloc) {
         nalloc = 4 + nalloc * 2;
-        str = GC_realloc(str, sizeof(char) * nalloc);
+        str = realloc(str, sizeof(char) * nalloc);
       }
       str[where] = buf[i];
       where += 1;
@@ -299,6 +277,7 @@ do_read : {
   for (int32_t i = 0; i < where; i++) {
     ent->arr[i] = (vm_obj_t){.num = str[i]};
   }
+  free(str);
   locals[outreg] = (vm_obj_t){.ptr = ent};
   goto *ptrs[ops[index++]];
 }
@@ -307,7 +286,7 @@ do_write : {
   int32_t inreg = ops[index++];
   vm_gc_entry_t *sname = locals[outreg].ptr;
   int32_t slen = sname->len;
-  char *name = GC_malloc(sizeof(char) * (slen + 1));
+  char *name = malloc(sizeof(char) * (slen + 1));
   for (int32_t i = 0; i < slen; i++) {
     vm_obj_t obj = sname->arr[i];
     name[i] = obj.num;
@@ -316,6 +295,7 @@ do_write : {
   vm_gc_entry_t *ent = locals[inreg].ptr;
   int32_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
+  free(name);
   for (int32_t i = 0; i < xlen; i++) {
     vm_obj_t obj = ent->arr[i];
     char op = obj.num;
@@ -401,8 +381,13 @@ do_inc : {
 }
 }
 
+void vm_run(const int32_t *ops, int nargs, const char **args) {
+  vm_obj_t *locals = malloc(sizeof(vm_obj_t) * (1 << 16));
+  locals[0] = vm_global_from(nargs, args);
+  vm_run_from(ops, 0, locals, locals + 256);
+}
+
 int main(int argc, const char **argv) {
-  GC_init();
   if (argc < 2) {
     printf("cannot run vm: not enough args\n");
     return 1;
@@ -418,7 +403,7 @@ int main(int argc, const char **argv) {
     printf("cannot run vm: bytecode file header wanted 4: got %hhu\n", nver);
     return 3;
   }
-  int32_t *ops = GC_malloc(sizeof(int32_t) * (1 << 20));
+  int32_t *ops = malloc(sizeof(int32_t) * (1 << 20));
   size_t nops = 0;
   for (;;) {
     int32_t op = 0;
@@ -429,4 +414,5 @@ int main(int argc, const char **argv) {
     ops[nops++] = op;
   }
   vm_run(ops, argc-2, argv+2);
+  free(ops);
 }
