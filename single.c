@@ -1,10 +1,11 @@
 
+typedef __SIZE_TYPE__ size_t;
+typedef __INT32_TYPE__ int32_t;
+
 union vm_obj_t;
 struct vm_gc_entry_t;
 struct FILE;
 
-typedef __SIZE_TYPE__ size_t;
-typedef __INT32_TYPE__ int32_t;
 typedef struct FILE FILE;
 typedef union vm_obj_t vm_obj_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
@@ -50,7 +51,8 @@ vm_obj_t vm_global_from(size_t len, const char **args) {
   return (vm_obj_t){.ptr = global};
 }
 
-vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals, vm_obj_t *next_locals) {
+vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
+                     vm_obj_t *next_locals) {
   void *ptrs[] = {
       [0] = &&do_exit,
       [1] = &&do_store_reg,
@@ -63,6 +65,7 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals, vm_obj_
       [8] = &&do_mul,
       [9] = &&do_div,
       [10] = &&do_mod,
+      [11] = &&do_branch_less_than_equal,
       [12] = &&do_static_call,
       [13] = &&do_return,
       [14] = &&do_putchar,
@@ -77,16 +80,10 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals, vm_obj_
       [23] = &&do_static_concat,
       [24] = &&do_branch_equal,
       [25] = &&do_branch_less,
-      [26] = &&do_branch_less_than_equal,
   };
-
   goto *ptrs[ops[index++]];
-do_exit : {
-  exit(0);
-}
-do_return : {
-  return locals[ops[index]];
-}
+do_exit : { exit(0); }
+do_return : { return locals[ops[index]]; }
 do_branch_bool : {
   int32_t from = ops[index++];
   if (locals[from].num) {
@@ -156,7 +153,8 @@ do_static_call : {
     int32_t regno = ops[index++];
     next_locals[argno] = locals[regno];
   }
-  locals[outreg] = vm_run_from(ops, next_func, next_locals, next_locals + ops[next_func-1]);
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
   goto *ptrs[ops[index++]];
 }
 do_putchar : {
@@ -198,7 +196,6 @@ do_index_set : {
 }
 do_dump : {
   int32_t namreg = ops[index++];
-  int32_t inreg = ops[index++];
 
   vm_gc_entry_t *sname = locals[namreg].ptr;
   int32_t slen = sname->len;
@@ -209,12 +206,10 @@ do_dump : {
   }
   name[slen] = '\0';
 
-  vm_gc_entry_t *ent = locals[inreg].ptr;
-  // size_t size = sizeof(int32_t);
+  vm_gc_entry_t *ent = locals[ops[index++]].ptr;
   int32_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
   free(name);
-  // fwrite(&size, 1, 1, out);
   for (int32_t i = 0; i < xlen; i++) {
     vm_obj_t obj = ent->arr[i];
     int32_t op = obj.num;
@@ -225,8 +220,7 @@ do_dump : {
 }
 do_read : {
   int32_t outreg = ops[index++];
-  int32_t namereg = ops[index++];
-  vm_gc_entry_t *sname = locals[namereg].ptr;
+  vm_gc_entry_t *sname = locals[ops[index++]].ptr;
   int32_t slen = sname->len;
   char *name = malloc(sizeof(char) * (slen + 1));
   for (int32_t i = 0; i < slen; i++) {
@@ -269,7 +263,6 @@ do_read : {
 }
 do_write : {
   int32_t outreg = ops[index++];
-  int32_t inreg = ops[index++];
   vm_gc_entry_t *sname = locals[outreg].ptr;
   int32_t slen = sname->len;
   char *name = malloc(sizeof(char) * (slen + 1));
@@ -278,7 +271,7 @@ do_write : {
     name[i] = obj.num;
   }
   name[slen] = '\0';
-  vm_gc_entry_t *ent = locals[inreg].ptr;
+  vm_gc_entry_t *ent = locals[ops[index++]].ptr;
   int32_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
   free(name);
@@ -348,7 +341,6 @@ do_branch_less_than_equal : {
     goto *ptrs[ops[index++]];
   }
 }
-
 }
 
 void vm_run(const int32_t *ops, int nargs, const char **args) {
@@ -382,6 +374,6 @@ int main(int argc, const char **argv) {
     }
     ops[nops++] = op;
   }
-  vm_run(ops, argc-2, argv+2);
+  vm_run(ops, argc - 2, argv + 2);
   free(ops);
 }
