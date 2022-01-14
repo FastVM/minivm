@@ -1,61 +1,25 @@
 
 union vm_obj_t;
 struct vm_gc_entry_t;
+struct FILE;
 
+typedef __SIZE_TYPE__ size_t;
+typedef __INT32_TYPE__ int32_t;
+typedef struct FILE FILE;
 typedef union vm_obj_t vm_obj_t;
 typedef struct vm_gc_entry_t vm_gc_entry_t;
 
-typedef __SIZE_TYPE__ size_t;
-
-typedef __INT32_TYPE__ int32_t;
-
-struct FILE;
-typedef struct FILE FILE;
-
 size_t strlen(const char *str);
-
-int printf(const char *src, ...);
 
 void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t n);
 void GC_free(void *ptr);
 
+int printf(const char *src, ...);
 FILE *fopen(const char *src, const char *name);
 int fclose(FILE *);
 size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
-
-enum {
-  VM_OPCODE_EXIT = 0,
-  VM_OPCODE_REG = 1,
-  VM_OPCODE_BOOL = 3,
-  VM_OPCODE_INT = 4,
-  VM_OPCODE_JUMP = 11,
-  VM_OPCODE_FUNC = 12,
-  VM_OPCODE_ADD = 13,
-  VM_OPCODE_SUB = 14,
-  VM_OPCODE_MUL = 15,
-  VM_OPCODE_DIV = 16,
-  VM_OPCODE_MOD = 17,
-  VM_OPCODE_POW = 18,
-  VM_OPCODE_CALL = 19,
-  VM_OPCODE_RET = 20,
-  VM_OPCODE_OUT = 21,
-  VM_OPCODE_STR = 22,
-  VM_OPCODE_LEN = 24,
-  VM_OPCODE_GET = 25,
-  VM_OPCODE_SET = 26,
-  VM_OPCODE_DUMP = 31,
-  VM_OPCODE_READ = 32,
-  VM_OPCODE_WRITE = 33,
-  VM_OPCODE_NEW = 36,
-  VM_OPCODE_CAT = 37,
-  VM_OPCODE_BEQ = 43,
-  VM_OPCODE_BLT = 45,
-  VM_OPCODE_BLTE = 47,
-  VM_OPCODE_BB = 49,
-  VM_OPCODE_INC = 50,
-};
 
 typedef struct {
   int32_t outreg;
@@ -103,35 +67,35 @@ void vm_run(const int32_t *ops, size_t nargs, const char **args) {
   vm_stack_frame_t *frame = GC_malloc(sizeof(vm_stack_frame_t) * (1 << 12));
   frame->nlocals = 256;
   static void *ptrs[] = {
-      [VM_OPCODE_EXIT] = &&do_exit,
-      [VM_OPCODE_REG] = &&do_store_reg,
-      [VM_OPCODE_BOOL] = &&do_store_bool,
-      [VM_OPCODE_INT] = &&do_store_int,
-      [VM_OPCODE_JUMP] = &&do_jump,
-      [VM_OPCODE_FUNC] = &&do_jump,
-      [VM_OPCODE_ADD] = &&do_add,
-      [VM_OPCODE_SUB] = &&do_sub,
-      [VM_OPCODE_MUL] = &&do_mul,
-      [VM_OPCODE_DIV] = &&do_div,
-      [VM_OPCODE_MOD] = &&do_mod,
-      [VM_OPCODE_POW] = &&do_pow,
-      [VM_OPCODE_CALL] = &&do_static_call,
-      [VM_OPCODE_RET] = &&do_return,
-      [VM_OPCODE_OUT] = &&do_putchar,
-      [VM_OPCODE_STR] = &&do_string_new,
-      [VM_OPCODE_LEN] = &&do_length,
-      [VM_OPCODE_GET] = &&do_index_get,
-      [VM_OPCODE_SET] = &&do_index_set,
-      [VM_OPCODE_DUMP] = &&do_dump,
-      [VM_OPCODE_WRITE] = &&do_write,
-      [VM_OPCODE_READ] = &&do_read,
-      [VM_OPCODE_NEW] = &&do_static_array_new,
-      [VM_OPCODE_CAT] = &&do_static_concat,
-      [VM_OPCODE_BEQ] = &&do_branch_equal,
-      [VM_OPCODE_BLT] = &&do_branch_less,
-      [VM_OPCODE_BLTE] = &&do_branch_less_than_equal,
-      [VM_OPCODE_BB] = &&do_branch_bool,
-      [VM_OPCODE_INC] = &&do_inc,
+      [0] = &&do_exit,
+      [1] = &&do_store_reg,
+      [2] = &&do_store_bool,
+      [3] = &&do_store_int,
+      [4] = &&do_jump,
+      [5] = &&do_jump,
+      [6] = &&do_add,
+      [7] = &&do_sub,
+      [8] = &&do_mul,
+      [9] = &&do_div,
+      [10] = &&do_mod,
+      [11] = &&do_pow,
+      [12] = &&do_static_call,
+      [13] = &&do_return,
+      [14] = &&do_putchar,
+      [15] = &&do_string_new,
+      [16] = &&do_length,
+      [17] = &&do_index_get,
+      [18] = &&do_index_set,
+      [19] = &&do_dump,
+      [20] = &&do_read,
+      [21] = &&do_write,
+      [22] = &&do_static_array_new,
+      [23] = &&do_static_concat,
+      [24] = &&do_branch_equal,
+      [25] = &&do_branch_less,
+      [26] = &&do_branch_less_than_equal,
+      [27] = &&do_branch_bool,
+      [28] = &&do_inc,
   };
   goto *ptrs[ops[index++]];
 do_exit : { return; }
