@@ -1,5 +1,6 @@
 
 typedef __SIZE_TYPE__ size_t;
+typedef __UINT8_TYPE__ uint8_t;
 typedef __INT32_TYPE__ int32_t;
 
 union vm_obj_t;
@@ -33,16 +34,16 @@ struct vm_gc_entry_t {
   vm_obj_t arr[0];
 };
 
-vm_gc_entry_t *vm_gc_static_array_new(size_t size) {
+vm_gc_entry_t *vm_array_new(size_t size) {
   vm_gc_entry_t *ent = malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size);
   ent->len = size;
   return ent;
 }
 
 vm_obj_t vm_global_from(size_t len, const char **args) {
-  vm_gc_entry_t *global = vm_gc_static_array_new(len);
+  vm_gc_entry_t *global = vm_array_new(len);
   for (size_t i = 0; i < len; i++) {
-    vm_gc_entry_t *ent = vm_gc_static_array_new(strlen(args[i]));
+    vm_gc_entry_t *ent = vm_array_new(strlen(args[i]));
     for (const char *src = args[i]; *src != '\0'; src++) {
       ent->arr[src - args[i]] = (vm_obj_t){.num = *src};
     }
@@ -166,7 +167,7 @@ do_putchar : {
 do_string_new : {
   int32_t outreg = ops[index++];
   int32_t nargs = ops[index++];
-  vm_gc_entry_t *str = vm_gc_static_array_new(nargs);
+  vm_gc_entry_t *str = vm_array_new(nargs);
   for (size_t i = 0; i < nargs; i++) {
     int32_t num = ops[index++];
     str->arr[i] = (vm_obj_t){.num = num};
@@ -205,7 +206,6 @@ do_dump : {
     name[i] = obj.num;
   }
   name[slen] = '\0';
-
   vm_gc_entry_t *ent = locals[ops[index++]].ptr;
   int32_t xlen = ent->len;
   FILE *out = fopen(name, "wb");
@@ -213,7 +213,21 @@ do_dump : {
   for (int32_t i = 0; i < xlen; i++) {
     vm_obj_t obj = ent->arr[i];
     int32_t op = obj.num;
-    fwrite(&op, sizeof(int32_t), 1, out);
+    if (op < 254) {
+      uint8_t c = op;
+      fwrite(&c, sizeof(uint8_t), 1, out);
+    } else if (op < 256 * 256) {
+      uint8_t c = 254;
+      fwrite(&c, sizeof(uint8_t), 1, out);
+      c = op % 0x100;
+      fwrite(&c, sizeof(uint8_t), 1, out);
+      c = op / 0x100 % 0x100;
+      fwrite(&c, sizeof(uint8_t), 1, out);
+    } else {
+      uint8_t c = 255;
+      fwrite(&c, sizeof(uint8_t), 1, out);
+      fwrite(&op, sizeof(int32_t), 1, out);
+    }
   }
   fclose(out);
   goto *ptrs[ops[index++]];
@@ -233,7 +247,7 @@ do_read : {
   FILE *in = fopen(name, "rb");
   free(name);
   if (in == (void *)0) {
-    locals[outreg] = (vm_obj_t){.ptr = vm_gc_static_array_new(0)};
+    locals[outreg] = (vm_obj_t){.ptr = vm_array_new(0)};
     goto *ptrs[ops[index++]];
   }
   char *str = malloc(sizeof(char) * nalloc);
@@ -253,7 +267,7 @@ do_read : {
     }
   }
   fclose(in);
-  vm_gc_entry_t *ent = vm_gc_static_array_new(where);
+  vm_gc_entry_t *ent = vm_array_new(where);
   for (int32_t i = 0; i < where; i++) {
     ent->arr[i] = (vm_obj_t){.num = str[i]};
   }
@@ -286,7 +300,7 @@ do_write : {
 do_static_array_new : {
   int32_t outreg = ops[index++];
   int32_t nargs = ops[index++];
-  vm_gc_entry_t *vec = vm_gc_static_array_new(nargs);
+  vm_gc_entry_t *vec = vm_array_new(nargs);
   for (int32_t i = 0; i < nargs; i++) {
     int32_t vreg = ops[index++];
     vec->arr[i] = locals[vreg];
@@ -298,7 +312,7 @@ do_static_concat : {
   int32_t to = ops[index++];
   vm_gc_entry_t *left = locals[ops[index++]].ptr;
   vm_gc_entry_t *right = locals[ops[index++]].ptr;
-  vm_gc_entry_t *ent = vm_gc_static_array_new(left->len + right->len);
+  vm_gc_entry_t *ent = vm_array_new(left->len + right->len);
   for (int32_t i = 0; i < left->len; i++) {
     ent->arr[i] = left->arr[i];
   }
@@ -362,9 +376,10 @@ int main(int argc, const char **argv) {
   size_t nalloc = 1 << 8;
   int32_t *ops = malloc(sizeof(int32_t) * nalloc);
   size_t nops = 0;
+  size_t size;
   for (;;) {
-    int32_t op = 0;
-    size_t size = fread(&op, sizeof(int32_t), 1, file);
+    uint8_t tag = 0;
+    size = fread(&tag, sizeof(uint8_t), 1, file);
     if (size == 0) {
       break;
     }
@@ -372,7 +387,28 @@ int main(int argc, const char **argv) {
       nalloc *= 4;
       ops = realloc(ops, sizeof(int32_t) * nalloc);
     }
-    ops[nops++] = op;
+    if (tag < 254) {
+      ops[nops++] = tag;
+    } else if (tag == 254) {
+      uint8_t p1 = 0;
+      uint8_t p2 = 0;
+      size = fread(&p1, sizeof(uint8_t), 1, file);
+      if (size == 0) {
+        break;
+      }
+      size = fread(&p2, sizeof(uint8_t), 1, file);
+      if (size == 0) {
+        break;
+      }
+      ops[nops++] = p1 + p2 * 0x100;
+    } else if (tag == 255) {
+      int32_t op = 0;
+      size = fread(&op, sizeof(int32_t), 1, file);
+      if (size == 0) {
+        break;
+      }
+      ops[nops++] = op;
+    }
   }
   vm_run(ops, argc - 2, argv + 2);
   free(ops);
