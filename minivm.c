@@ -197,7 +197,6 @@ do_index_set : {
 }
 do_dump : {
   int32_t namreg = ops[index++];
-
   vm_gc_entry_t *sname = locals[namreg].ptr;
   int32_t slen = sname->len;
   char *name = malloc(sizeof(char) * (slen + 1));
@@ -238,8 +237,7 @@ do_read : {
   int32_t slen = sname->len;
   char *name = malloc(sizeof(char) * (slen + 1));
   for (int32_t i = 0; i < slen; i++) {
-    vm_obj_t obj = sname->arr[i];
-    name[i] = obj.num;
+    name[i] = sname->arr[i].num;
   }
   name[slen] = '\0';
   int32_t where = 0;
