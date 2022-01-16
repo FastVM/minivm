@@ -1,4 +1,4 @@
-![The MiniVM Logo, looks like a brick according to some, some catfood according to others](MiniVM.svg)
+![The MiniVM Logo, looks like a brick according to some, some catfood according to others](res/MiniVM.svg)
 
 # MiniVM
 
@@ -120,14 +120,14 @@ Taking benchmarks is hard. Benchmarks are fraught with peril and don't always te
 All benchmarks were run in hyperfine on a `2020 MacBook Air M1` with `8GB RAM` running `Big Sur 11.2.3`. The implementations we benchmarked are idiomatic and consistent between target benchmark languages. All benchmarks may be found in the [Paka repository](https://github.com/FastVM/paka/tree/main/bench) if you'd like to run them on your machine.
 
 ### Binary Trees: Allocations and GC
-![Binary Trees Graph](tree.png)
+![Binary Trees Graph](res/tree.png)
 
 As you can see, MiniVM (no JIT) beats luajit with the JIT on in this benchmark. MiniVM has a custom-built allocator and GC, which beats out luajit's slower modified version of `malloc`. MiniVM also is a hair faster that C for tree sizes above 13 (C is compiled ahead-of time, using `clang` with the `-Ofast` flag for best performance). For tree sizes less that 13, beats Node JS due to having a faster startup time. Overall, MiniVM's performance is about on par with JIT'd and compiled languages on this benchmark.
 
 The binary tree benchmark measures the time it takes to create a balanced binary tree of a given depth and sum the values in each node to produce a total for the tree. This measures how well the language runtime handles a large number of repeated allocations and deallocations (no memory pooling is used or allowed).
 
 ### Recursive Fibonacci: Functions and Math
-![Fibonacci Runtime](fib.png)
+![Fibonacci Runtime](res/fib.png)
 
 As you can see, `minivm` (no JIT) is a hair slower than Node JS (JIT) but beats `luajit --joff` by a fair margin (no JIT).
 
