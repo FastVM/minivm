@@ -1,2 +1,2 @@
 default:
-	$(MAKE) -f d.mak
+	$(MAKE) -f c.mak
