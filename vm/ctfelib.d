@@ -130,10 +130,10 @@ static import std.file;
 static import std.stdio;
 
 union Value {
-    int num;
+    ptrdiff_t num;
     Value* ptr;
 
-    this(int num_) {
+    this(ptrdiff_t num_) {
         num = num_;
     }
 
@@ -146,7 +146,7 @@ union Value {
     }
 
     static Value arr(Value[] vals) {
-        return Value((Value(cast(int) vals.length) ~ vals).ptr);
+        return Value((Value(cast(ptrdiff_t) vals.length) ~ vals).ptr);
     }
 
     this(char[] src) {
@@ -154,9 +154,9 @@ union Value {
     }
 
     this(string src) {
-        Value[] va = [Value(cast(int) src.length)];
+        Value[] va = [Value(cast(ptrdiff_t) src.length)];
         foreach (chr; src) {
-            va ~= Value(cast(int) chr);
+            va ~= Value(cast(ptrdiff_t) chr);
         }
         ptr = va.ptr;
     }
@@ -166,7 +166,7 @@ union Value {
     }
 
     Value opBinary(string op: "~")(Value other) {
-        Value[] va = [Value(cast(int) (length.num + other.length.num))];
+        Value[] va = [Value(cast(ptrdiff_t) (length.num + other.length.num))];
         foreach (i; 0..length.num) {
             va ~= this[i];
         }
@@ -180,14 +180,14 @@ union Value {
         return ptr[0];
     }
 
-    ref Value opIndex(int n) {
+    ref Value opIndex(ptrdiff_t n) {
         return ptr[n + 1];
     }
 
     int[] ints() {
         int[] ret;
         foreach (i; 0..length.num) {
-            ret ~= this[i].num;
+            ret ~= cast(int) this[i].num;
         }
         return ret;
     }
