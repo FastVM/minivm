@@ -7,6 +7,35 @@ class Exit: Exception {
   }
 }
 
+enum Opcode: int {
+  exit = 0,
+  store_reg = 1,
+  branch_bool = 2,
+  store_int = 3,
+  jump = 4,
+  func = 5,
+  add = 6,
+  sub = 7,
+  mul = 8,
+  div = 9,
+  mod = 10,
+  blte = 11,
+  call = 12,
+  return_ = 13,
+  putchar = 14,
+  string = 15,
+  length = 16,
+  get = 17,
+  set = 18,
+  dump = 19,
+  read = 20,
+  write = 21,
+  array = 22,
+  cat = 23,
+  beq = 24,
+  blt = 25,
+}
+
 union Value {
   private int num;
   private Value* ptr;
@@ -65,7 +94,6 @@ union Value {
   }
 }
 
-
 Value vm_global_from(string[] args) {
   Value[] global = [Value(cast(int) args.length)];
   foreach (arg; args) {
@@ -78,36 +106,7 @@ Value vm_global_from(string[] args) {
   return Value(global.ptr);
 }
 
-enum Opcode {
-  exit = 0,
-  store_reg = 1,
-  branch_bool = 2,
-  store_int = 3,
-  jump = 4,
-  func = 5,
-  add = 6,
-  sub = 7,
-  mul = 8,
-  div = 9,
-  mod = 10,
-  branch_less_than_equal = 11,
-  static_call = 12,
-  return_ = 13,
-  putchar = 14,
-  string_new = 15,
-  length = 16,
-  index_get = 17,
-  index_set = 18,
-  dump = 19,
-  read = 20,
-  write = 21,
-  static_array_new = 22,
-  static_concat = 23,
-  branch_equal = 24,
-  branch_less = 25,
-}
-
-Value vm_run_from(const int* ops, size_t index, Value* locals,
+Value vm_run_from(immutable(Opcode*) ops, int index, Value* locals,
                      Value* next_locals) {
   next:
   final switch (ops[index++]) {
@@ -168,7 +167,7 @@ case Opcode.mod:
   int rhs = ops[index++];
   locals[to] = locals[lhs] % locals[rhs];
   goto next;
-case Opcode.static_call:
+case Opcode.call:
   int outreg = ops[index++];
   int next_func = ops[index++];
   int nargs = ops[index++];
@@ -182,9 +181,9 @@ case Opcode.static_call:
 case Opcode.putchar:
   int from = ops[index++];
   int val = locals[from].num;
-  printf("%c", val);
+  printf("%c", cast(char)val);
   goto next;
-case Opcode.string_new:
+case Opcode.string:
   int outreg = ops[index++];
   int nargs = ops[index++];
   Value[] str = [Value(nargs)];
@@ -199,13 +198,13 @@ case Opcode.length:
   Value vec = locals[ops[index++]];
   locals[outreg] = vec.length;
   goto next;
-case Opcode.index_get:
+case Opcode.get:
   int outreg = ops[index++];
   Value vec = locals[ops[index++]];
   Value oindex = locals[ops[index++]];
   locals[outreg] = vec[oindex.num];
   goto next;
-case Opcode.index_set:
+case Opcode.set:
   Value vec = locals[ops[index++]];
   Value oindex = locals[ops[index++]];
   Value value = locals[ops[index++]];
@@ -226,21 +225,7 @@ case Opcode.dump:
   for (int i = 0; i < xlen; i++) {
     Value obj = ent[i+1];
     int op = obj.num;
-    if (op < 254) {
-      ubyte c = cast(ubyte) op;
-      fwrite(&c, ubyte.sizeof, 1, rout);
-    } else if (op < 256 * 256) {
-      ubyte c = 254;
-      fwrite(&c,  ubyte.sizeof, 1, rout);
-      c = cast(ubyte) (op % 0x100);
-      fwrite(&c,  ubyte.sizeof, 1, rout);
-      c = cast(ubyte) (op / 0x100 % 0x100);
-      fwrite(&c,  ubyte.sizeof, 1, rout);
-    } else {
-      ubyte c = 255;
-      fwrite(&c,  ubyte.sizeof, 1, rout);
-      fwrite(&op, int.sizeof, 1, rout);
-    }
+    fwrite(&op, int.sizeof, 1, rout);
   }
   fclose(rout);
   goto next;
@@ -286,7 +271,7 @@ case Opcode.write:
   }
   fclose(rout);
   goto next;
-case Opcode.static_array_new:
+case Opcode.array:
   int outreg = ops[index++];
   int nargs = ops[index++];
   Value[] vec = [Value(nargs)];
@@ -296,7 +281,7 @@ case Opcode.static_array_new:
   }
   locals[outreg] = Value(vec.ptr);
   goto next;
-case Opcode.static_concat:
+case Opcode.cat:
   int to = ops[index++];
   Value* left = locals[ops[index++]].ptr;
   Value* right = locals[ops[index++]].ptr;
@@ -309,17 +294,18 @@ case Opcode.static_concat:
   }
   locals[to] = Value(ent.ptr);
   goto next;
-case Opcode.branch_equal:
+case Opcode.beq:
   Value lhs = locals[ops[index++]];
   Value rhs = locals[ops[index++]];
   if (lhs.num == rhs.num) {
     index = ops[index + 1];
+
     goto next;
   } else {
     index = ops[index];
     goto next;
   }
-case Opcode.branch_less:
+case Opcode.blt:
   Value lhs = locals[ops[index++]];
   Value rhs = locals[ops[index++]];
   if (lhs.num < rhs.num) {
@@ -329,7 +315,7 @@ case Opcode.branch_less:
     index = ops[index];
     goto next;
   }
-case Opcode.branch_less_than_equal:
+case Opcode.blte:
   Value lhs = locals[ops[index++]];
   Value rhs = locals[ops[index++]];
   if (lhs.num <= rhs.num) {
@@ -342,51 +328,33 @@ case Opcode.branch_less_than_equal:
 }
 }
 
-void vm_run(const int *ops, string[] args) {
+void vm_run(Opcode[] ops, string[] args) {
   try {
     Value[] locals = new Value[1 << 16];
     locals[0] = vm_global_from(args);
-    vm_run_from(ops, 0, locals.ptr, locals.ptr + 256);
+    vm_run_from(ops.idup.ptr, 0, locals.ptr, locals.ptr + 256);
   } catch (Exit e) {}
 }
 
 int main(string[] args) {
   if (args.length < 2) {
-    printf("cannot run vm: not enough args\n");
+    stderr.fprintf("cannot run vm: not enough args\n");
     return 1;
   }
   FILE *file = fopen((args[1] ~ "\0").ptr, "rb");
   if (file is null) {
-    printf("cannot run vm: file to run could not be read\n");
+    stderr.fprintf("cannot run vm: file to run could not be read\n");
     return 2;
   }
   int[] ops = null;
   while (true) {
-    ubyte tag = 255;
-    fread(&tag, ubyte.sizeof, 1, file);
-    if (tag < 254) {
-      ops ~= tag;
-    } else if (tag == 254) {
-      ubyte p1 = 0;
-      ubyte p2 = 0;
-      size_t size1 = fread(&p1, ubyte.sizeof, 1, file);
-      if (size1 == 0) {
-        break;
-      }
-      size_t size2 = fread(&p2, ubyte.sizeof, 1, file);
-      if (size2 == 0) {
-        break;
-      }
-      ops ~= p1 + p2 * 0x100;
-    } else if (tag == 255) {
-      int op = 0;
-      size_t size = fread(&op, int.sizeof, 1, file);
-      if (size == 0) {
-        break;
-      }
-      ops ~= op;
+    int op = 0;
+    size_t size = fread(&op, int.sizeof, 1, file);
+    if (size == 0) {
+      break;
     }
+    ops ~= op;
   }
-  vm_run(ops.ptr, args[2..$]);
+  vm_run(cast(Opcode[]) ops, args[2..$]);
   return 0;
 }

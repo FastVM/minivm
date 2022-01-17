@@ -212,21 +212,7 @@ do_dump : {
   for (int32_t i = 0; i < xlen; i++) {
     vm_obj_t obj = ent->arr[i];
     int32_t op = obj.num;
-    if (op < 254) {
-      uint8_t c = op;
-      fwrite(&c, sizeof(uint8_t), 1, out);
-    } else if (op < 256 * 256) {
-      uint8_t c = 254;
-      fwrite(&c, sizeof(uint8_t), 1, out);
-      c = op % 0x100;
-      fwrite(&c, sizeof(uint8_t), 1, out);
-      c = op / 0x100 % 0x100;
-      fwrite(&c, sizeof(uint8_t), 1, out);
-    } else {
-      uint8_t c = 255;
-      fwrite(&c, sizeof(uint8_t), 1, out);
-      fwrite(&op, sizeof(int32_t), 1, out);
-    }
+    fwrite(&op, sizeof(int32_t), 1, out);
   }
   fclose(out);
   goto *ptrs[ops[index++]];
@@ -376,37 +362,12 @@ int main(int argc, const char **argv) {
   size_t nops = 0;
   size_t size;
   for (;;) {
-    uint8_t tag = 0;
-    size = fread(&tag, sizeof(uint8_t), 1, file);
+    int32_t op = 0;
+    size = fread(&op, sizeof(int32_t), 1, file);
     if (size == 0) {
       break;
     }
-    if (nops + 4 > nalloc) {
-      nalloc *= 4;
-      ops = realloc(ops, sizeof(int32_t) * nalloc);
-    }
-    if (tag < 254) {
-      ops[nops++] = tag;
-    } else if (tag == 254) {
-      uint8_t p1 = 0;
-      uint8_t p2 = 0;
-      size = fread(&p1, sizeof(uint8_t), 1, file);
-      if (size == 0) {
-        break;
-      }
-      size = fread(&p2, sizeof(uint8_t), 1, file);
-      if (size == 0) {
-        break;
-      }
-      ops[nops++] = p1 + p2 * 0x100;
-    } else if (tag == 255) {
-      int32_t op = 0;
-      size = fread(&op, sizeof(int32_t), 1, file);
-      if (size == 0) {
-        break;
-      }
-      ops[nops++] = op;
-    }
+    ops[nops++] = op;
   }
   vm_run(ops, argc - 2, argv + 2);
   free(ops);
