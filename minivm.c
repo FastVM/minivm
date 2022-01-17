@@ -367,6 +367,10 @@ int main(int argc, const char **argv) {
     if (size == 0) {
       break;
     }
+    if (nops + 1 >= nalloc) {
+      nalloc *= 4;
+      ops = realloc(ops, sizeof(int32_t) * nalloc);
+    }
     ops[nops++] = op;
   }
   vm_run(ops, argc - 2, argv + 2);
