@@ -1,5 +1,5 @@
+module vm.dislib;
 
-import std.stdio;
 import std.array;
 import std.conv;
 import std.algorithm;
@@ -49,7 +49,7 @@ class Num : Arg {
   override string toString() {
     return num.to!string;
   }
-  static Num read(ref int index, Opcode[] ops) {
+  static Num read(ref int index, const(int)[] ops) {
     Num ret = new Num(ops[index++]);
     return ret;
   }
@@ -63,7 +63,7 @@ class Reg : Arg {
   override string toString() {
     return 'r' ~ reg.to!string;
   }
-  static Reg read(ref int index, Opcode[] ops) {
+  static Reg read(ref int index, const(int)[] ops) {
     Reg ret = new Reg(ops[index++]);
     return ret;
   }
@@ -77,7 +77,7 @@ class Loc : Arg {
   override string toString() {
     return 'l' ~ loc.to!string;
   }
-  static Loc read(ref int index, Opcode[] ops) {
+  static Loc read(ref int index, const(int)[] ops) {
     Loc ret = new Loc(ops[index++]);
     ops = ops[1..$];
     return ret;
@@ -92,7 +92,7 @@ class Nums : Arg {
   override string toString() {
     return '[' ~ nums.map!(to!string).join(' ') ~ ']';
   }
-  static Nums read(ref int index, Opcode[] ops) {
+  static Nums read(ref int index, const(int)[] ops) {
     int n = ops[index++];
     Num[] nums;
     foreach (i; 0..n) {
@@ -110,7 +110,7 @@ class Regs : Arg {
   override string toString() {
     return '(' ~ regs.map!(to!string).join(' ') ~ ')';
   }
-  static Regs read(ref int index, Opcode[] ops) {
+  static Regs read(ref int index, const(int)[] ops) {
     int n = ops[index++];
     Reg[] regs;
     foreach (i; 0..n) {
@@ -121,7 +121,9 @@ class Regs : Arg {
 }
 
 class Func : Arg {
+  int loc;
   int nregs;
+  string name;
   Instr[] instrs;
   this(int nregs_, Instr[] instrs_=null) {
     nregs = nregs_;
@@ -138,8 +140,10 @@ class Func : Arg {
     return ret;
   }
 
-  static Func read(ref int index, Opcode[] ops, int max, int nregs) {
+  static Func read(ref int index, const(int)[] ops, int max, int nregs, string name) {
     Func ret = new Func(nregs);
+    ret.loc = index;
+    ret.name = name;
     while (index < max) {
       ret.instrs ~= Instr.read(index, ops);
     }
@@ -148,15 +152,17 @@ class Func : Arg {
 }
 
 class Instr {
+  int loc;
   Opcode op;
   Arg[] data;
   this() {}
   override string toString() {
     return op.to!string ~ data.map!(x => ' ' ~ x.to!string).join;
   }
-  static Instr read(ref int index, Opcode[] ops) {
+  static Instr read(ref int index, const(int)[] ops) {
     Instr ret = new Instr;
-    ret.op = ops[index++];
+    ret.loc = index;
+    ret.op = ops[index++].to!Opcode;
     final switch (ret.op) {
       case Opcode.exit:
         break;
@@ -178,8 +184,9 @@ class Instr {
         break;
       case Opcode.func:
         Loc end = Loc.read(index, ops);
+        Nums name = Nums.read(index, ops);
         Num nregs = Num.read(index, ops);
-        ret.data ~= Func.read(index, ops, end.loc, nregs.num);
+        ret.data ~= Func.read(index, ops, end.loc, nregs.num, name.nums.map!(x => cast(char) x.num).array.idup);
         break;
       case Opcode.add:
         ret.data ~= Reg.read(index, ops);
@@ -279,38 +286,11 @@ class Instr {
   }
 }
 
-Instr[] parse(Opcode[] ops) {
+Instr[] parse(const(int)[] ops) {
   int index = 0;
   Instr[] ret;
   while (index < ops.length) {
     ret ~= Instr.read(index, ops);
   }
   return ret;
-}
-
-int main(string[] args) {
-  if (args.length < 2) {
-    stderr.writeln("cannot dis minivm: not enough args");
-    return 1;
-  }
-  FILE *file = fopen((args[1] ~ "\0").ptr, "rb");
-  if (file is null) {
-    stderr.writeln("cannot dis vm: file to run could not be read");
-    return 2;
-  }
-  int[] ops = null;
-  while (true) {
-    int op = 0;
-    size_t size = fread(&op, int.sizeof, 1, file);
-    if (size == 0) {
-      break;
-    }
-    ops ~= op;
-  }
-  Opcode[] opcodes = cast(Opcode[]) ops;
-  Instr[] instrs = opcodes.parse;
-  foreach (instr; instrs) {
-    writeln(instr);
-  }
-  return 0;
 }

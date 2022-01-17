@@ -1,4 +1,6 @@
 
+module vm.run;
+
 import core.stdc.stdio;
 
 class Exit: Exception {

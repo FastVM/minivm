@@ -5,5 +5,5 @@ OPT ?= -O
 OUT ?= minivm
 
 default:
-	$(DC) $(OPT) minivm.d -of$(OUT)
+	$(DC) -i $(OPT) vm/minivm.d -of$(OUT)
 	
