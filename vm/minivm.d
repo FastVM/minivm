@@ -330,12 +330,15 @@ case Opcode.blte:
 }
 }
 
-void vm_run(Opcode[] ops, string[] args) {
+int vm_run(Opcode[] ops, string[] args) {
   try {
     Value[] locals = new Value[1 << 16];
     locals[0] = vm_global_from(args);
     vm_run_from(ops.idup.ptr, 0, locals.ptr, locals.ptr + 256);
-  } catch (Exit e) {}
+    return 0;
+  } catch (Exit e) {
+    return 1;
+  }
 }
 
 int main(string[] args) {
@@ -357,6 +360,5 @@ int main(string[] args) {
     }
     ops ~= op;
   }
-  vm_run(cast(Opcode[]) ops, args[2..$]);
-  return 0;
+  return vm_run(cast(Opcode[]) ops, args[2..$]);
 }

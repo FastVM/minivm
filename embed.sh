@@ -4,4 +4,8 @@ set -e
 
 MVM=$(dirname $0)
 
-ldc2 -O3 -flto=full -i -I $MVM -J $1 $MVM/vm/embed.d -of embed
+mkdir -p $MVM/bin
+
+cp $1 $MVM/bin/boot.bc
+
+ldc2 -O3 -flto=full -i -I $MVM -J $MVM/bin $MVM/vm/embed.d -of embed
