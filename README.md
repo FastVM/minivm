@@ -65,14 +65,20 @@ Although each instruction is a bit more complex, there are way fewer instruction
 MiniVM's only dependencies are [9 functions](https://github.com/FastVM/minivm/blob/main/vm/libc.h) in `libc`:
 
 ```
-fmod, putchar, malloc, realloc, free, fopen, fclose, fwrite, fread
+printf, malloc, realloc, free, fopen, fclose, fwrite, fread, strlen
 ```
 
-Only `malloc` and `putchar` are relied on heavily, though:
-
-> `putchar` is the function all IO boils down to eventually.
+Only `malloc` and `printf` are relied on heavily, though:
+ 
+> `printf` is the function called by opcode do_putchar.
 > `malloc` is required for memory allocations as of recent.
->
+> `realloc` is required to grow memory. It could be replaced with malloc and free calls.
+> `free` is required to clean up memory.
+> `fopen` is used to open a file.
+> `fclose` is used to close a file.
+> `fwrite` is used by opcode do_dump and opcode do_write.
+> `fread` is used by opcode do_read.
+> `strlen` is used to get the length of entries in argc. 
 > — Shaw
 
 The entire codebase is highly configurable, allowing users of MiniVM to choose the optimal feature set that supports their application.
@@ -81,15 +87,11 @@ The entire codebase is highly configurable, allowing users of MiniVM to choose t
 
 Minivm has a select set of core types. 
 
-- none
-  - the lack of a value
-- boolean
-  - true or false
 - number
-  - configurable to be C's `int32_t num: 30;` or C's `double num;`
+  - able to represent at least what a 30 bit signed int can. 
 - array
   - unchanging in length
-  - mutable by default
+  - mutable data by default
 
 Because MiniVM is a register-based machine, it employs clever instructions to leverage common type layouts for better performance. For instance, to emulate closures arrays can be called as functions if the first item in that array is a function.
 
