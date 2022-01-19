@@ -88,44 +88,44 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
   // our dear jump table
   void *ptrs[] = {
       /// [] -> Exit the program when something is wrong with nonzero status
-      [0] = &&do_exit, 
-      
+      [0] = &&do_exit,
+
       /// [Reg rOut, Reg rIn] -> Store value of rIn to rOut
-      [1] = &&do_store_reg, 
-      
+      [1] = &&do_store_reg,
+
       /// rCond must be a number, will not work with pointers correctly.
       /// [Reg rCond, Label lFalse, Label lTrue] when rCond == 0 -> jump to lFalse
       /// [Reg rCond, Label lFalse, Label lTrue] when rCond != 0 -> jump to lTrue
-      [2] = &&do_branch_bool, 
-      
+      [2] = &&do_branch_bool,
+
       /// [Reg rOut, Num nVar] -> Store number nVar into rOut
-      [3] = &&do_store_int, 
-      
+      [3] = &&do_store_int,
+
       /// [Label lDest] -> Jump to lDest
       [4] = &&do_jump,
-      
-      // jump is used to implent this as a size optimization 
-      /// [Label lEnd, Num nLen, Char sName[nLen], Num nRegs] -> Jump over function to lEnd. The function is named the value of sName. The function has nRegs registers allocated when called. 
+
+      // jump is used to implent this as a size optimization
+      /// [Label lEnd, Num nLen, Char sName[nLen], Num nRegs] -> Jump over function to lEnd. The function is named the value of sName. The function has nRegs registers allocated when called.
       [5] = &&do_func,
-      
-      // Binary Operators 
-      /// [Reg rOut, Ref rLeft, Reg rRight] -> Compute rLeft `op` rRight and store result to rOut 
+
+      // Binary Operators
+      /// [Reg rOut, Ref rLeft, Reg rRight] -> Compute rLeft `op` rRight and store result to rOut
       [6] = &&do_add,
       [7] = &&do_sub,
       [8] = &&do_mul,
-      [9] = &&do_div,  
+      [9] = &&do_div,
       [10] = &&do_mod,
 
       /// Undefined behavior if rLeft or rRight is not a Number
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft <= rRight -> jump to lTrue
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft > rRight -> jump to lFalse
       [11] = &&do_branch_less_than_equal,
-      
+
       /// vArgs is variadic, it has runtime length of nArgs.
       /// Registers are local to each function, essentially callee stored or a register stack.
       /// for argno in range[0 .. nArgs) : vArgs[argno] is stored intot the new function's Reg(argno+1)
       /// The label lFunc points to an instruction at the head of the function, this instruction must be directly after a func jump (Instruction with opcode 5)
-      /// This is because static_call reads nRegs from ops[lFunc-1].  
+      /// This is because static_call reads nRegs from ops[lFunc-1].
       /// [Reg rOut, Label lFunc, Num nArgs, Reg vArgs[nArgs]] -> call lFunc with all args given and return value to rOut. 
       [12] = &&do_static_call,
 
@@ -145,7 +145,7 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       /// Undefiend Behavior if rArray is not an Array
       /// Undefined Behvaior if rIndex < 0, not wrapping
       /// Undefined Behvaior if rIndex >= length(rArray)
-      /// [Reg rOut, Reg rArray, Reg rIndex] -> get the (zero indexed) rIndex-th value in rArray; store into rOut   
+      /// [Reg rOut, Reg rArray, Reg rIndex] -> get the (zero indexed) rIndex-th value in rArray; store into rOut
       [17] = &&do_index_get,
 
       /// Undefined Behavior if rArray is not an Array
@@ -156,14 +156,14 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       [18] = &&do_index_set,
 
       /// 32 bit integer version of opcode write
-      /// [Reg rFilename, Reg rArray] -> dumps to file rFilename the contents of rArray as 32 bit signed integers 
+      /// [Reg rFilename, Reg rArray] -> dumps to file rFilename the contents of rArray as 32 bit signed integers
       [19] = &&do_dump,
 
-      /// [Ref rOut, Reg rFilename] -> reads into rOut the contents file rFilename as an array of Char. 
+      /// [Ref rOut, Reg rFilename] -> reads into rOut the contents file rFilename as an array of Char.
       [20] = &&do_read,
-      
+
       /// Char version of opcode dump
-      /// [Reg rFilename, Reg rArray] -> dumps to file rFilename the contents of rArray as an array of Char 
+      /// [Reg rFilename, Reg rArray] -> dumps to file rFilename the contents of rArray as an array of Char
       [21] = &&do_write,
 
       /// [Reg rOut, Num nRegs, Reg vRegs[nRegs]] -> vRegs is stored as an Array into rOut
