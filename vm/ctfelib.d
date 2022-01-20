@@ -58,7 +58,9 @@ string convert(const Arg arg) {
 }
 
 string mconvert(const Instr instr) {
-    final switch (instr.op) {
+    switch (instr.op) {
+        default:
+            throw new Exception("cannot opcode");
         case Opcode.exit:
             return "core.stdc.stdlib.exit(1);assert(false);";
         case Opcode.reg:
