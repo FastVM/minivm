@@ -350,14 +350,14 @@ do_read : {
     locals[outreg] = (vm_obj_t){.ptr = vm_array_new(0)};
     goto *ptrs[ops[index++]];
   }
-  char *str = malloc(sizeof(char) * nalloc);
+  uint8_t *str = malloc(sizeof(uint8_t) * nalloc);
   for (;;) {
-    char buf[2048];
+    uint8_t buf[2048];
     int32_t n = fread(buf, 1, 2048, in);
     for (int32_t i = 0; i < n; i++) {
       if (where + 4 >= nalloc) {
         nalloc = 4 + nalloc * 2;
-        str = realloc(str, sizeof(char) * nalloc);
+        str = realloc(str, sizeof(uint8_t) * nalloc);
       }
       str[where] = buf[i];
       where += 1;
@@ -391,8 +391,8 @@ do_write : {
   free(name);
   for (int32_t i = 0; i < xlen; i++) {
     vm_obj_t obj = ent->arr[i];
-    char op = obj.num;
-    fwrite(&op, 1, sizeof(char), out);
+    uint8_t op = obj.num;
+    fwrite(&op, 1, sizeof(uint8_t), out);
   }
   fclose(out);
   goto *ptrs[ops[index++]];
