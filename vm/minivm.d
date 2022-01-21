@@ -36,13 +36,28 @@ enum Opcode: int {
   cat = 23,
   beq = 24,
   blt = 25,
+  // NEW OPS!!! 
+  addi = 26,
+  subi = 27,
+  muli = 28,
+  divi = 29,
+  modi = 30,
+  geti = 31,
+  seti = 32,
+  bltei = 33,
+  beqi = 34,
+  blti = 35,
+  call0 = 36,
+  call1 = 37,
+  call2 = 38,
+  call3 = 39,
 }
 
 union Value {
-  private int num;
+  private ptrdiff_t num;
   private Value* ptr;
 
-  this(int num_) {
+  this(ptrdiff_t num_) {
     num = num_;
   }
 
@@ -54,16 +69,24 @@ union Value {
     ptr = ptr_;
   }
 
+  this(ubyte[] src) {
+    Value[] va = [Value(cast(ptrdiff_t) src.length)];
+    foreach (chr; src) {
+      va ~= Value(cast(ptrdiff_t) chr);
+    }
+    this(va.ptr);
+  }
+
   this(char[] src) {
     this(cast(string) src);
   }
 
   this(string src) {
-    Value[] va = [Value(cast(int) src.length)];
+    Value[] va = [Value(cast(ptrdiff_t) src.length)];
     foreach (chr; src) {
-      va ~= Value(cast(int) chr);
+      va ~= Value(cast(ptrdiff_t) chr);
     }
-    ptr = va.ptr;
+    this(va.ptr);
   }
 
   Value opBinary(string op)(Value other) {
@@ -74,7 +97,7 @@ union Value {
     return ptr[0];
   }
 
-  ref Value opIndex(int n) {
+  ref Value opIndex(ptrdiff_t n) {
     return ptr[n + 1];
   }
 
@@ -89,7 +112,7 @@ union Value {
   const(char)* cstr() {
     char[] ret = new char[length.num + 1];
     foreach (i, ref c; ret) {
-      c = cast(char) this[cast(int) i].num;
+      c = cast(char) this[cast(ptrdiff_t) i].num;
     }
     ret[length.num] = '\0';
     return ret.ptr;
@@ -97,9 +120,9 @@ union Value {
 }
 
 Value vm_global_from(string[] args) {
-  Value[] global = [Value(cast(int) args.length)];
+  Value[] global = [Value(cast(ptrdiff_t) args.length)];
   foreach (arg; args) {
-    Value[] ent = [Value(cast(int) arg.length)];
+    Value[] ent = [Value(cast(ptrdiff_t) arg.length)];
     foreach (chr; arg) {
       ent ~= Value(chr);
     }
@@ -111,6 +134,7 @@ Value vm_global_from(string[] args) {
 Value vm_run_from(immutable(Opcode*) ops, int index, Value* locals,
                      Value* next_locals) {
   next:
+  // printf("%i: %i\n", index, ops[index]);
   final switch (ops[index++]) {
 case Opcode.exit:
  throw new Exit;
@@ -182,7 +206,7 @@ case Opcode.call:
   goto next;
 case Opcode.putchar:
   int from = ops[index++];
-  int val = locals[from].num;
+  ptrdiff_t val = locals[from].num;
   printf("%c", cast(char)val);
   goto next;
 case Opcode.string:
@@ -215,18 +239,18 @@ case Opcode.set:
 case Opcode.dump:
   int namreg = ops[index++];
   Value* sname = locals[namreg].ptr;
-  int slen = sname[0].num;
+  ptrdiff_t slen = sname[0].num;
   char[] name = new char[slen + 1];
   for (int i = 0; i < slen; i++) {
     name[i] = cast(char) sname[i+1].num;
   }
   name[slen] = '\0';
   Value* ent = locals[ops[index++]].ptr;
-  int xlen = ent[0].num;
+  ptrdiff_t xlen = ent[0].num;
   FILE *rout = fopen(name.ptr, "wb");
   for (int i = 0; i < xlen; i++) {
     Value obj = ent[i+1];
-    int op = obj.num;
+    int op = cast(int) obj.num;
     fwrite(&op, int.sizeof, 1, rout);
   }
   fclose(rout);
@@ -240,12 +264,12 @@ case Opcode.read:
     locals[outreg] = Value(null);
     goto next;
   }
-  char[] str = null;
+  ubyte[] str = null;
   while (true) {
-    char[2048] buf;
+    ubyte[2048] buf;
     size_t n = fread(buf.ptr, 1, 2048, fin);
     for (int i = 0; i < n; i++) {
-      str ~= cast(char) buf[i];
+      str ~= cast(ubyte) buf[i];
     }
     if (n < 2048) {
       break;
@@ -258,14 +282,14 @@ case Opcode.write:
   int outreg = ops[index++];
   int namreg = ops[index++];
   Value* sname = locals[namreg].ptr;
-  int slen = sname[0].num;
+  ptrdiff_t slen = sname[0].num;
   char[] name = new char[slen + 1];
   for (int i = 0; i < slen; i++) {
     name[i] = cast(char) sname[i+1].num;
   }
   name[slen] = '\0';
   Value* ent = locals[ops[index++]].ptr;
-  int xlen = ent[0].num;
+  ptrdiff_t xlen = ent[0].num;
   FILE *rout = fopen(name.ptr, "wb");
   for (int i = 0; i < xlen; i++) {
     char op = cast(char) ent[i + 1].num;
@@ -327,6 +351,105 @@ case Opcode.blte:
     index = ops[index];
     goto next;
   }
+case Opcode.addi:
+  int to = ops[index++];
+  int lhs = ops[index++];
+  int rhs = ops[index++];
+  locals[to] = Value(locals[lhs].num + rhs);
+  goto next;
+case Opcode.subi:
+  int to = ops[index++];
+  int lhs = ops[index++];
+  int rhs = ops[index++];
+  locals[to] = Value(locals[lhs].num - rhs);
+  goto next;
+case Opcode.muli:
+  int to = ops[index++];
+  int lhs = ops[index++];
+  int rhs = ops[index++];
+  locals[to] = Value(locals[lhs].num * rhs);
+  goto next;
+case Opcode.divi:
+  int to = ops[index++];
+  int lhs = ops[index++];
+  int rhs = ops[index++];
+  locals[to] = Value(locals[lhs].num / rhs);
+  goto next;
+case Opcode.modi:
+  int to = ops[index++];
+  int lhs = ops[index++];
+  int rhs = ops[index++];
+  locals[to] = Value(locals[lhs].num % rhs);
+  goto next;
+case Opcode.geti:
+  int outreg = ops[index++];
+  Value vec = locals[ops[index++]];
+  int iindex = ops[index++];
+  locals[outreg] = vec[iindex];
+  goto next;
+case Opcode.seti:
+  Value vec = locals[ops[index++]];
+  int oiindex = ops[index++];
+  Value value = locals[ops[index++]];
+  vec[oiindex] = value;
+  goto next;
+case Opcode.bltei:
+  Value lhs = locals[ops[index++]];
+  if (lhs.num <= ops[index++]) {
+    index = ops[index + 1];
+    goto next;
+  } else {
+    index = ops[index];
+    goto next;
+  }
+case Opcode.beqi:
+  Value lhs = locals[ops[index++]];
+  if (lhs.num == ops[index++]) {
+    index = ops[index + 1];
+    goto next;
+  } else {
+    index = ops[index];
+    goto next;
+  }
+case Opcode.blti:
+  Value lhs = locals[ops[index++]];
+  if (lhs.num < ops[index++]) {
+    index = ops[index + 1];
+    goto next;
+  } else {
+    index = ops[index];
+    goto next;
+  }
+case Opcode.call0:
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto next;
+case Opcode.call1:
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  next_locals[1] = locals[ops[index++]];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto next;
+case Opcode.call2:
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  next_locals[1] = locals[ops[index++]];
+  next_locals[2] = locals[ops[index++]];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto next;
+case Opcode.call3:
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  next_locals[1] = locals[ops[index++]];
+  next_locals[2] = locals[ops[index++]];
+  next_locals[3] = locals[ops[index++]];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto next;
 }
 }
 

@@ -119,7 +119,7 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       /// Undefined behavior if rLeft or rRight is not a Number
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft <= rRight -> jump to lTrue
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft > rRight -> jump to lFalse
-      [11] = &&do_branch_less_than_equal,
+      [11] = &&do_blte,
 
       /// vArgs is variadic, it has runtime length of nArgs.
       /// Registers are local to each function, essentially callee stored or a register stack.
@@ -127,7 +127,7 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       /// The label lFunc points to an instruction at the head of the function, this instruction must be directly after a func jump (Instruction with opcode 5)
       /// This is because static_call reads nRegs from ops[lFunc-1].
       /// [Reg rOut, Label lFunc, Num nArgs, Reg vArgs[nArgs]] -> call lFunc with all args given and return value to rOut. 
-      [12] = &&do_static_call,
+      [12] = &&do_call,
 
       /// [Reg rRet] -> jumps back to after the last static_call instruction. Puts the value held in rRet to the static_call's rOut
       [13] = &&do_return,
@@ -136,7 +136,7 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       [14] = &&do_putchar,
 
       /// [Reg rOut, Num nCount, Num sNums[nCount]] -> sNums is stored as an Array of nCount signed integers into rOut
-      [15] = &&do_string_new,
+      [15] = &&do_string,
 
       /// Undefined Behavior if rArray is not an Array
       /// [Reg rOut, Reg rArray] -> store the length of rArray into rOut
@@ -146,14 +146,14 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       /// Undefined Behvaior if rIndex < 0, not wrapping
       /// Undefined Behvaior if rIndex >= length(rArray)
       /// [Reg rOut, Reg rArray, Reg rIndex] -> get the (zero indexed) rIndex-th value in rArray; store into rOut
-      [17] = &&do_index_get,
+      [17] = &&do_get,
 
       /// Undefined Behavior if rArray is not an Array
       /// Undefined Behvaior if rIndex < 0; it is not wrapping
       /// Undefined Behvaior if rIndex > length(rArray)
       /// Undefiend Behvaior if rValue contians rArray; No recurisve datatypes (subject to change)
       /// [Reg rArray, Reg rIndex, Reg rValue] -> set the (zero indexed) rIndex-th value in rArray to the value held in rValue
-      [18] = &&do_index_set,
+      [18] = &&do_set,
 
       /// 32 bit integer version of opcode write
       /// [Reg rFilename, Reg rArray] -> dumps to file rFilename the contents of rArray as 32 bit signed integers
@@ -167,20 +167,34 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       [21] = &&do_write,
 
       /// [Reg rOut, Num nRegs, Reg vRegs[nRegs]] -> vRegs is stored as an Array into rOut
-      [22] = &&do_static_array_new,
+      [22] = &&do_array,
 
       /// [Reg rOut, Reg rLeft, Reg rRight] -> concatenates rLeft to rRight so that rLeft's last element is direclty before rRight's first element into rOut
-      [23] = &&do_static_concat,
+      [23] = &&do_cat,
 
       /// Undefined behavior if rLeft or rRight is not a Number
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft == rRight -> jump to lTrue
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft != rRight -> jump to lFalse
-      [24] = &&do_branch_equal,
+      [24] = &&do_beq,
 
       /// Undefined behavior if rLeft or rRight is not a Number
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft < rRight -> jump to lTrue
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft >= rRight -> jump to lFalse
-      [25] = &&do_branch_less,
+      [25] = &&do_blt,
+      [26] = &&do_addi,
+      [27] = &&do_subi,
+      [28] = &&do_muli,
+      [29] = &&do_divi,
+      [30] = &&do_modi,
+      [31] = &&do_geti,
+      [32] = &&do_seti,
+      [33] = &&do_bltei,
+      [34] = &&do_beqi,
+      [35] = &&do_blti,
+      [36] = &&do_call0,
+      [37] = &&do_call1,
+      [38] = &&do_call2,
+      [39] = &&do_call3,
   };
 
   goto *ptrs[ops[index++]];
@@ -251,10 +265,10 @@ do_mod : {
   locals[to] = (vm_obj_t){.num = locals[lhs].num % locals[rhs].num};
   goto *ptrs[ops[index++]];
 }
-do_branch_less_than_equal : {
+do_blte : {
   vm_obj_t lhs = locals[ops[index++]];
   vm_obj_t rhs = locals[ops[index++]];
-  if ((lhs).num <= (rhs).num) {
+  if (lhs.num <= rhs.num) {
     index = ops[index + 1];
     goto *ptrs[ops[index++]];
   } else {
@@ -262,7 +276,7 @@ do_branch_less_than_equal : {
     goto *ptrs[ops[index++]];
   }
 }
-do_static_call : {
+do_call : {
   int32_t outreg = ops[index++];
   int32_t next_func = ops[index++];
   int32_t nargs = ops[index++];
@@ -280,7 +294,7 @@ do_putchar : {
   printf("%c", val);
   goto *ptrs[ops[index++]];
 }
-do_string_new : {
+do_string : {
   int32_t outreg = ops[index++];
   int32_t nargs = ops[index++];
   vm_gc_entry_t *str = vm_array_new(nargs);
@@ -297,14 +311,14 @@ do_length : {
   locals[outreg] = (vm_obj_t){.num = vec.ptr->len};
   goto *ptrs[ops[index++]];
 }
-do_index_get : {
+do_get : {
   int32_t outreg = ops[index++];
   vm_obj_t vec = locals[ops[index++]];
   vm_obj_t oindex = locals[ops[index++]];
   locals[outreg] = vec.ptr->arr[oindex.num];
   goto *ptrs[ops[index++]];
 }
-do_index_set : {
+do_set : {
   vm_obj_t vec = locals[ops[index++]];
   vm_obj_t oindex = locals[ops[index++]];
   vm_obj_t value = locals[ops[index++]];
@@ -397,7 +411,7 @@ do_write : {
   fclose(out);
   goto *ptrs[ops[index++]];
 }
-do_static_array_new : {
+do_array : {
   int32_t outreg = ops[index++];
   int32_t nargs = ops[index++];
   vm_gc_entry_t *vec = vm_array_new(nargs);
@@ -408,7 +422,7 @@ do_static_array_new : {
   locals[outreg] = (vm_obj_t){.ptr = vec};
   goto *ptrs[ops[index++]];
 }
-do_static_concat : {
+do_cat : {
   int32_t to = ops[index++];
   vm_gc_entry_t *left = locals[ops[index++]].ptr;
   vm_gc_entry_t *right = locals[ops[index++]].ptr;
@@ -422,10 +436,10 @@ do_static_concat : {
   locals[to] = (vm_obj_t){.ptr = ent};
   goto *ptrs[ops[index++]];
 }
-do_branch_equal : {
+do_beq : {
   vm_obj_t lhs = locals[ops[index++]];
   vm_obj_t rhs = locals[ops[index++]];
-  if ((lhs).num == (rhs).num) {
+  if (lhs.num == rhs.num) {
     index = ops[index + 1];
     goto *ptrs[ops[index++]];
   } else {
@@ -433,16 +447,129 @@ do_branch_equal : {
     goto *ptrs[ops[index++]];
   }
 }
-do_branch_less : {
+do_blt : {
   vm_obj_t lhs = locals[ops[index++]];
   vm_obj_t rhs = locals[ops[index++]];
-  if ((lhs).num < (rhs).num) {
+  if (lhs.num < rhs.num) {
     index = ops[index + 1];
     goto *ptrs[ops[index++]];
   } else {
     index = ops[index];
     goto *ptrs[ops[index++]];
   }
+do_addi : {
+  int32_t to = ops[index++];
+  int32_t lhs = ops[index++];
+  int32_t rhs = ops[index++];
+  locals[to] = (vm_obj_t){.num = locals[lhs].num + rhs};
+  goto *ptrs[ops[index++]];
+}
+do_subi : {
+  int32_t to = ops[index++];
+  int32_t lhs = ops[index++];
+  int32_t rhs = ops[index++];
+  locals[to] = (vm_obj_t){.num = locals[lhs].num - rhs};
+  goto *ptrs[ops[index++]];
+}
+do_muli : {
+  int32_t to = ops[index++];
+  int32_t lhs = ops[index++];
+  int32_t rhs = ops[index++];
+  locals[to] = (vm_obj_t){.num = locals[lhs].num * rhs};
+  goto *ptrs[ops[index++]];
+}
+do_divi : {
+  int32_t to = ops[index++];
+  int32_t lhs = ops[index++];
+  int32_t rhs = ops[index++];
+  locals[to] = (vm_obj_t){.num = locals[lhs].num / rhs};
+  goto *ptrs[ops[index++]];
+}
+do_modi : {
+  int32_t to = ops[index++];
+  int32_t lhs = ops[index++];
+  int32_t rhs = ops[index++];
+  locals[to] = (vm_obj_t){.num = locals[lhs].num % rhs};
+  goto *ptrs[ops[index++]];
+}
+do_geti : {
+  int32_t outreg = ops[index++];
+  vm_obj_t vec = locals[ops[index++]];
+  int32_t oindex = ops[index++];
+  locals[outreg] = vec.ptr->arr[oindex];
+  goto *ptrs[ops[index++]];
+}
+do_seti : {
+  vm_obj_t vec = locals[ops[index++]];
+  int32_t oindex = ops[index++];
+  vm_obj_t value = locals[ops[index++]];
+  vec.ptr->arr[oindex] = value;
+  goto *ptrs[ops[index++]];
+}
+do_bltei : {
+  vm_obj_t lhs = locals[ops[index++]];
+  if (lhs.num <= ops[index++]) {
+    index = ops[index + 1];
+    goto *ptrs[ops[index++]];
+  } else {
+    index = ops[index];
+    goto *ptrs[ops[index++]];
+  }
+}
+do_beqi : {
+  vm_obj_t lhs = locals[ops[index++]];
+  if (lhs.num == ops[index++]) {
+    index = ops[index + 1];
+    goto *ptrs[ops[index++]];
+  } else {
+    index = ops[index];
+    goto *ptrs[ops[index++]];
+  }
+}
+do_blti : {
+  vm_obj_t lhs = locals[ops[index++]];
+  if (lhs.num < ops[index++]) {
+    index = ops[index + 1];
+    goto *ptrs[ops[index++]];
+  } else {
+    index = ops[index];
+    goto *ptrs[ops[index++]];
+  }
+}
+do_call0 : {
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[ops[index++]];
+}
+do_call1 : {
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  next_locals[1] = locals[ops[index++]];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[ops[index++]];
+}
+do_call2 : {
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  next_locals[1] = locals[ops[index++]];
+  next_locals[2] = locals[ops[index++]];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[ops[index++]];
+}
+do_call3 : {
+  int outreg = ops[index++];
+  int next_func = ops[index++];
+  next_locals[1] = locals[ops[index++]];
+  next_locals[2] = locals[ops[index++]];
+  next_locals[3] = locals[ops[index++]];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[ops[index++]];
+}
 }
 }
 
