@@ -122,6 +122,31 @@ string mconvert(const Instr instr) {
             return "if (" ~ instr.data[0].convert ~ ".num==" ~ instr.data[1].convert ~ ".num){goto " ~ instr.data[3].convert ~ ";}else{goto " ~ instr.data[2].convert ~ ";}";
         case Opcode.blt:
             return "if (" ~ instr.data[0].convert ~ ".num<" ~ instr.data[1].convert ~ ".num){goto " ~ instr.data[3].convert ~ ";}else{goto " ~ instr.data[2].convert ~ ";}";
+        case Opcode.addi:
+            return instr.data[0].convert ~ "=" ~ instr.data[1].convert ~ "+toValue(" ~ instr.data[2].convert ~ ");";
+        case Opcode.subi:
+            return instr.data[0].convert ~ "=" ~ instr.data[1].convert ~ "-toValue(" ~ instr.data[2].convert ~ ");";
+        case Opcode.muli:
+            return instr.data[0].convert ~ "=" ~ instr.data[1].convert ~ "*toValue(" ~ instr.data[2].convert ~ ");";
+        case Opcode.divi:
+            return instr.data[0].convert ~ "=" ~ instr.data[1].convert ~ "/toValue(" ~ instr.data[2].convert ~ ");";
+        case Opcode.modi:
+            return instr.data[0].convert ~ "=" ~ instr.data[1].convert ~ "%toValue(" ~ instr.data[2].convert ~ ");";
+        case Opcode.geti:
+            return instr.data[0].convert ~ "=" ~ instr.data[1].convert ~ "[" ~ instr.data[2].convert ~ "];";
+        case Opcode.seti:
+            return instr.data[0].convert ~ "[" ~ instr.data[1].convert ~ "]=" ~ instr.data[2].convert ~ ";";
+        case Opcode.bltei:
+            return "if(" ~ instr.data[0].convert ~ ".num<=" ~ instr.data[1].convert ~ "){goto " ~ instr.data[3].convert ~ ";}else{goto " ~ instr.data[2].convert ~ ";}";
+        case Opcode.beqi:
+            return "if(" ~ instr.data[0].convert ~ ".num==" ~ instr.data[1].convert ~ "){goto " ~ instr.data[3].convert ~ ";}else{goto " ~ instr.data[2].convert ~ ";}";
+        case Opcode.blti:
+            return "if(" ~ instr.data[0].convert ~ ".num<" ~ instr.data[1].convert ~ "){goto " ~ instr.data[3].convert ~ ";}else{goto " ~ instr.data[2].convert ~ ";}";
+        case Opcode.call0:
+        case Opcode.call1:
+        case Opcode.call2:
+        case Opcode.call3:
+            return instr.data[0].convert ~ "=" ~ instr.data[1].convert ~ "(" ~ instr.data[2..$].map!(x => to!string(cast(Reg) x)).join(',') ~ ");";
     }
 }
 
