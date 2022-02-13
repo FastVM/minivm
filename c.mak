@@ -4,7 +4,7 @@ OUT = minivm
 
 default: $(OUT)
 
-$(OUT): $(OBJS)
+$(OUT): .dummy
 	$(CC) $(OPT) minivm.c -o $(OUT) $(CFLAGS)
 
 .dummy:

@@ -86,7 +86,7 @@ vm_obj_t vm_global_from(size_t len, const char **args) {
 vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
                      vm_obj_t *next_locals) {
   // our dear jump table
-  void *ptrs[] = {
+  static void *ptrs[] = {
       /// [] -> Exit the program when something is wrong with nonzero status
       [0] = &&do_exit,
 
@@ -181,20 +181,6 @@ vm_obj_t vm_run_from(const int32_t *ops, size_t index, vm_obj_t *locals,
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft < rRight -> jump to lTrue
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft >= rRight -> jump to lFalse
       [25] = &&do_blt,
-      [26] = &&do_addi,
-      [27] = &&do_subi,
-      [28] = &&do_muli,
-      [29] = &&do_divi,
-      [30] = &&do_modi,
-      [31] = &&do_geti,
-      [32] = &&do_seti,
-      [33] = &&do_bltei,
-      [34] = &&do_beqi,
-      [35] = &&do_blti,
-      [36] = &&do_call0,
-      [37] = &&do_call1,
-      [38] = &&do_call2,
-      [39] = &&do_call3,
   };
 
   goto *ptrs[ops[index++]];
@@ -268,13 +254,8 @@ do_mod : {
 do_blte : {
   vm_obj_t lhs = locals[ops[index++]];
   vm_obj_t rhs = locals[ops[index++]];
-  if (lhs.num <= rhs.num) {
-    index = ops[index + 1];
-    goto *ptrs[ops[index++]];
-  } else {
-    index = ops[index];
-    goto *ptrs[ops[index++]];
-  }
+  index = ops[index + (lhs.num <= rhs.num)];
+  goto *ptrs[ops[index++]];
 }
 do_call : {
   int32_t outreg = ops[index++];
@@ -439,137 +420,14 @@ do_cat : {
 do_beq : {
   vm_obj_t lhs = locals[ops[index++]];
   vm_obj_t rhs = locals[ops[index++]];
-  if (lhs.num == rhs.num) {
-    index = ops[index + 1];
-    goto *ptrs[ops[index++]];
-  } else {
-    index = ops[index];
-    goto *ptrs[ops[index++]];
-  }
+  index = ops[index + (lhs.num == rhs.num)];
+  goto *ptrs[ops[index++]];
 }
 do_blt : {
   vm_obj_t lhs = locals[ops[index++]];
   vm_obj_t rhs = locals[ops[index++]];
-  if (lhs.num < rhs.num) {
-    index = ops[index + 1];
-    goto *ptrs[ops[index++]];
-  } else {
-    index = ops[index];
-    goto *ptrs[ops[index++]];
-  }
-do_addi : {
-  int32_t to = ops[index++];
-  int32_t lhs = ops[index++];
-  int32_t rhs = ops[index++];
-  locals[to] = (vm_obj_t){.num = locals[lhs].num + rhs};
+  index = ops[index + (lhs.num < rhs.num)];
   goto *ptrs[ops[index++]];
-}
-do_subi : {
-  int32_t to = ops[index++];
-  int32_t lhs = ops[index++];
-  int32_t rhs = ops[index++];
-  locals[to] = (vm_obj_t){.num = locals[lhs].num - rhs};
-  goto *ptrs[ops[index++]];
-}
-do_muli : {
-  int32_t to = ops[index++];
-  int32_t lhs = ops[index++];
-  int32_t rhs = ops[index++];
-  locals[to] = (vm_obj_t){.num = locals[lhs].num * rhs};
-  goto *ptrs[ops[index++]];
-}
-do_divi : {
-  int32_t to = ops[index++];
-  int32_t lhs = ops[index++];
-  int32_t rhs = ops[index++];
-  locals[to] = (vm_obj_t){.num = locals[lhs].num / rhs};
-  goto *ptrs[ops[index++]];
-}
-do_modi : {
-  int32_t to = ops[index++];
-  int32_t lhs = ops[index++];
-  int32_t rhs = ops[index++];
-  locals[to] = (vm_obj_t){.num = locals[lhs].num % rhs};
-  goto *ptrs[ops[index++]];
-}
-do_geti : {
-  int32_t outreg = ops[index++];
-  vm_obj_t vec = locals[ops[index++]];
-  int32_t oindex = ops[index++];
-  locals[outreg] = vec.ptr->arr[oindex];
-  goto *ptrs[ops[index++]];
-}
-do_seti : {
-  vm_obj_t vec = locals[ops[index++]];
-  int32_t oindex = ops[index++];
-  vm_obj_t value = locals[ops[index++]];
-  vec.ptr->arr[oindex] = value;
-  goto *ptrs[ops[index++]];
-}
-do_bltei : {
-  vm_obj_t lhs = locals[ops[index++]];
-  if (lhs.num <= ops[index++]) {
-    index = ops[index + 1];
-    goto *ptrs[ops[index++]];
-  } else {
-    index = ops[index];
-    goto *ptrs[ops[index++]];
-  }
-}
-do_beqi : {
-  vm_obj_t lhs = locals[ops[index++]];
-  if (lhs.num == ops[index++]) {
-    index = ops[index + 1];
-    goto *ptrs[ops[index++]];
-  } else {
-    index = ops[index];
-    goto *ptrs[ops[index++]];
-  }
-}
-do_blti : {
-  vm_obj_t lhs = locals[ops[index++]];
-  if (lhs.num < ops[index++]) {
-    index = ops[index + 1];
-    goto *ptrs[ops[index++]];
-  } else {
-    index = ops[index];
-    goto *ptrs[ops[index++]];
-  }
-}
-do_call0 : {
-  int outreg = ops[index++];
-  int next_func = ops[index++];
-  locals[outreg] = vm_run_from(ops, next_func, next_locals,
-                               next_locals + ops[next_func - 1]);
-  goto *ptrs[ops[index++]];
-}
-do_call1 : {
-  int outreg = ops[index++];
-  int next_func = ops[index++];
-  next_locals[1] = locals[ops[index++]];
-  locals[outreg] = vm_run_from(ops, next_func, next_locals,
-                               next_locals + ops[next_func - 1]);
-  goto *ptrs[ops[index++]];
-}
-do_call2 : {
-  int outreg = ops[index++];
-  int next_func = ops[index++];
-  next_locals[1] = locals[ops[index++]];
-  next_locals[2] = locals[ops[index++]];
-  locals[outreg] = vm_run_from(ops, next_func, next_locals,
-                               next_locals + ops[next_func - 1]);
-  goto *ptrs[ops[index++]];
-}
-do_call3 : {
-  int outreg = ops[index++];
-  int next_func = ops[index++];
-  next_locals[1] = locals[ops[index++]];
-  next_locals[2] = locals[ops[index++]];
-  next_locals[3] = locals[ops[index++]];
-  locals[outreg] = vm_run_from(ops, next_func, next_locals,
-                               next_locals + ops[next_func - 1]);
-  goto *ptrs[ops[index++]];
-}
 }
 }
 
