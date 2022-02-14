@@ -90,7 +90,7 @@ enum {
   VM_OPCODE_MUL = 8,
   VM_OPCODE_DIV = 9,
   VM_OPCODE_MOD = 10,
-  VM_OPCODE_BLTE = 11,
+
   VM_OPCODE_CALL = 12,
   VM_OPCODE_RETURN = 13,
   VM_OPCODE_PUTCHAR = 14,
@@ -105,6 +105,19 @@ enum {
   VM_OPCODE_CAT = 23,
   VM_OPCODE_BEQ = 24,
   VM_OPCODE_BLT = 25,
+  VM_OPCODE_ADDI = 26,
+  VM_OPCDOE_SUBI = 27,
+  VM_OPCDOE_MULI = 28,
+  VM_OPCODE_DIVI = 29,
+  VM_OPCODE_MODI = 30,
+  VM_OPCODE_CALL0 = 31,
+  VM_OPCODE_CALL1 = 32,
+  VM_OPCODE_CALL2 = 33,
+  VM_OPCODE_CALL3 = 34,
+  VM_OPCODE_GETI = 35,
+  VM_OPCODE_SETI = 36,
+  VM_OPCODE_BEQI = 37,
+  VM_OPCODE_BLTI = 38,
 };
 
 /// Creates an uninitialized array of length size
@@ -167,13 +180,6 @@ vm_obj_t vm_run_from(const vm_opcode_t *ops, size_t index, vm_obj_t *locals,
       [VM_OPCODE_MUL] = &&do_mul,
       [VM_OPCODE_DIV] = &&do_div,
       [VM_OPCODE_MOD] = &&do_mod,
-
-      /// Undefined behavior if rLeft or rRight is not a Number
-      /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft <=
-      /// rRight -> jump to lTrue
-      /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft > rRight
-      /// -> jump to lFalse
-      [VM_OPCODE_BLTE] = &&do_blte,
 
       /// vArgs is variadic, it has runtime length of nArgs.
       /// Registers are local to each function, essentially callee stored or a
@@ -324,12 +330,6 @@ do_mod : {
   vm_opcode_t lhs = vm_read();
   vm_opcode_t rhs = vm_read();
   locals[to] = (vm_obj_t){.num = locals[lhs].num % locals[rhs].num};
-  goto *ptrs[vm_read()];
-}
-do_blte : {
-  vm_obj_t lhs = locals[vm_read()];
-  vm_obj_t rhs = locals[vm_read()];
-  index = ops[index + (lhs.num <= rhs.num)];
   goto *ptrs[vm_read()];
 }
 do_call : {
