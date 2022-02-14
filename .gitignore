@@ -26,3 +26,4 @@ minivm.wasm
 *.dbg
 cosmo
 data
+jit
