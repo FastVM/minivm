@@ -90,7 +90,7 @@ enum {
   VM_OPCODE_MUL = 8,
   VM_OPCODE_DIV = 9,
   VM_OPCODE_MOD = 10,
-
+  VM_OPCODE_POW = 11,
   VM_OPCODE_CALL = 12,
   VM_OPCODE_RETURN = 13,
   VM_OPCODE_PUTCHAR = 14,
@@ -110,14 +110,15 @@ enum {
   VM_OPCDOE_MULI = 28,
   VM_OPCODE_DIVI = 29,
   VM_OPCODE_MODI = 30,
-  VM_OPCODE_CALL0 = 31,
-  VM_OPCODE_CALL1 = 32,
-  VM_OPCODE_CALL2 = 33,
-  VM_OPCODE_CALL3 = 34,
-  VM_OPCODE_GETI = 35,
-  VM_OPCODE_SETI = 36,
-  VM_OPCODE_BEQI = 37,
-  VM_OPCODE_BLTI = 38,
+  VM_OPCODE_POWI = 31,
+  VM_OPCODE_CALL0 = 32,
+  VM_OPCODE_CALL1 = 33,
+  VM_OPCODE_CALL2 = 34,
+  VM_OPCODE_CALL3 = 35,
+  VM_OPCODE_GETI = 36,
+  VM_OPCODE_SETI = 37,
+  VM_OPCODE_BEQI = 38,
+  VM_OPCODE_BLTI = 39,
 };
 
 /// Creates an uninitialized array of length size
@@ -180,6 +181,7 @@ vm_obj_t vm_run_from(const vm_opcode_t *ops, size_t index, vm_obj_t *locals,
       [VM_OPCODE_MUL] = &&do_mul,
       [VM_OPCODE_DIV] = &&do_div,
       [VM_OPCODE_MOD] = &&do_mod,
+      [VM_OPCODE_POW] = &&do_pow,
 
       /// vArgs is variadic, it has runtime length of nArgs.
       /// Registers are local to each function, essentially callee stored or a
@@ -330,6 +332,26 @@ do_mod : {
   vm_opcode_t lhs = vm_read();
   vm_opcode_t rhs = vm_read();
   locals[to] = (vm_obj_t){.num = locals[lhs].num % locals[rhs].num};
+  goto *ptrs[vm_read()];
+}
+do_pow : {
+  vm_opcode_t to = vm_read();
+  vm_opcode_t lhs = vm_read();
+  vm_opcode_t rhs = vm_read();
+  vm_number_t base = locals[lhs].num;
+  vm_number_t exp = locals[rhs].num;
+  vm_number_t result = 1;
+  for (;;) {
+      if (exp & 1) {
+        result *= base;
+      }
+      exp >>= 1;
+      if (!exp) {
+        break;
+      }
+      base *= base;
+  }
+  locals[to] = (vm_obj_t){.num = result};
   goto *ptrs[vm_read()];
 }
 do_call : {
