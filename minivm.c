@@ -110,15 +110,15 @@ enum {
   VM_OPCDOE_MULI = 28,
   VM_OPCODE_DIVI = 29,
   VM_OPCODE_MODI = 30,
-  VM_OPCODE_POWI = 31,
-  VM_OPCODE_CALL0 = 32,
-  VM_OPCODE_CALL1 = 33,
-  VM_OPCODE_CALL2 = 34,
-  VM_OPCODE_CALL3 = 35,
-  VM_OPCODE_GETI = 36,
-  VM_OPCODE_SETI = 37,
-  VM_OPCODE_BEQI = 38,
-  VM_OPCODE_BLTI = 39,
+  VM_OPCODE_CALL0 = 31,
+  VM_OPCODE_CALL1 = 32,
+  VM_OPCODE_CALL2 = 33,
+  VM_OPCODE_CALL3 = 34,
+  VM_OPCODE_GETI = 35,
+  VM_OPCODE_SETI = 36,
+  VM_OPCODE_BEQI = 37,
+  VM_OPCODE_BLTI = 38,
+  VM_OPCODE_BLTEI = 39,
 };
 
 /// Creates an uninitialized array of length size
@@ -264,6 +264,22 @@ vm_obj_t vm_run_from(const vm_opcode_t *ops, size_t index, vm_obj_t *locals,
       /// [Reg rLeft, Reg rRight, Label lFalse, Label lTrue] when rLeft >=
       /// rRight -> jump to lFalse
       [VM_OPCODE_BLT] = &&do_blt,
+
+      /// undocumented
+      [VM_OPCODE_ADDI] = &&do_addi,
+      [VM_OPCDOE_SUBI] = &&do_subi,
+      [VM_OPCDOE_MULI] = &&do_muli,
+      [VM_OPCODE_DIVI] = &&do_divi,
+      [VM_OPCODE_MODI] = &&do_modi,
+      [VM_OPCODE_CALL0] = &&do_call0,
+      [VM_OPCODE_CALL1] = &&do_call1,
+      [VM_OPCODE_CALL2] = &&do_call2,
+      [VM_OPCODE_CALL3] = &&do_call3,
+      [VM_OPCODE_GETI] = &&do_geti,
+      [VM_OPCODE_SETI] = &&do_seti,
+      [VM_OPCODE_BEQI] = &&do_beqi,
+      [VM_OPCODE_BLTI] = &&do_blti,
+      [VM_OPCODE_BLTEI] = &&do_bltei,
   };
 
   goto *ptrs[vm_read()];
@@ -524,6 +540,107 @@ do_blt : {
   vm_obj_t lhs = locals[vm_read()];
   vm_obj_t rhs = locals[vm_read()];
   index = ops[index + (lhs.num < rhs.num)];
+  goto *ptrs[vm_read()];
+}
+do_addi : {
+  vm_opcode_t to = vm_read();
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  locals[to] = (vm_obj_t) {.num = lhs.num + rhs};
+  goto *ptrs[vm_read()];
+}
+do_subi : {
+  vm_opcode_t to = vm_read();
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  locals[to] = (vm_obj_t) {.num = lhs.num - rhs};
+  goto *ptrs[vm_read()];
+}
+do_muli : {
+  vm_opcode_t to = vm_read();
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  locals[to] = (vm_obj_t) {.num = lhs.num * rhs};
+  goto *ptrs[vm_read()];
+}
+do_divi : {
+  vm_opcode_t to = vm_read();
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  locals[to] = (vm_obj_t) {.num = lhs.num / rhs};
+  goto *ptrs[vm_read()];
+}
+do_modi : {
+  vm_opcode_t to = vm_read();
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  locals[to] = (vm_obj_t) {.num = lhs.num % rhs};
+  goto *ptrs[vm_read()];
+}
+do_call0 : {
+  vm_opcode_t outreg = vm_read();
+  vm_opcode_t next_func = vm_read();
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[vm_read()];
+}
+do_call1 : {
+  vm_opcode_t outreg = vm_read();
+  vm_opcode_t next_func = vm_read();
+  next_locals[1] = locals[vm_read()];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[vm_read()];
+}
+do_call2 : {
+  vm_opcode_t outreg = vm_read();
+  vm_opcode_t next_func = vm_read();
+  next_locals[1] = locals[vm_read()];
+  next_locals[2] = locals[vm_read()];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[vm_read()];
+}
+do_call3 : {
+  vm_opcode_t outreg = vm_read();
+  vm_opcode_t next_func = vm_read();
+  next_locals[1] = locals[vm_read()];
+  next_locals[2] = locals[vm_read()];
+  next_locals[3] = locals[vm_read()];
+  locals[outreg] = vm_run_from(ops, next_func, next_locals,
+                               next_locals + ops[next_func - 1]);
+  goto *ptrs[vm_read()];
+}
+do_geti : {
+  vm_opcode_t outreg = vm_read();
+  vm_obj_t vec = locals[vm_read()];
+  vm_opcode_t oindex = vm_read();
+  locals[outreg] = vec.ptr->arr[oindex];
+  goto *ptrs[vm_read()];
+}
+do_seti : {
+  vm_obj_t vec = locals[vm_read()];
+  vm_opcode_t oindex = vm_read();
+  vm_obj_t value = locals[vm_read()];
+  vec.ptr->arr[oindex] = value;
+  goto *ptrs[vm_read()];
+}
+do_beqi : {
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  index = ops[index + (lhs.num == rhs)];
+  goto *ptrs[vm_read()];
+}
+do_blti : {
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  index = ops[index + (lhs.num < rhs)];
+  goto *ptrs[vm_read()];
+}
+do_bltei : {
+  vm_obj_t lhs = locals[vm_read()];
+  vm_opcode_t rhs = vm_read();
+  index = ops[index + (lhs.num <= rhs)];
   goto *ptrs[vm_read()];
 }
 }
