@@ -27,3 +27,4 @@ minivm.wasm
 cosmo
 data
 jit
+dis

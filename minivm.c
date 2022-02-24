@@ -10,52 +10,11 @@
 // - `&&do_whatever` means get address of code at `do_whatever`
 // - `goto *ptrs[vm_read()];` means run the next opcode
 
+#include "opcode.h"
+#include "lib.h"
+
 #define vm_read() (ops[index++])
 #define vm_jump_next() ({ goto *ptrs[vm_read()]; })
-
-// MiniVM needs these three at all times
-typedef __SIZE_TYPE__ size_t;
-
-typedef __UINT8_TYPE__ uint8_t;
-typedef __UINT16_TYPE__ uint16_t;
-typedef __UINT32_TYPE__ uint32_t;
-typedef __UINT64_TYPE__ uint64_t;
-
-typedef __INT8_TYPE__ int8_t;
-typedef __INT16_TYPE__ int16_t;
-typedef __INT32_TYPE__ int32_t;
-typedef __INT64_TYPE__ int64_t;
-
-typedef int32_t vm_file_opcode_t;
-typedef int32_t vm_opcode_t;
-typedef int64_t vm_number_t;
-typedef size_t vm_counter_t;
-
-/// The value type of minivm
-union vm_obj_t;
-/// These represent constant sized mutable arrays
-struct vm_gc_entry_t;
-
-typedef union vm_obj_t vm_obj_t;
-typedef struct vm_gc_entry_t vm_gc_entry_t;
-
-// I define libc things myself, this massivly speeds up compilation
-struct FILE;
-typedef struct FILE FILE;
-
-void exit(int code);
-size_t strlen(const char *str);
-int strcmp(const char *s1, const char *s2);
-
-void *malloc(size_t size);
-void *realloc(void *ptr, size_t n);
-void free(void *ptr);
-
-int printf(const char *src, ...);
-FILE *fopen(const char *src, const char *name);
-int fclose(FILE *);
-size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
-size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 
 /// This represents a value in MiniVM
 union vm_obj_t {
@@ -77,49 +36,6 @@ struct vm_gc_entry_t {
   // without a set size
   /// The array's value store; zero indexed
   vm_obj_t arr[0];
-};
-
-enum {
-  VM_OPCODE_EXIT = 0,
-  VM_OPCODE_REG = 1,
-  VM_OPCODE_BB = 2,
-  VM_OPCODE_INT = 3,
-  VM_OPCODE_JUMP = 4,
-  VM_OPCODE_FUNC = 5,
-  VM_OPCODE_ADD = 6,
-  VM_OPCODE_SUB = 7,
-  VM_OPCODE_MUL = 8,
-  VM_OPCODE_DIV = 9,
-  VM_OPCODE_MOD = 10,
-  VM_OPCODE_POW = 11,
-  VM_OPCODE_CALL = 12,
-  VM_OPCODE_RETURN = 13,
-  VM_OPCODE_PUTCHAR = 14,
-  VM_OPCODE_STRING = 15,
-  VM_OPCODE_LENGTH = 16,
-  VM_OPCODE_GET = 17,
-  VM_OPCODE_SET = 18,
-  VM_OPCODE_DUMP = 19,
-  VM_OPCODE_READ = 20,
-  VM_OPCODE_WRITE = 21,
-  VM_OPCODE_ARRAY = 22,
-  VM_OPCODE_CAT = 23,
-  VM_OPCODE_BEQ = 24,
-  VM_OPCODE_BLT = 25,
-  VM_OPCODE_ADDI = 26,
-  VM_OPCDOE_SUBI = 27,
-  VM_OPCDOE_MULI = 28,
-  VM_OPCODE_DIVI = 29,
-  VM_OPCODE_MODI = 30,
-  VM_OPCODE_CALL0 = 31,
-  VM_OPCODE_CALL1 = 32,
-  VM_OPCODE_CALL2 = 33,
-  VM_OPCODE_CALL3 = 34,
-  VM_OPCODE_GETI = 35,
-  VM_OPCODE_SETI = 36,
-  VM_OPCODE_BEQI = 37,
-  VM_OPCODE_BLTI = 38,
-  VM_OPCODE_BLTEI = 39,
 };
 
 /// Creates an uninitialized array of length size
@@ -359,14 +275,14 @@ do_pow : {
   vm_number_t exp = locals[rhs].num;
   vm_number_t result = 1;
   for (;;) {
-      if (exp & 1) {
-        result *= base;
-      }
-      exp >>= 1;
-      if (!exp) {
-        break;
-      }
-      base *= base;
+    if (exp & 1) {
+      result *= base;
+    }
+    exp >>= 1;
+    if (!exp) {
+      break;
+    }
+    base *= base;
   }
   locals[to] = (vm_obj_t){.num = result};
   goto *ptrs[vm_read()];
@@ -386,7 +302,7 @@ do_call : {
 do_putchar : {
   vm_opcode_t from = vm_read();
   vm_number_t val = locals[from].num;
-  printf("%c", (int) val);
+  printf("%c", (int)val);
   goto *ptrs[vm_read()];
 }
 do_string : {
@@ -547,35 +463,35 @@ do_addi : {
   vm_opcode_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   vm_opcode_t rhs = vm_read();
-  locals[to] = (vm_obj_t) {.num = lhs.num + rhs};
+  locals[to] = (vm_obj_t){.num = lhs.num + rhs};
   goto *ptrs[vm_read()];
 }
 do_subi : {
   vm_opcode_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   vm_opcode_t rhs = vm_read();
-  locals[to] = (vm_obj_t) {.num = lhs.num - rhs};
+  locals[to] = (vm_obj_t){.num = lhs.num - rhs};
   goto *ptrs[vm_read()];
 }
 do_muli : {
   vm_opcode_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   vm_opcode_t rhs = vm_read();
-  locals[to] = (vm_obj_t) {.num = lhs.num * rhs};
+  locals[to] = (vm_obj_t){.num = lhs.num * rhs};
   goto *ptrs[vm_read()];
 }
 do_divi : {
   vm_opcode_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   vm_opcode_t rhs = vm_read();
-  locals[to] = (vm_obj_t) {.num = lhs.num / rhs};
+  locals[to] = (vm_obj_t){.num = lhs.num / rhs};
   goto *ptrs[vm_read()];
 }
 do_modi : {
   vm_opcode_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   vm_opcode_t rhs = vm_read();
-  locals[to] = (vm_obj_t) {.num = lhs.num % rhs};
+  locals[to] = (vm_obj_t){.num = lhs.num % rhs};
   goto *ptrs[vm_read()];
 }
 do_call0 : {
@@ -653,240 +569,7 @@ void vm_run(const vm_opcode_t *ops, size_t nargs, const char **args) {
   vm_run_from(ops, 0, locals, locals + 256);
 }
 
-void disassemble(const vm_opcode_t *ops, size_t nops, int indent) {
-  const int max_nested = 100;
-  int nested[max_nested];
-  int nested_size = 0;
-  for (size_t i = 0; i < nops; ++i) {
-    if (nested_size > 0) {
-      if (i >= nested[nested_size - 1]) {
-        --nested_size;
-        printf("        :%*s }\n", nested_size * indent, "");
-      }
-    }
-    printf("L%-7zu:%*s ", i, nested_size * indent, "");
-    const int op = ops[i];
-    switch (ops[i]) {
-    case VM_OPCODE_EXIT:
-      printf("exit\n");
-      break;
-    case VM_OPCODE_REG:
-      printf("reg V%d V%d\n", ops[i+1], ops[i+2]);
-      i += 2;
-      break;
-    case VM_OPCODE_BB:
-      printf("bb V%d L%d L%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_INT:
-      printf("int V%d %d\n", ops[i+1], ops[i+2]);
-      i += 2;
-      break;
-    case VM_OPCODE_JUMP:
-      printf("jump L%d\n", ops[i+1]);
-      i += 1;
-      break;
-    case VM_OPCODE_FUNC: {
-        char namebuf[256];
-        const int index_after_func = ops[i+1];
-        const int fargs = ops[i+2];
-        const int namelen = ops[i+3];
-        int n = 0;
-        for (; n < namelen && n < sizeof(namebuf) - 1; ++n) {
-          namebuf[n] = (char)ops[i+4+n];
-        }
-        namebuf[n] = 0;
-        printf("func %s (", namebuf);
-        for (int a = 1; a <= fargs; ++a) {
-          printf("V%d", a);
-          if (a < fargs) printf(" ");
-        }
-        printf(") {\n");
-        i += 1 + 2 + namelen + 1;
-        if (nested_size < max_nested - 1) {
-          nested[nested_size++] = index_after_func;
-        }
-      }
-      break;
-    case VM_OPCODE_ADD:
-      printf("add V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_SUB:
-      printf("sub V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_MUL:
-      printf("mul V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_DIV:
-      printf("div V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_MOD:
-      printf("mod V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_POW:
-      printf("pow V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_CALL: {
-        printf("call L%d ( ", ops[i+2]);
-        const int nargs = ops[i+3];
-        const int farg = i + 4;
-        for (int a = 0; a < nargs; ++a) {
-          printf("V%d ", ops[farg + a]);
-        }
-        printf(") -> V%d\n", ops[i+1]);
-        i += 3 + nargs;
-      }
-      break;
-    case VM_OPCODE_RETURN:
-      printf("return V%d\n", ops[i+1]);
-      i += 1;
-      break;
-    case VM_OPCODE_PUTCHAR:
-      printf("putchar V%d\n", ops[i+1]);
-      i += 1;
-      break;
-    case VM_OPCODE_STRING: {
-        printf("string V%d [ ", ops[i+1]);
-        const int nargs = ops[i+2];
-        const int farg = i + 3;
-        for (int a = 0; a < nargs; ++a) {
-          const int ch = ops[farg + a];
-          if (ch >= 32 && ch <= 126) {
-            printf("'%c' ", ch);
-          } else {
-            printf("%d ", ch);
-          }
-        }
-        printf("]\n");
-        i += 2 + nargs;
-      }
-      break;
-    case VM_OPCODE_LENGTH:
-      printf("length V%d V%d\n", ops[i+1], ops[i+2]);
-      i += 2;
-      break;
-    case VM_OPCODE_GET:
-      printf("get V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_SET:
-      printf("set V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_DUMP:
-      printf("dump V%d V%d\n", ops[i+1], ops[i+2]);
-      i += 2;
-      break;
-    case VM_OPCODE_READ:
-      printf("read V%d V%d\n", ops[i+1], ops[i+2]);
-      i += 2;
-      break;
-    case VM_OPCODE_WRITE:
-      printf("write V%d V%d\n", ops[i+1], ops[i+2]);
-      i += 2;
-      break;
-    case VM_OPCODE_ARRAY: {
-        printf("array V%d [ ", ops[i+1]);
-        const int nargs = ops[i+2];
-        const int farg = i + 3;
-        for (int a = 0; a < nargs; ++a) {
-          const int ch = ops[farg + a];
-          printf("V%d ", ch);
-        }
-        printf("]\n");
-        i += 2 + nargs;
-      }
-      break;
-    case VM_OPCODE_CAT:
-      printf("cat V%d V%d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_BEQ:
-      printf("beq V%d V%d L%d L%d\n", ops[i+1], ops[i+2], ops[i+3], ops[i+4]);
-      i += 4;
-      break;
-    case VM_OPCODE_BLT:
-      printf("blt V%d V%d L%d L%d\n", ops[i+1], ops[i+2], ops[i+3], ops[i+4]);
-      i += 4;
-      break;
-    case VM_OPCODE_ADDI:
-      printf("addi V%d V%d %d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCDOE_SUBI:
-      printf("subi V%d V%d %d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCDOE_MULI:
-      printf("muli V%d V%d %d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_DIVI:
-      printf("divi V%d V%d %d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_MODI:
-      printf("modi V%d V%d %d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_CALL0:
-      printf("call0 L%d () -> V%d\n", ops[i+2], ops[i+1]);
-      i += 2;
-      break;
-    case VM_OPCODE_CALL1:
-      printf("call1 L%d ( V%d ) -> V%d\n", ops[i+2], ops[i+3], ops[i+1]);
-      i += 3;
-      break;
-    case VM_OPCODE_CALL2:
-      printf("call2 L%d ( V%d V%d ) -> V%d\n",
-        ops[i+2], ops[i+3], ops[i+4], ops[i+1]);
-      i += 4;
-      break;
-    case VM_OPCODE_CALL3:
-      printf("call3 L%d ( V%d V%d V%d ) -> V%d\n",
-        ops[i+2], ops[i+3], ops[i+4], ops[i+5], ops[i+1]);
-      i += 5;
-      break;
-    case VM_OPCODE_GETI:
-      printf("geti V%d V%d %d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_SETI:
-      printf("seti V%d %d V%d\n", ops[i+1], ops[i+2], ops[i+3]);
-      i += 3;
-      break;
-    case VM_OPCODE_BEQI:
-      printf("beqi V%d %d L%d L%d\n", ops[i+1], ops[i+2], ops[i+3], ops[i+4]);
-      i += 4;
-      break;
-    case VM_OPCODE_BLTI:
-      printf("blti V%d %d L%d L%d\n", ops[i+1], ops[i+2], ops[i+3], ops[i+4]);
-      i += 4;
-      break;
-    case VM_OPCODE_BLTEI:
-      printf("bltei V%d %d L%d L%d\n", ops[i+1], ops[i+2], ops[i+3], ops[i+4]);
-      i += 4;
-      break;
-    default:
-      printf("unknown %d\n", op);
-      // disassembly may not be reliable after an unknown opcode
-    }
-  }
-}
-
 int main(int argc, const char **argv) {
-  int dis = 0;
-  if (argc >= 2 && 0 == strcmp(argv[1], "-d")) {
-    dis = 1;
-    --argc;
-    ++argv;
-  }
   if (argc < 2) {
     printf("cannot run vm: not enough args\n");
     return 1;
@@ -913,10 +596,6 @@ int main(int argc, const char **argv) {
     ops[nops++] = op;
   }
   fclose(file);
-  if (dis) {
-    disassemble(ops, nops, 4);
-  } else {
-    vm_run(ops, argc - 2, argv + 2);
-  }
+  vm_run(ops, argc - 2, argv + 2);
   free(ops);
 }
