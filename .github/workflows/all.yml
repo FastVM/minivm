@@ -12,6 +12,10 @@ jobs:
         with:
           name: minivm-linux
           path: minivm
+      - uses: actions/upload-artifact@v2
+        with:
+          name: opt-linux
+          path: opt
   macos-opt:
     runs-on: macos-latest
     steps:
@@ -23,6 +27,10 @@ jobs:
         with:
           name: minivm-mac
           path: minivm
+      - uses: actions/upload-artifact@v2
+        with:
+          name: opt-mac
+          path: opt
   windows-opt:
     runs-on: windows-latest
     steps:
@@ -37,3 +45,7 @@ jobs:
         with:
           name: minivm-windows.exe
           path: minivm.exe
+      - uses: actions/upload-artifact@v2
+        with:
+          name: opt-windows.exe
+          path: opt.exe
