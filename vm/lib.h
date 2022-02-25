@@ -15,7 +15,7 @@ typedef __INT32_TYPE__ int32_t;
 typedef __INT64_TYPE__ int64_t;
 
 typedef int32_t vm_file_opcode_t;
-typedef int32_t vm_opcode_t;
+typedef union {size_t arg; void *op;} vm_opcode_t;
 typedef int64_t vm_number_t;
 typedef size_t vm_counter_t;
 

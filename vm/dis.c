@@ -37,16 +37,14 @@ void vm_disassemble(const vm_opcode_t *ops, size_t nops, int indent) {
       i += 1;
       break;
     case VM_OPCODE_FUNC: {
-      char namebuf[256];
       const int index_after_func = ops[i + 1];
       const int fargs = ops[i + 2];
       const int namelen = ops[i + 3];
-      int n = 0;
-      for (; n < namelen && n < sizeof(namebuf) - 1; ++n) {
-        namebuf[n] = (char)ops[i + 4 + n];
+      printf("func ");
+      for (int n = 0; n < namelen; n++) {
+        printf("%c", (char)ops[i + 4 + n]);
       }
-      namebuf[n] = 0;
-      printf("func %s (", namebuf);
+      printf(" (");
       for (int a = 1; a <= fargs; ++a) {
         if (a != 1) {
           printf(" ");
@@ -171,23 +169,23 @@ void vm_disassemble(const vm_opcode_t *ops, size_t nops, int indent) {
       i += 4;
       break;
     case VM_OPCODE_ADDI:
-      printf("addi r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
+      printf("add r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
     case VM_OPCDOE_SUBI:
-      printf("subi r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
+      printf("sub r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
     case VM_OPCDOE_MULI:
-      printf("muli r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
+      printf("mul r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
     case VM_OPCODE_DIVI:
-      printf("divi r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
+      printf("div r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
     case VM_OPCODE_MODI:
-      printf("modi r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
+      printf("mod r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
     case VM_OPCODE_CALL0:
