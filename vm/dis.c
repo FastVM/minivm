@@ -2,7 +2,7 @@
 #include "opcode.h"
 #include "lib.h"
 
-void vm_disassemble(const vm_opcode_t *ops, size_t nops, int indent) {
+void vm_disassemble(const int *ops, size_t nops, int indent) {
   const int max_nested = 100;
   int nested[max_nested];
   int nested_size = 0;
@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
     return 2;
   }
   size_t nalloc = 1 << 8;
-  vm_opcode_t *ops = malloc(sizeof(vm_opcode_t) * nalloc);
+  int *ops = malloc(sizeof(int) * nalloc);
   size_t nops = 0;
   size_t size;
   for (;;) {
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
     }
     if (nops + 1 >= nalloc) {
       nalloc *= 4;
-      ops = realloc(ops, sizeof(vm_opcode_t) * nalloc);
+      ops = realloc(ops, sizeof(int) * nalloc);
     }
     ops[nops++] = op;
   }

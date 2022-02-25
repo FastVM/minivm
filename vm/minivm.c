@@ -231,15 +231,20 @@ void vm_run_from(size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
   };
   vm_table_opt(nops, ops, ptrs);
   size_t index = 0;
-  vm_obj_t *locals = malloc(sizeof(vm_obj_t) * (1 << 16));
+  vm_obj_t *locals_base = malloc(sizeof(vm_obj_t) * (1 << 16));
+  vm_obj_t *locals = locals_base;
   locals[0] = globals;
-  vm_frame_t *frames = malloc(sizeof(vm_frame_t) * (1 << 12));
+  vm_frame_t *frames = malloc(sizeof(vm_frame_t) * (1 << 10));
   vm_frame_t *frame = &frames[0];
   frame->nlocals = 0;
   frame += 1;
   frame->nlocals = 256;
   vm_jump_next();
-do_exit : { return; }
+do_exit : { 
+  free(locals_base);
+  free(frames);
+  return;
+}
 do_return : {
   vm_number_t from = vm_read();
   vm_obj_t val = locals[from];
