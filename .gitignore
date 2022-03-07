@@ -28,3 +28,6 @@ cosmo
 data
 jit
 dis
+out.*
+*.profdata
+*.profraw
