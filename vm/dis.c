@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
     return 2;
   }
   size_t nalloc = 1 << 8;
-  int *ops = malloc(sizeof(int) * nalloc);
+  int *ops = vm_malloc(sizeof(int) * nalloc);
   size_t nops = 0;
   size_t size;
   for (;;) {
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
     }
     if (nops + 1 >= nalloc) {
       nalloc *= 4;
-      ops = realloc(ops, sizeof(int) * nalloc);
+      ops = vm_realloc(ops, sizeof(int) * nalloc);
     }
     ops[nops++] = op;
   }

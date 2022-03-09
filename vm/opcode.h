@@ -42,3 +42,9 @@ enum {
   VM_OPCODE_BLTI = 38,
   VM_OPCODE_BLTEI = 39,
 };
+
+typedef int32_t vm_file_opcode_t;
+typedef union {
+  size_t arg;
+  void *op;
+} vm_opcode_t;

@@ -10,35 +10,15 @@
 // - `&&do_whatever` means get address of code at `do_whatever`
 // - `vm_jump_next();` means run the next opcode
 
+#include "gc.h"
 #include "lib.h"
+#include "obj.h"
 #include "opcode.h"
+
+void *aligned_alloc(size_t align, size_t size);
 
 #define vm_read() (ops[index++].arg)
 #define vm_jump_next() ({ goto *ops[index++].op; })
-#define vm_obj_num(v_) ((vm_obj_t){.num = v_})
-#define vm_obj_ptr(v_) ((vm_obj_t){.ptr = v_})
-#define vm_obj_to_num(o_) ((o_).num)
-#define vm_obj_to_ptr(o_) ((o_).ptr)
-
-/// This represents a value in MiniVM
-union vm_obj_t {
-  /// MiniVM integer type
-  vm_number_t num;
-  /// MiniVM array type
-  vm_gc_entry_t *ptr;
-};
-
-/// This is the implementation of an array in minivm
-// (DO NOT DEREF A POINTER TO THIS)
-struct vm_gc_entry_t {
-  // Only required to store 1GiB of items, whatever size they may be.
-  /// The array's length in Objects
-  size_t len;
-  // because we only ever store pointers to the array it is okay for it to be
-  // without a set size
-  /// The array's value store; zero indexed
-  vm_obj_t arr[0];
-};
 
 typedef struct {
   vm_number_t outreg;
@@ -46,26 +26,18 @@ typedef struct {
   vm_number_t nlocals;
 } vm_frame_t;
 
-/// Creates an uninitialized array of length size
-vm_gc_entry_t *vm_array_new(size_t size) {
-  // Trick for variadic array sizes.
-  vm_gc_entry_t *ent = malloc(sizeof(vm_gc_entry_t) + sizeof(vm_obj_t) * size);
-  ent->len = size;
-  return ent;
-}
-
 /// Creates the object in r0 at the beginning of the program.
-vm_obj_t vm_global_from(size_t len, const char **args) {
+vm_obj_t vm_global_from(vm_gc_t *gc, size_t len, const char **args) {
   // Just some minivm arrays.
-  vm_gc_entry_t *global = vm_array_new(len);
+  vm_obj_t global = vm_gc_new(gc, len);
   for (size_t i = 0; i < len; i++) {
-    vm_gc_entry_t *ent = vm_array_new(strlen(args[i]));
+    vm_obj_t ent = vm_gc_new(gc, strlen(args[i]));
     for (const char *src = args[i]; *src != '\0'; src++) {
-      ent->arr[src - args[i]] = vm_obj_num(*src);
+      vm_gc_set(gc, ent, src - args[i], vm_obj_num(*src));
     }
-    global->arr[i] = vm_obj_ptr(ent);
+    vm_gc_set(gc, global, i, ent);
   }
-  return vm_obj_ptr(global);
+  return global;
 }
 
 int vm_table_opt(size_t nops, vm_opcode_t *ops, void *const *const ptrs) {
@@ -198,14 +170,14 @@ int vm_table_opt(size_t nops, vm_opcode_t *ops, void *const *const ptrs) {
       break;
     default:
       printf("unknown opcode: %p\n", ops[i].op);
-      // disassembly may not be reliable after an unknown opcode
+      return 1;
     }
   }
   return 0;
 }
 
 /// VM hot loop
-void vm_run_from(size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
+int vm_run_from(vm_gc_t *gc, size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
   // our dear jump table
   static void *const ptrs[] = {
       [VM_OPCODE_EXIT] = &&do_exit,       [VM_OPCODE_REG] = &&do_store_reg,
@@ -229,21 +201,24 @@ void vm_run_from(size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
       [VM_OPCODE_SETI] = &&do_seti,       [VM_OPCODE_BEQI] = &&do_beqi,
       [VM_OPCODE_BLTI] = &&do_blti,       [VM_OPCODE_BLTEI] = &&do_bltei,
   };
-  vm_table_opt(nops, ops, ptrs);
+  if (vm_table_opt(nops, ops, ptrs)) {
+    return 1;
+  }
   size_t index = 0;
-  vm_obj_t *locals_base = malloc(sizeof(vm_obj_t) * (1 << 16));
+  vm_obj_t *locals_base = vm_malloc(sizeof(vm_obj_t) * (1 << 16));
+  vm_gc_set_locals(gc, (1 << 16), locals_base);
   vm_obj_t *locals = locals_base;
   locals[0] = globals;
-  vm_frame_t *frames = malloc(sizeof(vm_frame_t) * (1 << 10));
+  vm_frame_t *frames = vm_malloc(sizeof(vm_frame_t) * (1 << 10));
   vm_frame_t *frame = &frames[0];
   frame->nlocals = 0;
   frame += 1;
   frame->nlocals = 256;
   vm_jump_next();
-do_exit : { 
-  free(locals_base);
-  free(frames);
-  return;
+do_exit : {
+  vm_free(locals_base);
+  vm_free(frames);
+  return 0;
 }
 do_return : {
   vm_number_t from = vm_read();
@@ -371,50 +346,50 @@ do_putchar : {
 do_string : {
   vm_number_t outreg = vm_read();
   vm_number_t nargs = vm_read();
-  vm_gc_entry_t *str = vm_array_new(nargs);
+  vm_obj_t str = vm_gc_new(gc, nargs);
   for (size_t i = 0; i < nargs; i++) {
     vm_number_t num = vm_read();
-    str->arr[i] = vm_obj_num(num);
+    vm_gc_set(gc, str, i, vm_obj_num(num));
   }
-  locals[outreg] = vm_obj_ptr(str);
+  locals[outreg] = str;
   vm_jump_next();
 }
 do_length : {
   vm_number_t outreg = vm_read();
   vm_obj_t vec = locals[vm_read()];
-  locals[outreg] = vm_obj_num(vm_obj_to_ptr(vec)->len);
+  locals[outreg] = vm_obj_num(vm_gc_len(gc, vec));
   vm_jump_next();
 }
 do_get : {
   vm_number_t outreg = vm_read();
   vm_obj_t vec = locals[vm_read()];
   vm_obj_t oindex = locals[vm_read()];
-  locals[outreg] = vm_obj_to_ptr(vec)->arr[vm_obj_to_num(oindex)];
+  locals[outreg] = vm_gc_get(gc, vec, vm_obj_to_num(oindex));
   vm_jump_next();
 }
 do_set : {
   vm_obj_t vec = locals[vm_read()];
   vm_obj_t oindex = locals[vm_read()];
   vm_obj_t value = locals[vm_read()];
-  vm_obj_to_ptr(vec)->arr[vm_obj_to_num(oindex)] = value;
+  vm_gc_set(gc, vec, vm_obj_to_num(oindex), value);
   vm_jump_next();
 }
 do_dump : {
   vm_number_t namreg = vm_read();
-  vm_gc_entry_t *sname = vm_obj_to_ptr(locals[namreg]);
-  size_t slen = sname->len;
-  char *name = malloc(sizeof(char) * (slen + 1));
+  vm_obj_t sname = locals[namreg];
+  size_t slen = vm_gc_len(gc, sname);
+  char *name = vm_malloc(sizeof(char) * (slen + 1));
   for (vm_counter_t i = 0; i < slen; i++) {
-    vm_obj_t obj = sname->arr[i];
+    vm_obj_t obj = vm_gc_get(gc, sname, i);
     name[i] = vm_obj_to_num(obj);
   }
   name[slen] = '\0';
-  vm_gc_entry_t *ent = vm_obj_to_ptr(locals[vm_read()]);
-  size_t xlen = ent->len;
+  vm_obj_t ent = locals[vm_read()];
+  size_t xlen = vm_gc_len(gc, ent);
   FILE *out = fopen(name, "wb");
-  free(name);
+  vm_free(name);
   for (vm_counter_t i = 0; i < xlen; i++) {
-    vm_obj_t obj = ent->arr[i];
+    vm_obj_t obj = vm_gc_get(gc, ent, i);
     vm_file_opcode_t op = vm_obj_to_num(obj);
     fwrite(&op, sizeof(vm_file_opcode_t), 1, out);
   }
@@ -423,29 +398,29 @@ do_dump : {
 }
 do_read : {
   vm_number_t outreg = vm_read();
-  vm_gc_entry_t *sname = vm_obj_to_ptr(locals[vm_read()]);
-  size_t slen = sname->len;
-  char *name = malloc(sizeof(char) * (slen + 1));
+  vm_obj_t sname = locals[vm_read()];
+  size_t slen = vm_gc_len(gc, sname);
+  char *name = vm_malloc(sizeof(char) * (slen + 1));
   for (vm_counter_t i = 0; i < slen; i++) {
-    name[i] = vm_obj_to_num(sname->arr[i]);
+    name[i] = vm_obj_to_num(vm_gc_get(gc, sname, i));
   }
   name[slen] = '\0';
   size_t where = 0;
   size_t nalloc = 64;
   FILE *in = fopen(name, "rb");
-  free(name);
+  vm_free(name);
   if (in == (void *)0) {
-    locals[outreg] = vm_obj_ptr(vm_array_new(0));
+    locals[outreg] = vm_gc_new(gc, 0);
     vm_jump_next();
   }
-  uint8_t *str = malloc(sizeof(uint8_t) * nalloc);
+  uint8_t *str = vm_malloc(sizeof(uint8_t) * nalloc);
   for (;;) {
     uint8_t buf[2048];
     size_t n = fread(buf, 1, 2048, in);
     for (vm_counter_t i = 0; i < n; i++) {
       if (where + 4 >= nalloc) {
         nalloc = 4 + nalloc * 2;
-        str = realloc(str, sizeof(uint8_t) * nalloc);
+        str = vm_realloc(str, sizeof(uint8_t) * nalloc);
       }
       str[where] = buf[i];
       where += 1;
@@ -455,30 +430,30 @@ do_read : {
     }
   }
   fclose(in);
-  vm_gc_entry_t *ent = vm_array_new(where);
+  vm_obj_t ent = vm_gc_new(gc, where);
   for (vm_counter_t i = 0; i < where; i++) {
-    ent->arr[i] = vm_obj_num(str[i]);
+    vm_gc_set(gc, ent, i, vm_obj_num(str[i]));
   }
-  free(str);
-  locals[outreg] = vm_obj_ptr(ent);
+  vm_free(str);
+  locals[outreg] = ent;
   vm_jump_next();
 }
 do_write : {
   vm_number_t outreg = vm_read();
-  vm_gc_entry_t *sname = vm_obj_to_ptr(locals[outreg]);
-  size_t slen = sname->len;
-  char *name = malloc(sizeof(char) * (slen + 1));
+  vm_obj_t sname = locals[outreg];
+  size_t slen = vm_gc_len(gc, sname);
+  char *name = vm_malloc(sizeof(char) * (slen + 1));
   for (vm_counter_t i = 0; i < slen; i++) {
-    vm_obj_t obj = sname->arr[i];
+    vm_obj_t obj = vm_gc_get(gc, sname, i);
     name[i] = vm_obj_to_num(obj);
   }
   name[slen] = '\0';
-  vm_gc_entry_t *ent = vm_obj_to_ptr(locals[vm_read()]);
-  size_t xlen = ent->len;
+  vm_obj_t ent = locals[vm_read()];
+  size_t xlen = vm_gc_len(gc, ent);
   FILE *out = fopen(name, "wb");
-  free(name);
+  vm_free(name);
   for (vm_counter_t i = 0; i < xlen; i++) {
-    vm_obj_t obj = ent->arr[i];
+    vm_obj_t obj = vm_gc_get(gc, ent, i);
     uint8_t op = vm_obj_to_num(obj);
     fwrite(&op, 1, sizeof(uint8_t), out);
   }
@@ -488,26 +463,26 @@ do_write : {
 do_array : {
   vm_number_t outreg = vm_read();
   vm_number_t nargs = vm_read();
-  vm_gc_entry_t *vec = vm_array_new(nargs);
+  vm_obj_t vec = vm_gc_new(gc, nargs);
   for (vm_counter_t i = 0; i < nargs; i++) {
     vm_number_t vreg = vm_read();
-    vec->arr[i] = locals[vreg];
+    vm_gc_set(gc, vec, i, locals[vreg]);
   }
-  locals[outreg] = vm_obj_ptr(vec);
+  locals[outreg] = vec;
   vm_jump_next();
 }
 do_cat : {
   vm_number_t to = vm_read();
-  vm_gc_entry_t *left = vm_obj_to_ptr(locals[vm_read()]);
-  vm_gc_entry_t *right = vm_obj_to_ptr(locals[vm_read()]);
-  vm_gc_entry_t *ent = vm_array_new(left->len + right->len);
-  for (vm_counter_t i = 0; i < left->len; i++) {
-    ent->arr[i] = left->arr[i];
+  vm_obj_t left = locals[vm_read()];
+  vm_obj_t right = locals[vm_read()];
+  vm_obj_t ent = vm_gc_new(gc, vm_gc_len(gc, left) + vm_gc_len(gc, right));
+  for (vm_counter_t i = 0; i < vm_gc_len(gc, left); i++) {
+    vm_gc_set(gc, ent, i, vm_gc_get(gc, left, i));
   }
-  for (vm_counter_t i = 0; i < right->len; i++) {
-    ent->arr[left->len + i] = right->arr[i];
+  for (vm_counter_t i = 0; i < vm_gc_len(gc, right); i++) {
+    vm_gc_set(gc, ent, vm_gc_len(gc, left) + i, vm_gc_get(gc, right, i));
   }
-  locals[to] = vm_obj_ptr(ent);
+  locals[to] = ent;
   vm_jump_next();
 }
 do_beq : {
@@ -615,14 +590,14 @@ do_geti : {
   vm_number_t outreg = vm_read();
   vm_obj_t vec = locals[vm_read()];
   vm_number_t oindex = vm_read();
-  locals[outreg] = vm_obj_to_ptr(vec)->arr[oindex];
+  locals[outreg] = vm_gc_get(gc, vec, oindex);
   vm_jump_next();
 }
 do_seti : {
   vm_obj_t vec = locals[vm_read()];
   vm_number_t oindex = vm_read();
   vm_obj_t value = locals[vm_read()];
-  vm_obj_to_ptr(vec)->arr[oindex] = value;
+  vm_gc_set(gc, vec, oindex, value);
   vm_jump_next();
 }
 do_beqi : {
@@ -647,7 +622,9 @@ do_bltei : {
 
 /// allocates locals for the program and calls the vm hot loop
 void vm_run(size_t nops, vm_opcode_t *ops, size_t nargs, const char **args) {
-  vm_run_from(nops, ops, vm_global_from(nargs, args));
+  vm_gc_t gc = vm_gc_init();
+  vm_run_from(&gc, nops, ops, vm_global_from(&gc, nargs, args));
+  vm_gc_deinit(gc);
 }
 
 int main(int argc, const char **argv) {
@@ -661,7 +638,7 @@ int main(int argc, const char **argv) {
     return 2;
   }
   size_t nalloc = 1 << 8;
-  vm_opcode_t *ops = malloc(sizeof(vm_opcode_t) * nalloc);
+  vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * nalloc);
   size_t nops = 0;
   size_t size;
   for (;;) {
@@ -672,11 +649,11 @@ int main(int argc, const char **argv) {
     }
     if (nops + 1 >= nalloc) {
       nalloc *= 4;
-      ops = realloc(ops, sizeof(vm_opcode_t) * nalloc);
+      ops = vm_realloc(ops, sizeof(vm_opcode_t) * nalloc);
     }
     ops[nops++].arg = op;
   }
   fclose(file);
   vm_run(nops, ops, argc - 2, argv + 2);
-  free(ops);
+  vm_free(ops);
 }

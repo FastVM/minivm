@@ -6,7 +6,7 @@ default: all
 all: minivm dis
 
 minivm: .dummy
-	$(CC) $(OPT) vm/minivm.c -o minivm $(CFLAGS)
+	$(CC) $(OPT) vm/minivm.c vm/gc.c -o minivm $(CFLAGS)
 
 pgo-llvm: .dummy
 	$(MAKE) minivm CC='$(CC)' OPT='-O1' CFLAGS+='-fprofile-instr-generate=minivm.profraw'
