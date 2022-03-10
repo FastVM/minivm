@@ -1,5 +1,7 @@
 #pragma once
 
+#include "lib.h"
+
 enum {
   VM_OPCODE_EXIT = 0,
   VM_OPCODE_REG = 1,
