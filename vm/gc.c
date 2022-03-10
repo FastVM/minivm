@@ -88,8 +88,8 @@ vm_gc_t vm_gc_init(void) {
   vm_gc_t ret;
   ret.gcs = 0;
   ret.used = 0;
-  ret.max = 256;
-  ret.alloc = 256;
+  ret.max = 1 << 15;
+  ret.alloc = 1 << 16;
   ret.heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.alloc);
   ret.off_heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.alloc);
   ret.start = (void *)0;
