@@ -206,6 +206,9 @@ int vm_run_from(vm_gc_t *gc, size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
   }
   size_t index = 0;
   vm_obj_t *locals_base = vm_malloc(sizeof(vm_obj_t) * (1 << 16));
+  for (size_t i = 0; i < (1 << 16); i++) {
+    locals_base[i] = 0;
+  }
   vm_gc_set_locals(gc, (1 << 16), locals_base);
   vm_obj_t *locals = locals_base;
   locals[0] = globals;

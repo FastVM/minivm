@@ -1,7 +1,7 @@
 #pragma once
 #include "lib.h"
 
-typedef int64_t vm_number_t;
+typedef int32_t vm_number_t;
 typedef size_t vm_counter_t;
 
 typedef vm_number_t vm_obj_t;

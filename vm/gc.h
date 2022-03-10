@@ -9,8 +9,8 @@ typedef union vm_gc_slot_t vm_gc_slot_t;
 typedef struct vm_gc_t vm_gc_t;
 
 union vm_gc_slot_t {
-  size_t len;
-  size_t newpos;
+  uint32_t len;
+  uint32_t newpos;
   vm_obj_t val;
 };
 
@@ -22,6 +22,7 @@ struct vm_gc_t {
   vm_obj_t *start;
   vm_obj_t *end;
   size_t max;
+  size_t gcs;
 };
 
 vm_gc_t vm_gc_init(void);
