@@ -45,7 +45,3 @@ jobs:
         with:
           name: minivm-windows.exe
           path: minivm.exe
-      - uses: actions/upload-artifact@v2
-        with:
-          name: dis-windows.exe
-          path: dis.exe
