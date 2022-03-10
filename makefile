@@ -1,12 +1,14 @@
 
 OPT ?= -Os
 
+SRCS := vm/vm.c vm/gc.c vm/main.c
+
 default: all
 
 all: minivm dis
 
 minivm: .dummy
-	$(CC) $(OPT) vm/minivm.c vm/gc.c -o minivm $(CFLAGS)
+	$(CC) $(OPT) $(SRCS) -o minivm $(CFLAGS)
 
 pgo-llvm: .dummy
 	$(MAKE) minivm CC='$(CC)' OPT='-O1' CFLAGS+='-fprofile-instr-generate=minivm.profraw'

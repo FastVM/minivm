@@ -9,8 +9,8 @@ typedef union vm_gc_slot_t vm_gc_slot_t;
 typedef struct vm_gc_t vm_gc_t;
 
 union vm_gc_slot_t {
-  uint32_t len;
-  uint32_t newpos;
+  vm_obj_t len;
+  vm_obj_t newpos;
   vm_obj_t val;
 };
 

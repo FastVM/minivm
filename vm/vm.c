@@ -1,6 +1,5 @@
 
 // IDIOMS:
-// Leak Memory until I find a small GC.
 // Undefined Behavior when opcodes are bad.
 // Do not use C preprocessor `#.*` lines
 // Types end in _t, and never use tagspace
@@ -14,8 +13,6 @@
 #include "lib.h"
 #include "obj.h"
 #include "opcode.h"
-
-void *aligned_alloc(size_t align, size_t size);
 
 #define vm_read() (ops[index++].arg)
 #define vm_jump_next() ({ goto *ops[index++].op; })
@@ -205,10 +202,10 @@ int vm_run_from(vm_gc_t *gc, size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
     return 1;
   }
   size_t index = 0;
-  vm_obj_t *locals_base = vm_malloc(sizeof(vm_obj_t) * (1 << 16));
-  for (size_t i = 0; i < (1 << 16); i++) {
-    locals_base[i] = 0;
-  }
+  vm_obj_t *locals_base = vm_calloc(sizeof(vm_obj_t) * (1 << 16));
+  // for (size_t i = 0; i < (1 << 16); i++) {
+  //   locals_base[i] = 0;
+  // }
   vm_gc_set_locals(gc, (1 << 16), locals_base);
   vm_obj_t *locals = locals_base;
   locals[0] = globals;
@@ -629,39 +626,9 @@ do_bltei : {
 }
 
 /// allocates locals for the program and calls the vm hot loop
-void vm_run(size_t nops, vm_opcode_t *ops, size_t nargs, const char **args) {
+int vm_run(size_t nops, vm_opcode_t *ops, size_t nargs, const char **args) {
   vm_gc_t gc = vm_gc_init();
-  vm_run_from(&gc, nops, ops, vm_global_from(&gc, nargs, args));
+  int res = vm_run_from(&gc, nops, ops, vm_global_from(&gc, nargs, args));
   vm_gc_deinit(gc);
-}
-
-int main(int argc, const char **argv) {
-  if (argc < 2) {
-    printf("cannot run vm: not enough args\n");
-    return 1;
-  }
-  FILE *file = fopen(argv[1], "rb");
-  if (file == (void *)0) {
-    printf("cannot run vm: file to run could not be read\n");
-    return 2;
-  }
-  size_t nalloc = 1 << 8;
-  vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * nalloc);
-  size_t nops = 0;
-  size_t size;
-  for (;;) {
-    vm_file_opcode_t op = 0;
-    size = fread(&op, sizeof(vm_file_opcode_t), 1, file);
-    if (size == 0) {
-      break;
-    }
-    if (nops + 1 >= nalloc) {
-      nalloc *= 4;
-      ops = vm_realloc(ops, sizeof(vm_opcode_t) * nalloc);
-    }
-    ops[nops++].arg = op;
-  }
-  fclose(file);
-  vm_run(nops, ops, argc - 2, argv + 2);
-  vm_free(ops);
+  return res;
 }

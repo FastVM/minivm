@@ -1,18 +1,18 @@
 #include "gc.h"
 
-void vm_gc_set_mark(vm_gc_t *gc, vm_obj_t obj) {
+static inline void vm_gc_set_mark(vm_gc_t *gc, vm_obj_t obj) {
   gc->heap[obj / 2 - 1].len += 1;
 }
 
-void vm_gc_unset_mark(vm_gc_t *gc, vm_obj_t obj) {
+static inline void vm_gc_unset_mark(vm_gc_t *gc, vm_obj_t obj) {
   gc->heap[obj / 2 - 1].len -= 1;
 }
 
-int vm_gc_get_mark(vm_gc_t *gc, vm_obj_t obj) {
+static inline int vm_gc_get_mark(vm_gc_t *gc, vm_obj_t obj) {
   return gc->heap[obj / 2 - 1].len % 2;
 }
 
-void vm_gc_mark(vm_gc_t *gc, vm_obj_t obj) {
+static inline void vm_gc_mark(vm_gc_t *gc, vm_obj_t obj) {
   if (obj % 2 == 0) {
     return;
   }
@@ -27,7 +27,7 @@ void vm_gc_mark(vm_gc_t *gc, vm_obj_t obj) {
   }
 }
 
-vm_obj_t vm_gc_update(vm_gc_t *gc, vm_obj_t obj) {
+static inline vm_obj_t vm_gc_update(vm_gc_t *gc, vm_obj_t obj) {
   if (obj % 2 == 0) {
     return obj;
   }
@@ -35,7 +35,8 @@ vm_obj_t vm_gc_update(vm_gc_t *gc, vm_obj_t obj) {
   size_t retobj = where * 2 + 1;
   size_t len = gc->heap[where - 1].len / 2;
   for (size_t i = 0; i < len; i++) {
-    gc->heap[retobj / 2 + i].val = vm_gc_update(gc, gc->off_heap[obj / 2 + i].val);
+    gc->heap[retobj / 2 + i].val =
+        vm_gc_update(gc, gc->off_heap[obj / 2 + i].val);
   }
   return retobj;
 }
@@ -72,7 +73,7 @@ void vm_gc_collect(vm_gc_t *gc) {
   for (vm_obj_t *cur = gc->start; cur < gc->end; cur++) {
     *cur = vm_gc_update(gc, *cur);
   }
-  gc->max = gc->used * 4;
+  gc->max = gc->used * 2;
   gc->gcs += 1;
 }
 
@@ -88,8 +89,8 @@ vm_gc_t vm_gc_init(void) {
   vm_gc_t ret;
   ret.gcs = 0;
   ret.used = 0;
-  ret.max = 1 << 15;
-  ret.alloc = 1 << 16;
+  ret.max = 0;
+  ret.alloc = 1 << 12;
   ret.heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.alloc);
   ret.off_heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.alloc);
   ret.start = (void *)0;
