@@ -352,6 +352,7 @@ do_string : {
     vm_gc_set(gc, str, i, vm_obj_num(num));
   }
   locals[outreg] = str;
+  vm_gc_collect(gc);
   vm_jump_next();
 }
 do_length : {
@@ -411,6 +412,7 @@ do_read : {
   vm_free(name);
   if (in == (void *)0) {
     locals[outreg] = vm_gc_new(gc, 0);
+    vm_gc_collect(gc);
     vm_jump_next();
   }
   uint8_t *str = vm_malloc(sizeof(uint8_t) * nalloc);
@@ -436,6 +438,7 @@ do_read : {
   }
   vm_free(str);
   locals[outreg] = ent;
+  vm_gc_collect(gc);
   vm_jump_next();
 }
 do_write : {
@@ -469,6 +472,7 @@ do_array : {
     vm_gc_set(gc, vec, i, locals[vreg]);
   }
   locals[outreg] = vec;
+  vm_gc_collect(gc);
   vm_jump_next();
 }
 do_cat : {
@@ -483,6 +487,7 @@ do_cat : {
     vm_gc_set(gc, ent, vm_gc_len(gc, left) + i, vm_gc_get(gc, right, i));
   }
   locals[to] = ent;
+  vm_gc_collect(gc);
   vm_jump_next();
 }
 do_beq : {

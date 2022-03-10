@@ -10,6 +10,7 @@ typedef struct vm_gc_t vm_gc_t;
 
 union vm_gc_slot_t {
   size_t len;
+  size_t newpos;
   vm_obj_t val;
 };
 
@@ -17,12 +18,16 @@ struct vm_gc_t {
   size_t used;
   size_t alloc;
   vm_gc_slot_t *heap;
+  vm_gc_slot_t *off_heap;
   vm_obj_t *start;
   vm_obj_t *end;
+  size_t max;
 };
 
 vm_gc_t vm_gc_init(void);
 void vm_gc_deinit(vm_gc_t gc);
+
+void vm_gc_collect(vm_gc_t *gc);
 
 void vm_gc_set_locals(vm_gc_t *gc, size_t nlocals, vm_obj_t *locals);
 vm_obj_t vm_gc_new(vm_gc_t *gc, size_t count);
