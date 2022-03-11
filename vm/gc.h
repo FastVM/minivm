@@ -1,12 +1,14 @@
 #pragma once
 
-#include "obj.h"
 
 union vm_gc_slot_t;
 struct vm_gc_t;
 
 typedef union vm_gc_slot_t vm_gc_slot_t;
 typedef struct vm_gc_t vm_gc_t;
+
+#include "obj.h"
+#include "config.h"
 
 union vm_gc_slot_t {
   vm_obj_t len;
@@ -22,11 +24,12 @@ struct vm_gc_t {
   vm_obj_t *start;
   vm_obj_t *end;
   size_t max;
-  size_t gcs;
+  size_t grow;
+  size_t shrink: 1;
 };
 
-vm_gc_t vm_gc_init(void);
-void vm_gc_deinit(vm_gc_t gc);
+vm_gc_t vm_gc_init(vm_config_t config);
+void vm_gc_deinit(vm_gc_t gc, vm_config_t config);
 
 void vm_gc_collect(vm_gc_t *gc);
 

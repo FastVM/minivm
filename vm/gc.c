@@ -45,7 +45,7 @@ void vm_gc_collect(vm_gc_t *gc) {
   if (gc->used <= gc->max) {
     return;
   }
-  if (gc->start == (void *)0) {
+  if (gc->start == NULL) {
     return;
   }
   for (vm_obj_t *cur = gc->start; cur < gc->end; cur++) {
@@ -73,30 +73,32 @@ void vm_gc_collect(vm_gc_t *gc) {
   for (vm_obj_t *cur = gc->start; cur < gc->end; cur++) {
     *cur = vm_gc_update(gc, *cur);
   }
-  gc->max = gc->used * 2;
-  gc->gcs += 1;
+  if (gc->shrink || used * gc->grow / 100 > gc->max) {
+    gc->max = used * gc->grow / 100;
+  }
 }
 
 void vm_gc_grow(vm_gc_t *gc, size_t count) {
   if (gc->used + count >= gc->alloc) {
-    gc->alloc = (gc->used + count) * 4;
+    gc->alloc = (gc->used + count) * 2;
     gc->heap = vm_realloc(gc->heap, sizeof(vm_gc_slot_t) * gc->alloc);
     gc->off_heap = vm_realloc(gc->off_heap, sizeof(vm_gc_slot_t) * gc->alloc);
   }
 }
 
-vm_gc_t vm_gc_init(void) {
+vm_gc_t vm_gc_init(vm_config_t config) {
   vm_gc_t ret;
-  ret.gcs = 0;
   ret.used = 0;
-  ret.max = 0;
-  ret.alloc = 1 << 12;
+  ret.grow = config.gc_grow;
+  ret.max = config.gc_init / sizeof(vm_gc_slot_t) / 2;
+  ret.alloc = config.gc_init / sizeof(vm_gc_slot_t) / 2;
   ret.heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.alloc);
   ret.off_heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.alloc);
-  ret.start = (void *)0;
+  ret.start = NULL;
   return ret;
 }
-void vm_gc_deinit(vm_gc_t gc) {
+
+void vm_gc_deinit(vm_gc_t gc, vm_config_t config) {
   vm_free(gc.heap);
   vm_free(gc.off_heap);
 }

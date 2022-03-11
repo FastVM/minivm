@@ -410,7 +410,7 @@ do_read : {
   size_t nalloc = 64;
   FILE *in = fopen(name, "rb");
   vm_free(name);
-  if (in == (void *)0) {
+  if (in == NULL) {
     locals[outreg] = vm_gc_new(gc, 0);
     vm_gc_collect(gc);
     vm_jump_next();
@@ -626,9 +626,9 @@ do_bltei : {
 }
 
 /// allocates locals for the program and calls the vm hot loop
-int vm_run(size_t nops, vm_opcode_t *ops, size_t nargs, const char **args) {
-  vm_gc_t gc = vm_gc_init();
+int vm_run(vm_config_t config, size_t nops, vm_opcode_t *ops, size_t nargs, const char **args) {
+  vm_gc_t gc = vm_gc_init(config);
   int res = vm_run_from(&gc, nops, ops, vm_global_from(&gc, nargs, args));
-  vm_gc_deinit(gc);
+  vm_gc_deinit(gc, config);
   return res;
 }

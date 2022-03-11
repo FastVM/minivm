@@ -1,4 +1,5 @@
 #pragma once
+
 #include "lib.h"
 
 typedef int32_t vm_number_t;

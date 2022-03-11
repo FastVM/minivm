@@ -15,6 +15,8 @@ typedef __INT16_TYPE__ int16_t;
 typedef __INT32_TYPE__ int32_t;
 typedef __INT64_TYPE__ int64_t;
 
+#define NULL ((void *)0)
+
 // I define libc things myself, this massivly speeds up compilation
 struct FILE;
 typedef struct FILE FILE;
@@ -30,6 +32,8 @@ static inline size_t strlen(const char *str) {
 #else
 size_t strlen(const char *str);
 #endif
+
+int strcmp(const char *s1, const char *s2);
 
 void *malloc(size_t size);
 void *calloc(size_t nmemb, size_t size);

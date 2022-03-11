@@ -242,7 +242,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   FILE *file = fopen(argv[1], "rb");
-  if (file == (void *)0) {
+  if (file == NULL) {
     printf("cannot run dis: file to run could not be read\n");
     return 2;
   }
