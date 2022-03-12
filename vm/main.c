@@ -63,33 +63,35 @@ int main(int argc, const char **argv) {
 
   for (size_t i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
-      if (!strcmp(argv[i], "--growth")) {
+      if (!strcmp(argv[i], "--gc-grow")) {
         if (i + 1 == argc) {
-          printf("cli: expected an argument to --growth\n");
+          printf("cli: expected an argument to %s\n", argv[i]);
           return 1;
         }
         i += 1;
         config.gc_grow = vm_str_to_num(argv[i]);
         continue;
       }
-      if (!strcmp(argv[i], "--shrink")) {
+      if (!strcmp(argv[i], "--gc-shrink")) {
         if (i + 1 == argc) {
-          printf("cli: expected an argument to --shrink\n");
+          printf("cli: expected an argument to %s\n", argv[i]);
           return 1;
         }
         i += 1;
-        if (!strcmp(argv[i], "true") || strcmp(argv[i], "yes") || !strcmp(argv[i], "1")) {
+        if (!strcmp(argv[i], "true") || !strcmp(argv[i], "yes") || !strcmp(argv[i], "1")) {
           config.gc_shrink = 1;
           continue;
         }
-        if (!strcmp(argv[i], "false") || strcmp(argv[i], "no") || !strcmp(argv[i], "0")) {
+        if (!strcmp(argv[i], "false") || !strcmp(argv[i], "no") || !strcmp(argv[i], "0")) {
           config.gc_shrink = 0;
           continue;
         }
+        printf("unknown option to %s: %s\n", argv[i-1], argv[i]);
+        return 1;
       }
-      if (!strcmp(argv[i], "--init")) {
+      if (!strcmp(argv[i], "--gc-memory")) {
         if (i + 1 == argc) {
-          printf("cli: expected an argument to --init\n");
+          printf("cli: expected an argument to %s\n", argv[i]);
           return 1;
         }
         i += 1;

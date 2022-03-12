@@ -17,19 +17,21 @@ union vm_gc_slot_t {
 };
 
 struct vm_gc_t {
-  size_t used;
-  size_t alloc;
+  size_t heap_used;
+  size_t heap_alloc;
   vm_gc_slot_t *heap;
   vm_gc_slot_t *off_heap;
   vm_obj_t *start;
   vm_obj_t *end;
   size_t max;
   size_t grow;
+  size_t count;
+  double time;
   size_t shrink: 1;
 };
 
 vm_gc_t vm_gc_init(vm_config_t config);
-void vm_gc_deinit(vm_gc_t gc, vm_config_t config);
+void vm_gc_deinit(vm_gc_t gc);
 
 void vm_gc_collect(vm_gc_t *gc);
 

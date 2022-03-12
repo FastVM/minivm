@@ -629,6 +629,6 @@ do_bltei : {
 int vm_run(vm_config_t config, size_t nops, vm_opcode_t *ops, size_t nargs, const char **args) {
   vm_gc_t gc = vm_gc_init(config);
   int res = vm_run_from(&gc, nops, ops, vm_global_from(&gc, nargs, args));
-  vm_gc_deinit(gc, config);
+  vm_gc_deinit(gc);
   return res;
 }
