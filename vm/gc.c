@@ -92,9 +92,9 @@ vm_gc_t vm_gc_init(vm_config_t config) {
   ret.time = 0;
   ret.count = 0;
   ret.heap_used = 0;
-  ret.grow = config.gc_grow;
+  ret.grow = config.gc_ents;
   ret.max = config.gc_init;
-  ret.heap_alloc = config.gc_init;
+  ret.heap_alloc = config.gc_ents;
   ret.heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.heap_alloc);
   ret.off_heap = vm_malloc(sizeof(vm_gc_slot_t) * ret.heap_alloc);
   ret.start = NULL;

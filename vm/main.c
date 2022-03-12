@@ -63,13 +63,13 @@ int main(int argc, const char **argv) {
 
   for (size_t i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
-      if (!strcmp(argv[i], "--gc-grow")) {
+      if (!strcmp(argv[i], "--gc-enries")) {
         if (i + 1 == argc) {
           printf("cli: expected an argument to %s\n", argv[i]);
           return 1;
         }
         i += 1;
-        config.gc_grow = vm_str_to_num(argv[i]);
+        config.gc_ents = vm_str_to_num(argv[i]);
         continue;
       }
       if (!strcmp(argv[i], "--gc-shrink")) {
