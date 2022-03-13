@@ -89,8 +89,6 @@ void vm_gc_grow(vm_gc_t *gc, size_t count) {
 
 vm_gc_t vm_gc_init(vm_config_t config) {
   vm_gc_t ret;
-  ret.time = 0;
-  ret.count = 0;
   ret.heap_used = 0;
   ret.grow = config.gc_ents;
   ret.max = config.gc_init;

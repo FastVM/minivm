@@ -25,8 +25,6 @@ struct vm_gc_t {
   vm_obj_t *end;
   size_t max;
   size_t grow;
-  size_t count;
-  double time;
   size_t shrink: 1;
 };
 
