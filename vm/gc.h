@@ -25,7 +25,7 @@ struct vm_gc_t {
   vm_obj_t *end;
   size_t max;
   size_t grow;
-  size_t shrink: 1;
+  size_t shrink;
 };
 
 vm_gc_t vm_gc_init(vm_config_t config);
@@ -36,6 +36,6 @@ void vm_gc_collect(vm_gc_t *gc);
 void vm_gc_set_locals(vm_gc_t *gc, size_t nlocals, vm_obj_t *locals);
 vm_obj_t vm_gc_new(vm_gc_t *gc, size_t count);
 
-size_t vm_gc_len(vm_gc_t *gc, vm_obj_t obj);
-vm_obj_t vm_gc_get(vm_gc_t *gc, vm_obj_t obj, size_t index);
-void vm_gc_set(vm_gc_t *gc, vm_obj_t obj, size_t index, vm_obj_t value);
+#define vm_gc_get(gc_, obj_, index_) ((gc_)->heap[(size_t)(obj_) / 2 + (size_t)(index_)].val)
+#define vm_gc_set(gc_, obj_, index_, value_) ((gc_)->heap[(size_t)(obj_) / 2 + (size_t)(index_)].val = (value_))
+#define vm_gc_len(gc_, obj_) ((size_t)(gc_)->heap[(size_t)(obj_) / 2 - 1].len / 2)

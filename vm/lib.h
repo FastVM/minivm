@@ -21,19 +21,26 @@ typedef __INT64_TYPE__ int64_t;
 struct FILE;
 typedef struct FILE FILE;
 
-#if defined(VM_IMPL_STRLEN)
-static inline size_t strlen(const char *str) {
+static inline size_t vm_strlen(const char *str) {
   size_t len = 0;
   while (str[len] != '\0') {
     len += 1;
   }
   return len;
 }
-#else
-size_t strlen(const char *str);
-#endif
 
-int strcmp(const char *s1, const char *s2);
+static inline int vm_streq(const char *str1, const char *str2) {
+  for (;;) {
+    if (*str1 != *str2) {
+      return 0;
+    }
+    if (*str1 == '\0') {
+      return 1;
+    }
+    str1 += 1;
+    str2 += 1;
+  }
+}
 
 void *malloc(size_t size);
 void *calloc(size_t nmemb, size_t size);

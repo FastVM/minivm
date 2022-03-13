@@ -20,7 +20,7 @@ typedef struct vm_config_t vm_config_t;
 struct vm_config_t {
   size_t gc_ents;
   size_t gc_init;
-  size_t gc_shrink: 1;
+  size_t gc_shrink;
 };
 
 static inline vm_config_t vm_config_init(void) {
