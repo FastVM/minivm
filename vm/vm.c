@@ -9,9 +9,9 @@
 // - `&&do_whatever` means get address of code at `do_whatever`
 // - `vm_jump_next();` means run the next opcode
 
+#include "vm.h"
 #include "gc.h"
 #include "lib.h"
-#include "vm.h"
 
 #define vm_read() (ops[index++].arg)
 #define vm_jump_next() goto *ops[index++].op
@@ -164,6 +164,10 @@ int vm_table_opt(size_t nops, vm_opcode_t *ops, void *const *const ptrs) {
     case VM_OPCODE_BLTEI:
       i += 4;
       break;
+    case VM_OPCODE_CALL_DYN: {
+      size_t nargs = ops[i + 3].arg;
+      i += 3 + nargs;
+    } break;
     default:
       printf("unknown opcode: %p\n", ops[i].op);
       return 1;
@@ -176,26 +180,27 @@ int vm_table_opt(size_t nops, vm_opcode_t *ops, void *const *const ptrs) {
 int vm_run_from(vm_gc_t *gc, size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
   // our dear jump table
   static void *const ptrs[] = {
-      [VM_OPCODE_EXIT] = &&do_exit,       [VM_OPCODE_REG] = &&do_store_reg,
-      [VM_OPCODE_BB] = &&do_branch_bool,  [VM_OPCODE_INT] = &&do_store_int,
-      [VM_OPCODE_JUMP] = &&do_jump,       [VM_OPCODE_FUNC] = &&do_func,
-      [VM_OPCODE_ADD] = &&do_add,         [VM_OPCODE_SUB] = &&do_sub,
-      [VM_OPCODE_MUL] = &&do_mul,         [VM_OPCODE_DIV] = &&do_div,
-      [VM_OPCODE_MOD] = &&do_mod,         [VM_OPCODE_POW] = &&do_pow,
-      [VM_OPCODE_CALL] = &&do_call,       [VM_OPCODE_RETURN] = &&do_return,
-      [VM_OPCODE_PUTCHAR] = &&do_putchar, [VM_OPCODE_STRING] = &&do_string,
-      [VM_OPCODE_LENGTH] = &&do_length,   [VM_OPCODE_GET] = &&do_get,
-      [VM_OPCODE_SET] = &&do_set,         [VM_OPCODE_DUMP] = &&do_dump,
-      [VM_OPCODE_READ] = &&do_read,       [VM_OPCODE_WRITE] = &&do_write,
-      [VM_OPCODE_ARRAY] = &&do_array,     [VM_OPCODE_CAT] = &&do_cat,
-      [VM_OPCODE_BEQ] = &&do_beq,         [VM_OPCODE_BLT] = &&do_blt,
-      [VM_OPCODE_ADDI] = &&do_addi,       [VM_OPCDOE_SUBI] = &&do_subi,
-      [VM_OPCDOE_MULI] = &&do_muli,       [VM_OPCODE_DIVI] = &&do_divi,
-      [VM_OPCODE_MODI] = &&do_modi,       [VM_OPCODE_CALL0] = &&do_call0,
-      [VM_OPCODE_CALL1] = &&do_call1,     [VM_OPCODE_CALL2] = &&do_call2,
-      [VM_OPCODE_CALL3] = &&do_call3,     [VM_OPCODE_GETI] = &&do_geti,
-      [VM_OPCODE_SETI] = &&do_seti,       [VM_OPCODE_BEQI] = &&do_beqi,
-      [VM_OPCODE_BLTI] = &&do_blti,       [VM_OPCODE_BLTEI] = &&do_bltei,
+      [VM_OPCODE_EXIT] = &&do_exit,         [VM_OPCODE_REG] = &&do_store_reg,
+      [VM_OPCODE_BB] = &&do_branch_bool,    [VM_OPCODE_INT] = &&do_store_int,
+      [VM_OPCODE_JUMP] = &&do_jump,         [VM_OPCODE_FUNC] = &&do_func,
+      [VM_OPCODE_ADD] = &&do_add,           [VM_OPCODE_SUB] = &&do_sub,
+      [VM_OPCODE_MUL] = &&do_mul,           [VM_OPCODE_DIV] = &&do_div,
+      [VM_OPCODE_MOD] = &&do_mod,           [VM_OPCODE_POW] = &&do_pow,
+      [VM_OPCODE_CALL] = &&do_call,         [VM_OPCODE_RETURN] = &&do_return,
+      [VM_OPCODE_PUTCHAR] = &&do_putchar,   [VM_OPCODE_STRING] = &&do_string,
+      [VM_OPCODE_LENGTH] = &&do_length,     [VM_OPCODE_GET] = &&do_get,
+      [VM_OPCODE_SET] = &&do_set,           [VM_OPCODE_DUMP] = &&do_dump,
+      [VM_OPCODE_READ] = &&do_read,         [VM_OPCODE_WRITE] = &&do_write,
+      [VM_OPCODE_ARRAY] = &&do_array,       [VM_OPCODE_CAT] = &&do_cat,
+      [VM_OPCODE_BEQ] = &&do_beq,           [VM_OPCODE_BLT] = &&do_blt,
+      [VM_OPCODE_ADDI] = &&do_addi,         [VM_OPCDOE_SUBI] = &&do_subi,
+      [VM_OPCDOE_MULI] = &&do_muli,         [VM_OPCODE_DIVI] = &&do_divi,
+      [VM_OPCODE_MODI] = &&do_modi,         [VM_OPCODE_CALL0] = &&do_call0,
+      [VM_OPCODE_CALL1] = &&do_call1,       [VM_OPCODE_CALL2] = &&do_call2,
+      [VM_OPCODE_CALL3] = &&do_call3,       [VM_OPCODE_GETI] = &&do_geti,
+      [VM_OPCODE_SETI] = &&do_seti,         [VM_OPCODE_BEQI] = &&do_beqi,
+      [VM_OPCODE_BLTI] = &&do_blti,         [VM_OPCODE_BLTEI] = &&do_bltei,
+      [VM_OPCODE_CALL_DYN] = &&do_call_dyn,
   };
   if (vm_table_opt(nops, ops, ptrs)) {
     return 1;
@@ -381,7 +386,7 @@ do_dump : {
   char *name = vm_malloc(sizeof(char) * (slen + 1));
   for (vm_counter_t i = 0; i < slen; i++) {
     vm_obj_t obj = vm_gc_get(gc, sname, i);
-    name[i] = (char) vm_obj_to_num(obj);
+    name[i] = (char)vm_obj_to_num(obj);
   }
   name[slen] = '\0';
   vm_obj_t ent = locals[vm_read()];
@@ -390,7 +395,7 @@ do_dump : {
   vm_free(name);
   for (vm_counter_t i = 0; i < xlen; i++) {
     vm_obj_t obj = vm_gc_get(gc, ent, i);
-    vm_file_opcode_t op = (vm_file_opcode_t) vm_obj_to_num(obj);
+    vm_file_opcode_t op = (vm_file_opcode_t)vm_obj_to_num(obj);
     fwrite(&op, sizeof(vm_file_opcode_t), 1, out);
   }
   fclose(out);
@@ -402,7 +407,7 @@ do_read : {
   size_t slen = vm_gc_len(gc, sname);
   char *name = vm_malloc(sizeof(char) * (slen + 1));
   for (vm_counter_t i = 0; i < slen; i++) {
-    name[i] = (char) vm_obj_to_num(vm_gc_get(gc, sname, i));
+    name[i] = (char)vm_obj_to_num(vm_gc_get(gc, sname, i));
   }
   name[slen] = '\0';
   size_t where = 0;
@@ -447,7 +452,7 @@ do_write : {
   char *name = vm_malloc(sizeof(char) * (slen + 1));
   for (vm_counter_t i = 0; i < slen; i++) {
     vm_obj_t obj = vm_gc_get(gc, sname, i);
-    name[i] = (char) vm_obj_to_num(obj);
+    name[i] = (char)vm_obj_to_num(obj);
   }
   name[slen] = '\0';
   vm_obj_t ent = locals[vm_read()];
@@ -456,7 +461,7 @@ do_write : {
   vm_free(name);
   for (vm_counter_t i = 0; i < xlen; i++) {
     vm_obj_t obj = vm_gc_get(gc, ent, i);
-    uint8_t op = (uint8_t) vm_obj_to_num(obj);
+    uint8_t op = (uint8_t)vm_obj_to_num(obj);
     fwrite(&op, 1, sizeof(uint8_t), out);
   }
   fclose(out);
@@ -505,35 +510,35 @@ do_addi : {
   size_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  locals[to] = vm_obj_num(vm_obj_to_num(lhs) + (vm_number_t) rhs);
+  locals[to] = vm_obj_num(vm_obj_to_num(lhs) + (vm_number_t)rhs);
   vm_jump_next();
 }
 do_subi : {
   size_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  locals[to] = vm_obj_num(vm_obj_to_num(lhs) - (vm_number_t) rhs);
+  locals[to] = vm_obj_num(vm_obj_to_num(lhs) - (vm_number_t)rhs);
   vm_jump_next();
 }
 do_muli : {
   size_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  locals[to] = vm_obj_num(vm_obj_to_num(lhs) * (vm_number_t) rhs);
+  locals[to] = vm_obj_num(vm_obj_to_num(lhs) * (vm_number_t)rhs);
   vm_jump_next();
 }
 do_divi : {
   size_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  locals[to] = vm_obj_num(vm_obj_to_num(lhs) / (vm_number_t) rhs);
+  locals[to] = vm_obj_num(vm_obj_to_num(lhs) / (vm_number_t)rhs);
   vm_jump_next();
 }
 do_modi : {
   size_t to = vm_read();
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  locals[to] = vm_obj_num(vm_obj_to_num(lhs) % (vm_number_t) rhs);
+  locals[to] = vm_obj_num(vm_obj_to_num(lhs) % (vm_number_t)rhs);
   vm_jump_next();
 }
 do_call0 : {
@@ -607,25 +612,44 @@ do_seti : {
 do_beqi : {
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  index = ops[index + (vm_obj_to_num(lhs) == (vm_number_t) rhs)].arg;
+  index = ops[index + (vm_obj_to_num(lhs) == (vm_number_t)rhs)].arg;
   vm_jump_next();
 }
 do_blti : {
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  index = ops[index + (vm_obj_to_num(lhs) < (vm_number_t)  rhs)].arg;
+  index = ops[index + (vm_obj_to_num(lhs) < (vm_number_t)rhs)].arg;
   vm_jump_next();
 }
 do_bltei : {
   vm_obj_t lhs = locals[vm_read()];
   size_t rhs = vm_read();
-  index = ops[index + (vm_obj_to_num(lhs) <= (vm_number_t) rhs)].arg;
+  index = ops[index + (vm_obj_to_num(lhs) <= (vm_number_t)rhs)].arg;
+  vm_jump_next();
+}
+do_call_dyn : {
+  size_t outreg = vm_read();
+  size_t next_func_reg = vm_read();
+  size_t next_func = vm_obj_to_num(locals[next_func_reg]);
+  size_t nargs = vm_read();
+  vm_obj_t *next_locals = locals + frame->nlocals;
+  for (size_t argno = 1; argno <= nargs; argno++) {
+    size_t regno = vm_read();
+    next_locals[argno] = locals[regno];
+  }
+  locals = next_locals;
+  frame->index = index;
+  frame->outreg = outreg;
+  frame++;
+  frame->nlocals = ops[next_func - 1].arg;
+  index = next_func;
   vm_jump_next();
 }
 }
 
 /// allocates locals for the program and calls the vm hot loop
-int vm_run(vm_config_t config, size_t nops, vm_opcode_t *ops, size_t nargs, const char **args) {
+int vm_run(vm_config_t config, size_t nops, vm_opcode_t *ops, size_t nargs,
+           const char **args) {
   vm_gc_t gc = vm_gc_init(config);
   int res = vm_run_from(&gc, nops, ops, vm_global_from(&gc, nargs, args));
   vm_gc_deinit(gc);
