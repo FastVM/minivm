@@ -125,10 +125,10 @@ int vm_table_opt(size_t nops, vm_opcode_t *ops, void *const *const ptrs) {
     case VM_OPCODE_ADDI:
       i += 3;
       break;
-    case VM_OPCDOE_SUBI:
+    case VM_OPCODE_SUBI:
       i += 3;
       break;
-    case VM_OPCDOE_MULI:
+    case VM_OPCODE_MULI:
       i += 3;
       break;
     case VM_OPCODE_DIVI:
@@ -193,8 +193,8 @@ int vm_run_from(vm_gc_t *gc, size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
       [VM_OPCODE_READ] = &&do_read,         [VM_OPCODE_WRITE] = &&do_write,
       [VM_OPCODE_ARRAY] = &&do_array,       [VM_OPCODE_CAT] = &&do_cat,
       [VM_OPCODE_BEQ] = &&do_beq,           [VM_OPCODE_BLT] = &&do_blt,
-      [VM_OPCODE_ADDI] = &&do_addi,         [VM_OPCDOE_SUBI] = &&do_subi,
-      [VM_OPCDOE_MULI] = &&do_muli,         [VM_OPCODE_DIVI] = &&do_divi,
+      [VM_OPCODE_ADDI] = &&do_addi,         [VM_OPCODE_SUBI] = &&do_subi,
+      [VM_OPCODE_MULI] = &&do_muli,         [VM_OPCODE_DIVI] = &&do_divi,
       [VM_OPCODE_MODI] = &&do_modi,         [VM_OPCODE_CALL0] = &&do_call0,
       [VM_OPCODE_CALL1] = &&do_call1,       [VM_OPCODE_CALL2] = &&do_call2,
       [VM_OPCODE_CALL3] = &&do_call3,       [VM_OPCODE_GETI] = &&do_geti,

@@ -172,11 +172,11 @@ void vm_disassemble(const int *ops, size_t nops, int indent) {
       printf("add r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
-    case VM_OPCDOE_SUBI:
+    case VM_OPCODE_SUBI:
       printf("sub r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
-    case VM_OPCDOE_MULI:
+    case VM_OPCODE_MULI:
       printf("mul r%i r%i %i\n", ops[i + 1], ops[i + 2], ops[i + 3]);
       i += 3;
       break;
