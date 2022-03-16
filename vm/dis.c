@@ -229,6 +229,17 @@ void vm_disassemble(const int *ops, size_t nops, int indent) {
              ops[i + 4]);
       i += 4;
       break;
+    case VM_OPCODE_CALL_DYN:
+      printf("call r%i r%i (", ops[i + 1], ops[i + 2]);
+      const int nargs = ops[i + 3];
+      const int farg = i + 4;
+      for (int a = 0; a < nargs; ++a) {
+        if (a != 0) {
+          printf(" ");
+        }
+        printf("r%i", ops[farg + a]);
+      }
+      printf(")");
     default:
       printf("unknown opcode: %d\n", op);
       // disassembly may not be reliable after an unknown opcode
