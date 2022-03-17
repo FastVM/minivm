@@ -91,7 +91,7 @@ void vm_disassemble(const int *ops, size_t nops, int indent) {
         }
         printf("r%i", ops[farg + a]);
       }
-      printf(")");
+      printf(")\n");
       i += 3 + nargs;
     } break;
     case VM_OPCODE_RETURN:
