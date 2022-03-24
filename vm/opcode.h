@@ -44,6 +44,7 @@ enum {
   VM_OPCODE_BLTI = 38,
   VM_OPCODE_BLTEI = 39,
   VM_OPCODE_CALL_DYN = 40,
+  VM_OPCODE_CALL_EXT = 41,
 };
 
 typedef int32_t vm_file_opcode_t;

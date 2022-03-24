@@ -53,6 +53,10 @@ static inline size_t vm_str_to_num(const char *str) {
   return ret;
 }
 
+vm_obj_t vm_run_ext(vm_gc_t *gc, size_t func, vm_obj_t obj) {
+  return vm_obj_num(0);
+}
+
 int main(int rargc, const char **argv) {
   size_t argc = (size_t) rargc;
   

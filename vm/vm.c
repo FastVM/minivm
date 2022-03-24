@@ -168,6 +168,9 @@ int vm_table_opt(size_t nops, vm_opcode_t *ops, void *const *const ptrs) {
       size_t nargs = ops[i + 3].arg;
       i += 3 + nargs;
     } break;
+    case VM_OPCODE_CALL_EXT:
+      i += 3;
+      break;
     default:
       printf("unknown opcode: %p\n", ops[i].op);
       return 1;
@@ -200,7 +203,7 @@ int vm_run_from(vm_gc_t *gc, size_t nops, vm_opcode_t *ops, vm_obj_t globals) {
       [VM_OPCODE_CALL3] = &&do_call3,       [VM_OPCODE_GETI] = &&do_geti,
       [VM_OPCODE_SETI] = &&do_seti,         [VM_OPCODE_BEQI] = &&do_beqi,
       [VM_OPCODE_BLTI] = &&do_blti,         [VM_OPCODE_BLTEI] = &&do_bltei,
-      [VM_OPCODE_CALL_DYN] = &&do_call_dyn,
+      [VM_OPCODE_CALL_DYN] = &&do_call_dyn, [VM_OPCODE_CALL_EXT] = &&do_call_ext,
   };
   if (vm_table_opt(nops, ops, ptrs)) {
     return 1;
@@ -643,6 +646,13 @@ do_call_dyn : {
   frame++;
   frame->nlocals = ops[next_func - 1].arg;
   index = next_func;
+  vm_jump_next();
+}
+do_call_ext : {
+  size_t outreg = vm_read();
+  size_t next_func = vm_read();
+  size_t inreg = vm_read();
+  locals[outreg] = vm_run_ext(gc, next_func, locals[inreg]);
   vm_jump_next();
 }
 }
