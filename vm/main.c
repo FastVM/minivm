@@ -19,7 +19,7 @@ static inline vm_io_res_t vm_io_read(const char *filename) {
         .err = "cannot run vm: file to run could not be read",
     };
   }
-  size_t nalloc = 1 << 8;
+  size_t nalloc = 1 << 16;
   vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * nalloc);
   size_t nops = 0;
   size_t size;
@@ -30,8 +30,9 @@ static inline vm_io_res_t vm_io_read(const char *filename) {
       break;
     }
     if (nops + 1 >= nalloc) {
-      nalloc *= 4;
-      ops = vm_realloc(ops, sizeof(vm_opcode_t) * nalloc);
+      return (vm_io_res_t){
+          .err = "cannot run vm: file to run could not be read",
+      };
     }
     ops[nops++] = (size_t) op;
   }
