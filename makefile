@@ -5,15 +5,12 @@ SRCS := vm/vm.c vm/main.c
 
 default: all
 
-all: minivm dis
+all: minivm
 
 minivm: .dummy
 	$(CC) $(OPT) $(SRCS) -o minivm $(CFLAGS)
 
-dis: .dummy
-	$(CC) $(OPT) vm/dis.c -o dis $(CFLAGS)
-
 .dummy:
 
 clean: .dummy
-	rm -f $(OBJS) minivm dis minivm.profdata minivm.profraw
+	rm -f $(OBJS) minivm minivm.profdata minivm.profraw
