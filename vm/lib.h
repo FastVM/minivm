@@ -13,8 +13,8 @@ typedef __UINT8_TYPE__ uint8_t;
 #include <stdint.h>
 #endif
 
-#if defined(__INT32_TYPE__)
-typedef __INT32_TYPE__ int32_t;
+#if defined(__UINT16_TYPE__)
+typedef __UINT16_TYPE__ uint16_t;
 #else
 #include <stdint.h>
 #endif

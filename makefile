@@ -1,7 +1,7 @@
 
 OPT ?= -Os
 
-SRCS := vm/vm.c vm/gc.c vm/main.c
+SRCS := vm/vm.c vm/main.c
 
 default: all
 

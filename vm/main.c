@@ -24,8 +24,8 @@ static inline vm_io_res_t vm_io_read(const char *filename) {
   size_t nops = 0;
   size_t size;
   for (;;) {
-    vm_file_opcode_t op = 0;
-    size = fread(&op, sizeof(vm_file_opcode_t), 1, file);
+    vm_opcode_t op = 0;
+    size = fread(&op, sizeof(vm_opcode_t), 1, file);
     if (size == 0) {
       break;
     }
@@ -53,7 +53,7 @@ static inline size_t vm_str_to_num(const char *str) {
   return ret;
 }
 
-vm_obj_t vm_run_ext(vm_gc_t *gc, size_t func, vm_obj_t obj) {
+vm_obj_t vm_run_ext(size_t func, vm_obj_t obj) {
   return vm_obj_num(0);
 }
 
@@ -138,7 +138,7 @@ int main(int rargc, const char **argv) {
     printf("%s\n", ops.err);
     return 1;
   }
-  int res = vm_run(config, ops.nops, ops.ops, nargs, args);
+  int res = vm_run(ops.nops, ops.ops);
   vm_free(ops.ops);
   return res;
 }
