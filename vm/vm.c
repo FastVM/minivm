@@ -23,7 +23,7 @@ typedef struct {
 } vm_frame_t;
 
 /// VM hot loop
-int vm_run(size_t nops, vm_opcode_t *ops) {
+int vm_run(size_t nops, const vm_opcode_t *ops) {
   // our dear jump table
   static void *const ptrs[] = {
     [VM_OPCODE_EXIT] = &&do_exit,
@@ -47,10 +47,10 @@ int vm_run(size_t nops, vm_opcode_t *ops) {
     [VM_OPCODE_CONS] = &&do_cons,
     [VM_OPCODE_CAR] = &&do_car,
     [VM_OPCODE_CDR] = &&do_cdr,
-    [VM_OCPODE_FREE] = &&do_free,
+    [VM_OPCODE_FREE] = &&do_free,
   };
   vm_opcode_t index = 0;
-  vm_obj_t *locals_base = vm_calloc(sizeof(vm_obj_t) * (1 << 16));
+  vm_obj_t *locals_base = vm_malloc(sizeof(vm_obj_t) * (1 << 16));
   vm_obj_t *locals = locals_base;
   vm_frame_t *frames = vm_malloc(sizeof(vm_frame_t) * (1 << 10));
   vm_frame_t *frame = &frames[0];
@@ -62,52 +62,6 @@ do_exit : {
   vm_free(locals_base);
   vm_free(frames);
   return 0;
-}
-do_cons : {
-  vm_opcode_t outreg = vm_read();
-  vm_obj_t car = locals[vm_read()];
-  vm_obj_t cdr = locals[vm_read()];
-  vm_obj_t *pair = vm_malloc(sizeof(vm_obj_t) * 2);
-  pair[0] = car;
-  pair[1] = cdr;
-  locals[outreg] = vm_obj_pair(pair);
-  vm_jump_next();
-}
-do_car : {
-  vm_opcode_t outreg = vm_read();
-  vm_obj_t pair = locals[vm_read()];
-  locals[outreg] = vm_obj_car(pair);
-  vm_jump_next();
-}
-do_cdr : {
-  vm_opcode_t outreg = vm_read();
-  vm_obj_t pair = locals[vm_read()];
-  locals[outreg] = vm_obj_cdr(pair);
-  vm_jump_next();
-}
-do_free : {
-  vm_free(vm_obj_to_pair(locals[vm_read()]));
-  vm_jump_next();
-}
-do_return : {
-  vm_opcode_t from = vm_read();
-  vm_obj_t val = locals[from];
-  frame--;
-  locals = locals - frame->nlocals;
-  vm_opcode_t outreg = frame->outreg;
-  locals[outreg] = val;
-  index = frame->index;
-  vm_jump_next();
-}
-do_bb : {
-  vm_opcode_t from = vm_read();
-  if (vm_obj_to_num(locals[from])) {
-    index = ops[index + 1];
-    vm_jump_next();
-  } else {
-    index = ops[index];
-    vm_jump_next();
-  }
 }
 do_reg : {
   vm_opcode_t to = vm_read();
@@ -186,11 +140,31 @@ do_call : {
   index = next_func;
   vm_jump_next();
 }
+do_return : {
+  vm_opcode_t from = vm_read();
+  vm_obj_t val = locals[from];
+  frame--;
+  locals = locals - frame->nlocals;
+  vm_opcode_t outreg = frame->outreg;
+  locals[outreg] = val;
+  index = frame->index;
+  vm_jump_next();
+}
 do_putchar : {
   vm_opcode_t from = vm_read();
   int val = (int) vm_obj_to_num(locals[from]);
   printf("%c", (int)val);
   vm_jump_next();
+}
+do_bb : {
+  vm_opcode_t from = vm_read();
+  if (vm_obj_to_num(locals[from])) {
+    index = ops[index + 1];
+    vm_jump_next();
+  } else {
+    index = ops[index];
+    vm_jump_next();
+  }
 }
 do_eq : {
   vm_opcode_t outreg = vm_read();
@@ -229,6 +203,32 @@ do_xcall : {
   vm_opcode_t next_func = vm_read();
   vm_opcode_t inreg = vm_read();
   locals[outreg] = vm_run_ext(next_func, locals[inreg]);
+  vm_jump_next();
+}
+do_cons : {
+  vm_opcode_t outreg = vm_read();
+  vm_obj_t car = locals[vm_read()];
+  vm_obj_t cdr = locals[vm_read()];
+  vm_obj_t *pair = vm_malloc(sizeof(vm_obj_t) * 2);
+  pair[0] = car;
+  pair[1] = cdr;
+  locals[outreg] = vm_obj_pair(pair);
+  vm_jump_next();
+}
+do_car : {
+  vm_opcode_t outreg = vm_read();
+  vm_obj_t pair = locals[vm_read()];
+  locals[outreg] = vm_obj_car(pair);
+  vm_jump_next();
+}
+do_cdr : {
+  vm_opcode_t outreg = vm_read();
+  vm_obj_t pair = locals[vm_read()];
+  locals[outreg] = vm_obj_cdr(pair);
+  vm_jump_next();
+}
+do_free : {
+  vm_free(vm_obj_to_pair(locals[vm_read()]));
   vm_jump_next();
 }
 }

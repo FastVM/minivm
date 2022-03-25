@@ -24,7 +24,7 @@ enum {
   VM_OPCODE_CONS = 18,
   VM_OPCODE_CAR = 19,
   VM_OPCODE_CDR = 20,
-  VM_OCPODE_FREE = 21,
+  VM_OPCODE_FREE = 21,
 };
 
 typedef uint16_t vm_opcode_t;

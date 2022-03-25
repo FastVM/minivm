@@ -10,12 +10,15 @@ union vm_obj_t {
     vm_obj_t *pair;
 };
 
-#define vm_obj_num(n_) ((vm_obj_t){.num = n_})
+#define vm_obj_num(n_) ((vm_obj_t){.num = ((n_) << 1) | 1})
 #define vm_obj_pair(p_) ((vm_obj_t){.pair = p_})
 
-#define vm_obj_to_num(o_) ((o_).num)
+#define vm_obj_to_num(o_) ((o_).num >> 1)
 #define vm_obj_to_pair(o_) ((o_).pair)
 
 #define vm_obj_car(o_) ((o_).pair[0])
 #define vm_obj_cdr(o_) ((o_).pair[1])
+
+#define vm_obj_is_num(o_) ((o_).num % 2 == 1)
+#define vm_obj_is_pair(o_) ((o_).num % 2 == 0)
 

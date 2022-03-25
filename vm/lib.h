@@ -47,12 +47,8 @@ static inline int vm_streq(const char *str1, const char *str2) {
 }
 
 void *malloc(size_t size);
-void *calloc(size_t nmemb, size_t size);
-void *realloc(void *ptr, size_t n);
 void free(void *ptr);
 #define vm_malloc(size) (malloc(size))
-#define vm_calloc(size) (calloc(1, size))
-#define vm_realloc(ptr, size) (realloc(ptr, size))
 #define vm_free(ptr) (free(ptr))
 
 int printf(const char *src, ...);
