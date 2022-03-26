@@ -50,17 +50,23 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     [VM_OPCODE_FREE] = &&do_free,
   };
   vm_opcode_t index = 0;
-  vm_obj_t *locals_base = vm_malloc(sizeof(vm_obj_t) * (1 << 16));
-  vm_obj_t *locals = locals_base;
-  vm_frame_t *frames = vm_malloc(sizeof(vm_frame_t) * (1 << 10));
-  vm_frame_t *frame = &frames[0];
+  
+  size_t locals_alloc = 256;
+  vm_obj_t *locals_base = vm_malloc(sizeof(vm_obj_t) * locals_alloc);
+  vm_obj_t *locals_max = locals_base + locals_alloc;
+  vm_obj_t *locals = &locals_base[0];
+
+  size_t frames_alloc = 8;
+  vm_frame_t *frames_base = vm_malloc(sizeof(vm_frame_t) * frames_alloc);
+  vm_frame_t *frames_max = frames_base + frames_alloc; 
+  vm_frame_t *frame = &frames_base[0];
   frame->nlocals = 0;
   frame += 1;
-  frame->nlocals = 256;
+  frame->nlocals = 16;
   vm_jump_next();
 do_exit : {
   vm_free(locals_base);
-  vm_free(frames);
+  vm_free(frames_base);
   return 0;
 }
 do_reg : {
@@ -127,6 +133,18 @@ do_call : {
   vm_opcode_t outreg = vm_read();
   vm_opcode_t next_func = vm_read();
   vm_opcode_t nargs = vm_read();
+  size_t nregs = ops[next_func - 1];
+  vm_obj_t *max_write = locals + frame->nlocals + nregs + nargs;
+  if (max_write >= locals_max) {
+    size_t nth = locals - locals_base;
+    size_t needed = max_write - locals_base;
+    while (locals_alloc < needed) {
+      locals_alloc *= 4;
+    }
+    locals_base = vm_realloc(locals_base, sizeof(vm_obj_t) * locals_alloc);
+    locals = &locals_base[nth];
+    locals_max = locals_base + locals_alloc;
+  }
   vm_obj_t *next_locals = locals + frame->nlocals;
   for (vm_opcode_t argno = 1; argno <= nargs; argno++) {
     vm_opcode_t regno = vm_read();
@@ -136,7 +154,14 @@ do_call : {
   frame->index = index;
   frame->outreg = outreg;
   frame++;
-  frame->nlocals = ops[next_func - 1];
+  if (frame == frames_max) {
+    size_t nth = frame - frames_base;
+    frames_alloc *= 4;
+    frames_base = vm_realloc(frames_base, sizeof(vm_frame_t) * frames_alloc);
+    frame = &frames_base[nth];
+    frames_max = frames_base + frames_alloc;
+  }
+  frame->nlocals = nregs;
   index = next_func;
   vm_jump_next();
 }
@@ -182,9 +207,20 @@ do_lt : {
 }
 do_dcall : {
   vm_opcode_t outreg = vm_read();
-  vm_opcode_t next_func_reg = vm_read();
-  vm_opcode_t next_func = vm_obj_to_num(locals[next_func_reg]);
+  vm_opcode_t next_func = vm_obj_to_num(locals[vm_read()]);
   vm_opcode_t nargs = vm_read();
+  size_t nregs = ops[next_func - 1];
+  vm_obj_t *max_write = locals + frame->nlocals + nregs + nargs;
+  if (max_write >= locals_max) {
+    size_t nth = locals - locals_base;
+    size_t needed = max_write - locals_base;
+    while (locals_alloc < needed) {
+      locals_alloc *= 4;
+    }
+    locals_base = vm_realloc(locals_base, sizeof(vm_obj_t) * locals_alloc);
+    locals = &locals_base[nth];
+    locals_max = locals_base + locals_alloc;
+  }
   vm_obj_t *next_locals = locals + frame->nlocals;
   for (vm_opcode_t argno = 1; argno <= nargs; argno++) {
     vm_opcode_t regno = vm_read();
@@ -194,6 +230,13 @@ do_dcall : {
   frame->index = index;
   frame->outreg = outreg;
   frame++;
+  if (frame == frames_max) {
+    size_t nth = frame - frames_base;
+    frames_alloc *= 4;
+    frames_base = vm_realloc(frames_base, sizeof(vm_frame_t) * frames_alloc);
+    frame = &frames_base[nth];
+    frames_max = frames_base + frames_alloc;
+  }
   frame->nlocals = ops[next_func - 1];
   index = next_func;
   vm_jump_next();
