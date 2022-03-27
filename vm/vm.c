@@ -13,8 +13,50 @@
 #include "obj.h"
 #include "lib.h"
 
-#define vm_read() (ops[index++])
-#define vm_jump_next() goto *ptrs[ops[index++]]
+#if defined(VM_SAFE)
+#define VM_RETURN(x_) \
+  ({ \
+    vm_free(locals_base); \
+    locals_base = NULL; \
+    vm_free(frames_base); \
+    frames_base = NULL; \
+    return x_; \
+  })
+#define vm_read_at(where_) \
+  ({ \
+    vm_opcode_t ii = (where_);\
+    if (ii >= nops || ii < 0) { \
+      VM_RETURN(VM_RUN_UNK_ARG); \
+    } \
+    ops[ii]; \
+  })
+#define vm_read() vm_read_at(index++)
+#define vm_jump_next() \
+  ({ \
+    vm_opcode_t op = vm_read(); \
+    if (op >= VM_OPCODE_MAX) { \
+      VM_RETURN(VM_RUN_UNK_OPCODE); \
+    } \
+    if (op < 0) { \
+      VM_RETURN(VM_RUN_UNK_OPCODE); \
+    } \
+    goto *ptrs[op]; \
+  })
+#define vm_local(n_) \
+  ({ \
+    vm_obj_t *ret = &locals[n_];\
+    if (ret < locals || locals_max <= ret) { \
+      VM_RETURN(VM_RUN_BAD_LOCAL); \
+    } \
+    ret; \
+  })
+#else
+#define VM_RETURN(x_) ({return(x_);})
+#define vm_read_at(where_) (ops[(where_)])
+#define vm_read() (vm_read_at(index++))
+#define vm_jump_next() goto *ptrs[vm_read()]
+#define vm_local(n_) (&locals[n_])
+#endif
 
 typedef struct {
   vm_opcode_t outreg;
@@ -47,7 +89,6 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     [VM_OPCODE_CONS] = &&do_cons,
     [VM_OPCODE_CAR] = &&do_car,
     [VM_OPCODE_CDR] = &&do_cdr,
-    [VM_OPCODE_FREE] = &&do_free,
   };
   vm_opcode_t index = 0;
   
@@ -55,6 +96,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
   vm_obj_t *locals_base = vm_malloc(sizeof(vm_obj_t) * locals_alloc);
   vm_obj_t *locals_max = locals_base + locals_alloc;
   vm_obj_t *locals = &locals_base[0];
+  for (size_t i = 0; i < locals_alloc; i++) {
+    locals_base[i] = vm_obj_num(0);
+  }
 
   size_t frames_alloc = 8;
   vm_frame_t *frames_base = vm_malloc(sizeof(vm_frame_t) * frames_alloc);
@@ -65,90 +109,104 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
   frame->nlocals = 16;
   vm_jump_next();
 do_exit : {
-  vm_free(locals_base);
-  vm_free(frames_base);
-  return 0;
+  VM_RETURN(VM_RUN_OKAY);
 }
 do_reg : {
   vm_opcode_t to = vm_read();
   vm_opcode_t from = vm_read();
-  locals[to] = locals[from];
+  *vm_local(to) = *vm_local(from);
   vm_jump_next();
 }
 do_int : {
   vm_opcode_t to = vm_read();
   vm_opcode_t from = vm_read();
-  locals[to] = vm_obj_num(from);
+  *vm_local(to) = vm_obj_num(from);
   vm_jump_next();
 }
 do_jump : {
-  index = ops[index];
+  index = vm_read_at(index);
   vm_jump_next();
 }
 do_func : {
-  index = ops[index];
+  index = vm_read_at(index);
   vm_jump_next();
 }
 do_add : {
   vm_opcode_t to = vm_read();
   vm_opcode_t lhs = vm_read();
   vm_opcode_t rhs = vm_read();
-  locals[to] =
-      vm_obj_num(vm_obj_to_num(locals[lhs]) + vm_obj_to_num(locals[rhs]));
+  *vm_local(to) =
+      vm_obj_num(vm_obj_to_num(*vm_local(lhs)) + vm_obj_to_num(*vm_local(rhs)));
   vm_jump_next();
 }
 do_sub : {
   vm_opcode_t to = vm_read();
   vm_opcode_t lhs = vm_read();
   vm_opcode_t rhs = vm_read();
-  locals[to] =
-      vm_obj_num(vm_obj_to_num(locals[lhs]) - vm_obj_to_num(locals[rhs]));
+  *vm_local(to) =
+      vm_obj_num(vm_obj_to_num(*vm_local(lhs)) - vm_obj_to_num(*vm_local(rhs)));
   vm_jump_next();
 }
 do_mul : {
   vm_opcode_t to = vm_read();
   vm_opcode_t lhs = vm_read();
   vm_opcode_t rhs = vm_read();
-  locals[to] =
-      vm_obj_num(vm_obj_to_num(locals[lhs]) * vm_obj_to_num(locals[rhs]));
+  *vm_local(to) =
+      vm_obj_num(vm_obj_to_num(*vm_local(lhs)) * vm_obj_to_num(*vm_local(rhs)));
   vm_jump_next();
 }
 do_div : {
   vm_opcode_t to = vm_read();
   vm_opcode_t lhs = vm_read();
   vm_opcode_t rhs = vm_read();
-  locals[to] =
-      vm_obj_num(vm_obj_to_num(locals[lhs]) / vm_obj_to_num(locals[rhs]));
+  size_t lhsv = vm_obj_to_num(*vm_local(lhs));
+  size_t rhsv = vm_obj_to_num(*vm_local(rhs));
+#if defined(VM_SAFE)
+  if (rhsv == 0) {
+    VM_RETURN(VM_RUN_DIV_ZERO);
+  }
+#endif
+  *vm_local(to) = vm_obj_num(lhsv / rhsv);
   vm_jump_next();
 }
 do_mod : {
   vm_opcode_t to = vm_read();
   vm_opcode_t lhs = vm_read();
   vm_opcode_t rhs = vm_read();
-  locals[to] =
-      vm_obj_num(vm_obj_to_num(locals[lhs]) % vm_obj_to_num(locals[rhs]));
+  size_t lhsv = vm_obj_to_num(*vm_local(lhs));
+  size_t rhsv = vm_obj_to_num(*vm_local(rhs));
+#if defined(VM_SAFE)
+  if (rhsv == 0) {
+    VM_RETURN(VM_RUN_MOD_ZERO);
+  }
+#endif
+  *vm_local(to) = vm_obj_num(lhsv % rhsv);
   vm_jump_next();
 }
 do_call : {
   vm_opcode_t outreg = vm_read();
   vm_opcode_t next_func = vm_read();
   vm_opcode_t nargs = vm_read();
-  size_t nregs = ops[next_func - 1];
+  size_t nregs = vm_read_at(next_func - 1);
   vm_obj_t *max_write = locals + frame->nlocals + nregs + nargs;
   if (max_write >= locals_max) {
     size_t nth = locals - locals_base;
     size_t needed = max_write - locals_base;
-    while (locals_alloc < needed) {
+    size_t start = locals_alloc;
+    while (locals_alloc <= needed) {
       locals_alloc *= 4;
     }
     locals_base = vm_realloc(locals_base, sizeof(vm_obj_t) * locals_alloc);
+    for (size_t i = start; i < locals_alloc; i++) {
+      locals_base[i] = vm_obj_num(0);
+    }
     locals = &locals_base[nth];
     locals_max = locals_base + locals_alloc;
   }
   vm_obj_t *next_locals = locals + frame->nlocals;
   for (vm_opcode_t argno = 1; argno <= nargs; argno++) {
     vm_opcode_t regno = vm_read();
-    next_locals[argno] = locals[regno];
+    next_locals[argno] = *vm_local(regno);
   }
   locals = next_locals;
   frame->index = index;
@@ -167,64 +225,68 @@ do_call : {
 }
 do_return : {
   vm_opcode_t from = vm_read();
-  vm_obj_t val = locals[from];
+  vm_obj_t val = *vm_local(from);
   frame--;
   locals = locals - frame->nlocals;
   vm_opcode_t outreg = frame->outreg;
-  locals[outreg] = val;
+  *vm_local(outreg) = val;
   index = frame->index;
   vm_jump_next();
 }
 do_putchar : {
   vm_opcode_t from = vm_read();
-  int val = (int) vm_obj_to_num(locals[from]);
+  int val = (int) vm_obj_to_num(*vm_local(from));
   printf("%c", (int)val);
   vm_jump_next();
 }
 do_bb : {
   vm_opcode_t from = vm_read();
-  if (vm_obj_to_num(locals[from])) {
-    index = ops[index + 1];
+  if (vm_obj_to_num(*vm_local(from))) {
+    index = vm_read_at(index + 1);
     vm_jump_next();
   } else {
-    index = ops[index];
+    index = vm_read_at(index);
     vm_jump_next();
   }
 }
 do_eq : {
   vm_opcode_t outreg = vm_read();
-  vm_obj_t lhs = locals[vm_read()];
-  vm_obj_t rhs = locals[vm_read()];
-  locals[outreg] = vm_obj_num(vm_obj_to_num(lhs) == vm_obj_to_num(rhs));
+  vm_obj_t lhs = *vm_local(vm_read());
+  vm_obj_t rhs = *vm_local(vm_read());
+  *vm_local(outreg) = vm_obj_num(vm_obj_to_num(lhs) == vm_obj_to_num(rhs));
   vm_jump_next();
 }
 do_lt : {
   vm_opcode_t outreg = vm_read();
-  vm_obj_t lhs = locals[vm_read()];
-  vm_obj_t rhs = locals[vm_read()];
-  locals[outreg] = vm_obj_num(vm_obj_to_num(lhs) < vm_obj_to_num(rhs));
+  vm_obj_t lhs = *vm_local(vm_read());
+  vm_obj_t rhs = *vm_local(vm_read());
+  *vm_local(outreg) = vm_obj_num(vm_obj_to_num(lhs) < vm_obj_to_num(rhs));
   vm_jump_next();
 }
 do_dcall : {
   vm_opcode_t outreg = vm_read();
-  vm_opcode_t next_func = vm_obj_to_num(locals[vm_read()]);
+  vm_opcode_t next_func = vm_obj_to_num(*vm_local(vm_read()));
   vm_opcode_t nargs = vm_read();
-  size_t nregs = ops[next_func - 1];
+  size_t nregs = vm_read_at(next_func - 1);
   vm_obj_t *max_write = locals + frame->nlocals + nregs + nargs;
   if (max_write >= locals_max) {
     size_t nth = locals - locals_base;
     size_t needed = max_write - locals_base;
-    while (locals_alloc < needed) {
+    size_t start = locals_alloc;
+    while (locals_alloc <= needed) {
       locals_alloc *= 4;
     }
     locals_base = vm_realloc(locals_base, sizeof(vm_obj_t) * locals_alloc);
+    for (size_t i = start; i < locals_alloc; i++) {
+      locals_base[i] = vm_obj_num(0);
+    }
     locals = &locals_base[nth];
     locals_max = locals_base + locals_alloc;
   }
   vm_obj_t *next_locals = locals + frame->nlocals;
   for (vm_opcode_t argno = 1; argno <= nargs; argno++) {
     vm_opcode_t regno = vm_read();
-    next_locals[argno] = locals[regno];
+    next_locals[argno] = *vm_local(regno);
   }
   locals = next_locals;
   frame->index = index;
@@ -237,7 +299,7 @@ do_dcall : {
     frame = &frames_base[nth];
     frames_max = frames_base + frames_alloc;
   }
-  frame->nlocals = ops[next_func - 1];
+  frame->nlocals = nregs;
   index = next_func;
   vm_jump_next();
 }
@@ -245,33 +307,39 @@ do_xcall : {
   vm_opcode_t outreg = vm_read();
   vm_opcode_t next_func = vm_read();
   vm_opcode_t inreg = vm_read();
-  locals[outreg] = vm_run_ext(next_func, locals[inreg]);
+  *vm_local(outreg) = vm_run_ext(next_func, *vm_local(inreg));
   vm_jump_next();
 }
 do_cons : {
   vm_opcode_t outreg = vm_read();
-  vm_obj_t car = locals[vm_read()];
-  vm_obj_t cdr = locals[vm_read()];
+  vm_obj_t car = *vm_local(vm_read());
+  vm_obj_t cdr = *vm_local(vm_read());
   vm_obj_t *pair = vm_malloc(sizeof(vm_obj_t) * 2);
   pair[0] = car;
   pair[1] = cdr;
-  locals[outreg] = vm_obj_pair(pair);
+  *vm_local(outreg) = vm_obj_pair(pair);
   vm_jump_next();
 }
 do_car : {
   vm_opcode_t outreg = vm_read();
-  vm_obj_t pair = locals[vm_read()];
-  locals[outreg] = vm_obj_car(pair);
+  vm_obj_t pair = *vm_local(vm_read());
+#if defined(VM_SAFE)
+  if (!vm_obj_is_pair(pair)) {
+    VM_RETURN(VM_RUN_CAR_ON_NUM);
+  }
+#endif
+  *vm_local(outreg) = vm_obj_car(pair);
   vm_jump_next();
 }
 do_cdr : {
   vm_opcode_t outreg = vm_read();
-  vm_obj_t pair = locals[vm_read()];
-  locals[outreg] = vm_obj_cdr(pair);
-  vm_jump_next();
-}
-do_free : {
-  vm_free(vm_obj_to_pair(locals[vm_read()]));
+  vm_obj_t pair = *vm_local(vm_read());
+#if defined(VM_SAFE)
+  if (!vm_obj_is_pair(pair)) {
+    VM_RETURN(VM_RUN_CDR_ON_NUM);
+  }
+#endif
+  *vm_local(outreg) = vm_obj_cdr(pair);
   vm_jump_next();
 }
 }

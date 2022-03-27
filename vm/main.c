@@ -3,6 +3,24 @@
 #include "obj.h"
 #include "vm.h"
 
+vm_obj_t vm_run_ext(size_t func, vm_obj_t obj) {
+  return vm_obj_num(0);
+}
+
+#if defined(VM_FUZZ)
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  // for (size_t i = 0; i < size / 2; i++) {
+  //   vm_opcode_t op = ((vm_opcode_t*)data)[i];
+  //   printf("%hu ", op);
+  // }
+  // printf("\n");
+  if (size < 2) {
+    return 0;
+  }
+  vm_run(size / sizeof(vm_opcode_t), (vm_opcode_t*) data);
+  return 0;
+}
+#else
 struct vm_io_res_t;
 typedef struct vm_io_res_t vm_io_res_t;
 
@@ -54,10 +72,6 @@ static inline size_t vm_str_to_num(const char *str) {
   return ret;
 }
 
-vm_obj_t vm_run_ext(size_t func, vm_obj_t obj) {
-  return vm_obj_num(0);
-}
-
 int main(int argc, const char **argv) {
   if (argc < 2) {
     printf("need a file argument");
@@ -72,3 +86,4 @@ int main(int argc, const char **argv) {
   vm_free(ops.ops);
   return res;
 }
+#endif
