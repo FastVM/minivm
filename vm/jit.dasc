@@ -1,0 +1,147 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "../luajit/dynasm/dasm_proto.h"
+#include "../luajit/dynasm/dasm_x86.h"
+#include <sys/mman.h>
+
+#if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
+#include "vm.h"
+#include "lib.h"
+
+static void* link_and_encode(dasm_State** d)
+{
+  size_t sz;
+  void* buf;
+  dasm_link(d, &sz);
+  buf = mmap(0, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  dasm_encode(d, buf);
+  mprotect(buf, sz, PROT_READ | PROT_EXEC);
+  return buf;
+}
+
+#define MAX_NESTING 100
+
+struct vm_state_t;
+typedef struct vm_state_t vm_state_t;
+
+void vm_putchar(size_t chr) {
+  putchar(chr);
+}
+
+int vm_run(size_t nops, const vm_opcode_t *ops)
+{
+  unsigned loops[MAX_NESTING];
+  int nloops = 0;
+  int n;
+  dasm_State* d;
+  |.arch x64
+  |.section code
+  dasm_init(&d, DASM_MAXSECTION);
+  |.globals lbl_
+  void* labels[lbl__MAX];
+  dasm_setupglobal(&d, labels, lbl__MAX);
+  |.actionlist bf_actions
+  dasm_setup(&d, bf_actions);
+  dasm_growpc(&d, nops);
+  |.macro prologue
+    |push rax
+    |push rcx
+    |push rdx
+    |push rbx
+    |push rdi
+  |.endmacro
+  |.macro epilogue
+    |pop rdi
+    |pop rbx
+    |pop rdx
+    |pop rcx
+    |pop rax
+    |ret
+  |.endmacro
+
+  |.type locals, size_t *, rdi
+
+  dasm_State** Dst = &d;
+  |.code
+  |->main:
+  |prologue
+  // |push rdi
+  // |mov rdi, 48
+  // |call &vm_putchar
+  // |mov rdi, 10
+  // |call &vm_putchar
+  // |pop rdi
+  // |epilogue
+  // |ret
+  size_t index = 0;
+  while(index < nops) {
+    |=>index:
+    switch(ops[index++]) {
+    case VM_OPCODE_EXIT: {
+      |xor eax, eax
+      |ret
+      break;
+    }
+    case VM_OPCODE_INT: {
+      vm_opcode_t reg = ops[index++];
+      vm_opcode_t num = ops[index++];
+      |mov aword [locals + reg * 8], num
+      break;
+    }
+    case VM_OPCODE_RETURN: {
+      vm_opcode_t reg = ops[index++];
+      |mov rax, [locals + reg * 8]
+      |ret
+      break;
+    }
+    case VM_OPCODE_CALL: {
+      vm_opcode_t rreg = ops[index++];
+      vm_opcode_t func = ops[index++];
+      vm_opcode_t nargs = ops[index++];
+      // switch (nargs) {
+      // case 0: {
+      //   |call =>func
+      //   break;
+      // }
+      // case 1: {
+      //   vm_opcode_t arg1 = ops[index++]; 
+      //   |mov rax, [locals + arg1 * 8]
+      //   |call =>func
+      //   break;
+      // }
+      // default: {
+      //   return nargs + 100;
+      // }
+      // }
+      |mov [locals + rreg*8], rax
+      break;
+    }
+    case VM_OPCODE_FUNC: {
+      vm_opcode_t over = ops[index++];
+      vm_opcode_t nargs = ops[index++];
+      vm_opcode_t nregs = ops[index++];
+      |jmp =>over
+      |add locals, nregs*8
+      if (nargs >= 1) {
+        |mov [locals + 8], rax
+      }
+      // |sub locals, nregs*8
+      break;
+    }
+    default:
+      return ops[index - 1] + 100;
+    }
+  }
+  |epilogue
+  link_and_encode(&d);
+  dasm_free(&d);
+  void(*fn)(size_t*) = labels[lbl_main];
+  size_t *regs = vm_malloc(sizeof(size_t) * (1 << 16));
+  // regs = (size_t*) 0x12345;
+  fn(regs);
+  return 0;
+}
