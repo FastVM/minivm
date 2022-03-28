@@ -85,10 +85,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     [VM_OPCODE_EQ] = &&do_eq,
     [VM_OPCODE_LT] = &&do_lt,
     [VM_OPCODE_DCALL] = &&do_dcall,
-    [VM_OPCODE_XCALL] = &&do_xcall,
-    [VM_OPCODE_CONS] = &&do_cons,
-    [VM_OPCODE_CAR] = &&do_car,
-    [VM_OPCODE_CDR] = &&do_cdr,
+    [VM_OPCODE_INTF] = &&do_int,
   };
   vm_opcode_t index = 0;
   
@@ -301,45 +298,6 @@ do_dcall : {
   }
   frame->nlocals = nregs;
   index = next_func;
-  vm_jump_next();
-}
-do_xcall : {
-  vm_opcode_t outreg = vm_read();
-  vm_opcode_t next_func = vm_read();
-  vm_opcode_t inreg = vm_read();
-  *vm_local(outreg) = vm_run_ext(next_func, *vm_local(inreg));
-  vm_jump_next();
-}
-do_cons : {
-  vm_opcode_t outreg = vm_read();
-  vm_obj_t car = *vm_local(vm_read());
-  vm_obj_t cdr = *vm_local(vm_read());
-  vm_obj_t *pair = vm_malloc(sizeof(vm_obj_t) * 2);
-  pair[0] = car;
-  pair[1] = cdr;
-  *vm_local(outreg) = vm_obj_pair(pair);
-  vm_jump_next();
-}
-do_car : {
-  vm_opcode_t outreg = vm_read();
-  vm_obj_t pair = *vm_local(vm_read());
-#if defined(VM_SAFE)
-  if (!vm_obj_is_pair(pair)) {
-    VM_RETURN(VM_RUN_CAR_ON_NUM);
-  }
-#endif
-  *vm_local(outreg) = vm_obj_car(pair);
-  vm_jump_next();
-}
-do_cdr : {
-  vm_opcode_t outreg = vm_read();
-  vm_obj_t pair = *vm_local(vm_read());
-#if defined(VM_SAFE)
-  if (!vm_obj_is_pair(pair)) {
-    VM_RETURN(VM_RUN_CDR_ON_NUM);
-  }
-#endif
-  *vm_local(outreg) = vm_obj_cdr(pair);
   vm_jump_next();
 }
 }

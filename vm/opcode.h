@@ -20,11 +20,7 @@ enum {
   VM_OPCODE_EQ = 14,
   VM_OPCODE_LT = 15,
   VM_OPCODE_DCALL = 16,
-  VM_OPCODE_XCALL = 17,
-  VM_OPCODE_CONS = 18,
-  VM_OPCODE_CAR = 19,
-  VM_OPCODE_CDR = 20,
-  VM_OPCODE_MAX,
+  VM_OPCODE_INTF = 17,
 };
 
 typedef uint16_t vm_opcode_t;

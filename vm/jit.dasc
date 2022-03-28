@@ -55,12 +55,6 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     |pop rax
     |ret
   |.endmacro
-  |.macro putchar
-    |push rax
-    |mov rax, &putchar
-    |call rax
-    |pop rax
-  |.endmacro
 
   |.type locals, size_t *, rdi
 
@@ -69,33 +63,8 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   |->main:
   |prologue
   size_t index = 0;
+  size_t nregs = 0;
   while(index < nops) {
-#if defined(VM_DEBUG)
-      |push rdi
-      |mov rdi, '<'
-      |putchar
-      if (index > 9) {
-        |mov rdi, index / 10 + 48
-        |putchar
-      }
-      |mov rdi, index % 10 + 48
-      |putchar
-      |mov rdi, ':'
-      |putchar
-      |mov rdi, ' '
-      |putchar
-      if (ops[index] > 9) {
-        |mov rdi, ops[index] / 10 + 48
-        |putchar
-      }
-      |mov rdi, ops[index] % 10 + 48
-      |putchar
-      |mov rdi, '>'
-      |putchar
-      |mov rdi, 10
-      |putchar
-      |pop rdi
-#endif
     switch(ops[index++]) {
     case VM_OPCODE_EXIT: {
       |mov rax, &exit
@@ -141,6 +110,73 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       |mov [locals + outreg * 8], rax
       break;
     }
+    case VM_OPCODE_MUL: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |mul aword [locals + rhs * 8]
+      |mov [locals + outreg * 8], rax
+      break;
+    }
+    case VM_OPCODE_DIV: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |xor edx, edx
+      |mov rax, [locals + lhs * 8]
+      |div aword [locals + rhs * 8]
+      |mov [locals + outreg * 8], rax
+      break;
+    }
+    case VM_OPCODE_MOD: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |xor edx, edx
+      |mov rax, [locals + lhs * 8]
+      |div aword [locals + rhs * 8]
+      |mov [locals + outreg * 8], rdx
+      break;
+    }
+    case VM_OPCODE_BB: {
+      vm_opcode_t reg = ops[index++];
+      vm_opcode_t jfalse = ops[index++];
+      vm_opcode_t jtrue = ops[index++];
+      |mov rax, [locals + reg * 8]
+      |test rax, rax
+      |jz =>jfalse
+      |jmp =>jtrue
+      break;
+    }
+    case VM_OPCODE_LT: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |cmp rax, [locals + rhs * 8]
+      |jae >1
+      |mov aword [locals + outreg * 8], 1
+      |jmp >2
+      |1:
+      |mov aword [locals + outreg * 8], 0
+      |2:
+      break;
+    }
+    case VM_OPCODE_EQ: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |cmp rax, [locals + rhs * 8]
+      |je >1
+      |mov aword [locals + outreg * 8], 1
+      |jmp >2
+      |1:
+      |mov aword [locals + outreg * 8], 0
+      |2:
+      break;
+    }
     case VM_OPCODE_CALL: {
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
@@ -156,6 +192,36 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
         |call =>func-1
         break;
       }
+      case 2: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |call =>func-1
+        break;
+      }
+      case 3: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        vm_opcode_t arg3 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |mov rdx, [locals + arg3 * 8]
+        |call =>func-1
+        break;
+      }
+      case 4: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        vm_opcode_t arg3 = ops[index++]; 
+        vm_opcode_t arg4 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |mov rdx, [locals + arg3 * 8]
+        |mov rbx, [locals + arg4 * 8]
+        |call =>func-1
+        break;
+      }
       default: {
         printf("bad nregs: %hu\n", nargs);
         return 42;
@@ -164,11 +230,72 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       |mov [locals + rreg*8], rax
       break;
     }
+    case VM_OPCODE_DCALL: {
+      vm_opcode_t rreg = ops[index++];
+      vm_opcode_t func = ops[index++];
+      vm_opcode_t nargs = ops[index++];
+      |mov r9, [locals + func * 8]
+      switch (nargs) {
+      case 0: {
+        |call aword [locals + func * 8]
+        break;
+      }
+      case 1: {
+        vm_opcode_t arg1 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |call aword [locals + func * 8]
+        break;
+      }
+      case 2: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |call aword [locals + func * 8]
+        break;
+      }
+      case 3: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        vm_opcode_t arg3 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |mov rdx, [locals + arg3 * 8]
+        |call aword [locals + func * 8]
+        break;
+      }
+      case 4: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        vm_opcode_t arg3 = ops[index++]; 
+        vm_opcode_t arg4 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |mov rdx, [locals + arg3 * 8]
+        |mov rbx, [locals + arg4 * 8]
+        |call aword [locals + func * 8]
+        break;
+      }
+      default: {
+        printf("bad nregs: %hu\n", nargs);
+        return 1;
+      }
+      }
+      |mov [locals + rreg*8], rax
+      break;
+    }
+    case VM_OPCODE_INTF: {
+      vm_opcode_t reg = ops[index++];
+      vm_opcode_t func = ops[index++];
+      |lea rax, [=>func-1]
+      |mov aword [locals + reg * 8], rax
+      break;
+    }
     case VM_OPCODE_PUTCHAR: {
       vm_opcode_t inreg = ops[index++];
       |push locals
       |mov rax, &putchar
-      |mov rdi, [locals + inreg * 8]
+      |mov locals, [locals + inreg * 8]
       |call rax
       |pop locals
       break;
@@ -176,6 +303,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     case VM_OPCODE_JUMP: {
       vm_opcode_t over = ops[index++];
       |jmp =>over
+      break;
     }
     case VM_OPCODE_FUNC: {
       vm_opcode_t over = ops[index++];
@@ -183,11 +311,24 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t nregs = ops[index++];
       |jmp =>over
       |=>index-1:
+      |push locals
       |add locals, nregs*8
       if (nargs >= 1) {
         |mov [locals + 8], rax
       }
-      |push locals
+      if (nargs >= 2) {
+        |mov [locals + 16], rcx
+      }
+      if (nargs >= 3) {
+        |mov [locals + 24], rdx
+      }
+      if (nargs >= 4) {
+        |mov [locals + 32], rbx
+      }
+      if (nargs >= 5) {
+        printf("func needs too many args\n");
+        return 1;
+      }
       break;
     }
     default:
@@ -196,15 +337,10 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     |=>index:
   }
   |epilogue
-after:
   link_and_encode(&d);
   dasm_free(&d);
   void(*fn)(size_t*) = labels[lbl_main];
   size_t *regs = vm_malloc(sizeof(size_t) * (1 << 16));
-  // regs = (size_t*) 0x12345;
-  if (fn == NULL) {
-    return 41;
-  }
   fn(regs);
   return 0;
 }
