@@ -28,15 +28,8 @@ static void* link_and_encode(dasm_State** d)
 struct vm_state_t;
 typedef struct vm_state_t vm_state_t;
 
-void vm_putchar(size_t chr) {
-  putchar(chr);
-}
-
 int vm_run(size_t nops, const vm_opcode_t *ops)
 {
-  unsigned loops[MAX_NESTING];
-  int nloops = 0;
-  int n;
   dasm_State* d;
   |.arch x64
   |.section code
@@ -44,8 +37,8 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   |.globals lbl_
   void* labels[lbl__MAX];
   dasm_setupglobal(&d, labels, lbl__MAX);
-  |.actionlist bf_actions
-  dasm_setup(&d, bf_actions);
+  |.actionlist vm_actions
+  dasm_setup(&d, vm_actions);
   dasm_growpc(&d, nops);
   |.macro prologue
     |push rax
@@ -62,6 +55,12 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     |pop rax
     |ret
   |.endmacro
+  |.macro putchar
+    |push rax
+    |mov rax, &putchar
+    |call rax
+    |pop rax
+  |.endmacro
 
   |.type locals, size_t *, rdi
 
@@ -69,21 +68,46 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   |.code
   |->main:
   |prologue
-  // |push rdi
-  // |mov rdi, 48
-  // |call &vm_putchar
-  // |mov rdi, 10
-  // |call &vm_putchar
-  // |pop rdi
-  // |epilogue
-  // |ret
   size_t index = 0;
   while(index < nops) {
-    |=>index:
+#if defined(VM_DEBUG)
+      |push rdi
+      |mov rdi, '<'
+      |putchar
+      if (index > 9) {
+        |mov rdi, index / 10 + 48
+        |putchar
+      }
+      |mov rdi, index % 10 + 48
+      |putchar
+      |mov rdi, ':'
+      |putchar
+      |mov rdi, ' '
+      |putchar
+      if (ops[index] > 9) {
+        |mov rdi, ops[index] / 10 + 48
+        |putchar
+      }
+      |mov rdi, ops[index] % 10 + 48
+      |putchar
+      |mov rdi, '>'
+      |putchar
+      |mov rdi, 10
+      |putchar
+      |pop rdi
+#endif
     switch(ops[index++]) {
     case VM_OPCODE_EXIT: {
-      |xor eax, eax
-      |ret
+      |mov rax, &exit
+      |mov rdi, 0
+      |call rax
+      break;
+    }
+    case VM_OPCODE_REG: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t inreg = ops[index++];
+      |mov rax, [locals + inreg * 8]
+      |mov aword [locals + outreg * 8], rax
       break;
     }
     case VM_OPCODE_INT: {
@@ -95,53 +119,92 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     case VM_OPCODE_RETURN: {
       vm_opcode_t reg = ops[index++];
       |mov rax, [locals + reg * 8]
+      |pop locals
       |ret
+      break;
+    }
+    case VM_OPCODE_ADD: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |add rax, [locals + rhs * 8]
+      |mov [locals + outreg * 8], rax
+      break;
+    }
+    case VM_OPCODE_SUB: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |sub rax, [locals + rhs * 8]
+      |mov [locals + outreg * 8], rax
       break;
     }
     case VM_OPCODE_CALL: {
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      // switch (nargs) {
-      // case 0: {
-      //   |call =>func
-      //   break;
-      // }
-      // case 1: {
-      //   vm_opcode_t arg1 = ops[index++]; 
-      //   |mov rax, [locals + arg1 * 8]
-      //   |call =>func
-      //   break;
-      // }
-      // default: {
-      //   return nargs + 100;
-      // }
-      // }
+      switch (nargs) {
+      case 0: {
+        |call =>func-1
+        break;
+      }
+      case 1: {
+        vm_opcode_t arg1 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |call =>func-1
+        break;
+      }
+      default: {
+        printf("bad nregs: %hu\n", nargs);
+        return 42;
+      }
+      }
       |mov [locals + rreg*8], rax
       break;
+    }
+    case VM_OPCODE_PUTCHAR: {
+      vm_opcode_t inreg = ops[index++];
+      |push locals
+      |mov rax, &putchar
+      |mov rdi, [locals + inreg * 8]
+      |call rax
+      |pop locals
+      break;
+    }
+    case VM_OPCODE_JUMP: {
+      vm_opcode_t over = ops[index++];
+      |jmp =>over
     }
     case VM_OPCODE_FUNC: {
       vm_opcode_t over = ops[index++];
       vm_opcode_t nargs = ops[index++];
       vm_opcode_t nregs = ops[index++];
       |jmp =>over
+      |=>index-1:
       |add locals, nregs*8
       if (nargs >= 1) {
         |mov [locals + 8], rax
       }
-      // |sub locals, nregs*8
+      |push locals
       break;
     }
     default:
       return ops[index - 1] + 100;
     }
+    |=>index:
   }
   |epilogue
+after:
   link_and_encode(&d);
   dasm_free(&d);
   void(*fn)(size_t*) = labels[lbl_main];
   size_t *regs = vm_malloc(sizeof(size_t) * (1 << 16));
   // regs = (size_t*) 0x12345;
+  if (fn == NULL) {
+    return 41;
+  }
   fn(regs);
   return 0;
 }
