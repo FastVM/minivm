@@ -12,17 +12,6 @@
 #include "vm.h"
 #include "lib.h"
 
-static void* link_and_encode(dasm_State** d)
-{
-  size_t sz;
-  void* buf;
-  dasm_link(d, &sz);
-  buf = mmap(0, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  dasm_encode(d, buf);
-  mprotect(buf, sz, PROT_READ | PROT_EXEC);
-  return buf;
-}
-
 #define MAX_NESTING 100
 
 struct vm_state_t;
@@ -67,9 +56,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   while(index < nops) {
     switch(ops[index++]) {
     case VM_OPCODE_EXIT: {
-      |mov rax, &exit
-      |mov rdi, 0
-      |call rax
+      |epilogue
       break;
     }
     case VM_OPCODE_REG: {
@@ -223,7 +210,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
         break;
       }
       default: {
-        printf("bad nregs: %hu\n", nargs);
+        printf("bad nregs: %zu\n", (size_t) nargs);
         return 42;
       }
       }
@@ -277,7 +264,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
         break;
       }
       default: {
-        printf("bad nregs: %hu\n", nargs);
+        printf("bad nregs: %zu\n", (size_t) nargs);
         return 1;
       }
       }
@@ -331,16 +318,62 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       }
       break;
     }
+    case VM_OPCODE_ADDI: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |add rax, rhs
+      |mov [locals + out * 8], rax
+      break;
+    }
+    case VM_OPCODE_SUBI: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |sub rax, rhs
+      |mov [locals + out * 8], rax
+      break;
+    }
+    case VM_OPCODE_BEQ: {
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      vm_opcode_t jfalse = ops[index++];
+      vm_opcode_t jtrue = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |cmp rax, [locals + rhs * 8]
+      |je =>jfalse
+      |jmp =>jtrue
+      break;
+    }
+    case VM_OPCODE_BLT: {
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      vm_opcode_t jfalse = ops[index++];
+      vm_opcode_t jtrue = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |cmp rax, [locals + rhs * 8]
+      |jae =>jfalse
+      |jmp =>jtrue
+      break;
+    }
     default:
       return ops[index - 1] + 100;
     }
     |=>index:
   }
-  |epilogue
-  link_and_encode(&d);
+  size_t sz;
+  void* buf;
+  dasm_link(&d, &sz);
+  buf = mmap(0, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  dasm_encode(&d, buf);
+  mprotect(buf, sz, PROT_READ | PROT_EXEC);
   dasm_free(&d);
   void(*fn)(size_t*) = labels[lbl_main];
-  size_t *regs = vm_malloc(sizeof(size_t) * (1 << 16));
+  size_t *regs = vm_malloc(sizeof(size_t) * (1 << 20));
   fn(regs);
+  vm_free(regs);
+  munmap(buf, sz);
   return 0;
 }
