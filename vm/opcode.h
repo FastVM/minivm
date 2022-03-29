@@ -21,11 +21,13 @@ enum {
   VM_OPCODE_LT = 15,
   VM_OPCODE_DCALL = 16,
   VM_OPCODE_INTF = 17,
-
   VM_OPCODE_BEQ = 18,
   VM_OPCODE_BLT = 19,
   VM_OPCODE_ADDI = 20,
   VM_OPCODE_SUBI = 21,
+  VM_OPCODE_TCALL = 22,
+  VM_OPCODE_RETI = 23,
+  VM_OPCODE_BEQI = 24,
 };
 
 typedef uint32_t vm_opcode_t;

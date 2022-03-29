@@ -53,6 +53,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   |prologue
   size_t index = 0;
   size_t nregs = 0;
+  size_t cfunc = 0;
   while(index < nops) {
     switch(ops[index++]) {
     case VM_OPCODE_EXIT: {
@@ -132,8 +133,14 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t jtrue = ops[index++];
       |mov rax, [locals + reg * 8]
       |test rax, rax
-      |jz =>jfalse
-      |jmp =>jtrue
+      if (jfalse == index) {
+        |jnz =>jtrue
+      } else if (jtrue == index) {
+        |jz =>jfalse
+      } else {
+        |jz =>jfalse
+        |jmp =>jtrue
+      }
       break;
     }
     case VM_OPCODE_LT: {
@@ -217,11 +224,70 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       |mov [locals + rreg*8], rax
       break;
     }
+    case VM_OPCODE_TCALL: {
+      vm_opcode_t nargs = ops[index++];
+      switch (nargs) {
+      case 0: {
+        |jmp =>cfunc
+        break;
+      }
+      case 1: {
+        vm_opcode_t arg1 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov [locals + 8], rax
+        |jmp =>cfunc
+        break;
+      }
+      case 2: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |mov [locals + 8], rax
+        |mov [locals + 16], rcx
+        |jmp =>cfunc
+        break;
+      }
+      case 3: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        vm_opcode_t arg3 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |mov rdx, [locals + arg3 * 8]
+        |mov [locals + 8], rax
+        |mov [locals + 16], rcx
+        |mov [locals + 24], rdx
+        |jmp =>cfunc
+        break;
+      }
+      case 4: {
+        vm_opcode_t arg1 = ops[index++]; 
+        vm_opcode_t arg2 = ops[index++]; 
+        vm_opcode_t arg3 = ops[index++]; 
+        vm_opcode_t arg4 = ops[index++]; 
+        |mov rax, [locals + arg1 * 8]
+        |mov rcx, [locals + arg2 * 8]
+        |mov rdx, [locals + arg3 * 8]
+        |mov rbx, [locals + arg4 * 8]
+        |mov [locals + 8], rax
+        |mov [locals + 16], rcx
+        |mov [locals + 24], rdx
+        |mov [locals + 245], rbx
+        |jmp =>cfunc
+        break;
+      }
+      default: {
+        printf("bad nregs: %zu\n", (size_t) nargs);
+        return 42;
+      }
+      }
+      break;
+    }
     case VM_OPCODE_DCALL: {
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      |mov r9, [locals + func * 8]
       switch (nargs) {
       case 0: {
         |call aword [locals + func * 8]
@@ -316,6 +382,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
         printf("func needs too many args\n");
         return 1;
       }
+      cfunc = index;
       break;
     }
     case VM_OPCODE_ADDI: {
@@ -343,8 +410,14 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t jtrue = ops[index++];
       |mov rax, [locals + lhs * 8]
       |cmp rax, [locals + rhs * 8]
-      |je =>jfalse
-      |jmp =>jtrue
+      if (jfalse == index) {
+        |jne =>jtrue
+      } else if (jtrue == index) {
+        |je =>jfalse
+      } else {
+        |je =>jfalse
+        |jmp =>jtrue
+      }
       break;
     }
     case VM_OPCODE_BLT: {
@@ -354,8 +427,38 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t jtrue = ops[index++];
       |mov rax, [locals + lhs * 8]
       |cmp rax, [locals + rhs * 8]
-      |jae =>jfalse
-      |jmp =>jtrue
+      if (jfalse == index) {
+        |jb =>jtrue
+      } else if (jtrue == index) {
+        |jae =>jfalse
+      } else {
+        |jae =>jfalse
+        |jmp =>jtrue
+      }
+      break;
+    }
+    case VM_OPCODE_RETI: {
+      vm_opcode_t num = ops[index++];
+      |mov rax, num
+      |pop locals
+      |ret
+      break;
+    }
+    case VM_OPCODE_BEQI: {
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      vm_opcode_t jfalse = ops[index++];
+      vm_opcode_t jtrue = ops[index++];
+      |mov rax, [locals + lhs * 8]
+      |cmp rax, rhs
+      if (jfalse == index) {
+        |jne =>jtrue
+      } else if (jtrue == index) {
+        |je =>jfalse
+      } else {
+        |je =>jfalse
+        |jmp =>jtrue
+      }
       break;
     }
     default:
