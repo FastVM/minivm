@@ -29,23 +29,41 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   |.actionlist vm_actions
   dasm_setup(&d, vm_actions);
   dasm_growpc(&d, nops);
+  |.define arg1, rdi
+  |.define arg2, rsi
+  |.define arg3, rdx
+  |.define arg4, rcx
+  |.define arg5, r8
+  |.define arg6, r9
   |.macro prologue
-    |push rax
-    |push rcx
-    |push rdx
-    |push rbx
     |push rdi
+    |push rsi
+    |push rdx
+    |push rcx
+    |push r8
+    |push r9  
+    |push locals
+    |mov locals, rdi
   |.endmacro
   |.macro epilogue
-    |pop rdi
-    |pop rbx
-    |pop rdx
+    |pop locals
+    |pop r9
+    |pop r8
     |pop rcx
-    |pop rax
+    |pop rdx
+    |pop rsi
+    |pop rdi
     |ret
   |.endmacro
+  |.macro ccall
+  |add locals, nregs*8
+  |.endmacro
+  |.macro cret
+  |sub locals, nregs*8
+  |ret
+  |.endmacro
 
-  |.type locals, size_t *, rdi
+  |.type locals, size_t *, rbx
 
   dasm_State** Dst = &d;
   |.code
@@ -76,8 +94,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     case VM_OPCODE_RETURN: {
       vm_opcode_t reg = ops[index++];
       |mov rax, [locals + reg * 8]
-      |pop locals
-      |ret
+      |cret
       break;
     }
     case VM_OPCODE_ADD: {
@@ -175,165 +192,122 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      switch (nargs) {
-      case 0: {
-        |call =>func-1
-        break;
-      }
-      case 1: {
-        vm_opcode_t arg1 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |call =>func-1
-        break;
-      }
-      case 2: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |call =>func-1
-        break;
-      }
-      case 3: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        vm_opcode_t arg3 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |mov rdx, [locals + arg3 * 8]
-        |call =>func-1
-        break;
-      }
-      case 4: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        vm_opcode_t arg3 = ops[index++]; 
-        vm_opcode_t arg4 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |mov rdx, [locals + arg3 * 8]
-        |mov rbx, [locals + arg4 * 8]
-        |call =>func-1
-        break;
-      }
-      default: {
+      if (nargs >= 7) {
         printf("bad nregs: %zu\n", (size_t) nargs);
         return 42;
       }
+      if (nargs >= 1) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg1, [locals + arg * 8]
       }
+      if (nargs >= 2) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg2, [locals + arg * 8]
+      }
+      if (nargs >= 3) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg3, [locals + arg * 8]
+      }
+      if (nargs >= 4) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg4, [locals + arg * 8]
+      }
+      if (nargs >= 5) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg5, [locals + arg * 8]
+      }
+      if (nargs >= 6) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg6, [locals + arg * 8]
+      }
+      |call =>func-1
       |mov [locals + rreg*8], rax
       break;
     }
     case VM_OPCODE_TCALL: {
       vm_opcode_t nargs = ops[index++];
-      switch (nargs) {
-      case 0: {
-        |jmp =>cfunc
-        break;
-      }
-      case 1: {
-        vm_opcode_t arg1 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov [locals + 8], rax
-        |jmp =>cfunc
-        break;
-      }
-      case 2: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |mov [locals + 8], rax
-        |mov [locals + 16], rcx
-        |jmp =>cfunc
-        break;
-      }
-      case 3: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        vm_opcode_t arg3 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |mov rdx, [locals + arg3 * 8]
-        |mov [locals + 8], rax
-        |mov [locals + 16], rcx
-        |mov [locals + 24], rdx
-        |jmp =>cfunc
-        break;
-      }
-      case 4: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        vm_opcode_t arg3 = ops[index++]; 
-        vm_opcode_t arg4 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |mov rdx, [locals + arg3 * 8]
-        |mov rbx, [locals + arg4 * 8]
-        |mov [locals + 8], rax
-        |mov [locals + 16], rcx
-        |mov [locals + 24], rdx
-        |mov [locals + 245], rbx
-        |jmp =>cfunc
-        break;
-      }
-      default: {
+      if (nargs >= 7) {
         printf("bad nregs: %zu\n", (size_t) nargs);
         return 42;
       }
+      if (nargs >= 1) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg1, [locals + arg * 8]
       }
+      if (nargs >= 2) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg2, [locals + arg * 8]
+      }
+      if (nargs >= 3) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg3, [locals + arg * 8]
+      }
+      if (nargs >= 4) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg4, [locals + arg * 8]
+      }
+      if (nargs >= 5) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg5, [locals + arg * 8]
+      }
+      if (nargs >= 6) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg6, [locals + arg * 8]
+      }
+      if (nargs >= 1) {
+        |mov [locals + 8], arg1
+      }
+      if (nargs >= 2) {
+        |mov [locals + 16], arg2
+      }
+      if (nargs >= 3) {
+        |mov [locals + 24], arg3
+      }
+      if (nargs >= 4) {
+        |mov [locals + 32], arg4
+      }
+      if (nargs >= 5) {
+        |mov [locals + 40], arg5
+      }
+      if (nargs >= 6) {
+        |mov [locals + 48], arg6
+      }
+      |jmp =>cfunc
       break;
     }
     case VM_OPCODE_DCALL: {
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      switch (nargs) {
-      case 0: {
-        |call aword [locals + func * 8]
-        break;
-      }
-      case 1: {
-        vm_opcode_t arg1 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |call aword [locals + func * 8]
-        break;
-      }
-      case 2: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |call aword [locals + func * 8]
-        break;
-      }
-      case 3: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        vm_opcode_t arg3 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |mov rdx, [locals + arg3 * 8]
-        |call aword [locals + func * 8]
-        break;
-      }
-      case 4: {
-        vm_opcode_t arg1 = ops[index++]; 
-        vm_opcode_t arg2 = ops[index++]; 
-        vm_opcode_t arg3 = ops[index++]; 
-        vm_opcode_t arg4 = ops[index++]; 
-        |mov rax, [locals + arg1 * 8]
-        |mov rcx, [locals + arg2 * 8]
-        |mov rdx, [locals + arg3 * 8]
-        |mov rbx, [locals + arg4 * 8]
-        |call aword [locals + func * 8]
-        break;
-      }
-      default: {
+      if (nargs >= 7) {
         printf("bad nregs: %zu\n", (size_t) nargs);
-        return 1;
+        return 42;
       }
+      if (nargs >= 1) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg1, [locals + arg * 8]
       }
+      if (nargs >= 2) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg2, [locals + arg * 8]
+      }
+      if (nargs >= 3) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg3, [locals + arg * 8]
+      }
+      if (nargs >= 4) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg4, [locals + arg * 8]
+      }
+      if (nargs >= 5) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg5, [locals + arg * 8]
+      }
+      if (nargs >= 6) {
+        vm_opcode_t arg = ops[index++];
+        |mov arg6, [locals + arg * 8]
+      }
+      |call aword [locals + func * 8]
       |mov [locals + rreg*8], rax
       break;
     }
@@ -346,11 +320,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     }
     case VM_OPCODE_PUTCHAR: {
       vm_opcode_t inreg = ops[index++];
-      |push locals
       |mov rax, &putchar
-      |mov locals, [locals + inreg * 8]
+      |mov rdi, [locals + inreg * 8]
       |call rax
-      |pop locals
       break;
     }
     case VM_OPCODE_JUMP: {
@@ -361,24 +333,29 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     case VM_OPCODE_FUNC: {
       vm_opcode_t over = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      vm_opcode_t nregs = ops[index++];
+      nregs = ops[index++];
       |jmp =>over
       |=>index-1:
-      |push locals
-      |add locals, nregs*8
+      |ccall
       if (nargs >= 1) {
-        |mov [locals + 8], rax
+        |mov [locals + 8], arg1
       }
       if (nargs >= 2) {
-        |mov [locals + 16], rcx
+        |mov [locals + 16], arg2
       }
       if (nargs >= 3) {
-        |mov [locals + 24], rdx
+        |mov [locals + 24], arg3
       }
       if (nargs >= 4) {
-        |mov [locals + 32], rbx
+        |mov [locals + 32], arg4
       }
       if (nargs >= 5) {
+        |mov [locals + 40], arg5
+      }
+      if (nargs >= 6) {
+        |mov [locals + 48], arg6
+      }
+      if (nargs >= 7) {
         printf("func needs too many args\n");
         return 1;
       }
@@ -440,8 +417,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     case VM_OPCODE_RETI: {
       vm_opcode_t num = ops[index++];
       |mov rax, num
-      |pop locals
-      |ret
+      |cret
       break;
     }
     case VM_OPCODE_BEQI: {

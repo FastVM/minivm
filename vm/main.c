@@ -1,11 +1,6 @@
 
 #include "lib.h"
-#include "obj.h"
 #include "vm.h"
-
-vm_obj_t vm_run_ext(size_t func, vm_obj_t obj) {
-  return vm_obj_num(0);
-}
 
 #if defined(VM_FUZZ)
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
