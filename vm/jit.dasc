@@ -5,6 +5,8 @@
 #include "../luajit/dynasm/dasm_x86.h"
 #include <sys/mman.h>
 
+|.arch x64
+
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -17,10 +19,60 @@
 struct vm_state_t;
 typedef struct vm_state_t vm_state_t;
 
+#define VM_RAX 0
+#define VM_RCX 1
+#define VM_RDX 2
+#define VM_RBX 3
+#define VM_RSP 4
+#define VM_RBP 5
+#define VM_RSI 6
+#define VM_RDI 7
+
+#define VM_ARG1 VM_RDI
+#define VM_ARG2 VM_RSI
+#define VM_ARG3 VM_RDX
+#define VM_ARG4 VM_RCX
+
+|.macro prologue
+  |push rdi
+  |push rsi
+  |push rdx
+  |push rcx
+  |push r8
+  |push r9  
+  |push rbx
+  |mov rbx, rdi
+|.endmacro
+|.macro epilogue
+  |pop rbx
+  |pop r9
+  |pop r8
+  |pop rcx
+  |pop rdx
+  |pop rsi
+  |pop rdi
+  |ret
+|.endmacro
+
+static void rtov(dasm_State **Dst, vm_opcode_t vreg, int x64reg) {
+  if (vreg < 8) {
+    |mov Rq(vreg+8), Rq(x64reg)
+  } else {
+    |mov aword [rbx + (vreg-8) * 8], Rq(x64reg)
+  }
+}
+
+static void vtor(dasm_State **Dst, int x64reg, vm_opcode_t vreg) {
+  if (vreg < 8) {
+    |mov Rq(x64reg), Rq(vreg+8)
+  } else {
+    |mov Rq(x64reg), aword [rbx + (vreg-8) * 8]
+  }
+}
+
 int vm_run(size_t nops, const vm_opcode_t *ops)
 {
   dasm_State* d;
-  |.arch x64
   |.section code
   dasm_init(&d, DASM_MAXSECTION);
   |.globals lbl_
@@ -29,41 +81,6 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   |.actionlist vm_actions
   dasm_setup(&d, vm_actions);
   dasm_growpc(&d, nops);
-  |.define arg1, rdi
-  |.define arg2, rsi
-  |.define arg3, rdx
-  |.define arg4, rcx
-  |.define arg5, r8
-  |.define arg6, r9
-  |.macro prologue
-    |push rdi
-    |push rsi
-    |push rdx
-    |push rcx
-    |push r8
-    |push r9  
-    |push locals
-    |mov locals, rdi
-  |.endmacro
-  |.macro epilogue
-    |pop locals
-    |pop r9
-    |pop r8
-    |pop rcx
-    |pop rdx
-    |pop rsi
-    |pop rdi
-    |ret
-  |.endmacro
-  |.macro ccall
-  |add locals, nregs*8
-  |.endmacro
-  |.macro cret
-  |sub locals, nregs*8
-  |ret
-  |.endmacro
-
-  |.type locals, size_t *, rbx
 
   dasm_State** Dst = &d;
   |.code
@@ -72,6 +89,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   size_t index = 0;
   size_t nregs = 0;
   size_t cfunc = 0;
+  size_t alloc = 0;
   while(index < nops) {
     switch(ops[index++]) {
     case VM_OPCODE_EXIT: {
@@ -81,47 +99,54 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
     case VM_OPCODE_REG: {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t inreg = ops[index++];
-      |mov rax, [locals + inreg * 8]
-      |mov aword [locals + outreg * 8], rax
+      vtor(Dst, VM_RAX, inreg);
+      rtov(Dst, outreg, VM_RAX);
       break;
     }
     case VM_OPCODE_INT: {
       vm_opcode_t reg = ops[index++];
       vm_opcode_t num = ops[index++];
-      |mov aword [locals + reg * 8], num
+      |mov rax, num
+      rtov(Dst, reg, VM_RAX);
       break;
     }
     case VM_OPCODE_RETURN: {
       vm_opcode_t reg = ops[index++];
-      |mov rax, [locals + reg * 8]
-      |cret
+      vtor(Dst, VM_RAX, reg);
+      if (nregs > 8) {
+        |sub rbx, (nregs - 8)*8
+      }
+      |ret
       break;
     }
     case VM_OPCODE_ADD: {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |add rax, [locals + rhs * 8]
-      |mov [locals + outreg * 8], rax
+      vtor(Dst, VM_RAX, lhs);
+      vtor(Dst, VM_RCX, rhs);
+      |add rax, rcx
+      rtov(Dst, outreg, VM_RAX);
       break;
     }
     case VM_OPCODE_SUB: {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |sub rax, [locals + rhs * 8]
-      |mov [locals + outreg * 8], rax
+      vtor(Dst, VM_RAX, lhs);
+      vtor(Dst, VM_RCX, rhs);
+      |sub rax, rcx
+      rtov(Dst, outreg, VM_RAX);
       break;
     }
     case VM_OPCODE_MUL: {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |mul aword [locals + rhs * 8]
-      |mov [locals + outreg * 8], rax
+      vtor(Dst, VM_RAX, lhs);
+      vtor(Dst, VM_RCX, rhs);
+      |mul rcx
+      rtov(Dst, outreg, VM_RAX);
       break;
     }
     case VM_OPCODE_DIV: {
@@ -129,9 +154,10 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       |xor edx, edx
-      |mov rax, [locals + lhs * 8]
-      |div aword [locals + rhs * 8]
-      |mov [locals + outreg * 8], rax
+      vtor(Dst, VM_RAX, lhs);
+      vtor(Dst, VM_RCX, rhs);
+      |div rcx
+      rtov(Dst, outreg, VM_RAX);
       break;
     }
     case VM_OPCODE_MOD: {
@@ -139,189 +165,155 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       |xor edx, edx
-      |mov rax, [locals + lhs * 8]
-      |div aword [locals + rhs * 8]
-      |mov [locals + outreg * 8], rdx
+      vtor(Dst, VM_RAX, lhs);
+      vtor(Dst, VM_RCX, rhs);
+      |div rcx
+      rtov(Dst, outreg, VM_RDX);
       break;
     }
     case VM_OPCODE_BB: {
       vm_opcode_t reg = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
-      |mov rax, [locals + reg * 8]
+      vtor(Dst, VM_RAX, reg);
       |test rax, rax
       if (jfalse == index) {
         |jnz =>jtrue
       } else if (jtrue == index) {
         |jz =>jfalse
       } else {
-        |jz =>jfalse
-        |jmp =>jtrue
+        |jnz =>jtrue
+        |jmp =>jfalse
       }
-      break;
-    }
-    case VM_OPCODE_LT: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |cmp rax, [locals + rhs * 8]
-      |jae >1
-      |mov aword [locals + outreg * 8], 1
-      |jmp >2
-      |1:
-      |mov aword [locals + outreg * 8], 0
-      |2:
-      break;
-    }
-    case VM_OPCODE_EQ: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |cmp rax, [locals + rhs * 8]
-      |je >1
-      |mov aword [locals + outreg * 8], 1
-      |jmp >2
-      |1:
-      |mov aword [locals + outreg * 8], 0
-      |2:
       break;
     }
     case VM_OPCODE_CALL: {
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      if (nargs >= 7) {
+      if (nargs > 4) {
         printf("bad nregs: %zu\n", (size_t) nargs);
         return 42;
       }
+      int max = 0;
+      for (int i = 0; i < 8; i++) {
+        if (i >= nregs) {
+          break;
+        }
+        |push Rq(i+8)
+        max = i;
+      }
       if (nargs >= 1) {
         vm_opcode_t arg = ops[index++];
-        |mov arg1, [locals + arg * 8]
+        vtor(Dst, VM_ARG1, arg);
       }
       if (nargs >= 2) {
         vm_opcode_t arg = ops[index++];
-        |mov arg2, [locals + arg * 8]
+        vtor(Dst, VM_ARG2, arg);
       }
       if (nargs >= 3) {
         vm_opcode_t arg = ops[index++];
-        |mov arg3, [locals + arg * 8]
+        vtor(Dst, VM_ARG3, arg);
       }
       if (nargs >= 4) {
         vm_opcode_t arg = ops[index++];
-        |mov arg4, [locals + arg * 8]
-      }
-      if (nargs >= 5) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg5, [locals + arg * 8]
-      }
-      if (nargs >= 6) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg6, [locals + arg * 8]
+        vtor(Dst, VM_ARG4, arg);
       }
       |call =>func-1
-      |mov [locals + rreg*8], rax
-      break;
-    }
-    case VM_OPCODE_TCALL: {
-      vm_opcode_t nargs = ops[index++];
-      if (nargs >= 7) {
-        printf("bad nregs: %zu\n", (size_t) nargs);
-        return 42;
+      for (int i = max; i >= 0; i--) {
+        |pop Rq(i+8)
       }
-      if (nargs >= 1) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg1, [locals + arg * 8]
-      }
-      if (nargs >= 2) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg2, [locals + arg * 8]
-      }
-      if (nargs >= 3) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg3, [locals + arg * 8]
-      }
-      if (nargs >= 4) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg4, [locals + arg * 8]
-      }
-      if (nargs >= 5) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg5, [locals + arg * 8]
-      }
-      if (nargs >= 6) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg6, [locals + arg * 8]
-      }
-      if (nargs >= 1) {
-        |mov [locals + 8], arg1
-      }
-      if (nargs >= 2) {
-        |mov [locals + 16], arg2
-      }
-      if (nargs >= 3) {
-        |mov [locals + 24], arg3
-      }
-      if (nargs >= 4) {
-        |mov [locals + 32], arg4
-      }
-      if (nargs >= 5) {
-        |mov [locals + 40], arg5
-      }
-      if (nargs >= 6) {
-        |mov [locals + 48], arg6
-      }
-      |jmp =>cfunc
+      rtov(Dst, rreg, VM_RAX);
       break;
     }
     case VM_OPCODE_DCALL: {
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      if (nargs >= 7) {
+      if (nargs > 4) {
+        printf("bad nregs: %zu\n", (size_t) nargs);
+        return 42;
+      }
+      int max = 0;
+      for (int i = 0; i < 8; i++) {
+        if (i >= nregs) {
+          break;
+        }
+        |push Rq(i+8)
+        max = i;
+      }
+      if (nargs >= 1) {
+        vm_opcode_t arg = ops[index++];
+        vtor(Dst, VM_ARG1, arg);
+      }
+      if (nargs >= 2) {
+        vm_opcode_t arg = ops[index++];
+        vtor(Dst, VM_ARG2, arg);
+      }
+      if (nargs >= 3) {
+        vm_opcode_t arg = ops[index++];
+        vtor(Dst, VM_ARG3, arg);
+      }
+      if (nargs >= 4) {
+        vm_opcode_t arg = ops[index++];
+        vtor(Dst, VM_ARG4, arg);
+      }
+      vtor(Dst, VM_RAX, func);
+      |call rax
+      for (int i = max; i >= 0; i--) {
+        |pop Rq(i+8)
+      }
+      rtov(Dst, rreg, VM_RAX);
+      break;
+    }
+    case VM_OPCODE_TCALL: {
+      vm_opcode_t nargs = ops[index++];
+      if (nargs > 4) {
         printf("bad nregs: %zu\n", (size_t) nargs);
         return 42;
       }
       if (nargs >= 1) {
         vm_opcode_t arg = ops[index++];
-        |mov arg1, [locals + arg * 8]
+        vtor(Dst, VM_ARG1, arg);
       }
       if (nargs >= 2) {
         vm_opcode_t arg = ops[index++];
-        |mov arg2, [locals + arg * 8]
+        vtor(Dst, VM_ARG2, arg);
       }
       if (nargs >= 3) {
         vm_opcode_t arg = ops[index++];
-        |mov arg3, [locals + arg * 8]
+        vtor(Dst, VM_ARG3, arg);
       }
       if (nargs >= 4) {
         vm_opcode_t arg = ops[index++];
-        |mov arg4, [locals + arg * 8]
+        vtor(Dst, VM_ARG4, arg);
       }
-      if (nargs >= 5) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg5, [locals + arg * 8]
+      if (nargs >= 1) {
+        rtov(Dst, 1, VM_ARG1);
       }
-      if (nargs >= 6) {
-        vm_opcode_t arg = ops[index++];
-        |mov arg6, [locals + arg * 8]
+      if (nargs >= 2) {
+        rtov(Dst, 2, VM_ARG2);
       }
-      |call aword [locals + func * 8]
-      |mov [locals + rreg*8], rax
+      if (nargs >= 3) {
+        rtov(Dst, 3, VM_ARG3);
+      }
+      if (nargs >= 4) {
+        rtov(Dst, 4, VM_ARG4);
+      }
+      |jmp =>cfunc
       break;
     }
     case VM_OPCODE_INTF: {
       vm_opcode_t reg = ops[index++];
       vm_opcode_t func = ops[index++];
       |lea rax, [=>func-1]
-      |mov aword [locals + reg * 8], rax
+      rtov(Dst, reg, VM_RAX);
       break;
     }
     case VM_OPCODE_PUTCHAR: {
       vm_opcode_t inreg = ops[index++];
       |mov rax, &putchar
-      |mov rdi, [locals + inreg * 8]
+      vtor(Dst, VM_RDI, inreg);
       |call rax
       break;
     }
@@ -336,26 +328,22 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       nregs = ops[index++];
       |jmp =>over
       |=>index-1:
-      |ccall
+      if (nregs > 8) {
+        |add rbx, (nregs - 8) * 8
+      }
       if (nargs >= 1) {
-        |mov [locals + 8], arg1
+        rtov(Dst, 1, VM_ARG1);
       }
       if (nargs >= 2) {
-        |mov [locals + 16], arg2
+        rtov(Dst, 2, VM_ARG2);
       }
       if (nargs >= 3) {
-        |mov [locals + 24], arg3
+        rtov(Dst, 3, VM_ARG3);
       }
       if (nargs >= 4) {
-        |mov [locals + 32], arg4
+        rtov(Dst, 4, VM_ARG4);
       }
-      if (nargs >= 5) {
-        |mov [locals + 40], arg5
-      }
-      if (nargs >= 6) {
-        |mov [locals + 48], arg6
-      }
-      if (nargs >= 7) {
+      if (nargs > 4) {
         printf("func needs too many args\n");
         return 1;
       }
@@ -366,18 +354,26 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |add rax, rhs
-      |mov [locals + out * 8], rax
+      vtor(Dst, VM_RAX, lhs);
+      if (rhs == 1) {
+        |inc rax        
+      } else if (rhs != 0) {
+        |add rax, rhs
+      }
+      rtov(Dst, out, VM_RAX);
       break;
     }
     case VM_OPCODE_SUBI: {
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |sub rax, rhs
-      |mov [locals + out * 8], rax
+      vtor(Dst, VM_RAX, lhs);
+      if (rhs == 1) {
+        |dec rax        
+      } else if (rhs != 0) {
+        |sub rax, rhs
+      }
+      rtov(Dst, out, VM_RAX);
       break;
     }
     case VM_OPCODE_BEQ: {
@@ -385,15 +381,16 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t rhs = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |cmp rax, [locals + rhs * 8]
+      vtor(Dst, VM_RAX, lhs);
+      vtor(Dst, VM_RCX, rhs);
+      |cmp rax, rcx
       if (jfalse == index) {
-        |jne =>jtrue
+        |je =>jtrue
       } else if (jtrue == index) {
-        |je =>jfalse
+        |jne =>jfalse
       } else {
-        |je =>jfalse
-        |jmp =>jtrue
+        |je =>jtrue
+        |jmp =>jfalse
       }
       break;
     }
@@ -402,22 +399,26 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t rhs = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
-      |mov rax, [locals + lhs * 8]
-      |cmp rax, [locals + rhs * 8]
+      vtor(Dst, VM_RAX, lhs);
+      vtor(Dst, VM_RCX, rhs);
+      |cmp rax, rcx
       if (jfalse == index) {
         |jb =>jtrue
       } else if (jtrue == index) {
-        |jae =>jfalse
+        |jnb =>jfalse
       } else {
-        |jae =>jfalse
-        |jmp =>jtrue
+        |jb =>jtrue
+        |jmp =>jfalse
       }
       break;
     }
     case VM_OPCODE_RETI: {
       vm_opcode_t num = ops[index++];
       |mov rax, num
-      |cret
+      if (nregs > 8) {
+        |sub rbx, (nregs - 8)*8
+      }
+      |ret
       break;
     }
     case VM_OPCODE_BEQI: {
@@ -425,7 +426,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t rhs = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
-      |mov rax, [locals + lhs * 8]
+      vtor(Dst, VM_RAX, lhs);
       |cmp rax, rhs
       if (jfalse == index) {
         |jne =>jtrue
