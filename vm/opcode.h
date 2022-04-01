@@ -17,8 +17,8 @@ enum {
   VM_OPCODE_RETURN = 11,
   VM_OPCODE_PUTCHAR = 12,
   VM_OPCODE_BB = 13,
-  VM_OPCODE_EQ = 14,
-  VM_OPCODE_LT = 15,
+
+
   VM_OPCODE_DCALL = 16,
   VM_OPCODE_INTF = 17,
   VM_OPCODE_BEQ = 18,
@@ -28,6 +28,10 @@ enum {
   VM_OPCODE_TCALL = 22,
   VM_OPCODE_RETI = 23,
   VM_OPCODE_BEQI = 24,
+  VM_OPCODE_BLTI = 25,
+  VM_OPCODE_MULI = 26,
+  VM_OPCODE_DIVI = 27,
+  VM_OPCODE_MODI = 28,
 };
 
 typedef uint32_t vm_opcode_t;
