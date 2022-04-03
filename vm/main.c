@@ -1,8 +1,21 @@
 
 #include "lib.h"
-#include "obj.h"
 #include "vm.h"
 
+#if defined(VM_FUZZ)
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  // for (size_t i = 0; i < size / 2; i++) {
+  //   vm_opcode_t op = ((vm_opcode_t*)data)[i];
+  //   printf("%hu ", op);
+  // }
+  // printf("\n");
+  if (size < 2) {
+    return 0;
+  }
+  vm_run(size / sizeof(vm_opcode_t), (vm_opcode_t*) data);
+  return 0;
+}
+#else
 struct vm_io_res_t;
 typedef struct vm_io_res_t vm_io_res_t;
 
@@ -19,21 +32,22 @@ static inline vm_io_res_t vm_io_read(const char *filename) {
         .err = "cannot run vm: file to run could not be read",
     };
   }
-  size_t nalloc = 1 << 8;
+  size_t nalloc = 1 << 16;
   vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * nalloc);
   size_t nops = 0;
   size_t size;
   for (;;) {
-    vm_file_opcode_t op = 0;
-    size = fread(&op, sizeof(vm_file_opcode_t), 1, file);
+    vm_opcode_t op = 0;
+    size = fread(&op, sizeof(vm_opcode_t), 1, file);
     if (size == 0) {
       break;
     }
     if (nops + 1 >= nalloc) {
-      nalloc *= 4;
-      ops = vm_realloc(ops, sizeof(vm_opcode_t) * nalloc);
+      return (vm_io_res_t){
+          .err = "cannot run vm: file to run could not be read",
+      };
     }
-    ops[nops++].arg = (size_t) op;
+    ops[nops++] = (size_t) op;
   }
   fclose(file);
   return (vm_io_res_t){
@@ -53,88 +67,18 @@ static inline size_t vm_str_to_num(const char *str) {
   return ret;
 }
 
-int main(int rargc, const char **argv) {
-  size_t argc = (size_t) rargc;
-  
-  const char *filename = NULL;
-
-  size_t nargs = 0;
-  const char **args = NULL;
-
-  vm_config_t config = vm_config_init();
-
-  for (size_t i = 1; i < argc; i++) {
-    if (argv[i][0] == '-') {
-      if (vm_streq(argv[i], "--gc-enries")) {
-        if (i + 1 == argc) {
-          printf("cli: expected an argument to %s\n", argv[i]);
-          return 1;
-        }
-        i += 1;
-        config.gc_ents = vm_str_to_num(argv[i]);
-        continue;
-      }
-      if (vm_streq(argv[i], "--gc-shrink")) {
-        if (i + 1 == argc) {
-          printf("cli: expected an argument to %s\n", argv[i]);
-          return 1;
-        }
-        i += 1;
-        if (vm_streq(argv[i], "true") || vm_streq(argv[i], "yes") || vm_streq(argv[i], "1")) {
-          config.gc_shrink = 1;
-          continue;
-        }
-        if (vm_streq(argv[i], "false") || vm_streq(argv[i], "no") || vm_streq(argv[i], "0")) {
-          config.gc_shrink = 0;
-          continue;
-        }
-        printf("unknown option to %s: %s\n", argv[i-1], argv[i]);
-        return 1;
-      }
-      if (vm_streq(argv[i], "--gc-entries")) {
-        if (i + 1 == argc) {
-          printf("cli: expected an argument to %s\n", argv[i]);
-          return 1;
-        }
-        i += 1;
-        size_t len = vm_strlen(argv[i]);
-        size_t mul = 1;
-        if (vm_streq(argv[i], "0")) {
-          mul = 0;
-        } else if (argv[i][len - 1] == 'b' || argv[i][len - 1] == 'B') {
-          mul = 1;
-        } else if (argv[i][len - 1] == 'k' || argv[i][len - 1] == 'K') {
-          mul = 1000;
-        } else if (argv[i][len - 1] == 'm' || argv[i][len - 1] == 'M') {
-          mul = 1000 * 1000;
-        } else {
-          printf("cli: init's argument needs prefix k m or g (example --init 100k) (got %c)\n", argv[i][len - 1]);
-          return 1;
-        }
-        size_t n = vm_str_to_num(argv[i]);
-        config.gc_init = n * mul;
-        continue;
-      }
-      printf("cli: unknown option: %s\n", argv[i]);
-      return 1;
-    } else {
-      filename = argv[i];
-      nargs = argc - (i + 1);
-      args = &argv[i + 1];
-      break;
-    }
+int main(int argc, const char **argv) {
+  if (argc < 2) {
+    printf("need a file argument");
+    return 1;
   }
-
-  if (filename == NULL) {
-    printf("no filename specified\n");
-  }
-
-  vm_io_res_t ops = vm_io_read(filename);
+  vm_io_res_t ops = vm_io_read(argv[1]);
   if (ops.err != NULL) {
     printf("%s\n", ops.err);
     return 1;
   }
-  int res = vm_run(config, ops.nops, ops.ops, nargs, args);
+  int res = vm_run(ops.nops, ops.ops);
   vm_free(ops.ops);
   return res;
 }
+#endif

@@ -1,19 +1,22 @@
 
 OPT ?= -Os
 
-SRCS := vm/vm.c vm/gc.c vm/main.c
+SRCS := vm/main.c vm/jit.tmp.c
 
 default: all
 
-all: minivm dis
+all: minivm
 
-minivm: .dummy
+./minilua: luajit/src/host/minilua.c
+	$(CC) -o minilua luajit/src/host/minilua.c -lm
+
+vm/jit.tmp.c: vm/jit.dasc ./minilua
+	./minilua luajit/dynasm/dynasm.lua -o vm/jit.tmp.c vm/jit.dasc
+
+minivm: $(SRCS)
 	$(CC) $(OPT) $(SRCS) -o minivm $(CFLAGS)
-
-dis: .dummy
-	$(CC) $(OPT) vm/dis.c -o dis $(CFLAGS)
 
 .dummy:
 
 clean: .dummy
-	rm -f $(OBJS) minivm dis minivm.profdata minivm.profraw
+	rm -f $(OBJS) minivm minivm.profdata minivm.profraw

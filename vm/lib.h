@@ -1,29 +1,10 @@
 
 #pragma once
 
-#if defined(__SIZE_TYPE__)
-typedef __SIZE_TYPE__ size_t;
-#else
+#include <stdint.h>
 #include <stddef.h>
-#endif
-
-#if defined(__UINT8_TYPE__)
-typedef __UINT8_TYPE__ uint8_t;
-#else
-#include <stdint.h>
-#endif
-
-#if defined(__INT32_TYPE__)
-typedef __INT32_TYPE__ int32_t;
-#else
-#include <stdint.h>
-#endif
-
-#define NULL ((void *)0)
-
-// I define libc things myself, this massivly speeds up compilation
-struct FILE;
-typedef struct FILE FILE;
+#include <stdlib.h>
+#include <stdio.h>
 
 static inline size_t vm_strlen(const char *str) {
   size_t len = 0;
@@ -46,17 +27,6 @@ static inline int vm_streq(const char *str1, const char *str2) {
   }
 }
 
-void *malloc(size_t size);
-void *calloc(size_t nmemb, size_t size);
-void *realloc(void *ptr, size_t n);
-void free(void *ptr);
 #define vm_malloc(size) (malloc(size))
-#define vm_calloc(size) (calloc(1, size))
 #define vm_realloc(ptr, size) (realloc(ptr, size))
 #define vm_free(ptr) (free(ptr))
-
-int printf(const char *src, ...);
-FILE *fopen(const char *src, const char *name);
-int fclose(FILE *);
-size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
-size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
