@@ -61,7 +61,9 @@ static int vm_arg_reg(int narg) {
 #define rtov(vreg, xreg) (vm_rtov(Dst, vreg, xreg))
 static void vm_rtov(dasm_State **Dst, vm_opcode_t vreg, int x64reg) {
   if (vreg < 8) {
-    |mov Rq(vreg+8), Rq(x64reg)
+    if (vreg + 8 != x64reg) {
+      |mov Rq(vreg+8), Rq(x64reg)
+    }
   } else {
     |mov aword [rbx + (vreg-8) * 8], Rq(x64reg)
   }
@@ -70,7 +72,9 @@ static void vm_rtov(dasm_State **Dst, vm_opcode_t vreg, int x64reg) {
 #define vtor(xreg, vreg) (vm_vtor(Dst, xreg, vreg))
 static void vm_vtor(dasm_State **Dst, int x64reg, vm_opcode_t vreg) {
   if (vreg < 8) {
-    |mov Rq(x64reg), Rq(vreg+8)
+    if (vreg + 8 != x64reg) {
+      |mov Rq(x64reg), Rq(vreg+8)
+    }
   } else {
     |mov Rq(x64reg), aword [rbx + (vreg-8) * 8]
   }
@@ -95,7 +99,6 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   size_t index = 0;
   size_t nregs = 0;
   size_t cfunc = 0;
-  size_t alloc = 0;
   while(index < nops) {
     switch(ops[index++]) {
     case VM_OPCODE_EXIT: {
@@ -296,7 +299,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       for (int i = 0; i < nargs; i++) {
         vm_opcode_t arg = ops[index+i];
         if (1 <= arg && arg <= i) {
-          vtor(vm_arg_reg(i), arg);
+          if (arg != i+1) {
+            vtor(vm_arg_reg(i), arg);
+          }
         } else {
           vtor(9+i, arg);
         }
@@ -304,7 +309,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       for (int i = 0; i < nargs; i++) {
         vm_opcode_t arg = ops[index+i];
         if (1 <= arg && arg <= i) {
-          |mov Rq(9+i), Rq(vm_arg_reg(i))
+          if (arg != i+1) {
+            |mov Rq(9+i), Rq(vm_arg_reg(i))
+          }
         }
       }
       index += nargs;
@@ -563,13 +570,8 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
             |shl aword [rbx + (outreg-8)*8], shift
           }
         } else if (outreg < 8) {
-          if (lhs < 8) {
-            |mov Rq(outreg+8), Rq(lhs+8)
-            |shl Rq(outreg+8), shift
-          } else {
-            vtor(outreg+8, lhs);
-            |shl Rq(outreg+8), shift
-          }
+          vtor(outreg+8, lhs);
+          |shl Rq(outreg+8), shift
         } else {
           vtor(VM_RAX, lhs);
           |shl rax, shift
@@ -602,13 +604,8 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
             |shr aword [rbx + (outreg-8)*8], shift
           }
         } else if (outreg < 8) {
-          if (lhs < 8) {
-            |mov Rq(outreg+8), Rq(lhs+8)
-            |shr Rq(outreg+8), shift
-          } else {
-            vtor(outreg+8, lhs);
-            |shr Rq(outreg+8), shift
-          }
+          vtor(outreg+8, lhs);
+          |shr Rq(outreg+8), shift
         } else {
           vtor(VM_RAX, lhs);
           |shr rax, shift
@@ -627,11 +624,31 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      |xor edx, edx
-      vtor(VM_RAX, lhs);
-      |mov ecx, rhs
-      |div rcx
-      rtov(outreg, VM_RDX);
+      int shift = 0;
+      for (size_t i = 1; i < 31; i++) {
+        if (rhs == (1 << i)) {
+          shift = i;
+          break;
+        }
+      }
+      if (shift > 0) {
+        if (lhs == outreg) {
+          |and Rq(outreg+8), (1<<shift)-1 
+        } else if (outreg < 8) {
+          vtor(outreg+8, lhs);
+          |and Rq(outreg+8), (1<<shift)-1
+        } else {
+          vtor(VM_RAX, lhs);
+          |and rax, (1<<shift)-1
+          rtov(lhs, VM_RAX);
+        }
+      } else {
+        |xor edx, edx
+        vtor(VM_RAX, lhs);
+        |mov ecx, rhs
+        |div rcx
+        rtov(outreg, VM_RDX);
+      }
       break;
     }
     default:
@@ -656,9 +673,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops)
   //   }
   // }
   // printf("\n");
-  // FILE *outfile = fopen("out.o", "wb");
-  // fwrite(buf, sizeof(uint8_t), sz, outfile);
-  // fclose(outfile);
+  FILE *outfile = fopen("out.o", "wb");
+  fwrite(buf, sizeof(uint8_t), sz, outfile);
+  fclose(outfile);
   dasm_free(&d);
   void(*fn)(size_t*) = labels[lbl_main];
   size_t *regs = vm_malloc(sizeof(size_t) * (1 << 20));
