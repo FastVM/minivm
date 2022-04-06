@@ -388,18 +388,12 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     return 1;
   }
   vm_scan_reachable(nops, ops, jumps);
-  uint8_t reachable = 1;
   size_t index = 0;
   size_t cfunc = 0;
   size_t cend = 0;
   size_t depth = 0;
   while (index < nops) {
-    size_t begin = index;
-    if (jumps[index] & VM_JUMP_REACH) {
-      reachable = 1;
-    } else {
-      reachable = 0;
-    }
+    uint8_t reachable = (jumps[index] & VM_JUMP_REACH) != 0;
     if (index+1 >= cend && depth != 0) {
       if (reachable) printf("}\n");
       depth = 0;

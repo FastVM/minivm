@@ -15,9 +15,8 @@ all: minivm
 vm/arch/x86.tmp.c: vm/arch/x86.dasc ./minilua
 	./minilua luajit/dynasm/dynasm.lua -o vm/arch/x86.tmp.c vm/arch/x86.dasc
 
-vm/arch/opt.tmp.c: vm/arch/opt.c
-	cp vm/arch/opt.c vm/arch/opt.tmp.c
-
+vm/arch/dis.tmp.c: vm/arch/dis.c
+	cp vm/arch/dis.c vm/arch/dis.tmp.c
 
 minivm: $(SRCS)
 	$(CC) $(OPT) $(SRCS) -o minivm $(CFLAGS)

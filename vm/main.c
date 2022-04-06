@@ -43,9 +43,8 @@ static inline vm_io_res_t vm_io_read(const char *filename) {
       break;
     }
     if (nops + 1 >= nalloc) {
-      return (vm_io_res_t){
-          .err = "cannot run vm: file to run could not be read",
-      };
+      nalloc *= 4;
+      ops = realloc(ops, sizeof(vm_opcode_t) * nalloc);
     }
     ops[nops++] = (size_t) op;
   }
