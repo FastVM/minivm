@@ -1,9 +1,9 @@
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "../../luajit/dynasm/dasm_proto.h"
 #include "../../luajit/dynasm/dasm_x86.h"
-#include <sys/mman.h>
+
+#include "../lib.h"
+#include "../vm.h"
 
 |.arch x64
 
@@ -11,7 +11,6 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#include "../vm.h"
 
 #define VM_RAX 0
 #define VM_RCX 1
@@ -686,9 +685,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
   //   }
   // }
   // printf("\n");
-  // FILE *outfile = fopen("out.o", "wb");
-  // fwrite(buf, sizeof(uint8_t), sz, outfile);
-  // fclose(outfile);
+  FILE *outfile = fopen("out.o", "wb");
+  fwrite(buf, sizeof(uint8_t), sz, outfile);
+  fclose(outfile);
   dasm_free(&d);
   void(*fn)(size_t*) = labels[lbl_main];
   size_t *regs = vm_malloc(sizeof(size_t) * (1 << 16));

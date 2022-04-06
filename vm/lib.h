@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/mman.h>
 
 static inline size_t vm_strlen(const char *str) {
   size_t len = 0;
