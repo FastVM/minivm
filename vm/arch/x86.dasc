@@ -685,9 +685,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
   //   }
   // }
   // printf("\n");
-  FILE *outfile = fopen("out.o", "wb");
-  fwrite(buf, sizeof(uint8_t), sz, outfile);
-  fclose(outfile);
+  // FILE *outfile = fopen("out.o", "wb");
+  // fwrite(buf, sizeof(uint8_t), sz, outfile);
+  // fclose(outfile);
   dasm_free(&d);
   void(*fn)(size_t*) = labels[lbl_main];
   size_t *regs = vm_malloc(sizeof(size_t) * (1 << 16));

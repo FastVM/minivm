@@ -3,7 +3,10 @@ OPT ?= -Os
 
 ARCH := x86
 
-SRCS := vm/main.c vm/arch/$(ARCH).tmp.c
+SRCS_x86 := vm/main.c vm/arch/x86.tmp.c
+SRCS_dis := vm/main.c vm/jump.c vm/arch/dis.tmp.c
+
+SRCS := $(SRCS_$(ARCH))
 
 default: all
 
