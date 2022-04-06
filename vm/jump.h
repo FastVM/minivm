@@ -7,6 +7,7 @@ enum vm_jump_scanned {
   VM_JUMP_OUT = 2, 
   VM_JUMP_INIT = 4,
   VM_JUMP_REACH = 8,
+  VM_JUMP_INSTR = 16,
 };
 
 void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, uint8_t *jumps);

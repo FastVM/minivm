@@ -8,7 +8,6 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     return 1;
   }
   size_t index = 0;
-  size_t cfunc = 0;
   size_t cend = 0;
   size_t depth = 0;
   while (index < nops) {
@@ -42,7 +41,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       if (reachable) printf("r%zu <- int %zu\n", (size_t) outreg, (size_t) num);
       break;
     }
-    case VM_OPCODE_RETURN: {
+    case VM_OPCODE_RET: {
       vm_opcode_t outreg = ops[index++];
       if (reachable) printf("ret r%zu\n", (size_t) outreg);
       break;
@@ -121,7 +120,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     }
     case VM_OPCODE_TCALL: {
       vm_opcode_t nargs = ops[index++];
-      if (reachable) printf("ret f%zu(", (size_t) cfunc);
+      if (reachable) printf("ret this(");
       for (int i = index; i < index + nargs; i++) {
         if (i != index) {
           if (reachable) printf(" ");
@@ -152,7 +151,6 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       vm_opcode_t over = ops[index++];
       vm_opcode_t nargs = ops[index++];
       vm_opcode_t nregs = ops[index++];
-      cfunc = index;
       cend = over;
       depth += 1;
       if (reachable) printf("func f%zu(", (size_t) index);

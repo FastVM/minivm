@@ -144,7 +144,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       }
       break;
     }
-    case VM_OPCODE_RETURN: {
+    case VM_OPCODE_RET: {
       vm_opcode_t reg = ops[index++];
       vtor(VM_TMP1, reg);
       if (nregs > 8) {
