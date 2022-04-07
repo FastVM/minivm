@@ -11,16 +11,22 @@ SRCS := $(SRCS_$(ARCH))
 
 default: all
 
-all: minivm
+all: bin/minivm bin/minivm-dis
 
-./minilua: luajit/src/host/minilua.c
-	$(CC) -o minilua luajit/src/host/minilua.c -lm
+bin/luajit-minilua: luajit/src/host/minilua.c
+	$(CC) -o $(@) $(^) -lm
 
-vm/arch/x86.tmp.c: vm/arch/x86.dasc ./minilua
-	./minilua luajit/dynasm/dynasm.lua -o vm/arch/x86.tmp.c vm/arch/x86.dasc
+vm/arch/x86.tmp.c: vm/arch/x86.dasc bin/luajit-minilua
+	bin/luajit-minilua luajit/dynasm/dynasm.lua -o vm/arch/x86.tmp.c vm/arch/x86.dasc
 
-minivm: $(SRCS)
-	$(CC) $(OPT) $(SRCS) -o minivm $(CFLAGS)
+bin/minivm: $(SRCS) | bin
+	$(CC) $(OPT) $(SRCS) -o bin/minivm $(CFLAGS)
+
+bin/minivm-dis:
+	$(MAKE) -f util/makefile bin/minivm-dis
+
+bin: .dummy
+	mkdir -p $(@)
 
 .dummy:
 

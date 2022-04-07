@@ -1,8 +1,9 @@
-#include "../lib.h"
-#include "../vm.h"
-#include "../jump.h"
+#include "../vm/lib.h"
+#include "../vm/vm.h"
+#include "../vm/jump.h"
+#include "../vm/io.h"
 
-int vm_run(size_t nops, const vm_opcode_t *ops) {
+int vm_run_dis(size_t nops, const vm_opcode_t *ops) {
   uint8_t *jumps = vm_jump_all(nops, ops);
   if (jumps == NULL) {
     return 1;
@@ -241,4 +242,19 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
   }
   free(jumps);
   return 0;
+}
+
+int main(int argc, const char **argv) {
+  if (argc < 2) {
+    printf("need a file argument");
+    return 1;
+  }
+  vm_io_res_t ops = vm_io_read(argv[1]);
+  if (ops.err != NULL) {
+    printf("%s\n", ops.err);
+    return 1;
+  }
+  int res = vm_run_dis(ops.nops, ops.ops);
+  vm_free(ops.ops);
+  return res;
 }
