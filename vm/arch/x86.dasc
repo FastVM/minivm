@@ -4,6 +4,7 @@
 
 #include "../lib.h"
 #include "../vm.h"
+#include "../jump.h"
 
 |.arch x64
 
@@ -30,12 +31,15 @@
 #define VM_R15 15
 
 #define VM_TMP1 VM_RDX
+#define VM_RREG VM_R8
 
 |.macro prologue
   |push rbp
+  |push rbx
   |mov rbp, rdi
 |.endmacro
 |.macro epilogue
+  |pop rbx
   |pop rbp
   |ret
 |.endmacro
@@ -71,7 +75,7 @@ static int vm_arg_reg(int narg) {
 #define rtov(vreg, xreg) (vm_rtov(Dst, vreg, xreg))
 static void vm_rtov(dasm_State **Dst, vm_opcode_t vreg, int x64reg) {
   if (vreg < 8) {
-    if (vreg + 8 != x64reg) {
+    if (VM_XREG(vreg) != x64reg) {
       |mov Rq(VM_XREG(vreg)), Rq(x64reg)
     }
   } else {
@@ -82,7 +86,7 @@ static void vm_rtov(dasm_State **Dst, vm_opcode_t vreg, int x64reg) {
 #define vtor(xreg, vreg) (vm_vtor(Dst, xreg, vreg))
 static void vm_vtor(dasm_State **Dst, int x64reg, vm_opcode_t vreg) {
   if (vreg < 8) {
-    if (vreg + 8 != x64reg) {
+    if (VM_XREG(vreg) != x64reg) {
       |mov Rq(x64reg), Rq(VM_XREG(vreg))
     }
   } else {
@@ -90,25 +94,18 @@ static void vm_vtor(dasm_State **Dst, int x64reg, vm_opcode_t vreg) {
   }
 }
 
-int vm_run(size_t nops, const vm_opcode_t *ops) {
-  dasm_State* d;
-  |.section code
-  dasm_init(&d, DASM_MAXSECTION);
-  |.globals lbl_
-  void* labels[lbl__MAX];
-  dasm_setupglobal(&d, labels, lbl__MAX);
-  |.actionlist vm_actions
-  dasm_setup(&d, vm_actions);
-  dasm_growpc(&d, nops);
-
-  dasm_State** Dst = &d;
-  |.code
-  |->main:
-  |prologue
-  size_t index = 0;
+int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t index, uint8_t *jumps) {
   size_t nregs = 0;
   size_t cfunc = 0;
+  size_t cend = 0;
   while(index < nops) {
+    while (index < cend && (jumps[index] & VM_JUMP_REACH) == 0 && ops[index] != VM_OPCODE_FUNC) {
+      index++;
+      while ((jumps[index] & VM_JUMP_INSTR) == 0) {
+        index++;
+      }
+      |=>index:
+    }
     switch(ops[index++]) {
     case VM_OPCODE_EXIT: {
       |epilogue
@@ -137,16 +134,16 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       vm_opcode_t reg = ops[index++];
       vm_opcode_t num = ops[index++];
       if (reg < 8) {
-        |mov Rq(VM_XREG(reg)), num
+        |mov Rd(VM_XREG(reg)), num
       } else {
-        |mov Rq(VM_TMP1), num
+        |mov Rd(VM_TMP1), num
         rtov(reg, VM_TMP1);
       }
       break;
     }
     case VM_OPCODE_RET: {
       vm_opcode_t reg = ops[index++];
-      vtor(VM_TMP1, reg);
+      vtor(VM_RREG, reg);
       if (nregs > 8) {
         |sub rbp, (nregs - 8)*8
       }
@@ -157,14 +154,34 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      vtor(VM_TMP1, lhs);
-      if (rhs < 8) {
-        |add Rq(VM_TMP1), Rq(VM_XREG(rhs))
+      if (outreg == lhs && outreg < 8) {
+        if (rhs < 8) {
+          |add Rq(VM_XREG(outreg)), Rq(VM_XREG(rhs))
+        } else {
+          |add Rq(VM_XREG(outreg)), aword [rbp + (rhs-8) * 8]
+        }
+      } else if (outreg == rhs && outreg < 8) {
+        if (rhs < 8) {
+          |add Rq(VM_XREG(outreg)), Rq(VM_XREG(lhs))
+        } else {
+          |add Rq(VM_XREG(outreg)), aword [rbp + (lhs-8) * 8]
+        }
+      } else if (outreg < 8) {
+        vtor(VM_XREG(outreg), lhs);
+        if (rhs < 8) {
+          |add Rq(VM_XREG(outreg)), Rq(VM_XREG(rhs))
+        } else {
+          |add Rq(VM_XREG(outreg)), aword [rbp + (rhs-8) * 8]
+        }
       } else {
-        vtor(VM_RCX, rhs);
-        |add Rq(VM_TMP1), rcx
+        vtor(VM_TMP1, lhs);
+        if (rhs < 8) {
+          |add Rq(VM_TMP1), Rq(VM_XREG(rhs))
+        } else {
+          |add Rq(VM_TMP1), aword [rbp + (rhs-8) * 8]
+        }
+        rtov(outreg, VM_TMP1);
       }
-      rtov(outreg, VM_TMP1);
       break;
     }
     case VM_OPCODE_SUB: {
@@ -280,12 +297,12 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       }
       index += nargs;
       |call =>func-1
+      rtov(rreg, VM_RREG);
       for (int i = max; i >= 0; i--) {
         if (i != rreg) {
           |pop Rq(VM_XREG(i))
         }
       }
-      rtov(rreg, VM_TMP1);
       break;
     }
     case VM_OPCODE_DCALL: {
@@ -328,12 +345,12 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       index += nargs;
       vtor(VM_TMP1, func);
       |call Rq(VM_TMP1)
+      rtov(rreg, VM_RREG);
       for (int i = max; i >= 0; i--) {
         if (i != rreg) {
           |pop Rq(VM_XREG(i))
         }
       }
-      rtov(rreg, VM_TMP1);
       break;
     }
     case VM_OPCODE_TCALL: {
@@ -394,6 +411,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
         return 1;
       }
       cfunc = index;
+      cend = over;
       break;
     }
     case VM_OPCODE_ADDI: {
@@ -459,14 +477,14 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       vm_opcode_t jtrue = ops[index++];
       int rlhs;
       if (lhs < 8) {
-        rlhs = lhs + 8;
+        rlhs = VM_XREG(lhs);
       } else {
         rlhs = VM_TMP1;
         vtor(VM_TMP1, lhs);
       }
       int rrhs;
       if (rhs < 8) {
-        rrhs = rhs + 8;
+        rrhs = VM_XREG(rhs);
       } else {
         rrhs = VM_RCX;
         vtor(VM_RCX, rhs);
@@ -489,14 +507,14 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
       vm_opcode_t jtrue = ops[index++];
       int rlhs;
       if (lhs < 8) {
-        rlhs = lhs + 8;
+        rlhs = VM_XREG(lhs);
       } else {
         rlhs = VM_TMP1;
         vtor(VM_TMP1, lhs);
       }
       int rrhs;
       if (rhs < 8) {
-        rrhs = rhs + 8;
+        rrhs = VM_XREG(rhs);
       } else {
         rrhs = VM_RCX;
         vtor(VM_RCX, rhs);
@@ -514,7 +532,7 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     }
     case VM_OPCODE_RETI: {
       vm_opcode_t num = ops[index++];
-      |mov Rq(VM_TMP1), num
+      |mov Rd(VM_RREG), num
       if (nregs > 8) {
         |sub rbp, (nregs - 8)*8
       }
@@ -668,6 +686,37 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
     }
     |=>index:
   }
+  return 0;
+}
+
+int vm_run(size_t nops, const vm_opcode_t *ops) {
+  uint8_t *jumps = vm_jump_all(nops, ops);
+  if (jumps == NULL) {
+    return 1;
+  }
+
+  dasm_State* d;
+  |.section code
+  dasm_init(&d, DASM_MAXSECTION);
+  |.globals lbl_
+  void* labels[lbl__MAX];
+  dasm_setupglobal(&d, labels, lbl__MAX);
+  |.actionlist vm_actions
+  dasm_setup(&d, vm_actions);
+  dasm_growpc(&d, nops);
+
+
+  dasm_State** Dst = &d;
+  |.code
+  |->main:
+  |prologue
+
+  int res = vm_x86_emit(&d, nops, ops, 0, jumps);
+  vm_free(jumps);
+  if (res != 0) {
+    return 1;
+  }
+
   size_t sz;
   void* buf;
   dasm_link(&d, &sz);
@@ -685,9 +734,9 @@ int vm_run(size_t nops, const vm_opcode_t *ops) {
   //   }
   // }
   // printf("\n");
-  // FILE *outfile = fopen("out.o", "wb");
-  // fwrite(buf, sizeof(uint8_t), sz, outfile);
-  // fclose(outfile);
+  FILE *outfile = fopen("out.o", "wb");
+  fwrite(buf, sizeof(uint8_t), sz, outfile);
+  fclose(outfile);
   dasm_free(&d);
   void(*fn)(size_t*) = labels[lbl_main];
   size_t *regs = vm_malloc(sizeof(size_t) * (1 << 16));

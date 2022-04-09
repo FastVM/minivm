@@ -9,7 +9,7 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
     jumps[index] |= VM_JUMP_REACH;
     switch (ops[index++]) {
     case VM_OPCODE_EXIT: {
-      break;
+      return;
     }
     case VM_OPCODE_REG: {
       vm_opcode_t outreg = ops[index++];
@@ -102,7 +102,7 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_opcode_t over = ops[index++];
       vm_opcode_t nargs = ops[index++];
       vm_opcode_t nregs = ops[index++];
-      vm_jump_reachable_from(index, nops, ops, jumps);
+      // vm_jump_reachable_from(index, nops, ops, jumps);
       vm_jump_reachable_from(over, nops, ops, jumps);
       return;
     }
@@ -183,12 +183,12 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
 }
 
 void vm_jump_reachable(size_t nops, const vm_opcode_t *ops, uint8_t *jumps) {
-    vm_jump_reachable_from(0, nops, ops, jumps);
+  vm_jump_reachable_from(0, nops, ops, jumps);
 }
 
 
 uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
-  uint8_t *ret = malloc(sizeof(uint8_t) * nops);
+  uint8_t *ret = vm_malloc(sizeof(uint8_t) * nops);
   for (size_t i = 0; i < nops; i++) {
     ret[i] = 0;
   }
