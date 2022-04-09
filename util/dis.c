@@ -240,7 +240,7 @@ int vm_run_dis(size_t nops, const vm_opcode_t *ops) {
       break;
     }
   }
-  free(jumps);
+  vm_free(jumps);
   return 0;
 }
 
