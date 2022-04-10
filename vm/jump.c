@@ -197,6 +197,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
     ret[index] |= VM_JUMP_INSTR;
     switch (ops[index++]) {
     case VM_OPCODE_EXIT: {
+      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_REG: {

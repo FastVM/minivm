@@ -21,6 +21,9 @@ vm/arch/x86.tmp.c: vm/arch/x86.dasc | bin/luajit-minilua
 bin/minivm: $(SRCS) | bin
 	$(CC) $(OPT) $(SRCS) -o bin/minivm $(CFLAGS)
 
+bin/minivm-color:
+	$(MAKE) -f util/makefile bin/minivm-color
+
 bin/minivm-dis:
 	$(MAKE) -f util/makefile bin/minivm-dis
 
