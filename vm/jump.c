@@ -81,7 +81,7 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
     case VM_OPCODE_TCALL: {
       vm_opcode_t nargs = ops[index++];
       index += nargs;
-      break;
+      return;
     }
     case VM_OPCODE_INTF: {
       vm_opcode_t reg = ops[index++];
@@ -270,6 +270,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
     case VM_OPCODE_TCALL: {
       vm_opcode_t nargs = ops[index++];
       index += nargs;
+      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_INTF: {
