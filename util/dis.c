@@ -164,20 +164,6 @@ int vm_run_dis(size_t nops, const vm_opcode_t *ops) {
       if (reachable) printf(") {\n");
       break;
     }
-    case VM_OPCODE_ADDI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      if (reachable) printf("r%zu <- add r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-      break;
-    }
-    case VM_OPCODE_SUBI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      if (reachable) printf("r%zu <- sub r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-      break;
-    }
     case VM_OPCODE_BEQ: {
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
@@ -192,48 +178,6 @@ int vm_run_dis(size_t nops, const vm_opcode_t *ops) {
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
       if (reachable) printf("blt r%zu r%zu #%zu #%zu\n", (size_t) lhs, (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-      break;
-    }
-    case VM_OPCODE_RETI: {
-      vm_opcode_t num = ops[index++];
-      if (reachable) printf("ret %zu\n", (size_t) num);
-      break;
-    }
-    case VM_OPCODE_BEQI: {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      if (reachable) printf("beq r%zu %zu #%zu #%zu\n", (size_t) lhs, (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-      break;
-    }
-    case VM_OPCODE_BLTI: {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      if (reachable) printf("blt r%zu %zu #%zu #%zu\n", (size_t) lhs, (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-      break;
-    }
-    case VM_OPCODE_MULI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      if (reachable) printf("r%zu <- mul r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-      break;
-    }
-    case VM_OPCODE_DIVI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      if (reachable) printf("r%zu <- div r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-      break;
-    }
-    case VM_OPCODE_MODI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      if (reachable) printf("r%zu <- mod r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
       break;
     }
     default:

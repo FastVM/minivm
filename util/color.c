@@ -16,7 +16,6 @@ int vm_run_dis_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size
   while (index < nops) {
     switch (ops[index]) {
     case VM_OPCODE_EXIT:
-    case VM_OPCODE_RETI:
       return 0;
     case VM_OPCODE_RET:
       return ops[index+1] == reg;
@@ -48,15 +47,6 @@ int vm_run_dis_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size
       vm_opcode_t jtrue = ops[index+4];
       return vm_run_dis_is_used(nops, ops, jumps, jfalse, reg) || vm_run_dis_is_used(nops, ops, jumps, jtrue, reg);
     }
-    case VM_OPCODE_BEQI:
-    case VM_OPCODE_BLTI: {
-      if (ops[index+1] == reg) {
-        return 1;
-      }
-      vm_opcode_t jfalse = ops[index+3];
-      vm_opcode_t jtrue = ops[index+4];
-      return vm_run_dis_is_used(nops, ops, jumps, jfalse, reg) || vm_run_dis_is_used(nops, ops, jumps, jtrue, reg);
-    }
     case VM_OPCODE_ADD:
     case VM_OPCODE_SUB:
     case VM_OPCODE_MUL:
@@ -71,11 +61,6 @@ int vm_run_dis_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size
       break;
     }
     case VM_OPCODE_REG:
-    case VM_OPCODE_ADDI:
-    case VM_OPCODE_SUBI:
-    case VM_OPCODE_MULI:
-    case VM_OPCODE_DIVI:
-    case VM_OPCODE_MODI:
       if (ops[index+2] == reg) {
         return 1;
       }
@@ -347,26 +332,6 @@ int vm_run_dis_all(size_t nops, const vm_opcode_t *ops, uint8_t *jumps) {
       printf(") {\n");
       break;
     }
-    case VM_OPCODE_ADDI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      VM_PRINT_OUTREG(outreg);
-      printf(" <- add ");
-      VM_PRINT_REG(lhs);
-      printf(" %zu\n", (size_t) rhs);
-      break;
-    }
-    case VM_OPCODE_SUBI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      VM_PRINT_OUTREG(outreg);
-      printf(" <- sub ");
-      VM_PRINT_REG(lhs);
-      printf(" %zu\n", (size_t) rhs);
-      break;
-    }
     case VM_OPCODE_BEQ: {
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
@@ -389,61 +354,6 @@ int vm_run_dis_all(size_t nops, const vm_opcode_t *ops, uint8_t *jumps) {
       printf(" ");
       VM_PRINT_REG(rhs);
       printf(" #%zu #%zu\n", (size_t) jfalse, (size_t) jtrue);
-      break;
-    }
-    case VM_OPCODE_RETI: {
-      vm_opcode_t num = ops[index++];
-      printf("ret %zu\n", (size_t) num);
-      break;
-    }
-    case VM_OPCODE_BEQI: {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      printf("beq ");
-      VM_PRINT_REG(lhs);
-      printf(" %zu #%zu #%zu\n", (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-      break;
-    }
-    case VM_OPCODE_BLTI: {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      printf("blt ");
-      VM_PRINT_REG(lhs);
-      printf(" %zu #%zu #%zu\n", (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-      break;
-    }
-    case VM_OPCODE_MULI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      VM_PRINT_OUTREG(outreg);
-      printf(" <- mul ");
-      VM_PRINT_REG(lhs);
-      printf(" %zu\n", (size_t) rhs);
-      break;
-    }
-    case VM_OPCODE_DIVI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      VM_PRINT_OUTREG(outreg);
-      printf(" <- div ");
-      VM_PRINT_REG(lhs);
-      printf(" %zu\n", (size_t) rhs);
-      break;
-    }
-    case VM_OPCODE_MODI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      VM_PRINT_OUTREG(outreg);
-      printf(" <- mod ");
-      VM_PRINT_REG(lhs);
-      printf(" %zu\n", (size_t) rhs);
       break;
     }
     default:

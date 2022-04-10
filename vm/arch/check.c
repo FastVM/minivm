@@ -44,15 +44,7 @@ const char *vm_check_opcode_name(vm_opcode_t op) {
   case VM_OPCODE_INTF: return "intf";
   case VM_OPCODE_BEQ: return "beq";
   case VM_OPCODE_BLT: return "blt";
-  case VM_OPCODE_ADDI: return "addi";
-  case VM_OPCODE_SUBI: return "subi";
   case VM_OPCODE_TCALL: return "tcall";
-  case VM_OPCODE_RETI: return "reti";
-  case VM_OPCODE_BEQI: return "beqi";
-  case VM_OPCODE_BLTI: return "blti";
-  case VM_OPCODE_MULI: return "muli";
-  case VM_OPCODE_DIVI: return "divi";
-  case VM_OPCODE_MODI: return "modi";
   default: return NULL;
   }
 }
@@ -195,20 +187,6 @@ void vm_check_print_instr(const vm_opcode_t *ops, size_t index) {
     printf("):\n");
     break;
   }
-  case VM_OPCODE_ADDI: {
-    vm_opcode_t outreg = ops[index++];
-    vm_opcode_t lhs = ops[index++];
-    vm_opcode_t rhs = ops[index++];
-    printf("r%zu <- add r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-    break;
-  }
-  case VM_OPCODE_SUBI: {
-    vm_opcode_t outreg = ops[index++];
-    vm_opcode_t lhs = ops[index++];
-    vm_opcode_t rhs = ops[index++];
-    printf("r%zu <- sub r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-    break;
-  }
   case VM_OPCODE_BEQ: {
     vm_opcode_t lhs = ops[index++];
     vm_opcode_t rhs = ops[index++];
@@ -223,48 +201,6 @@ void vm_check_print_instr(const vm_opcode_t *ops, size_t index) {
     vm_opcode_t jfalse = ops[index++];
     vm_opcode_t jtrue = ops[index++];
     printf("blt r%zu r%zu #%zu #%zu\n", (size_t) lhs, (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-    break;
-  }
-  case VM_OPCODE_RETI: {
-    vm_opcode_t num = ops[index++];
-    printf("ret %zu\n", (size_t) num);
-    break;
-  }
-  case VM_OPCODE_BEQI: {
-    vm_opcode_t lhs = ops[index++];
-    vm_opcode_t rhs = ops[index++];
-    vm_opcode_t jfalse = ops[index++];
-    vm_opcode_t jtrue = ops[index++];
-    printf("beq r%zu %zu #%zu #%zu\n", (size_t) lhs, (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-    break;
-  }
-  case VM_OPCODE_BLTI: {
-    vm_opcode_t lhs = ops[index++];
-    vm_opcode_t rhs = ops[index++];
-    vm_opcode_t jfalse = ops[index++];
-    vm_opcode_t jtrue = ops[index++];
-    printf("blt r%zu %zu #%zu #%zu\n", (size_t) lhs, (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
-    break;
-  }
-  case VM_OPCODE_MULI: {
-    vm_opcode_t outreg = ops[index++];
-    vm_opcode_t lhs = ops[index++];
-    vm_opcode_t rhs = ops[index++];
-    printf("r%zu <- mul r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-    break;
-  }
-  case VM_OPCODE_DIVI: {
-    vm_opcode_t outreg = ops[index++];
-    vm_opcode_t lhs = ops[index++];
-    vm_opcode_t rhs = ops[index++];
-    printf("r%zu <- div r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
-    break;
-  }
-  case VM_OPCODE_MODI: {
-    vm_opcode_t outreg = ops[index++];
-    vm_opcode_t lhs = ops[index++];
-    vm_opcode_t rhs = ops[index++];
-    printf("r%zu <- mod r%zu %zu\n", (size_t) outreg, (size_t) lhs, (size_t) rhs);
     break;
   }
   default:
@@ -400,20 +336,6 @@ int vm_check_base(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t nregs = vm_read_safe();
       break;
     }
-    case VM_OPCODE_ADDI:
-    {
-      vm_opcode_t outreg = vm_read_safe();
-      vm_opcode_t lhs = vm_read_safe();
-      vm_opcode_t rhs = vm_read_safe();
-      break;
-    }
-    case VM_OPCODE_SUBI:
-    {
-      vm_opcode_t outreg = vm_read_safe();
-      vm_opcode_t lhs = vm_read_safe();
-      vm_opcode_t rhs = vm_read_safe();
-      break;
-    }
     case VM_OPCODE_BEQ:
     {
       vm_opcode_t lhs = vm_read_safe();
@@ -428,48 +350,6 @@ int vm_check_base(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t rhs = vm_read_safe();
       vm_opcode_t jfalse = vm_read_safe();
       vm_opcode_t jtrue = vm_read_safe();
-      break;
-    }
-    case VM_OPCODE_RETI:
-    {
-      vm_opcode_t num = vm_read_safe();
-      break;
-    }
-    case VM_OPCODE_BEQI:
-    {
-      vm_opcode_t lhs = vm_read_safe();
-      vm_opcode_t rhs = vm_read_safe();
-      vm_opcode_t jfalse = vm_read_safe();
-      vm_opcode_t jtrue = vm_read_safe();
-      break;
-    }
-    case VM_OPCODE_BLTI:
-    {
-      vm_opcode_t lhs = vm_read_safe();
-      vm_opcode_t rhs = vm_read_safe();
-      vm_opcode_t jfalse = vm_read_safe();
-      vm_opcode_t jtrue = vm_read_safe();
-      break;
-    }
-    case VM_OPCODE_MULI:
-    {
-      vm_opcode_t outreg = vm_read_safe();
-      vm_opcode_t lhs = vm_read_safe();
-      vm_opcode_t rhs = vm_read_safe();
-      break;
-    }
-    case VM_OPCODE_DIVI:
-    {
-      vm_opcode_t outreg = vm_read_safe();
-      vm_opcode_t lhs = vm_read_safe();
-      vm_opcode_t rhs = vm_read_safe();
-      break;
-    }
-    case VM_OPCODE_MODI:
-    {
-      vm_opcode_t outreg = vm_read_safe();
-      vm_opcode_t lhs = vm_read_safe();
-      vm_opcode_t rhs = vm_read_safe();
       break;
     }
     default:
@@ -649,20 +529,6 @@ int vm_check_jump_targets(size_t nops, const vm_opcode_t *ops)
       vm_check_jump(over);
       break;
     }
-    case VM_OPCODE_ADDI:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      break;
-    }
-    case VM_OPCODE_SUBI:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      break;
-    }
     case VM_OPCODE_BEQ:
     {
       vm_opcode_t lhs = ops[index++];
@@ -681,52 +547,6 @@ int vm_check_jump_targets(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t jtrue = ops[index++];
       vm_check_jump(jfalse);
       vm_check_jump(jtrue);
-      break;
-    }
-    case VM_OPCODE_RETI:
-    {
-      vm_opcode_t num = ops[index++];
-      break;
-    }
-    case VM_OPCODE_BEQI:
-    {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      vm_check_jump(jfalse);
-      vm_check_jump(jtrue);
-      break;
-    }
-    case VM_OPCODE_BLTI:
-    {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      vm_check_jump(jfalse);
-      vm_check_jump(jtrue);
-      break;
-    }
-    case VM_OPCODE_MULI:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      break;
-    }
-    case VM_OPCODE_DIVI:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      break;
-    }
-    case VM_OPCODE_MODI:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
       break;
     }
     default:

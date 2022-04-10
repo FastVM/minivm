@@ -94,6 +94,100 @@ static void vm_vtor(dasm_State **Dst, int x64reg, vm_opcode_t vreg) {
   }
 }
 
+#define VM_REG_IS_USED(index_, reg_) (vm_reg_is_used(nops, ops, jumps, index_, reg_))
+int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t index, size_t reg) {
+  while (index < nops) {
+    switch (ops[index]) {
+    case VM_OPCODE_EXIT:
+      return 0;
+    case VM_OPCODE_RET:
+      return ops[index+1] == reg;
+    case VM_OPCODE_FUNC:
+    case VM_OPCODE_JUMP: {
+      vm_opcode_t dest = ops[index+1];
+      return vm_reg_is_used(nops, ops, jumps, dest, reg);
+    }
+    case VM_OPCODE_PUTCHAR: {
+      if (ops[index+1] == reg) {
+        return 1;
+      }
+      break;
+    }
+    case VM_OPCODE_BB: {
+      if (ops[index+1] == reg) {
+        return 1;
+      }
+      vm_opcode_t jfalse = ops[index+2];
+      vm_opcode_t jtrue = ops[index+3];
+      return vm_reg_is_used(nops, ops, jumps, jfalse, reg) || vm_reg_is_used(nops, ops, jumps, jtrue, reg);
+    }
+    case VM_OPCODE_BEQ:
+    case VM_OPCODE_BLT: {
+      if (ops[index+1] == reg || ops[index+2] == reg) {
+        return 1;
+      }
+      vm_opcode_t jfalse = ops[index+3];
+      vm_opcode_t jtrue = ops[index+4];
+      return vm_reg_is_used(nops, ops, jumps, jfalse, reg) || vm_reg_is_used(nops, ops, jumps, jtrue, reg);
+    }
+    case VM_OPCODE_ADD:
+    case VM_OPCODE_SUB:
+    case VM_OPCODE_MUL:
+    case VM_OPCODE_DIV:
+    case VM_OPCODE_MOD: {
+      if (ops[index+2] == reg || ops[index+3] == reg) {
+        return 1;
+      }
+      if (ops[index+1] == reg) {
+        return 0;
+      }
+      break;
+    }
+    case VM_OPCODE_REG:
+      if (ops[index+2] == reg) {
+        return 1;
+      }
+      if (ops[index+1] == reg) {
+        return 0;
+      }
+      break;
+    case VM_OPCODE_INT:
+      if (ops[index+1] == reg) {
+        return 0;
+      }
+      break;
+    case VM_OPCODE_TCALL: {
+      vm_opcode_t nargs = ops[index+1];
+      for (size_t i = 0; i < nargs; i++) {
+        if (ops[index+2+i] == reg) {
+          return 1;
+        }
+      }
+      return 0;
+    }
+    case VM_OPCODE_CALL:
+    case VM_OPCODE_DCALL: {
+      vm_opcode_t rreg = ops[index+1];
+      vm_opcode_t nargs = ops[index+3];
+      for (size_t i = 0; i < nargs; i++) {
+        if (ops[index+4+i] == reg) {
+          return 1;
+        }
+      }
+      if (rreg == reg) {
+        return 0;
+      }
+      break;
+    }
+    }
+    index += 1;
+    while (!(jumps[index] & VM_JUMP_INSTR)) {
+      index += 1;
+    }
+  }
+  return 0;
+}
+
 int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t index, uint8_t *jumps) {
   size_t nregs = 0;
   size_t cfunc = 0;
@@ -190,7 +284,7 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
       vm_opcode_t rhs = ops[index++];
       vtor(VM_TMP1, lhs);
       if (rhs < 8) {
-        |add Rq(VM_TMP1), Rq(VM_XREG(rhs))
+        |sub Rq(VM_TMP1), Rq(VM_XREG(rhs))
       } else {
         vtor(VM_RCX, rhs);
         |sub Rq(VM_TMP1), rcx
@@ -266,23 +360,31 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
+      index += nargs;
       if (nargs > 6) {
         printf("bad nregs: %zu\n", (size_t) nargs);
         return 1;
+      }
+      uint8_t used[8] = {0};
+      for (int i = 0; i < 8; i++) {
+        if (i >= nregs) {
+          break;
+        }
+        used[i] = VM_REG_IS_USED(index, i);
       }
       int max = 0;
       for (int i = 0; i < 8; i++) {
         if (i >= nregs) {
           break;
         }
-        if (i != rreg) {
+        if (i != rreg && used[i]) {
           |push Rq(VM_XREG(i))
         }
         max = i;
       }
       int spill = 0;
       for (int i = 0; i < nargs; i++) {
-        vm_opcode_t arg = ops[index+i];
+        vm_opcode_t arg = ops[index+i-nargs];
         if (1 <= arg && arg <= i) {
           vtor(vm_arg_reg(spill++), arg);
         } else {
@@ -290,16 +392,15 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
         }
       }
       for (int i = 0; i < nargs; i++) {
-        vm_opcode_t arg = ops[index+i];
+        vm_opcode_t arg = ops[index+i-nargs];
         if (1 <= arg && arg <= i) {
           |mov Rq(9+i), Rq(vm_arg_reg(--spill))
         }
       }
-      index += nargs;
       |call =>func-1
       rtov(rreg, VM_RREG);
       for (int i = max; i >= 0; i--) {
-        if (i != rreg) {
+        if (i != rreg && used[i]) {
           |pop Rq(VM_XREG(i))
         }
       }
@@ -313,12 +414,19 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
         printf("bad nregs: %zu\n", (size_t) nargs);
         return 42;
       }
+      uint8_t used[8] = {0};
+      for (int i = 0; i < 8; i++) {
+        if (i >= nregs) {
+          break;
+        }
+        used[i] = VM_REG_IS_USED(index, i);
+      }
       int max = 0;
       for (int i = 0; i < 8; i++) {
         if (i >= nregs) {
           break;
         }
-        if (i != rreg) {
+        if (i != rreg && used[i]) {
           |push Rq(VM_XREG(i))
         }
         max = i;
@@ -343,11 +451,14 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
         }
       }
       index += nargs;
-      vtor(VM_TMP1, func);
-      |call Rq(VM_TMP1)
+      if (func < 8) {
+        |call Rq(VM_XREG(func))
+      } else {
+        |call aword [rbp + (func-8) * 8]
+      }
       rtov(rreg, VM_RREG);
       for (int i = max; i >= 0; i--) {
-        if (i != rreg) {
+        if (i != rreg && used[i]) {
           |pop Rq(VM_XREG(i))
         }
       }
@@ -414,62 +525,6 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
       cend = over;
       break;
     }
-    case VM_OPCODE_ADDI: {
-      vm_opcode_t out = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      if (out == lhs) {
-        if (rhs == 1) {
-          |inc Rq(VM_XREG(out))
-        } else {
-          |add Rq(VM_XREG(out)), rhs
-        }
-      } else if (out < 8) {
-        vtor(VM_XREG(out), lhs);
-        if (rhs == 1) {
-          |inc Rq(VM_XREG(out))
-        } else {
-          |add Rq(VM_XREG(out)), rhs
-        }
-      } else {
-        vtor(VM_TMP1, lhs);
-        if (rhs == 1) {
-          |inc Rq(VM_TMP1)        
-        } else if (rhs != 0) {
-          |add Rq(VM_TMP1), rhs
-        }
-        rtov(out, VM_TMP1);
-      }
-      break;
-    }
-    case VM_OPCODE_SUBI: {
-      vm_opcode_t out = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      if (out == lhs) {
-        if (rhs == 1) {
-          |dec Rq(VM_XREG(out))
-        } else {
-          |sub Rq(VM_XREG(out)), rhs
-        }
-      } else if (out < 8) {
-        vtor(VM_XREG(out), lhs);
-        if (rhs == 1) {
-          |dec Rq(VM_XREG(out))
-        } else {
-          |sub Rq(VM_XREG(out)), rhs
-        }
-      } else {
-        vtor(VM_TMP1, lhs);
-        if (rhs == 1) {
-          |dec Rq(VM_TMP1)        
-        } else if (rhs != 0) {
-          |sub Rq(VM_TMP1), rhs
-        }
-        rtov(out, VM_TMP1);
-      }
-      break;
-    }
     case VM_OPCODE_BEQ: {
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
@@ -527,157 +582,6 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
       } else {
         |jb =>jtrue
         |jmp =>jfalse
-      }
-      break;
-    }
-    case VM_OPCODE_RETI: {
-      vm_opcode_t num = ops[index++];
-      |mov Rd(VM_RREG), num
-      if (nregs > 8) {
-        |sub rbp, (nregs - 8)*8
-      }
-      |ret
-      break;
-    }
-    case VM_OPCODE_BEQI: {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      if (lhs < 8) {
-        |cmp Rq(VM_XREG(lhs)), rhs
-      } else {
-        vtor(VM_TMP1, lhs);
-        |cmp Rq(VM_TMP1), rhs
-      }
-      if (jfalse == index) {
-        |jne =>jtrue
-      } else if (jtrue == index) {
-        |je =>jfalse
-      } else {
-        |je =>jfalse
-        |jmp =>jtrue
-      }
-      break;
-    }
-    case VM_OPCODE_BLTI: {
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      vm_opcode_t jfalse = ops[index++];
-      vm_opcode_t jtrue = ops[index++];
-      if (lhs < 8) {
-        |cmp Rq(VM_XREG(lhs)), rhs
-      } else {
-        vtor(VM_TMP1, lhs);
-        |cmp Rq(VM_TMP1), rhs
-      }
-      if (jfalse == index) {
-        |jb =>jtrue
-      } else if (jtrue == index) {
-        |jnb =>jfalse
-      } else {
-        |jb =>jtrue
-        |jmp =>jfalse
-      }
-      break;
-    }
-    case VM_OPCODE_MULI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      int shift = 0;
-      for (size_t i = 1; i < 31; i++) {
-        if (rhs == (1 << i)) {
-          shift = i;
-          break;
-        }
-      }
-      if (shift > 0) {
-        if (lhs == outreg) {
-          if (outreg < 8) {
-            |shl Rq(VM_XREG(outreg)), shift
-          } else {
-            |shl aword [rbp + (outreg-8)*8], shift
-          }
-        } else if (outreg < 8) {
-          vtor(VM_XREG(outreg), lhs);
-          |shl Rq(VM_XREG(outreg)), shift
-        } else {
-          vtor(VM_TMP1, lhs);
-          |shl Rq(VM_TMP1), shift
-          rtov(outreg, VM_TMP1);
-        }
-      } else {
-        vtor(VM_RAX, lhs);
-        |mov ecx, rhs
-        |mul rcx
-        rtov(outreg, VM_RAX);
-      }
-      break;
-    }
-    case VM_OPCODE_DIVI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      int shift = 0;
-      for (size_t i = 1; i < 31; i++) {
-        if (rhs == (1 << i)) {
-          shift = i;
-          break;
-        }
-      }
-      if (shift > 0) {
-        if (lhs == outreg) {
-          if (outreg < 8) {
-            |shr Rq(VM_XREG(outreg)), shift
-          } else {
-            |shr aword [rbp + (outreg-8)*8], shift
-          }
-        } else if (outreg < 8) {
-          vtor(VM_XREG(outreg), lhs);
-          |shr Rq(VM_XREG(outreg)), shift
-        } else {
-          vtor(VM_TMP1, lhs);
-          |shr Rq(VM_TMP1), shift
-          rtov(outreg, VM_TMP1);
-        }
-      } else {
-        |xor edx, edx
-        vtor(VM_RAX, lhs);
-        |mov ecx, rhs
-        |div rcx
-        rtov(outreg, VM_RAX);
-      }
-      break;
-    }
-    case VM_OPCODE_MODI: {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      int shift = 0;
-      for (size_t i = 1; i < 31; i++) {
-        if (rhs == (1 << i)) {
-          shift = i;
-          break;
-        }
-      }
-      if (shift > 0) {
-        if (lhs == outreg) {
-          |and Rq(VM_XREG(outreg)), (1<<shift)-1 
-        } else if (outreg < 8) {
-          vtor(VM_XREG(outreg), lhs);
-          |and Rq(VM_XREG(outreg)), (1<<shift)-1
-        } else {
-          vtor(VM_TMP1, lhs);
-          |and Rq(VM_TMP1), (1<<shift)-1
-          rtov(lhs, VM_TMP1);
-        }
-      } else {
-        |xor edx, edx
-        vtor(VM_RAX, lhs);
-        |mov ecx, rhs
-        |div rcx
-        rtov(outreg, VM_RDX);
       }
       break;
     }

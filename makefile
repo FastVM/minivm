@@ -10,7 +10,7 @@ SRCS := $(SRCS_$(ARCH))
 
 default: all
 
-all: bin/minivm bin/minivm-dis
+all: bin/minivm bin/minivm-dis bin/minivm-color
 
 bin/luajit-minilua: luajit/src/host/minilua.c
 	$(CC) -o $(@) $(^) -lm
