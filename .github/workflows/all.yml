@@ -11,7 +11,10 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-linux
-          path: minivm
+          path:  | 
+            bin/minivm
+            bin/minivm-color
+            bin/minivm-dis
   macos-opt:
     runs-on: macos-latest
     steps:
@@ -22,4 +25,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-mac
-          path: minivm
+          path: | 
+            bin/minivm
+            bin/minivm-color
+            bin/minivm-dis

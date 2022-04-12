@@ -12,7 +12,7 @@ default: all
 
 all: bin/minivm bin/minivm-dis bin/minivm-color
 
-bin/luajit-minilua: luajit/src/host/minilua.c
+bin/luajit-minilua: luajit/src/host/minilua.c | bin
 	$(CC) -o $(@) $(^) -lm
 
 vm/arch/x86.tmp.c: vm/arch/x86.dasc | bin/luajit-minilua
