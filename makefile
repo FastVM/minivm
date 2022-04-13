@@ -4,6 +4,7 @@ OPT ?= -Os
 ARCH := x86
 
 SRCS_x86 := vm/main.c vm/jump.c vm/arch/x86.tmp.c
+SRCS_int := vm/main.c vm/jump.c vm/arch/int.c
 SRCS_check := vm/main.c vm/jump.c vm/arch/check.c
 
 SRCS := $(SRCS_$(ARCH))
