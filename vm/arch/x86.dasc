@@ -783,7 +783,7 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
   return 0;
 }
 
-int vm_run(size_t nops, const vm_opcode_t *ops) {
+int vm_run_arch_x86(size_t nops, const vm_opcode_t *ops) {
   uint8_t *jumps = vm_jump_all(nops, ops);
   if (jumps == NULL) {
     return 1;

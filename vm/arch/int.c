@@ -1182,7 +1182,7 @@ fail:
   return;
 }
 
-int vm_run(size_t nops, const vm_opcode_t *ops)
+int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
 {
   uint8_t *jumps = vm_jump_all(nops, ops);
   if (jumps == NULL)
