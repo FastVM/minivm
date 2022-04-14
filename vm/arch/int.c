@@ -2,6 +2,7 @@
 #include "../jump.h"
 #include "../lib.h"
 #include "../opcode.h"
+#include "../reguse.h"
 
 enum vm_int_op_t
 {
@@ -38,16 +39,51 @@ enum vm_int_op_t
   VM_INT_OP_TCALL4,
   VM_INT_OP_TCALL5,
   VM_INT_OP_JUMP,
+  VM_INT_OP_BEQI,
+  VM_INT_OP_BLTI,
+  VM_INT_OP_BILT,
+  VM_INT_OP_ADDI,
+  VM_INT_OP_SUBI,
+  VM_INT_OP_MULI,
+  VM_INT_OP_DIVI,
+  VM_INT_OP_MODI,
+  VM_INT_OP_ISUB,
+  VM_INT_OP_IDIV,
+  VM_INT_OP_IMOD,
+  VM_INT_OP_RETI,
 };
+
+#define VM_INT_DUMP() (vm_int_dump(nops, ops, index, nregs, named, regs, jumps, &buf))
+static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_t nregs, uint8_t *named, vm_opcode_t *regs, uint8_t *jumps, uint32_t **pbuf)
+{
+  if ((jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT))
+  {
+    uint32_t *buf = *pbuf;
+    for (size_t i = 0; i < nregs; i++)
+    {
+      if (!named[i])
+      {
+        continue;
+      }
+      if (VM_REG_IS_USED(index, i))
+      {
+        *buf++ = VM_INT_OP_MOVI;
+        *buf++ = i;
+        *buf++ = regs[i];
+      }
+      named[i] = 0;
+    }
+    *pbuf = buf;
+  }
+}
 
 uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
 {
   size_t index = 0;
   size_t cfunc = 0;
+  size_t cend = 0;
 
   size_t nregs = 0;
-  uint32_t named[1 << 12] = {0};
-  uint32_t regs[1 << 12] = {0};
 
   size_t alloc = 1 << 8;
   uint32_t *buf = vm_malloc(sizeof(uint32_t) * alloc);
@@ -55,8 +91,20 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
   size_t *locs = vm_alloc0(sizeof(size_t) * nops);
   uint32_t *ret = buf;
 
+  uint8_t named[1 << 12] = {0};
+  vm_opcode_t regs[1 << 12];
+
   while (index < nops)
   {
+    while (index < cend && (jumps[index] & VM_JUMP_REACH) == 0 && ops[index] != VM_OPCODE_FUNC)
+    {
+      index++;
+      while ((jumps[index] & VM_JUMP_INSTR) == 0)
+      {
+        index++;
+      }
+    }
+    VM_INT_DUMP();
     locs[index] = buf - ret;
     if (buf - ret + 64 > alloc)
     {
@@ -77,18 +125,26 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t in = ops[index++];
-      *buf++ = VM_INT_OP_MOV;
-      *buf++ = out;
-      *buf++ = in;
+      if (named[in])
+      {
+        named[out] = 1;
+        regs[out] = regs[in];
+      }
+      else
+      {
+        named[out] = 0;
+        *buf++ = VM_INT_OP_MOV;
+        *buf++ = out;
+        *buf++ = in;
+      }
       break;
     }
     case VM_OPCODE_INT:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t in = ops[index++];
-      *buf++ = VM_INT_OP_MOVI;
-      *buf++ = out;
-      *buf++ = in;
+      named[out] = 1;
+      regs[out] = in;
       break;
     }
     case VM_OPCODE_JUMP:
@@ -101,11 +157,15 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
     }
     case VM_OPCODE_FUNC:
     {
-      vm_opcode_t end = ops[index++];
+      for (size_t i = 0; i < nregs; i++)
+      {
+        named[i] = 0;
+      }
+      cend = ops[index++];
       vm_opcode_t nargs = ops[index++];
       nregs = ops[index++];
       *buf++ = VM_INT_OP_JUMP;
-      froms[buf - ret] = end;
+      froms[buf - ret] = cend;
       *buf++ = 255;
       *buf++ = nregs;
       cfunc = index;
@@ -116,10 +176,36 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      *buf++ = VM_INT_OP_ADD;
-      *buf++ = out;
-      *buf++ = lhs;
-      *buf++ = rhs;
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out] = regs[lhs] + regs[rhs];
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          *buf++ = VM_INT_OP_ADDI;
+          *buf++ = out;
+          *buf++ = rhs;
+          *buf++ = regs[lhs];
+        }
+        else if (named[rhs])
+        {
+          *buf++ = VM_INT_OP_ADDI;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = regs[rhs];
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_ADD;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = rhs;
+        }
+        named[out] = 0;
+      }
       break;
     }
     case VM_OPCODE_SUB:
@@ -127,10 +213,36 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      *buf++ = VM_INT_OP_SUB;
-      *buf++ = out;
-      *buf++ = lhs;
-      *buf++ = rhs;
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out] = regs[lhs] - regs[rhs];
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          *buf++ = VM_INT_OP_ISUB;
+          *buf++ = out;
+          *buf++ = regs[lhs];
+          *buf++ = rhs;
+        }
+        else if (named[rhs])
+        {
+          *buf++ = VM_INT_OP_SUBI;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = regs[rhs];
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_SUB;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = rhs;
+        }
+        named[out] = 0;
+      }
       break;
     }
     case VM_OPCODE_MUL:
@@ -138,10 +250,36 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      *buf++ = VM_INT_OP_MUL;
-      *buf++ = out;
-      *buf++ = lhs;
-      *buf++ = rhs;
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out] = regs[lhs] * regs[rhs];
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          *buf++ = VM_INT_OP_MULI;
+          *buf++ = out;
+          *buf++ = rhs;
+          *buf++ = regs[lhs];
+        }
+        else if (named[rhs])
+        {
+          *buf++ = VM_INT_OP_MULI;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = regs[rhs];
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_MUL;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = rhs;
+        }
+        named[out] = 0;
+      }
       break;
     }
     case VM_OPCODE_DIV:
@@ -149,10 +287,36 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      *buf++ = VM_INT_OP_DIV;
-      *buf++ = out;
-      *buf++ = lhs;
-      *buf++ = rhs;
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out] = regs[lhs] - regs[rhs];
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          *buf++ = VM_INT_OP_IDIV;
+          *buf++ = out;
+          *buf++ = regs[lhs];
+          *buf++ = rhs;
+        }
+        else if (named[rhs])
+        {
+          *buf++ = VM_INT_OP_DIVI;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = regs[rhs];
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_DIV;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = rhs;
+        }
+        named[out] = 0;
+      }
       break;
     }
     case VM_OPCODE_MOD:
@@ -160,15 +324,52 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      *buf++ = VM_INT_OP_MOD;
-      *buf++ = out;
-      *buf++ = lhs;
-      *buf++ = rhs;
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out] = regs[lhs] - regs[rhs];
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          *buf++ = VM_INT_OP_IMOD;
+          *buf++ = out;
+          *buf++ = regs[lhs];
+          *buf++ = rhs;
+        }
+        else if (named[rhs])
+        {
+          *buf++ = VM_INT_OP_MODI;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = regs[rhs];
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_MOD;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = rhs;
+        }
+        named[out] = 0;
+      }
       break;
     }
     case VM_OPCODE_TCALL:
     {
       vm_opcode_t nargs = ops[index++];
+      for (int i = 0; i < nargs; i++)
+      {
+        vm_opcode_t reg = ops[index + i];
+        if (named[reg])
+        {
+          *buf++ = VM_INT_OP_MOVI;
+          *buf++ = reg;
+          *buf++ = regs[reg];
+          named[reg] = 0;
+        }
+      }
       *buf++ = VM_INT_OP_TCALL0 + nargs;
       froms[buf - ret] = cfunc;
       *buf++ = 255;
@@ -183,6 +384,17 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
+      for (int i = 0; i < nargs; i++)
+      {
+        vm_opcode_t reg = ops[index + i];
+        if (named[reg])
+        {
+          *buf++ = VM_INT_OP_MOVI;
+          *buf++ = reg;
+          *buf++ = regs[reg];
+          named[reg] = 0;
+        }
+      }
       *buf++ = VM_INT_OP_CALL0 + nargs;
       froms[buf - ret] = func;
       *buf++ = 255;
@@ -199,6 +411,17 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];
       vm_opcode_t nargs = ops[index++];
+      for (int i = 0; i < nargs; i++)
+      {
+        vm_opcode_t reg = ops[index + i];
+        if (named[reg])
+        {
+          *buf++ = VM_INT_OP_MOVI;
+          *buf++ = reg;
+          *buf++ = regs[reg];
+          named[reg] = 0;
+        }
+      }
       *buf++ = VM_INT_OP_DCALL0 + nargs;
       *buf++ = func;
       for (int i = 0; i < nargs; i++)
@@ -212,13 +435,27 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
     case VM_OPCODE_RET:
     {
       vm_opcode_t out = ops[index++];
-      *buf++ = VM_INT_OP_RET;
-      *buf++ = out;
+      if (named[out])
+      {
+        *buf++ = VM_INT_OP_RETI;
+        *buf++ = regs[out];
+      }
+      else
+      {
+        *buf++ = VM_INT_OP_RET;
+        *buf++ = out;
+      }
       break;
     }
     case VM_OPCODE_PUTCHAR:
     {
       vm_opcode_t in = ops[index++];
+      if (named[in])
+      {
+        *buf++ = VM_INT_OP_MOVI;
+        *buf++ = in;
+        *buf++ = regs[in];
+      }
       *buf++ = VM_INT_OP_PUTC;
       *buf++ = in;
       break;
@@ -228,12 +465,30 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t val = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
-      *buf++ = VM_INT_OP_BB;
-      *buf++ = val;
-      froms[buf - ret] = jfalse;
-      *buf++ = 255;
-      froms[buf - ret] = jtrue;
-      *buf++ = 255;
+      if (named[val])
+      {
+        if (regs[val])
+        {
+          *buf++ = VM_INT_OP_JUMP;
+          froms[buf - ret] = jtrue;
+          *buf++ = 255;
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_JUMP;
+          froms[buf - ret] = jfalse;
+          *buf++ = 255;
+        }
+      }
+      else
+      {
+        *buf++ = VM_INT_OP_BB;
+        *buf++ = val;
+        froms[buf - ret] = jfalse;
+        *buf++ = 255;
+        froms[buf - ret] = jtrue;
+        *buf++ = 255;
+      }
       break;
     }
     case VM_OPCODE_BEQ:
@@ -242,13 +497,51 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t rhs = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
-      *buf++ = VM_INT_OP_BEQ;
-      *buf++ = lhs;
-      *buf++ = rhs;
-      froms[buf - ret] = jfalse;
-      *buf++ = 255;
-      froms[buf - ret] = jtrue;
-      *buf++ = 255;
+      if (named[lhs] && named[rhs])
+      {
+        if (regs[lhs] == regs[rhs])
+        {
+          *buf++ = VM_INT_OP_JUMP;
+          froms[buf - ret] = jtrue;
+          *buf++ = 255;
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_JUMP;
+          froms[buf - ret] = jfalse;
+          *buf++ = 255;
+        }
+      }
+      else if (named[rhs])
+      {
+        *buf++ = VM_INT_OP_BEQI;
+        *buf++ = lhs;
+        *buf++ = regs[rhs];
+        froms[buf - ret] = jfalse;
+        *buf++ = 255;
+        froms[buf - ret] = jtrue;
+        *buf++ = 255;
+      }
+      else if (named[lhs])
+      {
+        *buf++ = VM_INT_OP_BEQI;
+        *buf++ = rhs;
+        *buf++ = regs[lhs];
+        froms[buf - ret] = jfalse;
+        *buf++ = 255;
+        froms[buf - ret] = jtrue;
+        *buf++ = 255;
+      }
+      else
+      {
+        *buf++ = VM_INT_OP_BEQ;
+        *buf++ = lhs;
+        *buf++ = rhs;
+        froms[buf - ret] = jfalse;
+        *buf++ = 255;
+        froms[buf - ret] = jtrue;
+        *buf++ = 255;
+      }
       break;
     }
     case VM_OPCODE_BLT:
@@ -257,13 +550,51 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t rhs = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
-      *buf++ = VM_INT_OP_BLT;
-      *buf++ = lhs;
-      *buf++ = rhs;
-      froms[buf - ret] = jfalse;
-      *buf++ = 255;
-      froms[buf - ret] = jtrue;
-      *buf++ = 255;
+      if (named[lhs] && named[rhs])
+      {
+        if (regs[lhs] < regs[rhs])
+        {
+          *buf++ = VM_INT_OP_JUMP;
+          froms[buf - ret] = jtrue;
+          *buf++ = 255;
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_JUMP;
+          froms[buf - ret] = jfalse;
+          *buf++ = 255;
+        }
+      }
+      else if (named[rhs])
+      {
+        *buf++ = VM_INT_OP_BLTI;
+        *buf++ = lhs;
+        *buf++ = regs[rhs];
+        froms[buf - ret] = jfalse;
+        *buf++ = 255;
+        froms[buf - ret] = jtrue;
+        *buf++ = 255;
+      }
+      else if (named[lhs])
+      {
+        *buf++ = VM_INT_OP_BILT;
+        *buf++ = regs[lhs];
+        *buf++ = rhs;
+        froms[buf - ret] = jfalse;
+        *buf++ = 255;
+        froms[buf - ret] = jtrue;
+        *buf++ = 255;
+      }
+      else
+      {
+        *buf++ = VM_INT_OP_BLT;
+        *buf++ = lhs;
+        *buf++ = rhs;
+        froms[buf - ret] = jfalse;
+        *buf++ = 255;
+        froms[buf - ret] = jtrue;
+        *buf++ = 255;
+      }
       break;
     }
     case VM_OPCODE_INTF:
@@ -339,6 +670,18 @@ void vm_int_run(uint32_t *ops)
       [VM_INT_OP_TCALL4] = &&exec_tcall4,
       [VM_INT_OP_TCALL5] = &&exec_tcall5,
       [VM_INT_OP_JUMP] = &&exec_jump,
+      [VM_INT_OP_BEQI] = &&exec_beqi,
+      [VM_INT_OP_BLTI] = &&exec_blti,
+      [VM_INT_OP_BILT] = &&exec_bilt,
+      [VM_INT_OP_ADDI] = &&exec_addi,
+      [VM_INT_OP_SUBI] = &&exec_subi,
+      [VM_INT_OP_MULI] = &&exec_muli,
+      [VM_INT_OP_DIVI] = &&exec_divi,
+      [VM_INT_OP_MODI] = &&exec_modi,
+      [VM_INT_OP_ISUB] = &&exec_isub,
+      [VM_INT_OP_IDIV] = &&exec_idiv,
+      [VM_INT_OP_IMOD] = &&exec_imod,
+      [VM_INT_OP_RETI] = &&exec_reti,
   };
   size_t *stack = malloc(sizeof(size_t) * (1 << 12));
   size_t *regs = malloc(sizeof(size_t) * (1 << 20));
@@ -712,6 +1055,126 @@ exec_jump:
 {
   size_t where = vm_int_read();
   index = where;
+  vm_int_jump_next();
+}
+exec_beqi:
+{
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  size_t jfalse = vm_int_read();
+  size_t jtrue = vm_int_read();
+  if (regs[lhs] == rhs)
+  {
+    index = jtrue;
+  }
+  else
+  {
+    index = jfalse;
+  }
+  vm_int_jump_next();
+}
+exec_blti:
+{
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  size_t jfalse = vm_int_read();
+  size_t jtrue = vm_int_read();
+  if (regs[lhs] < rhs)
+  {
+    index = jtrue;
+  }
+  else
+  {
+    index = jfalse;
+  }
+  vm_int_jump_next();
+}
+exec_bilt:
+{
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  size_t jfalse = vm_int_read();
+  size_t jtrue = vm_int_read();
+  if (lhs < regs[rhs])
+  {
+    index = jtrue;
+  }
+  else
+  {
+    index = jfalse;
+  }
+  vm_int_jump_next();
+}
+exec_addi:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = regs[lhs] + rhs;
+  vm_int_jump_next();
+}
+exec_subi:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = regs[lhs] - rhs;
+  vm_int_jump_next();
+}
+exec_muli:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = regs[lhs] * rhs;
+  vm_int_jump_next();
+}
+exec_divi:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = regs[lhs] / rhs;
+  vm_int_jump_next();
+}
+exec_modi:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = regs[lhs] % rhs;
+  vm_int_jump_next();
+}
+exec_isub:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = lhs - regs[rhs];
+  vm_int_jump_next();
+}
+exec_idiv:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = lhs / regs[rhs];
+  vm_int_jump_next();
+}
+exec_imod:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  regs[out] = lhs % regs[rhs];
+  vm_int_jump_next();
+}
+exec_reti:
+{
+  size_t inval = vm_int_read();
+  index = *--stack;
+  regs -= ops[index - 1];
+  regs[vm_int_read()] = inval;
   vm_int_jump_next();
 }
 fail:
