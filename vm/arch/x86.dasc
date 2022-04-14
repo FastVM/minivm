@@ -100,7 +100,7 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
   size_t cfunc = 0;
   size_t cend = 0;
   uint8_t named[1 << 12] = {0};
-  vm_opcode_t regs[1 << 12] = {0};
+  vm_opcode_t regs[1 << 12];
   while(index < nops) {
     while (index < cend && (jumps[index] & VM_JUMP_REACH) == 0 && ops[index] != VM_OPCODE_FUNC) {
       index++;
