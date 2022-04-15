@@ -136,16 +136,15 @@ void vm_jump_reachable(size_t nops, const vm_opcode_t *ops, uint8_t *jumps) {
 
 
 uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
-  uint8_t *ret = vm_malloc(sizeof(uint8_t) * nops);
-  for (size_t i = 0; i < nops; i++) {
-    ret[i] = 0;
-  }
+  uint8_t *ret = vm_alloc0(sizeof(uint8_t) * nops);
   size_t index = 0;
   while (index < nops) {
     ret[index] |= VM_JUMP_INSTR;
     switch (ops[index++]) {
     case VM_OPCODE_EXIT: {
-      ret[index] |= VM_JUMP_OUT;
+      if (index < nops) {
+        ret[index] |= VM_JUMP_OUT;
+      }
       break;
     }
     case VM_OPCODE_REG: {

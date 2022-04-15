@@ -763,7 +763,7 @@ int vm_x86_emit(dasm_State** Dst, size_t nops, const vm_opcode_t *ops, size_t in
     default:
       return 1;
     }
-    if ((jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT)) {
+    if (index < nops && ((jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT))) {
       for (size_t i = 0; i < nregs; i++) {
         if (!named[i]) {
           continue;
