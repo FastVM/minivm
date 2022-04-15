@@ -180,6 +180,25 @@ int vm_run_dis(size_t nops, const vm_opcode_t *ops) {
       if (reachable) printf("blt r%zu r%zu #%zu #%zu\n", (size_t) lhs, (size_t) rhs, (size_t) jfalse, (size_t) jtrue);
       break;
     }
+    case VM_OPCODE_PAIR: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t car = ops[index++];
+      vm_opcode_t cdr = ops[index++];
+      if (reachable) printf("r%zu <- pair r%zu r%zu\n", (size_t) outreg, (size_t) car, (size_t) cdr);
+      break;
+    }
+    case VM_OPCODE_FIRST: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t pair = ops[index++];
+      if (reachable) printf("r%zu <- first r%zu\n", (size_t) outreg, (size_t) pair);
+      break;
+    }
+    case VM_OPCODE_SECOND: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t pair = ops[index++];
+      if (reachable) printf("r%zu <- second r%zu\n", (size_t) outreg, (size_t) pair);
+      break;
+    }
     default:
       break;
     }

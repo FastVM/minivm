@@ -22,6 +22,9 @@ enum {
   VM_OPCODE_DCALL = 16,
   VM_OPCODE_INTF = 17,
   VM_OPCODE_TCALL = 18,
+  VM_OPCODE_PAIR = 19,
+  VM_OPCODE_FIRST = 20,
+  VM_OPCODE_SECOND = 21,
 };
 
 typedef uint32_t vm_opcode_t;

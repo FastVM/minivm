@@ -264,6 +264,39 @@ int vm_run_dis_all(size_t nops, const vm_opcode_t *ops, uint8_t *jumps) {
       printf(" #%zu #%zu\n", (size_t) jfalse, (size_t) jtrue);
       break;
     }
+    case VM_OPCODE_PAIR: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t car = ops[index++];
+      vm_opcode_t cdr = ops[index++];
+      VM_PRINT_OUTREG(outreg);
+      printf(" <- ");
+      printf("pair ");
+      VM_PRINT_REG(car);
+      printf(" ");
+      VM_PRINT_REG(cdr);
+      printf("\n");
+      break;
+    }
+    case VM_OPCODE_FIRST: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t pair = ops[index++];
+      VM_PRINT_OUTREG(outreg);
+      printf(" <- ");
+      printf("first ");
+      VM_PRINT_REG(pair);
+      printf("\n");
+      break;
+    }
+    case VM_OPCODE_SECOND: {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t pair = ops[index++];
+      VM_PRINT_OUTREG(outreg);
+      printf(" <- ");
+      printf("second ");
+      VM_PRINT_REG(pair);
+      printf("\n");
+      break;
+    }
     default:
       break;
     }

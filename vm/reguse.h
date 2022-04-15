@@ -37,6 +37,7 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       vm_opcode_t jtrue = ops[index+4];
       return vm_reg_is_used(nops, ops, jumps, jfalse, reg) || vm_reg_is_used(nops, ops, jumps, jtrue, reg);
     }
+    case VM_OPCODE_PAIR:
     case VM_OPCODE_ADD:
     case VM_OPCODE_SUB:
     case VM_OPCODE_MUL:
@@ -50,6 +51,8 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       }
       break;
     }
+    case VM_OPCODE_FIRST:
+    case VM_OPCODE_SECOND:
     case VM_OPCODE_REG:
       if (ops[index+2] == reg) {
         return 1;

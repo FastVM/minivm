@@ -124,6 +124,22 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_jump_reachable_from(jtrue, nops, ops, jumps);
       return;
     }
+    case VM_OPCODE_PAIR: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t car = ops[index++];
+      vm_opcode_t cdr = ops[index++];
+      break;
+    }
+    case VM_OPCODE_FIRST: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t pair = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SECOND: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t pair = ops[index++];
+      break;
+    }
     default:
       return;
     }
@@ -261,6 +277,22 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
       vm_opcode_t nargs = ops[index++];
       index += nargs;
       ret[index] |= VM_JUMP_OUT;
+      break;
+    }
+    case VM_OPCODE_PAIR: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t car = ops[index++];
+      vm_opcode_t cdr = ops[index++];
+      break;
+    }
+    case VM_OPCODE_FIRST: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t pair = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SECOND: {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t pair = ops[index++];
       break;
     }
     default:

@@ -1,8 +1,8 @@
 
-#include "../jump.h"
-#include "../lib.h"
-#include "../opcode.h"
-#include "../reguse.h"
+#include "jump.h"
+#include "lib.h"
+#include "opcode.h"
+#include "reguse.h"
 
 enum vm_int_op_t
 {
@@ -51,14 +51,19 @@ enum vm_int_op_t
   VM_INT_OP_IDIV,
   VM_INT_OP_IMOD,
   VM_INT_OP_RETI,
+  VM_INT_OP_PAIR,
+  VM_INT_OP_PAIRI,
+  VM_INT_OP_IPAIR,
+  VM_INT_OP_FIRST,
+  VM_INT_OP_SECOND,
 };
 
 #define VM_INT_DUMP() (vm_int_dump(nops, ops, index, nregs, named, regs, jumps, &buf))
-static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_t nregs, uint8_t *named, vm_opcode_t *regs, uint8_t *jumps, uint32_t **pbuf)
+static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_t nregs, uint8_t *named, size_t *regs, uint8_t *jumps, size_t **pbuf)
 {
   if ((jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT))
   {
-    uint32_t *buf = *pbuf;
+    size_t *buf = *pbuf;
     for (size_t i = 0; i < nregs; i++)
     {
       if (!named[i])
@@ -77,7 +82,7 @@ static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_
   }
 }
 
-uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
+size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
 {
   size_t index = 0;
   size_t cfunc = 0;
@@ -86,13 +91,13 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
   size_t nregs = 0;
 
   size_t alloc = 1 << 8;
-  uint32_t *buf = vm_malloc(sizeof(uint32_t) * alloc);
+  size_t *buf = vm_malloc(sizeof(size_t) * alloc);
   size_t *froms = vm_alloc0(sizeof(size_t) * alloc);
   size_t *locs = vm_alloc0(sizeof(size_t) * nops);
-  uint32_t *ret = buf;
+  size_t *ret = buf;
 
   uint8_t named[1 << 12] = {0};
-  vm_opcode_t regs[1 << 12];
+  size_t regs[1 << 12];
 
   while (index < nops)
   {
@@ -110,7 +115,7 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
     {
       size_t length = buf - ret;
       alloc = (length + 64) * 4;
-      ret = vm_realloc(ret, sizeof(uint32_t) * alloc);
+      ret = vm_realloc(ret, sizeof(size_t) * alloc);
       buf = ret + length;
       froms = vm_realloc(froms, sizeof(size_t) * alloc);
     }
@@ -241,6 +246,76 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
           *buf++ = lhs;
           *buf++ = rhs;
         }
+        named[out] = 0;
+      }
+      break;
+    }
+    case VM_OPCODE_PAIR:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      if (named[lhs] && named[rhs])
+      {
+        size_t *res = vm_malloc(sizeof(size_t) * 2);
+        res[0] = regs[lhs];
+        res[1] = regs[rhs];
+        named[out] = 1;
+        regs[out] = (size_t) res;
+      } else {
+        if (named[lhs])
+        {
+          *buf++ = VM_INT_OP_IPAIR;
+          *buf++ = out;
+          *buf++ = regs[lhs];
+          *buf++ = rhs;
+        }
+        else if (named[rhs])
+        {
+          *buf++ = VM_INT_OP_PAIRI;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = regs[rhs];
+        }
+        else
+        {
+          *buf++ = VM_INT_OP_PAIR;
+          *buf++ = out;
+          *buf++ = lhs;
+          *buf++ = rhs;
+        }
+        named[out] = 0;
+      }
+      break;
+    }
+    case VM_OPCODE_FIRST:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      if (named[lhs]) {
+        size_t *pair = (size_t*) regs[lhs];
+        named[out] = 1;
+        regs[out] = pair[0];
+      } else {
+        *buf++ = VM_INT_OP_FIRST;
+        *buf++ = out;
+        *buf++ = lhs;
+        named[out] = 0;
+      }
+      break;
+    }
+    case VM_OPCODE_SECOND:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      if (named[lhs]) {
+        size_t *pair = (size_t*) regs[lhs];
+        named[out] = 1;
+        regs[out] = pair[1];
+      } else {
+        *buf++ = VM_INT_OP_SECOND;
+        *buf++ = out;
+        *buf++ = lhs;
         named[out] = 0;
       }
       break;
@@ -634,7 +709,7 @@ uint32_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
 #define vm_int_jump_next() goto *ptrs[vm_int_read()]
 #endif
 
-void vm_int_run(uint32_t *ops)
+void vm_int_run(size_t *ops)
 {
   static void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
@@ -682,6 +757,11 @@ void vm_int_run(uint32_t *ops)
       [VM_INT_OP_IDIV] = &&exec_idiv,
       [VM_INT_OP_IMOD] = &&exec_imod,
       [VM_INT_OP_RETI] = &&exec_reti,
+      [VM_INT_OP_PAIR] = &&exec_pair,
+      [VM_INT_OP_PAIRI] = &&exec_pairi,
+      [VM_INT_OP_IPAIR] = &&exec_ipair,
+      [VM_INT_OP_FIRST] = &&exec_first,
+      [VM_INT_OP_SECOND] = &&exec_second,
   };
   size_t *stack = malloc(sizeof(size_t) * (1 << 12));
   size_t *regs = malloc(sizeof(size_t) * (1 << 20));
@@ -1177,6 +1257,53 @@ exec_reti:
   regs[vm_int_read()] = inval;
   vm_int_jump_next();
 }
+exec_pair:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  size_t *res = vm_malloc(sizeof(size_t) * 2);
+  res[0] = regs[lhs];
+  res[1] = regs[rhs];
+  regs[out] = (size_t) res;
+  vm_int_jump_next();
+}
+exec_pairi:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  size_t *res = vm_malloc(sizeof(size_t) * 2);
+  res[0] = regs[lhs];
+  res[1] = rhs;
+  regs[out] = (size_t) res;
+  vm_int_jump_next();
+}
+exec_ipair:
+{
+  size_t out = vm_int_read();
+  size_t lhs = vm_int_read();
+  size_t rhs = vm_int_read();
+  size_t *res = vm_malloc(sizeof(size_t) * 2);
+  res[0] = regs[lhs];
+  res[1] = rhs;
+  regs[out] = (size_t) res;
+  vm_int_jump_next();
+}
+exec_first:
+{
+  size_t out = vm_int_read();
+  size_t pair = vm_int_read();
+  regs[out] = ((size_t*)regs[pair])[0];
+  vm_int_jump_next();
+}
+exec_second:
+{
+  size_t out = vm_int_read();
+  size_t pair = vm_int_read();
+  regs[out] = ((size_t*)regs[pair])[1];
+  vm_int_jump_next();
+}
 fail:
   printf("not implemented: %zu@%zu\n", (size_t)ops[index - 1], index);
   return;
@@ -1189,7 +1316,7 @@ int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
   {
     return 1;
   }
-  uint32_t *iops = vm_int_comp(nops, ops, jumps);
+  size_t *iops = vm_int_comp(nops, ops, jumps);
   if (iops == NULL)
   {
     free(jumps);
