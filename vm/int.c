@@ -114,10 +114,14 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
     if (buf - ret + 64 > alloc)
     {
       size_t length = buf - ret;
+      size_t old_alloc = alloc;
       alloc = (length + 64) * 4;
       ret = vm_realloc(ret, sizeof(size_t) * alloc);
       buf = ret + length;
       froms = vm_realloc(froms, sizeof(size_t) * alloc);
+      for (size_t i = old_alloc; i < alloc; i++) {
+        froms[i] = 0;
+      }
     }
     switch (ops[index++])
     {
@@ -763,8 +767,8 @@ void vm_int_run(size_t *ops)
       [VM_INT_OP_FIRST] = &&exec_first,
       [VM_INT_OP_SECOND] = &&exec_second,
   };
-  size_t *stack = malloc(sizeof(size_t) * (1 << 12));
-  size_t *regs = malloc(sizeof(size_t) * (1 << 20));
+  size_t *stack = malloc(sizeof(size_t) * (1 << 16));
+  size_t *regs = malloc(sizeof(size_t) * (1 << 24));
   size_t *stack_base = stack;
   size_t *regs_base = regs;
   size_t index = 0;
@@ -940,7 +944,7 @@ exec_call3:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  regs[3] = r2;
+  regs[3] = r3;
   index = func;
   vm_int_jump_next();
 }
@@ -956,8 +960,8 @@ exec_call4:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  regs[3] = r2;
-  regs[4] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
   index = func;
   vm_int_jump_next();
 }
@@ -974,9 +978,9 @@ exec_call5:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  regs[3] = r2;
-  regs[4] = r2;
-  regs[5] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
+  regs[5] = r5;
   index = func;
   vm_int_jump_next();
 }
@@ -1025,7 +1029,7 @@ exec_dcall3:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  regs[3] = r2;
+  regs[3] = r3;
   index = func;
   vm_int_jump_next();
 }
@@ -1041,8 +1045,8 @@ exec_dcall4:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  regs[3] = r2;
-  regs[4] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
   index = func;
   vm_int_jump_next();
 }
@@ -1059,9 +1063,9 @@ exec_dcall5:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  regs[3] = r2;
-  regs[4] = r2;
-  regs[5] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
+  regs[5] = r5;
   index = func;
   vm_int_jump_next();
 }
