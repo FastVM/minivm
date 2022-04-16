@@ -3,6 +3,7 @@
 #include "lib.h"
 #include "opcode.h"
 #include "reguse.h"
+#include "gc.h"
 
 enum vm_int_op_t
 {
@@ -82,7 +83,7 @@ static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_
   }
 }
 
-size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
+size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t *gc)
 {
   size_t index = 0;
   size_t cfunc = 0;
@@ -261,7 +262,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       vm_opcode_t rhs = ops[index++];
       if (named[lhs] && named[rhs])
       {
-        size_t *res = vm_malloc(sizeof(size_t) * 2);
+        size_t *res = vm_gc_alloc(gc);
         res[0] = regs[lhs];
         res[1] = regs[rhs];
         named[out] = 1;
@@ -689,6 +690,8 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
     default:
     {
       printf("err %zu\n", (size_t)ops[index - 1]);
+      vm_free(froms);
+      vm_free(locs);
       return NULL;
     }
     }
@@ -701,6 +704,8 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
       ret[i] = locs[froms[i]];
     }
   }
+  vm_free(froms);
+  vm_free(locs);
   return ret;
 }
 
@@ -713,7 +718,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
 #define vm_int_jump_next() goto *ptrs[vm_int_read()]
 #endif
 
-void vm_int_run(size_t *ops)
+void vm_int_run(size_t *ops, vm_gc_t *gc)
 {
   static void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
@@ -767,16 +772,17 @@ void vm_int_run(size_t *ops)
       [VM_INT_OP_FIRST] = &&exec_first,
       [VM_INT_OP_SECOND] = &&exec_second,
   };
-  size_t *stack = malloc(sizeof(size_t) * (1 << 16));
-  size_t *regs = malloc(sizeof(size_t) * (1 << 24));
+  size_t nregs = 1 << 12;
+  size_t *stack = vm_malloc(sizeof(size_t) * (1 << 10));
+  size_t *regs = vm_malloc(sizeof(size_t) * nregs);
   size_t *stack_base = stack;
   size_t *regs_base = regs;
   size_t index = 0;
   vm_int_jump_next();
 exec_exit:
 {
-  free(stack_base);
-  free(regs_base);
+  vm_free(stack_base);
+  vm_free(regs_base);
   return;
 }
 exec_putc:
@@ -1263,10 +1269,11 @@ exec_reti:
 }
 exec_pair:
 {
+  vm_gc_collect(gc, nregs, regs_base);
   size_t out = vm_int_read();
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t *res = vm_malloc(sizeof(size_t) * 2);
+  size_t *res = vm_gc_alloc(gc);
   res[0] = regs[lhs];
   res[1] = regs[rhs];
   regs[out] = (size_t) res;
@@ -1274,10 +1281,11 @@ exec_pair:
 }
 exec_pairi:
 {
+  vm_gc_collect(gc, nregs, regs_base);
   size_t out = vm_int_read();
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t *res = vm_malloc(sizeof(size_t) * 2);
+  size_t *res = vm_gc_alloc(gc);
   res[0] = regs[lhs];
   res[1] = rhs;
   regs[out] = (size_t) res;
@@ -1285,10 +1293,11 @@ exec_pairi:
 }
 exec_ipair:
 {
+  vm_gc_collect(gc, nregs, regs_base);
   size_t out = vm_int_read();
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t *res = vm_malloc(sizeof(size_t) * 2);
+  size_t *res = vm_gc_alloc(gc);
   res[0] = regs[lhs];
   res[1] = rhs;
   regs[out] = (size_t) res;
@@ -1320,13 +1329,18 @@ int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
   {
     return 1;
   }
-  size_t *iops = vm_int_comp(nops, ops, jumps);
+  vm_gc_t gc;
+  vm_gc_init(&gc);
+  size_t *iops = vm_int_comp(nops, ops, jumps, &gc);
   if (iops == NULL)
   {
-    free(jumps);
+    vm_gc_deinit(&gc);
+    vm_free(jumps);
     return 1;
   }
-  vm_int_run(iops);
-  free(jumps);
+  vm_int_run(iops, &gc);
+  vm_gc_deinit(&gc);
+  vm_free(jumps);
+  vm_free(iops);
   return 0;
 }

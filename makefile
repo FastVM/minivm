@@ -3,7 +3,7 @@ CCLUA ?= $(CC)
 
 OPT ?= -Os
 
-SRCS := vm/main.c vm/jump.c vm/int.c vm/tgc.c
+SRCS := vm/main.c vm/jump.c vm/int.c vm/gc.c
 
 default: all
 
