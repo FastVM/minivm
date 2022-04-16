@@ -262,7 +262,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       vm_opcode_t rhs = ops[index++];
       if (named[lhs] && named[rhs])
       {
-        size_t *res = vm_gc_alloc(gc);
+        size_t *res = vm_gc_alloc_root(gc);
         res[0] = regs[lhs];
         res[1] = regs[rhs];
         named[out] = 1;
