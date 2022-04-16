@@ -36,7 +36,7 @@ void vm_gc_dealloc(vm_gc_t *restrict gc, vm_pair_t *pair) {
 
 void vm_gc_mark(vm_gc_t *restrict gc, size_t val) {
     vm_pair_t *pval = (vm_pair_t *) val;
-    if (gc->low <= pval && pval <= gc->high) {
+    if (gc->low <= pval && pval <= gc->high && ((val - (size_t) gc->low) & (sizeof(vm_pair_t) - 1)) == 0) {
         size_t nth = pval - gc->low;
         if (gc->marks[nth] == 1) {
             gc->marks[nth] = 2;
