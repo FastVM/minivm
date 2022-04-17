@@ -1298,8 +1298,8 @@ exec_ipair:
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
   size_t *res = vm_gc_alloc(gc);
-  res[0] = regs[lhs];
-  res[1] = rhs;
+  res[0] = lhs;
+  res[1] = regs[rhs];
   regs[out] = (size_t) res;
   vm_int_jump_next();
 }
