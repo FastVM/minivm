@@ -2,7 +2,8 @@
 
 #include "lib.h"
 
-enum {
+enum
+{
   VM_OPCODE_EXIT = 0,
   VM_OPCODE_REG = 1,
   VM_OPCODE_INT = 2,
