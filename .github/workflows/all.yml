@@ -38,7 +38,7 @@ jobs:
       - uses: egor-tensin/setup-mingw@v2
         with:
           platform: x64
-      - run: make CC=cc OPT='-Os' minivm
+      - run: make CC=cc OPT='-Os'
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-windows.exe
