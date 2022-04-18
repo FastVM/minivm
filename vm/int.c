@@ -59,8 +59,8 @@ enum vm_int_op_t
   VM_INT_OP_SECOND,
 };
 
-#define VM_INT_DUMP() (vm_int_dump(nops, ops, index, nregs, named, regs, jumps, &buf))
-static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_t nregs, uint8_t *named, size_t *regs, uint8_t *jumps, size_t **pbuf)
+#define VM_INT_DUMP() (vm_int_dump(nops, ops, index, nregs, named, regs, jumps, &buf, ptrs))
+static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_t nregs, uint8_t *named, size_t *regs, uint8_t *jumps, size_t **pbuf, void **ptrs)
 {
   if ((jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT))
   {
@@ -73,7 +73,7 @@ static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_
       }
       if (VM_REG_IS_USED(index, i))
       {
-        *buf++ = VM_INT_OP_MOVI;
+        *buf++ = (size_t) ptrs[VM_INT_OP_MOVI];
         *buf++ = i;
         *buf++ = regs[i];
       }
@@ -83,7 +83,7 @@ static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_
   }
 }
 
-size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t *gc)
+size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t *gc, void **ptrs)
 {
   size_t index = 0;
   size_t cfunc = 0;
@@ -128,7 +128,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
     {
     case VM_OPCODE_EXIT:
     {
-      *buf++ = VM_INT_OP_EXIT;
+      *buf++ = (size_t) ptrs[VM_INT_OP_EXIT];
       break;
     }
     case VM_OPCODE_REG:
@@ -143,7 +143,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       else
       {
         named[out] = 0;
-        *buf++ = VM_INT_OP_MOV;
+        *buf++ = (size_t) ptrs[VM_INT_OP_MOV];
         *buf++ = out;
         *buf++ = in;
       }
@@ -160,7 +160,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
     case VM_OPCODE_JUMP:
     {
       vm_opcode_t loc = ops[index++];
-      *buf++ = VM_INT_OP_JUMP;
+      *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
       froms[buf - ret] = loc;
       *buf++ = 255;
       break;
@@ -174,7 +174,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       cend = ops[index++];
       vm_opcode_t nargs = ops[index++];
       nregs = ops[index++];
-      *buf++ = VM_INT_OP_JUMP;
+      *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
       froms[buf - ret] = cend;
       *buf++ = 255;
       *buf++ = nregs;
@@ -195,21 +195,21 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (named[lhs])
         {
-          *buf++ = VM_INT_OP_ADDI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_ADDI];
           *buf++ = out;
           *buf++ = rhs;
           *buf++ = regs[lhs];
         }
         else if (named[rhs])
         {
-          *buf++ = VM_INT_OP_ADDI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_ADDI];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = regs[rhs];
         }
         else
         {
-          *buf++ = VM_INT_OP_ADD;
+          *buf++ = (size_t) ptrs[VM_INT_OP_ADD];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = rhs;
@@ -232,21 +232,21 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (named[lhs])
         {
-          *buf++ = VM_INT_OP_ISUB;
+          *buf++ = (size_t) ptrs[VM_INT_OP_ISUB];
           *buf++ = out;
           *buf++ = regs[lhs];
           *buf++ = rhs;
         }
         else if (named[rhs])
         {
-          *buf++ = VM_INT_OP_SUBI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_SUBI];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = regs[rhs];
         }
         else
         {
-          *buf++ = VM_INT_OP_SUB;
+          *buf++ = (size_t) ptrs[VM_INT_OP_SUB];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = rhs;
@@ -270,21 +270,21 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       } else {
         if (named[lhs])
         {
-          *buf++ = VM_INT_OP_IPAIR;
+          *buf++ = (size_t) ptrs[VM_INT_OP_IPAIR];
           *buf++ = out;
           *buf++ = regs[lhs];
           *buf++ = rhs;
         }
         else if (named[rhs])
         {
-          *buf++ = VM_INT_OP_PAIRI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_PAIRI];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = regs[rhs];
         }
         else
         {
-          *buf++ = VM_INT_OP_PAIR;
+          *buf++ = (size_t) ptrs[VM_INT_OP_PAIR];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = rhs;
@@ -302,7 +302,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
         named[out] = 1;
         regs[out] = pair[0];
       } else {
-        *buf++ = VM_INT_OP_FIRST;
+        *buf++ = (size_t) ptrs[VM_INT_OP_FIRST];
         *buf++ = out;
         *buf++ = lhs;
         named[out] = 0;
@@ -318,7 +318,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
         named[out] = 1;
         regs[out] = pair[1];
       } else {
-        *buf++ = VM_INT_OP_SECOND;
+        *buf++ = (size_t) ptrs[VM_INT_OP_SECOND];
         *buf++ = out;
         *buf++ = lhs;
         named[out] = 0;
@@ -339,21 +339,21 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (named[lhs])
         {
-          *buf++ = VM_INT_OP_MULI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MULI];
           *buf++ = out;
           *buf++ = rhs;
           *buf++ = regs[lhs];
         }
         else if (named[rhs])
         {
-          *buf++ = VM_INT_OP_MULI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MULI];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = regs[rhs];
         }
         else
         {
-          *buf++ = VM_INT_OP_MUL;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MUL];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = rhs;
@@ -376,21 +376,21 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (named[lhs])
         {
-          *buf++ = VM_INT_OP_IDIV;
+          *buf++ = (size_t) ptrs[VM_INT_OP_IDIV];
           *buf++ = out;
           *buf++ = regs[lhs];
           *buf++ = rhs;
         }
         else if (named[rhs])
         {
-          *buf++ = VM_INT_OP_DIVI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_DIVI];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = regs[rhs];
         }
         else
         {
-          *buf++ = VM_INT_OP_DIV;
+          *buf++ = (size_t) ptrs[VM_INT_OP_DIV];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = rhs;
@@ -413,21 +413,21 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (named[lhs])
         {
-          *buf++ = VM_INT_OP_IMOD;
+          *buf++ = (size_t) ptrs[VM_INT_OP_IMOD];
           *buf++ = out;
           *buf++ = regs[lhs];
           *buf++ = rhs;
         }
         else if (named[rhs])
         {
-          *buf++ = VM_INT_OP_MODI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MODI];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = regs[rhs];
         }
         else
         {
-          *buf++ = VM_INT_OP_MOD;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MOD];
           *buf++ = out;
           *buf++ = lhs;
           *buf++ = rhs;
@@ -444,13 +444,13 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
         vm_opcode_t reg = ops[index + i];
         if (named[reg])
         {
-          *buf++ = VM_INT_OP_MOVI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MOVI];
           *buf++ = reg;
           *buf++ = regs[reg];
           named[reg] = 0;
         }
       }
-      *buf++ = VM_INT_OP_TCALL0 + nargs;
+      *buf++ = (size_t) ptrs[VM_INT_OP_TCALL0 + nargs];
       froms[buf - ret] = cfunc;
       *buf++ = 255;
       for (int i = 0; i < nargs; i++)
@@ -469,13 +469,13 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
         vm_opcode_t reg = ops[index + i];
         if (named[reg])
         {
-          *buf++ = VM_INT_OP_MOVI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MOVI];
           *buf++ = reg;
           *buf++ = regs[reg];
           named[reg] = 0;
         }
       }
-      *buf++ = VM_INT_OP_CALL0 + nargs;
+      *buf++ = (size_t) ptrs[VM_INT_OP_CALL0 + nargs];
       froms[buf - ret] = func;
       *buf++ = 255;
       for (int i = 0; i < nargs; i++)
@@ -496,13 +496,13 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
         vm_opcode_t reg = ops[index + i];
         if (named[reg])
         {
-          *buf++ = VM_INT_OP_MOVI;
+          *buf++ = (size_t) ptrs[VM_INT_OP_MOVI];
           *buf++ = reg;
           *buf++ = regs[reg];
           named[reg] = 0;
         }
       }
-      *buf++ = VM_INT_OP_DCALL0 + nargs;
+      *buf++ = (size_t) ptrs[VM_INT_OP_DCALL0 + nargs];
       *buf++ = func;
       for (int i = 0; i < nargs; i++)
       {
@@ -517,12 +517,12 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       vm_opcode_t out = ops[index++];
       if (named[out])
       {
-        *buf++ = VM_INT_OP_RETI;
+        *buf++ = (size_t) ptrs[VM_INT_OP_RETI];
         *buf++ = regs[out];
       }
       else
       {
-        *buf++ = VM_INT_OP_RET;
+        *buf++ = (size_t) ptrs[VM_INT_OP_RET];
         *buf++ = out;
       }
       break;
@@ -532,11 +532,11 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       vm_opcode_t in = ops[index++];
       if (named[in])
       {
-        *buf++ = VM_INT_OP_MOVI;
+        *buf++ = (size_t) ptrs[VM_INT_OP_MOVI];
         *buf++ = in;
         *buf++ = regs[in];
       }
-      *buf++ = VM_INT_OP_PUTC;
+      *buf++ = (size_t) ptrs[VM_INT_OP_PUTC];
       *buf++ = in;
       break;
     }
@@ -549,20 +549,20 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (regs[val])
         {
-          *buf++ = VM_INT_OP_JUMP;
+          *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
           froms[buf - ret] = jtrue;
           *buf++ = 255;
         }
         else
         {
-          *buf++ = VM_INT_OP_JUMP;
+          *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
           froms[buf - ret] = jfalse;
           *buf++ = 255;
         }
       }
       else
       {
-        *buf++ = VM_INT_OP_BB;
+        *buf++ = (size_t) ptrs[VM_INT_OP_BB];
         *buf++ = val;
         froms[buf - ret] = jfalse;
         *buf++ = 255;
@@ -581,20 +581,20 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (regs[lhs] == regs[rhs])
         {
-          *buf++ = VM_INT_OP_JUMP;
+          *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
           froms[buf - ret] = jtrue;
           *buf++ = 255;
         }
         else
         {
-          *buf++ = VM_INT_OP_JUMP;
+          *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
           froms[buf - ret] = jfalse;
           *buf++ = 255;
         }
       }
       else if (named[rhs])
       {
-        *buf++ = VM_INT_OP_BEQI;
+        *buf++ = (size_t) ptrs[VM_INT_OP_BEQI];
         *buf++ = lhs;
         *buf++ = regs[rhs];
         froms[buf - ret] = jfalse;
@@ -604,7 +604,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       }
       else if (named[lhs])
       {
-        *buf++ = VM_INT_OP_BEQI;
+        *buf++ = (size_t) ptrs[VM_INT_OP_BEQI];
         *buf++ = rhs;
         *buf++ = regs[lhs];
         froms[buf - ret] = jfalse;
@@ -614,7 +614,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       }
       else
       {
-        *buf++ = VM_INT_OP_BEQ;
+        *buf++ = (size_t) ptrs[VM_INT_OP_BEQ];
         *buf++ = lhs;
         *buf++ = rhs;
         froms[buf - ret] = jfalse;
@@ -634,20 +634,20 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       {
         if (regs[lhs] < regs[rhs])
         {
-          *buf++ = VM_INT_OP_JUMP;
+          *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
           froms[buf - ret] = jtrue;
           *buf++ = 255;
         }
         else
         {
-          *buf++ = VM_INT_OP_JUMP;
+          *buf++ = (size_t) ptrs[VM_INT_OP_JUMP];
           froms[buf - ret] = jfalse;
           *buf++ = 255;
         }
       }
       else if (named[rhs])
       {
-        *buf++ = VM_INT_OP_BLTI;
+        *buf++ = (size_t) ptrs[VM_INT_OP_BLTI];
         *buf++ = lhs;
         *buf++ = regs[rhs];
         froms[buf - ret] = jfalse;
@@ -657,7 +657,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       }
       else if (named[lhs])
       {
-        *buf++ = VM_INT_OP_BILT;
+        *buf++ = (size_t) ptrs[VM_INT_OP_BILT];
         *buf++ = regs[lhs];
         *buf++ = rhs;
         froms[buf - ret] = jfalse;
@@ -667,7 +667,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       }
       else
       {
-        *buf++ = VM_INT_OP_BLT;
+        *buf++ = (size_t) ptrs[VM_INT_OP_BLT];
         *buf++ = lhs;
         *buf++ = rhs;
         froms[buf - ret] = jfalse;
@@ -681,7 +681,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t func = ops[index++];
-      *buf++ = VM_INT_OP_MOVI;
+      *buf++ = (size_t) ptrs[VM_INT_OP_MOVI];
       *buf++ = out;
       froms[buf - ret] = func;
       *buf++ = 255;
@@ -713,12 +713,12 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
 #if 0
 #define vm_int_jump_next()                         \
   printf("%zu: %zu\n", index, (size_t)ops[index]); \
-  goto *ptrs[vm_int_read()]
+  goto *(void*)vm_int_read()
 #else
-#define vm_int_jump_next() goto *ptrs[vm_int_read()]
+#define vm_int_jump_next() goto *(void*)vm_int_read()
 #endif
 
-void vm_int_run(size_t *ops, vm_gc_t *gc)
+int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
 {
   static void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
@@ -772,6 +772,17 @@ void vm_int_run(size_t *ops, vm_gc_t *gc)
       [VM_INT_OP_FIRST] = &&exec_first,
       [VM_INT_OP_SECOND] = &&exec_second,
   };
+  uint8_t *jumps = vm_jump_all(nops, iops);
+  if (jumps == NULL)
+  {
+    return 1;
+  }
+  size_t *ops = vm_int_comp(nops, iops, jumps, gc, &ptrs[0]);
+  vm_free(jumps);
+  if (ops == NULL)
+  {
+    return 1;
+  }
   size_t nregs = 1 << 12;
   size_t *stack = vm_malloc(sizeof(size_t) * (1 << 10));
   size_t *regs = vm_malloc(sizeof(size_t) * nregs);
@@ -783,12 +794,12 @@ exec_exit:
 {
   vm_free(stack_base);
   vm_free(regs_base);
-  return;
+  return 0;
 }
 exec_putc:
 {
   size_t reg = vm_int_read();
-  putchar((int)regs[reg]);
+  printf("%c", (int)regs[reg]);
   vm_int_jump_next();
 }
 exec_mov:
@@ -856,48 +867,21 @@ exec_ret:
 exec_bb:
 {
   size_t in = vm_int_read();
-  size_t jfalse = vm_int_read();
-  size_t jtrue = vm_int_read();
-  if (regs[in])
-  {
-    index = jtrue;
-  }
-  else
-  {
-    index = jfalse;
-  }
+  index = ops[index + (regs[in]!=0)];
   vm_int_jump_next();
 }
 exec_beq:
 {
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t jfalse = vm_int_read();
-  size_t jtrue = vm_int_read();
-  if (regs[lhs] == regs[rhs])
-  {
-    index = jtrue;
-  }
-  else
-  {
-    index = jfalse;
-  }
+  index = ops[index+(regs[lhs] == regs[rhs])];
   vm_int_jump_next();
 }
 exec_blt:
 {
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t jfalse = vm_int_read();
-  size_t jtrue = vm_int_read();
-  if (regs[lhs] < regs[rhs])
-  {
-    index = jtrue;
-  }
-  else
-  {
-    index = jfalse;
-  }
+  index = ops[index+(regs[lhs] < regs[rhs])];
   vm_int_jump_next();
 }
 exec_def:
@@ -1151,48 +1135,21 @@ exec_beqi:
 {
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t jfalse = vm_int_read();
-  size_t jtrue = vm_int_read();
-  if (regs[lhs] == rhs)
-  {
-    index = jtrue;
-  }
-  else
-  {
-    index = jfalse;
-  }
+  index = ops[index+(regs[lhs] == rhs)];
   vm_int_jump_next();
 }
 exec_blti:
 {
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t jfalse = vm_int_read();
-  size_t jtrue = vm_int_read();
-  if (regs[lhs] < rhs)
-  {
-    index = jtrue;
-  }
-  else
-  {
-    index = jfalse;
-  }
+  index = ops[index+(regs[lhs] < rhs)];
   vm_int_jump_next();
 }
 exec_bilt:
 {
   size_t lhs = vm_int_read();
   size_t rhs = vm_int_read();
-  size_t jfalse = vm_int_read();
-  size_t jtrue = vm_int_read();
-  if (lhs < regs[rhs])
-  {
-    index = jtrue;
-  }
-  else
-  {
-    index = jfalse;
-  }
+  index = ops[index+(lhs < regs[rhs])];
   vm_int_jump_next();
 }
 exec_addi:
@@ -1319,28 +1276,14 @@ exec_second:
 }
 fail:
   printf("not implemented: %zu@%zu\n", (size_t)ops[index - 1], index);
-  return;
+  return 1;
 }
 
 int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
 {
-  uint8_t *jumps = vm_jump_all(nops, ops);
-  if (jumps == NULL)
-  {
-    return 1;
-  }
   vm_gc_t gc;
   vm_gc_init(&gc);
-  size_t *iops = vm_int_comp(nops, ops, jumps, &gc);
-  if (iops == NULL)
-  {
-    vm_gc_deinit(&gc);
-    vm_free(jumps);
-    return 1;
-  }
-  vm_int_run(iops, &gc);
+  int res = vm_int_run(nops, ops, &gc);
   vm_gc_deinit(&gc);
-  vm_free(jumps);
-  vm_free(iops);
-  return 0;
+  return res;
 }

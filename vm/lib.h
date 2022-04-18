@@ -4,9 +4,20 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
+
+struct FILE;
+typedef struct FILE FILE;
+
+void *malloc(size_t n);
+void *calloc(size_t n1, size_t n2);
+void *realloc(void *ptr, size_t n);
+void free(void *ptr);
+
+FILE *fopen(const char *file, const char *mode);
+int fclose(FILE *file);
+size_t fread(void *ptr, size_t size, size_t n, FILE *file);
+
+int printf(const char *fmt, ...);
 
 static inline size_t vm_strlen(const char *str)
 {
