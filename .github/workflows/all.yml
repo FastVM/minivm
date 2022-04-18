@@ -1,7 +1,7 @@
 name: Builds
 on: [push]
 jobs:
-  linux-opt:
+  linux-minivm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -15,7 +15,7 @@ jobs:
             bin/minivm
             bin/minivm-color
             bin/minivm-dis
-  macos-opt:
+  macos-minivm:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,3 +29,20 @@ jobs:
             bin/minivm
             bin/minivm-color
             bin/minivm-dis
+  windows-minivm:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+      - run: make CC=cc OPT='-Os' minivm
+      - uses: actions/upload-artifact@v2
+        with:
+          name: minivm-windows.exe
+          path:  | 
+            bin/minivm.exe
+            bin/minivm-color.exe
+            bin/minivm-dis.exe
