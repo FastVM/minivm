@@ -783,8 +783,9 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
   {
     return 1;
   }
-  size_t nregs = 1 << 12;
-  size_t *stack = vm_malloc(sizeof(size_t) * (1 << 10));
+  size_t nframes = 1000;
+  size_t nregs = nframes * 8;
+  size_t *stack = vm_malloc(sizeof(size_t) * nframes);
   size_t *regs = vm_malloc(sizeof(size_t) * nregs);
   size_t *stack_base = stack;
   size_t *regs_base = regs;
@@ -794,6 +795,7 @@ exec_exit:
 {
   vm_free(stack_base);
   vm_free(regs_base);
+  vm_free(ops);
   return 0;
 }
 exec_putc:
