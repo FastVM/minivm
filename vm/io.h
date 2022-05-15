@@ -36,7 +36,7 @@ static inline vm_io_res_t vm_io_read(const char *filename)
     if (nops + 1 >= nalloc)
     {
       nalloc *= 4;
-      ops = realloc(ops, sizeof(vm_opcode_t) * nalloc);
+      ops = vm_realloc(ops, sizeof(vm_opcode_t) * nalloc);
     }
     ops[nops++] = (size_t)op;
   }

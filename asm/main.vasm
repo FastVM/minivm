@@ -1,0 +1,5 @@
+r0 <- int 48
+putchar r0
+r0 <- int 10
+putchar r0
+exit
