@@ -370,7 +370,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       if (named[lhs] && named[rhs])
       {
         named[out] = 1;
-        regs[out] = regs[lhs] - regs[rhs];
+        regs[out] = regs[lhs] / regs[rhs];
       }
       else
       {
@@ -407,7 +407,7 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
       if (named[lhs] && named[rhs])
       {
         named[out] = 1;
-        regs[out] = regs[lhs] - regs[rhs];
+        regs[out] = regs[lhs] % regs[rhs];
       }
       else
       {
