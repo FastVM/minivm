@@ -64,10 +64,7 @@ int vm_run_dis_all(size_t nops, const vm_opcode_t *ops, uint8_t *jumps)
     {
       printf("  #%zu:\n", (size_t)index);
     }
-    if (depth != 0)
-    {
-      printf("    ");
-    }
+    printf("    ");
     vm_opcode_t op = ops[index];
     index += 1;
     switch (op)

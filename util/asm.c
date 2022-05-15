@@ -359,6 +359,7 @@ vm_asm_instr_t *vm_asm_read(const char *src)
     }
     goto err;
   }
+  vm_asm_put_op(VM_OPCODE_EXIT);
   return instrs;
 err:
   free(instrs);
@@ -476,6 +477,7 @@ err:
 
 int main(int argc, char **argv)
 {
+  const char *dump = NULL;
   if (argc < 2)
   {
     return 1;
@@ -498,11 +500,17 @@ int main(int argc, char **argv)
   {
     return 1;
   }
-  int res = vm_run_arch_int(buf.nops, buf.ops);
-  free(buf.ops);
-  if (res != 0)
-  {
-    return 1;
+  if (dump) {
+    FILE *out = fopen(dump, "wb");
+    fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
+    fclose(out);
+  } else {
+    int res = vm_run_arch_int(buf.nops, buf.ops);
+    if (res != 0)
+    {
+      return 1;
+    }
   }
+  free(buf.ops);
   return 0;
 }

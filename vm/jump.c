@@ -188,10 +188,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
     {
     case VM_OPCODE_EXIT:
     {
-      if (index < nops)
-      {
-        ret[index] |= VM_JUMP_OUT;
-      }
+      ret[index-1] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_REG:
@@ -208,8 +205,8 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
     }
     case VM_OPCODE_RET:
     {
+      ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t outreg = ops[index++];
-      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_ADD:
@@ -249,12 +246,12 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
     }
     case VM_OPCODE_BB:
     {
+      ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t inreg = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
       ret[jfalse] |= VM_JUMP_IN;
       ret[jtrue] |= VM_JUMP_IN;
-      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_CALL:
@@ -280,9 +277,9 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
     }
     case VM_OPCODE_JUMP:
     {
+      ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t over = ops[index++];
       ret[over] |= VM_JUMP_IN;
-      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_FUNC:
@@ -295,24 +292,24 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
     }
     case VM_OPCODE_BEQ:
     {
+      ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
       ret[jfalse] |= VM_JUMP_IN;
       ret[jtrue] |= VM_JUMP_IN;
-      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_BLT:
     {
+      ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       vm_opcode_t jfalse = ops[index++];
       vm_opcode_t jtrue = ops[index++];
       ret[jfalse] |= VM_JUMP_IN;
       ret[jtrue] |= VM_JUMP_IN;
-      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_INTF:
@@ -323,9 +320,9 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
     }
     case VM_OPCODE_TCALL:
     {
+      ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t nargs = ops[index++];
       index += nargs;
-      ret[index] |= VM_JUMP_OUT;
       break;
     }
     case VM_OPCODE_PAIR:

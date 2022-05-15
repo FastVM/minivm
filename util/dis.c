@@ -27,11 +27,8 @@ int vm_run_dis(size_t nops, const vm_opcode_t *ops)
       if (reachable)
         printf("  #%zu:\n", (size_t)index);
     }
-    if (depth != 0)
-    {
-      if (reachable)
-        printf("    ");
-    }
+    if (reachable)
+      printf("    ");
     vm_opcode_t op = ops[index];
     index += 1;
     switch (op)
