@@ -5,6 +5,8 @@
 #include "reguse.h"
 #include "gc.h"
 
+#define VM_DUMP_ALWAYS 0
+
 enum vm_int_op_t
 {
   VM_INT_OP_EXIT,
@@ -62,7 +64,7 @@ enum vm_int_op_t
 #define VM_INT_DUMP() (vm_int_dump(nops, ops, index, nregs, named, regs, jumps, &buf, ptrs))
 static void vm_int_dump(size_t nops, const vm_opcode_t *ops, size_t index, size_t nregs, uint8_t *named, size_t *regs, uint8_t *jumps, size_t **pbuf, void **ptrs)
 {
-  if ((jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT))
+  if (VM_DUMP_ALWAYS || (jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT))
   {
     size_t *buf = *pbuf;
     for (size_t i = 0; i < nregs; i++)
@@ -102,14 +104,14 @@ size_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t
 
   while (index < nops)
   {
-    while (index < cend && (jumps[index] & VM_JUMP_REACH) == 0 && ops[index] != VM_OPCODE_FUNC)
-    {
-      index++;
-      while ((jumps[index] & VM_JUMP_INSTR) == 0)
-      {
-        index++;
-      }
-    }
+    // while (index < cend && (jumps[index] & VM_JUMP_REACH) == 0 && ops[index] != VM_OPCODE_FUNC)
+    // {
+    //   index++;
+    //   while ((jumps[index] & VM_JUMP_INSTR) == 0)
+    //   {
+    //     index++;
+    //   }
+    // }
     VM_INT_DUMP();
     locs[index] = buf - ret;
     if (buf - ret + 64 > alloc)
