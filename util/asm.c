@@ -86,7 +86,7 @@ int vm_asm_isdigit(char c)
 
 int vm_asm_isword(char c)
 {
-  return vm_asm_isdigit(c) || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
+  return vm_asm_isdigit(c) || c == '.' || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
 }
 
 int vm_asm_starts(const char *in, const char *test)
@@ -286,6 +286,42 @@ vm_asm_instr_t *vm_asm_read(const char *src)
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
+        if (vm_asm_starts(opname, "call")) {
+          vm_asm_put_op(VM_OPCODE_CALL);
+          vm_asm_put_reg(regno);
+          vm_asm_strip(&src);
+          vm_asm_put_get(src);
+          src += vm_asm_word(src);
+          vm_opcode_t args[8] = {0};
+          size_t nargs = 0;
+          vm_asm_strip(&src);
+          while (*src != '\n') {
+            args[nargs++] = vm_asm_read_reg(&src);
+            vm_asm_strip(&src);
+          }
+          vm_asm_put_int(nargs);
+          for (size_t i = 0; i < nargs; i++) {
+            vm_asm_put_reg(args[i]);
+          }
+          continue;
+        }
+        if (vm_asm_starts(opname, "dcall")) {
+          vm_asm_put_op(VM_OPCODE_DCALL);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_opcode_t args[8] = {0};
+          size_t nargs = 0;
+          vm_asm_strip(&src);
+          while (*src != '\n') {
+            args[nargs++] = vm_asm_read_reg(&src);
+            vm_asm_strip(&src);
+          }
+          vm_asm_put_int(nargs);
+          for (size_t i = 0; i < nargs; i++) {
+            vm_asm_put_reg(args[i]);
+          }
+          continue;
+        }
       }
     }
     else
@@ -293,6 +329,18 @@ vm_asm_instr_t *vm_asm_read(const char *src)
       vm_asm_strip(&src);
       const char *opname = src;
       src += vm_asm_word(src);
+      if (vm_asm_starts(opname, "func"))
+      {
+        vm_asm_put_op(VM_OPCODE_FUNC);
+        vm_asm_put_int(0);
+        vm_asm_strip(&src);
+        const char *fn = src;
+        src += vm_asm_word(src);
+        vm_asm_put_int(0);
+        vm_asm_put_int(vm_asm_read_int(&src));
+        vm_asm_put_set(fn);
+        continue;
+      }
       if (vm_asm_starts(opname, "exit"))
       {
         vm_asm_put_op(VM_OPCODE_EXIT);
@@ -362,6 +410,7 @@ vm_asm_instr_t *vm_asm_read(const char *src)
   vm_asm_put_op(VM_OPCODE_EXIT);
   return instrs;
 err:
+  printf("%s\n", src);
   free(instrs);
   return NULL;
 }
@@ -398,7 +447,7 @@ vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs)
       if (nlinks + 1 > links_alloc)
       {
         links_alloc = nlinks * 4 + 1;
-        links = vm_realloc(links, sizeof(vm_opcode_t) * links_alloc);
+        links = vm_realloc(links, sizeof(vm_asm_link_t) * links_alloc);
       }
       links[nlinks++] = (vm_asm_link_t){
           .name = (const char *)cur->value,
@@ -408,14 +457,14 @@ vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs)
     }
     }
   }
-  size_t ops_alloc = 16;
+  size_t ops_alloc = 256;
   vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * ops_alloc);
   size_t nops = 0;
   for (vm_asm_instr_t *cur = instrs; cur->type != VM_ASM_INSTR_END; cur++)
   {
-    if (nops + 1 > ops_alloc)
+    if (nops + 2 > ops_alloc)
     {
-      ops_alloc = nops * 4 + 1;
+      ops_alloc = nops * 4 + 2;
       ops = vm_realloc(ops, sizeof(vm_opcode_t) * ops_alloc);
     }
     switch (cur->type)
@@ -477,20 +526,24 @@ err:
 
 int main(int argc, char **argv)
 {
+  // const char *dump = "out.bc";
   const char *dump = NULL;
   if (argc < 2)
   {
+    printf("too few args\n");
     return 1;
   }
   const char *src = vm_asm_io_read(argv[1]);
   if (src == NULL)
   {
+    printf("could not read file\n");
     return 1;
   }
   vm_asm_instr_t *instrs = vm_asm_read(src);
   if (instrs == NULL)
   {
     vm_free((void *)src);
+    printf("could not parse file\n");
     return 1;
   }
   vm_asm_buf_t buf = vm_asm_link(instrs);
@@ -498,6 +551,7 @@ int main(int argc, char **argv)
   vm_free((void *)src);
   if (buf.nops == 0)
   {
+    printf("could not link file\n");
     return 1;
   }
   if (dump) {
@@ -508,6 +562,7 @@ int main(int argc, char **argv)
     int res = vm_run_arch_int(buf.nops, buf.ops);
     if (res != 0)
     {
+      printf("could not run asm\n");
       return 1;
     }
   }
