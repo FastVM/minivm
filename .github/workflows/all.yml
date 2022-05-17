@@ -12,9 +12,7 @@ jobs:
         with:
           name: minivm-linux
           path:  | 
-            bin/minivm
-            bin/minivm-color
-            bin/minivm-dis
+            bin/minivm-asm
   macos-minivm:
     runs-on: macos-latest
     steps:
@@ -26,9 +24,7 @@ jobs:
         with:
           name: minivm-mac
           path: | 
-            bin/minivm
-            bin/minivm-color
-            bin/minivm-dis
+            bin/minivm-asm
   windows-minivm:
     runs-on: windows-latest
     steps:
@@ -43,6 +39,4 @@ jobs:
         with:
           name: minivm-windows.exe
           path:  | 
-            bin/minivm.exe
-            bin/minivm-color.exe
-            bin/minivm-dis.exe
+            bin/minivm-asm.exe
