@@ -16,7 +16,7 @@ A local value.
 
 Saved by the [call](#call) and [dcall](#dcall) instructions.
 
-There are an arbitrary number of registers given to MiniVM, atleast 256 but no more than 4294967295. 
+There are an arbitrary number of registers given to MiniVM, atleast 256 but no more than 4294967296. 
 
 ## Location
 
