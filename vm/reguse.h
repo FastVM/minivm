@@ -1,9 +1,12 @@
 
 #include "opcode.h"
 
-#define VM_REG_IS_USED(index_, reg_) (vm_reg_is_used(nops, ops, jumps, index_, reg_))
-static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t index, size_t reg)
+#define VM_REG_IS_USED(index_, reg_) (vm_reg_is_used(nops, ops, jumps, index_, reg_, 16))
+static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t index, size_t reg, size_t rem)
 {
+  if (rem == 0) {
+    return 1;
+  }
   while (index < nops)
   {
     switch (ops[index])
@@ -16,7 +19,7 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
     case VM_OPCODE_JUMP:
     {
       vm_opcode_t dest = ops[index + 1];
-      return vm_reg_is_used(nops, ops, jumps, dest, reg);
+      return vm_reg_is_used(nops, ops, jumps, dest, reg, rem-1);
     }
     case VM_OPCODE_PUTCHAR:
     {
@@ -35,7 +38,7 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       }
       vm_opcode_t jfalse = ops[index + 2];
       vm_opcode_t jtrue = ops[index + 3];
-      return vm_reg_is_used(nops, ops, jumps, jfalse, reg) || vm_reg_is_used(nops, ops, jumps, jtrue, reg);
+      return vm_reg_is_used(nops, ops, jumps, jfalse, reg, rem/2) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, rem/2);
     }
     case VM_OPCODE_UBEQ:
     case VM_OPCODE_UBLT:
@@ -48,7 +51,7 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       }
       vm_opcode_t jfalse = ops[index + 3];
       vm_opcode_t jtrue = ops[index + 4];
-      return vm_reg_is_used(nops, ops, jumps, jfalse, reg) || vm_reg_is_used(nops, ops, jumps, jtrue, reg);
+      return vm_reg_is_used(nops, ops, jumps, jfalse, reg, rem/2) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, rem/2);
     }
     case VM_OPCODE_PAIR:
     case VM_OPCODE_UADD:
