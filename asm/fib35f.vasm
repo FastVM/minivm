@@ -1,36 +1,41 @@
 func fib 2
-    r0 <- uint 2
-    ublt r1 r0 fib.else fib.then
+    r0 <- fint 2
+    fblt r1 r0 fib.else fib.then
 @fib.then
     ret r1
 @fib.else
-    r0 <- uint 1
-    r1 <- usub r1 r0
-    r0 <- usub r1 r0
+    r0 <- fint 1
+    r1 <- fsub r1 r0
+    r0 <- fsub r1 r0
     r1 <- call fib r1
     r0 <- call fib r0
-    r0 <- uadd r0 r1
+    r0 <- fadd r0 r1
     ret r0
 
-func putn 2
-    ubb r1 putn.ret putn.digit 
-@putn.digit
+func fputi 2
+    r1 <- ftou r1
+    r1 <- call puti r1
+    ret r1
+
+func puti 2
+    ubb r1 puti.ret puti.digit 
+@puti.digit
     r0 <- uint 10
     r0 <- udiv r1 r0
-    r0 <- call putn r0
+    r0 <- call puti r0
     r0 <- uint 10
     r1 <- umod r1 r0
     r0 <- uint 48
     r1 <- uadd r1 r0
     putchar r1
-@putn.ret
+@puti.ret
     r0 <- uint 0
     ret r0
 
 @main
-    r0 <- uint 35
+    r0 <- fint 35
     r0 <- call fib r0
-    r0 <- call putn r0
+    r0 <- call fputi r0
     r0 <- uint 10
     putchar r0
     exit

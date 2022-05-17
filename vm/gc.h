@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lib.h"
+#include "vm.h"
 
 struct vm_pair_t;
 typedef struct vm_pair_t vm_pair_t;
@@ -30,4 +31,4 @@ void vm_gc_deinit(vm_gc_t *gc);
 void *vm_gc_alloc(vm_gc_t *gc);
 void *vm_gc_alloc_root(vm_gc_t *gc);
 void vm_gc_dealloc(vm_gc_t *gc, vm_pair_t *pair);
-void vm_gc_collect(vm_gc_t *gc, size_t nstack, size_t *stack);
+void vm_gc_collect(vm_gc_t *gc, size_t nstack, vm_value_t *stack);

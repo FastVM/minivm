@@ -26,7 +26,8 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       }
       break;
     }
-    case VM_OPCODE_BB:
+    case VM_OPCODE_UBB:
+    case VM_OPCODE_FBB:
     {
       if (ops[index + 1] == reg)
       {
@@ -36,8 +37,10 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       vm_opcode_t jtrue = ops[index + 3];
       return vm_reg_is_used(nops, ops, jumps, jfalse, reg) || vm_reg_is_used(nops, ops, jumps, jtrue, reg);
     }
-    case VM_OPCODE_BEQ:
-    case VM_OPCODE_BLT:
+    case VM_OPCODE_UBEQ:
+    case VM_OPCODE_UBLT:
+    case VM_OPCODE_FBEQ:
+    case VM_OPCODE_FBLT:
     {
       if (ops[index + 1] == reg || ops[index + 2] == reg)
       {
@@ -48,11 +51,16 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       return vm_reg_is_used(nops, ops, jumps, jfalse, reg) || vm_reg_is_used(nops, ops, jumps, jtrue, reg);
     }
     case VM_OPCODE_PAIR:
-    case VM_OPCODE_ADD:
-    case VM_OPCODE_SUB:
-    case VM_OPCODE_MUL:
-    case VM_OPCODE_DIV:
-    case VM_OPCODE_MOD:
+    case VM_OPCODE_UADD:
+    case VM_OPCODE_USUB:
+    case VM_OPCODE_UMUL:
+    case VM_OPCODE_UDIV:
+    case VM_OPCODE_UMOD:
+    case VM_OPCODE_FADD:
+    case VM_OPCODE_FSUB:
+    case VM_OPCODE_FMUL:
+    case VM_OPCODE_FDIV:
+    case VM_OPCODE_FMOD:
     {
       if (ops[index + 2] == reg || ops[index + 3] == reg)
       {
@@ -77,6 +85,7 @@ static int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, s
       }
       break;
     case VM_OPCODE_INT:
+    case VM_OPCODE_FINT:
       if (ops[index + 1] == reg)
       {
         return 0;

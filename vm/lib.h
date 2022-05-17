@@ -17,6 +17,7 @@ FILE *fopen(const char *file, const char *mode);
 int fclose(FILE *file);
 size_t fwrite(const void *ptr, size_t size, size_t n, FILE *file);
 size_t fread(void *ptr, size_t size, size_t n, FILE *file);
+double fmod(double lhs, double rhs);
 
 int printf(const char *fmt, ...);
 

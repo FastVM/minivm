@@ -201,10 +201,25 @@ vm_asm_instr_t *vm_asm_read(const char *src)
         vm_asm_strip(&src);
         const char *opname = src;
         src += vm_asm_word(src);
-        if (vm_asm_starts(opname, "int"))
+        if (vm_asm_starts(opname, "uint"))
         {
           vm_asm_put_op(VM_OPCODE_INT);
           vm_asm_put_reg(regno);
+          vm_asm_put_int(vm_asm_read_int(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "fint"))
+        {
+          vm_asm_put_op(VM_OPCODE_FINT);
+          vm_asm_put_reg(regno);
+          vm_asm_put_int(vm_asm_read_int(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "frac"))
+        {
+          vm_asm_put_op(VM_OPCODE_FINT);
+          vm_asm_put_reg(regno);
+          vm_asm_put_int(vm_asm_read_int(&src));
           vm_asm_put_int(vm_asm_read_int(&src));
           continue;
         }
@@ -224,41 +239,95 @@ vm_asm_instr_t *vm_asm_read(const char *src)
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "add"))
+        if (vm_asm_starts(opname, "ftou"))
         {
-          vm_asm_put_op(VM_OPCODE_ADD);
+          vm_asm_put_op(VM_OPCODE_FTOU);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "utof"))
+        {
+          vm_asm_put_op(VM_OPCODE_UTOF);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "uadd"))
+        {
+          vm_asm_put_op(VM_OPCODE_UADD);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "sub"))
+        if (vm_asm_starts(opname, "usub"))
         {
-          vm_asm_put_op(VM_OPCODE_SUB);
+          vm_asm_put_op(VM_OPCODE_USUB);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "mul"))
+        if (vm_asm_starts(opname, "umul"))
         {
-          vm_asm_put_op(VM_OPCODE_MUL);
+          vm_asm_put_op(VM_OPCODE_UMUL);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "div"))
+        if (vm_asm_starts(opname, "udiv"))
         {
-          vm_asm_put_op(VM_OPCODE_DIV);
+          vm_asm_put_op(VM_OPCODE_UDIV);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "mod"))
+        if (vm_asm_starts(opname, "umod"))
         {
-          vm_asm_put_op(VM_OPCODE_MOD);
+          vm_asm_put_op(VM_OPCODE_UMOD);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "fadd"))
+        {
+          vm_asm_put_op(VM_OPCODE_FADD);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "fsub"))
+        {
+          vm_asm_put_op(VM_OPCODE_FSUB);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "fmul"))
+        {
+          vm_asm_put_op(VM_OPCODE_FMUL);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "fdiv"))
+        {
+          vm_asm_put_op(VM_OPCODE_FDIV);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "fmod"))
+        {
+          vm_asm_put_op(VM_OPCODE_FMOD);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           vm_asm_put_reg(vm_asm_read_reg(&src));
@@ -366,9 +435,9 @@ vm_asm_instr_t *vm_asm_read(const char *src)
         src += vm_asm_word(src);
         continue;
       }
-      if (vm_asm_starts(opname, "bb"))
+      if (vm_asm_starts(opname, "ubb"))
       {
-        vm_asm_put_op(VM_OPCODE_BB);
+        vm_asm_put_op(VM_OPCODE_UBB);
         vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_strip(&src);
         vm_asm_put_get(src);
@@ -378,9 +447,9 @@ vm_asm_instr_t *vm_asm_read(const char *src)
         src += vm_asm_word(src);
         continue;
       }
-      if (vm_asm_starts(opname, "blt"))
+      if (vm_asm_starts(opname, "ublt"))
       {
-        vm_asm_put_op(VM_OPCODE_BLT);
+        vm_asm_put_op(VM_OPCODE_UBLT);
         vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_strip(&src);
@@ -391,9 +460,47 @@ vm_asm_instr_t *vm_asm_read(const char *src)
         src += vm_asm_word(src);
         continue;
       }
-      if (vm_asm_starts(opname, "beq"))
+      if (vm_asm_starts(opname, "ubeq"))
       {
-        vm_asm_put_op(VM_OPCODE_BEQ);
+        vm_asm_put_op(VM_OPCODE_UBEQ);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        continue;
+      }
+      if (vm_asm_starts(opname, "fbb"))
+      {
+        vm_asm_put_op(VM_OPCODE_FBB);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        continue;
+      }
+      if (vm_asm_starts(opname, "fblt"))
+      {
+        vm_asm_put_op(VM_OPCODE_FBLT);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        continue;
+      }
+      if (vm_asm_starts(opname, "fbeq"))
+      {
+        vm_asm_put_op(VM_OPCODE_FBEQ);
         vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_strip(&src);

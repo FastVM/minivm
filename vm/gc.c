@@ -69,7 +69,7 @@ void vm_gc_mark(vm_gc_t *restrict gc, size_t val)
   }
 }
 
-void vm_gc_collect(vm_gc_t *restrict gc, size_t nstack, size_t *stack)
+void vm_gc_collect(vm_gc_t *restrict gc, size_t nstack, vm_value_t *stack)
 {
   gc->count++;
   if (gc->count >= gc->maxcount)
@@ -77,7 +77,7 @@ void vm_gc_collect(vm_gc_t *restrict gc, size_t nstack, size_t *stack)
     size_t count = 0;
     for (size_t i = 0; i < nstack; i++)
     {
-      vm_gc_mark(gc, stack[i]);
+      vm_gc_mark(gc, stack[i].u);
     }
     for (size_t i = 0; i < gc->used; i++)
     {
