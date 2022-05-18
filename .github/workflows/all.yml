@@ -37,6 +37,6 @@ jobs:
       - run: make CC=cc OPT='-Os'
       - uses: actions/upload-artifact@v2
         with:
-          name: minivm-windows.exe
+          name: minivm-windows
           path:  | 
             bin/minivm-asm.exe
