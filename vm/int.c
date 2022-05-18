@@ -5,7 +5,8 @@
 #include "opcode.h"
 #include "reguse.h"
 
-typedef uint32_t vm_int_arg_t;
+// typedef uint32_t vm_int_arg_t;
+typedef size_t vm_int_arg_t;
 
 enum vm_int_op_t
 {

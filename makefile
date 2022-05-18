@@ -1,7 +1,7 @@
 
 CCLUA ?= $(CC)
 
-OPT ?= -Os
+OPT ?= -O3
 
 SRCS := vm/jump.c vm/int.c vm/gc.c
 
@@ -10,7 +10,7 @@ default: all
 all: bin/minivm-asm
 
 bin/minivm-asm:
-	@$(MAKE) --no-print-directory -f util/makefile bin/minivm-asm
+	@env OPT='$(OPT)' CFLAGS='$(CFLAGS)' $(MAKE) --no-print-directory -f util/makefile bin/minivm-asm
 
 bin: .dummy
 	mkdir -p $(@)
