@@ -12,6 +12,7 @@ $(OBJS): $(@:%.o=%.c)
 	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)
 
 bin/minivm-asm: $(OBJS)
+	@mkdir -p bin
 	$(CC) $(OPT) $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 bin: .dummy
