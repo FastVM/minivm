@@ -31,5 +31,4 @@ dis
 out.*
 *.profdata
 *.profraw
-minilua
 *.tmp.c

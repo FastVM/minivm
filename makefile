@@ -1,16 +1,18 @@
 
-CCLUA ?= $(CC)
+OPT ?= -O2
 
-OPT ?= -O3
-
-SRCS := vm/jump.c vm/int.c vm/gc.c
+SRCS := util/asm.c vm/jump.c vm/gc.c vm/int/run.c vm/int/comp.c vm/reguse.c
+OBJS := $(SRCS:%.c=%.o)
 
 default: all
 
 all: bin/minivm-asm
 
-bin/minivm-asm:
-	@env OPT='$(OPT)' CFLAGS='$(CFLAGS)' $(MAKE) --no-print-directory -f util/makefile bin/minivm-asm
+$(OBJS): $(@:%.o=%.c)
+	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)
+
+bin/minivm-asm: $(OBJS)
+	$(CC) $(OPT) $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 bin: .dummy
 	mkdir -p $(@)
