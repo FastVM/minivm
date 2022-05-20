@@ -1,7 +1,7 @@
 
 OPT ?= -O2
 
-SRCS := util/asm.c vm/jump.c vm/gc.c vm/int/run.c vm/int/comp.c vm/reguse.c
+SRCS := util/main.c vm/asm.c vm/jump.c vm/gc.c vm/int/run.c vm/int/comp.c vm/reguse.c
 OBJS := $(SRCS:%.c=%.o)
 
 default: all
@@ -21,4 +21,4 @@ bin: .dummy
 .dummy:
 
 clean: .dummy
-	rm -f $(OBJS) minivm minivm.profdata minivm.profraw vm/*.tmp.c vm/*/*.tmp.c vm/*.o vm/*/*.o
+	rm -f $(OBJS) minivm minivm.profdata minivm.profraw vm/*.o vm/*/*.o

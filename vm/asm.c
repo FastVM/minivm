@@ -1,36 +1,4 @@
-#include "../vm/io.h"
-#include "../vm/jump.h"
-#include "../vm/lib.h"
-#include "../vm/vm.h"
-
-enum vm_asm_instr_type_t;
-typedef enum vm_asm_instr_type_t vm_asm_instr_type_t;
-
-struct vm_asm_instr_t;
-typedef struct vm_asm_instr_t vm_asm_instr_t;
-
-struct vm_asm_buf_t;
-typedef struct vm_asm_buf_t vm_asm_buf_t;
-
-enum vm_asm_instr_type_t
-{
-  VM_ASM_INSTR_END,
-  VM_ASM_INSTR_RAW,
-  VM_ASM_INSTR_GET,
-  VM_ASM_INSTR_SET,
-};
-
-struct vm_asm_instr_t
-{
-  uint8_t type;
-  size_t value;
-};
-
-struct vm_asm_buf_t
-{
-  vm_opcode_t *ops;
-  size_t nops;
-};
+#include "asm.h"
 
 const char *vm_asm_io_read(const char *filename)
 {
@@ -631,48 +599,18 @@ err:
   };
 }
 
-int main(int argc, char **argv)
-{
-  // const char *dump = "out.bc";
-  const char *dump = NULL;
-  if (argc < 2)
-  {
-    printf("too few args\n");
-    return 1;
-  }
-  const char *src = vm_asm_io_read(argv[1]);
-  if (src == NULL)
-  {
-    printf("could not read file\n");
-    return 1;
-  }
+vm_asm_buf_t vm_asm(const char *src) {
   vm_asm_instr_t *instrs = vm_asm_read(src);
   if (instrs == NULL)
   {
     vm_free((void *)src);
     printf("could not parse file\n");
-    return 1;
+    return (vm_asm_buf_t) {
+      .nops = 0,
+      .ops = NULL,
+    };
   }
   vm_asm_buf_t buf = vm_asm_link(instrs);
   vm_free(instrs);
-  vm_free((void *)src);
-  if (buf.nops == 0)
-  {
-    printf("could not link file\n");
-    return 1;
-  }
-  if (dump) {
-    FILE *out = fopen(dump, "wb");
-    fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
-    fclose(out);
-  } else {
-    int res = vm_run_arch_int(buf.nops, buf.ops);
-    if (res != 0)
-    {
-      printf("could not run asm\n");
-      return 1;
-    }
-  }
-  free(buf.ops);
-  return 0;
+  return buf;
 }
