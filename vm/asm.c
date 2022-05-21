@@ -54,7 +54,7 @@ int vm_asm_isdigit(char c)
 
 int vm_asm_isword(char c)
 {
-  return vm_asm_isdigit(c) || c == '.' || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
+  return vm_asm_isdigit(c) || c == '_' || c == '.' || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
 }
 
 int vm_asm_starts(const char *in, const char *test)
