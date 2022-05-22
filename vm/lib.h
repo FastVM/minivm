@@ -5,8 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if !defined(VM_NO_FILE)
 struct FILE;
 typedef struct FILE FILE;
+#endif
 
 void *malloc(size_t n);
 void *calloc(size_t n1, size_t n2);
