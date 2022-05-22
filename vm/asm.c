@@ -110,7 +110,7 @@ vm_opcode_t vm_asm_read_reg(const char **src)
 
 #define vm_asm_put(type_, value_) ({instrs[head] = (vm_asm_instr_t) {.type = (type_),.value = (value_),};head += 1;instrs[head] = (vm_asm_instr_t) {.type = VM_ASM_INSTR_END,}; })
 #define vm_asm_put_op(op_) vm_asm_put((VM_ASM_INSTR_RAW), (op_))
-#define vm_asm_put_reg(reg_) vm_asm_put((VM_ASM_INSTR_RAW), (reg_))
+#define vm_asm_put_reg(reg_) ({int r=reg_; if (r>nregs){nregs=r;} vm_asm_put((VM_ASM_INSTR_RAW), (r));})
 #define vm_asm_put_int(int_) vm_asm_put((VM_ASM_INSTR_RAW), (int_))
 #define vm_asm_put_set(name_) vm_asm_put((VM_ASM_INSTR_SET), (size_t)(name_))
 #define vm_asm_put_get(name_) vm_asm_put((VM_ASM_INSTR_GET), (size_t)(name_))
@@ -122,6 +122,8 @@ vm_asm_instr_t *vm_asm_read(const char *src)
   size_t head = 0;
   vm_asm_put_op(VM_OPCODE_JUMP);
   vm_asm_put_get("main");
+  size_t where;
+  int nregs = 0;
   for (;;)
   {
     if (head + 16 > alloc)
@@ -368,14 +370,21 @@ vm_asm_instr_t *vm_asm_read(const char *src)
       src += vm_asm_word(src);
       if (vm_asm_starts(opname, "func"))
       {
+        nregs = 0;
         vm_asm_put_op(VM_OPCODE_FUNC);
         vm_asm_put_int(0);
         vm_asm_strip(&src);
         const char *fn = src;
         src += vm_asm_word(src);
         vm_asm_put_int(0);
-        vm_asm_put_int(vm_asm_read_int(&src));
+        where = head;
+        vm_asm_put_int(256);
         vm_asm_put_set(fn);
+        continue;
+      }
+      if (vm_asm_starts(opname, "end")) {
+        instrs[where].value = nregs;
+        nregs = 0;
         continue;
       }
       if (vm_asm_starts(opname, "exit"))
@@ -603,8 +612,6 @@ vm_asm_buf_t vm_asm(const char *src) {
   vm_asm_instr_t *instrs = vm_asm_read(src);
   if (instrs == NULL)
   {
-    vm_free((void *)src);
-    printf("could not parse file\n");
     return (vm_asm_buf_t) {
       .nops = 0,
       .ops = NULL,
