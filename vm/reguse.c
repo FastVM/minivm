@@ -22,6 +22,19 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       vm_opcode_t dest = ops[index + 1];
       return vm_reg_is_used(nops, ops, jumps, dest, reg, rem-1);
     }
+    case VM_OPCODE_SETCAR:
+    case VM_OPCODE_SETCDR:
+    {
+      if (ops[index + 1] == reg)
+      {
+        return 1;
+      }
+      if (ops[index + 2] == reg)
+      {
+        return 1;
+      }
+      break;
+    }
     case VM_OPCODE_PUTCHAR:
     {
       if (ops[index + 1] == reg)
@@ -54,7 +67,7 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       vm_opcode_t jtrue = ops[index + 4];
       return vm_reg_is_used(nops, ops, jumps, jfalse, reg, rem/2) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, rem/2);
     }
-    case VM_OPCODE_PAIR:
+    case VM_OPCODE_CONS:
     case VM_OPCODE_UADD:
     case VM_OPCODE_USUB:
     case VM_OPCODE_UMUL:
@@ -76,8 +89,8 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       }
       break;
     }
-    case VM_OPCODE_FIRST:
-    case VM_OPCODE_SECOND:
+    case VM_OPCODE_GETCAR:
+    case VM_OPCODE_GETCDR:
     case VM_OPCODE_REG:
       if (ops[index + 2] == reg)
       {

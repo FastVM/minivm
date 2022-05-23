@@ -74,11 +74,14 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
       [VM_INT_OP_TCALL3] = &&exec_tcall3,
       [VM_INT_OP_TCALL4] = &&exec_tcall4,
       [VM_INT_OP_TCALL5] = &&exec_tcall5,
-      [VM_INT_OP_PAIR] = &&exec_pair,
-      [VM_INT_OP_PAIRC] = &&exec_pairc,
-      [VM_INT_OP_CPAIR] = &&exec_cpair,
-      [VM_INT_OP_FIRST] = &&exec_first,
-      [VM_INT_OP_SECOND] = &&exec_second,
+      [VM_INT_OP_CONS] = &&exec_pair,
+      [VM_INT_OP_CONSC] = &&exec_pairc,
+      [VM_INT_OP_CCONS] = &&exec_ccons,
+      [VM_INT_OP_CCONSC] = &&exec_cconsc,
+      [VM_INT_OP_GETCAR] = &&exec_getcar,
+      [VM_INT_OP_GETCDR] = &&exec_getcdr,
+      [VM_INT_OP_SETCAR] = &&exec_setcar,
+      [VM_INT_OP_SETCDR] = &&exec_setcdr,
       [VM_INT_OP_FTOU] = &&exec_ftou,
       [VM_INT_OP_UTOF] = &&exec_utof,
   };
@@ -554,7 +557,7 @@ exec_pairc:
   regs[out].p = res;
   vm_int_jump_next();
 }
-exec_cpair:
+exec_ccons:
 {
   vm_gc_collect(gc, nregs, regs_base);
   vm_int_arg_t out = vm_int_read();
@@ -566,18 +569,58 @@ exec_cpair:
   regs[out].p = res;
   vm_int_jump_next();
 }
-exec_first:
+exec_cconsc:
+{
+  vm_gc_collect(gc, nregs, regs_base);
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t lhs = vm_int_read();
+  vm_int_arg_t rhs = vm_int_read();
+  vm_value_t *res = vm_gc_alloc(gc);
+  res[0].u = lhs;
+  res[1].u = rhs;
+  regs[out].p = res;
+  vm_int_jump_next();
+}
+exec_getcar:
 {
   vm_int_arg_t out = vm_int_read();
   vm_int_arg_t pair = vm_int_read();
   regs[out] = regs[pair].p[0];
   vm_int_jump_next();
 }
-exec_second:
+exec_getcdr:
 {
   vm_int_arg_t out = vm_int_read();
   vm_int_arg_t pair = vm_int_read();
   regs[out] = regs[pair].p[1];
+  vm_int_jump_next();
+}
+exec_setcar:
+{
+  vm_int_arg_t pair = vm_int_read();
+  vm_int_arg_t val = vm_int_read();
+  regs[pair].p[0] = regs[val];
+  vm_int_jump_next();
+}
+exec_setcdr:
+{
+  vm_int_arg_t pair = vm_int_read();
+  vm_int_arg_t val = vm_int_read();
+  regs[pair].p[1] = regs[val];
+  vm_int_jump_next();
+}
+exec_setcari:
+{
+  vm_int_arg_t pair = vm_int_read();
+  vm_int_arg_t val = vm_int_read();
+  regs[pair].p[0].u = val;
+  vm_int_jump_next();
+}
+exec_setcdri:
+{
+  vm_int_arg_t pair = vm_int_read();
+  vm_int_arg_t val = vm_int_read();
+  regs[pair].p[1].u = val;
   vm_int_jump_next();
 }
 exec_fadd:

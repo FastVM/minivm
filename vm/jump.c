@@ -163,23 +163,35 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_jump_reachable_from(jtrue, nops, ops, jumps);
       return;
     }
-    case VM_OPCODE_PAIR:
+    case VM_OPCODE_CONS:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t car = ops[index++];
       vm_opcode_t cdr = ops[index++];
       break;
     }
-    case VM_OPCODE_FIRST:
+    case VM_OPCODE_GETCAR:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t pair = ops[index++];
       break;
     }
-    case VM_OPCODE_SECOND:
+    case VM_OPCODE_GETCDR:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t pair = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SETCAR:
+    {
+      vm_opcode_t pair = ops[index++];
+      vm_opcode_t val = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SETCDR:
+    {
+      vm_opcode_t pair = ops[index++];
+      vm_opcode_t val = ops[index++];
       break;
     }
     default:
@@ -356,23 +368,35 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       index += nargs;
       break;
     }
-    case VM_OPCODE_PAIR:
+    case VM_OPCODE_CONS:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t car = ops[index++];
       vm_opcode_t cdr = ops[index++];
       break;
     }
-    case VM_OPCODE_FIRST:
+    case VM_OPCODE_GETCAR:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t pair = ops[index++];
       break;
     }
-    case VM_OPCODE_SECOND:
+    case VM_OPCODE_GETCDR:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t pair = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SETCAR:
+    {
+      vm_opcode_t pair = ops[index++];
+      vm_opcode_t reg = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SETCDR:
+    {
+      vm_opcode_t pair = ops[index++];
+      vm_opcode_t reg = ops[index++];
       break;
     }
     default:

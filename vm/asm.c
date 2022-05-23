@@ -41,9 +41,15 @@ void vm_asm_strip(const char **src)
 
 void vm_asm_stripln(const char **src)
 {
-  while (**src == ' ' || **src == '\t' || **src == '\n' || **src == '\r' || **src == ';')
+  while (**src == ' ' || **src == '\t' || **src == '\n' || **src == '\r' || **src == ';' || **src == '#')
   {
-    *src += 1;
+    if (**src == '#') {
+      while (**src != '\n' && **src != '\0') {
+        *src += 1;
+      }
+    } else {
+      *src += 1;
+    }
   }
 }
 
@@ -303,24 +309,24 @@ vm_asm_instr_t *vm_asm_read(const char *src)
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "pair"))
+        if (vm_asm_starts(opname, "cons"))
         {
-          vm_asm_put_op(VM_OPCODE_PAIR);
+          vm_asm_put_op(VM_OPCODE_CONS);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "first"))
+        if (vm_asm_starts(opname, "getcar"))
         {
-          vm_asm_put_op(VM_OPCODE_FIRST);
+          vm_asm_put_op(VM_OPCODE_GETCAR);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
-        if (vm_asm_starts(opname, "second"))
+        if (vm_asm_starts(opname, "getcdr"))
         {
-          vm_asm_put_op(VM_OPCODE_SECOND);
+          vm_asm_put_op(VM_OPCODE_GETCDR);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
@@ -331,7 +337,7 @@ vm_asm_instr_t *vm_asm_read(const char *src)
           vm_asm_strip(&src);
           vm_asm_put_get(src);
           src += vm_asm_word(src);
-          vm_opcode_t args[8] = {0};
+          vm_opcode_t args[64] = {0};
           size_t nargs = 0;
           vm_asm_strip(&src);
           while (*src != '\n') {
@@ -401,6 +407,20 @@ vm_asm_instr_t *vm_asm_read(const char *src)
       if (vm_asm_starts(opname, "putchar"))
       {
         vm_asm_put_op(VM_OPCODE_PUTCHAR);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        continue;
+      }
+      if (vm_asm_starts(opname, "setcar"))
+      {
+        vm_asm_put_op(VM_OPCODE_SETCAR);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        continue;
+      }
+      if (vm_asm_starts(opname, "setcdr"))
+      {
+        vm_asm_put_op(VM_OPCODE_SETCDR);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_put_reg(vm_asm_read_reg(&src));
         continue;
       }

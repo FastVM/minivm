@@ -613,82 +613,138 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       vm_int_buf_put(vm_int_arg_t, 255);
       break;
     }
-    case VM_OPCODE_PAIR:
+    case VM_OPCODE_CONS:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       if (named[lhs] && named[rhs])
       {
-        vm_int_arg_t *res = vm_gc_alloc_root(gc);
-        res[0] = regs[lhs].u;
-        res[1] = regs[rhs].u;
-        named[out] = 1;
-        regs[out].u = (size_t)res;
-      }
-      else
-      {
-        if (named[lhs])
-        {
-          vm_int_buf_put_op(VM_INT_OP_CPAIR);
+          vm_int_buf_put_op(VM_INT_OP_CCONSC);
           vm_int_buf_put(vm_int_arg_t, out);
           vm_int_buf_put(vm_int_arg_t, regs[lhs].u);
-          vm_int_buf_put(vm_int_arg_t, rhs);
-        }
-        else if (named[rhs])
-        {
-          vm_int_buf_put_op(VM_INT_OP_PAIRC);
-          vm_int_buf_put(vm_int_arg_t, out);
-          vm_int_buf_put(vm_int_arg_t, lhs);
           vm_int_buf_put(vm_int_arg_t, regs[rhs].u);
-        }
-        else
-        {
-          vm_int_buf_put_op(VM_INT_OP_PAIR);
-          vm_int_buf_put(vm_int_arg_t, out);
-          vm_int_buf_put(vm_int_arg_t, lhs);
-          vm_int_buf_put(vm_int_arg_t, rhs);
-        }
-        named[out] = 0;
       }
-      break;
-    }
-    case VM_OPCODE_FIRST:
-    {
-      vm_opcode_t out = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      if (named[lhs])
+      else if (named[lhs])
       {
-        vm_value_t *pair = regs[lhs].p;
-        named[out] = 1;
-        regs[out] = pair[0];
+        vm_int_buf_put_op(VM_INT_OP_CCONS);
+        vm_int_buf_put(vm_int_arg_t, out);
+        vm_int_buf_put(vm_int_arg_t, regs[lhs].u);
+        vm_int_buf_put(vm_int_arg_t, rhs);
+      }
+      else if (named[rhs])
+      {
+        vm_int_buf_put_op(VM_INT_OP_CONSC);
+        vm_int_buf_put(vm_int_arg_t, out);
+        vm_int_buf_put(vm_int_arg_t, lhs);
+        vm_int_buf_put(vm_int_arg_t, regs[rhs].u);
       }
       else
       {
-        vm_int_buf_put_op(VM_INT_OP_FIRST);
+        vm_int_buf_put_op(VM_INT_OP_CONS);
         vm_int_buf_put(vm_int_arg_t, out);
         vm_int_buf_put(vm_int_arg_t, lhs);
-        named[out] = 0;
+        vm_int_buf_put(vm_int_arg_t, rhs);
       }
+      named[out] = 0;
       break;
     }
-    case VM_OPCODE_SECOND:
+    case VM_OPCODE_GETCAR:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
-      if (named[lhs])
-      {
-        vm_value_t *pair = regs[lhs].p;
-        named[out] = 1;
-        regs[out] = pair[1];
-      }
-      else
-      {
-        vm_int_buf_put_op(VM_INT_OP_SECOND);
+      // if (named[lhs])
+      // {
+      //   vm_value_t *pair = regs[lhs].p;
+      //   named[out] = 1;
+      //   regs[out] = pair[0];
+      // }
+      // else
+      // {
+        vm_int_buf_put_op(VM_INT_OP_GETCAR);
         vm_int_buf_put(vm_int_arg_t, out);
         vm_int_buf_put(vm_int_arg_t, lhs);
         named[out] = 0;
-      }
+      // }
+      break;
+    }
+    case VM_OPCODE_GETCDR:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      // if (named[lhs])
+      // {
+      //   vm_value_t *pair = regs[lhs].p;
+      //   named[out] = 1;
+      //   regs[out] = pair[1];
+      // }
+      // else
+      // {
+        vm_int_buf_put_op(VM_INT_OP_GETCDR);
+        vm_int_buf_put(vm_int_arg_t, out);
+        vm_int_buf_put(vm_int_arg_t, lhs);
+        named[out] = 0;
+      // }
+      break;
+    }
+    case VM_OPCODE_SETCAR:
+    {
+      vm_opcode_t pair = ops[index++];
+      vm_opcode_t car = ops[index++];
+      // if (named[pair])
+      // {
+      //   if (named[car]) {
+      //     regs[pair].p[0] = regs[car];
+      //   } else {
+      //     vm_int_buf_put_op(VM_INT_OP_CONSC);
+      //     vm_int_buf_put(vm_int_arg_t, pair);
+      //     vm_int_buf_put(vm_int_arg_t, regs[car].u);
+      //     vm_int_buf_put(vm_int_arg_t, regs[pair].p[1].u);
+      //     named[pair] = 0;
+      //   }
+      // }
+      // else
+      // {
+        if (named[car]) {
+          vm_int_buf_put_op(VM_INT_OP_SETCARC);
+          vm_int_buf_put(vm_int_arg_t, pair);
+          vm_int_buf_put(vm_int_arg_t, regs[car].u);
+        } else {
+          vm_int_buf_put_op(VM_INT_OP_SETCAR);
+          vm_int_buf_put(vm_int_arg_t, pair);
+          vm_int_buf_put(vm_int_arg_t, car);
+        }
+      // }
+      break;
+    }
+    case VM_OPCODE_SETCDR:
+    {
+      vm_opcode_t pair = ops[index++];
+      vm_opcode_t cdr = ops[index++];
+      // if (named[pair])
+      // {
+      //   if (named[cdr]) {
+      //     regs[pair].p[1] = regs[cdr];
+      //   } else {
+      //     vm_int_buf_put_op(VM_INT_OP_CCONS);
+      //     vm_int_buf_put(vm_int_arg_t, pair);
+      //     vm_int_buf_put(vm_int_arg_t, regs[pair].p[0].u);
+      //     vm_int_buf_put(vm_int_arg_t, regs[cdr].u);
+      //     named[pair] = 0;
+      //   }
+      // }
+      // else
+      // {
+        if (named[cdr]) {
+          vm_int_buf_put_op(VM_INT_OP_SETCDRC);
+          vm_int_buf_put(vm_int_arg_t, pair);
+          vm_int_buf_put(vm_int_arg_t, regs[cdr].u);
+        } else {
+          vm_int_buf_put_op(VM_INT_OP_SETCDR);
+          vm_int_buf_put(vm_int_arg_t, pair);
+          vm_int_buf_put(vm_int_arg_t, cdr);
+        }
+      // }
       break;
     }
     case VM_OPCODE_FADD:
