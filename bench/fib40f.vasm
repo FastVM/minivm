@@ -1,4 +1,4 @@
-func fib 2
+func fib
     r0 <- fint 2
     fblt r1 r0 fib.else fib.then
 @fib.then
@@ -11,13 +11,15 @@ func fib 2
     r0 <- call fib r0
     r0 <- fadd r0 r1
     ret r0
+end
 
-func fputi 2
+func fputi
     r1 <- ftou r1
     r1 <- call puti r1
     ret r1
+end
 
-func puti 2
+func puti
     ubb r1 puti.ret puti.digit 
 @puti.digit
     r0 <- uint 10
@@ -31,6 +33,7 @@ func puti 2
 @puti.ret
     r0 <- uint 0
     ret r0
+end
 
 @main
     r0 <- fint 40

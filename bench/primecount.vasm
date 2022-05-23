@@ -1,5 +1,5 @@
 
-func isprime 4
+func isprime
     r2 <- uint 3
 @isprime.loop
     r0 <- umod r1 r2
@@ -15,8 +15,9 @@ func isprime 4
 @isprime.done
     r0 <- uint 1
     ret r0
+end
 
-func puti 2
+func puti
     ubb r1 puti.ret puti.digit 
 @puti.digit
     r0 <- uint 10
@@ -30,8 +31,9 @@ func puti 2
 @puti.ret
     r0 <- uint 0
     ret r0
+end
 
-func primes 4
+func primes
     r3 <- uint 2
     r0 <- uint 5
 @primes.next
@@ -46,6 +48,7 @@ func primes 4
     putchar r3
     r3 <- uint 0
     ret r3
+end
 
 @main
     r0 <- uint 1000000
