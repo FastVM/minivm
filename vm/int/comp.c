@@ -1,6 +1,7 @@
 #include "int.h"
 #include "../jump.h"
 #include "../reguse.h"
+
 #define vm_int_buf_grow() \
     if (buf - ret + 256 > alloc) \
     { \
@@ -53,7 +54,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
         {
           continue;
         }
-        if (vm_reg_is_used(nops, ops, jumps, index, i, 16))
+        if (vm_reg_is_used(nops, ops, jumps, index, i, 8))
         {
           vm_int_buf_put_op(VM_INT_OP_MOVC);
           vm_int_buf_put(vm_int_arg_t, i);
@@ -155,6 +156,13 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       vm_int_buf_put_op(VM_INT_OP_JUMP);
       froms[buf - ret] = loc;
       vm_int_buf_put(vm_int_arg_t, SIZE_MAX);
+      break;
+    }
+    case VM_OPCODE_DJUMP:
+    {
+      vm_opcode_t locreg = ops[index++];
+      vm_int_buf_put_op(VM_INT_OP_DJUMP);
+      vm_int_buf_put(vm_int_arg_t, locreg);
       break;
     }
     case VM_OPCODE_FUNC:

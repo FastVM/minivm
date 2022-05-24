@@ -10,7 +10,7 @@
 
 int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
 {
-  static void *ptrs[] = {
+  void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
       [VM_INT_OP_PUTC] = &&exec_putc,
       [VM_INT_OP_MOV] = &&exec_mov,
@@ -42,6 +42,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
       [VM_INT_OP_FMODC] = &&exec_fmodc,
       [VM_INT_OP_FCMOD] = &&exec_fcmod,
       [VM_INT_OP_JUMP] = &&exec_jump,
+      [VM_INT_OP_DJUMP] = &&exec_djump,
       [VM_INT_OP_UBB] = &&exec_ubb,
       [VM_INT_OP_UBEQ] = &&exec_ubeq,
       [VM_INT_OP_UBEQC] = &&exec_ubeqc,
@@ -512,6 +513,12 @@ exec_jump:
 {
   vm_int_arg_t where = vm_int_read();
   index = where;
+  vm_int_jump_next();
+}
+exec_djump:
+{
+  vm_int_arg_t reg = vm_int_read();
+  index = regs[reg].u;
   vm_int_jump_next();
 }
 exec_ubeqc:

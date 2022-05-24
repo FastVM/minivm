@@ -7,6 +7,7 @@ enum
   VM_OPCODE_EXIT,
   VM_OPCODE_REG,
   VM_OPCODE_JUMP,
+  VM_OPCODE_DJUMP,
   VM_OPCODE_FUNC,
 
   VM_OPCODE_INT,
@@ -44,6 +45,8 @@ enum
   VM_OPCODE_FBB,
   VM_OPCODE_FBEQ,
   VM_OPCODE_FBLT,
+
+  VM_OPCODE_MAX1,
 };
 
 typedef uint32_t vm_opcode_t;

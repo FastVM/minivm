@@ -14,7 +14,7 @@ void vm_gc_init(vm_gc_t *restrict gc)
   gc->used = 0;
   gc->free = NULL;
   gc->low = vm_alloc0(sizeof(vm_pair_t) * alloc);
-  gc->high = &gc->low[alloc - 1];
+  gc->high = gc->low + (alloc - 1);
   gc->marks = vm_alloc0(sizeof(uint8_t) * alloc);
   gc->count = 0;
   gc->maxcount = 1 << 12;
@@ -37,14 +37,14 @@ void *vm_gc_alloc(vm_gc_t *restrict gc)
   }
   size_t nth = gc->used++;
   gc->marks[nth] = VM_GC_MARK_TO_FREE;
-  return &gc->low[nth];
+  return gc->low + (nth);
 }
 
 void *vm_gc_alloc_root(vm_gc_t *restrict gc)
 {
   size_t nth = gc->used++;
   gc->marks[nth] = VM_GC_MARK_ROOT;
-  return &gc->low[nth];
+  return gc->low + (nth);
 }
 
 void vm_gc_dealloc(vm_gc_t *restrict gc, vm_pair_t *pair)
@@ -84,7 +84,7 @@ void vm_gc_collect(vm_gc_t *restrict gc, size_t nstack, vm_value_t *stack)
       size_t mark = gc->marks[i];
       if (mark == VM_GC_MARK_TO_FREE)
       {
-        vm_gc_dealloc(gc, &gc->low[i]);
+        vm_gc_dealloc(gc, gc->low + (i));
       }
       else if (mark == VM_GC_MARK_TO_KEEP)
       {
