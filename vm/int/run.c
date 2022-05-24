@@ -62,18 +62,18 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
       [VM_INT_OP_CALL3] = &&exec_call3,
       [VM_INT_OP_CALL4] = &&exec_call4,
       [VM_INT_OP_CALL5] = &&exec_call5,
+      [VM_INT_OP_CALL6] = &&exec_call6,
+      [VM_INT_OP_CALL7] = &&exec_call7,
+      [VM_INT_OP_CALL8] = &&exec_call8,
       [VM_INT_OP_DCALL0] = &&exec_dcall0,
       [VM_INT_OP_DCALL1] = &&exec_dcall1,
       [VM_INT_OP_DCALL2] = &&exec_dcall2,
       [VM_INT_OP_DCALL3] = &&exec_dcall3,
       [VM_INT_OP_DCALL4] = &&exec_dcall4,
       [VM_INT_OP_DCALL5] = &&exec_dcall5,
-      [VM_INT_OP_TCALL0] = &&exec_tcall0,
-      [VM_INT_OP_TCALL1] = &&exec_tcall1,
-      [VM_INT_OP_TCALL2] = &&exec_tcall2,
-      [VM_INT_OP_TCALL3] = &&exec_tcall3,
-      [VM_INT_OP_TCALL4] = &&exec_tcall4,
-      [VM_INT_OP_TCALL5] = &&exec_tcall5,
+      [VM_INT_OP_DCALL6] = &&exec_dcall6,
+      [VM_INT_OP_DCALL7] = &&exec_dcall7,
+      [VM_INT_OP_DCALL8] = &&exec_dcall8,
       [VM_INT_OP_CONS] = &&exec_pair,
       [VM_INT_OP_CONSC] = &&exec_pairc,
       [VM_INT_OP_CCONS] = &&exec_ccons,
@@ -283,6 +283,77 @@ exec_call5:
   index = func;
   vm_int_jump_next();
 }
+exec_call6:
+{
+  vm_int_arg_t func = vm_int_read();
+  vm_value_t r1 = regs[vm_int_read()];
+  vm_value_t r2 = regs[vm_int_read()];
+  vm_value_t r3 = regs[vm_int_read()];
+  vm_value_t r4 = regs[vm_int_read()];
+  vm_value_t r5 = regs[vm_int_read()];
+  vm_value_t r6 = regs[vm_int_read()];
+  vm_value_t r7 = regs[vm_int_read()];
+  vm_value_t r8 = regs[vm_int_read()];
+  *stack++ = index;
+  regs += nregs;
+  regs[1] = r1;
+  regs[2] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
+  regs[5] = r5;
+  regs[6] = r6;
+  regs[7] = r7;
+  index = func;
+  vm_int_jump_next();
+}
+exec_call7:
+{
+  vm_int_arg_t func = vm_int_read();
+  vm_value_t r1 = regs[vm_int_read()];
+  vm_value_t r2 = regs[vm_int_read()];
+  vm_value_t r3 = regs[vm_int_read()];
+  vm_value_t r4 = regs[vm_int_read()];
+  vm_value_t r5 = regs[vm_int_read()];
+  vm_value_t r6 = regs[vm_int_read()];
+  vm_value_t r7 = regs[vm_int_read()];
+  vm_value_t r8 = regs[vm_int_read()];
+  *stack++ = index;
+  regs += nregs;
+  regs[1] = r1;
+  regs[2] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
+  regs[5] = r5;
+  regs[6] = r6;
+  regs[7] = r7;
+  index = func;
+  vm_int_jump_next();
+}
+exec_call8:
+{
+  vm_int_arg_t func = vm_int_read();
+  vm_value_t r1 = regs[vm_int_read()];
+  vm_value_t r2 = regs[vm_int_read()];
+  vm_value_t r3 = regs[vm_int_read()];
+  vm_value_t r4 = regs[vm_int_read()];
+  vm_value_t r5 = regs[vm_int_read()];
+  vm_value_t r6 = regs[vm_int_read()];
+  vm_value_t r7 = regs[vm_int_read()];
+  vm_value_t r8 = regs[vm_int_read()];
+  vm_int_arg_t nregs = vm_int_read();
+  *stack++ = index;
+  regs += nregs;
+  regs[1] = r1;
+  regs[2] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
+  regs[5] = r5;
+  regs[6] = r6;
+  regs[7] = r7;
+  regs[8] = r8;
+  index = func;
+  vm_int_jump_next();
+}
 exec_dcall0:
 {
   vm_int_arg_t where = vm_int_read();
@@ -368,70 +439,73 @@ exec_dcall5:
   index = func;
   vm_int_jump_next();
 }
-exec_tcall0:
+exec_dcall6:
 {
-  vm_int_arg_t func = vm_int_read();
-  index = func;
-  vm_int_jump_next();
-}
-exec_tcall1:
-{
-  vm_int_arg_t func = vm_int_read();
-  vm_value_t r1 = regs[vm_int_read()];
-  index = func;
-  regs[1] = r1;
-  vm_int_jump_next();
-}
-exec_tcall2:
-{
-  vm_int_arg_t func = vm_int_read();
-  vm_value_t r1 = regs[vm_int_read()];
-  vm_value_t r2 = regs[vm_int_read()];
-  index = func;
-  regs[1] = r1;
-  regs[2] = r2;
-  vm_int_jump_next();
-}
-exec_tcall3:
-{
-  vm_int_arg_t func = vm_int_read();
-  vm_value_t r1 = regs[vm_int_read()];
-  vm_value_t r2 = regs[vm_int_read()];
-  vm_value_t r3 = regs[vm_int_read()];
-  index = func;
-  regs[1] = r1;
-  regs[2] = r2;
-  regs[3] = r3;
-  vm_int_jump_next();
-}
-exec_tcall4:
-{
-  vm_int_arg_t func = vm_int_read();
-  vm_value_t r1 = regs[vm_int_read()];
-  vm_value_t r2 = regs[vm_int_read()];
-  vm_value_t r3 = regs[vm_int_read()];
-  vm_value_t r4 = regs[vm_int_read()];
-  index = func;
-  regs[1] = r1;
-  regs[2] = r2;
-  regs[3] = r3;
-  regs[4] = r4;
-  vm_int_jump_next();
-}
-exec_tcall5:
-{
-  vm_int_arg_t func = vm_int_read();
+  vm_int_arg_t func = regs[vm_int_read()].u;
   vm_value_t r1 = regs[vm_int_read()];
   vm_value_t r2 = regs[vm_int_read()];
   vm_value_t r3 = regs[vm_int_read()];
   vm_value_t r4 = regs[vm_int_read()];
   vm_value_t r5 = regs[vm_int_read()];
-  index = func;
+  vm_value_t r6 = regs[vm_int_read()];
+  vm_int_arg_t nregs = vm_int_read();
+  *stack++ = index;
+  regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
   regs[3] = r3;
   regs[4] = r4;
   regs[5] = r5;
+  regs[6] = r6;
+  index = func;
+  vm_int_jump_next();
+}
+exec_dcall7:
+{
+  vm_int_arg_t func = regs[vm_int_read()].u;
+  vm_value_t r1 = regs[vm_int_read()];
+  vm_value_t r2 = regs[vm_int_read()];
+  vm_value_t r3 = regs[vm_int_read()];
+  vm_value_t r4 = regs[vm_int_read()];
+  vm_value_t r5 = regs[vm_int_read()];
+  vm_value_t r6 = regs[vm_int_read()];
+  vm_value_t r7 = regs[vm_int_read()];
+  vm_int_arg_t nregs = vm_int_read();
+  *stack++ = index;
+  regs += nregs;
+  regs[1] = r1;
+  regs[2] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
+  regs[5] = r5;
+  regs[6] = r6;
+  regs[7] = r7;
+  index = func;
+  vm_int_jump_next();
+}
+exec_dcall8:
+{
+  vm_int_arg_t func = regs[vm_int_read()].u;
+  vm_value_t r1 = regs[vm_int_read()];
+  vm_value_t r2 = regs[vm_int_read()];
+  vm_value_t r3 = regs[vm_int_read()];
+  vm_value_t r4 = regs[vm_int_read()];
+  vm_value_t r5 = regs[vm_int_read()];
+  vm_value_t r6 = regs[vm_int_read()];
+  vm_value_t r7 = regs[vm_int_read()];
+  vm_value_t r8 = regs[vm_int_read()];
+  vm_int_arg_t nregs = vm_int_read();
+  *stack++ = index;
+  regs += nregs;
+  regs[1] = r1;
+  regs[2] = r2;
+  regs[3] = r3;
+  regs[4] = r4;
+  regs[5] = r5;
+  regs[6] = r6;
+  regs[7] = r7;
+  regs[8] = r8;
+  index = func;
   vm_int_jump_next();
 }
 exec_jump:

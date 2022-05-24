@@ -108,18 +108,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
         return 0;
       }
       break;
-    case VM_OPCODE_TCALL:
-    {
-      vm_opcode_t nargs = ops[index + 1];
-      for (size_t i = 0; i < nargs; i++)
-      {
-        if (ops[index + 2 + i] == reg)
-        {
-          return 1;
-        }
-      }
-      return 0;
-    }
     case VM_OPCODE_CALL:
     case VM_OPCODE_DCALL:
     {
