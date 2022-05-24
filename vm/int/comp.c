@@ -54,7 +54,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
         {
           continue;
         }
-        if (vm_reg_is_used(nops, ops, jumps, index, i, 8))
+        if (vm_reg_is_used(nops, ops, jumps, index, i, 16))
         {
           vm_int_buf_put_op(VM_INT_OP_MOVC);
           vm_int_buf_put(vm_int_arg_t, i);

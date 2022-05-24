@@ -118,10 +118,10 @@ vm_opcode_t vm_asm_read_reg(const char **src)
 #define vm_asm_put_op(op_) vm_asm_put((VM_ASM_INSTR_RAW), (op_))
 #define vm_asm_put_reg(reg_) ({int r=reg_; if (r>nregs){nregs=r;} vm_asm_put((VM_ASM_INSTR_RAW), (r));})
 #define vm_asm_put_int(int_) vm_asm_put((VM_ASM_INSTR_RAW), (int_))
-#define vm_asm_put_set(name_) vm_asm_put((VM_ASM_INSTR_SET), (size_t)(name_))
+#define vm_asm_put_set(name_) ({*nsets += 1; vm_asm_put((VM_ASM_INSTR_SET), (size_t)(name_));})
 #define vm_asm_put_get(name_) vm_asm_put((VM_ASM_INSTR_GET), (size_t)(name_))
 
-vm_asm_instr_t *vm_asm_read(const char *src)
+vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
 {
   size_t alloc = 32;
   vm_asm_instr_t *instrs = vm_malloc(sizeof(vm_asm_instr_t) * alloc);
@@ -531,11 +531,19 @@ typedef struct
   vm_opcode_t where;
 } vm_asm_link_t;
 
-vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs)
+static size_t vm_asm_hash(const char *str, size_t n)
 {
+    size_t hash = 5381;
+    for (size_t i = 0; i < n; i++) {
+      hash = ((hash << 5) + hash) + str[i];
+    }
+    return hash;
+}
 
-  size_t links_alloc = 4;
-  vm_asm_link_t *links = vm_malloc(sizeof(vm_asm_link_t) * links_alloc);
+vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t n)
+{
+  size_t links_alloc = n * 4;
+  vm_asm_link_t *links = vm_alloc0(sizeof(vm_asm_link_t) * links_alloc);
   size_t nlinks = 0;
   size_t cur_loc = 0;
   for (vm_asm_instr_t *cur = instrs; cur->type != VM_ASM_INSTR_END; cur++)
@@ -559,8 +567,13 @@ vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs)
         links_alloc = nlinks * 4 + 1;
         links = vm_realloc(links, sizeof(vm_asm_link_t) * links_alloc);
       }
-      links[nlinks++] = (vm_asm_link_t){
-          .name = (const char *)cur->value,
+      const char *str = (const char *)cur->value;
+      size_t put = vm_asm_hash(str, vm_asm_word(str));
+      while (links[put % links_alloc].where != 0) {
+        put += 1;
+      }
+      links[put % links_alloc] = (vm_asm_link_t){
+          .name = str,
           .where = cur_loc,
       };
       break;
@@ -588,26 +601,28 @@ vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs)
     {
       int val = -1;
       const char *find = (const char *)cur->value;
-      for (size_t linkno = 0; linkno < nlinks; linkno++)
-      {
-        size_t head = 0;
-        for (;;)
-        {
-          if (!vm_asm_isword(find[head]))
+      size_t findlen = vm_asm_word(find);
+      size_t get = vm_asm_hash(find, findlen);
+      size_t start = get;
+      while (get - links_alloc != start) {
+        const char *name = links[get % links_alloc].name;
+        size_t linklen = vm_asm_word(name);
+        if (linklen == findlen) {
+          size_t head = 0;
+          while (head < findlen)
           {
-            if (!vm_asm_isword(links[linkno].name[head]))
+            if (find[head] != name[head])
             {
-              val = links[linkno].where;
+              break;
+            }
+            head += 1;
+            if (head == findlen) {
+              val = links[get % links_alloc].where;
               goto done;
             }
-            break;
           }
-          if (find[head] != links[linkno].name[head])
-          {
-            break;
-          }
-          head += 1;
         }
+        get += 1;
       }
       printf("linker error: undefined: %.*s\n", (int)vm_asm_word(find), find);
       goto err;
@@ -635,7 +650,8 @@ err:
 }
 
 vm_asm_buf_t vm_asm(const char *src) {
-  vm_asm_instr_t *instrs = vm_asm_read(src);
+  size_t n = 0;
+  vm_asm_instr_t *instrs = vm_asm_read(src, &n);
   if (instrs == NULL)
   {
     return (vm_asm_buf_t) {
@@ -643,7 +659,7 @@ vm_asm_buf_t vm_asm(const char *src) {
       .ops = NULL,
     };
   }
-  vm_asm_buf_t buf = vm_asm_link(instrs);
+  vm_asm_buf_t buf = vm_asm_link(instrs, n);
   vm_free(instrs);
   return buf;
 }

@@ -43,6 +43,6 @@ int vm_asm_starts(const char *in, const char *test);
 size_t vm_asm_word(const char *src);
 vm_opcode_t vm_asm_read_int(const char **src);
 vm_opcode_t vm_asm_read_reg(const char **src);
-vm_asm_instr_t *vm_asm_read(const char *src);
-vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs);
+vm_asm_instr_t *vm_asm_read(const char *src, size_t *out);
+vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t n);
 vm_asm_buf_t vm_asm(const char *src);
