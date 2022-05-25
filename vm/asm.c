@@ -520,7 +520,7 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
   vm_asm_put_op(VM_OPCODE_EXIT);
   return instrs;
 err:
-  printf("%s\n", src);
+  fprintf(stderr, "asm error: source can not be parsed\n");
   free(instrs);
   return NULL;
 }
@@ -624,7 +624,7 @@ vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t n)
         }
         get += 1;
       }
-      printf("linker error: undefined: %.*s\n", (int)vm_asm_word(find), find);
+      fprintf(stderr, "linker error: undefined: %.*s\n", (int)vm_asm_word(find), find);
       goto err;
     done:
       ops[nops++] = (vm_opcode_t)val;

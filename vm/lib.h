@@ -10,6 +10,10 @@ struct FILE;
 typedef struct FILE FILE;
 #endif
 
+extern FILE *stdin;
+extern FILE *stderr;
+extern FILE *stdout;
+
 void *malloc(size_t n);
 void *calloc(size_t n1, size_t n2);
 void *realloc(void *ptr, size_t n);
@@ -21,7 +25,7 @@ size_t fwrite(const void *ptr, size_t size, size_t n, FILE *file);
 size_t fread(void *ptr, size_t size, size_t n, FILE *file);
 double fmod(double lhs, double rhs);
 
-int printf(const char *fmt, ...);
+int fprintf(FILE *file, const char *fmt, ...);
 
 static inline size_t vm_strlen(const char *str)
 {

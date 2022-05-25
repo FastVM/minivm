@@ -115,7 +115,7 @@ exec_exit:
 exec_putc:
 {
   vm_int_arg_t reg = vm_int_read();
-  printf("%c", (int)regs[reg].u);
+  fprintf(stdout, "%c", (int)regs[reg].u);
   vm_int_jump_next();
 }
 exec_mov:

@@ -1053,7 +1053,6 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
     }
     default:
     {
-      printf("err %zu\n", (size_t)ops[index - 1]);
       vm_free(froms);
       vm_free(locs);
       return NULL;

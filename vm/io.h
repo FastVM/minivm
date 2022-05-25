@@ -9,7 +9,6 @@ struct vm_io_res_t
 {
   size_t nops;
   vm_opcode_t *ops;
-  const char *err;
 };
 
 static inline vm_io_res_t vm_io_read(const char *filename)
@@ -17,8 +16,10 @@ static inline vm_io_res_t vm_io_read(const char *filename)
   FILE *file = fopen(filename, "rb");
   if (file == NULL)
   {
-    return (vm_io_res_t){
-        .err = "cannot run vm: file to run could not be read",
+    fprintf(stderr, "cannot run vm: file could not be read\n");
+    return (vm_io_res_t) {
+      .nops = 0,
+      .ops = NULL,
     };
   }
   size_t nalloc = 1 << 16;
@@ -44,6 +45,5 @@ static inline vm_io_res_t vm_io_read(const char *filename)
   return (vm_io_res_t){
       .nops = nops,
       .ops = ops,
-      .err = NULL,
   };
 }

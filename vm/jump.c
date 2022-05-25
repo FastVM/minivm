@@ -398,7 +398,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       break;
     }
     default:
-      printf("unknown opcode: %zu\n", (size_t)ops[index - 1]);
+      fprintf(stderr, "unknown opcode: %zu\n", (size_t)ops[index - 1]);
       return NULL;
     }
   }
