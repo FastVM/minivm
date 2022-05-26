@@ -389,7 +389,7 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
         continue;
       }
       if (vm_asm_starts(opname, "end")) {
-        instrs[where].value = nregs;
+        instrs[where].value = nregs+1;
         nregs = 0;
         continue;
       }
