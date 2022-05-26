@@ -366,6 +366,31 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       }
       break;
     }
+    case VM_OPCODE_XCALL:
+    {
+      vm_opcode_t rreg = ops[index++];
+      vm_opcode_t func = ops[index++];
+      vm_opcode_t nargs = ops[index++];
+      for (int i = 0; i < nargs; i++)
+      {
+        vm_opcode_t reg = ops[index + i];
+        if (named[reg])
+        {
+          vm_int_buf_put_op(VM_INT_OP_MOVC);
+          vm_int_buf_put(vm_int_arg_t, reg);
+          vm_int_buf_put(vm_int_arg_t, regs[reg].u);
+        }
+      }
+      named[rreg] = 0;
+      vm_int_buf_put_op(VM_INT_OP_CALL0 + nargs);
+      vm_int_buf_put(vm_int_arg_t, rreg);
+      vm_int_buf_put(vm_int_arg_t, func);
+      for (int i = 0; i < nargs; i++)
+      {
+        vm_int_buf_put(vm_int_arg_t, ops[index++]);
+      }
+      break;
+    }
     case VM_OPCODE_CALL:
     {
       vm_opcode_t rreg = ops[index++];

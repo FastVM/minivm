@@ -84,7 +84,16 @@ enum vm_int_op_t
   VM_INT_OP_FCBLT,
   VM_INT_OP_FTOU,
   VM_INT_OP_UTOF,
+  VM_INT_OP_FUNC0,
+  VM_INT_OP_FUNC1,
+  VM_INT_OP_FUNC2,
+  VM_INT_OP_FUNC3,
+  VM_INT_OP_FUNC4,
+  VM_INT_OP_FUNC5,
+  VM_INT_OP_FUNC6,
+  VM_INT_OP_FUNC7,
+  VM_INT_OP_FUNC8,
 };
 
 uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t *gc, void **ptrs);
-int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc);
+int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_t *funcs);

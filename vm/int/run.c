@@ -8,7 +8,7 @@
 #define vm_int_read() ({vm_int_read_type(vm_int_arg_t);})
 #define vm_int_jump_next() ({goto *vm_int_read_type(void *);})
 
-int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
+int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_t *funcs)
 {
   void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
@@ -85,6 +85,15 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc)
       [VM_INT_OP_SETCDR] = &&exec_setcdr,
       [VM_INT_OP_FTOU] = &&exec_ftou,
       [VM_INT_OP_UTOF] = &&exec_utof,
+      [VM_INT_OP_FUNC0] = &&exec_func0,
+      [VM_INT_OP_FUNC1] = &&exec_func1,
+      [VM_INT_OP_FUNC2] = &&exec_func2,
+      [VM_INT_OP_FUNC3] = &&exec_func3,
+      [VM_INT_OP_FUNC4] = &&exec_func4,
+      [VM_INT_OP_FUNC5] = &&exec_func5,
+      [VM_INT_OP_FUNC6] = &&exec_func6,
+      [VM_INT_OP_FUNC7] = &&exec_func7,
+      [VM_INT_OP_FUNC8] = &&exec_func8,
   };
   uint8_t *jumps = vm_jump_all(nops, iops);
   if (jumps == NULL)
@@ -863,13 +872,128 @@ exec_utof:
   regs[out].f = regs[in].u;
   vm_int_jump_next();
 }
+exec_func0:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  regs[out] = funcs[in](gc, NULL);
+  vm_int_jump_next();
+}
+exec_func1:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
+exec_func2:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
+exec_func3:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
+exec_func4:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
+exec_func5:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
+exec_func6:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
+exec_func7:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
+exec_func8:
+{
+  vm_int_arg_t out = vm_int_read();
+  vm_int_arg_t in = vm_int_read();
+  vm_value_t args[] = {
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+    regs[vm_int_read()],
+  };
+  regs[out] = funcs[in](gc, args);
+  vm_int_jump_next();
+}
 }
 
-int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
+int vm_run_arch_int(size_t nops, const vm_opcode_t *ops, const vm_func_t *funcs)
 {
   vm_gc_t gc;
   vm_gc_init(&gc);
-  int res = vm_int_run(nops, ops, &gc);
+  int res = vm_int_run(nops, ops, &gc, funcs);
   vm_gc_deinit(&gc);
   return res;
 }
