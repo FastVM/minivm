@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
     fclose(out);
   } else {
-    int res = vm_run_arch_int(buf.nops, buf.ops);
+    int res = vm_run_arch_int(buf.nops, buf.ops, NULL);
     if (res != 0)
     {
       fprintf(stderr, "could not run asm\n");
