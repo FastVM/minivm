@@ -103,7 +103,25 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       else
       {
         named[out] = 0;
-        vm_int_buf_put_op(VM_INT_OP_FTOU);
+        vm_int_buf_put_op(VM_INT_OP_FTOS);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, in);
+      }
+      break;
+    }
+    case VM_OPCODE_FTOS:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      if (named[in])
+      {
+        named[out] = 1;
+        regs[out].s = regs[in].f;
+      }
+      else
+      {
+        named[out] = 0;
+        vm_int_buf_put_op(VM_INT_OP_FTOS);
         vm_int_buf_put(vm_reg_t, out);
         vm_int_buf_put(vm_reg_t, in);
       }
@@ -127,12 +145,46 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       }
       break;
     }
-    case VM_OPCODE_INT:
+    case VM_OPCODE_UTOS:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      if (named[in])
+      {
+        named[out] = 1;
+        regs[out].s = regs[in].u;
+      }
+      else
+      {
+        named[out] = 0;
+        vm_int_buf_put_op(VM_INT_OP_UTOS);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, in);
+      }
+      break;
+    }
+    case VM_OPCODE_UINT:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t in = ops[index++];
       named[out] = 1;
       regs[out].u = in;
+      break;
+    }
+    case VM_OPCODE_SINT:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      named[out] = 1;
+      regs[out].s = in;
+      break;
+    }
+    case VM_OPCODE_SNEG:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      named[out] = 1;
+      regs[out].s = -(vm_int_t)in;
       break;
     }
     case VM_OPCODE_FINT:
@@ -183,6 +235,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       cfunc = index;
       break;
     }
+    case VM_OPCODE_SADD:
     case VM_OPCODE_UADD:
     {
       vm_opcode_t out = ops[index++];
@@ -220,6 +273,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       }
       break;
     }
+    case VM_OPCODE_SSUB:
     case VM_OPCODE_USUB:
     {
       vm_opcode_t out = ops[index++];
@@ -480,6 +534,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       }
       break;
     }
+    case VM_OPCODE_SBEQ:
     case VM_OPCODE_UBEQ:
     {
       vm_opcode_t lhs = ops[index++];
@@ -586,7 +641,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       }
       break;
     }
-    case VM_OPCODE_INTF:
+    case VM_OPCODE_ADDR:
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t func = ops[index++];
@@ -996,6 +1051,237 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       else
       {
         vm_int_buf_put_op(VM_INT_OP_FBLT);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_reg_t, rhs);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
+      }
+      break;
+    }
+    case VM_OPCODE_SMUL:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out].s = regs[lhs].s * regs[rhs].s;
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          vm_int_buf_put_op(VM_INT_OP_SMULC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, rhs);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+        }
+        else if (named[rhs])
+        {
+          vm_int_buf_put_op(VM_INT_OP_SMULC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_SMUL);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_reg_t, rhs);
+        }
+        named[out] = 0;
+      }
+      break;
+    }
+    case VM_OPCODE_SDIV:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out].s = regs[lhs].s / regs[rhs].s;
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          vm_int_buf_put_op(VM_INT_OP_SCDIV);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+          vm_int_buf_put(vm_reg_t, rhs);
+        }
+        else if (named[rhs])
+        {
+          vm_int_buf_put_op(VM_INT_OP_SDIVC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_SDIV);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_reg_t, rhs);
+        }
+        named[out] = 0;
+      }
+      break;
+    }
+    case VM_OPCODE_SMOD:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out].s = regs[lhs].s % regs[rhs].s;
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          vm_int_buf_put_op(VM_INT_OP_SCMOD);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+          vm_int_buf_put(vm_reg_t, rhs);
+        }
+        else if (named[rhs])
+        {
+          vm_int_buf_put_op(VM_INT_OP_SMODC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_SMOD);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_reg_t, rhs);
+        }
+        named[out] = 0;
+      }
+      break;
+    }
+    case VM_OPCODE_STOF:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      if (named[in])
+      {
+        named[out] = 1;
+        regs[out].f = regs[in].s;
+      }
+      else
+      {
+        named[out] = 0;
+        vm_int_buf_put_op(VM_INT_OP_STOF);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, in);
+      }
+      break;
+    }
+    case VM_OPCODE_STOU:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      if (named[in])
+      {
+        named[out] = 1;
+        regs[out].f = regs[in].s;
+      }
+      else
+      {
+        named[out] = 0;
+        vm_int_buf_put_op(VM_INT_OP_STOF);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, in);
+      }
+      break;
+    }
+    case VM_OPCODE_SBB:
+    {
+      vm_opcode_t val = ops[index++];
+      vm_opcode_t jfalse = ops[index++];
+      vm_opcode_t jtrue = ops[index++];
+      if (named[val])
+      {
+        if (regs[val].s)
+        {
+          vm_int_buf_put_op(VM_INT_OP_JUMP);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_JUMP);
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
+      }
+      else
+      {
+        vm_int_buf_put_op(VM_INT_OP_SBB);
+        vm_int_buf_put(vm_reg_t, val);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
+      }
+      break;
+    }
+    case VM_OPCODE_SBLT:
+    {
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      vm_opcode_t jfalse = ops[index++];
+      vm_opcode_t jtrue = ops[index++];
+      if (named[lhs] && named[rhs])
+      {
+        if (regs[lhs].s < regs[rhs].s)
+        {
+          vm_int_buf_put_op(VM_INT_OP_JUMP);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_JUMP);
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
+      }
+      else if (named[rhs])
+      {
+        vm_int_buf_put_op(VM_INT_OP_SBLTC);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_value_t, regs[rhs]);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
+      }
+      else if (named[lhs])
+      {
+        vm_int_buf_put_op(VM_INT_OP_SCBLT);
+        vm_int_buf_put(vm_value_t, regs[lhs]);
+        vm_int_buf_put(vm_reg_t, rhs);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
+      }
+      else
+      {
+        vm_int_buf_put_op(VM_INT_OP_SBLT);
         vm_int_buf_put(vm_reg_t, lhs);
         vm_int_buf_put(vm_reg_t, rhs);
         froms[buf - ret] = jfalse;

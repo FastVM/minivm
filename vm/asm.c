@@ -179,7 +179,21 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
         src += vm_asm_word(src);
         if (vm_asm_starts(opname, "uint"))
         {
-          vm_asm_put_op(VM_OPCODE_INT);
+          vm_asm_put_op(VM_OPCODE_UINT);
+          vm_asm_put_reg(regno);
+          vm_asm_put_int(vm_asm_read_int(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "sint"))
+        {
+          vm_asm_put_op(VM_OPCODE_SINT);
+          vm_asm_put_reg(regno);
+          vm_asm_put_int(vm_asm_read_int(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "sneg"))
+        {
+          vm_asm_put_op(VM_OPCODE_SNEG);
           vm_asm_put_reg(regno);
           vm_asm_put_int(vm_asm_read_int(&src));
           continue;
@@ -201,7 +215,7 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
         }
         if (vm_asm_starts(opname, "addr"))
         {
-          vm_asm_put_op(VM_OPCODE_INTF);
+          vm_asm_put_op(VM_OPCODE_ADDR);
           vm_asm_put_reg(regno);
           vm_asm_strip(&src);
           vm_asm_put_get(src);
@@ -222,9 +236,37 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
+        if (vm_asm_starts(opname, "ftos"))
+        {
+          vm_asm_put_op(VM_OPCODE_FTOS);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
         if (vm_asm_starts(opname, "utof"))
         {
           vm_asm_put_op(VM_OPCODE_UTOF);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "utos"))
+        {
+          vm_asm_put_op(VM_OPCODE_UTOS);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "stof"))
+        {
+          vm_asm_put_op(VM_OPCODE_STOF);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "stou"))
+        {
+          vm_asm_put_op(VM_OPCODE_STOU);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
@@ -350,23 +392,6 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
           }
           continue;
         }
-        if (vm_asm_starts(opname, "xcall")) {
-          vm_asm_put_op(VM_OPCODE_XCALL);
-          vm_asm_put_reg(regno);
-          vm_asm_put_int(vm_asm_read_int(&src));
-          vm_opcode_t args[64] = {0};
-          size_t nargs = 0;
-          vm_asm_strip(&src);
-          while (*src != '\n') {
-            args[nargs++] = vm_asm_read_reg(&src);
-            vm_asm_strip(&src);
-          }
-          vm_asm_put_int(nargs);
-          for (size_t i = 0; i < nargs; i++) {
-            vm_asm_put_reg(args[i]);
-          }
-          continue;
-        }
         if (vm_asm_starts(opname, "dcall")) {
           vm_asm_put_op(VM_OPCODE_DCALL);
           vm_asm_put_reg(regno);
@@ -382,6 +407,53 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
           for (size_t i = 0; i < nargs; i++) {
             vm_asm_put_reg(args[i]);
           }
+          continue;
+        }
+        if (vm_asm_starts(opname, "stof"))
+        {
+          vm_asm_put_op(VM_OPCODE_STOF);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "sadd"))
+        {
+          vm_asm_put_op(VM_OPCODE_SADD);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "ssub"))
+        {
+          vm_asm_put_op(VM_OPCODE_SSUB);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "smul"))
+        {
+          vm_asm_put_op(VM_OPCODE_SMUL);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "sdiv"))
+        {
+          vm_asm_put_op(VM_OPCODE_SDIV);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "smod"))
+        {
+          vm_asm_put_op(VM_OPCODE_SMOD);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(&src));
+          vm_asm_put_reg(vm_asm_read_reg(&src));
           continue;
         }
       }
@@ -483,6 +555,44 @@ vm_asm_instr_t *vm_asm_read(const char *src, size_t *nsets)
       if (vm_asm_starts(opname, "ubeq"))
       {
         vm_asm_put_op(VM_OPCODE_UBEQ);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        continue;
+      }
+      if (vm_asm_starts(opname, "sbb"))
+      {
+        vm_asm_put_op(VM_OPCODE_SBB);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        continue;
+      }
+      if (vm_asm_starts(opname, "sblt"))
+      {
+        vm_asm_put_op(VM_OPCODE_SBLT);
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_put_reg(vm_asm_read_reg(&src));
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        vm_asm_strip(&src);
+        vm_asm_put_get(src);
+        src += vm_asm_word(src);
+        continue;
+      }
+      if (vm_asm_starts(opname, "sbeq"))
+      {
+        vm_asm_put_op(VM_OPCODE_SBEQ);
         vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_put_reg(vm_asm_read_reg(&src));
         vm_asm_strip(&src);
