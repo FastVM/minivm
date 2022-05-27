@@ -4,28 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#if !defined(VM_NO_FILE)
-struct FILE;
-typedef struct FILE FILE;
-#endif
-
-extern FILE *stdin;
-extern FILE *stderr;
-extern FILE *stdout;
-
-void *malloc(size_t n);
-void *calloc(size_t n1, size_t n2);
-void *realloc(void *ptr, size_t n);
-void free(void *ptr);
-
-FILE *fopen(const char *file, const char *mode);
-int fclose(FILE *file);
-size_t fwrite(const void *ptr, size_t size, size_t n, FILE *file);
-size_t fread(void *ptr, size_t size, size_t n, FILE *file);
-double fmod(double lhs, double rhs);
-
-int fprintf(FILE *file, const char *fmt, ...);
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 static inline size_t vm_strlen(const char *str)
 {
