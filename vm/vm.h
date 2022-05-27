@@ -2,11 +2,16 @@
 
 #include "opcode.h"
 
+typedef uint64_t vm_loc_t;
+typedef uint64_t vm_reg_t;
+typedef uint64_t vm_uint_t;
+typedef double vm_float_t;
+
 union vm_value_t;
 typedef union vm_value_t vm_value_t;
 union vm_value_t {
-  uint64_t u;
-  double f;
+  vm_uint_t u;
+  vm_float_t f;
   vm_value_t *p;
 };
 

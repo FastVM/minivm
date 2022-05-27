@@ -4,8 +4,6 @@
 #include "../opcode.h"
 #include "../gc.h"
 
-typedef size_t vm_int_arg_t;
-
 enum vm_int_op_t
 {
   VM_INT_OP_EXIT,
