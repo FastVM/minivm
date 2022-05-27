@@ -1,0 +1,44 @@
+func fib
+    r0 <- fint 2
+    fblt r1 r0 fib.else fib.then
+@fib.then
+    ret r1
+@fib.else
+    r0 <- fint 1
+    r1 <- fsub r1 r0
+    r0 <- fsub r1 r0
+    r1 <- call fib r1
+    r0 <- call fib r0
+    r0 <- fadd r0 r1
+    ret r0
+end
+
+func fputi
+    r1 <- ftou r1
+    r1 <- call puti r1
+    ret r1
+end
+
+func puti
+    ubb r1 puti.ret puti.digit 
+@puti.digit
+    r0 <- uint 10
+    r0 <- udiv r1 r0
+    r0 <- call puti r0
+    r0 <- uint 10
+    r1 <- umod r1 r0
+    r0 <- uint 48
+    r1 <- uadd r1 r0
+    putchar r1
+@puti.ret
+    r0 <- uint 0
+    ret r0
+end
+
+@main
+    r0 <- fint 35
+    r0 <- call fib r0
+    r0 <- call fputi r0
+    r0 <- uint 10
+    putchar r0
+    exit

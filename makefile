@@ -1,26 +1,24 @@
 
-OPT ?= -Os
+OPT ?= -O2
+
+SRCS := util/main.c vm/asm.c vm/jump.c vm/gc.c vm/int/run.c vm/int/comp.c vm/reguse.c
+OBJS := $(SRCS:%.c=%.o)
 
 default: all
 
-all: minivm dis
+all: bin/minivm-asm
 
-minivm: .dummy
-	$(CC) $(OPT) vm/minivm.c -o minivm $(CFLAGS)
+$(OBJS): $(@:%.o=%.c)
+	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)
 
-pgo-llvm: .dummy
-	$(MAKE) minivm CC='$(CC)' OPT='-O1' CFLAGS+='-fprofile-instr-generate=minivm.profraw'
-	$(PGO)
-	$(PROFDATA) merge -output=minivm.profdata minivm.profraw
-	$(MAKE) minivm CC='$(CC)' OPT='$(OPT)' CFLAGS+='-fprofile-instr-use=minivm.profdata'
+bin/minivm-asm: $(OBJS)
+	@mkdir -p bin
+	$(CC) $(OPT) $(OBJS) -o $(@) -lm $(LDFLAGS)
 
-pgo-llvm-%: .dummy
-	$(MAKE) pgo-llvm OPT='$(OPT)' PGO='$(PGO)' CC=clang-$(@:pgo-llvm-%=%) PROFDATA=llvm-profdata-$(@:pgo-llvm-%=%)
-
-dis: .dummy
-	$(CC) $(OPT) vm/dis.c -o dis $(CFLAGS)
+bin: .dummy
+	mkdir -p $(@)
 
 .dummy:
 
 clean: .dummy
-	rm -f $(OBJS) minivm dis minivm.profdata minivm.profraw
+	rm -f $(OBJS) minivm minivm.profdata minivm.profraw vm/*.o vm/*/*.o

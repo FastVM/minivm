@@ -1,0 +1,38 @@
+func fib
+    r0 <- uint 2
+    ublt r1 r0 fib.else fib.then
+@fib.then
+    ret r1
+@fib.else
+    r0 <- uint 1
+    r1 <- usub r1 r0
+    r0 <- usub r1 r0
+    r1 <- call fib r1
+    r0 <- call fib r0
+    r0 <- uadd r0 r1
+    ret r0
+end
+
+func putn
+    ubb r1 putn.ret putn.digit 
+@putn.digit
+    r0 <- uint 10
+    r0 <- udiv r1 r0
+    r0 <- call putn r0
+    r0 <- uint 10
+    r1 <- umod r1 r0
+    r0 <- uint 48
+    r1 <- uadd r1 r0
+    putchar r1
+@putn.ret
+    r0 <- uint 0
+    ret r0
+end
+
+@main
+    r0 <- uint 35
+    r0 <- call fib r0
+    r0 <- call putn r0
+    r0 <- uint 10
+    putchar r0
+    exit
