@@ -13,7 +13,7 @@ struct vm_io_res_t
 
 static inline vm_io_res_t vm_io_read(const char *filename)
 {
-  FILE *file = fopen(filename, "rb");
+  void *file = fopen(filename, "rb");
   if (file == NULL)
   {
     fprintf(stderr, "cannot run vm: file could not be read\n");
@@ -28,18 +28,17 @@ static inline vm_io_res_t vm_io_read(const char *filename)
   size_t size;
   for (;;)
   {
-    vm_opcode_t op = 0;
-    size = fread(&op, sizeof(vm_opcode_t), 1, file);
+    size = fread(&ops[nops], sizeof(vm_opcode_t), 1, file);
     if (size == 0)
     {
       break;
     }
-    if (nops + 1 >= nalloc)
+    nops += 1;
+    if (nops + 4 >= nalloc)
     {
       nalloc *= 4;
       ops = vm_realloc(ops, sizeof(vm_opcode_t) * nalloc);
     }
-    ops[nops++] = (size_t)op;
   }
   fclose(file);
   return (vm_io_res_t){

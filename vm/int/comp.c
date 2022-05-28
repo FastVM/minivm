@@ -17,7 +17,7 @@
       } \
     }
 #define vm_int_buf_put(type_, val_) ({*(type_*)buf = val_; buf+=sizeof(type_); })
-#define vm_int_buf_put_op(op_) (vm_int_buf_put(void *, ptrs[op_]))
+#define vm_int_buf_put_op(op_) ({vm_int_buf_put(void *, ptrs[op_]);})
 
 uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t *gc, void **ptrs)
 {
@@ -25,16 +25,16 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
   vm_loc_t cfunc = 0;
   vm_loc_t cend = 0;
 
-  vm_reg_t nregs = 0;
+  vm_reg_t nregs = 256;
 
   size_t alloc = 1 << 8;
   uint8_t *buf = vm_malloc(sizeof(uint8_t) * alloc);
   vm_loc_t *froms = vm_alloc0(sizeof(vm_loc_t) * alloc);
-  vm_loc_t *locs = vm_alloc0(sizeof(vm_loc_t) * nops);
+  vm_loc_t *locs = vm_malloc(sizeof(vm_loc_t) * nops);
   uint8_t *ret = buf;
 
-  uint8_t named[1 << 12] = {0};
-  vm_value_t regs[1 << 12] = {0};
+  uint8_t *named = vm_alloc0(sizeof(uint8_t) * (1 << 14));
+  vm_value_t *regs = vm_malloc(sizeof(vm_value_t) * (1 << 14));
 
   while (index < nops)
   {
@@ -50,18 +50,17 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
     {
       for (size_t i = 0; i < nregs; i++)
       {
-        if (!named[i])
+        if (named[i])
         {
-          continue;
+          if (vm_reg_is_used(nops, ops, jumps, index, i, 16))
+          {
+            vm_int_buf_grow();
+            vm_int_buf_put_op(VM_INT_OP_MOVC);
+            vm_int_buf_put(vm_reg_t, i);
+            vm_int_buf_put(vm_value_t, regs[i]);
+          }
+          named[i] = 0;
         }
-        if (vm_reg_is_used(nops, ops, jumps, index, i, 16))
-        {
-          vm_int_buf_grow();
-          vm_int_buf_put_op(VM_INT_OP_MOVC);
-          vm_int_buf_put(vm_reg_t, i);
-          vm_int_buf_put(vm_value_t, regs[i]);
-        }
-        named[i] = 0;
       }
     }
     vm_int_buf_grow();

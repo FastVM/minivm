@@ -7,16 +7,18 @@
 #define vm_int_read_type(type_) ({type_ ret=*(type_*)&ops[index]; index += sizeof(type_); ret; })
 #define vm_int_read_reg() ({vm_int_read_type(vm_reg_t);})
 #if defined(VM_DEBUG_READS)
-#define vm_int_read_load() ({vm_value_t *r = &regs[vm_int_read_reg()]; printf("  r%zu = %zu|%lf @%i\n", r - regs, (size_t) r->u, r->f, __LINE__); *r;})
-#define vm_int_read_store() ({vm_value_t *r = &regs[vm_int_read_reg()]; printf("-> r%zu @%i\n", r-regs, __LINE__); r;})
-#define vm_int_read_value() ({vm_value_t v = vm_int_read_type(vm_value_t); printf("  value %zu|%lf\n", (size_t) v.u, v.f); v; })
+#define vm_int_read_load() ({vm_value_t *r = &regs[vm_int_read_reg()]; fprintf(stderr, "  r%zu = %zu|%lf @%i\n", r - regs, (size_t) r->u, r->f, __LINE__); *r;})
+#define vm_int_read_store() ({vm_value_t *r = &regs[vm_int_read_reg()]; fprintf(stderr, "-> r%zu @%i\n", r-regs, __LINE__); r;})
+#define vm_int_read_value() ({vm_value_t v = vm_int_read_type(vm_value_t); fprintf(stderr, "  value %zu|%lf\n", (size_t) v.u, v.f); v; })
+#define vm_int_read_loc() ({vm_int_read_type(vm_loc_t);})
+#define vm_int_jump_next() ({fprintf(stderr, "end %zu @%zu\n", (size_t) index, (size_t) __LINE__); goto *vm_int_read_type(void *);})
 #else
 #define vm_int_read_load() ({regs[vm_int_read_reg()];})
 #define vm_int_read_store() ({&regs[vm_int_read_reg()];})
 #define vm_int_read_value() ({vm_int_read_type(vm_value_t);})
-#endif
 #define vm_int_read_loc() ({vm_int_read_type(vm_loc_t);})
 #define vm_int_jump_next() ({goto *vm_int_read_type(void *);})
+#endif
 
 int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_t *funcs)
 {
@@ -123,8 +125,8 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_
   {
     return 1;
   }
-  size_t nframes = 1000;
-  size_t nregs0 = nframes * 8;
+  size_t nframes = 5000;
+  size_t nregs0 = nframes * 16;
   vm_value_t *regs = vm_malloc(sizeof(vm_value_t) * nregs0);
   vm_value_t *regs_base = regs;
   vm_reg_t *stack = vm_malloc(sizeof(vm_value_t) * nframes);
@@ -141,7 +143,7 @@ exec_exit:
 exec_putc:
 {
   vm_value_t reg = vm_int_read_load();
-  fprintf(stdout, "%c", (int)reg.u);
+  putchar(reg.u);
   vm_int_jump_next();
 }
 exec_mov:
@@ -1009,9 +1011,9 @@ exec_scblt:
 
 int vm_run_arch_int(size_t nops, const vm_opcode_t *ops, const vm_func_t *funcs)
 {
-  vm_gc_t gc;
-  vm_gc_init(&gc);
-  int res = vm_int_run(nops, ops, &gc, funcs);
-  vm_gc_deinit(&gc);
+  vm_gc_t *gc = vm_malloc(sizeof(vm_gc_t));
+  vm_gc_init(gc);
+  int res = vm_int_run(nops, ops, gc, funcs);
+  vm_gc_deinit(gc);
   return res;
 }

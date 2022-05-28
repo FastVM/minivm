@@ -1,6 +1,36 @@
 
 #include "../vm/asm.h"
 
+const char *vm_asm_io_read(const char *filename)
+{
+  void *file = fopen(filename, "rb");
+  if (file == NULL)
+  {
+    return NULL;
+  }
+  size_t nalloc = 16;
+  char *ops = vm_malloc(sizeof(char) * nalloc);
+  size_t nops = 0;
+  size_t size;
+  for (;;)
+  {
+    size = fread(&ops[nops], sizeof(char), 1, file);
+    if (size == 0)
+    {
+      break;
+    }
+    nops += 1;
+    if (nops + 4 >= nalloc)
+    {
+      nalloc *= 4;
+      ops = vm_realloc(ops, sizeof(char) * nalloc);
+    }
+  }
+  ops[nops] = '\0';
+  fclose(file);
+  return ops;
+}
+
 int main(int argc, char **argv)
 {
   // const char *dump = "out.bc";
@@ -19,11 +49,11 @@ int main(int argc, char **argv)
   vm_asm_buf_t buf = vm_asm(src);
   vm_free((void *)src);
   if (buf.nops == 0) {
-    fprintf(stderr, "could not assemble file");
+    fprintf(stderr, "could not assemble file\n");
     return 1;
   }
   if (dump) {
-    FILE *out = fopen(dump, "wb");
+    void *out = fopen(dump, "wb");
     fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
     fclose(out);
   } else {

@@ -317,6 +317,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       break;
     }
     case VM_OPCODE_UBB:
+    case VM_OPCODE_SBB:
     {
       ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t inreg = ops[index++];

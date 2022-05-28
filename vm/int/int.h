@@ -98,6 +98,7 @@ enum vm_int_op_t
   VM_INT_OP_SBLT,
   VM_INT_OP_SBLTC,
   VM_INT_OP_SCBLT,
+  VM_INT_MAX_OP,
 };
 
 uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_t *gc, void **ptrs);

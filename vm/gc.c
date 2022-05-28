@@ -1,5 +1,9 @@
 #include "gc.h"
 
+#if !defined(VM_GC_ALLOC)
+#define VM_GC_ALLOC (1 << 16)
+#endif
+
 enum
 {
   VM_GC_MARK_FREE = 0,
@@ -10,12 +14,12 @@ enum
 
 void vm_gc_init(vm_gc_t *restrict gc)
 {
-  size_t alloc = 1 << 20;
+  size_t alloc = VM_GC_ALLOC;
   gc->used = 0;
   gc->free = NULL;
-  gc->low = vm_alloc0(sizeof(vm_pair_t) * alloc);
+  gc->low = vm_malloc(sizeof(vm_pair_t) * alloc);
   gc->high = gc->low + (alloc - 1);
-  gc->marks = vm_alloc0(sizeof(uint8_t) * alloc);
+  gc->marks = vm_malloc(sizeof(uint8_t) * alloc);
   gc->count = 0;
   gc->maxcount = 1 << 8;
 }
@@ -37,7 +41,8 @@ void *vm_gc_alloc(vm_gc_t *restrict gc)
   }
   size_t nth = gc->used++;
   gc->marks[nth] = VM_GC_MARK_TO_FREE;
-  return gc->low + (nth);
+  vm_pair_t *ret = gc->low + (nth);
+  return ret;
 }
 
 void *vm_gc_alloc_root(vm_gc_t *restrict gc)

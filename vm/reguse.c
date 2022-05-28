@@ -140,7 +140,7 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
     }
     }
     index += 1;
-    while (!(jumps[index] & VM_JUMP_INSTR))
+    while ((jumps[index] & VM_JUMP_INSTR) == 0)
     {
       index += 1;
     }
