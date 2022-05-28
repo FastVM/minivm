@@ -10,14 +10,14 @@ enum
 
 void vm_gc_init(vm_gc_t *restrict gc)
 {
-  size_t alloc = 1 << 24;
+  size_t alloc = 1 << 20;
   gc->used = 0;
   gc->free = NULL;
   gc->low = vm_alloc0(sizeof(vm_pair_t) * alloc);
   gc->high = gc->low + (alloc - 1);
   gc->marks = vm_alloc0(sizeof(uint8_t) * alloc);
   gc->count = 0;
-  gc->maxcount = 1 << 12;
+  gc->maxcount = 1 << 8;
 }
 
 void vm_gc_deinit(vm_gc_t *restrict gc)

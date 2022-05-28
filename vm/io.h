@@ -22,7 +22,7 @@ static inline vm_io_res_t vm_io_read(const char *filename)
       .ops = NULL,
     };
   }
-  size_t nalloc = 1 << 16;
+  size_t nalloc = 1 << 8;
   vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * nalloc);
   size_t nops = 0;
   size_t size;

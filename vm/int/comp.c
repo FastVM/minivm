@@ -1196,12 +1196,12 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       if (named[in])
       {
         named[out] = 1;
-        regs[out].f = regs[in].s;
+        regs[out].u = regs[in].s;
       }
       else
       {
         named[out] = 0;
-        vm_int_buf_put_op(VM_INT_OP_STOF);
+        vm_int_buf_put_op(VM_INT_OP_STOU);
         vm_int_buf_put(vm_reg_t, out);
         vm_int_buf_put(vm_reg_t, in);
       }
