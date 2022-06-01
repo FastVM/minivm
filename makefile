@@ -1,7 +1,7 @@
 
 OPT ?= -O2
 
-SRCS := util/main.c vm/asm.c vm/jump.c vm/gc.c vm/int/run.c vm/int/comp.c vm/reguse.c
+SRCS := util/main.c vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/reguse.c
 OBJS := $(SRCS:%.c=%.o)
 
 default: all

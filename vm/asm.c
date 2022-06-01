@@ -146,13 +146,6 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         vm_asm_strip(src);
         const char *opname = *src;
         *src += vm_asm_word(*src);
-        if (vm_asm_starts(opname, "uint"))
-        {
-          vm_asm_put_op(VM_OPCODE_UINT);
-          vm_asm_put_reg(regno);
-          vm_asm_put_int(vm_asm_read_int(src));
-          continue;
-        }
         if (vm_asm_starts(opname, "sint"))
         {
           vm_asm_put_op(VM_OPCODE_SINT);
@@ -198,30 +191,9 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
-        if (vm_asm_starts(opname, "ftou"))
-        {
-          vm_asm_put_op(VM_OPCODE_FTOU);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
         if (vm_asm_starts(opname, "ftos"))
         {
           vm_asm_put_op(VM_OPCODE_FTOS);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "utof"))
-        {
-          vm_asm_put_op(VM_OPCODE_UTOF);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "utos"))
-        {
-          vm_asm_put_op(VM_OPCODE_UTOS);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
@@ -230,53 +202,6 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         {
           vm_asm_put_op(VM_OPCODE_STOF);
           vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "stou"))
-        {
-          vm_asm_put_op(VM_OPCODE_STOU);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "uadd"))
-        {
-          vm_asm_put_op(VM_OPCODE_UADD);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "usub"))
-        {
-          vm_asm_put_op(VM_OPCODE_USUB);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "umul"))
-        {
-          vm_asm_put_op(VM_OPCODE_UMUL);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "udiv"))
-        {
-          vm_asm_put_op(VM_OPCODE_UDIV);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "umod"))
-        {
-          vm_asm_put_op(VM_OPCODE_UMOD);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
@@ -317,28 +242,6 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
           vm_asm_put_op(VM_OPCODE_FMOD);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "cons"))
-        {
-          vm_asm_put_op(VM_OPCODE_CONS);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "getcar"))
-        {
-          vm_asm_put_op(VM_OPCODE_GETCAR);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "getcdr"))
-        {
-          vm_asm_put_op(VM_OPCODE_GETCDR);
-          vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
@@ -474,61 +377,9 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         vm_asm_put_reg(vm_asm_read_reg(src));
         continue;
       }
-      if (vm_asm_starts(opname, "setcar"))
-      {
-        vm_asm_put_op(VM_OPCODE_SETCAR);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        continue;
-      }
-      if (vm_asm_starts(opname, "setcdr"))
-      {
-        vm_asm_put_op(VM_OPCODE_SETCDR);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        continue;
-      }
       if (vm_asm_starts(opname, "jump"))
       {
         vm_asm_put_op(VM_OPCODE_JUMP);
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        continue;
-      }
-      if (vm_asm_starts(opname, "ubb"))
-      {
-        vm_asm_put_op(VM_OPCODE_UBB);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        continue;
-      }
-      if (vm_asm_starts(opname, "ublt"))
-      {
-        vm_asm_put_op(VM_OPCODE_UBLT);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        continue;
-      }
-      if (vm_asm_starts(opname, "ubeq"))
-      {
-        vm_asm_put_op(VM_OPCODE_UBEQ);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
         vm_asm_strip(src);
         vm_asm_put_get(*src);
         *src += vm_asm_word(*src);

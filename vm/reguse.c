@@ -30,19 +30,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       vm_opcode_t dest = ops[index + 1];
       return vm_reg_is_used(nops, ops, jumps, dest, reg, nbuf, buf, head+1);
     }
-    case VM_OPCODE_SETCAR:
-    case VM_OPCODE_SETCDR:
-    {
-      if (ops[index + 1] == reg)
-      {
-        return 1;
-      }
-      if (ops[index + 2] == reg)
-      {
-        return 1;
-      }
-      break;
-    }
     case VM_OPCODE_PUTCHAR:
     {
       if (ops[index + 1] == reg)
@@ -51,7 +38,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       }
       break;
     }
-    case VM_OPCODE_UBB:
     case VM_OPCODE_SBB:
     case VM_OPCODE_FBB:
     {
@@ -63,8 +49,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       vm_opcode_t jtrue = ops[index + 3];
       return vm_reg_is_used(nops, ops, jumps, jfalse, reg, nbuf, buf, head+1) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, nbuf, buf, head+1);
     }
-    case VM_OPCODE_UBEQ:
-    case VM_OPCODE_UBLT:
     case VM_OPCODE_SBEQ:
     case VM_OPCODE_SBLT:
     case VM_OPCODE_FBEQ:
@@ -78,12 +62,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       vm_opcode_t jtrue = ops[index + 4];
       return vm_reg_is_used(nops, ops, jumps, jfalse, reg, nbuf, buf, head+1) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, nbuf, buf, head+1);
     }
-    case VM_OPCODE_CONS:
-    case VM_OPCODE_UADD:
-    case VM_OPCODE_USUB:
-    case VM_OPCODE_UMUL:
-    case VM_OPCODE_UDIV:
-    case VM_OPCODE_UMOD:
     case VM_OPCODE_FADD:
     case VM_OPCODE_FSUB:
     case VM_OPCODE_FMUL:
@@ -105,8 +83,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       }
       break;
     }
-    case VM_OPCODE_GETCAR:
-    case VM_OPCODE_GETCDR:
     case VM_OPCODE_REG:
       if (ops[index + 2] == reg)
       {
@@ -117,7 +93,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
         return 0;
       }
       break;
-    case VM_OPCODE_UINT:
     case VM_OPCODE_FINT:
     case VM_OPCODE_SINT:
     case VM_OPCODE_SNEG:

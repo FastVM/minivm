@@ -1,45 +1,29 @@
 #include "int.h"
-#include "../gc.h"
+#include "../vm.h"
 #include "../jump.h"
 #include "../opcode.h"
 
 #define vm_int_read_at(type_, index_) (*(type_*)&ops[index_])
 #define vm_int_read_type(type_) ({type_ ret=*(type_*)&ops[index]; index += sizeof(type_); ret; })
 #define vm_int_read_reg() ({vm_int_read_type(vm_reg_t);})
-#if defined(VM_DEBUG_READS)
-#define vm_int_read_load() ({vm_value_t *r = &regs[vm_int_read_reg()]; fprintf(stderr, "  r%zu = %zu|%lf @%i\n", r - regs, (size_t) r->u, r->f, __LINE__); *r;})
-#define vm_int_read_store() ({vm_value_t *r = &regs[vm_int_read_reg()]; fprintf(stderr, "-> r%zu @%i\n", r-regs, __LINE__); r;})
-#define vm_int_read_value() ({vm_value_t v = vm_int_read_type(vm_value_t); fprintf(stderr, "  value %zu|%lf\n", (size_t) v.u, v.f); v; })
-#define vm_int_read_loc() ({vm_int_read_type(vm_loc_t);})
-#define vm_int_jump_next() ({fprintf(stderr, "end %zu @%zu\n", (size_t) index, (size_t) __LINE__); goto *vm_int_read_type(void *);})
-#else
 #define vm_int_read_load() ({regs[vm_int_read_reg()];})
 #define vm_int_read_store() ({&regs[vm_int_read_reg()];})
 #define vm_int_read_value() ({vm_int_read_type(vm_value_t);})
 #define vm_int_read_loc() ({vm_int_read_type(vm_loc_t);})
 #define vm_int_jump_next() ({goto *vm_int_read_type(void *);})
-#endif
 
-int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_t *funcs)
+int vm_int_run(size_t nops, const vm_opcode_t *iops)
 {
   void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
       [VM_INT_OP_PUTC] = &&exec_putc,
       [VM_INT_OP_MOV] = &&exec_mov,
       [VM_INT_OP_MOVC] = &&exec_movc,
-      [VM_INT_OP_UADD] = &&exec_uadd,
-      [VM_INT_OP_UADDC] = &&exec_uaddc,
-      [VM_INT_OP_USUB] = &&exec_usub,
-      [VM_INT_OP_USUBC] = &&exec_usubc,
-      [VM_INT_OP_UCSUB] = &&exec_ucsub,
-      [VM_INT_OP_UMUL] = &&exec_umul,
-      [VM_INT_OP_UMULC] = &&exec_umulc,
-      [VM_INT_OP_UDIV] = &&exec_udiv,
-      [VM_INT_OP_UDIVC] = &&exec_udivc,
-      [VM_INT_OP_UCDIV] = &&exec_ucdiv,
-      [VM_INT_OP_UMOD] = &&exec_umod,
-      [VM_INT_OP_UMODC] = &&exec_umodc,
-      [VM_INT_OP_UCMOD] = &&exec_ucmod,
+      [VM_INT_OP_SADD] = &&exec_sadd,
+      [VM_INT_OP_SADDC] = &&exec_saddc,
+      [VM_INT_OP_SSUB] = &&exec_ssub,
+      [VM_INT_OP_SSUBC] = &&exec_ssubc,
+      [VM_INT_OP_SCSUB] = &&exec_scsub,
       [VM_INT_OP_FADD] = &&exec_fadd,
       [VM_INT_OP_FADDC] = &&exec_faddc,
       [VM_INT_OP_FSUB] = &&exec_fsub,
@@ -55,12 +39,8 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_
       [VM_INT_OP_FCMOD] = &&exec_fcmod,
       [VM_INT_OP_JUMP] = &&exec_jump,
       [VM_INT_OP_DJUMP] = &&exec_djump,
-      [VM_INT_OP_UBB] = &&exec_ubb,
-      [VM_INT_OP_UBEQ] = &&exec_ubeq,
-      [VM_INT_OP_UBEQC] = &&exec_ubeqc,
-      [VM_INT_OP_UBLT] = &&exec_ublt,
-      [VM_INT_OP_UBLTC] = &&exec_ubltc,
-      [VM_INT_OP_UCBLT] = &&exec_ucblt,
+      [VM_INT_OP_SBEQ] = &&exec_sbeq,
+      [VM_INT_OP_SBEQC] = &&exec_sbeqc,
       [VM_INT_OP_FBB] = &&exec_fbb,
       [VM_INT_OP_FBEQ] = &&exec_fbeq,
       [VM_INT_OP_FBEQC] = &&exec_fbeqc,
@@ -87,20 +67,8 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_
       [VM_INT_OP_DCALL6] = &&exec_dcall6,
       [VM_INT_OP_DCALL7] = &&exec_dcall7,
       [VM_INT_OP_DCALL8] = &&exec_dcall8,
-      [VM_INT_OP_CONS] = &&exec_pair,
-      [VM_INT_OP_CONSC] = &&exec_pairc,
-      [VM_INT_OP_CCONS] = &&exec_ccons,
-      [VM_INT_OP_CCONSC] = &&exec_cconsc,
-      [VM_INT_OP_GETCAR] = &&exec_getcar,
-      [VM_INT_OP_GETCDR] = &&exec_getcdr,
-      [VM_INT_OP_SETCAR] = &&exec_setcar,
-      [VM_INT_OP_SETCDR] = &&exec_setcdr,
-      [VM_INT_OP_FTOU] = &&exec_ftou,
-      [VM_INT_OP_UTOF] = &&exec_utof,
       [VM_INT_OP_FTOS] = &&exec_ftos,
-      [VM_INT_OP_UTOS] = &&exec_utos,
       [VM_INT_OP_STOF] = &&exec_stof,
-      [VM_INT_OP_STOU] = &&exec_stou,
       [VM_INT_OP_SMUL] = &&exec_smul,
       [VM_INT_OP_SMULC] = &&exec_smulc,
       [VM_INT_OP_SDIV] = &&exec_sdiv,
@@ -119,7 +87,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *gc, const vm_func_
   {
     return 1;
   }
-  uint8_t *ops = vm_int_comp(nops, iops, jumps, gc, &ptrs[0]);
+  uint8_t *ops = vm_int_comp(nops, iops, jumps, &ptrs[0]);
   vm_free(jumps);
   if (ops == NULL)
   {
@@ -143,7 +111,7 @@ exec_exit:
 exec_putc:
 {
   vm_value_t reg = vm_int_read_load();
-  putchar(reg.u);
+  putchar(reg.s);
   vm_int_jump_next();
 }
 exec_mov:
@@ -160,44 +128,20 @@ exec_movc:
   *out = in;
   vm_int_jump_next();
 }
-exec_uadd:
+exec_sadd:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u + rhs.u;
+  out->s = lhs.s + rhs.s;
   vm_int_jump_next();
 }
-exec_usub:
+exec_ssub:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u - rhs.u;
-  vm_int_jump_next();
-}
-exec_umul:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u * rhs.u;
-  vm_int_jump_next();
-}
-exec_udiv:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u / rhs.u;
-  vm_int_jump_next();
-}
-exec_umod:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u % rhs.u;
+  out->s = lhs.s - rhs.s;
   vm_int_jump_next();
 }
 exec_ret:
@@ -206,26 +150,6 @@ exec_ret:
   index = *--stack;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
   *vm_int_read_store() = inval;
-  vm_int_jump_next();
-}
-exec_ubb:
-{
-  vm_value_t in = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (in.u != 0) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_ubeq:
-{
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.u == rhs.u) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_ublt:
-{
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.u < rhs.u) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_call0:
@@ -383,7 +307,7 @@ exec_call8:
 }
 exec_dcall0:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_reg_t nregs = vm_int_read_reg();
   *stack++ = index;
   regs += nregs;
@@ -392,7 +316,7 @@ exec_dcall0:
 }
 exec_dcall1:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_reg_t nregs = vm_int_read_reg();
   *stack++ = index;
@@ -403,7 +327,7 @@ exec_dcall1:
 }
 exec_dcall2:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_reg_t nregs = vm_int_read_reg();
@@ -416,7 +340,7 @@ exec_dcall2:
 }
 exec_dcall3:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -431,7 +355,7 @@ exec_dcall3:
 }
 exec_dcall4:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -448,7 +372,7 @@ exec_dcall4:
 }
 exec_dcall5:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -467,7 +391,7 @@ exec_dcall5:
 }
 exec_dcall6:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -488,7 +412,7 @@ exec_dcall6:
 }
 exec_dcall7:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -511,7 +435,7 @@ exec_dcall7:
 }
 exec_dcall8:
 {
-  vm_loc_t func = vm_int_read_load().u;
+  vm_loc_t func = vm_int_read_load().s;
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -543,92 +467,45 @@ exec_jump:
 exec_djump:
 {
   vm_value_t reg = vm_int_read_load();
-  index = reg.u;
+  index = reg.s;
   vm_int_jump_next();
 }
-exec_ubeqc:
+exec_sbeq:
 {
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.u == rhs.u) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_ubltc:
-{
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.u < rhs.u) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_ucblt:
-{
-  vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.u < rhs.u) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + (lhs.s == rhs.s) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
-exec_uaddc:
+exec_sbeqc:
+{
+  vm_value_t lhs = vm_int_read_load();
+  vm_value_t rhs = vm_int_read_value();
+  index = vm_int_read_at(vm_loc_t, index + (lhs.s == rhs.s) * sizeof(vm_loc_t));
+  vm_int_jump_next();
+}
+exec_saddc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  out->u = lhs.u + rhs.u;
+  out->s = lhs.s + rhs.s;
   vm_int_jump_next();
 }
-exec_usubc:
+exec_ssubc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  out->u = lhs.u - rhs.u;
+  out->s = lhs.s - rhs.s;
   vm_int_jump_next();
 }
-exec_umulc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->u = lhs.u * rhs.u;
-  vm_int_jump_next();
-}
-exec_udivc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->u = lhs.u / rhs.u;
-  vm_int_jump_next();
-}
-exec_umodc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->u = lhs.u % rhs.u;
-  vm_int_jump_next();
-}
-exec_ucsub:
+exec_scsub:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u - rhs.u;
-  vm_int_jump_next();
-}
-exec_ucdiv:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u / rhs.u;
-  vm_int_jump_next();
-}
-exec_ucmod:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_load();
-  out->u = lhs.u % rhs.u;
+  out->s = lhs.s - rhs.s;
   vm_int_jump_next();
 }
 exec_retc:
@@ -637,96 +514,6 @@ exec_retc:
   index = *--stack;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
   *vm_int_read_store()= inval;
-  vm_int_jump_next();
-}
-exec_pair:
-{
-  vm_gc_collect(gc, nregs0, regs_base);
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  vm_value_t *res = vm_gc_alloc(gc);
-  res[0] = lhs;
-  res[1] = rhs;
-  out->p = res;
-  vm_int_jump_next();
-}
-exec_pairc:
-{
-  vm_gc_collect(gc, nregs0, regs_base);
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  vm_value_t *res = vm_gc_alloc(gc);
-  res[0] = lhs;
-  res[1] = rhs;
-  out->p = res;
-  vm_int_jump_next();
-}
-exec_ccons:
-{
-  vm_gc_collect(gc, nregs0, regs_base);
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_load();
-  vm_value_t *res = vm_gc_alloc(gc);
-  res[0] = lhs;
-  res[1] = rhs;
-  out->p = res;
-  vm_int_jump_next();
-}
-exec_cconsc:
-{
-  vm_gc_collect(gc, nregs0, regs_base);
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_value();
-  vm_value_t *res = vm_gc_alloc(gc);
-  res[0] = lhs;
-  res[1] = rhs;
-  out->p = res;
-  vm_int_jump_next();
-}
-exec_getcar:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t pair = vm_int_read_load();
-  *out = pair.p[0];
-  vm_int_jump_next();
-}
-exec_getcdr:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t pair = vm_int_read_load();
-  *out = pair.p[1];
-  vm_int_jump_next();
-}
-exec_setcar:
-{
-  vm_value_t pair = vm_int_read_load();
-  vm_value_t val = vm_int_read_load();
-  pair.p[0] = val;
-  vm_int_jump_next();
-}
-exec_setcdr:
-{
-  vm_value_t pair = vm_int_read_load();
-  vm_value_t val = vm_int_read_load();
-  pair.p[1] = val;
-  vm_int_jump_next();
-}
-exec_setcari:
-{
-  vm_value_t pair = vm_int_read_load();
-  vm_value_t val = vm_int_read_load();
-  pair.p[0] = val;
-  vm_int_jump_next();
-}
-exec_setcdri:
-{
-  vm_value_t pair = vm_int_read_load();
-  vm_value_t val = vm_int_read_load();
-  pair.p[1] = val;
   vm_int_jump_next();
 }
 exec_fadd:
@@ -874,20 +661,6 @@ exec_fcblt:
   index = vm_int_read_at(vm_loc_t, index + (lhs.f < rhs.f) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
-exec_ftou:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t in = vm_int_read_load();
-  out->u = in.f;
-  vm_int_jump_next();
-}
-exec_utof:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t in = vm_int_read_load();
-  out->f = in.u;
-  vm_int_jump_next();
-}
 exec_ftos:
 {
   vm_value_t *out = vm_int_read_store();
@@ -895,25 +668,11 @@ exec_ftos:
   out->s = in.f;
   vm_int_jump_next();
 }
-exec_utos:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t in = vm_int_read_load();
-  out->s = in.u;
-  vm_int_jump_next();
-}
 exec_stof:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t in = vm_int_read_load();
   out->f = in.s;
-  vm_int_jump_next();
-}
-exec_stou:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t in = vm_int_read_load();
-  out->u = in.s;
   vm_int_jump_next();
 }
 exec_smul:
@@ -1009,11 +768,7 @@ exec_scblt:
 }
 }
 
-int vm_run_arch_int(size_t nops, const vm_opcode_t *ops, const vm_func_t *funcs)
+int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
 {
-  vm_gc_t *gc = vm_malloc(sizeof(vm_gc_t));
-  vm_gc_init(gc);
-  int res = vm_int_run(nops, ops, gc, funcs);
-  vm_gc_deinit(gc);
-  return res;
+  return vm_int_run(nops, ops);
 }
