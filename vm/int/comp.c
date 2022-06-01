@@ -34,7 +34,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
   uint8_t *ret = buf;
 
   uint8_t *named = vm_alloc0(sizeof(uint8_t) * (1 << 14));
-  vm_value_t *regs = vm_malloc(sizeof(vm_value_t) * (1 << 14));
+  vm_value_t *regs = vm_malloc(sizeof(vm_value_t) * (1 << 12));
 
   while (index < nops)
   {
@@ -52,7 +52,8 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, vm_gc_
       {
         if (named[i])
         {
-          if (vm_reg_is_used(nops, ops, jumps, index, i, 16))
+          size_t tmpbuf[256] = {0};
+          if (vm_reg_is_used(nops, ops, jumps, index, i, 256, tmpbuf, 0))
           {
             vm_int_buf_grow();
             vm_int_buf_put_op(VM_INT_OP_MOVC);

@@ -3,11 +3,17 @@
 #include "opcode.h"
 #include "jump.h"
 
-int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t index, size_t reg, size_t rem)
+int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t index, size_t reg, size_t nbuf, size_t* buf, size_t head)
 {
-  if (rem == 0) {
+  if (head == nbuf) {
     return 1;
   }
+  for (size_t i = 0; i < head; i++) {
+    if (buf[head] == index) {
+      return 0;
+    }
+  }
+  buf[head] = index;
   while (index < nops)
   {
     switch (ops[index])
@@ -22,7 +28,7 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
     case VM_OPCODE_JUMP:
     {
       vm_opcode_t dest = ops[index + 1];
-      return vm_reg_is_used(nops, ops, jumps, dest, reg, rem-1);
+      return vm_reg_is_used(nops, ops, jumps, dest, reg, nbuf, buf, head+1);
     }
     case VM_OPCODE_SETCAR:
     case VM_OPCODE_SETCDR:
@@ -55,7 +61,7 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       }
       vm_opcode_t jfalse = ops[index + 2];
       vm_opcode_t jtrue = ops[index + 3];
-      return vm_reg_is_used(nops, ops, jumps, jfalse, reg, rem/2) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, rem/2);
+      return vm_reg_is_used(nops, ops, jumps, jfalse, reg, nbuf, buf, head+1) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, nbuf, buf, head+1);
     }
     case VM_OPCODE_UBEQ:
     case VM_OPCODE_UBLT:
@@ -70,7 +76,7 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       }
       vm_opcode_t jfalse = ops[index + 3];
       vm_opcode_t jtrue = ops[index + 4];
-      return vm_reg_is_used(nops, ops, jumps, jfalse, reg, rem/2) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, rem/2);
+      return vm_reg_is_used(nops, ops, jumps, jfalse, reg, nbuf, buf, head+1) || vm_reg_is_used(nops, ops, jumps, jtrue, reg, nbuf, buf, head+1);
     }
     case VM_OPCODE_CONS:
     case VM_OPCODE_UADD:
