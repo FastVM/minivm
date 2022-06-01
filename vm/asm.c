@@ -96,7 +96,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
   vm_asm_instr_t *instrs = vm_malloc(sizeof(vm_asm_instr_t) * alloc);
   size_t head = 0;
   vm_asm_put_op(VM_OPCODE_JUMP);
-  vm_asm_put_get("main");
+  vm_asm_put_get("__entry");
   size_t where;
   int nregs = 0;
   for (;;)
@@ -146,32 +146,17 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         vm_asm_strip(src);
         const char *opname = *src;
         *src += vm_asm_word(*src);
-        if (vm_asm_starts(opname, "sint"))
+        if (vm_asm_starts(opname, "int"))
         {
-          vm_asm_put_op(VM_OPCODE_SINT);
-          vm_asm_put_reg(regno);
-          vm_asm_put_int(vm_asm_read_int(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "sneg"))
-        {
-          vm_asm_put_op(VM_OPCODE_SNEG);
-          vm_asm_put_reg(regno);
-          vm_asm_put_int(vm_asm_read_int(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "fint"))
-        {
-          vm_asm_put_op(VM_OPCODE_FINT);
-          vm_asm_put_reg(regno);
-          vm_asm_put_int(vm_asm_read_int(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "frac"))
-        {
-          vm_asm_put_op(VM_OPCODE_FINT);
-          vm_asm_put_reg(regno);
-          vm_asm_put_int(vm_asm_read_int(src));
+          vm_asm_strip(src);
+          if (**src == '-') {
+            vm_asm_put_op(VM_OPCODE_NEG);
+            vm_asm_put_reg(regno);
+            *src += 1;
+          } else {
+            vm_asm_put_op(VM_OPCODE_INT);
+            vm_asm_put_reg(regno);
+          }
           vm_asm_put_int(vm_asm_read_int(src));
           continue;
         }
@@ -188,60 +173,6 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         {
           vm_asm_put_op(VM_OPCODE_REG);
           vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "ftos"))
-        {
-          vm_asm_put_op(VM_OPCODE_FTOS);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "stof"))
-        {
-          vm_asm_put_op(VM_OPCODE_STOF);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "fadd"))
-        {
-          vm_asm_put_op(VM_OPCODE_FADD);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "fsub"))
-        {
-          vm_asm_put_op(VM_OPCODE_FSUB);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "fmul"))
-        {
-          vm_asm_put_op(VM_OPCODE_FMUL);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "fdiv"))
-        {
-          vm_asm_put_op(VM_OPCODE_FDIV);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "fmod"))
-        {
-          vm_asm_put_op(VM_OPCODE_FMOD);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
@@ -281,48 +212,41 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
           }
           continue;
         }
-        if (vm_asm_starts(opname, "stof"))
+        if (vm_asm_starts(opname, "add"))
         {
-          vm_asm_put_op(VM_OPCODE_STOF);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
-        if (vm_asm_starts(opname, "sadd"))
-        {
-          vm_asm_put_op(VM_OPCODE_SADD);
+          vm_asm_put_op(VM_OPCODE_ADD);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
-        if (vm_asm_starts(opname, "ssub"))
+        if (vm_asm_starts(opname, "sub"))
         {
-          vm_asm_put_op(VM_OPCODE_SSUB);
+          vm_asm_put_op(VM_OPCODE_SUB);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
-        if (vm_asm_starts(opname, "smul"))
+        if (vm_asm_starts(opname, "mul"))
         {
-          vm_asm_put_op(VM_OPCODE_SMUL);
+          vm_asm_put_op(VM_OPCODE_MUL);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
-        if (vm_asm_starts(opname, "sdiv"))
+        if (vm_asm_starts(opname, "div"))
         {
-          vm_asm_put_op(VM_OPCODE_SDIV);
+          vm_asm_put_op(VM_OPCODE_DIV);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
-        if (vm_asm_starts(opname, "smod"))
+        if (vm_asm_starts(opname, "mod"))
         {
-          vm_asm_put_op(VM_OPCODE_SMOD);
+          vm_asm_put_op(VM_OPCODE_MOD);
           vm_asm_put_reg(regno);
           vm_asm_put_reg(vm_asm_read_reg(src));
           vm_asm_put_reg(vm_asm_read_reg(src));
@@ -352,6 +276,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
       if (vm_asm_starts(opname, "end")) {
         instrs[where].value = nregs+1;
         nregs = 0;
+        vm_asm_stripln(src);
         continue;
       }
       if (vm_asm_starts(opname, "exit"))
@@ -385,9 +310,9 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         *src += vm_asm_word(*src);
         continue;
       }
-      if (vm_asm_starts(opname, "sbb"))
+      if (vm_asm_starts(opname, "bb"))
       {
-        vm_asm_put_op(VM_OPCODE_SBB);
+        vm_asm_put_op(VM_OPCODE_BB);
         vm_asm_put_reg(vm_asm_read_reg(src));
         vm_asm_strip(src);
         vm_asm_put_get(*src);
@@ -397,22 +322,9 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         *src += vm_asm_word(*src);
         continue;
       }
-      if (vm_asm_starts(opname, "sblt"))
+      if (vm_asm_starts(opname, "blt"))
       {
-        vm_asm_put_op(VM_OPCODE_SBLT);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        continue;
-      }
-      if (vm_asm_starts(opname, "sbeq"))
-      {
-        vm_asm_put_op(VM_OPCODE_SBEQ);
+        vm_asm_put_op(VM_OPCODE_BLT);
         vm_asm_put_reg(vm_asm_read_reg(src));
         vm_asm_put_reg(vm_asm_read_reg(src));
         vm_asm_strip(src);
@@ -423,34 +335,9 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         *src += vm_asm_word(*src);
         continue;
       }
-      if (vm_asm_starts(opname, "fbb"))
+      if (vm_asm_starts(opname, "beq"))
       {
-        vm_asm_put_op(VM_OPCODE_FBB);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        continue;
-      }
-      if (vm_asm_starts(opname, "fblt"))
-      {
-        vm_asm_put_op(VM_OPCODE_FBLT);
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_put_reg(vm_asm_read_reg(src));
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        vm_asm_strip(src);
-        vm_asm_put_get(*src);
-        *src += vm_asm_word(*src);
-        continue;
-      }
-      if (vm_asm_starts(opname, "fbeq"))
-      {
-        vm_asm_put_op(VM_OPCODE_FBEQ);
+        vm_asm_put_op(VM_OPCODE_BEQ);
         vm_asm_put_reg(vm_asm_read_reg(src));
         vm_asm_put_reg(vm_asm_read_reg(src));
         vm_asm_strip(src);
@@ -467,7 +354,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
   vm_asm_put_op(VM_OPCODE_EXIT);
   return instrs;
 err:
-  fprintf(stderr, "%.100s", *src);
+  // fprintf(stderr, "%.100s", *src);
   fprintf(stderr, "asm error: source can not be parsed\n");
   free(instrs);
   return NULL;

@@ -22,23 +22,8 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_opcode_t inreg = ops[index++];
       break;
     }
-    case VM_OPCODE_FRAC:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t lhs = ops[index++];
-      vm_opcode_t rhs = ops[index++];
-      break;
-    }
-    case VM_OPCODE_FTOS:
-    case VM_OPCODE_STOF:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t num = ops[index++];
-      break;
-    }
-    case VM_OPCODE_SINT:
-    case VM_OPCODE_SNEG:
-    case VM_OPCODE_FINT:
+    case VM_OPCODE_INT:
+    case VM_OPCODE_NEG:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t num = ops[index++];
@@ -49,48 +34,42 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_opcode_t outreg = ops[index++];
       return;
     }
-    case VM_OPCODE_SADD:
-    case VM_OPCODE_FADD:
+    case VM_OPCODE_ADD:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SSUB:
-    case VM_OPCODE_FSUB:
+    case VM_OPCODE_SUB:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SMUL:
-    case VM_OPCODE_FMUL:
+    case VM_OPCODE_MUL:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SDIV:
-    case VM_OPCODE_FDIV:
+    case VM_OPCODE_DIV:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SMOD:
-    case VM_OPCODE_FMOD:
+    case VM_OPCODE_MOD:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SBB:
-    case VM_OPCODE_FBB:
+    case VM_OPCODE_BB:
     {
       vm_opcode_t inreg = ops[index++];
       vm_opcode_t jfalse = ops[index++];
@@ -139,17 +118,7 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_jump_reachable_from(over, nops, ops, jumps);
       return;
     }
-    case VM_OPCODE_FUNC:
-    {
-      vm_opcode_t over = ops[index++];
-      vm_opcode_t nargs = ops[index++];
-      vm_opcode_t nregs = ops[index++];
-      // vm_jump_reachable_from(index, nops, ops, jumps);
-      vm_jump_reachable_from(over, nops, ops, jumps);
-      return;
-    }
-    case VM_OPCODE_SBEQ:
-    case VM_OPCODE_FBEQ:
+    case VM_OPCODE_BEQ:
     {
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
@@ -159,8 +128,7 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_jump_reachable_from(jtrue, nops, ops, jumps);
       return;
     }
-    case VM_OPCODE_SBLT:
-    case VM_OPCODE_FBLT:
+    case VM_OPCODE_BLT:
     {
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
@@ -201,19 +169,11 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t inreg = ops[index++];
       break;
     }
-    case VM_OPCODE_FTOS:
-    case VM_OPCODE_STOF:
+    case VM_OPCODE_INT:
+    case VM_OPCODE_NEG:
     {
       vm_opcode_t outreg = ops[index++];
-      vm_opcode_t inreg = ops[index++];
-      break;
-    }
-    case VM_OPCODE_SINT:
-    case VM_OPCODE_SNEG:
-    case VM_OPCODE_FINT:
-    {
-      vm_opcode_t outreg = ops[index++];
-      vm_opcode_t num = ops[index++];
+      vm_opcode_t value = ops[index++];
       break;
     }
     case VM_OPCODE_RET:
@@ -222,47 +182,42 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       vm_opcode_t outreg = ops[index++];
       break;
     }
-    case VM_OPCODE_SADD:
-    case VM_OPCODE_FADD:
+    case VM_OPCODE_ADD:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SSUB:
-    case VM_OPCODE_FSUB:
+    case VM_OPCODE_SUB:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SMUL:
-    case VM_OPCODE_FMUL:
+    case VM_OPCODE_MUL:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SDIV:
-    case VM_OPCODE_FDIV:
+    case VM_OPCODE_DIV:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SMOD:
-    case VM_OPCODE_FMOD:
+    case VM_OPCODE_MOD:
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       break;
     }
-    case VM_OPCODE_SBB:
+    case VM_OPCODE_BB:
     {
       ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t inreg = ops[index++];
@@ -314,8 +269,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       ret[index] = VM_JUMP_INIT;
       break;
     }
-    case VM_OPCODE_SBEQ:
-    case VM_OPCODE_FBEQ:
+    case VM_OPCODE_BEQ:
     {
       ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t lhs = ops[index++];
@@ -326,8 +280,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       ret[jtrue] |= VM_JUMP_IN;
       break;
     }
-    case VM_OPCODE_SBLT:
-    case VM_OPCODE_FBLT:
+    case VM_OPCODE_BLT:
     {
       ret[index-1] |= VM_JUMP_OUT;
       vm_opcode_t lhs = ops[index++];

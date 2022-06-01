@@ -19,34 +19,16 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops)
       [VM_INT_OP_PUTC] = &&exec_putc,
       [VM_INT_OP_MOV] = &&exec_mov,
       [VM_INT_OP_MOVC] = &&exec_movc,
-      [VM_INT_OP_SADD] = &&exec_sadd,
-      [VM_INT_OP_SADDC] = &&exec_saddc,
-      [VM_INT_OP_SSUB] = &&exec_ssub,
-      [VM_INT_OP_SSUBC] = &&exec_ssubc,
-      [VM_INT_OP_SCSUB] = &&exec_scsub,
-      [VM_INT_OP_FADD] = &&exec_fadd,
-      [VM_INT_OP_FADDC] = &&exec_faddc,
-      [VM_INT_OP_FSUB] = &&exec_fsub,
-      [VM_INT_OP_FSUBC] = &&exec_fsubc,
-      [VM_INT_OP_FCSUB] = &&exec_fcsub,
-      [VM_INT_OP_FMUL] = &&exec_fmul,
-      [VM_INT_OP_FMULC] = &&exec_fmulc,
-      [VM_INT_OP_FDIV] = &&exec_fdiv,
-      [VM_INT_OP_FDIVC] = &&exec_fdivc,
-      [VM_INT_OP_FCDIV] = &&exec_fcdiv,
-      [VM_INT_OP_FMOD] = &&exec_fmod,
-      [VM_INT_OP_FMODC] = &&exec_fmodc,
-      [VM_INT_OP_FCMOD] = &&exec_fcmod,
+      [VM_INT_OP_MOVF] = &&exec_movf,
+      [VM_INT_OP_ADD] = &&exec_add,
+      [VM_INT_OP_ADDC] = &&exec_addc,
+      [VM_INT_OP_SUB] = &&exec_ub,
+      [VM_INT_OP_SUBC] = &&exec_subc,
+      [VM_INT_OP_CSUB] = &&exec_csub,
       [VM_INT_OP_JUMP] = &&exec_jump,
       [VM_INT_OP_DJUMP] = &&exec_djump,
-      [VM_INT_OP_SBEQ] = &&exec_sbeq,
-      [VM_INT_OP_SBEQC] = &&exec_sbeqc,
-      [VM_INT_OP_FBB] = &&exec_fbb,
-      [VM_INT_OP_FBEQ] = &&exec_fbeq,
-      [VM_INT_OP_FBEQC] = &&exec_fbeqc,
-      [VM_INT_OP_FBLT] = &&exec_fblt,
-      [VM_INT_OP_FBLTC] = &&exec_fbltc,
-      [VM_INT_OP_FCBLT] = &&exec_fcblt,
+      [VM_INT_OP_BEQ] = &&exec_beq,
+      [VM_INT_OP_BEQC] = &&exec_beqc,
       [VM_INT_OP_RET] = &&exec_ret,
       [VM_INT_OP_RETC] = &&exec_retc,
       [VM_INT_OP_CALL0] = &&exec_call0,
@@ -67,20 +49,18 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops)
       [VM_INT_OP_DCALL6] = &&exec_dcall6,
       [VM_INT_OP_DCALL7] = &&exec_dcall7,
       [VM_INT_OP_DCALL8] = &&exec_dcall8,
-      [VM_INT_OP_FTOS] = &&exec_ftos,
-      [VM_INT_OP_STOF] = &&exec_stof,
-      [VM_INT_OP_SMUL] = &&exec_smul,
-      [VM_INT_OP_SMULC] = &&exec_smulc,
-      [VM_INT_OP_SDIV] = &&exec_sdiv,
-      [VM_INT_OP_SDIVC] = &&exec_sdivc,
-      [VM_INT_OP_SCDIV] = &&exec_scdiv,
-      [VM_INT_OP_SMOD] = &&exec_smod,
-      [VM_INT_OP_SMODC] = &&exec_smodc,
-      [VM_INT_OP_SCMOD] = &&exec_scmod,
-      [VM_INT_OP_SBB] = &&exec_sbb,
-      [VM_INT_OP_SBLT] = &&exec_sblt,
-      [VM_INT_OP_SBLTC] = &&exec_sbltc,
-      [VM_INT_OP_SCBLT] = &&exec_scblt,
+      [VM_INT_OP_MUL] = &&exec_mul,
+      [VM_INT_OP_MULC] = &&exec_mulc,
+      [VM_INT_OP_DIV] = &&exec_div,
+      [VM_INT_OP_DIVC] = &&exec_divc,
+      [VM_INT_OP_CDIV] = &&exec_cdiv,
+      [VM_INT_OP_MOD] = &&exec_mod,
+      [VM_INT_OP_MODC] = &&exec_modc,
+      [VM_INT_OP_CMOD] = &&exec_cmod,
+      [VM_INT_OP_BB] = &&exec_bb,
+      [VM_INT_OP_BLT] = &&exec_blt,
+      [VM_INT_OP_BLTC] = &&exec_bltc,
+      [VM_INT_OP_CBLT] = &&exec_cblt,
   };
   uint8_t *jumps = vm_jump_all(nops, iops);
   if (jumps == NULL)
@@ -111,7 +91,7 @@ exec_exit:
 exec_putc:
 {
   vm_value_t reg = vm_int_read_load();
-  putchar(reg.s);
+  putchar(vm_value_to_int(reg));
   vm_int_jump_next();
 }
 exec_mov:
@@ -128,20 +108,27 @@ exec_movc:
   *out = in;
   vm_int_jump_next();
 }
-exec_sadd:
+exec_movf:
 {
   vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s + rhs.s;
+  vm_loc_t in = vm_int_read_loc();
+  *out = vm_value_from_func(in);
   vm_int_jump_next();
 }
-exec_ssub:
+exec_add:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s - rhs.s;
+  *out = vm_value_add(lhs, rhs);
+  vm_int_jump_next();
+}
+exec_ub:
+{
+  vm_value_t *out = vm_int_read_store();
+  vm_value_t lhs = vm_int_read_load();
+  vm_value_t rhs = vm_int_read_load();
+  *out = vm_value_sub(lhs, rhs);
   vm_int_jump_next();
 }
 exec_ret:
@@ -307,27 +294,27 @@ exec_call8:
 }
 exec_dcall0:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_reg_t nregs = vm_int_read_reg();
   *stack++ = index;
   regs += nregs;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall1:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_reg_t nregs = vm_int_read_reg();
   *stack++ = index;
   regs += nregs;
   regs[1] = r1;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall2:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_reg_t nregs = vm_int_read_reg();
@@ -335,12 +322,12 @@ exec_dcall2:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall3:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -350,12 +337,12 @@ exec_dcall3:
   regs[1] = r1;
   regs[2] = r2;
   regs[3] = r3;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall4:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -367,12 +354,12 @@ exec_dcall4:
   regs[2] = r2;
   regs[3] = r3;
   regs[4] = r4;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall5:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -386,12 +373,12 @@ exec_dcall5:
   regs[3] = r3;
   regs[4] = r4;
   regs[5] = r5;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall6:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -407,12 +394,12 @@ exec_dcall6:
   regs[4] = r4;
   regs[5] = r5;
   regs[6] = r6;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall7:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -430,12 +417,12 @@ exec_dcall7:
   regs[5] = r5;
   regs[6] = r6;
   regs[7] = r7;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_dcall8:
 {
-  vm_loc_t func = vm_int_read_load().s;
+  vm_value_t func = vm_int_read_load();
   vm_value_t r1 = vm_int_read_load();
   vm_value_t r2 = vm_int_read_load();
   vm_value_t r3 = vm_int_read_load();
@@ -455,7 +442,7 @@ exec_dcall8:
   regs[6] = r6;
   regs[7] = r7;
   regs[8] = r8;
-  index = func;
+  index = vm_value_to_func(func);
   vm_int_jump_next();
 }
 exec_jump:
@@ -467,45 +454,45 @@ exec_jump:
 exec_djump:
 {
   vm_value_t reg = vm_int_read_load();
-  index = reg.s;
+  index = vm_value_to_func(reg);
   vm_int_jump_next();
 }
-exec_sbeq:
+exec_beq:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.s == rhs.s) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal(lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
-exec_sbeqc:
+exec_beqc:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.s == rhs.s) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal(lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
-exec_saddc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->s = lhs.s + rhs.s;
-  vm_int_jump_next();
-}
-exec_ssubc:
+exec_addc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  out->s = lhs.s - rhs.s;
+  *out = vm_value_add(lhs, rhs);
   vm_int_jump_next();
 }
-exec_scsub:
+exec_subc:
+{
+  vm_value_t *out = vm_int_read_store();
+  vm_value_t lhs = vm_int_read_load();
+  vm_value_t rhs = vm_int_read_value();
+  *out = vm_value_sub(lhs, rhs);
+  vm_int_jump_next();
+}
+exec_csub:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s - rhs.s;
+  *out = vm_value_sub(lhs, rhs);
   vm_int_jump_next();
 }
 exec_retc:
@@ -516,254 +503,95 @@ exec_retc:
   *vm_int_read_store()= inval;
   vm_int_jump_next();
 }
-exec_fadd:
+exec_mul:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  out->f = lhs.f + rhs.f;
+  *out = vm_value_mul(lhs, rhs);
   vm_int_jump_next();
 }
-exec_faddc:
+exec_mulc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  out->f = lhs.f + rhs.f;
+  *out = vm_value_mul(lhs, rhs);
   vm_int_jump_next();
 }
-exec_fsub:
+exec_div:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  out->f = lhs.f - rhs.f;
+  *out = vm_value_div(lhs, rhs);
   vm_int_jump_next();
 }
-exec_fsubc:
+exec_divc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  out->f = lhs.f - rhs.f;
+  *out = vm_value_div(lhs, rhs);
   vm_int_jump_next();
 }
-exec_fcsub:
+exec_cdiv:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  out->f = lhs.f - rhs.f;
+  *out = vm_value_div(lhs, rhs);
   vm_int_jump_next();
 }
-exec_fmul:
+exec_mod:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  out->f = lhs.f * rhs.f;
+  *out = vm_value_mod(lhs, rhs);
   vm_int_jump_next();
 }
-exec_fmulc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_value();
-  out->f = lhs.f * rhs.f;
-  vm_int_jump_next();
-}
-exec_fdiv:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->f = lhs.f / rhs.f;
-  vm_int_jump_next();
-}
-exec_fdivc:
+exec_modc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  out->f = lhs.f / rhs.f;
+  *out = vm_value_mod(lhs, rhs);
   vm_int_jump_next();
 }
-exec_fcdiv:
+exec_cmod:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  out->f = lhs.f / rhs.f;
+  *out = vm_value_mod(lhs, rhs);
   vm_int_jump_next();
 }
-exec_fmod:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->f = fmod(lhs.f, rhs.f);
-  vm_int_jump_next();
-}
-exec_fmodc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->f = fmod(lhs.f, rhs.f);
-  vm_int_jump_next();
-}
-exec_fcmod:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_load();
-  out->f = fmod(lhs.f, rhs.f);
-  vm_int_jump_next();
-}
-exec_fbb:
+exec_bb:
 {
   vm_value_t in = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (in.f != 0) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_to_bool(in) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
-exec_fbeq:
+exec_blt:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.f == rhs.f) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
-exec_fblt:
-{
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.f < rhs.f) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_fbeqc:
+exec_bltc:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.f == rhs.f) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
-exec_fbltc:
-{
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.f < rhs.f) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_fcblt:
+exec_cblt:
 {
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.f < rhs.f) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_ftos:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t in = vm_int_read_load();
-  out->s = in.f;
-  vm_int_jump_next();
-}
-exec_stof:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t in = vm_int_read_load();
-  out->f = in.s;
-  vm_int_jump_next();
-}
-exec_smul:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s * rhs.s;
-  vm_int_jump_next();
-}
-exec_smulc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->s = lhs.s * rhs.s;
-  vm_int_jump_next();
-}
-exec_sdiv:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s / rhs.s;
-  vm_int_jump_next();
-}
-exec_sdivc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->s = lhs.s / rhs.s;
-  vm_int_jump_next();
-}
-exec_scdiv:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s / rhs.s;
-  vm_int_jump_next();
-}
-exec_smod:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s % rhs.s;
-  vm_int_jump_next();
-}
-exec_smodc:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  out->s = lhs.s % rhs.s;
-  vm_int_jump_next();
-}
-exec_scmod:
-{
-  vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_load();
-  out->s = lhs.s % rhs.s;
-  vm_int_jump_next();
-}
-exec_sbb:
-{
-  vm_value_t in = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (in.s != 0) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_sblt:
-{
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.s < rhs.s) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_sbltc:
-{
-  vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.s < rhs.s) * sizeof(vm_loc_t));
-  vm_int_jump_next();
-}
-exec_scblt:
-{
-  vm_value_t lhs = vm_int_read_value();
-  vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + (lhs.s < rhs.s) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 }
