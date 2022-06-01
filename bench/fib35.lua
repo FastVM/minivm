@@ -6,4 +6,4 @@ local function fib(n)
     end
 end
 
-print(fib(40))
+print(fib(35))

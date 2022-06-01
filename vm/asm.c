@@ -356,7 +356,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
 err:
   // fprintf(stderr, "%.100s", *src);
   fprintf(stderr, "asm error: source can not be parsed\n");
-  free(instrs);
+  vm_free(instrs);
   return NULL;
 }
 
@@ -470,14 +470,14 @@ vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t n)
     }
     }
   }
-  free(links);
+  vm_free(links);
   return (vm_asm_buf_t){
       .ops = ops,
       .nops = nops,
   };
 err:
-  free(links);
-  free(ops);
+  vm_free(links);
+  vm_free(ops);
   return (vm_asm_buf_t){
       .nops = 0,
   };

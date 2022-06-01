@@ -64,6 +64,6 @@ int main(int argc, char **argv)
       return 1;
     }
   }
-  free(buf.ops);
+  vm_free(buf.ops);
   return 0;
 }

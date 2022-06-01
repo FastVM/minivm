@@ -596,7 +596,20 @@ exec_cblt:
 }
 }
 
+static inline void *vm_mp_alloc(size_t n) {
+  return vm_malloc(n);
+}
+
+static inline void *vm_mp_realloc(void *ptr, size_t old, size_t n) {
+  return vm_realloc(ptr, n);
+}
+
+static inline void vm_mp_free(void *ptr, size_t old) {
+  vm_free(ptr);
+}
+
 int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
 {
+  mp_set_memory_functions(vm_mp_alloc, vm_mp_realloc, vm_mp_free);
   return vm_int_run(nops, ops);
 }
