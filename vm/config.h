@@ -13,5 +13,5 @@
 #endif
 
 #if !defined(VM_GROW_STACK)
-#define VM_GROW_STACK (0)
+#define VM_GROW_STACK (1)
 #endif

@@ -47,7 +47,7 @@ end
 func main
     r4 <- int 0
     r2 <- int 1
-    r3 <- int 10000
+    r3 <- int 4984
 @main.next
     r0 <- sub r3 r2
     bb r0 main.ret main.loop

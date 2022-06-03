@@ -1,24 +1,24 @@
-#include "int.h"
-#include "../vm.h"
 #include "../jump.h"
 #include "../reguse.h"
+#include "../vm.h"
+#include "int.h"
 
-#define vm_int_buf_grow() \
-    if (buf - ret + (1<<12) > alloc) \
-    { \
-      size_t length = buf - ret; \
-      size_t old_alloc = alloc; \
-      alloc = (length + 256) * 4; \
-      ret = vm_realloc(ret, sizeof(uint8_t) * alloc); \
-      buf = ret + length; \
-      froms = vm_realloc(froms, sizeof(vm_loc_t) * alloc); \
-      for (size_t i = old_alloc; i < alloc; i++) \
-      { \
-        froms[i] = 0; \
-      } \
-    }
+#define vm_int_buf_grow()                                \
+  if (buf - ret + (1 << 12) > alloc)                     \
+  {                                                      \
+    size_t length = buf - ret;                           \
+    size_t old_alloc = alloc;                            \
+    alloc = (length + 256) * 4;                          \
+    ret = vm_realloc(ret, sizeof(uint8_t) * alloc);      \
+    buf = ret + length;                                  \
+    froms = vm_realloc(froms, sizeof(vm_loc_t) * alloc); \
+    for (size_t i = old_alloc; i < alloc; i++)           \
+    {                                                    \
+      froms[i] = 0;                                      \
+    }                                                    \
+  }
 #define vm_int_buf_put(type_, val_) ({*(type_*)buf = val_; buf+=sizeof(type_); })
-#define vm_int_buf_put_op(op_) ({vm_int_buf_put(void *, ptrs[op_]);})
+#define vm_int_buf_put_op(op_) ({ vm_int_buf_put(void *, ptrs[op_]); })
 
 uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void **ptrs, vm_gc_t *restrict gc)
 {
@@ -26,7 +26,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
   vm_loc_t cfunc = 0;
   vm_loc_t cend = 0;
 
-  vm_reg_t nregs = 256;
+  vm_reg_t nregs = 16;
 
   size_t alloc = 1 << 8;
   uint8_t *buf = vm_malloc(sizeof(uint8_t) * alloc);
@@ -39,30 +39,37 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
 
   while (index < nops)
   {
-    while (index < cend && (jumps[index] & VM_JUMP_REACH) == 0 && ops[index] != VM_OPCODE_FUNC)
-    {
-      index++;
-      while ((jumps[index] & VM_JUMP_INSTR) == 0)
-      {
-        index++;
-      }
-    }
-    if ((jumps[index] & VM_JUMP_IN) || (jumps[index] & VM_JUMP_OUT))
+    // while (index < cend && (jumps[index] & VM_JUMP_REACH) == 0 && ops[index] != VM_OPCODE_FUNC)
+    // {
+    //   index++;
+    //   while ((jumps[index] & VM_JUMP_INSTR) == 0)
+    //   {
+    //     index++;
+    //   }
+    // }
+    size_t index_first = index;
+    if ((jumps[index_first] & VM_JUMP_OUT) || (jumps[index_first] & VM_JUMP_IN))
     {
       for (size_t i = 0; i < nregs; i++)
       {
         if (named[i])
         {
           size_t tmpbuf[256] = {0};
-          if (vm_reg_is_used(nops, ops, jumps, index, i, 256, tmpbuf, 0))
+          if (vm_reg_is_used(nops, ops, jumps, index, i, 255, tmpbuf, 0))
           {
             vm_int_buf_grow();
             vm_int_buf_put_op(VM_INT_OP_MOVC);
             vm_int_buf_put(vm_reg_t, i);
             vm_int_buf_put(vm_value_t, regs[i]);
           }
-          named[i] = 0;
         }
+      }
+    }
+    if (jumps[index_first] & VM_JUMP_IN)
+    {
+      for (size_t i = 0; i < nregs; i++)
+      {
+        named[i] = 0;
       }
     }
     vm_int_buf_grow();
@@ -153,17 +160,37 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_ADDC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, rhs);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
+          if (VM_VALUE_IS_INT32(regs[lhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_ADDI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, rhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_ADDC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, rhs);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+          }
         }
         else if (named[rhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_ADDC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
+          if (VM_VALUE_IS_INT32(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_ADDC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_value_t, regs[rhs]);
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_ADDI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          }
         }
         else
         {
@@ -190,17 +217,37 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_CSUB);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
-          vm_int_buf_put(vm_reg_t, rhs);
+          if (VM_VALUE_IS_INT32(regs[lhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_ISUB);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_reg_t, rhs);
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_CSUB);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+            vm_int_buf_put(vm_reg_t, rhs);
+          }
         }
         else if (named[rhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_SUBC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
+          if (VM_VALUE_IS_INT32(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_SUBI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_SUBC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_value_t, regs[rhs]);
+          }
         }
         else
         {
@@ -317,23 +364,43 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       }
       else if (named[rhs])
       {
-        vm_int_buf_put_op(VM_INT_OP_BEQC);
-        vm_int_buf_put(vm_reg_t, lhs);
-        vm_int_buf_put(vm_value_t, regs[rhs]);
-        froms[buf - ret] = jfalse;
-        vm_int_buf_put(vm_loc_t, 0);
-        froms[buf - ret] = jtrue;
-        vm_int_buf_put(vm_loc_t, 0);
+        if (VM_VALUE_IS_INT32(regs[rhs])) {
+          vm_int_buf_put_op(VM_INT_OP_BEQI);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        } else {
+          vm_int_buf_put_op(VM_INT_OP_BEQC);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
       }
       else if (named[lhs])
       {
-        vm_int_buf_put_op(VM_INT_OP_BEQC);
-        vm_int_buf_put(vm_reg_t, rhs);
-        vm_int_buf_put(vm_value_t, regs[lhs]);
-        froms[buf - ret] = jfalse;
-        vm_int_buf_put(vm_loc_t, 0);
-        froms[buf - ret] = jtrue;
-        vm_int_buf_put(vm_loc_t, 0);
+        if (VM_VALUE_IS_INT32(regs[lhs])) {
+          vm_int_buf_put_op(VM_INT_OP_BEQI);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        } else {
+          vm_int_buf_put_op(VM_INT_OP_BEQC);
+          vm_int_buf_put(vm_reg_t, rhs);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
       }
       else
       {
@@ -355,6 +422,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_int_buf_put(vm_reg_t, out);
       froms[buf - ret] = func;
       vm_int_buf_put(vm_loc_t, 0);
+      named[out] = 0;
       break;
     }
     case VM_OPCODE_MUL:
@@ -371,17 +439,37 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_MULC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, rhs);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
+          if (VM_VALUE_IS_INT32(regs[lhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_MULI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, rhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_MULC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, rhs);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+          }
         }
         else if (named[rhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_MULC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
+          if (VM_VALUE_IS_INT32(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_MULI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_value_t, regs[rhs]);
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_MULC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          }
         }
         else
         {
@@ -408,17 +496,37 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_CDIV);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
-          vm_int_buf_put(vm_reg_t, rhs);
+          if (VM_VALUE_IS_INT32(regs[lhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_IDIV);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_reg_t, rhs);
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_CDIV);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+            vm_int_buf_put(vm_reg_t, rhs);
+          }
         }
         else if (named[rhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_DIVC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
+          if (VM_VALUE_IS_INT32(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_DIVI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_DIVC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_value_t, regs[rhs]);
+          }
         }
         else
         {
@@ -445,17 +553,37 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_CMOD);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
-          vm_int_buf_put(vm_reg_t, rhs);
+          if (VM_VALUE_IS_INT32(regs[lhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_IMOD);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_reg_t, rhs);
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_CMOD);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+            vm_int_buf_put(vm_reg_t, rhs);
+          }
         }
         else if (named[rhs])
         {
-          vm_int_buf_put_op(VM_INT_OP_MODC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
+          if (VM_VALUE_IS_INT32(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_MODI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_MODC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_value_t, regs[rhs]);
+          }
         }
         else
         {
@@ -522,23 +650,43 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       }
       else if (named[rhs])
       {
-        vm_int_buf_put_op(VM_INT_OP_BLTC);
-        vm_int_buf_put(vm_reg_t, lhs);
-        vm_int_buf_put(vm_value_t, regs[rhs]);
-        froms[buf - ret] = jfalse;
-        vm_int_buf_put(vm_loc_t, 0);
-        froms[buf - ret] = jtrue;
-        vm_int_buf_put(vm_loc_t, 0);
+        if (VM_VALUE_IS_INT32(regs[rhs])) {
+          vm_int_buf_put_op(VM_INT_OP_BLTI);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        } else {
+          vm_int_buf_put_op(VM_INT_OP_BLTC);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
       }
       else if (named[lhs])
       {
-        vm_int_buf_put_op(VM_INT_OP_CBLT);
-        vm_int_buf_put(vm_value_t, regs[lhs]);
-        vm_int_buf_put(vm_reg_t, rhs);
-        froms[buf - ret] = jfalse;
-        vm_int_buf_put(vm_loc_t, 0);
-        froms[buf - ret] = jtrue;
-        vm_int_buf_put(vm_loc_t, 0);
+        if (VM_VALUE_IS_INT32(regs[lhs])) {
+          vm_int_buf_put_op(VM_INT_OP_IBLT);
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+          vm_int_buf_put(vm_reg_t, rhs);
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        } else {
+          vm_int_buf_put_op(VM_INT_OP_CBLT);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+          vm_int_buf_put(vm_reg_t, rhs);
+          froms[buf - ret] = jfalse;
+          vm_int_buf_put(vm_loc_t, 0);
+          froms[buf - ret] = jtrue;
+          vm_int_buf_put(vm_loc_t, 0);
+        }
       }
       else
       {
@@ -561,6 +709,13 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_free(locs);
       return NULL;
     }
+    }
+    if (jumps[index_first] & VM_JUMP_OUT)
+    {
+      for (size_t i = 0; i < nregs; i++)
+      {
+        named[i] = 0;
+      }
     }
   }
   size_t length = buf - ret;

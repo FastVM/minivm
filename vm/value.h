@@ -10,12 +10,12 @@ struct vm_value_t;
 typedef struct vm_value_t vm_value_t;
 
 enum {
-  VM_TYPE_INT32,
-  VM_TYPE_FUNC,
-  VM_TYPE_BIGINT,
+  VM_TYPE_INT32 = 0,
+  VM_TYPE_FUNC = 0,
+  VM_TYPE_BIGINT = 1,
 };
 
-#define VM_VALUE_SHORT_OKAY(n_) ({ vm_int_t x_ = (n_); -(1L<<30)<x_&&x_<(1L<<30); })
+#define VM_VALUE_SHORT_OKAY(n_) ({ vm_int_t x_ = (n_); -(1L<<31)<x_&&x_<(1L<<31); })
 
 #define VM_VALUE_GET_INT32(n_) ((n_).value)
 #define VM_VALUE_GET_FUNC(n_) ((n_).value)
@@ -26,13 +26,14 @@ enum {
 #define VM_VALUE_SET_BIGINT(n_) ((vm_value_t) {.type = VM_TYPE_BIGINT, .value = (n_)})
 
 #define VM_VALUE_IS_INT32(n_) ((n_).type == VM_TYPE_INT32)
-#define VM_VALUE_IS_FUNC(n_) ((n_).type == VM_TYPE_FUNC)
 #define VM_VALUE_IS_BIGINT(n_) ((n_).type == VM_TYPE_BIGINT)
+
+#define VM_VALUE_POSSIBLE_CINT()
 
 struct vm_value_t
 {
-  uint64_t value: 56;
-  uint8_t type: 8;
+  int64_t value: 63;
+  uint8_t type: 1;
 };
 
 static inline vm_value_t vm_value_from_int(vm_gc_t *restrict gc, vm_int_t n)
@@ -376,4 +377,158 @@ static bool vm_value_is_less(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t rh
 static inline vm_int_t vm_value_to_func(vm_value_t x)
 {
   return VM_VALUE_GET_FUNC(x);
+}
+
+// with an int argument
+
+static inline vm_value_t vm_value_addi(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t rhs)
+{
+  if (VM_VALUE_IS_INT32(lhs))
+  {
+    return VM_VALUE_SET_INT32(VM_VALUE_GET_INT32(lhs) + rhs);
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_add_ui(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(lhs), rhs);
+    return ret;
+  }
+}
+
+static inline vm_value_t vm_value_subi(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t rhs)
+{
+  if (VM_VALUE_IS_INT32(lhs))
+  {
+    return VM_VALUE_SET_INT32(VM_VALUE_GET_INT32(lhs) - rhs);
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_sub_ui(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(lhs), rhs);
+    return ret;
+  }
+}
+
+static inline vm_value_t vm_value_isub(vm_gc_t *restrict gc, vm_int_t lhs, vm_value_t rhs)
+{
+  if (VM_VALUE_IS_INT32(rhs))
+  {
+    return VM_VALUE_SET_INT32(lhs - VM_VALUE_GET_INT32(rhs));
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_sub_ui(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(rhs), lhs);
+    mpz_neg(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(ret));
+    return ret;
+  }
+}
+
+static inline vm_value_t vm_value_muli(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t rhs)
+{
+  if (VM_VALUE_IS_INT32(lhs))
+  {
+    return VM_VALUE_SET_INT32(VM_VALUE_GET_INT32(lhs) * rhs);
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_mul_si(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(lhs), rhs);
+    return ret;
+  }
+}
+
+static inline vm_value_t vm_value_divi(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t rhs)
+{
+  if (VM_VALUE_IS_INT32(lhs))
+  {
+    return VM_VALUE_SET_INT32(VM_VALUE_GET_INT32(lhs) / rhs);
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_div_ui(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(lhs), rhs);
+    return ret;
+  }
+}
+
+static inline vm_value_t vm_value_idiv(vm_gc_t *restrict gc, vm_int_t lhs, vm_value_t rhs)
+{
+  if (VM_VALUE_IS_INT32(rhs))
+  {
+    return VM_VALUE_SET_INT32(lhs / VM_VALUE_GET_INT32(rhs));
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_init_set_si(VM_VALUE_GET_BIGINT(ret), lhs);
+    mpz_div(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(rhs));
+    return ret;
+  }
+}
+
+static inline vm_value_t vm_value_modi(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t rhs)
+{
+  if (VM_VALUE_IS_INT32(lhs))
+  {
+    return VM_VALUE_SET_INT32(VM_VALUE_GET_INT32(lhs) % rhs);
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_mod_ui(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(lhs), rhs);
+    return ret;
+  }
+}
+
+static inline vm_value_t vm_value_imod(vm_gc_t *restrict gc, vm_int_t lhs, vm_value_t rhs)
+{
+  if (VM_VALUE_IS_INT32(rhs))
+  {
+    return VM_VALUE_SET_INT32(lhs % VM_VALUE_GET_INT32(rhs));
+  }
+  else
+  {
+    vm_value_t ret = VM_VALUE_SET_BIGINT(vm_gc_num(gc));
+    mpz_init_set_si(VM_VALUE_GET_BIGINT(ret), lhs);
+    mpz_mod(VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(ret), VM_VALUE_GET_BIGINT(rhs));
+    return ret;
+  }
+}
+
+static bool vm_value_is_equal_int(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t rhs)
+{
+  if (VM_VALUE_IS_INT32(lhs))
+  {
+    return VM_VALUE_GET_INT32(lhs) == rhs;
+  }
+  else
+  {
+    return mpz_cmp_si(VM_VALUE_GET_BIGINT(lhs), rhs) == 0;
+  }
+}
+
+static bool vm_value_is_less_int(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t rhs)
+{
+  if (VM_VALUE_IS_INT32(lhs))
+  {
+    return VM_VALUE_GET_INT32(lhs) < rhs;
+  }
+  else
+  {
+    return mpz_cmp_si(VM_VALUE_GET_BIGINT(lhs), rhs) < 0;
+  }
+}
+
+
+static bool vm_value_is_int_less(vm_gc_t *restrict gc, vm_int_t lhs, vm_value_t rhs)
+{
+  if (VM_VALUE_IS_INT32(rhs))
+  {
+    return VM_VALUE_GET_INT32(rhs) > lhs;
+  }
+  else
+  {
+    return mpz_cmp_si(VM_VALUE_GET_BIGINT(rhs), lhs) > 0;
+  }
 }

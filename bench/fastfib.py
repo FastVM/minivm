@@ -10,7 +10,7 @@ def first(n):
 
 def main():
     v = 0
-    for i in range(1, 10000):
+    for i in range(1, 4984):
         v += first(fib(0, 1, i))
     print(v)
 

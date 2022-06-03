@@ -7,11 +7,11 @@ struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;
 
 struct vm_gc_t {
-    MP_INT *nums;
+    MP_INT *restrict nums;
     uint32_t head;
     uint32_t alloc;
-    uint8_t *marks;
-    uint32_t *moves;
+    uint8_t *restrict marks;
+    uint32_t *restrict moves;
     uint32_t max;
 };
 
