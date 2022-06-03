@@ -32,3 +32,4 @@ out.*
 *.profdata
 *.profraw
 *.tmp.c
+*.gcda

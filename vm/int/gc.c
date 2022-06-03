@@ -31,7 +31,7 @@ void vm_gc_run(vm_gc_t *restrict gc, size_t nregs, void *vregs) {
     for (uint32_t i = 0; i < nregs; i++) {
         vm_value_t reg = regs[i];
         if (VM_VALUE_IS_BIGINT(reg))  {
-            uint32_t nth = VM_VALUE_GET_INT64(reg);
+            uint32_t nth = VM_VALUE_GET_INT32(reg);
             if (nth < gc->alloc) {
                 if (gc->marks[nth] == 0) {
                     gc->marks[nth] = 1;
@@ -55,7 +55,7 @@ void vm_gc_run(vm_gc_t *restrict gc, size_t nregs, void *vregs) {
     for (uint32_t i = 0; i < nregs; i++) {
         vm_value_t reg = regs[i];
         if (VM_VALUE_IS_BIGINT(reg)) {
-            uint32_t nth = VM_VALUE_GET_INT64(reg);
+            uint32_t nth = VM_VALUE_GET_INT32(reg);
             if (nth < gc->alloc) {
                 regs[i] = VM_VALUE_SET_BIGINT(gc->moves[nth]);
             }
