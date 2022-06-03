@@ -35,7 +35,7 @@ struct vm_value_t {
 #else
 #include "int/gc.h"
 #pragma GCC push_options
-#pragma GCC optimize "no-ssa-phiopt"
+#pragma GCC optimize "O3"
 union vm_value_t;
 typedef union vm_value_t vm_value_t;
 

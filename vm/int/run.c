@@ -161,10 +161,12 @@ exec_ret:
   size_t nregs = regs - regs_base;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
   *vm_int_read_store() = inval;
+#if VM_CONFIG_GC
   if (gc->head >= gc->max)
   {
     vm_gc_run(gc, nregs, regs_base);
   }
+#endif
   vm_int_jump_next();
 }
 exec_call0:
@@ -530,10 +532,12 @@ exec_retc:
   size_t nregs = regs - regs_base;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
   *vm_int_read_store() = inval;
+#if VM_CONFIG_GC
   if (gc->head >= gc->max)
   {
     vm_gc_run(gc, nregs, regs_base);
   }
+#endif
   vm_int_jump_next();
 }
 exec_mul:
