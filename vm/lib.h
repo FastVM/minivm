@@ -6,9 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <gmp.h>
-#include <gc.h>
 
 static inline size_t vm_strlen(const char *str)
 {
@@ -37,7 +35,9 @@ static inline int vm_streq(const char *str1, const char *str2)
   }
 }
 
-#define vm_malloc(size) (GC_malloc(size))
-#define vm_alloc0(size) (GC_malloc(size))
-#define vm_realloc(ptr, size) (GC_realloc(ptr, size))
-#define vm_free(ptr) (GC_free(ptr))
+#define vm_malloc(size) (malloc(size))
+#define vm_alloc0(size) (calloc(size, 1))
+#define vm_realloc(ptr, size) (realloc(ptr, size))
+#define vm_free(ptr) (free(ptr))
+
+#include "config.h"

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gc.h"
 #include "../lib.h"
 #include "../opcode.h"
 
@@ -75,5 +76,5 @@ enum vm_int_op_t
   VM_INT_MAX_OP,
 };
 
-uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void **ptrs);
-int vm_int_run(size_t nops, const vm_opcode_t *iops);
+uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void **ptrs, vm_gc_t *restrict gc);
+int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc);

@@ -354,7 +354,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
   vm_asm_put_op(VM_OPCODE_EXIT);
   return instrs;
 err:
-  // fprintf(stderr, "%.100s", *src);
+  fprintf(stderr, "%.100s", *src);
   fprintf(stderr, "asm error: source can not be parsed\n");
   vm_free(instrs);
   return NULL;

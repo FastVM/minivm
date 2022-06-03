@@ -20,7 +20,7 @@
 #define vm_int_buf_put(type_, val_) ({*(type_*)buf = val_; buf+=sizeof(type_); })
 #define vm_int_buf_put_op(op_) ({vm_int_buf_put(void *, ptrs[op_]);})
 
-uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void **ptrs)
+uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void **ptrs, vm_gc_t *restrict gc)
 {
   vm_loc_t index = 0;
   vm_loc_t cfunc = 0;
@@ -97,7 +97,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t out = ops[index++];
       vm_opcode_t in = ops[index++];
       named[out] = 1;
-      regs[out] = vm_value_from_int(in);
+      regs[out] = vm_value_from_int(gc, in);
       break;
     }
     case VM_OPCODE_NEG:
@@ -105,7 +105,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t out = ops[index++];
       vm_opcode_t in = ops[index++];
       named[out] = 1;
-      regs[out] = vm_value_from_int(-(vm_int_t)in);
+      regs[out] = vm_value_from_int(gc, -(vm_int_t)in);
       break;
     }
     case VM_OPCODE_JUMP:
@@ -147,7 +147,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       if (named[lhs] && named[rhs])
       {
         named[out] = 1;
-        regs[out] = vm_value_add(regs[lhs], regs[rhs]);
+        regs[out] = vm_value_add(gc, regs[lhs], regs[rhs]);
       }
       else
       {
@@ -184,7 +184,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       if (named[lhs] && named[rhs])
       {
         named[out] = 1;
-        regs[out] = vm_value_sub(regs[lhs], regs[rhs]);
+        regs[out] = vm_value_sub(gc, regs[lhs], regs[rhs]);
       }
       else
       {
@@ -302,7 +302,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t jtrue = ops[index++];
       if (named[lhs] && named[rhs])
       {
-        if (vm_value_is_equal(regs[lhs], regs[rhs]))
+        if (vm_value_is_equal(gc, regs[lhs], regs[rhs]))
         {
           vm_int_buf_put_op(VM_INT_OP_JUMP);
           froms[buf - ret] = jtrue;
@@ -365,7 +365,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       if (named[lhs] && named[rhs])
       {
         named[out] = 1;
-        regs[out] = vm_value_mul(regs[lhs], regs[rhs]);
+        regs[out] = vm_value_mul(gc, regs[lhs], regs[rhs]);
       }
       else
       {
@@ -402,7 +402,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       if (named[lhs] && named[rhs])
       {
         named[out] = 1;
-        regs[out] = vm_value_div(regs[lhs], regs[rhs]);
+        regs[out] = vm_value_div(gc, regs[lhs], regs[rhs]);
       }
       else
       {
@@ -439,7 +439,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       if (named[lhs] && named[rhs])
       {
         named[out] = 1;
-        regs[out] = vm_value_mod(regs[lhs], regs[rhs]);
+        regs[out] = vm_value_mod(gc, regs[lhs], regs[rhs]);
       }
       else
       {
@@ -475,7 +475,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t jtrue = ops[index++];
       if (named[val])
       {
-        if (vm_value_to_bool(regs[val]))
+        if (vm_value_to_bool(gc, regs[val]))
         {
           vm_int_buf_put_op(VM_INT_OP_JUMP);
           froms[buf - ret] = jtrue;
@@ -507,7 +507,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t jtrue = ops[index++];
       if (named[lhs] && named[rhs])
       {
-        if (vm_value_is_less(regs[lhs], regs[rhs]))
+        if (vm_value_is_less(gc, regs[lhs], regs[rhs]))
         {
           vm_int_buf_put_op(VM_INT_OP_JUMP);
           froms[buf - ret] = jtrue;
@@ -554,6 +554,9 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
     }
     default:
     {
+      vm_free(ret);
+      vm_free(regs);
+      vm_free(named);
       vm_free(froms);
       vm_free(locs);
       return NULL;
@@ -568,6 +571,8 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       *(vm_loc_t *)&ret[i] = locs[froms[i]];
     }
   }
+  vm_free(regs);
+  vm_free(named);
   vm_free(froms);
   vm_free(locs);
   return ret;

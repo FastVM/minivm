@@ -1,18 +1,41 @@
-#include "int.h"
-#include "../vm.h"
 #include "../jump.h"
 #include "../opcode.h"
+#include "../vm.h"
+#include "int.h"
 
-#define vm_int_read_at(type_, index_) (*(type_*)&ops[index_])
+#define vm_int_read_at(type_, index_) (*(type_ *)&ops[index_])
 #define vm_int_read_type(type_) ({type_ ret=*(type_*)&ops[index]; index += sizeof(type_); ret; })
-#define vm_int_read_reg() ({vm_int_read_type(vm_reg_t);})
-#define vm_int_read_load() ({regs[vm_int_read_reg()];})
-#define vm_int_read_store() ({&regs[vm_int_read_reg()];})
-#define vm_int_read_value() ({vm_int_read_type(vm_value_t);})
-#define vm_int_read_loc() ({vm_int_read_type(vm_loc_t);})
-#define vm_int_jump_next() ({goto *vm_int_read_type(void *);})
+#define vm_int_read_reg() ({ vm_int_read_type(vm_reg_t); })
+#define vm_int_read_load() ({ regs[vm_int_read_reg()]; })
+#define vm_int_read_store() ({ &regs[vm_int_read_reg()]; })
+#define vm_int_read_value() ({ vm_int_read_type(vm_value_t); })
+#define vm_int_read_loc() ({ vm_int_read_type(vm_loc_t); })
+#define vm_int_jump_next() ({ goto *vm_int_read_type(void *); })
 
-int vm_int_run(size_t nops, const vm_opcode_t *iops)
+#if defined(VM_GROW_STACK)
+#define vm_int_check_stack() ({                                            \
+  size_t nstack = stack - stack_base;                                      \
+  if (nstack + 4 >= nframes)                                               \
+  {                                                                        \
+    stack_base = vm_realloc(stack_base, sizeof(size_t) * (nstack + 4));    \
+    stack = stack_base + nstack;                                           \
+    nframes = nstack;                                                      \
+  }                                                                        \
+  size_t nregs = regs - regs_base;                                         \
+  if (nregs + 256 > nregs0)                                                \
+  {                                                                        \
+    regs_base = vm_realloc(regs_base, sizeof(vm_value_t) * (nregs + 256)); \
+    regs = regs_base + nregs;                                              \
+    nregs0 = nregs;                                                        \
+  }                                                                        \
+})
+#else
+#define vm_int_check_stack() ({})
+#endif
+#define vm_int_jump_next_check() ({vm_int_check_stack(); vm_int_jump_next(); })
+
+#pragma GCC optimize "no-ssa-phiopt"
+int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
 {
   void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
@@ -22,7 +45,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops)
       [VM_INT_OP_MOVF] = &&exec_movf,
       [VM_INT_OP_ADD] = &&exec_add,
       [VM_INT_OP_ADDC] = &&exec_addc,
-      [VM_INT_OP_SUB] = &&exec_ub,
+      [VM_INT_OP_SUB] = &&exec_sub,
       [VM_INT_OP_SUBC] = &&exec_subc,
       [VM_INT_OP_CSUB] = &&exec_csub,
       [VM_INT_OP_JUMP] = &&exec_jump,
@@ -67,15 +90,15 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops)
   {
     return 1;
   }
-  uint8_t *ops = vm_int_comp(nops, iops, jumps, &ptrs[0]);
+  uint8_t *ops = vm_int_comp(nops, iops, jumps, &ptrs[0], gc);
   vm_free(jumps);
   if (ops == NULL)
   {
     return 1;
   }
-  size_t nframes = 5000;
-  size_t nregs0 = nframes * 16;
-  vm_value_t *regs = vm_malloc(sizeof(vm_value_t) * nregs0);
+  size_t nframes = VM_CONFIG_NUM_FRAMES;
+  size_t nregs0 = VM_CONFIG_NUM_REGS;
+  vm_value_t *regs = vm_alloc0(sizeof(vm_value_t) * nregs0);
   vm_value_t *regs_base = regs;
   vm_reg_t *stack = vm_malloc(sizeof(vm_value_t) * nframes);
   vm_reg_t *stack_base = stack;
@@ -91,7 +114,7 @@ exec_exit:
 exec_putc:
 {
   vm_value_t reg = vm_int_read_load();
-  putchar(vm_value_to_int(reg));
+  putchar(vm_value_to_int(gc, reg));
   vm_int_jump_next();
 }
 exec_mov:
@@ -120,23 +143,28 @@ exec_add:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_add(lhs, rhs);
+  *out = vm_value_add(gc, lhs, rhs);
   vm_int_jump_next();
 }
-exec_ub:
+exec_sub:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_sub(lhs, rhs);
+  *out = vm_value_sub(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_ret:
 {
   vm_value_t inval = vm_int_read_load();
   index = *--stack;
+  size_t nregs = regs - regs_base;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
   *vm_int_read_store() = inval;
+  if (gc->head >= gc->max)
+  {
+    vm_gc_run(gc, nregs, regs_base);
+  }
   vm_int_jump_next();
 }
 exec_call0:
@@ -146,7 +174,7 @@ exec_call0:
   *stack++ = index;
   regs += nregs;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call1:
 {
@@ -157,7 +185,7 @@ exec_call1:
   regs += nregs;
   regs[1] = r1;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call2:
 {
@@ -170,7 +198,7 @@ exec_call2:
   regs[1] = r1;
   regs[2] = r2;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call3:
 {
@@ -185,7 +213,7 @@ exec_call3:
   regs[2] = r2;
   regs[3] = r3;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call4:
 {
@@ -202,7 +230,7 @@ exec_call4:
   regs[3] = r3;
   regs[4] = r4;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call5:
 {
@@ -221,7 +249,7 @@ exec_call5:
   regs[4] = r4;
   regs[5] = r5;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call6:
 {
@@ -242,7 +270,7 @@ exec_call6:
   regs[5] = r5;
   regs[6] = r6;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call7:
 {
@@ -265,7 +293,7 @@ exec_call7:
   regs[6] = r6;
   regs[7] = r7;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_call8:
 {
@@ -290,7 +318,7 @@ exec_call8:
   regs[7] = r7;
   regs[8] = r8;
   index = func;
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall0:
 {
@@ -299,7 +327,7 @@ exec_dcall0:
   *stack++ = index;
   regs += nregs;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall1:
 {
@@ -310,7 +338,7 @@ exec_dcall1:
   regs += nregs;
   regs[1] = r1;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall2:
 {
@@ -323,7 +351,7 @@ exec_dcall2:
   regs[1] = r1;
   regs[2] = r2;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall3:
 {
@@ -338,7 +366,7 @@ exec_dcall3:
   regs[2] = r2;
   regs[3] = r3;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall4:
 {
@@ -355,7 +383,7 @@ exec_dcall4:
   regs[3] = r3;
   regs[4] = r4;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall5:
 {
@@ -374,7 +402,7 @@ exec_dcall5:
   regs[4] = r4;
   regs[5] = r5;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall6:
 {
@@ -395,7 +423,7 @@ exec_dcall6:
   regs[5] = r5;
   regs[6] = r6;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall7:
 {
@@ -418,7 +446,7 @@ exec_dcall7:
   regs[6] = r6;
   regs[7] = r7;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_dcall8:
 {
@@ -443,7 +471,7 @@ exec_dcall8:
   regs[7] = r7;
   regs[8] = r8;
   index = vm_value_to_func(func);
-  vm_int_jump_next();
+  vm_int_jump_next_check();
 }
 exec_jump:
 {
@@ -461,14 +489,14 @@ exec_beq:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal(lhs, rhs) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_beqc:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal(lhs, rhs) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_addc:
@@ -476,7 +504,7 @@ exec_addc:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_add(lhs, rhs);
+  *out = vm_value_add(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_subc:
@@ -484,7 +512,7 @@ exec_subc:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_sub(lhs, rhs);
+  *out = vm_value_sub(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_csub:
@@ -492,15 +520,20 @@ exec_csub:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_sub(lhs, rhs);
+  *out = vm_value_sub(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_retc:
 {
   vm_value_t inval = vm_int_read_value();
   index = *--stack;
+  size_t nregs = regs - regs_base;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
-  *vm_int_read_store()= inval;
+  *vm_int_read_store() = inval;
+  if (gc->head >= gc->max)
+  {
+    vm_gc_run(gc, nregs, regs_base);
+  }
   vm_int_jump_next();
 }
 exec_mul:
@@ -508,7 +541,7 @@ exec_mul:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_mul(lhs, rhs);
+  *out = vm_value_mul(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_mulc:
@@ -516,7 +549,7 @@ exec_mulc:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_mul(lhs, rhs);
+  *out = vm_value_mul(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_div:
@@ -524,7 +557,7 @@ exec_div:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_div(lhs, rhs);
+  *out = vm_value_div(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_divc:
@@ -532,7 +565,7 @@ exec_divc:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_div(lhs, rhs);
+  *out = vm_value_div(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_cdiv:
@@ -540,7 +573,7 @@ exec_cdiv:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_div(lhs, rhs);
+  *out = vm_value_div(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_mod:
@@ -548,7 +581,7 @@ exec_mod:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_mod(lhs, rhs);
+  *out = vm_value_mod(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_modc:
@@ -556,7 +589,7 @@ exec_modc:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_mod(lhs, rhs);
+  *out = vm_value_mod(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_cmod:
@@ -564,52 +597,59 @@ exec_cmod:
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_mod(lhs, rhs);
+  *out = vm_value_mod(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_bb:
 {
   vm_value_t in = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_to_bool(in) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_to_bool(gc, in) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_blt:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(lhs, rhs) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_bltc:
 {
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(lhs, rhs) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_cblt:
 {
   vm_value_t lhs = vm_int_read_value();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(lhs, rhs) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 }
 
-static inline void *vm_mp_alloc(size_t n) {
+static inline void *vm_mp_alloc(size_t n)
+{
   return vm_malloc(n);
 }
 
-static inline void *vm_mp_realloc(void *ptr, size_t old, size_t n) {
+static inline void *vm_mp_realloc(void *ptr, size_t old, size_t n)
+{
   return vm_realloc(ptr, n);
 }
 
-static inline void vm_mp_free(void *ptr, size_t old) {
+static inline void vm_mp_free(void *ptr, size_t old)
+{
   vm_free(ptr);
 }
 
 int vm_run_arch_int(size_t nops, const vm_opcode_t *ops)
 {
   mp_set_memory_functions(vm_mp_alloc, vm_mp_realloc, vm_mp_free);
-  return vm_int_run(nops, ops);
+  vm_gc_t gc;
+  vm_gc_init(&gc);
+  int res = vm_int_run(nops, ops, &gc);
+  vm_gc_stop(gc);
+  return res;
 }

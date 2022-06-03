@@ -1,7 +1,7 @@
 
 OPT ?= -O2
 
-SRCS := util/main.c vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/reguse.c
+SRCS := util/main.c vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c
 OBJS := $(SRCS:%.c=%.o)
 
 default: all
@@ -13,7 +13,7 @@ $(OBJS): $(@:%.o=%.c)
 
 bin/minivm-asm: $(OBJS)
 	@mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o $(@) -lm -lgmp -lgc $(LDFLAGS)
+	$(CC) $(OPT) $(OBJS) -o $(@) -lgmp $(LDFLAGS)
 
 bin: .dummy
 	mkdir -p $(@)
