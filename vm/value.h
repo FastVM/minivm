@@ -11,11 +11,11 @@ typedef struct vm_value_t vm_value_t;
 
 enum {
   VM_TYPE_INT32 = 0,
-  VM_TYPE_FUNC = 0,
-  VM_TYPE_BIGINT = 1,
+  VM_TYPE_FUNC = 1,
+  VM_TYPE_BIGINT = 2,
 };
 
-#define VM_VALUE_SHORT_OKAY(n_) ({ vm_int_t x_ = (n_); -(1L<<31)<x_&&x_<(1L<<31); })
+#define VM_VALUE_SHORT_OKAY(n_) ({ vm_int_t x_ = (n_); -(1L<<30)<x_&&x_<(1L<<30); })
 
 #define VM_VALUE_GET_INT32(n_) ((n_).value)
 #define VM_VALUE_GET_FUNC(n_) ((n_).value)
@@ -26,14 +26,15 @@ enum {
 #define VM_VALUE_SET_BIGINT(n_) ((vm_value_t) {.type = VM_TYPE_BIGINT, .value = (n_)})
 
 #define VM_VALUE_IS_INT32(n_) ((n_).type == VM_TYPE_INT32)
+#define VM_VALUE_IS_FUNC(n_) ((n_).type == VM_TYPE_FUNC)
 #define VM_VALUE_IS_BIGINT(n_) ((n_).type == VM_TYPE_BIGINT)
 
 #define VM_VALUE_POSSIBLE_CINT()
 
 struct vm_value_t
 {
-  int64_t value: 63;
-  uint8_t type: 1;
+  uint8_t type: 4;
+  int64_t value: 60;
 };
 
 static inline vm_value_t vm_value_from_int(vm_gc_t *restrict gc, vm_int_t n)
