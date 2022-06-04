@@ -160,6 +160,52 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
           vm_asm_put_int(vm_asm_read_int(src));
           continue;
         }
+        if (vm_asm_starts(opname, "str"))
+        {
+          vm_asm_put_op(VM_OPCODE_STR);
+          vm_asm_put_reg(regno);
+          vm_asm_strip(src);
+          if (**src == ':') {
+            *src += 1;
+          }
+          size_t nbuf = head;
+          vm_asm_put_int(0);
+          while (**src != '\n' && **src != '\0') {
+            vm_asm_put_int((int) **src);
+            *src += 1;
+          }
+          instrs[nbuf].value = head - (nbuf + 1);
+          continue;
+        }
+        if (vm_asm_starts(opname, "arr"))
+        {
+          vm_asm_put_op(VM_OPCODE_ARR);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "map"))
+        {
+          vm_asm_put_op(VM_OPCODE_MAP);
+          vm_asm_put_reg(regno);
+          continue;
+        }
+        if (vm_asm_starts(opname, "set"))
+        {
+          vm_asm_put_op(VM_OPCODE_SET);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(src));
+          vm_asm_put_reg(vm_asm_read_reg(src));
+          continue;
+        }
+        if (vm_asm_starts(opname, "get"))
+        {
+          vm_asm_put_op(VM_OPCODE_GET);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(src));
+          vm_asm_put_reg(vm_asm_read_reg(src));
+          continue;
+        }
         if (vm_asm_starts(opname, "addr"))
         {
           vm_asm_put_op(VM_OPCODE_ADDR);

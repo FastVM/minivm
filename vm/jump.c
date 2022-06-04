@@ -29,6 +29,38 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_opcode_t num = ops[index++];
       break;
     }
+    case VM_OPCODE_STR:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t nints = ops[index++];
+      index += nints;
+      break;
+    }
+    case VM_OPCODE_ARR:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t size = ops[index++];
+      break;
+    }
+    case VM_OPCODE_MAP:
+    {
+      vm_opcode_t outreg = ops[index++];
+      break;
+    }
+    case VM_OPCODE_GET:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t obj = ops[index++];
+      vm_opcode_t ind = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SET:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t obj = ops[index++];
+      vm_opcode_t ind = ops[index++];
+      break;
+    }
     case VM_OPCODE_RET:
     {
       vm_opcode_t outreg = ops[index++];
@@ -174,6 +206,38 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
     {
       vm_opcode_t outreg = ops[index++];
       vm_opcode_t value = ops[index++];
+      break;
+    }
+    case VM_OPCODE_STR:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t nints = ops[index++];
+      index += nints;
+      break;
+    }
+    case VM_OPCODE_ARR:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t size = ops[index++];
+      break;
+    }
+    case VM_OPCODE_MAP:
+    {
+      vm_opcode_t outreg = ops[index++];
+      break;
+    }
+    case VM_OPCODE_GET:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t obj = ops[index++];
+      vm_opcode_t ind = ops[index++];
+      break;
+    }
+    case VM_OPCODE_SET:
+    {
+      vm_opcode_t outreg = ops[index++];
+      vm_opcode_t obj = ops[index++];
+      vm_opcode_t ind = ops[index++];
       break;
     }
     case VM_OPCODE_RET:

@@ -96,6 +96,22 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
     [VM_INT_OP_BEQI] = &&exec_beqi,
     [VM_INT_OP_BLTI] = &&exec_blti,
     [VM_INT_OP_IBLT] = &&exec_iblt,
+    [VM_INT_OP_ARR] = &&exec_arr,
+    [VM_INT_OP_ARRI] = &&exec_arri,
+    [VM_INT_OP_MAP] = &&exec_map,
+    [VM_INT_OP_GET] = &&exec_get,
+    [VM_INT_OP_GETI] = &&exec_geti,
+    [VM_INT_OP_GETC] = &&exec_getc,
+    [VM_INT_OP_SET] = &&exec_set,
+    [VM_INT_OP_SETI] = &&exec_seti,
+    [VM_INT_OP_SETC] = &&exec_setc,
+    [VM_INT_OP_ISET] = &&exec_iset,
+    [VM_INT_OP_ISETI] = &&exec_iseti,
+    [VM_INT_OP_ISETC] = &&exec_isetc,
+    [VM_INT_OP_CSET] = &&exec_cset,
+    [VM_INT_OP_CSETI] = &&exec_cseti,
+    [VM_INT_OP_CSETC] = &&exec_csetc,
+    
   };
   uint8_t *jumps = vm_jump_all(nops, iops);
   if (jumps == NULL)
@@ -173,7 +189,7 @@ exec_ret:
   size_t nregs = regs - regs_base;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
   *vm_int_read_store() = inval;
-  if (gc->head >= gc->max)
+  if (gc->count++ >= gc->max)
   {
     vm_gc_run(gc, nregs, regs_base);
   }
@@ -542,7 +558,7 @@ exec_retc:
   size_t nregs = regs - regs_base;
   regs -= vm_int_read_at(vm_reg_t, index - sizeof(vm_reg_t));
   *vm_int_read_store() = inval;
-  if (gc->head >= gc->max)
+  if (gc->count++ >= gc->max)
   {
     vm_gc_run(gc, nregs, regs_base);
   }
@@ -722,6 +738,106 @@ exec_iblt:
   vm_int_t lhs = vm_int_read_int();
   vm_value_t rhs = vm_int_read_load();
   index = vm_int_read_at(vm_loc_t, index + vm_value_is_int_less(gc, lhs, rhs) * sizeof(vm_loc_t));
+  vm_int_jump_next();
+}
+exec_arr: {
+  vm_value_t *outreg = vm_int_read_store();
+  vm_value_t num = vm_int_read_load();
+  *outreg = VM_VALUE_SET_ARR(vm_gc_arr(gc, vm_value_to_int(gc, num)));
+  vm_int_jump_next();
+}
+exec_arri: {
+  vm_value_t *outreg = vm_int_read_store();
+  vm_int_t num = vm_int_read_int();
+  *outreg = VM_VALUE_SET_ARR(vm_gc_arr(gc, num));
+  vm_int_jump_next();
+}
+exec_map: {
+  __builtin_trap();
+  vm_int_jump_next();
+}
+exec_get: {
+  vm_value_t *outreg = vm_int_read_store();
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_load();
+  *outreg = vm_gc_get_v(gc, obj, key);
+  vm_int_jump_next();
+}
+exec_geti: {
+  vm_value_t *outreg = vm_int_read_store();
+  vm_value_t obj = vm_int_read_load();
+  vm_int_t key = vm_int_read_int();
+  *outreg = vm_gc_get_i(gc, obj, key);
+  vm_int_jump_next();
+}
+exec_getc: {
+  vm_value_t *outreg = vm_int_read_store();
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_value();
+  *outreg = vm_gc_get_v(gc, obj, key);
+  vm_int_jump_next();
+}
+exec_set: {
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_load();
+  vm_value_t value = vm_int_read_load();
+  vm_gc_set_vv(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_seti: {
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_load();
+  vm_int_t value = vm_int_read_int();
+  vm_gc_set_vi(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_setc: {
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_load();
+  vm_value_t value = vm_int_read_value();
+  vm_gc_set_vv(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_iset: {
+  vm_value_t obj = vm_int_read_load();
+  vm_int_t key = vm_int_read_int();
+  vm_value_t value = vm_int_read_load();
+  vm_gc_set_iv(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_iseti: {
+  vm_value_t obj = vm_int_read_load();
+  vm_int_t key = vm_int_read_int();
+  vm_int_t value = vm_int_read_int();
+  vm_gc_set_ii(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_isetc: {
+  vm_value_t obj = vm_int_read_load();
+  vm_int_t key = vm_int_read_int();
+  vm_value_t value = vm_int_read_value();
+  vm_gc_set_iv(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_cset: {
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_value();
+  vm_value_t value = vm_int_read_load();
+  vm_gc_set_vv(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_cseti: {
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_value();
+  vm_int_t value = vm_int_read_int();
+  vm_gc_set_vi(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_csetc: {
+  vm_value_t obj = vm_int_read_load();
+  vm_value_t key = vm_int_read_value();
+  vm_value_t value = vm_int_read_value();
+  vm_gc_set_vv(gc, obj, key, value);
   vm_int_jump_next();
 }
 }

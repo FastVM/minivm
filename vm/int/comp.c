@@ -160,12 +160,12 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT32(regs[lhs]))
+          if (VM_VALUE_IS_INT(regs[lhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_ADDI);
             vm_int_buf_put(vm_reg_t, out);
             vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
           }
           else
           {
@@ -177,19 +177,19 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT32(regs[rhs]))
+          if (VM_VALUE_IS_INT(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_ADDI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
+          }
+          else
           {
             vm_int_buf_put_op(VM_INT_OP_ADDC);
             vm_int_buf_put(vm_reg_t, out);
             vm_int_buf_put(vm_reg_t, lhs);
             vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_ADDI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
           }
         }
         else
@@ -217,11 +217,11 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT32(regs[lhs]))
+          if (VM_VALUE_IS_INT(regs[lhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_ISUB);
             vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
             vm_int_buf_put(vm_reg_t, rhs);
           }
           else
@@ -234,12 +234,12 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT32(regs[rhs]))
+          if (VM_VALUE_IS_INT(regs[rhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_SUBI);
             vm_int_buf_put(vm_reg_t, out);
             vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
           }
           else
           {
@@ -364,10 +364,10 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       }
       else if (named[rhs])
       {
-        if (VM_VALUE_IS_INT32(regs[rhs])) {
+        if (VM_VALUE_IS_INT(regs[rhs])) {
           vm_int_buf_put_op(VM_INT_OP_BEQI);
           vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
           froms[buf - ret] = jfalse;
           vm_int_buf_put(vm_loc_t, 0);
           froms[buf - ret] = jtrue;
@@ -384,10 +384,10 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       }
       else if (named[lhs])
       {
-        if (VM_VALUE_IS_INT32(regs[lhs])) {
+        if (VM_VALUE_IS_INT(regs[lhs])) {
           vm_int_buf_put_op(VM_INT_OP_BEQI);
           vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
           froms[buf - ret] = jfalse;
           vm_int_buf_put(vm_loc_t, 0);
           froms[buf - ret] = jtrue;
@@ -439,12 +439,12 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT32(regs[lhs]))
+          if (VM_VALUE_IS_INT(regs[lhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_MULI);
             vm_int_buf_put(vm_reg_t, out);
             vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
           }
           else
           {
@@ -456,7 +456,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT32(regs[rhs]))
+          if (VM_VALUE_IS_INT(regs[rhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_MULI);
             vm_int_buf_put(vm_reg_t, out);
@@ -468,7 +468,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
             vm_int_buf_put_op(VM_INT_OP_MULC);
             vm_int_buf_put(vm_reg_t, out);
             vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
           }
         }
         else
@@ -496,11 +496,11 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT32(regs[lhs]))
+          if (VM_VALUE_IS_INT(regs[lhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_IDIV);
             vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
             vm_int_buf_put(vm_reg_t, rhs);
           }
           else
@@ -513,12 +513,12 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT32(regs[rhs]))
+          if (VM_VALUE_IS_INT(regs[rhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_DIVI);
             vm_int_buf_put(vm_reg_t, out);
             vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
           }
           else
           {
@@ -553,11 +553,11 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT32(regs[lhs]))
+          if (VM_VALUE_IS_INT(regs[lhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_IMOD);
             vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
             vm_int_buf_put(vm_reg_t, rhs);
           }
           else
@@ -570,12 +570,12 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT32(regs[rhs]))
+          if (VM_VALUE_IS_INT(regs[rhs]))
           {
             vm_int_buf_put_op(VM_INT_OP_MODI);
             vm_int_buf_put(vm_reg_t, out);
             vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
           }
           else
           {
@@ -650,10 +650,10 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       }
       else if (named[rhs])
       {
-        if (VM_VALUE_IS_INT32(regs[rhs])) {
+        if (VM_VALUE_IS_INT(regs[rhs])) {
           vm_int_buf_put_op(VM_INT_OP_BLTI);
           vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[rhs]));
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
           froms[buf - ret] = jfalse;
           vm_int_buf_put(vm_loc_t, 0);
           froms[buf - ret] = jtrue;
@@ -670,9 +670,9 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       }
       else if (named[lhs])
       {
-        if (VM_VALUE_IS_INT32(regs[lhs])) {
+        if (VM_VALUE_IS_INT(regs[lhs])) {
           vm_int_buf_put_op(VM_INT_OP_IBLT);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT32(regs[lhs]));
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
           vm_int_buf_put(vm_reg_t, rhs);
           froms[buf - ret] = jfalse;
           vm_int_buf_put(vm_loc_t, 0);
@@ -697,6 +697,132 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
         vm_int_buf_put(vm_loc_t, 0);
         froms[buf - ret] = jtrue;
         vm_int_buf_put(vm_loc_t, 0);
+      }
+      break;
+    }
+    case VM_OPCODE_STR:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t nargs = ops[index++];
+      uint32_t res = vm_gc_str(gc, nargs);
+      for (size_t i = 0; i < nargs; i++) {
+        vm_gc_set_char(gc, res, i, ops[index++]);
+      }
+      regs[out] = VM_VALUE_SET_STR(res);
+      named[out] = 1;
+      break;
+    }
+    case VM_OPCODE_ARR:
+    {
+      __builtin_trap();
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t size = ops[index++];
+      if (named[size]) {
+        vm_int_buf_put_op(VM_INT_OP_ARRI);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_int_t, vm_value_to_int(gc, regs[size]));
+      } else {
+        vm_int_buf_put_op(VM_INT_OP_ARR);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, size);
+      }
+      named[out] = 0;
+      break;
+    }
+    case VM_OPCODE_MAP:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_int_buf_put_op(VM_INT_OP_MAP);
+      vm_int_buf_put(vm_reg_t, out);
+      named[out] = 0;
+      break;
+    }
+    case VM_OPCODE_GET:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      if (named[rhs])
+      {
+        if (VM_VALUE_IS_INT(regs[rhs]))
+        {
+          vm_int_buf_put_op(VM_INT_OP_GETC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_GETI);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
+        }
+      }
+      else
+      {
+        vm_int_buf_put_op(VM_INT_OP_GET);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_reg_t, rhs);
+      }
+      named[out] = 0;
+      break;
+    }
+    case VM_OPCODE_SET:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t lhs = ops[index++];
+      vm_opcode_t rhs = ops[index++];
+      if (named[lhs] && named[rhs])
+      {
+        named[out] = 1;
+        regs[out] = vm_value_add(gc, regs[lhs], regs[rhs]);
+      }
+      else
+      {
+        if (named[lhs])
+        {
+          if (VM_VALUE_IS_INT(regs[lhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_SETI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, rhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_SETC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, rhs);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+          }
+        }
+        else if (named[rhs])
+        {
+          if (VM_VALUE_IS_INT(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_SETI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_SETC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_value_t, regs[rhs]);
+          }
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_SET);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_reg_t, rhs);
+        }
+        named[out] = 0;
       }
       break;
     }
