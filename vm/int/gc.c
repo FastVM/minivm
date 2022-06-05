@@ -61,7 +61,13 @@ void vm_gc_mark(vm_gc_t *restrict gc, vm_value_t val)
         uint32_t nth = VM_VALUE_GET_INT(val);
         if (nth < gc->str_alloc)
         {
-            gc->arr_marks[nth] = 1;
+            if (gc->arr_marks[nth] == 0) {
+                gc->arr_marks[nth] = 1;
+                uint32_t len = gc->arr_lens[nth];
+                for (uint32_t i = 0; i < len; i++) {
+                    vm_gc_mark(gc, gc->arr_buf[nth][i]);
+                }
+            }
         }
     }
 }
