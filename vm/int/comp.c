@@ -708,8 +708,10 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       for (size_t i = 0; i < nargs; i++) {
         vm_gc_set_char(gc, res, i, ops[index++]);
       }
-      regs[out] = VM_VALUE_SET_STR(res);
-      named[out] = 1;
+      vm_int_buf_put_op(VM_INT_OP_MOVC);
+      vm_int_buf_put(vm_reg_t, out);
+      vm_int_buf_put(vm_value_t, VM_VALUE_SET_STR(res));
+      named[out] = 0;
       break;
     }
     case VM_OPCODE_ARR:
@@ -746,17 +748,17 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (VM_VALUE_IS_INT(regs[rhs]))
         {
-          vm_int_buf_put_op(VM_INT_OP_GETC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
-        }
-        else
-        {
           vm_int_buf_put_op(VM_INT_OP_GETI);
           vm_int_buf_put(vm_reg_t, out);
           vm_int_buf_put(vm_reg_t, lhs);
           vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_GETC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
         }
       }
       else
@@ -774,56 +776,92 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t out = ops[index++];
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
-      if (named[lhs] && named[rhs])
-      {
-        named[out] = 1;
-        regs[out] = vm_value_add(gc, regs[lhs], regs[rhs]);
-      }
-      else
-      {
-        if (named[lhs])
-        {
-          if (VM_VALUE_IS_INT(regs[lhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_SETI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_SETC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-          }
-        }
-        else if (named[rhs])
+      if (named[lhs] && named[rhs]) {
+        if (VM_VALUE_IS_INT(regs[lhs]))
         {
           if (VM_VALUE_IS_INT(regs[rhs]))
           {
-            vm_int_buf_put_op(VM_INT_OP_SETI);
+            vm_int_buf_put_op(VM_INT_OP_ISETI);
             vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
             vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
           }
           else
           {
-            vm_int_buf_put_op(VM_INT_OP_SETC);
+            vm_int_buf_put_op(VM_INT_OP_ISETC);
             vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
             vm_int_buf_put(vm_value_t, regs[rhs]);
           }
         }
         else
         {
-          vm_int_buf_put_op(VM_INT_OP_SET);
+          if (VM_VALUE_IS_INT(regs[rhs]))
+          {
+            vm_int_buf_put_op(VM_INT_OP_CSETI);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
+          }
+          else
+          {
+            vm_int_buf_put_op(VM_INT_OP_CSETC);
+            vm_int_buf_put(vm_reg_t, out);
+            vm_int_buf_put(vm_value_t, regs[lhs]);
+            vm_int_buf_put(vm_value_t, regs[rhs]);
+          }
+        }
+      }
+      else if (named[lhs])
+      {
+        if (VM_VALUE_IS_INT(regs[lhs]))
+        {
+          vm_int_buf_put_op(VM_INT_OP_ISET);
           vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
           vm_int_buf_put(vm_reg_t, rhs);
         }
-        named[out] = 0;
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_CSET);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, rhs);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+        }
       }
+      else if (named[rhs])
+      {
+        if (VM_VALUE_IS_INT(regs[rhs]))
+        {
+          vm_int_buf_put_op(VM_INT_OP_SETI);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
+        }
+        else
+        {
+          vm_int_buf_put_op(VM_INT_OP_SETC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
+        }
+      }
+      else
+      {
+        vm_int_buf_put_op(VM_INT_OP_SET);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_reg_t, rhs);
+      }
+      break;
+    }
+    case VM_OPCODE_LEN:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      vm_int_buf_put_op(VM_INT_OP_LEN);
+      vm_int_buf_put(vm_reg_t, out);
+      vm_int_buf_put(vm_reg_t, in);
       break;
     }
     default:

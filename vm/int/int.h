@@ -78,6 +78,7 @@ enum vm_int_op_t
   VM_INT_OP_CSET,
   VM_INT_OP_CSETI,
   VM_INT_OP_CSETC,
+  VM_INT_OP_LEN,
   VM_INT_MAX_OP,
 };
 

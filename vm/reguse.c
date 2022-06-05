@@ -78,6 +78,7 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
       break;
     }
     case VM_OPCODE_ARR:
+    case VM_OPCODE_LEN:
     case VM_OPCODE_REG:
       if (ops[index + 2] == reg)
       {

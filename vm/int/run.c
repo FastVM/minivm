@@ -111,7 +111,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
     [VM_INT_OP_CSET] = &&exec_cset,
     [VM_INT_OP_CSETI] = &&exec_cseti,
     [VM_INT_OP_CSETC] = &&exec_csetc,
-    
+    [VM_INT_OP_LEN] = &&exec_len,
   };
   uint8_t *jumps = vm_jump_all(nops, iops);
   if (jumps == NULL)
@@ -838,6 +838,12 @@ exec_csetc: {
   vm_value_t key = vm_int_read_value();
   vm_value_t value = vm_int_read_value();
   vm_gc_set_vv(gc, obj, key, value);
+  vm_int_jump_next();
+}
+exec_len: {
+  vm_value_t *output = vm_int_read_store();
+  vm_value_t obj = vm_int_read_load();
+  *output = vm_value_from_int(gc, vm_gc_len(gc, obj));
   vm_int_jump_next();
 }
 }

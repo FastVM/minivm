@@ -33,6 +33,7 @@ enum
   VM_OPCODE_MAP,
   VM_OPCODE_SET,
   VM_OPCODE_GET,
+  VM_OPCODE_LEN,
 };
 
 typedef uint32_t vm_opcode_t;
