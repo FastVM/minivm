@@ -716,7 +716,6 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
     }
     case VM_OPCODE_ARR:
     {
-      __builtin_trap();
       vm_opcode_t out = ops[index++];
       vm_opcode_t size = ops[index++];
       if (named[size]) {

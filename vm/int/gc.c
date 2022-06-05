@@ -153,8 +153,51 @@ void vm_gc_run(vm_gc_t *restrict gc, size_t nregs, void *vregs)
         }
         gc->str_used = str_used;
     }
+    {
+        if (gc->arr_alloc > gc->move_alloc)
+        {
+            gc->move_alloc = gc->arr_alloc * 2;
+            gc->move_buf = vm_realloc(gc->move_buf, gc->move_alloc);
+        }
+        uint32_t arr_used = 0;
+        for (uint32_t i = 0; i < gc->arr_alloc; i++)
+        {
+            if (gc->arr_marks[i] != 0)
+            {
+                gc->arr_marks[i] = 0;
+                if (i != arr_used)
+                {
+                    {
+                        vm_value_t *tmp = gc->arr_buf[arr_used];
+                        gc->arr_buf[arr_used] = gc->arr_buf[i];
+                        gc->arr_buf[i] = tmp;
+                    }
+                    {
+                        uint32_t tmp = gc->arr_lens[arr_used];
+                        gc->arr_lens[arr_used] = gc->arr_lens[i];
+                        gc->arr_lens[i] = tmp;
+                    }
+                }
+                gc->move_buf[i] = arr_used;
+                arr_used += 1;
+            }
+        }
+        for (uint32_t i = 0; i < nregs; i++)
+        {
+            vm_value_t reg = regs[i];
+            if (VM_VALUE_IS_STR(reg))
+            {
+                uint32_t nth = VM_VALUE_GET_INT(reg);
+                if (nth < gc->str_alloc)
+                {
+                    regs[i] = VM_VALUE_SET_STR(gc->move_buf[nth]);
+                }
+            }
+        }
+        gc->arr_used = arr_used;
+    }
     gc->count = 0;
-    gc->max = gc->num_alloc - (gc->num_alloc >> 3);
+    gc->max = 0;
     if (gc->max < VM_GC_MIN)
     {
         gc->max = VM_GC_MIN;
@@ -205,19 +248,41 @@ uint32_t vm_gc_str(vm_gc_t *restrict gc, size_t size)
     return ret;
 }
 
+uint32_t vm_gc_arr(vm_gc_t *restrict gc, size_t size)
+{
+    uint32_t next_head = gc->arr_used + 1;
+    if (gc->arr_alloc <= next_head)
+    {
+        uint32_t next_alloc = next_head * 2;
+        gc->arr_buf = vm_realloc(gc->arr_buf, sizeof(char *) * next_alloc);
+        gc->arr_lens = vm_realloc(gc->arr_lens, sizeof(uint32_t) * next_alloc);
+        gc->arr_marks = vm_realloc(gc->arr_marks, sizeof(uint8_t) * next_alloc);
+        for (uint32_t i = gc->arr_alloc; i < next_alloc; i++)
+        {
+            gc->arr_buf[i] = NULL;
+            gc->arr_marks[i] = 0;
+        }
+        gc->arr_alloc = next_alloc;
+    }
+    uint32_t ret = gc->arr_used;
+    gc->arr_lens[ret] = (uint32_t) size;
+    gc->arr_buf[ret] = vm_malloc(sizeof(vm_value_t) * size);
+    gc->arr_used = next_head;
+    return ret;
+}
+
 uint32_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t val)
 {
     if (VM_VALUE_IS_STR(val))
     {
         return gc->str_lens[VM_VALUE_GET_INT(val)];
     }
+    if (VM_VALUE_IS_ARR(val))
+    {
+        return gc->arr_lens[VM_VALUE_GET_INT(val)];
+    }
     __builtin_trap();
 } 
-
-uint32_t vm_gc_arr(vm_gc_t *restrict gc, size_t size)
-{
-    __builtin_trap();
-}
 
 void vm_gc_set_char(vm_gc_t *restrict gc, uint32_t ptr, vm_int_t index, char chr)
 {
@@ -230,6 +295,10 @@ vm_value_t vm_gc_get_v(vm_gc_t *restrict gc, vm_value_t ptr, vm_value_t index)
     {
         return vm_value_from_int(gc, gc->str_buf[VM_VALUE_GET_INT(ptr)][vm_value_to_int(gc, index)]);
     }
+    if (VM_VALUE_IS_ARR(ptr))
+    {
+        return gc->arr_buf[VM_VALUE_GET_INT(ptr)][vm_value_to_int(gc, index)];
+    }
     __builtin_trap();
 }
 
@@ -239,25 +308,49 @@ vm_value_t vm_gc_get_i(vm_gc_t *restrict gc, vm_value_t ptr, vm_int_t index)
     {
         return vm_value_from_int(gc, gc->str_buf[VM_VALUE_GET_INT(ptr)][index]);
     }
+    if (VM_VALUE_IS_ARR(ptr))
+    {
+        return gc->arr_buf[VM_VALUE_GET_INT(ptr)][index];
+    }
     __builtin_trap();
 }
 
-void vm_gc_set_vv(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t ptr, vm_value_t value)
+void vm_gc_set_vv(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t index, vm_value_t value)
 {
+    if (VM_VALUE_IS_ARR(obj))
+    {
+        gc->arr_buf[VM_VALUE_GET_INT(obj)][vm_value_to_int(gc, index)] = value;
+        return;
+    }
     __builtin_trap();
 }
 
-void vm_gc_set_vi(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t ptr, vm_int_t value)
+void vm_gc_set_vi(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t index, vm_int_t value)
 {
+    if (VM_VALUE_IS_ARR(obj))
+    {
+        gc->arr_buf[VM_VALUE_GET_INT(obj)][vm_value_to_int(gc, index)] = vm_value_from_int(gc, value);
+        return;
+    }
     __builtin_trap();
 }
 
-void vm_gc_set_iv(vm_gc_t *restrict gc, vm_value_t obj, vm_int_t ptr, vm_value_t value)
+void vm_gc_set_iv(vm_gc_t *restrict gc, vm_value_t obj, vm_int_t index, vm_value_t value)
 {
+    if (VM_VALUE_IS_ARR(obj))
+    {
+        gc->arr_buf[VM_VALUE_GET_INT(obj)][index] = value;
+        return;
+    }
     __builtin_trap();
 }
 
-void vm_gc_set_ii(vm_gc_t *restrict gc, vm_value_t obj, vm_int_t ptr, vm_int_t value)
+void vm_gc_set_ii(vm_gc_t *restrict gc, vm_value_t obj, vm_int_t index, vm_int_t value)
 {
+    if (VM_VALUE_IS_ARR(obj))
+    {
+        gc->arr_buf[VM_VALUE_GET_INT(obj)][index] = vm_value_from_int(gc, value);
+        return;
+    }
     __builtin_trap();
 }

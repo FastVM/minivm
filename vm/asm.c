@@ -206,14 +206,6 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
           vm_asm_put_reg(regno);
           continue;
         }
-        if (vm_asm_starts(opname, "set"))
-        {
-          vm_asm_put_op(VM_OPCODE_SET);
-          vm_asm_put_reg(regno);
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          vm_asm_put_reg(vm_asm_read_reg(src));
-          continue;
-        }
         if (vm_asm_starts(opname, "get"))
         {
           vm_asm_put_op(VM_OPCODE_GET);
@@ -415,6 +407,14 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
         vm_asm_strip(src);
         vm_asm_put_get(*src);
         *src += vm_asm_word(*src);
+        continue;
+      }
+      if (vm_asm_starts(opname, "set"))
+      {
+        vm_asm_put_op(VM_OPCODE_SET);
+        vm_asm_put_reg(vm_asm_read_reg(src));
+        vm_asm_put_reg(vm_asm_read_reg(src));
+        vm_asm_put_reg(vm_asm_read_reg(src));
         continue;
       }
     }
