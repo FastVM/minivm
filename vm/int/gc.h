@@ -28,26 +28,29 @@ struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;
 
 struct vm_gc_t {
-    MP_INT *num_buf;
-    uint8_t *num_marks;
+    MP_INT *restrict num_buf;
+    uint8_t *restrict num_marks;
     uint32_t num_used;
     uint32_t num_alloc;
     
     uint32_t str_root;
-    char **str_buf;
-    uint32_t *str_lens;
-    uint8_t *str_marks;
+    char **restrict str_buf;
+    uint32_t *restrict str_lens;
+    uint8_t *restrict str_marks;
     uint32_t str_used;
     uint32_t str_alloc;
     
-    vm_value_t **arr_buf;
-    uint32_t *arr_lens;
-    uint8_t *arr_marks;
+    vm_value_t **restrict arr_buf;
+    uint32_t *restrict arr_lens;
+    uint8_t *restrict arr_marks;
     uint32_t arr_used;
     uint32_t arr_alloc;
 
-    uint32_t *move_buf;
+    uint32_t *restrict move_buf;
     uint32_t move_alloc;
+
+    uint32_t nregs;
+    vm_value_t *restrict regs;
 
     uint32_t count;
     uint32_t max;
@@ -57,7 +60,7 @@ struct vm_gc_t {
 
 void vm_gc_init(vm_gc_t *restrict out);
 void vm_gc_stop(vm_gc_t gc);
-void vm_gc_run(vm_gc_t *restrict gc, size_t nregs, void *regs);
+void vm_gc_run(vm_gc_t *restrict gc);
 
 uint32_t vm_gc_num(vm_gc_t *restrict gc);
 uint32_t vm_gc_str(vm_gc_t *restrict gc, size_t size);
