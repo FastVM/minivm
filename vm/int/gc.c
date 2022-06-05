@@ -164,7 +164,6 @@ void vm_gc_run(vm_gc_t *restrict gc)
     if (gc->count++ < gc->max) {
         return;
     }
-    printf("GC!\n");
     for (uint32_t i = 0; i < gc->nregs; i++)
     {
         vm_gc_mark(gc, gc->regs[i]);
