@@ -1,5 +1,4 @@
 #include "gc.h"
-#include "../gc.h"
 
 void vm_gc_init(vm_gc_t *restrict out)
 {
@@ -92,13 +91,15 @@ void vm_gc_move_big(vm_gc_t *restrict gc, vm_value_t *set)
     if (VM_VALUE_IS_ARR(*set))
     {
         uint32_t nth = VM_VALUE_GET_INT(*set);
-        if (nth < gc->arr_used)
+        if (nth < gc->arr_used && gc->arr_marks[nth] != 0)
         {
+            gc->arr_marks[nth] = 0;
             uint32_t len = gc->arr_lens[nth];
             for (uint32_t i = 0; i < len; i++)
             {
                 vm_gc_move_big(gc, &gc->arr_buf[nth][i]);
             }
+            gc->arr_marks[nth] = 1;
         }
     }
 }
@@ -111,50 +112,49 @@ void vm_gc_move_str(vm_gc_t *restrict gc, vm_value_t *set)
         if (nth < gc->str_used && gc->str_marks[nth] != 0) {
             gc->str_marks[nth] = 0;
             uint32_t newpos = gc->move_buf[nth];
-            *set = VM_VALUE_SET_ARR(newpos);
+            *set = VM_VALUE_SET_STR(newpos);
             char *tmp = gc->str_buf[newpos];
             gc->str_buf[newpos] = gc->str_buf[nth];
             gc->str_buf[nth] = tmp;
+            gc->str_lens[newpos] = gc->str_lens[nth];
         }
     }
     if (VM_VALUE_IS_ARR(*set))
     {
         uint32_t nth = VM_VALUE_GET_INT(*set);
-        if (nth < gc->arr_used)
+        if (nth < gc->arr_used && gc->arr_marks[nth] != 0)
         {
+            gc->arr_marks[nth] = 0;
             uint32_t len = gc->arr_lens[nth];
             for (uint32_t i = 0; i < len; i++)
             {
                 vm_gc_move_str(gc, &gc->arr_buf[nth][i]);
             }
+            gc->arr_marks[nth] = 1;
         }
     }
 }
 
 void vm_gc_move_arr(vm_gc_t *restrict gc, vm_value_t *set)
 {
-    if (VM_VALUE_IS_STR(*set))
-    {
-        uint32_t nth = VM_VALUE_GET_INT(*set);
-        if (nth < gc->str_used && gc->arr_marks[nth] != 0) {
-            gc->arr_marks[nth] = 0;
-            uint32_t newpos = gc->move_buf[nth];
-            *set = VM_VALUE_SET_ARR(newpos);
-            char *tmp = gc->str_buf[newpos];
-            gc->str_buf[newpos] = gc->str_buf[nth];
-            gc->str_buf[nth] = tmp;
-        }
-    }
     if (VM_VALUE_IS_ARR(*set))
     {
         uint32_t nth = VM_VALUE_GET_INT(*set);
-        if (nth < gc->arr_used)
+        if (nth < gc->arr_used && gc->arr_marks[nth] != 0)
         {
+            gc->arr_marks[nth] = 0;
             uint32_t len = gc->arr_lens[nth];
             for (uint32_t i = 0; i < len; i++)
             {
                 vm_gc_move_str(gc, &gc->arr_buf[nth][i]);
             }
+            gc->arr_marks[nth] = 0;
+            uint32_t newpos = gc->move_buf[nth];
+            *set = VM_VALUE_SET_ARR(newpos);
+            vm_value_t *tmp = gc->arr_buf[newpos];
+            gc->arr_buf[newpos] = gc->arr_buf[nth];
+            gc->arr_buf[nth] = tmp;
+            gc->arr_lens[newpos] = gc->arr_lens[nth];
         }
     }
 }
