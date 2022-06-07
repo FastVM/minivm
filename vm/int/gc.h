@@ -11,11 +11,12 @@ typedef struct vm_value_t vm_value_t;
 
 struct vm_value_t
 {
-  uint8_t type: 4;
-  int64_t value: 60;
+  uint8_t type : 4;
+  int64_t value : 60;
 };
 
-enum {
+enum
+{
   VM_TYPE_INT = 0,
   VM_TYPE_FUN = 1,
   VM_TYPE_BIG = 2,
@@ -27,35 +28,36 @@ enum {
 struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;
 
-struct vm_gc_t {
-    MP_INT *restrict num_buf;
-    uint8_t *restrict num_marks;
-    uint32_t num_used;
-    uint32_t num_alloc;
-    
-    uint32_t str_root;
-    char **restrict str_buf;
-    uint32_t *restrict str_lens;
-    uint8_t *restrict str_marks;
-    uint32_t str_used;
-    uint32_t str_alloc;
-    
-    vm_value_t **restrict arr_buf;
-    uint32_t *restrict arr_lens;
-    uint8_t *restrict arr_marks;
-    uint32_t arr_used;
-    uint32_t arr_alloc;
+struct vm_gc_t
+{
+  MP_INT *restrict num_buf;
+  uint8_t *restrict num_marks;
+  uint32_t num_used;
+  uint32_t num_alloc;
 
-    uint32_t *restrict move_buf;
-    uint32_t move_alloc;
+  uint32_t str_root;
+  char **restrict str_buf;
+  uint32_t *restrict str_lens;
+  uint8_t *restrict str_marks;
+  uint32_t str_used;
+  uint32_t str_alloc;
 
-    uint32_t nregs;
-    vm_value_t *restrict regs;
+  vm_value_t **restrict arr_buf;
+  uint32_t *restrict arr_lens;
+  uint8_t *restrict arr_marks;
+  uint32_t arr_used;
+  uint32_t arr_alloc;
 
-    uint32_t count;
-    uint32_t max;
+  uint32_t *restrict move_buf;
+  uint32_t move_alloc;
 
-    bool running;
+  uint32_t nregs;
+  vm_value_t *restrict regs;
+
+  size_t count;
+  size_t max;
+
+  bool running;
 };
 
 void vm_gc_init(vm_gc_t *restrict out);
@@ -78,17 +80,19 @@ void vm_gc_set_ii(vm_gc_t *restrict gc, vm_value_t obj, vm_int_t key, vm_int_t v
 
 mpz_ptr vm_gc_num_get(vm_gc_t *restrict gc, uint32_t n);
 
-#define VM_VALUE_SHORT_OKAY(n_) ({ vm_int_t x_ = (n_); -(1L<<30)<x_&&x_<(1L<<30); })
+#define VM_VALUE_SHORT_OKAY(n_) ({ vm_int_t x_ = (n_); -(1L<<28)<x_&&x_<(1L<<28); })
 
 #define VM_VALUE_GET_INT(n_) ((n_).value)
 #define VM_VALUE_GET_FUN(n_) ((n_).value)
 #define VM_VALUE_GET_BIG(n_) (&gc->num_buf[(n_).value])
 
-#define VM_VALUE_SET_INT(n_) ((vm_value_t) {.type = VM_TYPE_INT, .value = (n_)})
-#define VM_VALUE_SET_FUN(n_) ((vm_value_t) {.type = VM_TYPE_FUN, .value = (n_)})
-#define VM_VALUE_SET_BIG(n_) ((vm_value_t) {.type = VM_TYPE_BIG, .value = (n_)})
-#define VM_VALUE_SET_STR(n_) ((vm_value_t) {.type = VM_TYPE_STR, .value = (n_)})
-#define VM_VALUE_SET_ARR(n_) ((vm_value_t) {.type = VM_TYPE_ARR, .value = (n_)})
+#define VM_VALUE_SET_INT(n_) ((vm_value_t){.type = VM_TYPE_INT, .value = (n_)})
+#define VM_VALUE_SET_FUN(n_) ((vm_value_t){.type = VM_TYPE_FUN, .value = (n_)})
+#define VM_VALUE_SET_BIG(n_) ((vm_value_t){.type = VM_TYPE_BIG, .value = (n_)})
+#define VM_VALUE_SET_STR(n_) ((vm_value_t){.type = VM_TYPE_STR, .value = (n_)})
+#define VM_VALUE_SET_ARR(n_) ((vm_value_t){.type = VM_TYPE_ARR, .value = (n_)})
+
+#define VM_VALUE_ACCOUNT(n_) ({size_t n = gc->num_buf[(n_).value]._mp_alloc; gc->count += n >> 3;})
 
 #define VM_VALUE_IS_INT(n_) ((n_).type == VM_TYPE_INT)
 #define VM_VALUE_IS_FUN(n_) ((n_).type == VM_TYPE_FUN)
@@ -101,11 +105,15 @@ uint32_t vm_gc_num(vm_gc_t *restrict gc);
 static inline vm_value_t vm_value_from_int(vm_gc_t *restrict gc, vm_int_t n)
 {
   vm_value_t ret;
-  if (VM_VALUE_SHORT_OKAY(n)) {
-    ret = VM_VALUE_SET_INT(n);  
-  } else {
+  if (VM_VALUE_SHORT_OKAY(n))
+  {
+    ret = VM_VALUE_SET_INT(n);
+  }
+  else
+  {
     ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_set_si(VM_VALUE_GET_BIG(ret), n);
+    VM_VALUE_ACCOUNT(ret);
   }
   return ret;
 }
@@ -154,6 +162,7 @@ static vm_value_t vm_value_add(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs) + VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
@@ -167,6 +176,7 @@ static vm_value_t vm_value_add(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_add_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs), (uint64_t)VM_VALUE_GET_INT(lhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
   }
@@ -178,17 +188,20 @@ static vm_value_t vm_value_add(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_sub_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), (uint64_t)-VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
       else
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_add_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), (uint64_t)VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
     {
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_add(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   return ret;
@@ -209,6 +222,7 @@ static vm_value_t vm_value_sub(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs) - VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
@@ -216,6 +230,7 @@ static vm_value_t vm_value_sub(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs));
       mpz_sub(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   else
@@ -226,17 +241,20 @@ static vm_value_t vm_value_sub(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_add_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), (uint64_t)-VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
       else
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_sub_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), (uint64_t)VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
     {
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_sub(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   return ret;
@@ -257,6 +275,7 @@ static vm_value_t vm_value_mul(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs) * VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
@@ -264,6 +283,7 @@ static vm_value_t vm_value_mul(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs));
       mpz_mul(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   else
@@ -272,11 +292,13 @@ static vm_value_t vm_value_mul(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
     {
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_mul_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), VM_VALUE_GET_INT(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
     else
     {
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_mul(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   return ret;
@@ -297,6 +319,7 @@ static vm_value_t vm_value_div(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs) / VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
@@ -304,6 +327,7 @@ static vm_value_t vm_value_div(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs));
       mpz_tdiv_q(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   else
@@ -317,17 +341,20 @@ static vm_value_t vm_value_div(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
         mpz_set_si(rhsz, VM_VALUE_GET_INT(rhs));
         mpz_tdiv_q(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), rhsz);
         mpz_clear(rhsz);
+        VM_VALUE_ACCOUNT(ret);
       }
       else
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_tdiv_q_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), (uint64_t)VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
     {
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_tdiv_q(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   return ret;
@@ -348,6 +375,7 @@ static vm_value_t vm_value_mod(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs) % VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
@@ -355,6 +383,7 @@ static vm_value_t vm_value_mod(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_set_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_INT(lhs));
       mpz_mod(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   else
@@ -368,17 +397,20 @@ static vm_value_t vm_value_mod(vm_gc_t *restrict gc, vm_value_t lhs, vm_value_t 
         mpz_set_si(rhsz, VM_VALUE_GET_INT(rhs));
         mpz_mod(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), rhsz);
         mpz_clear(rhsz);
+        VM_VALUE_ACCOUNT(ret);
       }
       else
       {
         ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
         mpz_mod_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), (uint64_t)VM_VALUE_GET_INT(rhs));
+        VM_VALUE_ACCOUNT(ret);
       }
     }
     else
     {
       ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
       mpz_mod(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), VM_VALUE_GET_BIG(rhs));
+      VM_VALUE_ACCOUNT(ret);
     }
   }
   return ret;
@@ -453,6 +485,7 @@ static inline vm_value_t vm_value_addi(vm_gc_t *restrict gc, vm_value_t lhs, vm_
   {
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_add_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), rhs);
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -467,6 +500,7 @@ static inline vm_value_t vm_value_subi(vm_gc_t *restrict gc, vm_value_t lhs, vm_
   {
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_sub_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), rhs);
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -482,6 +516,7 @@ static inline vm_value_t vm_value_isub(vm_gc_t *restrict gc, vm_int_t lhs, vm_va
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_sub_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs), lhs);
     mpz_neg(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(ret));
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -496,6 +531,7 @@ static inline vm_value_t vm_value_muli(vm_gc_t *restrict gc, vm_value_t lhs, vm_
   {
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_mul_si(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), rhs);
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -510,6 +546,7 @@ static inline vm_value_t vm_value_divi(vm_gc_t *restrict gc, vm_value_t lhs, vm_
   {
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_div_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), rhs);
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -525,6 +562,7 @@ static inline vm_value_t vm_value_idiv(vm_gc_t *restrict gc, vm_int_t lhs, vm_va
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_init_set_si(VM_VALUE_GET_BIG(ret), lhs);
     mpz_div(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs));
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -539,6 +577,7 @@ static inline vm_value_t vm_value_modi(vm_gc_t *restrict gc, vm_value_t lhs, vm_
   {
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_mod_ui(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(lhs), rhs);
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -554,6 +593,7 @@ static inline vm_value_t vm_value_imod(vm_gc_t *restrict gc, vm_int_t lhs, vm_va
     vm_value_t ret = VM_VALUE_SET_BIG(vm_gc_num(gc));
     mpz_init_set_si(VM_VALUE_GET_BIG(ret), lhs);
     mpz_mod(VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(ret), VM_VALUE_GET_BIG(rhs));
+    VM_VALUE_ACCOUNT(ret);
     return ret;
   }
 }
@@ -581,7 +621,6 @@ static bool vm_value_is_less_int(vm_gc_t *restrict gc, vm_value_t lhs, vm_int_t 
     return mpz_cmp_si(VM_VALUE_GET_BIG(lhs), rhs) < 0;
   }
 }
-
 
 static bool vm_value_is_int_less(vm_gc_t *restrict gc, vm_int_t lhs, vm_value_t rhs)
 {

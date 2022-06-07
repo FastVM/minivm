@@ -24,7 +24,7 @@ libminivm.a: $(OBJS)
 
 bin/minivm-asm: $(OBJS)
 	@mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o $(@) -l:libgmp.a $(LDFLAGS)
+	$(CC) $(OPT) $(OBJS) -o $(@) -lgmp $(LDFLAGS)
 
 .dummy:
 

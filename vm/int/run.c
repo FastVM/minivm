@@ -177,6 +177,7 @@ exec_add:
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
   *out = vm_value_add(gc, lhs, rhs);
+  vm_gc_run(gc);
   vm_int_jump_next();
 }
 exec_sub:
@@ -185,6 +186,7 @@ exec_sub:
   vm_value_t lhs = vm_int_read_load();
   vm_value_t rhs = vm_int_read_load();
   *out = vm_value_sub(gc, lhs, rhs);
+  vm_gc_run(gc);
   vm_int_jump_next();
 }
 exec_ret:
