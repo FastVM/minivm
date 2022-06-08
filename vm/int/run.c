@@ -9,8 +9,8 @@
 #define vm_int_read_int() ({ vm_int_read_type(vm_int_t); })
 #define vm_int_read_load() ({ regs[vm_int_read_reg()]; })
 #define vm_int_read_store() ({ &regs[vm_int_read_reg()]; })
-#define vm_int_read_value() ({ vm_int_read_type(vm_value_t); })
 #define vm_int_read_loc() ({ vm_int_read_type(vm_loc_t); })
+#define vm_int_read_value() ({ vm_int_read_type(vm_value_t); })
 #define vm_int_jump_next() ({ goto *vm_int_read_type(void *); })
 
 #if VM_CONFIG_GROW_STACK
@@ -42,7 +42,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
 {
   void *ptrs[] = {
       [VM_INT_OP_EXIT] = &&exec_exit,
-      [VM_INT_OP_PUTC] = &&exec_putc,
+      [VM_INT_OP_PUT] = &&exec_putc,
       [VM_INT_OP_MOV] = &&exec_mov,
       [VM_INT_OP_MOVC] = &&exec_movc,
       [VM_INT_OP_MOVF] = &&exec_movf,
@@ -50,7 +50,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
       [VM_INT_OP_SUB] = &&exec_sub,
       [VM_INT_OP_RET] = &&exec_ret,
       [VM_INT_OP_BEQ] = &&exec_beq,
-      [VM_INT_OP_BEQC] = &&exec_beqc,
+      [VM_INT_OP_BEQI] = &&exec_beqc,
       [VM_INT_OP_CALL0] = &&exec_call0,
       [VM_INT_OP_CALL1] = &&exec_call1,
       [VM_INT_OP_CALL2] = &&exec_call2,
@@ -71,31 +71,31 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
       [VM_INT_OP_DCALL8] = &&exec_dcall8,
       [VM_INT_OP_JUMP] = &&exec_jump,
       [VM_INT_OP_DJUMP] = &&exec_djump,
-      [VM_INT_OP_ADDC] = &&exec_addc,
-      [VM_INT_OP_SUBC] = &&exec_subc,
-      [VM_INT_OP_CSUB] = &&exec_csub,
+      [VM_INT_OP_ADDI] = &&exec_addc,
+      [VM_INT_OP_SUBI] = &&exec_subc,
+      [VM_INT_OP_ISUB] = &&exec_csub,
       [VM_INT_OP_RETC] = &&exec_retc,
       [VM_INT_OP_MUL] = &&exec_mul,
-      [VM_INT_OP_MULC] = &&exec_mulc,
+      [VM_INT_OP_MULI] = &&exec_mulc,
       [VM_INT_OP_DIV] = &&exec_div,
-      [VM_INT_OP_DIVC] = &&exec_divc,
-      [VM_INT_OP_CDIV] = &&exec_cdiv,
+      [VM_INT_OP_DIVI] = &&exec_divc,
+      [VM_INT_OP_IDIV] = &&exec_cdiv,
       [VM_INT_OP_MOD] = &&exec_mod,
-      [VM_INT_OP_MODC] = &&exec_modc,
-      [VM_INT_OP_CMOD] = &&exec_cmod,
+      [VM_INT_OP_MODI] = &&exec_modc,
+      [VM_INT_OP_IMOD] = &&exec_cmod,
       [VM_INT_OP_BB] = &&exec_bb,
       [VM_INT_OP_BLT] = &&exec_blt,
-      [VM_INT_OP_BLTC] = &&exec_bltc,
-      [VM_INT_OP_CBLT] = &&exec_cblt,
+      [VM_INT_OP_BLTI] = &&exec_bltc,
+      [VM_INT_OP_IBLT] = &&exec_cblt,
       [VM_INT_OP_ARR] = &&exec_arr,
-      [VM_INT_OP_ARRC] = &&exec_arrc,
+      [VM_INT_OP_ARRI] = &&exec_arrc,
       [VM_INT_OP_MAP] = &&exec_map,
       [VM_INT_OP_GET] = &&exec_get,
-      [VM_INT_OP_GETC] = &&exec_getc,
+      [VM_INT_OP_GETI] = &&exec_getc,
       [VM_INT_OP_SET] = &&exec_set,
-      [VM_INT_OP_SETC] = &&exec_setc,
-      [VM_INT_OP_CSET] = &&exec_cset,
-      [VM_INT_OP_CSETC] = &&exec_csetc,
+      [VM_INT_OP_SETI] = &&exec_setc,
+      [VM_INT_OP_ISET] = &&exec_cset,
+      [VM_INT_OP_ISETI] = &&exec_csetc,
       [VM_INT_OP_LEN] = &&exec_len,
   };
   uint8_t *jumps = vm_jump_all(nops, iops);
@@ -189,8 +189,8 @@ exec_beq:
 exec_beqc:
 {
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal(gc, lhs, rhs) * sizeof(vm_loc_t));
+  vm_int_t rhs = vm_int_read_int();
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_equal_int(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_call0:
@@ -515,24 +515,24 @@ exec_addc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_add(gc, lhs, rhs);
+  vm_int_t rhs = vm_int_read_int();
+  *out = vm_value_addi(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_subc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_sub(gc, lhs, rhs);
+  vm_int_t rhs = vm_int_read_int();
+  *out = vm_value_subi(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_csub:
 {
   vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
+  vm_int_t lhs = vm_int_read_int();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_sub(gc, lhs, rhs);
+  *out = vm_value_isub(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_retc:
@@ -556,8 +556,8 @@ exec_mulc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_mul(gc, lhs, rhs);
+  vm_int_t rhs = vm_int_read_int();
+  *out = vm_value_muli(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_div:
@@ -572,16 +572,16 @@ exec_divc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_div(gc, lhs, rhs);
+  vm_int_t rhs = vm_int_read_int();
+  *out = vm_value_divi(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_cdiv:
 {
   vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
+  vm_int_t lhs = vm_int_read_int();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_div(gc, lhs, rhs);
+  *out = vm_value_idiv(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_mod:
@@ -596,16 +596,16 @@ exec_modc:
 {
   vm_value_t *out = vm_int_read_store();
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  *out = vm_value_mod(gc, lhs, rhs);
+  vm_int_t rhs = vm_int_read_int();
+  *out = vm_value_modi(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_cmod:
 {
   vm_value_t *out = vm_int_read_store();
-  vm_value_t lhs = vm_int_read_value();
+  vm_int_t lhs = vm_int_read_int();
   vm_value_t rhs = vm_int_read_load();
-  *out = vm_value_mod(gc, lhs, rhs);
+  *out = vm_value_imod(gc, lhs, rhs);
   vm_int_jump_next();
 }
 exec_bb:
@@ -624,15 +624,15 @@ exec_blt:
 exec_bltc:
 {
   vm_value_t lhs = vm_int_read_load();
-  vm_value_t rhs = vm_int_read_value();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(gc, lhs, rhs) * sizeof(vm_loc_t));
+  vm_int_t rhs = vm_int_read_int();
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less_int(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_cblt:
 {
-  vm_value_t lhs = vm_int_read_value();
+  vm_int_t lhs = vm_int_read_int();
   vm_value_t rhs = vm_int_read_load();
-  index = vm_int_read_at(vm_loc_t, index + vm_value_is_less(gc, lhs, rhs) * sizeof(vm_loc_t));
+  index = vm_int_read_at(vm_loc_t, index + vm_value_is_int_less(gc, lhs, rhs) * sizeof(vm_loc_t));
   vm_int_jump_next();
 }
 exec_arr:
@@ -646,8 +646,8 @@ exec_arr:
 exec_arrc:
 {
   vm_value_t *outreg = vm_int_read_store();
-  vm_value_t num = vm_int_read_value();
-  *outreg = VM_VALUE_SET_ARR(vm_gc_arr(gc, vm_value_to_int(gc, num)));
+  vm_int_t num = vm_int_read_int();
+  *outreg = VM_VALUE_SET_ARR(vm_gc_arr(gc, num));
   vm_gc_run(gc);
   vm_int_jump_next();
 }
@@ -668,8 +668,8 @@ exec_getc:
 {
   vm_value_t *outreg = vm_int_read_store();
   vm_value_t obj = vm_int_read_load();
-  vm_value_t key = vm_int_read_value();
-  *outreg = vm_gc_get_v(gc, obj, key);
+  vm_int_t key = vm_int_read_int();
+  *outreg = vm_gc_get_i(gc, obj, key);
   vm_int_jump_next();
 }
 exec_set:
@@ -684,24 +684,24 @@ exec_setc:
 {
   vm_value_t obj = vm_int_read_load();
   vm_value_t key = vm_int_read_load();
-  vm_value_t value = vm_int_read_value();
-  vm_gc_set_vv(gc, obj, key, value);
+  vm_int_t value = vm_int_read_int();
+  vm_gc_set_vi(gc, obj, key, value);
   vm_int_jump_next();
 }
 exec_cset:
 {
   vm_value_t obj = vm_int_read_load();
-  vm_value_t key = vm_int_read_value();
+  vm_int_t key = vm_int_read_int();
   vm_value_t value = vm_int_read_load();
-  vm_gc_set_vv(gc, obj, key, value);
+  vm_gc_set_iv(gc, obj, key, value);
   vm_int_jump_next();
 }
 exec_csetc:
 {
   vm_value_t obj = vm_int_read_load();
-  vm_value_t key = vm_int_read_value();
-  vm_value_t value = vm_int_read_value();
-  vm_gc_set_vv(gc, obj, key, value);
+  vm_int_t key = vm_int_read_int();
+  vm_int_t value = vm_int_read_int();
+  vm_gc_set_ii(gc, obj, key, value);
   vm_int_jump_next();
 }
 exec_len:

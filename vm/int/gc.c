@@ -110,7 +110,7 @@ void vm_gc_run(vm_gc_t *restrict gc)
         gc->arr_used = arr_used;
     }
     gc->count = 0;
-    gc->max = gc->arr_alloc >> 1;
+    gc->max = gc->arr_used;
     if (gc->max < VM_GC_MIN)
     {
         gc->max = VM_GC_MIN;
@@ -139,19 +139,4 @@ vm_int_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t size)
     gc->arr_used = next_head;
     gc->count += 1;
     return ret;
-}
-
-vm_int_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t val)
-{
-    return gc->arr_lens[VM_VALUE_GET_ARR(val)];
-}
-
-vm_value_t vm_gc_get_v(vm_gc_t *restrict gc, vm_value_t ptr, vm_value_t index)
-{
-    return gc->arr_buf[VM_VALUE_GET_ARR(ptr)][vm_value_to_int(gc, index)];
-}
-
-void vm_gc_set_vv(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t index, vm_value_t value)
-{
-    gc->arr_buf[VM_VALUE_GET_ARR(obj)][vm_value_to_int(gc, index)] = value;
 }
