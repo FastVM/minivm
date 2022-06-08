@@ -11,8 +11,8 @@ gcc-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector -fno-ssa-phiopt' bin/minivm-asm
 	./bin/minivm-asm bench/fib35.vasm
+	./bin/minivm-asm bench/memfib.vasm
 	./bin/minivm-asm bench/primecount.vasm
-	./bin/minivm-asm bench/fastfib.vasm
 	$(MAKE) objs-clean
 	$(MAKE) CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector -fno-ssa-phiopt' libminivm.a bin/minivm-asm
 
@@ -24,7 +24,7 @@ libminivm.a: $(OBJS)
 
 bin/minivm-asm: $(OBJS)
 	@mkdir -p bin
-	$(CC) $(OPT) $(OBJS) -o $(@) -lgmp $(LDFLAGS)
+	$(CC) $(OPT) $(OBJS) -o $(@) $(LDFLAGS)
 
 .dummy:
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #if !defined(VM_GC_MIN)
-#define VM_GC_MIN (1 << 16)
+#define VM_GC_MIN (1 << 12)
 #endif
 
 #if !defined(VM_CONFIG_NUM_FRAMES)

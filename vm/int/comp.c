@@ -20,7 +20,7 @@
 #define vm_int_buf_put(type_, val_) ({*(type_*)buf = val_; buf+=sizeof(type_); })
 #define vm_int_buf_put_op(op_) ({ vm_int_buf_put(void *, ptrs[op_]); })
 
-uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void **ptrs, vm_gc_t *restrict gc)
+uint8_t* vm_int_comp(size_t nops, const vm_opcode_t* ops, uint8_t* jumps, void** ptrs, vm_gc_t* restrict gc)
 {
   vm_loc_t index = 0;
   vm_loc_t cfunc = 0;
@@ -29,13 +29,13 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
   vm_reg_t nregs = 16;
 
   size_t alloc = 1 << 8;
-  uint8_t *buf = vm_malloc(sizeof(uint8_t) * alloc);
-  vm_loc_t *froms = vm_alloc0(sizeof(vm_loc_t) * alloc);
-  vm_loc_t *locs = vm_malloc(sizeof(vm_loc_t) * nops);
-  uint8_t *ret = buf;
+  uint8_t* buf = vm_malloc(sizeof(uint8_t) * alloc);
+  vm_loc_t* froms = vm_alloc0(sizeof(vm_loc_t) * alloc);
+  vm_loc_t* locs = vm_malloc(sizeof(vm_loc_t) * nops);
+  uint8_t* ret = buf;
 
-  uint8_t *named = vm_alloc0(sizeof(uint8_t) * (1 << 14));
-  vm_value_t *regs = vm_malloc(sizeof(vm_value_t) * (1 << 12));
+  uint8_t* named = vm_alloc0(sizeof(uint8_t) * (1 << 14));
+  vm_value_t* regs = vm_malloc(sizeof(vm_value_t) * (1 << 12));
 
   while (index < nops)
   {
@@ -54,7 +54,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[i])
         {
-          size_t tmpbuf[256] = {0};
+          size_t tmpbuf[256] = { 0 };
           if (vm_reg_is_used(nops, ops, jumps, index, i, 255, tmpbuf, 0))
           {
             vm_int_buf_grow();
@@ -160,37 +160,17 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT(regs[lhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_ADDI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_ADDC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-          }
+          vm_int_buf_put_op(VM_INT_OP_ADDC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, rhs);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT(regs[rhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_ADDI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_ADDC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
+          vm_int_buf_put_op(VM_INT_OP_ADDC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
         }
         else
         {
@@ -217,37 +197,17 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT(regs[lhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_ISUB);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-            vm_int_buf_put(vm_reg_t, rhs);
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_CSUB);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-            vm_int_buf_put(vm_reg_t, rhs);
-          }
+          vm_int_buf_put_op(VM_INT_OP_CSUB);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+          vm_int_buf_put(vm_reg_t, rhs);
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT(regs[rhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_SUBI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_SUBC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
+          vm_int_buf_put_op(VM_INT_OP_SUBC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
         }
         else
         {
@@ -349,58 +309,29 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t jtrue = ops[index++];
       if (named[lhs] && named[rhs])
       {
-        if (vm_value_is_equal(gc, regs[lhs], regs[rhs]))
-        {
-          vm_int_buf_put_op(VM_INT_OP_JUMP);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        }
-        else
-        {
-          vm_int_buf_put_op(VM_INT_OP_JUMP);
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-        }
+        vm_int_buf_put_op(VM_INT_OP_JUMP);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
       }
       else if (named[rhs])
       {
-        if (VM_VALUE_IS_INT(regs[rhs])) {
-          vm_int_buf_put_op(VM_INT_OP_BEQI);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        } else {
-          vm_int_buf_put_op(VM_INT_OP_BEQC);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        }
+        vm_int_buf_put_op(VM_INT_OP_BEQC);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_value_t, regs[rhs]);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
       }
       else if (named[lhs])
       {
-        if (VM_VALUE_IS_INT(regs[lhs])) {
-          vm_int_buf_put_op(VM_INT_OP_BEQI);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        } else {
-          vm_int_buf_put_op(VM_INT_OP_BEQC);
-          vm_int_buf_put(vm_reg_t, rhs);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        }
+        vm_int_buf_put_op(VM_INT_OP_BEQC);
+        vm_int_buf_put(vm_reg_t, rhs);
+        vm_int_buf_put(vm_value_t, regs[lhs]);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
       }
       else
       {
@@ -439,37 +370,17 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT(regs[lhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_MULI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_MULC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, rhs);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-          }
+          vm_int_buf_put_op(VM_INT_OP_MULC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, rhs);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT(regs[rhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_MULI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_MULC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
+          vm_int_buf_put_op(VM_INT_OP_MULC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
         }
         else
         {
@@ -496,37 +407,17 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT(regs[lhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_IDIV);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-            vm_int_buf_put(vm_reg_t, rhs);
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_CDIV);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-            vm_int_buf_put(vm_reg_t, rhs);
-          }
+          vm_int_buf_put_op(VM_INT_OP_CDIV);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+          vm_int_buf_put(vm_reg_t, rhs);
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT(regs[rhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_DIVI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_DIVC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
+          vm_int_buf_put_op(VM_INT_OP_DIVC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
         }
         else
         {
@@ -553,37 +444,17 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       {
         if (named[lhs])
         {
-          if (VM_VALUE_IS_INT(regs[lhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_IMOD);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-            vm_int_buf_put(vm_reg_t, rhs);
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_CMOD);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-            vm_int_buf_put(vm_reg_t, rhs);
-          }
+          vm_int_buf_put_op(VM_INT_OP_CMOD);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_value_t, regs[lhs]);
+          vm_int_buf_put(vm_reg_t, rhs);
         }
         else if (named[rhs])
         {
-          if (VM_VALUE_IS_INT(regs[rhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_MODI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_MODC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_reg_t, lhs);
-            vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
+          vm_int_buf_put_op(VM_INT_OP_MODC);
+          vm_int_buf_put(vm_reg_t, out);
+          vm_int_buf_put(vm_reg_t, lhs);
+          vm_int_buf_put(vm_value_t, regs[rhs]);
         }
         else
         {
@@ -650,43 +521,23 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       }
       else if (named[rhs])
       {
-        if (VM_VALUE_IS_INT(regs[rhs])) {
-          vm_int_buf_put_op(VM_INT_OP_BLTI);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        } else {
-          vm_int_buf_put_op(VM_INT_OP_BLTC);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        }
+        vm_int_buf_put_op(VM_INT_OP_BLTC);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_value_t, regs[rhs]);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
       }
       else if (named[lhs])
       {
-        if (VM_VALUE_IS_INT(regs[lhs])) {
-          vm_int_buf_put_op(VM_INT_OP_IBLT);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-          vm_int_buf_put(vm_reg_t, rhs);
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        } else {
-          vm_int_buf_put_op(VM_INT_OP_CBLT);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
-          vm_int_buf_put(vm_reg_t, rhs);
-          froms[buf - ret] = jfalse;
-          vm_int_buf_put(vm_loc_t, 0);
-          froms[buf - ret] = jtrue;
-          vm_int_buf_put(vm_loc_t, 0);
-        }
+        vm_int_buf_put_op(VM_INT_OP_CBLT);
+        vm_int_buf_put(vm_value_t, regs[lhs]);
+        vm_int_buf_put(vm_reg_t, rhs);
+        froms[buf - ret] = jfalse;
+        vm_int_buf_put(vm_loc_t, 0);
+        froms[buf - ret] = jtrue;
+        vm_int_buf_put(vm_loc_t, 0);
       }
       else
       {
@@ -704,13 +555,13 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
     {
       vm_opcode_t out = ops[index++];
       vm_opcode_t nargs = ops[index++];
-      uint32_t res = vm_gc_str(gc, nargs);
+      size_t res = vm_gc_arr(gc, nargs);
       for (size_t i = 0; i < nargs; i++) {
-        vm_gc_set_char(gc, res, i, ops[index++]);
+        vm_gc_set_vv(gc, VM_VALUE_SET_ARR(res), vm_value_from_int(gc, i), vm_value_from_int(gc, ops[index++]));
       }
       vm_int_buf_put_op(VM_INT_OP_MOVC);
       vm_int_buf_put(vm_reg_t, out);
-      vm_int_buf_put(vm_value_t, VM_VALUE_SET_STR(res));
+      vm_int_buf_put(vm_value_t, VM_VALUE_SET_ARR(res));
       named[out] = 0;
       break;
     }
@@ -719,10 +570,11 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t out = ops[index++];
       vm_opcode_t size = ops[index++];
       if (named[size]) {
-        vm_int_buf_put_op(VM_INT_OP_ARRI);
+        vm_int_buf_put_op(VM_INT_OP_ARRC);
         vm_int_buf_put(vm_reg_t, out);
-        vm_int_buf_put(vm_int_t, vm_value_to_int(gc, regs[size]));
-      } else {
+        vm_int_buf_put(vm_value_t, regs[size]);
+      }
+      else {
         vm_int_buf_put_op(VM_INT_OP_ARR);
         vm_int_buf_put(vm_reg_t, out);
         vm_int_buf_put(vm_reg_t, size);
@@ -745,20 +597,10 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t rhs = ops[index++];
       if (named[rhs])
       {
-        if (VM_VALUE_IS_INT(regs[rhs]))
-        {
-          vm_int_buf_put_op(VM_INT_OP_GETI);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-        }
-        else
-        {
-          vm_int_buf_put_op(VM_INT_OP_GETC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
-        }
+        vm_int_buf_put_op(VM_INT_OP_GETC);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_value_t, regs[rhs]);
       }
       else
       {
@@ -776,74 +618,24 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
       vm_opcode_t lhs = ops[index++];
       vm_opcode_t rhs = ops[index++];
       if (named[lhs] && named[rhs]) {
-        if (VM_VALUE_IS_INT(regs[lhs]))
-        {
-          if (VM_VALUE_IS_INT(regs[rhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_ISETI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_ISETC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-            vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
-        }
-        else
-        {
-          if (VM_VALUE_IS_INT(regs[rhs]))
-          {
-            vm_int_buf_put_op(VM_INT_OP_CSETI);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-            vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-          }
-          else
-          {
-            vm_int_buf_put_op(VM_INT_OP_CSETC);
-            vm_int_buf_put(vm_reg_t, out);
-            vm_int_buf_put(vm_value_t, regs[lhs]);
-            vm_int_buf_put(vm_value_t, regs[rhs]);
-          }
-        }
+        vm_int_buf_put_op(VM_INT_OP_CSETC);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_value_t, regs[lhs]);
+        vm_int_buf_put(vm_value_t, regs[rhs]);
       }
       else if (named[lhs])
       {
-        if (VM_VALUE_IS_INT(regs[lhs]))
-        {
-          vm_int_buf_put_op(VM_INT_OP_ISET);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[lhs]));
-          vm_int_buf_put(vm_reg_t, rhs);
-        }
-        else
-        {
-          vm_int_buf_put_op(VM_INT_OP_CSET);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_value_t, regs[lhs]);
-          vm_int_buf_put(vm_reg_t, rhs);
-        }
+        vm_int_buf_put_op(VM_INT_OP_CSET);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_value_t, regs[lhs]);
+        vm_int_buf_put(vm_reg_t, rhs);
       }
       else if (named[rhs])
       {
-        if (VM_VALUE_IS_INT(regs[rhs]))
-        {
-          vm_int_buf_put_op(VM_INT_OP_SETI);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_int_t, VM_VALUE_GET_INT(regs[rhs]));
-        }
-        else
-        {
-          vm_int_buf_put_op(VM_INT_OP_SETC);
-          vm_int_buf_put(vm_reg_t, out);
-          vm_int_buf_put(vm_reg_t, lhs);
-          vm_int_buf_put(vm_value_t, regs[rhs]);
-        }
+        vm_int_buf_put_op(VM_INT_OP_SETC);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, lhs);
+        vm_int_buf_put(vm_value_t, regs[rhs]);
       }
       else
       {
@@ -886,7 +678,7 @@ uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void *
   {
     if (froms[i] != 0)
     {
-      *(vm_loc_t *)&ret[i] = locs[froms[i]];
+      *(vm_loc_t*)&ret[i] = locs[froms[i]];
     }
   }
   vm_free(regs);
