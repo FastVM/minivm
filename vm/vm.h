@@ -2,8 +2,8 @@
 
 #include "opcode.h"
 
-typedef uint64_t vm_loc_t;
-typedef uint64_t vm_reg_t;
+typedef int64_t vm_loc_t;
+typedef int64_t vm_reg_t;
 
 #include "int/gc.h"
 

@@ -64,7 +64,7 @@ func toplevel
     set r5 r6 r7
     r6 <- int 1
     set r5 r6 r5
-    r8 <- int 35
+    r8 <- int 40
     r9 <- int 0
     r9 <- get r5 r9
     r10 <- dcall r9 r5 r8

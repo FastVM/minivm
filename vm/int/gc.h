@@ -1,48 +1,44 @@
 #pragma once
 
 #include "../lib.h"
-#include <gmp.h>
 
 typedef int64_t vm_int_t;
-typedef double vm_float_t;
 
 struct vm_value_t;
 typedef struct vm_value_t vm_value_t;
 
+#if 0
 struct vm_value_t
 {
-  union {
-    ptrdiff_t ival;
-    size_t uval;
-  };
+  uint8_t type: 3;
+  int64_t ival: 61;
 };
+#else
+struct vm_value_t
+{
+  vm_int_t ival;
+};
+#endif
 
 struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;
 
 struct vm_gc_t
 {
-  size_t str_root;
-  char **restrict str_buf;
-  size_t *restrict str_lens;
-  uint8_t *restrict str_marks;
-  size_t str_used;
-  size_t str_alloc;
-
   vm_value_t **restrict arr_buf;
-  size_t *restrict arr_lens;
+  vm_int_t *restrict arr_lens;
   uint8_t *restrict arr_marks;
-  size_t arr_used;
-  size_t arr_alloc;
+  vm_int_t arr_used;
+  vm_int_t arr_alloc;
 
-  size_t *restrict move_buf;
-  size_t move_alloc;
+  vm_int_t *restrict move_buf;
+  vm_int_t move_alloc;
 
-  size_t nregs;
+  vm_int_t nregs;
   vm_value_t *restrict regs;
 
-  size_t count;
-  size_t max;
+  vm_int_t count;
+  vm_int_t max;
 
   bool running;
 };
@@ -51,34 +47,36 @@ void vm_gc_init(vm_gc_t *restrict out);
 void vm_gc_stop(vm_gc_t gc);
 void vm_gc_run(vm_gc_t *restrict gc);
 
-size_t vm_gc_arr(vm_gc_t *restrict gc, size_t size);
-void vm_gc_set_char(vm_gc_t *restrict gc, size_t ptr, vm_int_t index, char chr);
+vm_int_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t size);
+void vm_gc_set_char(vm_gc_t *restrict gc, vm_int_t ptr, vm_int_t index, char chr);
 
-size_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t ptr);
+vm_int_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t ptr);
 vm_value_t vm_gc_get_v(vm_gc_t *restrict gc, vm_value_t ptr, vm_value_t key);
 
 void vm_gc_set_vv(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t key, vm_value_t value);
 
-#define VM_VALUE_SHORT_OKAY(n_) ({ vm_int_t x_ = (n_); -(1L<<28)<x_&&x_<(1L<<28); })
+#if 0
+#define VM_VALUE_GET_INT(n_) ((n_).ival)
+#define VM_VALUE_GET_ARR(n_) ((n_).ival)
 
+#define VM_VALUE_SET_INT(n_) ((vm_value_t){.type = 0, .ival = (n_)})
+#define VM_VALUE_SET_ARR(n_) ((vm_value_t){.type = 1, .ival = (n_)})
+
+#define VM_VALUE_IS_INT(n_) ((n_).type == 0)
+#define VM_VALUE_IS_ARR(n_) ((n_).type == 1)
+#else
 #define VM_VALUE_GET_INT(n_) ((n_).ival >> 1)
-#define VM_VALUE_GET_ARR(n_) ((size_t)((n_).uval >> 1))
+#define VM_VALUE_GET_ARR(n_) ((n_).ival >> 1)
 
-#define VM_VALUE_SET_INT(n_) ((vm_value_t){.ival = (n_) << 1 })
-#define VM_VALUE_SET_ARR(n_) ((vm_value_t){.uval = ((n_) << 1) | 1})
+#define VM_VALUE_SET_INT(n_) ((vm_value_t) {.ival = (n_) << 1})
+#define VM_VALUE_SET_ARR(n_) ((vm_value_t) {.ival = ((n_) << 1) | 1})
 
-#define VM_VALUE_IS_INT(n_) ((n_).ival & 0x1 == 0)
-#define VM_VALUE_IS_ARR(n_) ((n_).uval & 0x1 == 1)
+#define VM_VALUE_IS_INT(n_) (((n_).ival & 1) == 0)
+#define VM_VALUE_IS_ARR(n_) (((n_).ival & 1) == 1)
+#endif
 
-static inline vm_value_t vm_value_from_func(vm_int_t n)
-{
-  return VM_VALUE_SET_INT(n);
-}
-
-static inline vm_int_t vm_value_to_func(vm_value_t x)
-{
-  return VM_VALUE_GET_INT(x);
-}
+#define vm_value_from_func(n_) (VM_VALUE_SET_INT(n_))
+#define vm_value_to_func(n_) (VM_VALUE_GET_INT(n_))
 
 #define vm_value_from_int(gc_, n_) (VM_VALUE_SET_INT(n_))
 #define vm_value_to_int(gc_, n_) (VM_VALUE_GET_INT(n_))

@@ -18,7 +18,7 @@ void vm_gc_init(vm_gc_t *restrict out)
 
 void vm_gc_stop(vm_gc_t gc)
 {
-    for (size_t i = 0; i < gc.arr_used; i++) {
+    for (vm_int_t i = 0; i < gc.arr_used; i++) {
         vm_free(gc.arr_buf[i]);
     }
     vm_free(gc.arr_buf);
@@ -30,14 +30,14 @@ void vm_gc_mark(vm_gc_t *restrict gc, vm_value_t val)
 {
     if (VM_VALUE_IS_ARR(val))
     {
-        size_t nth = VM_VALUE_GET_ARR(val);
+        vm_int_t nth = VM_VALUE_GET_ARR(val);
         if (nth < gc->arr_used)
         {
             if (gc->arr_marks[nth] != 1)
             {
                 gc->arr_marks[nth] = 1;
-                size_t len = gc->arr_lens[nth];
-                for (size_t i = 0; i < len; i++)
+                vm_int_t len = gc->arr_lens[nth];
+                for (vm_int_t i = 0; i < len; i++)
                 {
                     vm_gc_mark(gc, gc->arr_buf[nth][i]);
                 }
@@ -50,14 +50,14 @@ void vm_gc_move_arr(vm_gc_t *restrict gc, vm_value_t *set)
 {
     if (VM_VALUE_IS_ARR(*set))
     {
-        size_t nth = VM_VALUE_GET_ARR(*set);
+        vm_int_t nth = VM_VALUE_GET_ARR(*set);
         if (nth < gc->arr_used && gc->arr_marks[nth] != 0)
         {
             gc->arr_marks[nth] = 0;
-            size_t newpos = gc->move_buf[nth];
+            vm_int_t newpos = gc->move_buf[nth];
             *set = VM_VALUE_SET_ARR(newpos);
-            size_t len = gc->arr_lens[newpos];
-            for (size_t i = 0; i < len; i++)
+            vm_int_t len = gc->arr_lens[newpos];
+            for (vm_int_t i = 0; i < len; i++)
             {
                 vm_gc_move_arr(gc, &gc->arr_buf[newpos][i]);
             }
@@ -70,7 +70,7 @@ void vm_gc_run(vm_gc_t *restrict gc)
     if (gc->count < gc->max) {
         return;
     }
-    for (size_t i = 0; i < gc->nregs; i++)
+    for (vm_int_t i = 0; i < gc->nregs; i++)
     {
         vm_gc_mark(gc, gc->regs[i]);
     }
@@ -78,10 +78,10 @@ void vm_gc_run(vm_gc_t *restrict gc)
         if (gc->arr_alloc > gc->move_alloc)
         {
             gc->move_alloc = gc->arr_alloc * 2;
-            gc->move_buf = vm_realloc(gc->move_buf, sizeof(size_t) * gc->move_alloc);
+            gc->move_buf = vm_realloc(gc->move_buf, sizeof(vm_int_t) * gc->move_alloc);
         }
-        size_t arr_used = 0;
-        for (size_t i = 0; i < gc->arr_used; i++)
+        vm_int_t arr_used = 0;
+        for (vm_int_t i = 0; i < gc->arr_used; i++)
         {
             if (gc->arr_marks[i] == 1)
             {
@@ -91,7 +91,7 @@ void vm_gc_run(vm_gc_t *restrict gc)
                     gc->arr_buf[i] = tmp;
                 }
                 {
-                    size_t tmp = gc->arr_lens[arr_used];
+                    vm_int_t tmp = gc->arr_lens[arr_used];
                     gc->arr_lens[arr_used] = gc->arr_lens[i];
                     gc->arr_lens[i] = tmp;
                 }
@@ -103,45 +103,45 @@ void vm_gc_run(vm_gc_t *restrict gc)
                 vm_free(gc->arr_buf[i]);
             }
         }
-        for (size_t i = 0; i < gc->nregs; i++)
+        for (vm_int_t i = 0; i < gc->nregs; i++)
         {
             vm_gc_move_arr(gc, &gc->regs[i]);
         }
         gc->arr_used = arr_used;
     }
     gc->count = 0;
-    gc->max = (gc->str_alloc + gc->arr_alloc) >> 1;
+    gc->max = gc->arr_alloc >> 1;
     if (gc->max < VM_GC_MIN)
     {
         gc->max = VM_GC_MIN;
     }
 }
 
-size_t vm_gc_arr(vm_gc_t *restrict gc, size_t size)
+vm_int_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t size)
 {
-    size_t next_head = gc->arr_used + 1;
+    vm_int_t next_head = gc->arr_used + 1;
     if (gc->arr_alloc <= next_head)
     {
-        size_t next_alloc = next_head * 2;
+        vm_int_t next_alloc = next_head * 2;
         gc->arr_buf = vm_realloc(gc->arr_buf, sizeof(vm_value_t *) * next_alloc);
-        gc->arr_lens = vm_realloc(gc->arr_lens, sizeof(size_t) * next_alloc);
+        gc->arr_lens = vm_realloc(gc->arr_lens, sizeof(vm_int_t) * next_alloc);
         gc->arr_marks = vm_realloc(gc->arr_marks, sizeof(uint8_t) * next_alloc);
-        for (size_t i = gc->arr_alloc; i < next_alloc; i++)
+        for (vm_int_t i = gc->arr_alloc; i < next_alloc; i++)
         {
             gc->arr_buf[i] = NULL;
             gc->arr_marks[i] = 0;
         }
         gc->arr_alloc = next_alloc;
     }
-    size_t ret = gc->arr_used;
-    gc->arr_lens[ret] = (size_t)size;
+    vm_int_t ret = gc->arr_used;
+    gc->arr_lens[ret] = (vm_int_t)size;
     gc->arr_buf[ret] = vm_malloc(sizeof(vm_value_t) * size);
     gc->arr_used = next_head;
     gc->count += 1;
     return ret;
 }
 
-size_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t val)
+vm_int_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t val)
 {
     return gc->arr_lens[VM_VALUE_GET_ARR(val)];
 }

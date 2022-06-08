@@ -12,6 +12,6 @@
 #define VM_CONFIG_NUM_REGS (VM_CONFIG_NUM_FRAMES * 16)
 #endif
 
-#if !defined(VM_GROW_STACK)
-#define VM_GROW_STACK (1)
+#if !defined(VM_CONFIG_GROW_STACK)
+#define VM_CONFIG_GROW_STACK (0)
 #endif
