@@ -713,6 +713,22 @@ uint8_t* vm_int_comp(size_t nops, const vm_opcode_t* ops, uint8_t* jumps, void**
       vm_int_buf_put_op(VM_INT_OP_LEN);
       vm_int_buf_put(vm_reg_t, out);
       vm_int_buf_put(vm_reg_t, in);
+      named[out] = 0;
+      break;
+    }
+    case VM_OPCODE_TYPE:
+    {
+      vm_opcode_t out = ops[index++];
+      vm_opcode_t in = ops[index++];
+      if (named[in]) {
+        regs[out] = vm_value_from_int(gc, vm_value_typeof(gc, regs[in]));
+        named[out] = 1;
+      } else {
+        vm_int_buf_put_op(VM_INT_OP_TYPE);
+        vm_int_buf_put(vm_reg_t, out);
+        vm_int_buf_put(vm_reg_t, in);
+        named[out] = 0;
+      }
       break;
     }
     default:

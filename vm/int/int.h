@@ -68,6 +68,7 @@ enum vm_int_op_t
   VM_INT_OP_SUB2I,
   VM_INT_OP_2SUB,
   VM_INT_OP_I2SUB,
+  VM_INT_OP_TYPE,
   VM_INT_MAX_OP,
 };
 

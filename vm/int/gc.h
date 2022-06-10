@@ -104,3 +104,4 @@ void vm_gc_set_char(vm_gc_t *restrict gc, vm_int_t ptr, vm_int_t index, char chr
 #define vm_value_is_less(gc_, a_, b_) (VM_VALUE_GET_INT(a_) < VM_VALUE_GET_INT(b_))
 #define vm_value_is_less_int(gc_, a_, b_) (VM_VALUE_GET_INT(a_) < (b_))
 #define vm_value_is_int_less(gc_, a_, b_) ((a_) < VM_VALUE_GET_INT(b_))
+#define vm_value_typeof(gc_, v_) ({vm_value_t t_ = (v_); VM_VALUE_IS_INT(t_) ? 0 : VM_VALUE_IS_ARR(t_) ? 1 : 2;})

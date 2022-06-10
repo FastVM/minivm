@@ -221,6 +221,13 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets)
           vm_asm_put_reg(vm_asm_read_reg(src));
           continue;
         }
+        if (vm_asm_starts(opname, "type"))
+        {
+          vm_asm_put_op(VM_OPCODE_TYPE);
+          vm_asm_put_reg(regno);
+          vm_asm_put_reg(vm_asm_read_reg(src));
+          continue;
+        }
         if (vm_asm_starts(opname, "addr"))
         {
           vm_asm_put_op(VM_OPCODE_ADDR);

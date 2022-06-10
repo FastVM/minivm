@@ -103,6 +103,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
       [VM_INT_OP_2SUB] = &&exec_2sub,
       [VM_INT_OP_I2SUB] = &&exec_i2sub,
       [VM_INT_OP_LEN] = &&exec_len,
+      [VM_INT_OP_TYPE] = &&exec_type,
   };
   uint8_t *jumps = vm_jump_all(nops, iops);
   if (jumps == NULL)
@@ -757,6 +758,13 @@ exec_i2sub:
   vm_value_t *out = vm_int_read_store();
   vm_int_t lhs = vm_int_read_int();
   *out = vm_value_isub(gc, lhs, *out);
+  vm_int_jump_next();
+}
+exec_type:
+{
+  vm_value_t *out = vm_int_read_store();
+  vm_value_t in = vm_int_read_load();
+  *out = vm_value_from_int(gc, vm_value_typeof(gc, in));
   vm_int_jump_next();
 }
 }
