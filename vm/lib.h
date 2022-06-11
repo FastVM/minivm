@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <gmp.h>
 
 static inline size_t vm_strlen(const char *str)
 {
