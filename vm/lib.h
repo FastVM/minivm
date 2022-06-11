@@ -1,5 +1,6 @@
 
-#pragma once
+#if !defined(VM_HEADER_LIB)
+#define VM_HEADER_LIB
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -40,3 +41,5 @@ static inline int vm_streq(const char *str1, const char *str2)
 #define vm_free(ptr) (free((void*) ptr))
 
 #include "config.h"
+
+#endif

@@ -1,4 +1,6 @@
-#pragma once
+
+#if !defined(VM_HEADER_CONFIG)
+#define VM_HEADER_CONFIG
 
 #if !defined(VM_GC_MIN)
 #define VM_GC_MIN (1 << 12)
@@ -14,4 +16,5 @@
 
 #if !defined(VM_CONFIG_GROW_STACK)
 #define VM_CONFIG_GROW_STACK (0)
+#endif
 #endif

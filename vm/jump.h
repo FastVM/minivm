@@ -1,4 +1,6 @@
-#pragma once
+
+#if !defined(VM_HEADER_JUMP)
+#define VM_HEADER_JUMP
 
 #include "opcode.h"
 
@@ -16,3 +18,5 @@ void vm_jump_reachable(size_t nops, const vm_opcode_t *ops, uint8_t *jumps);
 
 uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops);
 uint8_t *vm_jump_all(size_t nops, const vm_opcode_t *ops);
+
+#endif

@@ -1,5 +1,4 @@
 
-#include "reguse.h"
 #include "opcode.h"
 #include "jump.h"
 

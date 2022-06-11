@@ -1,4 +1,6 @@
-#pragma once
+
+#if !defined(VM_HEADER_INT_INT)
+#define VM_HEADER_INT_INT
 
 #include "gc.h"
 #include "../lib.h"
@@ -74,3 +76,5 @@ enum vm_int_op_t
 
 uint8_t *vm_int_comp(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, void **ptrs, vm_gc_t *restrict gc);
 int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc);
+
+#endif

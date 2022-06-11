@@ -1,7 +1,7 @@
 
 #include "../vm/asm.h"
 
-const char *vm_asm_io_read(const char *filename)
+static const char *vm_asm_io_read(const char *filename)
 {
   void *file = fopen(filename, "rb");
   if (file == NULL)

@@ -660,8 +660,7 @@ exec_arrc:
 }
 exec_map:
 {
-  __builtin_trap();
-  vm_int_jump_next();
+  return 1;
 }
 exec_get:
 {

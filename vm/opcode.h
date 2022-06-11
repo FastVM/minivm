@@ -1,4 +1,6 @@
-#pragma once
+
+#if !defined(VM_HEADER_OPCODE)
+#define VM_HEADER_OPCODE
 
 #include "lib.h"
 
@@ -39,3 +41,7 @@ enum
 };
 
 typedef uint32_t vm_opcode_t;
+
+int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t index, size_t reg, size_t nbuf, size_t* buf, size_t head);
+
+#endif
