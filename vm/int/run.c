@@ -110,7 +110,7 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
   {
     return 1;
   }
-  uint8_t *ops = vm_int_comp(nops, iops, jumps, &ptrs[0], gc);
+  const uint8_t *const restrict ops = vm_int_comp(nops, iops, jumps, &ptrs[0], gc);
   vm_free(jumps);
   if (ops == NULL)
   {

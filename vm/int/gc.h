@@ -7,35 +7,40 @@ typedef int64_t vm_int_t;
 struct vm_value_t;
 typedef struct vm_value_t vm_value_t;
 
-#if 0
-struct vm_value_t
-{
-  uint8_t type: 3;
-  int64_t ival: 61;
-};
-#else
-struct vm_value_t
-{
-  vm_int_t ival;
-};
-#endif
+struct vm_gc_header_t;
+typedef struct vm_gc_header_t vm_gc_header_t;
 
 struct vm_gc_t;
 typedef struct vm_gc_t vm_gc_t;
 
+struct vm_value_t
+{
+  vm_int_t ival;
+};
+
+struct vm_gc_header_t
+{
+  uint16_t mark;
+  uint16_t type;
+  uint32_t len;
+};
+
+typedef union {
+  vm_value_t value;
+  vm_gc_header_t header;
+} vm_gc_data_t;
+
 struct vm_gc_t
 {
-  vm_value_t **restrict arr_buf;
-  vm_int_t *restrict arr_lens;
-  uint8_t *restrict arr_marks;
-  vm_int_t arr_used;
-  vm_int_t arr_alloc;
+  vm_gc_data_t *buf;
+  vm_int_t buf_used;
+  vm_int_t buf_alloc;
 
   vm_int_t *restrict move_buf;
   vm_int_t move_alloc;
 
   vm_int_t nregs;
-  vm_value_t *restrict regs;
+  vm_value_t *regs;
 
   vm_int_t count;
   vm_int_t max;
@@ -51,16 +56,6 @@ vm_int_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t size);
 void vm_gc_set_char(vm_gc_t *restrict gc, vm_int_t ptr, vm_int_t index, char chr);
 
 
-#if 0
-#define VM_VALUE_GET_INT(n_) ((n_).ival)
-#define VM_VALUE_GET_ARR(n_) ((n_).ival)
-
-#define VM_VALUE_SET_INT(n_) ((vm_value_t){.type = 0, .ival = (n_)})
-#define VM_VALUE_SET_ARR(n_) ((vm_value_t){.type = 1, .ival = (n_)})
-
-#define VM_VALUE_IS_INT(n_) ((n_).type == 0)
-#define VM_VALUE_IS_ARR(n_) ((n_).type == 1)
-#else
 #define VM_VALUE_GET_INT(n_) ((n_).ival >> 1)
 #define VM_VALUE_GET_ARR(n_) ((n_).ival >> 1)
 
@@ -69,16 +64,15 @@ void vm_gc_set_char(vm_gc_t *restrict gc, vm_int_t ptr, vm_int_t index, char chr
 
 #define VM_VALUE_IS_INT(n_) (((n_).ival & 1) == 0)
 #define VM_VALUE_IS_ARR(n_) (((n_).ival & 1) == 1)
-#endif
 
-#define vm_gc_len(gc_, obj_) (gc_->arr_lens[VM_VALUE_GET_ARR(obj_)])
-#define vm_gc_get_v(gc_, obj_, nth_) (gc_->arr_buf[VM_VALUE_GET_ARR(obj_)][VM_VALUE_GET_INT(nth_)])
-#define vm_gc_get_i(gc_, obj_, nth_) (gc_->arr_buf[VM_VALUE_GET_ARR(obj_)][(nth_)])
+#define vm_gc_len(gc_, obj_) (gc_->buf[VM_VALUE_GET_ARR(obj_) - 1].header.len)
+#define vm_gc_get_v(gc_, obj_, nth_) (gc_->buf[VM_VALUE_GET_ARR(obj_) + VM_VALUE_GET_INT(nth_)].value)
+#define vm_gc_get_i(gc_, obj_, nth_) (gc_->buf[VM_VALUE_GET_ARR(obj_) + (nth_)].value)
 
-#define vm_gc_set_vv(gc_, obj_, nth_, val_) (gc_->arr_buf[VM_VALUE_GET_ARR(obj_)][VM_VALUE_GET_INT(nth_)] = (val_))
-#define vm_gc_set_vi(gc_, obj_, nth_, val_) (gc_->arr_buf[VM_VALUE_GET_ARR(obj_)][VM_VALUE_GET_INT(nth_)] = VM_VALUE_SET_INT(val_))
-#define vm_gc_set_iv(gc_, obj_, nth_, val_) (gc_->arr_buf[VM_VALUE_GET_ARR(obj_)][(nth_)] = (val_))
-#define vm_gc_set_ii(gc_, obj_, nth_, val_) (gc_->arr_buf[VM_VALUE_GET_ARR(obj_)][(nth_)] = VM_VALUE_SET_INT(val_))
+#define vm_gc_set_vv(gc_, obj_, nth_, val_) (gc_->buf[VM_VALUE_GET_ARR(obj_) + VM_VALUE_GET_INT(nth_)].value = (val_))
+#define vm_gc_set_vi(gc_, obj_, nth_, val_) (gc_->buf[VM_VALUE_GET_ARR(obj_) + VM_VALUE_GET_INT(nth_)].value = VM_VALUE_SET_INT(val_))
+#define vm_gc_set_iv(gc_, obj_, nth_, val_) (gc_->buf[VM_VALUE_GET_ARR(obj_) + (nth_)].value = (val_))
+#define vm_gc_set_ii(gc_, obj_, nth_, val_) (gc_->buf[VM_VALUE_GET_ARR(obj_) + (nth_)].value = VM_VALUE_SET_INT(val_))
 
 #define vm_value_from_func(n_) (VM_VALUE_SET_INT(n_))
 #define vm_value_to_func(n_) (VM_VALUE_GET_INT(n_))
