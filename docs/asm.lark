@@ -23,8 +23,8 @@ opmul: REG "<-" "mul" REG REG
 opdiv: REG "<-" "div" REG REG 
 opmod: REG "<-" "mod" REG REG 
 opbb: "bb" REG LABEL LABEL
-opbeq: "beq" REG REG LABEL LABEl
-opblt: "blt" REG REG LABEL LABEl
+opbeq: "beq" REG REG LABEL LABEL
+opblt: "blt" REG REG LABEL LABEL
 opstr: "str" STR
 oparr: REG "<-" "arr" REG
 opset: "set" REG REG REG
