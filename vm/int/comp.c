@@ -33,8 +33,9 @@ uint8_t* vm_int_comp(size_t nops, const vm_opcode_t* ops, uint8_t* jumps, void**
   vm_loc_t* locs = vm_malloc(sizeof(vm_loc_t) * nops);
   uint8_t* ret = buf;
 
-  uint8_t* named = vm_alloc0(sizeof(uint8_t) * (1 << 14));
-  vm_value_t* regs = vm_malloc(sizeof(vm_value_t) * (1 << 12));
+  size_t reg_alloc = 1 << 8;
+  uint8_t* named = vm_alloc0(sizeof(uint8_t) * (reg_alloc));
+  vm_value_t* regs = vm_malloc(sizeof(vm_value_t) * (reg_alloc));
 
   while (index < nops)
   {
@@ -138,6 +139,12 @@ uint8_t* vm_int_comp(size_t nops, const vm_opcode_t* ops, uint8_t* jumps, void**
       cend = ops[index++];
       vm_opcode_t nargs = ops[index++];
       nregs = ops[index++];
+      if (nregs > reg_alloc)
+      {
+        reg_alloc = nregs * 2;
+        named = realloc(named, sizeof(uint8_t) * reg_alloc);
+        regs = realloc(regs, sizeof(vm_value_t) * reg_alloc);
+      }
       vm_int_buf_put_op(VM_INT_OP_JUMP);
       froms[buf - ret] = cend;
       vm_int_buf_put(vm_loc_t, 0);

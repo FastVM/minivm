@@ -15,6 +15,6 @@
 #endif
 
 #if !defined(VM_CONFIG_GROW_STACK)
-#define VM_CONFIG_GROW_STACK (0)
+#define VM_CONFIG_GROW_STACK (1)
 #endif
 #endif
