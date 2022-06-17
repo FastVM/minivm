@@ -19,8 +19,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
     {
     case VM_OPCODE_EXIT:
       return 0;
-    case VM_OPCODE_DJUMP:
-      return 1;
     case VM_OPCODE_RET:
       return ops[index + 1] == reg;
     case VM_OPCODE_FUNC:
@@ -89,7 +87,6 @@ int vm_reg_is_used(size_t nops, const vm_opcode_t *ops, uint8_t *jumps, size_t i
         return 0;
       }
       break;
-    case VM_OPCODE_MAP:
     case VM_OPCODE_INT:
     case VM_OPCODE_NEG:
       if (ops[index + 1] == reg)

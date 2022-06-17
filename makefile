@@ -4,7 +4,7 @@ CLANG ?= 14
 OPT ?= -O2
 NUM ?= 3
 
-SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c
+SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c
 OBJS := $(SRCS:%.c=%.o)
 
 default: bin/minivm-asm libminivm.a

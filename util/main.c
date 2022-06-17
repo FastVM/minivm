@@ -31,6 +31,8 @@ static const char *vm_asm_io_read(const char *filename)
   return ops;
 }
 
+void vm_test_toir(size_t nops, const vm_opcode_t *ops);
+
 int main(int argc, char **argv)
 {
   // const char *dump = "out.bc";
@@ -47,6 +49,7 @@ int main(int argc, char **argv)
     return 1;
   }
   vm_asm_buf_t buf = vm_asm(src);
+  vm_test_toir(buf.nops, buf.ops);
   vm_free((void *)src);
   if (buf.nops == 0) {
     fprintf(stderr, "could not assemble file\n");

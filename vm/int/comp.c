@@ -123,13 +123,6 @@ uint8_t* vm_int_comp(size_t nops, const vm_opcode_t* ops, uint8_t* jumps, void**
       vm_int_buf_put(vm_loc_t, 0);
       break;
     }
-    case VM_OPCODE_DJUMP:
-    {
-      vm_opcode_t locreg = ops[index++];
-      vm_int_buf_put_op(VM_INT_OP_DJUMP);
-      vm_int_buf_put(vm_reg_t, locreg);
-      break;
-    }
     case VM_OPCODE_FUNC:
     {
       for (size_t i = 0; i < nregs; i++)
@@ -645,14 +638,6 @@ uint8_t* vm_int_comp(size_t nops, const vm_opcode_t* ops, uint8_t* jumps, void**
         vm_int_buf_put(vm_reg_t, out);
         vm_int_buf_put(vm_reg_t, size);
       }
-      named[out] = 0;
-      break;
-    }
-    case VM_OPCODE_MAP:
-    {
-      vm_opcode_t out = ops[index++];
-      vm_int_buf_put_op(VM_INT_OP_MAP);
-      vm_int_buf_put(vm_reg_t, out);
       named[out] = 0;
       break;
     }

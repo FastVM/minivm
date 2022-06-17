@@ -70,7 +70,6 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
       [VM_INT_OP_DCALL7] = &&exec_dcall7,
       [VM_INT_OP_DCALL8] = &&exec_dcall8,
       [VM_INT_OP_JUMP] = &&exec_jump,
-      [VM_INT_OP_DJUMP] = &&exec_djump,
       [VM_INT_OP_ADDI] = &&exec_addc,
       [VM_INT_OP_SUBI] = &&exec_subc,
       [VM_INT_OP_ISUB] = &&exec_csub,
@@ -89,7 +88,6 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
       [VM_INT_OP_IBLT] = &&exec_cblt,
       [VM_INT_OP_ARR] = &&exec_arr,
       [VM_INT_OP_ARRI] = &&exec_arrc,
-      [VM_INT_OP_MAP] = &&exec_map,
       [VM_INT_OP_GET] = &&exec_get,
       [VM_INT_OP_GETI] = &&exec_getc,
       [VM_INT_OP_SET] = &&exec_set,
@@ -512,12 +510,6 @@ exec_jump:
   index = loc;
   vm_int_jump_next();
 }
-exec_djump:
-{
-  vm_value_t reg = vm_int_read_load();
-  index = vm_value_to_func(reg);
-  vm_int_jump_next();
-}
 exec_addc:
 {
   vm_value_t *out = vm_int_read_store();
@@ -657,10 +649,6 @@ exec_arrc:
   *outreg = VM_VALUE_SET_ARR(vm_gc_arr(gc, num));
   vm_gc_run(gc);
   vm_int_jump_next();
-}
-exec_map:
-{
-  return 1;
 }
 exec_get:
 {
