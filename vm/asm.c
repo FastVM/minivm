@@ -418,7 +418,6 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks)
     }
     goto err;
   }
-  vm_asm_put_op(VM_OPCODE_EXIT);
   return instrs;
 err:
   fprintf(stderr, "%.100s", *src);

@@ -146,7 +146,7 @@ void vm_ir_print_arg(FILE *out, vm_ir_arg_t *val)
     }
     case VM_IR_ARG_FUNC:
     {
-        fprintf(out, "{.L%zu}", val->func->id);
+        fprintf(out, ".%zu", val->func->id);
         break;
     }
     }
@@ -199,11 +199,11 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
     }
     if (val->targets[0])
     {
-        fprintf(out, " {.L%zu}", (size_t) val->targets[0]->id);
+        fprintf(out, " .%zu", (size_t) val->targets[0]->id);
     }
     if (val->targets[1])
     {
-        fprintf(out, " {.L%zu}", (size_t) val->targets[1]->id);
+        fprintf(out, " .%zu", (size_t) val->targets[1]->id);
     }
 }
 void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val)
