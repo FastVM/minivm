@@ -8,24 +8,23 @@ struct vm_ir_arg_t;
 struct vm_ir_branch_t;
 struct vm_ir_instr_t;
 struct vm_ir_block_t;
-struct vm_ir_func_t;
 
 typedef struct vm_ir_arg_t vm_ir_arg_t;
 typedef struct vm_ir_branch_t vm_ir_branch_t;
 typedef struct vm_ir_instr_t vm_ir_instr_t;
 typedef struct vm_ir_block_t vm_ir_block_t;
-typedef struct vm_ir_func_t vm_ir_func_t;
 
 enum
 {
     VM_IR_ARG_REG,
     VM_IR_ARG_NUM,
+    VM_IR_ARG_STR,
     VM_IR_ARG_FUNC,
 };
 
 enum
 {
-    VM_IR_BOP_GOTO,
+    VM_IR_BOP_JUMP,
     VM_IR_BOP_BOOL,
     VM_IR_BOP_LESS,
     VM_IR_BOP_EQUAL,
@@ -48,6 +47,7 @@ enum
     VM_IR_IOP_SET,
     VM_IR_IOP_LEN,
     VM_IR_IOP_TYPE,
+    VM_IR_IOP_OUT,
 };
 
 struct vm_ir_arg_t
@@ -55,15 +55,16 @@ struct vm_ir_arg_t
     union
     {
         size_t reg;
-        size_t num;
-        vm_ir_func_t *func;
+        ptrdiff_t num;
+        const char *str;
+        vm_ir_block_t *func;
     };
     uint8_t type;
 };
 
 struct vm_ir_branch_t
 {
-    int32_t targets[2];
+    vm_ir_block_t *targets[2];
     vm_ir_arg_t *args[2];
     uint8_t op;
 };
@@ -77,20 +78,13 @@ struct vm_ir_instr_t
 
 struct vm_ir_block_t
 {
+    ptrdiff_t id;
+
     vm_ir_instr_t **instrs;
     size_t len;
     size_t alloc;
 
     vm_ir_branch_t *branch;
-  
-    vm_ir_func_t *func;
-};
-
-struct vm_ir_func_t
-{
-    vm_ir_block_t *blocks;
-    size_t len;
-    size_t alloc;
 };
 
 #endif

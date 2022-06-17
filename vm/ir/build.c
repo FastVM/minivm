@@ -16,9 +16,19 @@ vm_ir_arg_t *vm_ir_arg_reg(size_t reg)
     return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_REG, .reg = reg);
 }
 
-vm_ir_arg_t *vm_ir_arg_num(size_t reg)
+vm_ir_arg_t *vm_ir_arg_func(vm_ir_block_t *func)
 {
-    return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_NUM, .reg = reg);
+    return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_FUNC, .func = func);
+}
+
+vm_ir_arg_t *vm_ir_arg_num(ptrdiff_t num)
+{
+    return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_NUM, .num = num);
+}
+
+vm_ir_arg_t *vm_ir_arg_str(const char *str)
+{
+    return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_STR, .str = str);
 }
 
 vm_ir_block_t *vm_ir_block_new(void)
@@ -26,7 +36,7 @@ vm_ir_block_t *vm_ir_block_new(void)
     return vm_ir_new(vm_ir_block_t);
 }
 
-void vm_ir_block_add_reg(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_arg_t *arg)
+void vm_ir_block_add_move(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_arg_t *arg)
 {
     vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MOVE, .out = out, .args[0] = arg));
 }
@@ -51,14 +61,14 @@ void vm_ir_block_add_mod(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_arg_t *lh
 {
     vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MOD, .out = out, .args[0] = lhs, .args[1] = rhs));
 }
-void vm_ir_block_add_addr(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_func_t *func)
+void vm_ir_block_add_addr(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_block_t *refblock)
 {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_ADDR, .out = out, .args[0] = vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_FUNC, .func = func)));
+    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_ADDR, .out = out, .args[0] = vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_FUNC, .func = refblock)));
 }
 void vm_ir_block_add_call(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_arg_t *func, vm_ir_arg_t **args)
 {
-    vm_ir_instr_t *instr = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_CALL, .args[0] = out, .args[1] = func);
-    size_t i = 2;
+    vm_ir_instr_t *instr = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_CALL, .out = out, .args[0] = func);
+    size_t i = 1;
     while (*args != NULL)
     {
         instr->args[i++] = *args++;
@@ -85,30 +95,34 @@ void vm_ir_block_add_set(vm_ir_block_t *block, vm_ir_arg_t *obj, vm_ir_arg_t *in
 {
     vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_SET, .out = NULL, .args[0] = obj, .args[1] = index, .args[2] = value));
 }
+void vm_ir_block_add_out(vm_ir_block_t *block, vm_ir_arg_t *arg)
+{
+    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_OUT, .out = NULL, .args[0] = arg));
+}
 
 void vm_ir_block_end_jump(vm_ir_block_t *block, vm_ir_block_t *target)
 {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_GOTO, .targets[0] = target - block->func->blocks);
+    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_JUMP, .targets[0] = target);
 }
 void vm_ir_block_end_bb(vm_ir_block_t *block, vm_ir_arg_t *val, vm_ir_block_t *iffalse, vm_ir_block_t *iftrue)
 {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_BOOL, .args[0] = val, .targets[0] = iffalse - block->func->blocks, .targets[1] = iftrue - block->func->blocks);
+    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_BOOL, .args[0] = val, .targets[0] = iffalse, .targets[1] = iftrue);
 }
 void vm_ir_block_end_blt(vm_ir_block_t *block, vm_ir_arg_t *lhs, vm_ir_arg_t *rhs, vm_ir_block_t *iffalse, vm_ir_block_t *iftrue)
 {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_LESS, .args[0] = lhs, .args[1] = rhs, .targets[0] = iffalse - block->func->blocks, .targets[1] = iftrue - block->func->blocks);
+    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_LESS, .args[0] = lhs, .args[1] = rhs, .targets[0] = iffalse, .targets[1] = iftrue);
 }
 void vm_ir_block_end_beq(vm_ir_block_t *block, vm_ir_arg_t *lhs, vm_ir_arg_t *rhs, vm_ir_block_t *iffalse, vm_ir_block_t *iftrue)
 {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_EQUAL, .args[0] = lhs, .args[1] = rhs, .targets[0] = iffalse - block->func->blocks, .targets[1] = iftrue - block->func->blocks);
+    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_EQUAL, .args[0] = lhs, .args[1] = rhs, .targets[0] = iffalse, .targets[1] = iftrue);
 }
 void vm_ir_block_end_ret(vm_ir_block_t *block, vm_ir_arg_t *arg)
 {
     block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_RET, .args[0] = arg);
 }
-void vm_ir_block_end_exit(vm_ir_block_t *block, vm_ir_arg_t *arg)
+void vm_ir_block_end_exit(vm_ir_block_t *block)
 {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_EXIT, .args[0] = arg);
+    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_EXIT);
 }
 
 void vm_ir_print_arg(FILE *out, vm_ir_arg_t *val)
@@ -117,7 +131,12 @@ void vm_ir_print_arg(FILE *out, vm_ir_arg_t *val)
     {
     case VM_IR_ARG_NUM:
     {
-        fprintf(out, "%zu", val->num);
+        fprintf(out, "%zi", val->num);
+        break;
+    }
+    case VM_IR_ARG_STR:
+    {
+        fprintf(out, "\"%s\"", val->str);
         break;
     }
     case VM_IR_ARG_REG:
@@ -127,7 +146,7 @@ void vm_ir_print_arg(FILE *out, vm_ir_arg_t *val)
     }
     case VM_IR_ARG_FUNC:
     {
-        fprintf(out, "<func>");
+        fprintf(out, "{.L%zu}", val->func->id);
         break;
     }
     }
@@ -136,10 +155,11 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
 {
     switch (val->op)
     {
-    case VM_IR_BOP_GOTO:
+    case VM_IR_BOP_JUMP:
     {
 
-        fprintf(out, "goto");
+        fprintf(out, "jump");
+        break;
     }
     case VM_IR_BOP_BOOL:
     {
@@ -177,18 +197,18 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
         fprintf(out, " ");
         vm_ir_print_arg(out, val->args[1]);
     }
-    if (val->targets[0] >= 0)
+    if (val->targets[0])
     {
-        fprintf(out, " {.L%zu}", (size_t) val->targets[0]);
+        fprintf(out, " {.L%zu}", (size_t) val->targets[0]->id);
     }
-    if (val->targets[1] >= 0)
+    if (val->targets[1])
     {
-        fprintf(out, " {.L%zu}", (size_t) val->targets[1]);
+        fprintf(out, " {.L%zu}", (size_t) val->targets[1]->id);
     }
 }
 void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val)
 {
-    if (out != NULL)
+    if (val->out != NULL)
     {
         vm_ir_print_arg(out, val->out);
         fprintf(out, " <- ");
@@ -260,6 +280,11 @@ void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val)
         fprintf(out, "type");
         break;
     }
+    case VM_IR_IOP_OUT:
+    {
+        fprintf(out, "out");
+        break;
+    }
     }
     for (size_t i = 0; val->args[i] != NULL; i++)
     {
@@ -275,12 +300,14 @@ void vm_ir_print_block(FILE *out, vm_ir_block_t *val)
         vm_ir_print_instr(out, val->instrs[i]);
         fprintf(out, "\n");
     }
-}
-void vm_ir_print_func(FILE *out, vm_ir_func_t *val)
-{
-    for (size_t i = 0; i < val->len; i++)
+    if (val->branch != NULL)
     {
-        fprintf(out, ".L%zu:\n", i);
-        vm_ir_print_block(out, &val->blocks[i]);
+        fprintf(out, "    ");
+        vm_ir_print_branch(out, val->branch);
+        fprintf(out, "\n");
+    }
+    else
+    {
+        fprintf(out, "    <fall>\n");
     }
 }

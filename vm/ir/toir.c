@@ -1,26 +1,55 @@
 
 #include "../opcode.h"
+#include "../jump.h"
 #include "./build.h"
 
-void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t *func)
+void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_t *blocks, uint8_t *jumps)
 {
+    vm_ir_block_t *block = NULL;
     while (*index < nops)
     {
+        if (block == NULL)
+        {
+            block = &blocks[*index];
+            if (block->id == *index)
+            {
+                return;
+            }
+            block->id = *index;
+        }
+        else if ((jumps[*index] & VM_JUMP_IN) && block->branch == NULL)
+        {
+            ptrdiff_t oid = blocks[*index].id;
+            blocks[*index].id = *index;
+            vm_ir_block_end_jump(block, &blocks[*index]);
+            block = &blocks[*index];
+            if (oid == *index)
+            {
+                return;
+            }
+        }
+        printf("%zu: %zu\n", *index, (size_t) ops[*index]);
         switch (ops[(*index)++])
         {
         case VM_OPCODE_EXIT:
         {
+            vm_ir_block_end_exit(block);
+            block = NULL;
             break;
         }
         case VM_OPCODE_REG:
         {
             size_t in = ops[(*index)++];
             size_t out = ops[(*index)++];
+            vm_ir_block_add_move(block, vm_ir_arg_reg(out), vm_ir_arg_reg(in));
             break;
         }
         case VM_OPCODE_JUMP:
         {
             size_t loc = ops[(*index)++];
+            size_t ii = loc;
+            vm_ir_block_end_jump(block, &blocks[loc]);
+            block = NULL;
             break;
         }
         case VM_OPCODE_FUNC:
@@ -28,7 +57,8 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t over = ops[(*index)++];
             vm_opcode_t nargs = ops[(*index)++];
             vm_opcode_t nregs = ops[(*index)++];
-            *index = (size_t) over;
+            // vm_ir_read(nops, ops, index, blocks, jumps);
+            *index = over;
             break;
         }
         case VM_OPCODE_CALL:
@@ -36,7 +66,15 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t rreg = ops[(*index)++];
             vm_opcode_t func = ops[(*index)++];
             vm_opcode_t nargs = ops[(*index)++];
-            *index += nargs;
+            vm_ir_arg_t **args = vm_malloc(sizeof(vm_ir_arg_t *) * (nargs + 1));
+            for (size_t i = 0; i < nargs; i++)
+            {
+                args[i] = vm_ir_arg_reg(ops[(*index)++]);
+            }
+            args[nargs] = NULL;
+            vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_func(&blocks[func]), args);
+            size_t ii = func;
+            vm_ir_read(nops, ops, &ii, blocks, jumps);
             break;
         }
         case VM_OPCODE_DCALL:
@@ -44,35 +82,50 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t rreg = ops[(*index)++];
             vm_opcode_t func = ops[(*index)++];
             vm_opcode_t nargs = ops[(*index)++];
+            vm_ir_arg_t **args = vm_malloc(sizeof(vm_ir_arg_t *) * (nargs + 1));
+            for (size_t i = 0; i < nargs; i++)
+            {
+                args[i] = vm_ir_arg_reg(ops[(*index)++]);
+            }
+            args[nargs] = NULL;
             *index += nargs;
+            vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_reg(func), args);
             break;
         }
         case VM_OPCODE_ADDR:
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t func = ops[(*index)++];
+            vm_ir_block_add_addr(block, vm_ir_arg_reg(reg), &blocks[func]);
+            size_t ii = func;
+            vm_ir_read(nops, ops, &ii, blocks, jumps);
             break;
         }
         case VM_OPCODE_RET:
         {
             vm_opcode_t reg = ops[(*index)++];
+            vm_ir_block_end_ret(block, vm_ir_arg_reg(reg));
+            block = NULL;
             break;
         }
         case VM_OPCODE_PUTCHAR:
         {
             vm_opcode_t reg = ops[(*index)++];
+            vm_ir_block_add_out(block, vm_ir_arg_reg(reg));
             break;
         }
         case VM_OPCODE_INT:
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t val = ops[(*index)++];
+            vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_num(val));
             break;
         }
         case VM_OPCODE_NEG:
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t val = ops[(*index)++];
+            vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_num(-(ptrdiff_t)val));
             break;
         }
         case VM_OPCODE_ADD:
@@ -80,6 +133,7 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t out = ops[(*index)++];
             vm_opcode_t lhs = ops[(*index)++];
             vm_opcode_t rhs = ops[(*index)++];
+            vm_ir_block_add_add(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
             break;
         }
         case VM_OPCODE_SUB:
@@ -87,6 +141,7 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t out = ops[(*index)++];
             vm_opcode_t lhs = ops[(*index)++];
             vm_opcode_t rhs = ops[(*index)++];
+            vm_ir_block_add_sub(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
             break;
         }
         case VM_OPCODE_MUL:
@@ -94,6 +149,7 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t out = ops[(*index)++];
             vm_opcode_t lhs = ops[(*index)++];
             vm_opcode_t rhs = ops[(*index)++];
+            vm_ir_block_add_mul(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
             
             break;
         }
@@ -102,6 +158,7 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t out = ops[(*index)++];
             vm_opcode_t lhs = ops[(*index)++];
             vm_opcode_t rhs = ops[(*index)++];
+            vm_ir_block_add_div(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
             break;
         }
         case VM_OPCODE_MOD:
@@ -109,43 +166,56 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t out = ops[(*index)++];
             vm_opcode_t lhs = ops[(*index)++];
             vm_opcode_t rhs = ops[(*index)++];
+            vm_ir_block_add_mod(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
             break;
         }
         case VM_OPCODE_BB:
         {
             vm_opcode_t val = ops[(*index)++];
-            vm_opcode_t ift = ops[(*index)++];
             vm_opcode_t iff = ops[(*index)++];
+            vm_opcode_t ift = ops[(*index)++];
+            vm_ir_block_end_bb(block, vm_ir_arg_reg(val), &blocks[iff], &blocks[ift]);
+            block = NULL;
             break;
         }
         case VM_OPCODE_BEQ:
         {
             vm_opcode_t lhs = ops[(*index)++];
             vm_opcode_t rhs = ops[(*index)++];
-            vm_opcode_t ift = ops[(*index)++];
             vm_opcode_t iff = ops[(*index)++];
+            vm_opcode_t ift = ops[(*index)++];
+            vm_ir_block_end_beq(block, vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs), &blocks[iff], &blocks[ift]);
+            block = NULL;
             break;
         }
         case VM_OPCODE_BLT:
         {
             vm_opcode_t lhs = ops[(*index)++];
             vm_opcode_t rhs = ops[(*index)++];
-            vm_opcode_t ift = ops[(*index)++];
             vm_opcode_t iff = ops[(*index)++];
+            vm_opcode_t ift = ops[(*index)++];
+            vm_ir_block_end_blt(block, vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs), &blocks[iff], &blocks[ift]);
+            block = NULL;
             break;
         }
         case VM_OPCODE_STR:
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t len = ops[(*index)++];
-            *index += len;
+            char *s = vm_malloc(sizeof(char) * (len + 1));
+            for (size_t i = 0; i < len; i++)
+            {
+                s[i] = (char) ops[(*index)++];
+            }
+            s[len] = '\0';
+            vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_str(s));
             break;
         }
         case VM_OPCODE_ARR:
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t len = ops[(*index)++];
-            *index += len;
+            vm_ir_block_add_arr(block, vm_ir_arg_reg(reg), vm_ir_arg_reg(len));
             break;
         }
         case VM_OPCODE_SET:
@@ -153,6 +223,7 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t obj = ops[(*index)++];
             vm_opcode_t ind = ops[(*index)++];
             vm_opcode_t val = ops[(*index)++];
+            vm_ir_block_add_set(block, vm_ir_arg_reg(obj), vm_ir_arg_reg(ind), vm_ir_arg_reg(val));
             break;
         }
         case VM_OPCODE_GET:
@@ -160,18 +231,21 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t obj = ops[(*index)++];
             vm_opcode_t ind = ops[(*index)++];
+            vm_ir_block_add_get(block, vm_ir_arg_reg(reg), vm_ir_arg_reg(obj), vm_ir_arg_reg(ind));
             break;
         }
         case VM_OPCODE_LEN:
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t obj = ops[(*index)++];
+            vm_ir_block_add_len(block, vm_ir_arg_reg(reg), vm_ir_arg_reg(obj));
             break;
         }
         case VM_OPCODE_TYPE:
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t obj = ops[(*index)++];
+            vm_ir_block_add_type(block, vm_ir_arg_reg(reg), vm_ir_arg_reg(obj));
             break;
         }
         }
@@ -181,6 +255,23 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_func_t
 void vm_test_toir(size_t nops, const vm_opcode_t *ops)
 {
     size_t index = 0;
-    vm_ir_func_t *func = vm_ir_new(vm_ir_func_t);
-    vm_ir_read(nops, ops, &index, func);
+    uint8_t *jumps = vm_jump_base(nops, ops);
+    vm_ir_block_t *blocks = vm_malloc(sizeof(vm_ir_block_t) * nops);
+    for (size_t i = 0; i < nops ; i++)
+    {
+        blocks[i].id = -1;
+        blocks[i].alloc = 0;
+        blocks[i].len = 0;
+        blocks[i].instrs = NULL;
+        blocks[i].branch = NULL;
+    }
+    vm_ir_read(nops, ops, &index, blocks, jumps);
+    for (size_t i = 0; i < nops ; i++)
+    {
+        if (blocks[i].id == i)
+        {
+            fprintf(stdout, ".L%zu:\n", i);
+            vm_ir_print_block(stdout, &blocks[i]);
+        }
+    }
 }
