@@ -3,13 +3,17 @@
 #include "../jump.h"
 #include "build.h"
 
-void vm_ir_read_from(size_t nops, const vm_opcode_t *ops, size_t index, vm_ir_block_t *blocks, uint8_t *jumps)
+void vm_ir_read_from(vm_ir_read_t *state, size_t index)
 {
-    vm_ir_read(nops, ops, &index, blocks, jumps);
+    vm_ir_read(state, &index);
 }
 
-void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_t *blocks, uint8_t *jumps)
+void vm_ir_read(vm_ir_read_t *state, size_t *index)
 {
+    uint8_t *jumps = state->jumps;
+    vm_ir_block_t *blocks = state->blocks;
+    size_t nops = state->nops;
+    const vm_opcode_t *ops = state->ops;
     vm_ir_block_t *block = &blocks[*index];
     if (block->id == *index)
     {
@@ -35,7 +39,7 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
         case VM_OPCODE_JUMP:
         {
             size_t loc = ops[(*index)++];
-            vm_ir_read_from(nops, ops, loc, blocks, jumps);
+            vm_ir_read_from(state, loc);
             vm_ir_block_end_jump(block, &blocks[loc]);
             return;
         }
@@ -44,7 +48,10 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
             vm_opcode_t over = ops[(*index)++];
             vm_opcode_t nargs = ops[(*index)++];
             vm_opcode_t nregs = ops[(*index)++];
-            vm_ir_read_from(over, ops, *index, blocks, jumps);
+            size_t tmp = state->nops;
+            state->nops = over;
+            vm_ir_read_from(state, *index);
+            state->nops = tmp;
             *index = over;
             break;
         }
@@ -59,7 +66,10 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
                 args[i] = vm_ir_arg_reg(ops[(*index)++]);
             }
             args[nargs] = NULL;
-            vm_ir_read_from(ops[func-3], ops, func, blocks, jumps);
+            size_t tmp = state->nops;
+            state->nops = ops[func-3];
+            vm_ir_read_from(state, func);
+            state->nops = tmp;
             vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_func(&blocks[func]), args);
             break;
         }
@@ -82,7 +92,10 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t func = ops[(*index)++];
-            vm_ir_read_from(ops[func-3], ops, func, blocks, jumps);
+            size_t tmp = state->nops;
+            state->nops = ops[func-3];
+            vm_ir_read_from(state, func);
+            state->nops = tmp;
             vm_ir_block_add_addr(block, vm_ir_arg_reg(reg), &blocks[func]);
             break;
         }
@@ -158,8 +171,8 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
             vm_opcode_t val = ops[(*index)++];
             vm_opcode_t iff = ops[(*index)++];
             vm_opcode_t ift = ops[(*index)++];
-            vm_ir_read_from(nops, ops, iff, blocks, jumps);
-            vm_ir_read_from(nops, ops, ift, blocks, jumps);
+            vm_ir_read_from(state, iff);
+            vm_ir_read_from(state, ift);
             vm_ir_block_end_bb(block, vm_ir_arg_reg(val), &blocks[iff], &blocks[ift]);
             return;
         }
@@ -169,8 +182,8 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
             vm_opcode_t rhs = ops[(*index)++];
             vm_opcode_t iff = ops[(*index)++];
             vm_opcode_t ift = ops[(*index)++];
-            vm_ir_read_from(nops, ops, iff, blocks, jumps);
-            vm_ir_read_from(nops, ops, ift, blocks, jumps);
+            vm_ir_read_from(state, iff);
+            vm_ir_read_from(state, ift);
             vm_ir_block_end_beq(block, vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs), &blocks[iff], &blocks[ift]);
             return;
         }
@@ -180,8 +193,8 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
             vm_opcode_t rhs = ops[(*index)++];
             vm_opcode_t iff = ops[(*index)++];
             vm_opcode_t ift = ops[(*index)++];
-            vm_ir_read_from(nops, ops, iff, blocks, jumps);
-            vm_ir_read_from(nops, ops, ift, blocks, jumps);
+            vm_ir_read_from(state, iff);
+            vm_ir_read_from(state, ift);
             vm_ir_block_end_blt(block, vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs), &blocks[iff], &blocks[ift]);
             return;
         }
@@ -238,7 +251,7 @@ void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_
         }
         if ((jumps[*index] & VM_JUMP_IN))
         {
-            vm_ir_read_from(nops, ops, *index, blocks, jumps);
+            vm_ir_read_from(state, *index);
             vm_ir_block_end_jump(block, &blocks[*index]);
             return;
         }
@@ -258,7 +271,12 @@ void vm_test_toir(size_t nops, const vm_opcode_t *ops)
         blocks[i].instrs = NULL;
         blocks[i].branch = NULL;
     }
-    vm_ir_read(nops, ops, &index, blocks, jumps);
+    vm_ir_read_t state;
+    state.jumps = jumps;
+    state.blocks = blocks;
+    state.nops = nops;
+    state.ops = ops;
+    vm_ir_read_from(&state, index);
     for (size_t i = 0; i < nops ; i++)
     {
         if (blocks[i].id == i)

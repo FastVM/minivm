@@ -5,7 +5,19 @@
 #include "./ir.h"
 #include "../opcode.h"
 
-void vm_ir_read(size_t nops, const vm_opcode_t *ops, size_t *index, vm_ir_block_t *blocks, uint8_t *jumps);
+struct vm_ir_read_t;
+typedef struct vm_ir_read_t vm_ir_read_t;
+
+struct vm_ir_read_t
+{
+    uint8_t *jumps;
+    vm_ir_block_t *blocks;
+    size_t nops;
+    const vm_opcode_t *ops;
+};
+
+void vm_ir_read_from(vm_ir_read_t *state, size_t index);
+void vm_ir_read(vm_ir_read_t *state, size_t *index);
 void vm_test_toir(size_t nops, const vm_opcode_t *ops);
 
 #endif
