@@ -86,23 +86,23 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_MOVE:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, ";\n");
                 break;
             }
             case VM_IR_IOP_ADD:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, " + ");
                 vm_ir_be_js_print(out, instr->args[1]);
-                fprintf(out, ";\n");
+                fprintf(out, "|0;\n");
                 break;
             }
             case VM_IR_IOP_SUB:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, " - ");
                 vm_ir_be_js_print(out, instr->args[1]);
@@ -111,7 +111,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_MUL:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, " * ");
                 vm_ir_be_js_print(out, instr->args[1]);
@@ -120,7 +120,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_DIV:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, " / ");
                 vm_ir_be_js_print(out, instr->args[1]);
@@ -129,7 +129,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_MOD:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, " %% ");
                 vm_ir_be_js_print(out, instr->args[1]);
@@ -138,7 +138,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_ADDR:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, ";\n");
                 break;
@@ -163,7 +163,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_ARR:
             {
-                fprintf(out, "var r%zu =new Array(", instr->out->reg);
+                fprintf(out, "var r%zu = new Array(", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, ")");
                 fprintf(out, ";\n");
@@ -171,7 +171,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_GET:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, "[");
                 vm_ir_be_js_print(out, instr->args[1]);
@@ -192,7 +192,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_LEN:
             {
-                fprintf(out, "var r%zu =", instr->out->reg);
+                fprintf(out, "var r%zu = ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, ".length;\n");
                 fprintf(out, ";\n");
@@ -200,7 +200,7 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_TYPE:
             {
-                fprintf(out, "var r%zu =typeof ", instr->out->reg);
+                fprintf(out, "var r%zu = typeof ", instr->out->reg);
                 vm_ir_be_js_print(out, instr->args[0]);
                 fprintf(out, " == 'number' ? 0 : 1;\n");
                 break;

@@ -14,6 +14,7 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
     vm_ir_block_t *blocks = *ptr_blocks;
     size_t nblocks = *ptr_nops;
     size_t regalloc = 0;
+    uint8_t **all_regs = vm_malloc(sizeof(size_t *) * nblocks);
     for (size_t i = 0; i < nblocks; i++)
     {
         vm_ir_block_t *block = &blocks[i];
@@ -51,7 +52,6 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
             regalloc = nregs;
         }
     }
-    uint8_t *regs = vm_malloc(sizeof(uint8_t) * regalloc);
     for (size_t i = 0; i < nblocks; i++)
     {
         vm_ir_block_t *block = &blocks[i];
@@ -59,6 +59,8 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         {
             continue;
         }
+        uint8_t *regs = vm_malloc(sizeof(uint8_t) * regalloc);
+        all_regs[i] = regs;
         for (size_t j = 0; j < block->nregs; j++)
         {
             regs[j] = VM_IR_OPT_DEAD_REG_UNK;
@@ -99,5 +101,87 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
             }
         }
     }
-    vm_free(regs);
+    redo:
+    for (size_t i = 0; i < nblocks; i++)
+    {
+        vm_ir_block_t *block = &blocks[i];
+        if (block->id != i)
+        {
+            continue;
+        }
+        for (size_t t = 0; t < 2; t++)
+        {
+            vm_ir_block_t *target = block->branch->targets[t];
+            if (target == NULL)
+            {
+                continue;
+            }
+            size_t total = block->nargs + target->nargs;
+            size_t *next = vm_malloc(sizeof(size_t) * total);
+            size_t nargs = 0;
+            size_t bi = 0;
+            size_t ti = 0;
+            for (;;)
+            {
+                if (bi == block->nargs)
+                {
+                    while (ti < target->nargs)
+                    {
+                        size_t newreg = target->args[ti++];
+                        if (all_regs[i][newreg] != VM_IR_OPT_DEAD_REG_DEF)
+                        {
+                            next[nargs++] = newreg;
+                        }
+                    }
+                    break;    
+                }
+                else if (ti == target->nargs)
+                {
+                    while (bi < block->nargs)
+                    {
+                        next[nargs++] = block->args[bi++];
+                    }
+                    break;    
+                }
+                else if (block->args[bi] == target->args[ti])
+                {
+                    next[nargs++] = block->args[bi++];
+                    ti += 1;
+                }
+                else if (block->args[bi] > target->args[ti])
+                {
+                    size_t newreg = target->args[ti++];
+                    if (all_regs[i][newreg] != VM_IR_OPT_DEAD_REG_DEF)
+                    {
+                        next[nargs++] = newreg;
+                    }
+                }
+                else if (block->args[bi] < target->args[ti])
+                {
+                    next[nargs++] = block->args[bi++];
+                }
+            }
+            if (nargs != block->nargs)
+            {
+                vm_free(block->args);
+                block->args = next;
+                block->nargs = nargs;
+                goto redo;
+            }
+            else
+            {
+                vm_free(next);
+            }
+        }
+    }
+    for (size_t i = 0; i < nblocks; i++)
+    {
+        vm_ir_block_t *block = &blocks[i];
+        if (block->id != i)
+        {
+            continue;
+        }
+        vm_free(all_regs[i]);
+    }
+    vm_free(all_regs);
 }

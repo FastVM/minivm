@@ -84,7 +84,6 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
                 args[i] = vm_ir_arg_reg(ops[(*index)++]);
             }
             args[nargs] = NULL;
-            *index += nargs;
             vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_reg(func), args);
             break;
         }

@@ -54,7 +54,6 @@ int main(int argc, char **argv)
   size_t nblocks = buf.nops;
   vm_ir_opt_const(&nblocks, &blocks);
   vm_ir_opt_dead(&nblocks, &blocks);
-  // vm_ir_print_blocks(nblocks, blocks);
   vm_ir_be_js(nblocks, blocks);
   // vm_free((void *)src);
   // if (buf.nops == 0) {

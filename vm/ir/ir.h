@@ -86,6 +86,7 @@ struct vm_ir_block_t
     size_t alloc;
 
     vm_ir_branch_t *branch;
+    
     size_t *args;
     size_t nargs;
 
