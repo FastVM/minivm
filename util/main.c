@@ -1,5 +1,8 @@
 
 #include "../vm/asm.h"
+#include "../vm/ir/toir.h"
+#include "../vm/ir/opt.h"
+#include "../vm/ir/be/js.h"
 
 static const char *vm_asm_io_read(const char *filename)
 {
@@ -31,8 +34,6 @@ static const char *vm_asm_io_read(const char *filename)
   return ops;
 }
 
-void vm_test_toir(size_t nops, const vm_opcode_t *ops);
-
 int main(int argc, char **argv)
 {
   // const char *dump = "out.bc";
@@ -49,24 +50,29 @@ int main(int argc, char **argv)
     return 1;
   }
   vm_asm_buf_t buf = vm_asm(src);
-  vm_test_toir(buf.nops, buf.ops);
-  vm_free((void *)src);
-  if (buf.nops == 0) {
-    fprintf(stderr, "could not assemble file\n");
-    return 1;
-  }
-  if (dump) {
-    void *out = fopen(dump, "wb");
-    fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
-    fclose(out);
-  } else {
-    int res = vm_run_arch_int(buf.nops, buf.ops);
-    if (res != 0)
-    {
-      fprintf(stderr, "could not run asm\n");
-      return 1;
-    }
-  }
-  vm_free(buf.ops);
+  vm_ir_block_t *blocks = vm_ir_parse(buf.nops, buf.ops);
+  size_t nblocks = buf.nops;
+  vm_ir_opt_const(&nblocks, &blocks);
+  vm_ir_opt_dead(&nblocks, &blocks);
+  // vm_ir_print_blocks(nblocks, blocks);
+  vm_ir_be_js(nblocks, blocks);
+  // vm_free((void *)src);
+  // if (buf.nops == 0) {
+  //   fprintf(stderr, "could not assemble file\n");
+  //   return 1;
+  // }
+  // if (dump) {
+  //   void *out = fopen(dump, "wb");
+  //   fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
+  //   fclose(out);
+  // } else {
+  //   int res = vm_run_arch_int(buf.nops, buf.ops);
+  //   if (res != 0)
+  //   {
+  //     fprintf(stderr, "could not run asm\n");
+  //     return 1;
+  //   }
+  // }
+  // vm_free(buf.ops);
   return 0;
 }

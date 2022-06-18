@@ -208,6 +208,11 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
 }
 void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val)
 {
+    if (val->op == VM_IR_IOP_NOP)
+    {
+        fprintf(out, "nop");
+        return;
+    }
     if (val->out != NULL)
     {
         vm_ir_print_arg(out, val->out);
@@ -296,6 +301,10 @@ void vm_ir_print_block(FILE *out, vm_ir_block_t *val)
 {
     for (size_t i = 0; i < val->len; i++)
     {
+        if (val->instrs[i]->op == VM_IR_IOP_NOP)
+        {
+            continue;
+        }
         fprintf(out, "    ");
         vm_ir_print_instr(out, val->instrs[i]);
         fprintf(out, "\n");

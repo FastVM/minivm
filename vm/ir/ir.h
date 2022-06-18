@@ -34,6 +34,7 @@ enum
 
 enum
 {
+    VM_IR_IOP_NOP,
     VM_IR_IOP_MOVE,
     VM_IR_IOP_ADD,
     VM_IR_IOP_SUB,
@@ -71,8 +72,8 @@ struct vm_ir_branch_t
 
 struct vm_ir_instr_t
 {
+    vm_ir_arg_t *args[10];
     vm_ir_arg_t *out;
-    vm_ir_arg_t *args[16];
     uint8_t op;
 };
 
@@ -85,6 +86,10 @@ struct vm_ir_block_t
     size_t alloc;
 
     vm_ir_branch_t *branch;
+    size_t *args;
+    size_t nargs;
+
+    size_t nregs;
 };
 
 #endif

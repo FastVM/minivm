@@ -258,18 +258,45 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
     }
 }
 
-void vm_test_toir(size_t nops, const vm_opcode_t *ops)
+void vm_ir_print_blocks(size_t nops, vm_ir_block_t *blocks)
+{
+    for (size_t i = 0; i < nops ; i++)
+    {
+        if (blocks[i].id == i)
+        {
+            if (blocks[i].nargs == 0)
+            {
+                fprintf(stdout, "bb.%zu():\n", i);
+            }
+            else
+            {
+                fprintf(stdout, "bb.%zu(", i);
+                for (size_t j = 0; j < blocks[i].nargs; j++)
+                {
+                    if (j != 0)
+                    {
+                        fprintf(stdout, " ");
+                    }
+                    fprintf(stdout, "r%zu", blocks[i].args[j]);
+                }
+                fprintf(stdout, ") {\n");
+            }
+            vm_ir_print_block(stdout, &blocks[i]);
+            fprintf(stdout, "}\n");
+        }
+    }
+}
+
+vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
 {
     size_t index = 0;
     uint8_t *jumps = vm_jump_base(nops, ops);
     vm_ir_block_t *blocks = vm_malloc(sizeof(vm_ir_block_t) * nops);
     for (size_t i = 0; i < nops ; i++)
     {
-        blocks[i].id = -1;
-        blocks[i].alloc = 0;
-        blocks[i].len = 0;
-        blocks[i].instrs = NULL;
-        blocks[i].branch = NULL;
+        blocks[i] = (vm_ir_block_t) {
+            .id = -1,
+        };
     }
     vm_ir_read_t state;
     state.jumps = jumps;
@@ -277,12 +304,5 @@ void vm_test_toir(size_t nops, const vm_opcode_t *ops)
     state.nops = nops;
     state.ops = ops;
     vm_ir_read_from(&state, index);
-    for (size_t i = 0; i < nops ; i++)
-    {
-        if (blocks[i].id == i)
-        {
-            fprintf(stdout, "@.%zu\n", i);
-            vm_ir_print_block(stdout, &blocks[i]);
-        }
-    }
+    return &blocks[0];
 }
