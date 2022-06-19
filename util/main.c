@@ -3,6 +3,7 @@
 #include "../vm/ir/toir.h"
 #include "../vm/ir/opt.h"
 #include "../vm/ir/be/js.h"
+#include "../vm/ir/be/lua.h"
 
 static const char *vm_asm_io_read(const char *filename)
 {
@@ -53,8 +54,9 @@ int main(int argc, char **argv)
   vm_ir_block_t *blocks = vm_ir_parse(buf.nops, buf.ops);
   size_t nblocks = buf.nops;
   vm_ir_opt_const(&nblocks, &blocks);
-  vm_ir_opt_dead(&nblocks, &blocks);
+  // vm_ir_opt_dead(&nblocks, &blocks);
   vm_ir_be_js(nblocks, blocks);
+  vm_ir_be_lua(nblocks, blocks);
   // vm_free((void *)src);
   // if (buf.nops == 0) {
   //   fprintf(stderr, "could not assemble file\n");

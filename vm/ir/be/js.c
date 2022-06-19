@@ -76,8 +76,12 @@ void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
         fprintf(out, ") => {\n");
         for (size_t j = 0; j < block->len; j++)
         {
-            fprintf(out, "    ");
             vm_ir_instr_t *instr = block->instrs[j];
+            if (instr->op == VM_IR_IOP_NOP)
+            {
+                continue;
+            }
+            fprintf(out, "    ");
             switch (instr->op)
             {
             case VM_IR_IOP_NOP:

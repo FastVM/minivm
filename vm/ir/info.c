@@ -1,15 +1,14 @@
 
-#include "../opt.h"
-#include "../build.h"
+#include "build.h"
 
 enum
 {
-    VM_IR_OPT_DEAD_REG_DEF,
-    VM_IR_OPT_DEAD_REG_ARG,
-    VM_IR_OPT_DEAD_REG_UNK,
+    VM_IR_INFO_REG_DEF,
+    VM_IR_INFO_REG_ARG,
+    VM_IR_INFO_REG_UNK,
 };
 
-void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
+void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
 {
     vm_ir_block_t *blocks = *ptr_blocks;
     size_t nblocks = *ptr_nops;
@@ -63,7 +62,7 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         all_regs[i] = regs;
         for (size_t j = 0; j < block->nregs; j++)
         {
-            regs[j] = VM_IR_OPT_DEAD_REG_UNK;
+            regs[j] = VM_IR_INFO_REG_UNK;
         }
         size_t nargs = 0;
         for (size_t j = 0; j < block->len; j++)
@@ -72,22 +71,22 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
             for (size_t k = 0; instr->args[k] != NULL; k++)
             {
                 vm_ir_arg_t *arg = instr->args[k];
-                if (arg->type == VM_IR_ARG_REG && regs[arg->reg] == VM_IR_OPT_DEAD_REG_UNK)
+                if (arg->type == VM_IR_ARG_REG && regs[arg->reg] == VM_IR_INFO_REG_UNK)
                 {
-                    regs[arg->reg] = VM_IR_OPT_DEAD_REG_ARG;
+                    regs[arg->reg] = VM_IR_INFO_REG_ARG;
                     nargs += 1;
                 }
             }
-            if (instr->out && instr->out->type == VM_IR_ARG_REG && regs[instr->out->reg] == VM_IR_OPT_DEAD_REG_UNK)
+            if (instr->out && instr->out->type == VM_IR_ARG_REG && regs[instr->out->reg] == VM_IR_INFO_REG_UNK)
             {
-                regs[instr->out->reg] = VM_IR_OPT_DEAD_REG_DEF;
+                regs[instr->out->reg] = VM_IR_INFO_REG_DEF;
             }
         }
         for (size_t j = 0; j < 2; j++)
         {
-            if (block->branch->args[j] != NULL && block->branch->args[j]->type == VM_IR_ARG_REG && regs[block->branch->args[j]->reg] == VM_IR_OPT_DEAD_REG_UNK)
+            if (block->branch->args[j] != NULL && block->branch->args[j]->type == VM_IR_ARG_REG && regs[block->branch->args[j]->reg] == VM_IR_INFO_REG_UNK)
             {
-                regs[block->branch->args[j]->reg] = VM_IR_OPT_DEAD_REG_ARG;
+                regs[block->branch->args[j]->reg] = VM_IR_INFO_REG_ARG;
                 nargs += 1;   
             }
         }
@@ -95,7 +94,7 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         block->args = vm_malloc(sizeof(size_t) * nargs);
         for (size_t reg = 0; reg < block->nregs; reg++)
         {
-            if (regs[reg] == VM_IR_OPT_DEAD_REG_ARG)
+            if (regs[reg] == VM_IR_INFO_REG_ARG)
             {
                 block->args[block->nargs++] = reg;
             }
@@ -128,7 +127,7 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                     while (ti < target->nargs)
                     {
                         size_t newreg = target->args[ti++];
-                        if (all_regs[i][newreg] != VM_IR_OPT_DEAD_REG_DEF)
+                        if (all_regs[i][newreg] != VM_IR_INFO_REG_DEF)
                         {
                             next[nargs++] = newreg;
                         }
@@ -151,7 +150,7 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                 else if (block->args[bi] > target->args[ti])
                 {
                     size_t newreg = target->args[ti++];
-                    if (all_regs[i][newreg] != VM_IR_OPT_DEAD_REG_DEF)
+                    if (all_regs[i][newreg] != VM_IR_INFO_REG_DEF)
                     {
                         next[nargs++] = newreg;
                     }

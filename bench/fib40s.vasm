@@ -1,0 +1,45 @@
+
+@__entry
+    r0 <- call main
+    exit
+
+func fib
+    r2 <- int 2
+    blt r1 r2 fib.else fib.then
+@fib.then
+    ret r1
+@fib.else
+    r3 <- int 1
+    r4 <- sub r1 r3
+    r7 <- call fib r4
+    r5 <- int 2
+    r6 <- sub r1 r5
+    r8 <- call fib r6
+    r9 <- add r7 r8
+    ret r9
+end
+
+func putn
+    bb r1 putn.ret putn.digit 
+@putn.digit
+    r2 <- int 10
+    r3 <- div r1 r2
+    r4 <- call putn r3
+    r5 <- int 10
+    r6 <- mod r1 r5
+    r7 <- int 48
+    r8 <- add r6 r7
+    putchar r8
+@putn.ret
+    r9 <- int 0
+    ret r9
+end
+
+func main
+    r1 <- int 40
+    r2 <- call fib r1
+    r3 <- call putn r2
+    r4 <- int 10
+    putchar r4
+    exit
+end

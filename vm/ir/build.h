@@ -42,4 +42,6 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val);
 void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val);
 void vm_ir_print_block(FILE *out, vm_ir_block_t *val);
 
+void vm_ir_info(size_t *nops, vm_ir_block_t **blocks);
+
 #endif
