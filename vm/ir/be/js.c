@@ -54,9 +54,8 @@ void vm_ir_be_js_print_target(FILE *out, vm_ir_block_t *block, size_t target)
     }
 }
 
-void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks)
+void vm_ir_be_js(FILE *out, size_t nops, vm_ir_block_t *blocks)
 {
-    FILE *out = fopen("out.js", "w");
     for (size_t i = 0; i < nops; i++)
     {
         vm_ir_block_t *block = &blocks[i];

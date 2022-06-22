@@ -3,6 +3,6 @@
 
 #include "../ir.h"
 
-void vm_ir_be_js(size_t nops, vm_ir_block_t *blocks);
+void vm_ir_be_js(FILE *file, size_t nops, vm_ir_block_t *blocks);
 
 #endif

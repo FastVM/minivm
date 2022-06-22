@@ -42,10 +42,8 @@ void vm_ir_be_lua_print_target(FILE *out, vm_ir_block_t *block, size_t target)
     fprintf(out, ")");
 }
 
-void vm_ir_be_lua(size_t nops, vm_ir_block_t *blocks)
+void vm_ir_be_lua(FILE *out, size_t nops, vm_ir_block_t *blocks)
 {
-    FILE *out = fopen("out.lua", "w");
-    fprintf(out, "local ");
     for (size_t i = 0; i < nops; i++)
     {
         if (blocks[i].id == i)
