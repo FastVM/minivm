@@ -45,7 +45,10 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                 nregs = block->branch->args[j]->reg + 1;
             }
         }
-        block->nregs = nregs;
+        if (nregs > block->nregs)
+        {
+            block->nregs = nregs;
+        }
         if (nregs >= regalloc)
         {
             regalloc = nregs;
@@ -58,7 +61,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         {
             continue;
         }
-        uint8_t *regs = vm_malloc(sizeof(uint8_t) * regalloc);
+        uint8_t *regs = vm_malloc(sizeof(uint8_t) * block->nregs);
         all_regs[i] = regs;
         for (size_t j = 0; j < block->nregs; j++)
         {

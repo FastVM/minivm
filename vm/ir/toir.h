@@ -13,6 +13,7 @@ struct vm_ir_read_t
     uint8_t *jumps;
     vm_ir_block_t *blocks;
     size_t nops;
+    size_t nregs;
     const vm_opcode_t *ops;
 };
 

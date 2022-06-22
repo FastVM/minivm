@@ -19,6 +19,7 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
     {
         return;
     }
+    block->nregs = state->nregs;
     block->id = *index;
     while (*index < nops)
     {
@@ -48,10 +49,13 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
             vm_opcode_t over = ops[(*index)++];
             vm_opcode_t nargs = ops[(*index)++];
             vm_opcode_t nregs = ops[(*index)++];
-            size_t tmp = state->nops;
+            size_t tmp1 = state->nops;
+            size_t tmp2 = state->nregs;
             state->nops = over;
+            state->nregs = nregs;
             vm_ir_read_from(state, *index);
-            state->nops = tmp;
+            state->nops = tmp1;
+            state->nregs = tmp2;
             *index = over;
             break;
         }
@@ -300,6 +304,7 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
     vm_ir_read_t state;
     state.jumps = jumps;
     state.blocks = blocks;
+    state.nregs = 256;
     state.nops = nops;
     state.ops = ops;
     vm_ir_read_from(&state, index);
