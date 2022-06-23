@@ -53,7 +53,7 @@ int main(int argc, char **argv)
   vm_asm_buf_t buf = vm_asm(src);
   // vm_ir_block_t *blocks = vm_ir_parse(buf.nops, buf.ops);
   // size_t nblocks = buf.nops;
-  // vm_ir_opt_const(&nblocks, &blocks);
+  // vm_ir_opt_all(&nblocks, &blocks);
   // // vm_ir_opt_dead(&nblocks, &blocks);
   // vm_ir_be_js(nblocks, blocks);
   // vm_ir_be_lua(nblocks, blocks);
