@@ -63,6 +63,7 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
         {
             vm_opcode_t rreg = ops[(*index)++];
             vm_opcode_t func = ops[(*index)++];
+            blocks[func].isfunc = true;
             vm_opcode_t nargs = ops[(*index)++];
             vm_ir_arg_t **args = vm_malloc(sizeof(vm_ir_arg_t *) * (nargs + 1));
             for (size_t i = 0; i < nargs; i++)
@@ -95,6 +96,7 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
         {
             vm_opcode_t reg = ops[(*index)++];
             vm_opcode_t func = ops[(*index)++];
+            blocks[func].isfunc = true;
             size_t tmp = state->nops;
             state->nops = ops[func-3];
             vm_ir_read_from(state, func);

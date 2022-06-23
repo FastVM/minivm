@@ -55,6 +55,15 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                     }
                 }
             }
+            for (size_t i = 0; i < 2; i++)
+            {
+                vm_ir_arg_t *arg = block->branch->args[i];
+                if (arg != NULL && arg->type == VM_IR_ARG_REG && named[arg->reg] == VM_IR_OPT_CONST_REG_HAS_VALUE)
+                {
+                    arg->type = VM_IR_ARG_NUM;
+                    arg->num = regs[arg->reg];
+                }
+            }
             vm_free(named);
             vm_free(regs);
         }

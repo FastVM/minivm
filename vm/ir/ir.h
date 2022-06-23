@@ -91,6 +91,8 @@ struct vm_ir_block_t
     size_t nargs;
 
     size_t nregs;
+
+    bool isfunc: 1;
 };
 
 #endif
