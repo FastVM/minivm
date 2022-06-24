@@ -21,6 +21,11 @@ vm_ir_arg_t *vm_ir_arg_func(vm_ir_block_t *func)
     return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_FUNC, .func = func);
 }
 
+vm_ir_arg_t *vm_ir_arg_instr(vm_ir_instr_t *instr)
+{
+    return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_INSTR, .instr = instr);
+}
+
 vm_ir_arg_t *vm_ir_arg_num(ptrdiff_t num)
 {
     return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_NUM, .num = num);
@@ -60,10 +65,6 @@ void vm_ir_block_add_div(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_arg_t *lh
 void vm_ir_block_add_mod(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_arg_t *lhs, vm_ir_arg_t *rhs)
 {
     vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MOD, .out = out, .args[0] = lhs, .args[1] = rhs));
-}
-void vm_ir_block_add_addr(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_block_t *refblock)
-{
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_ADDR, .out = out, .args[0] = vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_FUNC, .func = refblock)));
 }
 void vm_ir_block_add_call(vm_ir_block_t *block, vm_ir_arg_t *out, vm_ir_arg_t *func, vm_ir_arg_t **args)
 {
@@ -147,6 +148,11 @@ void vm_ir_print_arg(FILE *out, vm_ir_arg_t *val)
     case VM_IR_ARG_FUNC:
     {
         fprintf(out, ".%zu", val->func->id);
+        break;
+    }
+    case VM_IR_ARG_INSTR:
+    {
+        vm_ir_print_instr(out, val->instr);
         break;
     }
     }
@@ -248,11 +254,6 @@ void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val)
     case VM_IR_IOP_MOD:
     {
         fprintf(out, "mod");
-        break;
-    }
-    case VM_IR_IOP_ADDR:
-    {
-        fprintf(out, "addr");
         break;
     }
     case VM_IR_IOP_CALL:

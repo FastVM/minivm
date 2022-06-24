@@ -1,6 +1,59 @@
 
 #include "lua.h"
 
+static void vm_ir_be_lua_print_arg_wrap(vm_ir_be_lua_state_t *out, vm_ir_arg_t *instr);
+void vm_ir_be_lua_print(vm_ir_be_lua_state_t *out, vm_ir_arg_t *arg);
+
+void vm_ir_be_lua_print_subinstr(vm_ir_be_lua_state_t *out, vm_ir_instr_t *instr)
+{
+    switch (instr->op)
+    {
+    case VM_IR_IOP_ADD:
+        vm_ir_be_lua_print(out, instr->args[0]);
+        fprintf(out->file, "+");
+        vm_ir_be_lua_print(out, instr->args[1]);
+        break;
+    case VM_IR_IOP_SUB:
+        vm_ir_be_lua_print(out, instr->args[0]);
+        fprintf(out->file, "-");
+        vm_ir_be_lua_print(out, instr->args[1]);
+        break;
+    case VM_IR_IOP_MUL:
+        vm_ir_be_lua_print(out, instr->args[0]);
+        fprintf(out->file, "*");
+        vm_ir_be_lua_print(out, instr->args[1]);
+        break;
+    case VM_IR_IOP_DIV:
+        fprintf(out->file, "math.floor(");
+        vm_ir_be_lua_print(out, instr->args[0]);
+        fprintf(out->file, "/");
+        vm_ir_be_lua_print(out, instr->args[1]);
+        fprintf(out->file, ")");
+        break;
+    case VM_IR_IOP_MOD:
+        vm_ir_be_lua_print(out, instr->args[0]);
+        fprintf(out->file, "%%");
+        vm_ir_be_lua_print(out, instr->args[1]);
+        break;
+    case VM_IR_IOP_GET:
+        vm_ir_be_lua_print(out, instr->args[0]);
+        fprintf(out->file, "[");
+        vm_ir_be_lua_print(out, instr->args[1]);
+        fprintf(out->file, "]");
+        break;
+    case VM_IR_IOP_MOVE:
+        vm_ir_be_lua_print(out, instr->args[0]);
+        break;
+    case VM_IR_IOP_ARR:
+        fprintf(out->file, "{length=");
+        vm_ir_be_lua_print(out, instr->args[0]);
+        fprintf(out->file, "}");
+        break;
+    default:
+        break;
+    }
+}
+
 void vm_ir_be_lua_print(vm_ir_be_lua_state_t *out, vm_ir_arg_t *arg)
 {
     switch (arg->type)
@@ -25,6 +78,25 @@ void vm_ir_be_lua_print(vm_ir_be_lua_state_t *out, vm_ir_arg_t *arg)
         fprintf(out->file, "%zi", arg->num);
         break;
     }
+    case VM_IR_ARG_INSTR:
+    {
+        vm_ir_be_lua_print_subinstr(out, arg->instr);
+        break;
+    }
+    }
+}
+
+static void vm_ir_be_lua_print_arg_wrap(vm_ir_be_lua_state_t *out, vm_ir_arg_t *arg)
+{
+    if (arg->type == VM_IR_ARG_INSTR && arg->instr->op == VM_IR_IOP_MUL || arg->instr->op == VM_IR_IOP_DIV || arg->instr->op == VM_IR_IOP_MOD)
+    {
+        fprintf(out->file, "(");
+        vm_ir_be_lua_print(out, arg);
+        fprintf(out->file, ")");
+    }
+    else
+    {
+        vm_ir_be_lua_print(out, arg);
     }
 }
 
@@ -33,11 +105,30 @@ void vm_ir_be_lua_print_target(vm_ir_be_lua_state_t *out, vm_ir_block_t *block, 
     vm_ir_be_lua_print_body(out, block->branch->targets[target], indent);
 }
 
+int vm_ir_be_lua_used(size_t nstate, size_t *state, vm_ir_block_t *block)
+{
+    if (block == NULL)
+    {
+        return 0;
+    }
+    if (nstate != 0)
+    {
+        state[nstate] = block->id;
+        for (size_t i = 0; i < nstate; i++)
+        {
+            if (state[i] == block->id)
+            {
+                return i == 0;
+            }
+        }
+    }
+    return vm_ir_be_lua_used(nstate + 1, state, block->branch->targets[0])
+        || vm_ir_be_lua_used(nstate + 1, state, block->branch->targets[1]);
+}
+
 void vm_ir_be_lua_print_body(vm_ir_be_lua_state_t *out, vm_ir_block_t *block, size_t indentz)
 {
     int indent = indentz;
-    // if (out->back[block->id] || 1)
-    // {
     for (size_t i = 0; i < out->nblocks; i++)
     {
         if (out->blocks[i] == block->id)
@@ -47,10 +138,12 @@ void vm_ir_be_lua_print_body(vm_ir_be_lua_state_t *out, vm_ir_block_t *block, si
         }
     }
     out->blocks[out->nblocks++] = block->id;
-    fprintf(out->file, "%*c::bb%zu::\n", indent, ' ', block->id);
-    // }
+    if (vm_ir_be_lua_used(0, &out->blocks[out->nblocks - 1], block))
+    {
+        fprintf(out->file, "%*c::bb%zu::\n", indent, ' ', block->id);
+    }
     uint8_t *regs = vm_alloc0(sizeof(uint8_t) * block->nregs);
-    for (size_t a = 0; a < block->nargs; a++)
+    for (size_t a = 1; a < block->nargs; a++)
     {
         regs[block->args[a]] = 1;
     }
@@ -148,18 +241,6 @@ void vm_ir_be_lua_print_body(vm_ir_be_lua_state_t *out, vm_ir_block_t *block, si
             fprintf(out->file, " %% ");
             vm_ir_be_lua_print(out, instr->args[1]);
             fprintf(out->file, ")\n");
-            break;
-        }
-        case VM_IR_IOP_ADDR:
-        {
-            if (regs[instr->out->reg] == 0)
-            {
-                fprintf(out->file, "local ");
-                regs[instr->out->reg] = 1;
-            }
-            fprintf(out->file, "r%zu = ", instr->out->reg);
-            vm_ir_be_lua_print(out, instr->args[0]);
-            fprintf(out->file, "\n");
             break;
         }
         case VM_IR_IOP_CALL:

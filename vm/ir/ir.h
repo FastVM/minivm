@@ -20,6 +20,7 @@ enum
     VM_IR_ARG_NUM,
     VM_IR_ARG_STR,
     VM_IR_ARG_FUNC,
+    VM_IR_ARG_INSTR,
 };
 
 enum
@@ -41,7 +42,6 @@ enum
     VM_IR_IOP_MUL,
     VM_IR_IOP_DIV,
     VM_IR_IOP_MOD,
-    VM_IR_IOP_ADDR,
     VM_IR_IOP_CALL,
     VM_IR_IOP_ARR,
     VM_IR_IOP_GET,
@@ -59,6 +59,7 @@ struct vm_ir_arg_t
         ptrdiff_t num;
         const char *str;
         vm_ir_block_t *func;
+        vm_ir_instr_t *instr;
     };
     uint8_t type;
 };

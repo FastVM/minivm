@@ -57,19 +57,19 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                                 regs[out->reg] = arg0->num;
                             }
                         }
-                        if (instr->op == VM_IR_IOP_ADD)
-                        {
-                            vm_ir_arg_t *arg0 = instr->args[0];
-                            vm_ir_arg_t *arg1 = instr->args[1];
-                            if (arg0->type == VM_IR_ARG_NUM && arg1->type == VM_IR_ARG_NUM)
-                            {
-                                named[out->reg] = VM_IR_OPT_CONST_REG_HAS_VALUE;
-                                regs[out->reg] = arg0->num + arg1->num;
-                                redo = true;
-                                instr->op = VM_IR_IOP_MOVE;
-                                instr->args[0] = vm_ir_arg_num(arg0->num + arg1->num);
-                            }
-                        }
+                        // if (instr->op == VM_IR_IOP_ADD)
+                        // {
+                        //     vm_ir_arg_t *arg0 = instr->args[0];
+                        //     vm_ir_arg_t *arg1 = instr->args[1];
+                        //     if (arg0->type == VM_IR_ARG_NUM && arg1->type == VM_IR_ARG_NUM)
+                        //     {
+                        //         named[out->reg] = VM_IR_OPT_CONST_REG_HAS_VALUE;
+                        //         regs[out->reg] = arg0->num + arg1->num;
+                        //         redo = true;
+                        //         instr->op = VM_IR_IOP_MOVE;
+                        //         instr->args[0] = vm_ir_arg_num(arg0->num + arg1->num);
+                        //     }
+                        // }
                     }
                 }
                 for (size_t i = 0; i < 2; i++)

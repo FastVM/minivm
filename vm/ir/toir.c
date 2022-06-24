@@ -101,7 +101,7 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
             state->nops = ops[func-3];
             vm_ir_read_from(state, func);
             state->nops = tmp;
-            vm_ir_block_add_addr(block, vm_ir_arg_reg(reg), &blocks[func]);
+            vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_func(&blocks[func]));
             break;
         }
         case VM_OPCODE_RET:

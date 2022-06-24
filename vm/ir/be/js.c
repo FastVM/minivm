@@ -139,13 +139,6 @@ void vm_ir_be_js(FILE *out, size_t nops, vm_ir_block_t *blocks)
                 fprintf(out, "|0;\n");
                 break;
             }
-            case VM_IR_IOP_ADDR:
-            {
-                fprintf(out, "var r%zu = ", instr->out->reg);
-                vm_ir_be_js_print(out, instr->args[0]);
-                fprintf(out, ";\n");
-                break;
-            }
             case VM_IR_IOP_CALL:
             {
                 fprintf(out, "var r%zu = call(", instr->out->reg);

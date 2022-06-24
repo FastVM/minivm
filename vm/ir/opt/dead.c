@@ -1,4 +1,5 @@
 
+#include "../build.h"
 #include "../ir.h"
 
 void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
@@ -40,7 +41,7 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                 outp = ptrs[instr->out->reg];
                 if (outp == 0 && instr->op != VM_IR_IOP_CALL)
                 {
-                    instr->op = VM_IR_IOP_NOP;
+                    block->instrs[j] = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_NOP);
                 }
                 ptrs[instr->out->reg] = 0;
             }
