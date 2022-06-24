@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define vm_malloc(size) (malloc(size))
 #define vm_alloc0(size) (calloc(size, 1))

@@ -6,7 +6,6 @@ bool vm_ir_opt_arg_ok(uint8_t op)
 {
     return op == VM_IR_IOP_ADD || op == VM_IR_IOP_SUB
         || op == VM_IR_IOP_MUL || op == VM_IR_IOP_DIV || op == VM_IR_IOP_MOD
-        || op == VM_IR_IOP_GET || op == VM_IR_IOP_TYPE
         || op == VM_IR_IOP_MOVE;
 }
 

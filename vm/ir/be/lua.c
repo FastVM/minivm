@@ -1,5 +1,6 @@
 
 #include "lua.h"
+#include "../opt.h"
 
 static void vm_ir_be_lua_print_arg_wrap(vm_ir_be_lua_state_t *out, vm_ir_arg_t *instr);
 void vm_ir_be_lua_print(vm_ir_be_lua_state_t *out, vm_ir_arg_t *arg);
@@ -450,6 +451,8 @@ void vm_ir_be_lua_main(vm_ir_be_lua_state_t *out, size_t nops, vm_ir_block_t *bl
 
 void vm_ir_be_lua(FILE *out, size_t nops, vm_ir_block_t *blocks)
 {
+    vm_ir_opt_arg(&nops, &blocks);
+    vm_ir_opt_dead(&nops, &blocks);
     vm_ir_be_lua_state_t state;
     state.file = out;
     state.back = vm_alloc0(sizeof(uint8_t) * nops);
