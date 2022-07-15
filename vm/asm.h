@@ -23,7 +23,6 @@ typedef struct vm_asm_instr_t vm_asm_instr_t;
 struct vm_asm_buf_t;
 typedef struct vm_asm_buf_t vm_asm_buf_t;
 
-
 struct vm_asm_instr_t
 {
   size_t value;
