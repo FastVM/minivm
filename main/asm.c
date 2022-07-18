@@ -78,7 +78,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "could not read file\n");
         return 1;
     }
-    vm_asm_buf_t buf = vm_asm(src);
+    vm_bc_buf_t buf = vm_asm(src);
     vm_free((void *)src);
     if (!strcmp(target, "js") || !strcmp(target, "lua") || !strcmp(target, "jit"))
     {

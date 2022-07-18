@@ -1,20 +1,13 @@
 
 #include "../vm/vm.h"
+#include "../vm/bc.h"
 
-struct vm_io_bc_res_t;
-typedef struct vm_io_bc_res_t vm_io_bc_res_t;
-
-struct vm_io_bc_res_t {
-    const vm_opcode_t *ops;
-    size_t nops;
-};
-
-static vm_io_bc_res_t vm_io_bc_read(const char *filename)
+static vm_bc_buf_t vm_io_bc_read(const char *filename)
 {
     void *file = fopen(filename, "rb");
     if (file == NULL)
     {
-        return (vm_io_bc_res_t) {
+        return (vm_bc_buf_t) {
             .nops = 0,
         };
     }
@@ -37,8 +30,8 @@ static vm_io_bc_res_t vm_io_bc_read(const char *filename)
     }
     ops[nops] = '\0';
     fclose(file);
-    return (vm_io_bc_res_t) {
-        .ops = (const vm_opcode_t *) ops,
+    return (vm_bc_buf_t) {
+        .ops = ops,
         .nops = nops,
     };
 }
@@ -49,7 +42,7 @@ int main(int argc, char **argv)
     {
         fprintf(stderr, "need exactly 1 cli argument");
     }
-    vm_io_bc_res_t buf = vm_io_bc_read(argv[1]);
+    vm_bc_buf_t buf = vm_io_bc_read(argv[1]);
     if (buf.nops == 0)
     {
         fprintf(stderr, "could not read file\n");

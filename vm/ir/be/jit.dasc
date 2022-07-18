@@ -1,0 +1,73 @@
+
+#include "jit.h"
+
+#include "../../../luajit/dynasm/dasm_proto.h"
+#include "../../../luajit/dynasm/dasm_x86.h"
+
+#if _WIN32
+#include <Windows.h>
+#else
+#include <sys/mman.h>
+#if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+#endif
+
+|.arch x64
+
+|.if WIN
+    |.define rTmp1, rsi
+    |.define rTmp2, rdi
+    |.define rArg1, rcx
+    |.define rArg2, rdx 
+|.else
+    |.define rTmp1, r13
+    |.define rTmp2, r14
+    |.define rArg1, rdi
+    |.define rArg2, rsi
+|.endif
+
+static void *link_and_encode(dasm_State **d)
+{
+    size_t sz;
+    void *buf;
+    dasm_link(d, &sz);
+#ifdef _WIN32
+    buf = VirtualAlloc(0, sz, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+#else
+    buf = mmap(0, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#endif
+    dasm_encode(d, buf);
+#ifdef _WIN32
+    {
+        DWORD dwOld;
+        VirtualProtect(buf, sz, PAGE_EXECUTE_READ, &dwOld);
+    }
+#else
+    mprotect(buf, sz, PROT_READ | PROT_EXEC);
+#endif
+    return buf;
+}
+
+void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
+{
+    dasm_State *d;
+    dasm_State **Dst = &d;
+    |.section code
+    dasm_init(Dst, DASM_MAXSECTION);
+    |.globals lbl_
+    void *labels[lbl__MAX];
+    dasm_setupglobal(&d, labels, lbl__MAX);
+    |.actionlist bf_actions
+    dasm_setup(Dst, bf_actions);
+    dasm_growpc(Dst, nops);
+    |.code
+    |->entry:
+    | xor rax, rax
+    | inc rax
+    | ret
+    link_and_encode(&d);
+    dasm_free(&d);
+    size_t (*fn)(void) = labels[lbl_entry];
+    printf("ret: %zu\n", fn());
+}

@@ -441,7 +441,7 @@ static size_t vm_asm_hash(const char *str, size_t n)
     return hash;
 }
 
-vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t ns, size_t ni)
+vm_bc_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t ns, size_t ni)
 {
   size_t links_alloc = ns * 2;
   size_t *nums = vm_alloc0(sizeof(size_t) * ni);
@@ -558,7 +558,7 @@ vm_asm_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t ns, size_t ni)
   }
   vm_free(links);
   vm_free(nums);
-  return (vm_asm_buf_t){
+  return (vm_bc_buf_t){
       .ops = ops,
       .nops = nops,
   };
@@ -566,23 +566,23 @@ err:
   vm_free(links);
   vm_free(nums);
   vm_free(ops);
-  return (vm_asm_buf_t){
+  return (vm_bc_buf_t){
       .nops = 0,
   };
 }
 
-vm_asm_buf_t vm_asm(const char *src) {
+vm_bc_buf_t vm_asm(const char *src) {
   size_t ns = 0;
   size_t ni = 0;
   vm_asm_instr_t *instrs = vm_asm_read(&src, &ns, &ni);
   if (instrs == NULL)
   {
-    return (vm_asm_buf_t) {
+    return (vm_bc_buf_t) {
       .nops = 0,
       .ops = NULL,
     };
   }
-  vm_asm_buf_t buf = vm_asm_link(instrs, ns, ni);
+  vm_bc_buf_t buf = vm_asm_link(instrs, ns, ni);
   vm_free(instrs);
   return buf;
 }

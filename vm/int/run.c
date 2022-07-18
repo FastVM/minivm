@@ -95,9 +95,9 @@ int vm_int_run(size_t nops, const vm_opcode_t *iops, vm_gc_t *restrict gc)
       [VM_INT_OP_ISET] = &&exec_cset,
       [VM_INT_OP_ISETI] = &&exec_csetc,
       [VM_INT_OP_ADD2] = &&exec_add2,
-      [VM_INT_OP_ADD2I] = &&exec_add2i,
+      [VM_INT_OP_ADD2I] = &&exec_add2c,
       [VM_INT_OP_SUB2] = &&exec_sub2,
-      [VM_INT_OP_SUB2I] = &&exec_sub2i,
+      [VM_INT_OP_SUB2I] = &&exec_sub2c,
       [VM_INT_OP_2SUB] = &&exec_2sub,
       [VM_INT_OP_I2SUB] = &&exec_i2sub,
       [VM_INT_OP_LEN] = &&exec_len,
@@ -712,7 +712,7 @@ exec_add2:
   *out = vm_value_add(gc, *out, rhs);
   vm_int_jump_next();
 }
-exec_add2i:
+exec_add2c:
 {
   vm_value_t *out = vm_int_read_store();
   vm_int_t rhs = vm_int_read_int();
@@ -726,7 +726,7 @@ exec_sub2:
   *out = vm_value_sub(gc, *out, rhs);
   vm_int_jump_next();
 }
-exec_sub2i:
+exec_sub2c:
 {
   vm_value_t *out = vm_int_read_store();
   vm_int_t rhs = vm_int_read_int();

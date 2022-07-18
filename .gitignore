@@ -33,3 +33,4 @@ out.*
 *.profraw
 *.tmp.c
 *.gcda
+*.tmp.c

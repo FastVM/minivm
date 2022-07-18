@@ -7,16 +7,19 @@ NUM ?= 3
 PROG_SRCS := main/asm.c main/run.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/opt/const.c vm/ir/opt/reg.c vm/ir/opt/arg.c vm/ir/opt/dead.c vm/ir/info.c vm/ir/be/js.c vm/ir/be/lua.c vm/ir/be/jit.c
-OBJS := $(SRCS:%.c=%.o)
+DASM_SRCS := vm/ir/be/jit.dasc
+DASM_OBJS := $(DASM_SRCS:%.dasc=%.o)
+
+VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/opt/const.c vm/ir/opt/reg.c vm/ir/opt/arg.c vm/ir/opt/dead.c vm/ir/info.c vm/ir/be/js.c vm/ir/be/lua.c
+VM_OBJS := $(VM_SRCS:%.c=%.o)
+
+OBJS := $(VM_OBJS) $(DASM_OBJS)
 
 default: all
 
 all: bins libs
 
-bins: bin/minivm-run bin/minivm-asm
-
-libs: bin/libminivm.a
+# profile guided optimization
 
 gcc-pgo-build: .dummy
 	$(MAKE) clean
@@ -35,8 +38,14 @@ clang-pgo-build: .dummy
 	llvm-profdata-$(CLANG) merge -o profdata.profdata profraw.profraw
 	$(MAKE) -B CC='clang-$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' all
 
-$(PROG_OBJS) $(OBJS): $(@:%.o=%.c)
-	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)
+# binaries
+
+libs: bin/libminivm.a
+
+bins: bin/minivm-run bin/minivm-asm
+
+bin/minilua: luajit/src/host/minilua.c
+	$(CC) -O1 -o $(@) luajit/src/host/minilua.c -lm
 
 bin/libminivm.a: $(OBJS)
 	ar cr $(@) $(OBJS)
@@ -49,7 +58,7 @@ bin/minivm-asm: main/asm.o $(OBJS)
 	@mkdir -p bin
 	$(CC) $(OPT) main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
 
-.dummy:
+# clean
 
 clean: gcc-pgo-clean clang-pgo-clean objs-clean
 
@@ -61,3 +70,16 @@ gcc-pgo-clean: .dummy
 
 objs-clean: .dummy
 	rm -f main/asm.o $(PROG_OBJS) $(OBJS) bin/minivm-asm libmimivm.a
+
+# intermediate files
+
+$(PROG_OBJS) $(VM_OBJS): $(@:%.o=%.c)
+	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)
+
+$(DASM_OBJS): $(@:%.o=%.dasc) luajit/dynasm/dynasm.lua | bin/minilua
+	bin/minilua luajit/dynasm/dynasm.lua -o $(@:%.o=%.tmp.c) $(@:%.o=%.dasc)
+	$(CC) -c $(OPT) $(@:%.o=%.tmp.c) -o $(@) $(CFLAGS)
+
+# dummy
+
+.dummy:
