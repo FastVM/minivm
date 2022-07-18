@@ -51,6 +51,6 @@ func primes
 end
 
 @__entry
-    r0 <- int 1000000
+    r0 <- int 3000000
     r0 <- call primes r0
     exit

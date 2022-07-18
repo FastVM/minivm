@@ -306,7 +306,7 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
     vm_ir_read_t state;
     state.jumps = jumps;
     state.blocks = blocks;
-    state.nregs = 256;
+    state.nregs = 0;
     state.nops = nops;
     state.ops = ops;
     vm_ir_read_from(&state, index);

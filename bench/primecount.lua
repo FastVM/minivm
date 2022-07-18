@@ -19,4 +19,4 @@ local function primes(upto)
     print(count)
 end
 
-primes(1000000)
+primes(3000000)
