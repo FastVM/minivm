@@ -199,6 +199,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 | vmLoadArg rax, instr->args[0]
                 | vmLoadArg rdx, instr->args[1]
                 | mul rdx
+                | shr rax, 1
                 | vmStore instr->out->reg, rax
                 break;
             }
@@ -207,8 +208,6 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 | xor edx, edx
                 | vmLoadArg rax, instr->args[0]
                 | vmLoadArg rcx, instr->args[1]
-                | shr rax, 1
-                | shr rcx, 1
                 | div rcx
                 | shl rax, 1
                 | vmStore instr->out->reg, rax
@@ -219,10 +218,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 | xor edx, edx
                 | vmLoadArg rax, instr->args[0]
                 | vmLoadArg rcx, instr->args[1]
-                | shr rax, 1
-                | shr rcx, 1
                 | div rcx
-                | shl rdx, 1
                 | vmStore instr->out->reg, rdx
                 break;
             }
