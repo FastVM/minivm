@@ -457,7 +457,7 @@ void vm_ir_be_lua(FILE *out, size_t nops, vm_ir_block_t *blocks)
     state.file = out;
     state.back = vm_alloc0(sizeof(uint8_t) * nops);
     state.nblocks = 0;
-    state.blocks = vm_malloc(sizeof(size_t) * 256);
+    state.blocks = vm_malloc(sizeof(size_t) * nops);
     for (size_t i = 0; i < nops; i++)
     {
         vm_ir_block_t *block = &blocks[i];
