@@ -39,7 +39,7 @@ void vm_ir_be_js_print_target(FILE *out, vm_ir_block_t *block, size_t target)
             {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", block->branch->targets[target]->args[na]);
+            fprintf(out, "r%zu", block->branch->moves[target][na]);
         }
         fprintf(out, ")");
     }
@@ -48,7 +48,7 @@ void vm_ir_be_js_print_target(FILE *out, vm_ir_block_t *block, size_t target)
         fprintf(out, "bb%zu.bind(null", block->branch->targets[target]->id);
         for (size_t na = 0; na < block->branch->targets[target]->nargs; na++)
         {
-            fprintf(out, ", r%zu", block->branch->targets[target]->args[na]);
+            fprintf(out, ", r%zu", block->branch->moves[target][na]);
         }
         fprintf(out, ")");
     }

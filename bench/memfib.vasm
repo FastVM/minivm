@@ -74,6 +74,7 @@ func toplevel
     r12 <- dcall r11 r2 r10
     r13 <- int 10
     putchar r13
+    r0 <- int 0
     ret r0
 end
 @__entry

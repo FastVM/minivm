@@ -206,10 +206,30 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
     if (val->targets[0])
     {
         fprintf(out, " .%zu", (size_t) val->targets[0]->id);
+        fprintf(out, "(");
+        for (size_t i = 0; i < val->targets[0]->nargs; i++)
+        {
+            if (i != 0)
+            {
+                fprintf(out, ", ");
+            }
+            fprintf(out, "r%zu", val->moves[0][i]);
+        }
+        fprintf(out, ")");
     }
     if (val->targets[1])
     {
         fprintf(out, " .%zu", (size_t) val->targets[1]->id);
+        fprintf(out, "(");
+        for (size_t i = 0; i < val->targets[1]->nargs; i++)
+        {
+            if (i != 0)
+            {
+                fprintf(out, ", ");
+            }
+            fprintf(out, "r%zu", val->moves[1][i]);
+        }
+        fprintf(out, ")");
     }
 }
 void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val)

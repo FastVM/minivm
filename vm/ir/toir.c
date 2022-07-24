@@ -311,5 +311,26 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
     state.ops = ops;
     vm_ir_read_from(&state, index);
     vm_ir_info(&nops, &blocks);
+    for (size_t i = 0; i < nops; i++)
+    {
+        vm_ir_block_t *block = &blocks[i];
+        if (block->id != i)
+        {
+            continue;
+        }
+        for (size_t i = 0; i < 2; i++)
+        {
+            vm_ir_block_t *next = block->branch->targets[i];
+            if (next == NULL)
+            {
+                continue;
+            }
+            block->branch->moves[i] = vm_malloc(sizeof(size_t) * next->nargs);
+            for (size_t move = 0; move < next->nargs; move++)
+            {
+                block->branch->moves[i][move] = next->args[move];
+            }
+        }
+    }
     return &blocks[0];
 }

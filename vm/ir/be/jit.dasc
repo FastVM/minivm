@@ -1,5 +1,6 @@
 
 #include "jit.h"
+#include "../../int/gc.h"
 
 #include "../../../luajit/dynasm/dasm_proto.h"
 #include "../../../luajit/dynasm/dasm_x86.h"
@@ -18,34 +19,48 @@ void vm_printn(size_t n)
     printf("debug: %zu\n", n);
 }
 
+size_t vm_ir_be_jit_len(vm_gc_t *gc, vm_value_t ptr)
+{
+    return vm_gc_len(gc, ptr) << 1;
+}
+
+size_t vm_ir_be_jit_alloc(vm_gc_t *gc, size_t ptr)
+{
+    return (vm_gc_arr(gc, ptr >> 1) << 1) | 1;
+}
+
+vm_value_t vm_ir_be_jit_get(vm_gc_t *gc, vm_value_t ptr, vm_value_t val)
+{
+    return vm_gc_get_v(gc, ptr, val);
+}
+
+void vm_ir_be_jit_set(vm_gc_t *gc, vm_value_t ptr, vm_value_t nth, vm_value_t val)
+{
+    vm_gc_set_vv(gc, ptr, nth, val);
+}
+
+
 |.arch x64
 
-|.if WIN
-    |.define vmRegTmp1, rsi
-    |.define vmRegTmp2, rdi
-    |.define vmArg1, rcx
-    |.define vmArg2, rdx 
-|.else
-    |.define vmRegTmp1, r13
-    |.define vmRegTmp2, r14
-    |.define vmArg1, rdi
-    |.define vmArg2, rsi
-|.endif
+|.define vmRegTmp1, r8
+|.define vmRegTmp2, r9
+|.define vmArg1, rdi
+|.define vmArg2, rsi
+|.define vmArg3, rdx
+|.define vmArg4, rcx
 
 |.define vmRegStack, vmArg1
 
 |.macro pusha
+| push vmArg1
 | push vmRegTmp1
 | push vmRegTmp2
-| push vmArg1
-| push vmArg2
 |.endmacro
 
 |.macro popa
-| pop vmArg2
-| pop vmArg1
 | pop vmRegTmp2
 | pop vmRegTmp1
+| pop vmArg1
 |.endmacro
 
 |.macro vmLoad, x64reg, vmReg
@@ -72,6 +87,11 @@ void vm_printn(size_t n)
 ||vm_ir_arg_t *arg_ = (arg);
 ||switch (arg_->type)
 ||{
+||case VM_IR_ARG_FUNC:
+||{
+    |lea x64reg, [=>arg_->func->id]
+    ||break;
+||}
 ||case VM_IR_ARG_REG:
 ||{
     |vmLoad x64reg, arg_->reg
@@ -97,8 +117,6 @@ void vm_printn(size_t n)
         | call aword &putchar
         ||op_ /= 10;
     ||} while (op_ != 0);
-    | mov vmArg1, '\n'
-    | call aword &putchar
     | popa
 ||} while (0);
 |.endmacro
@@ -142,6 +160,8 @@ static void *link_and_encode(dasm_State **d)
 
 void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
 {
+    vm_gc_t gc;
+    vm_gc_init(&gc);
     dasm_State *d;
     dasm_State **Dst = &d;
     |.section code
@@ -224,40 +244,84 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_CALL:
             {
-                size_t nregs = block->nregs + 1;
+                size_t nregs = block->nregs+1;
                 for (size_t arg = 1; instr->args[arg]; arg++)
                 {
                     vm_ir_arg_t *val = instr->args[arg];
                     | vmLoadArg vmRegTmp1, val
                     | vmStore arg + nregs, vmRegTmp1
                 }
+                if (instr->args[0]->type == VM_IR_ARG_REG)
+                {
+                    | vmLoadArg vmRegTmp2, instr->args[0]
+                }
                 | add vmRegStack, nregs * sizeof(size_t)
                 | lea vmRegTmp1, [>1]
                 | push vmRegTmp1
-                | jmp =>instr->args[0]->func->id
+                if (instr->args[0]->type == VM_IR_ARG_REG)
+                {
+                    | jmp vmRegTmp2
+                }
+                else if (instr->args[0]->type == VM_IR_ARG_FUNC)
+                {
+                    | jmp =>instr->args[0]->func->id
+                }
+                else
+                {
+                    // TODO: error
+                }
                 |1:
                 | sub vmRegStack, nregs * sizeof(size_t)
-                | vmStore instr->out->reg, vmRegTmp1
+                if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG)
+                {
+                    | vmStore instr->out->reg, vmRegTmp1
+                }
                 break;
             }
             case VM_IR_IOP_ARR:
             {
-                |vmPrintStr "error: arr\n"
+                | pusha
+                | vmLoadArg vmArg2, instr->args[0]
+                | mov64 vmArg1, (size_t) &gc
+                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_alloc
+                | call vmRegTmp1
+                | popa
+                | vmStore instr->out->reg, rax
                 break;
             }
             case VM_IR_IOP_GET:
             {
-                |vmPrintStr "error: get\n"
+                | pusha
+                | vmLoadArg vmArg3, instr->args[1]
+                | vmLoadArg vmArg2, instr->args[0]
+                | mov64 vmArg1, (size_t) &gc
+                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_get
+                | call vmRegTmp1
+                | popa
+                | vmStore instr->out->reg, rax
                 break;
             }
             case VM_IR_IOP_SET:
             {
-                |vmPrintStr "error: set\n"
+                | pusha 
+                | vmLoadArg vmArg4, instr->args[2]
+                | vmLoadArg vmArg3, instr->args[1]
+                | vmLoadArg vmArg2, instr->args[0]
+                | mov64 vmArg1, (size_t) &gc
+                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_set
+                | call vmRegTmp1
+                | popa
                 break;
             }
             case VM_IR_IOP_LEN:
             {
-                |vmPrintStr "error: len\n"
+                | pusha
+                | vmLoadArg vmArg2, instr->args[0]
+                | mov64 vmArg1, (size_t) &gc
+                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_len
+                | call vmRegTmp1
+                | popa
+                | vmStore instr->out->reg, rax
                 break;
             }
             case VM_IR_IOP_TYPE:
@@ -267,9 +331,8 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             }
             case VM_IR_IOP_OUT:
             {
-                | vmLoadArg vmRegTmp1, instr->args[0]
                 | pusha
-                | mov vmArg1, vmRegTmp1
+                | vmLoadArg vmArg1, instr->args[0]
                 | shr vmArg1, 1
                 | call &putchar
                 | popa
