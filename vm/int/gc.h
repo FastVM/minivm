@@ -57,8 +57,6 @@ void vm_gc_stop(vm_gc_t gc);
 void vm_gc_run(vm_gc_t *restrict gc);
 
 vm_int_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t size);
-void vm_gc_set_char(vm_gc_t *restrict gc, vm_int_t ptr, vm_int_t index, char chr);
-
 
 #define VM_VALUE_GET_INT(n_) ((n_).ival >> 1)
 #define VM_VALUE_GET_ARR(n_) ((n_).ival >> 1)

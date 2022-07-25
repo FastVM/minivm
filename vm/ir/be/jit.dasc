@@ -268,7 +268,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 }
                 else
                 {
-                    // TODO: error
+                    __builtin_trap();
                 }
                 |1:
                 | sub vmRegStack, nregs * sizeof(size_t)
