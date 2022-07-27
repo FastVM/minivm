@@ -1,5 +1,6 @@
 
 #include "build.h"
+#include "../lib.h"
 
 enum
 {
@@ -12,8 +13,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
 {
     vm_ir_block_t *blocks = *ptr_blocks;
     size_t nblocks = *ptr_nops;
-    size_t regalloc = 0;
-    uint8_t **all_regs = vm_malloc(sizeof(size_t *) * nblocks);
+    uint8_t **all_regs = vm_malloc(sizeof(uint8_t *) * nblocks);
     for (size_t i = 0; i < nblocks; i++)
     {
         vm_ir_block_t *block = &blocks[i];
@@ -49,10 +49,6 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         {
             block->nregs = nregs;
         }
-        if (nregs >= regalloc)
-        {
-            regalloc = nregs;
-        }
     }
     for (size_t i = 0; i < nblocks; i++)
     {
@@ -61,7 +57,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         {
             continue;
         }
-        uint8_t *regs = vm_malloc(sizeof(uint8_t) * block->nregs);
+        uint8_t *regs = vm_malloc(sizeof(uint8_t) * (block->nregs + 1));
         all_regs[i] = regs;
         for (size_t j = 0; j < block->nregs; j++)
         {
@@ -93,6 +89,29 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                 nargs += 1;   
             }
         }
+        // for (size_t i = 0; i < block->nargs; i++)
+        // {
+        //     if (block->args[i] >= nargs)
+        //     {
+        //         nargs = block->args[i] + 1;
+        //     }
+        // }
+        // for (size_t t = 0; t < 2; t++)
+        // {
+        //     vm_ir_block_t *branch = block->branch->targets[t];
+        //     if (branch == NULL)
+        //     {
+        //         continue;
+        //     }
+        //     for (size_t i = 0; i < branch->nargs; i++)
+        //     {
+        //         if (branch->args[i] >= nargs)
+        //         {
+        //             nargs = branch->args[i] + 1;
+        //         }
+        //     }
+        // }
+        // printf(".%zu: r0 .. r%zu\n", i, nregs);
         block->nargs = 0;
         block->args = vm_malloc(sizeof(size_t) * nargs);
         for (size_t reg = 0; reg < block->nregs; reg++)
@@ -100,6 +119,10 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
             if (regs[reg] == VM_IR_INFO_REG_ARG)
             {
                 block->args[block->nargs++] = reg;
+                if (reg >= block->nregs)
+                {
+                    block->nregs = reg + 1;
+                }
             }
         }
     }
@@ -130,6 +153,15 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                     while (ti < target->nargs)
                     {
                         size_t newreg = target->args[ti++];
+                        if (newreg >= blocks[i].nregs)
+                        {
+                            all_regs[i] = vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg + 1));
+                            for (size_t c = blocks[i].nregs; c < newreg + 1; c++)
+                            {
+                                all_regs[i][c] = VM_IR_INFO_REG_UNK;
+                            }
+                            blocks[i].nregs = newreg + 1;
+                        }
                         if (all_regs[i][newreg] != VM_IR_INFO_REG_DEF)
                         {
                             next[nargs++] = newreg;

@@ -14,29 +14,29 @@
 #endif
 #endif
 
-void vm_printn(size_t n)
+void vm_ir_be_jit_putc(ptrdiff_t n)
 {
-    printf("debug: %zu\n", n);
+    printf("%c", (char) n);
 }
 
-size_t vm_ir_be_jit_len(vm_gc_t *gc, vm_value_t ptr)
+ptrdiff_t vm_ir_be_jit_len(vm_gc_t *gc, ptrdiff_t ptr)
 {
-    return vm_gc_len(gc, ptr) << 1;
+    return gc->buf[(ptr << 1) - 1].header.len << 1;
 }
 
-size_t vm_ir_be_jit_alloc(vm_gc_t *gc, size_t ptr)
+ptrdiff_t vm_ir_be_jit_alloc(vm_gc_t *gc, ptrdiff_t ptr)
 {
     return (vm_gc_arr(gc, ptr >> 1) << 1) | 1;
 }
 
-vm_value_t vm_ir_be_jit_get(vm_gc_t *gc, vm_value_t ptr, vm_value_t val)
+ptrdiff_t vm_ir_be_jit_get(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth)
 {
-    return vm_gc_get_v(gc, ptr, val);
+    return gc->buf[(ptr + nth) >> 1].value.ival << 1;
 }
 
-void vm_ir_be_jit_set(vm_gc_t *gc, vm_value_t ptr, vm_value_t nth, vm_value_t val)
+void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
 {
-    vm_gc_set_vv(gc, ptr, nth, val);
+    gc->buf[(ptr + nth) >> 1].value.ival = val;
 }
 
 
@@ -63,6 +63,16 @@ void vm_ir_be_jit_set(vm_gc_t *gc, vm_value_t ptr, vm_value_t nth, vm_value_t va
 | pop vmArg1
 |.endmacro
 
+|.macro vmPrintDyn, x64reg
+| pusha
+| xor eax, eax
+| mov vmArg2, x64reg
+| mov64 vmRegTmp2, (size_t) &printf
+| mov64 vmArg1, (size_t) "[0x%zi]"
+| call vmRegTmp2
+| popa
+|.endmacro
+
 |.macro vmLoad, x64reg, vmReg
 | mov x64reg, qword [vmRegStack + (vmReg) * sizeof(size_t)]
 |.endmacro
@@ -70,17 +80,6 @@ void vm_ir_be_jit_set(vm_gc_t *gc, vm_value_t ptr, vm_value_t nth, vm_value_t va
 |.macro vmStore, vmReg, x64reg
 | mov qword [vmRegStack + (vmReg) * sizeof(size_t)], x64reg
 |.endmacro
-
-|.macro vmPrintDyn, x64reg
-| pusha
-| xor eax, eax
-| mov vmArg2, x64reg
-| mov64 vmRegTmp2, (size_t) &printf
-| mov64 vmArg1, (size_t) "[0x%zx]"
-| call vmRegTmp2
-| popa
-|.endmacro
-
 |.macro vmLoadArg, x64reg, arg
 ||do
 ||{
@@ -99,7 +98,7 @@ void vm_ir_be_jit_set(vm_gc_t *gc, vm_value_t ptr, vm_value_t nth, vm_value_t va
 ||}
 ||case VM_IR_ARG_NUM:
 ||{
-    |mov x64reg, arg_->num << 1
+    |mov64 x64reg, arg_->num << 1
     ||break;
 ||}
 ||}
@@ -114,7 +113,8 @@ void vm_ir_be_jit_set(vm_gc_t *gc, vm_value_t ptr, vm_value_t nth, vm_value_t va
     ||do
     ||{
         | mov vmArg1, '0' + op_ % 10
-        | call aword &putchar
+        | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc 
+        | call vmRegTmp1
         ||op_ /= 10;
     ||} while (op_ != 0);
     | popa
@@ -129,7 +129,8 @@ void vm_ir_be_jit_set(vm_gc_t *gc, vm_value_t ptr, vm_value_t nth, vm_value_t va
     ||while (*str_)
     ||{
         | mov vmArg1, (size_t) *str_
-        | call aword &putchar
+        | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc 
+        | call vmRegTmp1
         ||str_+=1;
     ||}
     | popa
@@ -218,7 +219,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             {
                 | vmLoadArg rax, instr->args[0]
                 | vmLoadArg rdx, instr->args[1]
-                | mul rdx
+                | imul rdx
                 | shr rax, 1
                 | vmStore instr->out->reg, rax
                 break;
@@ -228,7 +229,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 | xor edx, edx
                 | vmLoadArg rax, instr->args[0]
                 | vmLoadArg rcx, instr->args[1]
-                | div rcx
+                | idiv rcx
                 | shl rax, 1
                 | vmStore instr->out->reg, rax
                 break;
@@ -238,7 +239,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 | xor edx, edx
                 | vmLoadArg rax, instr->args[0]
                 | vmLoadArg rcx, instr->args[1]
-                | div rcx
+                | idiv rcx
                 | vmStore instr->out->reg, rdx
                 break;
             }
@@ -255,7 +256,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 {
                     | vmLoadArg vmRegTmp2, instr->args[0]
                 }
-                | add vmRegStack, nregs * sizeof(size_t)
+                | add vmRegStack, nregs * sizeof(ptrdiff_t)
                 | lea vmRegTmp1, [>1]
                 | push vmRegTmp1
                 if (instr->args[0]->type == VM_IR_ARG_REG)
@@ -271,7 +272,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                     __builtin_trap();
                 }
                 |1:
-                | sub vmRegStack, nregs * sizeof(size_t)
+                | sub vmRegStack, nregs * sizeof(ptrdiff_t)
                 if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG)
                 {
                     | vmStore instr->out->reg, vmRegTmp1
@@ -334,7 +335,8 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
                 | pusha
                 | vmLoadArg vmArg1, instr->args[0]
                 | shr vmArg1, 1
-                | call &putchar
+                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc
+                | call vmRegTmp1
                 | popa
                 break;
             }
