@@ -15,6 +15,8 @@
 #endif
 #endif
 
+#define VM_STACK_OFFSET(n) ((n) * 8)
+
 void vm_ir_be_jit_putc(ptrdiff_t n)
 {
     printf("%c", (char) n);
@@ -40,11 +42,24 @@ void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
     gc->buf[(ptr + nth) >> 1].value.ival = val;
 }
 
+size_t vm_ir_be_jit_arg_reg(size_t n)
+{
+    size_t args[] = {
+        7,
+        6,
+        3,
+        2,
+        8,
+        9,
+        10,
+        11,
+    };
+    return args[n];
+}
 
 |.arch x64
 
-|.define vmRegTmp1, r8
-|.define vmRegTmp2, r9
+|.define vmRegTmp1, rbx
 |.define vmArg1, rdi
 |.define vmArg2, rsi
 |.define vmArg3, rdx
@@ -52,29 +67,19 @@ void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
 
 |.macro pusha
 | push rbp
-// || for (size_t i = 10; i < 16; i++)
-// ||{
-//     | push Rq(i)
-// ||}
 | push vmArg1
 | push vmArg2
 | push vmArg3
 | push vmArg4
 | push vmRegTmp1
-| push vmRegTmp2
 |.endmacro
 
 |.macro popa
-| pop vmRegTmp2
 | pop vmRegTmp1
 | pop vmArg4
 | pop vmArg3
 | pop vmArg2
 | pop vmArg1
-// || for (size_t i = 15; i >= 10; i--)
-// ||{
-//     | pop Rq(i)
-// ||}
 | pop rbp
 |.endmacro
 
@@ -88,18 +93,18 @@ void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
 | pusha
 | mov vmArg2, x64reg
 | xor eax, eax
+| mov64 vmRegTmp1, (size_t) &printf
 | mov64 vmArg1, (size_t) "[0x%zX]"
-| mov64 vmRegTmp2, (size_t) &printf
-| call vmRegTmp2
+| call vmRegTmp1
 | popa
 |.endmacro
 
 |.macro vmLoad, x64reg, vmReg
-| mov x64reg, qword [rsp + ((vmReg)) * sizeof(size_t)]
+| mov x64reg, qword [rsp + VM_STACK_OFFSET(vmReg)]
 |.endmacro
 
 |.macro vmStore, vmReg, x64reg
-| mov qword [rsp + ((vmReg)) * sizeof(size_t)], x64reg
+| mov qword [rsp + VM_STACK_OFFSET(vmReg)], x64reg
 |.endmacro
 
 |.macro vmLoadArg, x64reg, arg
@@ -133,9 +138,9 @@ void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
     | pusha
     | xor eax, eax
     | mov vmArg2, index
-    | mov64 vmRegTmp2, (size_t) &printf
+    | mov64 vmRegTmp1, (size_t) &printf
     | mov64 vmArg1, (size_t) "%zi"
-    | call vmRegTmp2
+    | call vmRegTmp1
     | popa
 ||} while (0);
 |.endmacro
@@ -178,6 +183,237 @@ static void *link_and_encode(dasm_State **d)
     return buf;
 }
 
+void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, vm_ir_block_t *block)
+{
+    for (size_t ninstr = 0; ninstr < block->len; ninstr++)
+    {
+        vm_ir_instr_t *instr = block->instrs[ninstr];
+        switch (instr->op)
+        {
+        case VM_IR_IOP_NOP:
+        {
+            break;
+        }
+        case VM_IR_IOP_MOVE:
+        {
+            | vmLoadArg vmRegTmp1, instr->args[0]
+            | vmStore instr->out->reg, vmRegTmp1
+            break;
+        }
+        case VM_IR_IOP_ADD:
+        {
+            | vmLoadArg vmRegTmp1, instr->args[0]
+            if (instr->args[1]->type == VM_IR_ARG_REG)
+            {
+                | add vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+            }
+            else if (instr->args[1]->type == VM_IR_ARG_NUM)
+            {
+                | add vmRegTmp1, instr->args[1]->num * 2
+            }
+            else
+            {
+                __builtin_trap();
+            }
+            | vmStore instr->out->reg, vmRegTmp1
+            break;
+        }
+        case VM_IR_IOP_SUB:
+        {
+            | vmLoadArg vmRegTmp1, instr->args[0]
+            if (instr->args[1]->type == VM_IR_ARG_REG)
+            {
+                | sub vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+            }
+            else if (instr->args[1]->type == VM_IR_ARG_NUM)
+            {
+                | sub vmRegTmp1, instr->args[1]->num * 2
+            }
+            else
+            {
+                __builtin_trap();
+            }
+            | vmStore instr->out->reg, vmRegTmp1
+            break;
+        }
+        case VM_IR_IOP_MUL:
+        {
+            | vmLoadArg rax, instr->args[0]
+            | vmLoadArg rdx, instr->args[1]
+            | imul rdx
+            | shr rax, 1
+            | vmStore instr->out->reg, rax
+            break;
+        }
+        case VM_IR_IOP_DIV:
+        {
+            | xor edx, edx
+            | vmLoadArg rax, instr->args[0]
+            | vmLoadArg rcx, instr->args[1]
+            | idiv rcx
+            | shl rax, 1
+            | vmStore instr->out->reg, rax
+            break;
+        }
+        case VM_IR_IOP_MOD:
+        {
+            | xor edx, edx
+            | vmLoadArg rax, instr->args[0]
+            | vmLoadArg rcx, instr->args[1]
+            | idiv rcx
+            | vmStore instr->out->reg, rdx
+            break;
+        }
+        case VM_IR_IOP_CALL:
+        {
+            for (size_t arg = 1; instr->args[arg]; arg++)
+            {
+                | vmLoadArg Rq(vm_ir_be_jit_arg_reg(arg)), instr->args[arg]
+            }
+            if (instr->args[0]->type == VM_IR_ARG_REG)
+            {
+                | call qword [rsp + VM_STACK_OFFSET(instr->args[0]->reg)]
+            }
+            else if (instr->args[0]->type == VM_IR_ARG_FUNC)
+            {
+                | call =>instr->args[0]->func->id*2
+            }
+            else
+            {
+                __builtin_trap();
+            }
+            if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG)
+            {
+                | vmStore instr->out->reg, rax
+            }
+            break;
+        }
+        case VM_IR_IOP_ARR:
+        {
+            | vmLoadArg vmArg2, instr->args[0]
+            | mov64 vmArg1, (size_t) gc
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_alloc
+            | vmCall vmRegTmp1
+            | vmStore instr->out->reg, rax
+            break;
+        }
+        case VM_IR_IOP_GET:
+        {
+            | vmLoadArg vmArg3, instr->args[1]
+            | vmLoadArg vmArg2, instr->args[0]
+            | mov64 vmArg1, (size_t) gc
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_get
+            | vmCall vmRegTmp1
+            | vmStore instr->out->reg, rax
+            break;
+        }
+        case VM_IR_IOP_SET:
+        {
+            | vmLoadArg vmArg4, instr->args[2]
+            | vmLoadArg vmArg3, instr->args[1]
+            | vmLoadArg vmArg2, instr->args[0]
+            | mov64 vmArg1, (size_t) gc
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_set
+            | vmCall vmRegTmp1
+            break;
+        }
+        case VM_IR_IOP_LEN:
+        {
+            | vmLoadArg vmArg2, instr->args[0]
+            | mov64 vmArg1, (size_t) gc
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_len
+            | vmCall vmRegTmp1
+            | vmStore instr->out->reg, rax
+            break;
+        }
+        case VM_IR_IOP_TYPE:
+        {
+            |vmPrintStr "error: type\n"
+            break;
+        }
+        case VM_IR_IOP_OUT:
+        {
+            | vmLoadArg vmRegTmp1, instr->args[0]
+            | mov vmArg1, vmRegTmp1
+            | shr vmArg1, 1
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc
+            | vmCall vmRegTmp1
+            break;
+        }
+        }
+    }
+    switch (block->branch->op)
+    {
+    case VM_IR_BOP_JUMP:
+    {
+        | jmp =>block->branch->targets[0]->id*2+1;
+        break;
+    }
+    case VM_IR_BOP_BOOL:
+    {
+        | vmLoadArg vmRegTmp1, block->branch->args[0]
+        | sar vmRegTmp1, 1
+        | test vmRegTmp1, vmRegTmp1
+        | jz =>block->branch->targets[0]->id*2+1
+        | jmp =>block->branch->targets[1]->id*2+1
+        break;
+    }
+    case VM_IR_BOP_LESS:
+    {
+        | vmLoadArg vmRegTmp1, block->branch->args[0]
+        if (block->branch->args[1]->type == VM_IR_ARG_REG)
+        {
+            | cmp vmRegTmp1, [rsp + VM_STACK_OFFSET(block->branch->args[1]->reg)]
+        }
+        else if (block->branch->args[1]->type == VM_IR_ARG_NUM)
+        {
+            | cmp vmRegTmp1, block->branch->args[1]->num * 2
+        }
+        else
+        {
+            __builtin_trap();
+        }
+        | jl =>block->branch->targets[1]->id*2+1
+        | jmp =>block->branch->targets[0]->id*2+1
+        break;
+    }
+    case VM_IR_BOP_EQUAL:
+    {
+        | vmLoadArg vmRegTmp1, block->branch->args[0]
+        if (block->branch->args[1]->type == VM_IR_ARG_REG)
+        {
+            | cmp vmRegTmp1, [rsp + VM_STACK_OFFSET(block->branch->args[1]->reg)]
+        }
+        else if (block->branch->args[1]->type == VM_IR_ARG_NUM)
+        {
+            | cmp vmRegTmp1, block->branch->args[1]->num * 2
+        }
+        else
+        {
+            __builtin_trap();
+        }
+        | je =>block->branch->targets[1]->id*2+1
+        | jmp =>block->branch->targets[0]->id*2+1
+        break;
+    }
+    case VM_IR_BOP_RET:
+    {
+        | vmLoadArg rax, block->branch->args[0]
+        | mov rsp, rbp
+        | pop rbp
+        | ret
+        break;
+    }
+    case VM_IR_BOP_EXIT:
+    {
+        | mov vmArg1, 0
+        | mov64 vmRegTmp1, (size_t) &exit
+        | vmCall vmRegTmp1
+        break;
+    }
+    }
+}
+
 void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
 {
     vm_gc_t gc;
@@ -195,7 +431,6 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
     dasm_growpc(Dst, nops*2+1);
     |.code
     |->entry:
-    // | int 3
     | call =>0
     for (size_t index = 0; index < nops; index++)
     {
@@ -213,204 +448,14 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             | sub rsp, (nregs+1) * sizeof(ptrdiff_t)
             for (size_t i = 1; i <= block->nargs; i++)
             {
-                | vmStore i, Rq(9+i)
+                | vmStore i, Rq(vm_ir_be_jit_arg_reg(i))
             }
         }
         |=>index*2+1:
-        for (size_t ninstr = 0; ninstr < block->len; ninstr++)
-        {
-            vm_ir_instr_t *instr = block->instrs[ninstr];
-            switch (instr->op)
-            {
-            case VM_IR_IOP_NOP:
-            {
-                break;
-            }
-            case VM_IR_IOP_MOVE:
-            {
-                | vmLoadArg vmRegTmp1, instr->args[0]
-                | vmStore instr->out->reg, vmRegTmp1
-                break;
-            }
-            case VM_IR_IOP_ADD:
-            {
-                | vmLoadArg vmRegTmp1, instr->args[0]
-                | vmLoadArg vmRegTmp2, instr->args[1]
-                | add vmRegTmp1, vmRegTmp2
-                | vmStore instr->out->reg, vmRegTmp1
-                break;
-            }
-            case VM_IR_IOP_SUB:
-            {
-                | vmLoadArg vmRegTmp1, instr->args[0]
-                | vmLoadArg vmRegTmp2, instr->args[1]
-                | sub vmRegTmp1, vmRegTmp2
-                | vmStore instr->out->reg, vmRegTmp1
-                break;
-            }
-            case VM_IR_IOP_MUL:
-            {
-                | vmLoadArg rax, instr->args[0]
-                | vmLoadArg rdx, instr->args[1]
-                | imul rdx
-                | shr rax, 1
-                | vmStore instr->out->reg, rax
-                break;
-            }
-            case VM_IR_IOP_DIV:
-            {
-                | xor edx, edx
-                | vmLoadArg rax, instr->args[0]
-                | vmLoadArg rcx, instr->args[1]
-                | idiv rcx
-                | shl rax, 1
-                | vmStore instr->out->reg, rax
-                break;
-            }
-            case VM_IR_IOP_MOD:
-            {
-                | xor edx, edx
-                | vmLoadArg rax, instr->args[0]
-                | vmLoadArg rcx, instr->args[1]
-                | idiv rcx
-                | vmStore instr->out->reg, rdx
-                break;
-            }
-            case VM_IR_IOP_CALL:
-            {
-                for (size_t arg = 1; instr->args[arg]; arg++)
-                {
-                    | vmLoadArg Rq(arg+9), instr->args[arg]
-                }
-                if (instr->args[0]->type == VM_IR_ARG_REG)
-                {
-                    | vmLoadArg vmRegTmp2, instr->args[0]
-                    | call vmRegTmp2
-                }
-                else if (instr->args[0]->type == VM_IR_ARG_FUNC)
-                {
-                    | call =>instr->args[0]->func->id*2
-                }
-                else
-                {
-                    __builtin_trap();
-                }
-                if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG)
-                {
-                    | vmStore instr->out->reg, rax
-                }
-                break;
-            }
-            case VM_IR_IOP_ARR:
-            {
-                | vmLoadArg vmArg2, instr->args[0]
-                | mov64 vmArg1, (size_t) &gc
-                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_alloc
-                | vmCall vmRegTmp1
-                | vmStore instr->out->reg, rax
-                break;
-            }
-            case VM_IR_IOP_GET:
-            {
-                | vmLoadArg vmArg3, instr->args[1]
-                | vmLoadArg vmArg2, instr->args[0]
-                | mov64 vmArg1, (size_t) &gc
-                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_get
-                | vmCall vmRegTmp1
-                | vmStore instr->out->reg, rax
-                break;
-            }
-            case VM_IR_IOP_SET:
-            {
-                | vmLoadArg vmArg4, instr->args[2]
-                | vmLoadArg vmArg3, instr->args[1]
-                | vmLoadArg vmArg2, instr->args[0]
-                | mov64 vmArg1, (size_t) &gc
-                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_set
-                | vmCall vmRegTmp1
-                break;
-            }
-            case VM_IR_IOP_LEN:
-            {
-                | vmLoadArg vmArg2, instr->args[0]
-                | mov64 vmArg1, (size_t) &gc
-                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_len
-                | vmCall vmRegTmp1
-                | vmStore instr->out->reg, rax
-                break;
-            }
-            case VM_IR_IOP_TYPE:
-            {
-                |vmPrintStr "error: type\n"
-                break;
-            }
-            case VM_IR_IOP_OUT:
-            {
-                | vmLoadArg vmRegTmp1, instr->args[0]
-                | mov vmArg1, vmRegTmp1
-                | shr vmArg1, 1
-                | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc
-                | vmCall vmRegTmp1
-                break;
-            }
-            }
-        }
-        switch (block->branch->op)
-        {
-        case VM_IR_BOP_JUMP:
-        {
-            | jmp =>block->branch->targets[0]->id*2+1;
-            break;
-        }
-        case VM_IR_BOP_BOOL:
-        {
-            | vmLoadArg vmRegTmp1, block->branch->args[0]
-            | sar vmRegTmp1, 1
-            | test vmRegTmp1, vmRegTmp1
-            | jz =>block->branch->targets[0]->id*2+1
-            | jmp =>block->branch->targets[1]->id*2+1
-            break;
-        }
-        case VM_IR_BOP_LESS:
-        {
-            | vmLoadArg vmRegTmp1, block->branch->args[0]
-            | vmLoadArg vmRegTmp2, block->branch->args[1]
-            | cmp vmRegTmp1, vmRegTmp2
-            | jl =>block->branch->targets[1]->id*2+1
-            | jmp =>block->branch->targets[0]->id*2+1
-            break;
-        }
-        case VM_IR_BOP_EQUAL:
-        {
-            | vmLoadArg vmRegTmp1, block->branch->args[0]
-            | vmLoadArg vmRegTmp2, block->branch->args[1]
-            | cmp vmRegTmp1, vmRegTmp2
-            | je =>block->branch->targets[1]->id*2+1
-            | jmp =>block->branch->targets[0]->id*2+1
-            break;
-        }
-        case VM_IR_BOP_RET:
-        {
-            // | int 3
-            // | vmPrintStr "x"
-            | vmLoadArg rax, block->branch->args[0]
-            | mov rsp, rbp
-            | pop rbp
-            | ret
-            break;
-        }
-        case VM_IR_BOP_EXIT:
-        {
-            | mov vmArg1, 0
-            | mov64 vmRegTmp1, (size_t) &exit
-            | vmCall vmRegTmp1
-            break;
-        }
-        }
+        vm_ir_be_jit_block(Dst, &gc, block);
     }
     link_and_encode(&d);
     dasm_free(&d);
     void (*fn)(void) = labels[lbl_entry];
     fn();
-    fprintf(stderr, "");
 }
