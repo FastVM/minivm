@@ -218,4 +218,21 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         vm_free(all_regs[i]);
     }
     vm_free(all_regs);
+    vm_ir_block_t *func = &blocks[0];
+    for (size_t i = 0; i < nblocks; i++)
+    {
+        vm_ir_block_t *block = &blocks[i];
+        if (block->id != i)
+        {
+            continue;
+        }
+        if (block->isfunc)
+        {
+            func = block;
+        }
+        if (block->nregs > func->nregs)
+        {
+            func->nregs = block->nregs;
+        }
+    }
 }
