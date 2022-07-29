@@ -141,12 +141,11 @@ void vm_ir_instr_free(vm_ir_instr_t *instr)
     {
         return;
     }
+    vm_ir_arg_free(instr->out);
     for (size_t i = 0; instr->args[i] != NULL; i++)
     {
         vm_ir_arg_free(instr->args[i]);
     }
-    vm_free(instr->args);
-    vm_ir_arg_free(instr->out);
     vm_free(instr);
 }
 
@@ -165,14 +164,11 @@ void vm_ir_block_free(vm_ir_block_t *block)
         for (size_t i = 0; i < 2; i++)
         {
             vm_ir_arg_free(block->branch->args[i]);
-            vm_free(block->branch->moves[i]);
-            vm_free(block->branch->args[i]);
         }
         vm_free(block->branch);
     }
     vm_free(block->instrs);
     vm_free(block->args);
-    vm_free(block->instrs);
 }
 
 void vm_ir_blocks_free(size_t nblocks, vm_ir_block_t *blocks)
@@ -276,7 +272,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
             {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", val->moves[0][i]);
+            fprintf(out, "r%zu", val->targets[0]->args[i]);
         }
         fprintf(out, ")");
     }
@@ -290,7 +286,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
             {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", val->moves[1][i]);
+            fprintf(out, "r%zu", val->targets[0]->args[i]);
         }
         fprintf(out, ")");
     }

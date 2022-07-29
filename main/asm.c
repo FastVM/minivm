@@ -84,6 +84,7 @@ int main(int argc, char **argv)
     if (!strcmp(target, "js") || !strcmp(target, "lua") || !strcmp(target, "jit"))
     {
         vm_ir_block_t *blocks = vm_ir_parse(buf.nops, buf.ops);
+        vm_free(buf.ops);
         size_t nblocks = buf.nops;
         vm_ir_opt_all(&nblocks, &blocks);
         if (!strcmp(target, "js"))

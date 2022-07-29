@@ -67,7 +67,6 @@ struct vm_ir_arg_t
 struct vm_ir_branch_t
 {
     vm_ir_block_t *targets[2];
-    size_t *moves[2];
     vm_ir_arg_t *args[2];
     uint8_t op;
 };

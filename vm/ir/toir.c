@@ -91,6 +91,7 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
             }
             args[nargs] = NULL;
             vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_reg(func), args);
+            vm_free(args);
             break;
         }
         case VM_OPCODE_ADDR:
@@ -326,11 +327,6 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
             if (next == NULL)
             {
                 continue;
-            }
-            block->branch->moves[i] = vm_malloc(sizeof(size_t) * next->nargs);
-            for (size_t move = 0; move < next->nargs; move++)
-            {
-                block->branch->moves[i][move] = next->args[move];
             }
         }
     }
