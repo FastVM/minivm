@@ -2,6 +2,7 @@
 #include "../vm/asm.h"
 #include "../vm/ir/toir.h"
 #include "../vm/ir/opt.h"
+#include "../vm/ir/build.h"
 #include "../vm/ir/be/js.h"
 #include "../vm/ir/be/lua.h"
 #include "../vm/ir/be/jit.h"
@@ -107,8 +108,10 @@ int main(int argc, char **argv)
         }
         if (!strcmp(target, "jit"))
         {
+            static int x = 0;
             vm_ir_be_jit(nblocks, blocks);
         }
+        vm_ir_blocks_free(nblocks, blocks);
     }
     else
     {

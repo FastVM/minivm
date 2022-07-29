@@ -17,9 +17,9 @@
 
 #define VM_STACK_OFFSET(n) ((n) * 8)
 
-void vm_ir_be_jit_putc(ptrdiff_t n)
+void vm_ir_be_jit_putc(int n)
 {
-    printf("%c", (char) n);
+    putchar(n);
 }
 
 ptrdiff_t vm_ir_be_jit_len(vm_gc_t *gc, ptrdiff_t ptr)
@@ -183,7 +183,7 @@ static void *link_and_encode(dasm_State **d)
     return buf;
 }
 
-void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, vm_ir_block_t *block)
+void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
 {
     for (size_t ninstr = 0; ninstr < block->len; ninstr++)
     {
@@ -333,8 +333,7 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, vm_ir_block_t *block)
         }
         case VM_IR_IOP_OUT:
         {
-            | vmLoadArg vmRegTmp1, instr->args[0]
-            | mov vmArg1, vmRegTmp1
+            | vmLoadArg vmArg1, instr->args[0]
             | shr vmArg1, 1
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc
             | vmCall vmRegTmp1
@@ -406,9 +405,9 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, vm_ir_block_t *block)
     }
     case VM_IR_BOP_EXIT:
     {
-        | mov vmArg1, 0
-        | mov64 vmRegTmp1, (size_t) &exit
-        | vmCall vmRegTmp1
+        | mov64 rax, (size_t) store
+        | mov rsp, [rax]
+        | ret
         break;
     }
     }
@@ -425,13 +424,19 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
     dasm_init(Dst, DASM_MAXSECTION);
     |.globals lbl_
     void *labels[lbl__MAX];
-    dasm_setupglobal(&d, labels, lbl__MAX);
+    dasm_setupglobal(Dst, labels, lbl__MAX);
     |.actionlist bf_actions
     dasm_setup(Dst, bf_actions);
     dasm_growpc(Dst, nops*2+1);
+    size_t out;
     |.code
     |->entry:
+    | mov64 rax, (size_t) &out
+    | mov [rax], rsp
     | call =>0
+    | mov64 rax, (size_t) &out
+    | mov rsp, [rax]
+    | ret
     for (size_t index = 0; index < nops; index++)
     {
         vm_ir_block_t *block = &blocks[index];
@@ -452,10 +457,10 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             }
         }
         |=>index*2+1:
-        vm_ir_be_jit_block(Dst, &gc, block);
+        vm_ir_be_jit_block(Dst, &gc, &out, block);
     }
-    link_and_encode(&d);
-    dasm_free(&d);
+    link_and_encode(Dst);
+    dasm_free(Dst);
     void (*fn)(void) = labels[lbl_entry];
     fn();
 }

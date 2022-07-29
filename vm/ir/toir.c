@@ -76,6 +76,7 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
             vm_ir_read_from(state, func);
             state->nops = tmp;
             vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_func(&blocks[func]), args);
+            vm_free(args);
             break;
         }
         case VM_OPCODE_DCALL:
@@ -296,7 +297,7 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
 {
     size_t index = 0;
     uint8_t *jumps = vm_jump_base(nops, ops);
-    vm_ir_block_t *blocks = vm_malloc(sizeof(vm_ir_block_t) * nops);
+    vm_ir_block_t *blocks = vm_alloc0(sizeof(vm_ir_block_t) * nops);
     for (size_t i = 0; i < nops ; i++)
     {
         blocks[i] = (vm_ir_block_t) {
@@ -311,6 +312,7 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
     state.ops = ops;
     vm_ir_read_from(&state, index);
     vm_ir_info(&nops, &blocks);
+    vm_free(jumps);
     for (size_t i = 0; i < nops; i++)
     {
         vm_ir_block_t *block = &blocks[i];
