@@ -119,8 +119,9 @@ int main(int argc, char **argv)
         vm_bc_buf_t buf = vm_asm(src);
         if (!strcmp(target, "js") || !strcmp(target, "lua") || !strcmp(target, "jit"))
         {
-            vm_ir_block_t *blocks = vm_ir_parse(buf.nops, buf.ops);
             size_t nblocks = buf.nops;
+            vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
+            vm_ir_opt_all(&nblocks, &blocks);
             if (!strcmp(target, "jit"))
             {
                 vm_ir_be_jit(nblocks, blocks);

@@ -89,29 +89,6 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                 nargs += 1;   
             }
         }
-        // for (size_t i = 0; i < block->nargs; i++)
-        // {
-        //     if (block->args[i] >= nargs)
-        //     {
-        //         nargs = block->args[i] + 1;
-        //     }
-        // }
-        // for (size_t t = 0; t < 2; t++)
-        // {
-        //     vm_ir_block_t *branch = block->branch->targets[t];
-        //     if (branch == NULL)
-        //     {
-        //         continue;
-        //     }
-        //     for (size_t i = 0; i < branch->nargs; i++)
-        //     {
-        //         if (branch->args[i] >= nargs)
-        //         {
-        //             nargs = branch->args[i] + 1;
-        //         }
-        //     }
-        // }
-        // printf(".%zu: r0 .. r%zu\n", i, nregs);
         block->nargs = 0;
         block->args = vm_malloc(sizeof(size_t) * nargs);
         for (size_t reg = 0; reg < block->nregs; reg++)
@@ -233,6 +210,20 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         if (block->nregs > func->nregs)
         {
             func->nregs = block->nregs;
+        }
+        for (size_t j = 0; j < 2; j++)
+        {
+            vm_ir_block_t *next = block->branch->targets[j];
+            if (next == NULL)
+            {
+                continue;
+            }
+            vm_ir_arg_t **cur = vm_malloc(sizeof(vm_ir_arg_t *) * next->nargs);
+            for (size_t k = 0; k < next->nargs; k++)
+            {
+                cur[k] = vm_ir_arg_reg(next->args[k]);
+            }
+            block->branch->pass[j] = cur;
         }
     }
 }

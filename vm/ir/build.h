@@ -17,7 +17,6 @@ vm_ir_arg_t *vm_ir_arg_reg(size_t reg);
 vm_ir_arg_t *vm_ir_arg_num(ptrdiff_t num);
 vm_ir_arg_t *vm_ir_arg_str(const char *str);
 vm_ir_arg_t *vm_ir_arg_func(vm_ir_block_t *func);
-vm_ir_arg_t *vm_ir_arg_instr(vm_ir_instr_t *instr);
 
 vm_ir_block_t *vm_ir_block_new(void);
 

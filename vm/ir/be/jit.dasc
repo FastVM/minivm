@@ -7,6 +7,7 @@
 #include "../../../luajit/dynasm/dasm_x86.h"
 
 #if _WIN32
+#include <stdio.h>
 #include <Windows.h>
 #else
 #include <sys/mman.h>
@@ -21,7 +22,7 @@
 
 void vm_ir_be_jit_putc(int n)
 {
-    putchar(n);
+    fprintf(stdout, "%c", n);
 }
 
 ptrdiff_t vm_ir_be_jit_len(vm_gc_t *gc, ptrdiff_t ptr)
@@ -59,14 +60,21 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
 
 |.arch x64
 
+#define VM_WIN 0
+|.if WIN
+|.define vmArg1, rcx
+|.define vmArg2, rdx
+|.define vmArg3, r8
+|.define vmArg4, r9
+|.else
 |.define vmRegTmp1, rbx
 |.define vmArg1, rdi
 |.define vmArg2, rsi
 |.define vmArg3, rdx
 |.define vmArg4, rcx
+|.endif
 
 |.macro pusha
-| push rax
 | push rcx
 | push rbp
 | push vmArg1
@@ -96,7 +104,6 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
 | pop vmArg1
 | pop rbp
 | pop rcx
-| pop rax
 |.endmacro
 
 |.macro vmCall, x64reg
@@ -193,18 +200,24 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
 
 static void *link_and_encode(dasm_State **d, size_t *sz)
 {
-    void *buf;
+    void* buf;
     dasm_link(d, sz);
+#if VM_WIN
+    buf = VirtualAlloc(0, *sz, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+#else
     buf = mmap(0, *sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#endif
     dasm_encode(d, buf);
+#if VM_WIN
+    {DWORD dwOld; VirtualProtect(buf, *sz, PAGE_EXECUTE_READ, &dwOld); }
+#else
     mprotect(buf, *sz, PROT_READ | PROT_EXEC);
+#endif
     return buf;
 }
 
 void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
 {
-    // fprintf(stderr, "%zu:\n", block->id);
-    // vm_ir_print_block(stderr, block);
     for (size_t ninstr = 0; ninstr < block->len; ninstr++)
     {
         vm_ir_instr_t *instr = block->instrs[ninstr];
@@ -306,7 +319,7 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
             }
             uint8_t saved[8] = {0};
             {
-                if (instr->out->type == VM_IR_ARG_REG && instr->out->reg < 8 && saved[instr->out->reg] == 0)
+                if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG && instr->out->reg < 8 && saved[instr->out->reg] == 0)
                 {
                     saved[instr->out->reg] = 1;
                 }
@@ -321,7 +334,7 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
                             saved[arg->reg] = 2;
                         }
                     }
-                    if (instr->out && instr->out->type == VM_IR_ARG_REG && instr->out->reg < 8 && saved[instr->out->reg] == 0)
+                    if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG && instr->out->reg < 8 && saved[instr->out->reg] == 0)
                     {
                         saved[instr->out->reg] = 1;
                     }
@@ -448,6 +461,16 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
     {
     case VM_IR_BOP_JUMP:
     {
+        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
+        {
+            | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
+            | push vmRegTmp1
+        }
+        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
+        {
+            | pop vmRegTmp1
+            | vmStore block->branch->targets[0]->args[i], vmRegTmp1
+        }
         | jmp =>block->branch->targets[0]->id*2+1;
         break;
     }
@@ -456,7 +479,41 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         | vmLoadArg vmRegTmp1, block->branch->args[0]
         | sar vmRegTmp1, 1
         | test vmRegTmp1, vmRegTmp1
-        | jz =>block->branch->targets[0]->id*2+1
+        | jnz >1
+        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
+        {
+            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
+            {
+                | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
+                | push vmRegTmp1
+            }
+        }
+        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
+        {
+            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
+            {
+                | pop vmRegTmp1
+                | vmStore block->branch->targets[0]->args[i], vmRegTmp1
+            }
+        }
+        | jmp =>block->branch->targets[0]->id*2+1
+        |1:
+        for (ptrdiff_t i = 0; i < block->branch->targets[1]->nargs; i++)
+        {
+            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
+            {
+                | vmLoadArg vmRegTmp1, block->branch->pass[1][i]
+                | push vmRegTmp1
+            }
+        }
+        for (ptrdiff_t i = block->branch->targets[1]->nargs-1; i >= 0; i--)
+        {
+            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
+            {
+                | pop vmRegTmp1
+                | vmStore block->branch->targets[1]->args[i], vmRegTmp1
+            }
+        }
         | jmp =>block->branch->targets[1]->id*2+1
         break;
     }
@@ -482,8 +539,42 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         {
             __builtin_trap();
         }
-        | jl =>block->branch->targets[1]->id*2+1
+        | jl >1
+        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
+        {
+            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
+            {
+                | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
+                | push vmRegTmp1
+            }
+        }
+        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
+        {
+            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
+            {
+                | pop vmRegTmp1
+                | vmStore block->branch->targets[0]->args[i], vmRegTmp1
+            }
+        }
         | jmp =>block->branch->targets[0]->id*2+1
+        |1:
+        for (ptrdiff_t i = 0; i < block->branch->targets[1]->nargs; i++)
+        {
+            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
+            {
+                | vmLoadArg vmRegTmp1, block->branch->pass[1][i]
+                | push vmRegTmp1
+            }
+        }
+        for (ptrdiff_t i = block->branch->targets[1]->nargs-1; i >= 0; i--)
+        {
+            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
+            {
+                | pop vmRegTmp1
+                | vmStore block->branch->targets[1]->args[i], vmRegTmp1
+            }
+        }
+        | jmp =>block->branch->targets[1]->id*2+1
         break;
     }
     case VM_IR_BOP_EQUAL:
@@ -508,8 +599,42 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         {
             __builtin_trap();
         }
-        | je =>block->branch->targets[1]->id*2+1
+        | je >1
+        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
+        {
+            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
+            {
+                | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
+                | push vmRegTmp1
+            }
+        }
+        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
+        {
+            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
+            {
+                | pop vmRegTmp1
+                | vmStore block->branch->targets[0]->args[i], vmRegTmp1
+            }
+        }
         | jmp =>block->branch->targets[0]->id*2+1
+        |1:
+        for (ptrdiff_t i = 0; i < block->branch->targets[1]->nargs; i++)
+        {
+            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
+            {
+                | vmLoadArg vmRegTmp1, block->branch->pass[1][i]
+                | push vmRegTmp1
+            }
+        }
+        for (ptrdiff_t i = block->branch->targets[1]->nargs-1; i >= 0; i--)
+        {
+            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
+            {
+                | pop vmRegTmp1
+                | vmStore block->branch->targets[1]->args[i], vmRegTmp1
+            }
+        }
+        | jmp =>block->branch->targets[1]->id*2+1
         break;
     }
     case VM_IR_BOP_RET:
@@ -524,6 +649,7 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
     {
         | mov64 rax, (size_t) store
         | mov rsp, [rax]
+        | popa
         | ret
         break;
     }
@@ -548,11 +674,13 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
     size_t out;
     |.code
     |->entry:
+    | pusha
     | mov64 rax, (size_t) &out
     | mov [rax], rsp
     | call =>0
     | mov64 rax, (size_t) &out
     | mov rsp, [rax]
+    | popa
     | ret
     for (size_t index = 0; index < nops; index++)
     {
@@ -571,9 +699,9 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             {
                 | sub rsp, (nregs-VM_REG_MAX) * sizeof(ptrdiff_t)
             }
-            for (size_t i = 1; i <= block->nargs; i++)
+            for (size_t i = 0; i < block->nargs; i++)
             {
-                | vmStore i, Rq(vm_ir_be_jit_arg_reg(i-1))
+                | vmStore block->args[i], Rq(vm_ir_be_jit_arg_reg(i))
             }
         }
         |=>index*2+1:
@@ -584,5 +712,9 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
     dasm_free(Dst);
     void (*fn)(void) = labels[lbl_entry];
     fn();
+#if VM_WIN
+    VirtualFree(map, sz, MEM_RELEASE);
+#else
     munmap(map, sz);
+#endif
 }

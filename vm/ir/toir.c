@@ -298,7 +298,7 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
 {
     size_t index = 0;
     uint8_t *jumps = vm_jump_base(nops, ops);
-    vm_ir_block_t *blocks = vm_alloc0(sizeof(vm_ir_block_t) * nops);
+    vm_ir_block_t *blocks = vm_malloc(sizeof(vm_ir_block_t) * nops);
     for (size_t i = 0; i < nops ; i++)
     {
         blocks[i] = (vm_ir_block_t) {

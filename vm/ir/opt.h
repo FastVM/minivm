@@ -4,8 +4,11 @@
 
 #include "ir.h"
 
+void vm_ir_opt_reg(size_t nblocks, vm_ir_block_t *blocks);
+
 static void vm_ir_opt_all(size_t *nops, vm_ir_block_t **blocks)
 {
+    vm_ir_opt_reg(*nops, *blocks);
 }
 
 #endif

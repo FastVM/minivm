@@ -16,11 +16,11 @@ typedef struct vm_ir_block_t vm_ir_block_t;
 
 enum
 {
+    VM_IR_ARG_NONE,
     VM_IR_ARG_REG,
     VM_IR_ARG_NUM,
     VM_IR_ARG_STR,
     VM_IR_ARG_FUNC,
-    VM_IR_ARG_INSTR,
 };
 
 enum
@@ -66,6 +66,7 @@ struct vm_ir_arg_t
 
 struct vm_ir_branch_t
 {
+    vm_ir_arg_t **pass[2];
     vm_ir_block_t *targets[2];
     vm_ir_arg_t *args[2];
     uint8_t op;

@@ -3,6 +3,7 @@ GCC ?= gcc
 CLANG ?= 14
 OPT ?= -O2
 NUM ?= 3
+HOST_CC ?= $(CC)
 
 PROG_SRCS := main/asm.c main/run.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
@@ -10,7 +11,7 @@ PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 DASM_SRCS := vm/ir/be/jit.dasc
 DASM_OBJS := $(DASM_SRCS:%.dasc=%.o)
 
-VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c
+VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS) $(DASM_OBJS)
@@ -46,7 +47,7 @@ bins: bin/minivm-run bin/minivm-asm
 
 bin/minilua: luajit/src/host/minilua.c
 	@mkdir -p bin
-	$(CC) -O1 -o $(@) luajit/src/host/minilua.c -lm
+	$(HOST_CC) -o $(@) luajit/src/host/minilua.c -lm
 
 bin/libminivm.a: $(OBJS)
 	ar cr $(@) $(OBJS)

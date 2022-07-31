@@ -21,11 +21,6 @@ vm_ir_arg_t *vm_ir_arg_func(vm_ir_block_t *func)
     return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_FUNC, .func = func);
 }
 
-vm_ir_arg_t *vm_ir_arg_instr(vm_ir_instr_t *instr)
-{
-    return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_INSTR, .instr = instr);
-}
-
 vm_ir_arg_t *vm_ir_arg_num(ptrdiff_t num)
 {
     return vm_ir_new(vm_ir_arg_t, .type = VM_IR_ARG_NUM, .num = num);
@@ -164,6 +159,14 @@ void vm_ir_block_free(vm_ir_block_t *block)
         for (size_t i = 0; i < 2; i++)
         {
             vm_ir_arg_free(block->branch->args[i]);
+            if (block->branch->targets[i] != NULL)
+            {
+                for (size_t j = 0; j < block->branch->targets[i]->nargs; j++)
+                {
+                    vm_ir_arg_free(block->branch->pass[i][j]);
+                }
+                vm_free(block->branch->pass[i]);
+            }
         }
         vm_free(block->branch);
     }
@@ -207,11 +210,6 @@ void vm_ir_print_arg(FILE *out, vm_ir_arg_t *val)
     case VM_IR_ARG_FUNC:
     {
         fprintf(out, ".%zu", val->func->id);
-        break;
-    }
-    case VM_IR_ARG_INSTR:
-    {
-        vm_ir_print_instr(out, val->instr);
         break;
     }
     }
@@ -272,7 +270,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
             {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", val->targets[0]->args[i]);
+            vm_ir_print_arg(out, val->pass[0][i]);
         }
         fprintf(out, ")");
     }
@@ -286,7 +284,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
             {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", val->targets[0]->args[i]);
+            vm_ir_print_arg(out, val->pass[1][i]);
         }
         fprintf(out, ")");
     }
