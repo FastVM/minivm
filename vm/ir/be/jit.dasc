@@ -15,7 +15,9 @@
 #endif
 #endif
 
-#define VM_STACK_OFFSET(n) ((n) * 8)
+#define VM_REG_MAX (7)
+#define VM_REG_OFFSET(n) (n == 0 ? 1 : n+9)
+#define VM_STACK_OFFSET(n) (((n)-VM_REG_MAX) * 8)
 
 void vm_ir_be_jit_putc(int n)
 {
@@ -51,8 +53,6 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
         2,
         8,
         9,
-        10,
-        11,
     };
     return args[n];
 }
@@ -66,21 +66,37 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
 |.define vmArg4, rcx
 
 |.macro pusha
+| push rax
+| push rcx
 | push rbp
 | push vmArg1
 | push vmArg2
 | push vmArg3
 | push vmArg4
 | push vmRegTmp1
+| push r10
+| push r11
+| push r12
+| push r13
+| push r14
+| push r15
 |.endmacro
 
 |.macro popa
+| pop r15
+| pop r14
+| pop r13
+| pop r12
+| pop r11
+| pop r10
 | pop vmRegTmp1
 | pop vmArg4
 | pop vmArg3
 | pop vmArg2
 | pop vmArg1
 | pop rbp
+| pop rcx
+| pop rax
 |.endmacro
 
 |.macro vmCall, x64reg
@@ -94,17 +110,31 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
 | mov vmArg2, x64reg
 | xor eax, eax
 | mov64 vmRegTmp1, (size_t) &printf
-| mov64 vmArg1, (size_t) "[0x%zX]"
-| call vmRegTmp1
+| mov64 vmArg1, (size_t) "[%zu]"
+| vmCall vmRegTmp1
 | popa
 |.endmacro
 
 |.macro vmLoad, x64reg, vmReg
-| mov x64reg, qword [rsp + VM_STACK_OFFSET(vmReg)]
+|| if (vmReg < VM_REG_MAX)
+|| {
+    | mov x64reg, Rq(VM_REG_OFFSET(vmReg))
+|| }
+|| else
+|| {
+    | mov x64reg, [rsp + VM_STACK_OFFSET(vmReg)]
+|| }
 |.endmacro
 
 |.macro vmStore, vmReg, x64reg
-| mov qword [rsp + VM_STACK_OFFSET(vmReg)], x64reg
+|| if (vmReg < VM_REG_MAX)
+|| {
+    | mov Rq(VM_REG_OFFSET(vmReg)), x64reg
+|| }
+|| else
+|| {
+    | mov [rsp + VM_STACK_OFFSET(vmReg)], x64reg
+|| }
 |.endmacro
 
 |.macro vmLoadArg, x64reg, arg
@@ -125,7 +155,7 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
 ||}
 ||case VM_IR_ARG_NUM:
 ||{
-    |mov64 x64reg, arg_->num << 1
+    |mov64 x64reg, arg_->num * 2
     ||break;
 ||}
 ||}
@@ -140,7 +170,7 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
     | mov vmArg2, index
     | mov64 vmRegTmp1, (size_t) &printf
     | mov64 vmArg1, (size_t) "%zi"
-    | call vmRegTmp1
+    | vmCall vmRegTmp1
     | popa
 ||} while (0);
 |.endmacro
@@ -173,6 +203,8 @@ static void *link_and_encode(dasm_State **d, size_t *sz)
 
 void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
 {
+    // fprintf(stderr, "%zu:\n", block->id);
+    // vm_ir_print_block(stderr, block);
     for (size_t ninstr = 0; ninstr < block->len; ninstr++)
     {
         vm_ir_instr_t *instr = block->instrs[ninstr];
@@ -193,7 +225,14 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
             | vmLoadArg vmRegTmp1, instr->args[0]
             if (instr->args[1]->type == VM_IR_ARG_REG)
             {
-                | add vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                if (instr->args[1]->reg < VM_REG_MAX)
+                {
+                    | add vmRegTmp1, Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                }
+                else
+                {
+                    | add vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                }
             }
             else if (instr->args[1]->type == VM_IR_ARG_NUM)
             {
@@ -211,7 +250,14 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
             | vmLoadArg vmRegTmp1, instr->args[0]
             if (instr->args[1]->type == VM_IR_ARG_REG)
             {
-                | sub vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                if (instr->args[1]->reg < VM_REG_MAX)
+                {
+                    | sub vmRegTmp1, Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                }
+                else
+                {
+                    | sub vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                }
             }
             else if (instr->args[1]->type == VM_IR_ARG_NUM)
             {
@@ -227,8 +273,8 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         case VM_IR_IOP_MUL:
         {
             | vmLoadArg rax, instr->args[0]
-            | vmLoadArg rdx, instr->args[1]
-            | imul rdx
+            | vmLoadArg vmRegTmp1, instr->args[1]
+            | imul vmRegTmp1
             | shr rax, 1
             | vmStore instr->out->reg, rax
             break;
@@ -237,8 +283,8 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         {
             | xor edx, edx
             | vmLoadArg rax, instr->args[0]
-            | vmLoadArg rcx, instr->args[1]
-            | idiv rcx
+            | vmLoadArg vmRegTmp1, instr->args[1]
+            | idiv vmRegTmp1
             | shl rax, 1
             | vmStore instr->out->reg, rax
             break;
@@ -247,8 +293,8 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         {
             | xor edx, edx
             | vmLoadArg rax, instr->args[0]
-            | vmLoadArg rcx, instr->args[1]
-            | idiv rcx
+            | vmLoadArg vmRegTmp1, instr->args[1]
+            | idiv vmRegTmp1
             | vmStore instr->out->reg, rdx
             break;
         }
@@ -256,11 +302,73 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         {
             for (size_t arg = 1; instr->args[arg]; arg++)
             {
-                | vmLoadArg Rq(vm_ir_be_jit_arg_reg(arg)), instr->args[arg]
+                | vmLoadArg Rq(vm_ir_be_jit_arg_reg(arg-1)), instr->args[arg]
+            }
+            uint8_t saved[8] = {0};
+            {
+                if (instr->out->type == VM_IR_ARG_REG && instr->out->reg < 8 && saved[instr->out->reg] == 0)
+                {
+                    saved[instr->out->reg] = 1;
+                }
+                for (size_t seek = ninstr+1; seek < block->len; seek++)
+                {
+                    vm_ir_instr_t *instr = block->instrs[seek];
+                    for (size_t j = 0; instr->args[j] != NULL; j++)
+                    {
+                        vm_ir_arg_t *arg = instr->args[j];
+                        if (arg->type == VM_IR_ARG_REG && arg->reg < 8 && saved[arg->reg] == 0)
+                        {
+                            saved[arg->reg] = 2;
+                        }
+                    }
+                    if (instr->out && instr->out->type == VM_IR_ARG_REG && instr->out->reg < 8 && saved[instr->out->reg] == 0)
+                    {
+                        saved[instr->out->reg] = 1;
+                    }
+                }
+                for (size_t j = 0; j < 2; j++)
+                {
+                    vm_ir_arg_t *arg = block->branch->args[j];
+                    if (arg == NULL)
+                    {
+                        continue;
+                    }
+                    if (arg->type == VM_IR_ARG_REG && arg->reg < 8 && saved[arg->reg] == 0)
+                    {
+                        saved[arg->reg] = 2;
+                    }
+                }
+                for (size_t j = 0; j < 2; j++)
+                {
+                    vm_ir_block_t *target = block->branch->targets[j];
+                    if (target == NULL)
+                    {
+                        continue;
+                    }
+                    for (size_t k = 0; k < target->nargs; k++)
+                    {
+                        size_t arg = target->args[k];
+                        if (arg < 8 && saved[arg] == 0)
+                        {
+                            saved[arg] = 2;
+                        }
+                    }
+                }
             }
             if (instr->args[0]->type == VM_IR_ARG_REG)
             {
-                | call qword [rsp + VM_STACK_OFFSET(instr->args[0]->reg)]
+                | vmLoad rax, instr->args[0]->reg
+            }
+            for (size_t i = 0; i < VM_REG_MAX; i++)
+            {
+                if (saved[i] == 2)
+                {
+                    | push Rq(VM_REG_OFFSET(i))
+                }
+            }
+            if (instr->args[0]->type == VM_IR_ARG_REG)
+            {
+                | call rax
             }
             else if (instr->args[0]->type == VM_IR_ARG_FUNC)
             {
@@ -270,6 +378,13 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
             {
                 __builtin_trap();
             }
+            for (ptrdiff_t i = VM_REG_MAX-1; i >= 0; i--)
+            {
+                if (saved[i] == 2)
+                {
+                    | pop Rq(VM_REG_OFFSET(i))
+                }
+            }
             if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG)
             {
                 | vmStore instr->out->reg, rax
@@ -278,8 +393,8 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         }
         case VM_IR_IOP_ARR:
         {
-            | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmArg1, (size_t) gc
+            | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_alloc
             | vmCall vmRegTmp1
             | vmStore instr->out->reg, rax
@@ -287,9 +402,9 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         }
         case VM_IR_IOP_GET:
         {
-            | vmLoadArg vmArg3, instr->args[1]
-            | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmArg1, (size_t) gc
+            | vmLoadArg vmArg2, instr->args[0]
+            | vmLoadArg vmArg3, instr->args[1]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_get
             | vmCall vmRegTmp1
             | vmStore instr->out->reg, rax
@@ -297,18 +412,18 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         }
         case VM_IR_IOP_SET:
         {
-            | vmLoadArg vmArg4, instr->args[2]
-            | vmLoadArg vmArg3, instr->args[1]
-            | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmArg1, (size_t) gc
+            | vmLoadArg vmArg2, instr->args[0]
+            | vmLoadArg vmArg3, instr->args[1]
+            | vmLoadArg vmArg4, instr->args[2]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_set
             | vmCall vmRegTmp1
             break;
         }
         case VM_IR_IOP_LEN:
         {
-            | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmArg1, (size_t) gc
+            | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_len
             | vmCall vmRegTmp1
             | vmStore instr->out->reg, rax
@@ -350,7 +465,14 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         | vmLoadArg vmRegTmp1, block->branch->args[0]
         if (block->branch->args[1]->type == VM_IR_ARG_REG)
         {
-            | cmp vmRegTmp1, [rsp + VM_STACK_OFFSET(block->branch->args[1]->reg)]
+            if (block->branch->args[1]->reg < VM_REG_MAX)
+            {
+                | cmp vmRegTmp1, Rq(VM_REG_OFFSET(block->branch->args[1]->reg))
+            }
+            else
+            {
+                | cmp vmRegTmp1, [rsp + VM_STACK_OFFSET(block->branch->args[1]->reg)]
+            }
         }
         else if (block->branch->args[1]->type == VM_IR_ARG_NUM)
         {
@@ -369,7 +491,14 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         | vmLoadArg vmRegTmp1, block->branch->args[0]
         if (block->branch->args[1]->type == VM_IR_ARG_REG)
         {
-            | cmp vmRegTmp1, [rsp + VM_STACK_OFFSET(block->branch->args[1]->reg)]
+            if (block->branch->args[1]->reg < VM_REG_MAX)
+            {
+                | cmp vmRegTmp1, Rq(VM_REG_OFFSET(block->branch->args[1]->reg))
+            }
+            else
+            {
+                | cmp vmRegTmp1, [rsp + VM_STACK_OFFSET(block->branch->args[1]->reg)]
+            }
         }
         else if (block->branch->args[1]->type == VM_IR_ARG_NUM)
         {
@@ -438,10 +567,13 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             |=>index*2:
             | push rbp
             | mov rbp, rsp
-            | sub rsp, (nregs+1) * sizeof(ptrdiff_t)
+            if (nregs > VM_REG_MAX)
+            {
+                | sub rsp, (nregs-VM_REG_MAX) * sizeof(ptrdiff_t)
+            }
             for (size_t i = 1; i <= block->nargs; i++)
             {
-                | vmStore i, Rq(vm_ir_be_jit_arg_reg(i))
+                | vmStore i, Rq(vm_ir_be_jit_arg_reg(i-1))
             }
         }
         |=>index*2+1:
