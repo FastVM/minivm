@@ -6,6 +6,7 @@
 #include "../../../luajit/dynasm/dasm_proto.h"
 #include "../../../luajit/dynasm/dasm_x86.h"
 
+
 #if _WIN32
 #include <stdio.h>
 #include <Windows.h>
@@ -16,8 +17,10 @@
 #endif
 #endif
 
+static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block);
+
 #define VM_REG_MAX (7)
-#define VM_REG_OFFSET(n) (n == 0 ? 1 : n+9)
+#define VM_REG_OFFSET(n) ((n) == 0 ? 1 : 16-(n))
 #define VM_STACK_OFFSET(n) (((n)-VM_REG_MAX) * 8)
 
 static void vm_ir_be_jit_putc(int n)
@@ -60,68 +63,11 @@ static size_t vm_ir_be_jit_arg_reg(size_t n)
 
 |.arch x64
 
-|.if WIN
-||#define VM_WIN 1
-|.define vmArg1, rcx
-|.define vmArg2, rdx
-|.define vmArg3, r8
-|.define vmArg4, r9
-|.else
-||#define VM_WIN 0
 |.define vmRegTmp1, rbx
 |.define vmArg1, rdi
 |.define vmArg2, rsi
 |.define vmArg3, rdx
 |.define vmArg4, rcx
-|.endif
-
-|.macro pusha
-| push rcx
-| push rbp
-| push vmArg1
-| push vmArg2
-| push vmArg3
-| push vmArg4
-| push vmRegTmp1
-| push r10
-| push r11
-| push r12
-| push r13
-| push r14
-| push r15
-|.endmacro
-
-|.macro popa
-| pop r15
-| pop r14
-| pop r13
-| pop r12
-| pop r11
-| pop r10
-| pop vmRegTmp1
-| pop vmArg4
-| pop vmArg3
-| pop vmArg2
-| pop vmArg1
-| pop rbp
-| pop rcx
-|.endmacro
-
-|.macro vmCall, x64reg
-| pusha
-| call x64reg
-| popa
-|.endmacro
-
-|.macro vmPrintDyn, x64reg
-| pusha
-| mov vmArg2, x64reg
-| xor eax, eax
-| mov64 vmRegTmp1, (size_t) &printf
-| mov64 vmArg1, (size_t) "[%zu]"
-| vmCall vmRegTmp1
-| popa
-|.endmacro
 
 |.macro vmLoad, x64reg, vmReg
 || if (vmReg < VM_REG_MAX)
@@ -153,49 +99,27 @@ static size_t vm_ir_be_jit_arg_reg(size_t n)
 ||{
 ||case VM_IR_ARG_FUNC:
 ||{
-    |lea x64reg, [=>arg_->func->id*2]
+    | lea x64reg, [=>arg_->func->id*2]
     ||break;
 ||}
 ||case VM_IR_ARG_REG:
 ||{
-    |vmLoad x64reg, arg_->reg
+    | vmLoad x64reg, arg_->reg
     ||break;
 ||}
 ||case VM_IR_ARG_NUM:
 ||{
-    |mov64 x64reg, arg_->num * 2
+    || if (arg->num * 2 <= INT32_MAX && arg->num * 2 >= INT32_MIN)
+    ||{
+        | mov x64reg, arg_->num * 2
+    ||}
+    ||else
+    ||{
+        | mov64 x64reg, arg_->num * 2
+    ||}
     ||break;
 ||}
 ||}
-||} while (0);
-|.endmacro
-
-|.macro vmPrintNum, index
-||do
-||{
-    | pusha
-    | xor eax, eax
-    | mov vmArg2, index
-    | mov64 vmRegTmp1, (size_t) &printf
-    | mov64 vmArg1, (size_t) "%zi"
-    | vmCall vmRegTmp1
-    | popa
-||} while (0);
-|.endmacro
-
-|.macro vmPrintStr, str
-||do
-||{
-    | pusha
-    ||const char *str_ = str;
-    ||while (*str_)
-    ||{
-        | mov vmArg1, (size_t) *str_
-        | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc 
-        | call vmRegTmp1
-        ||str_+=1;
-    ||}
-    | popa
 ||} while (0);
 |.endmacro
 
@@ -203,13 +127,13 @@ static void *link_and_encode(dasm_State **d, size_t *sz)
 {
     void* buf;
     dasm_link(d, sz);
-#if VM_WIN
+#ifdef _WIN32
     buf = VirtualAlloc(0, *sz, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 #else
     buf = mmap(0, *sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #endif
     dasm_encode(d, buf);
-#if VM_WIN
+#ifdef _WIN32
     {DWORD dwOld; VirtualProtect(buf, *sz, PAGE_EXECUTE_READ, &dwOld); }
 #else
     mprotect(buf, *sz, PROT_READ | PROT_EXEC);
@@ -256,11 +180,8 @@ static void vm_ir_be_jit_jump(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_i
     }
 }
 
-void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t *block)
+static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
 {
-    dasm_State **Dst = vDst;
-    vm_gc_t *gc = vgc;
-    size_t *store = vstore;
     for (size_t ninstr = 0; ninstr < block->len; ninstr++)
     {
         vm_ir_instr_t *instr = block->instrs[ninstr];
@@ -607,7 +528,11 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
             | mov64 vmArg1, (size_t) gc
             | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_alloc
-            | vmCall vmRegTmp1
+            | push r11
+            | push r10
+            | call vmRegTmp1
+            | pop r10
+            | pop r11
             | vmStore instr->out->reg, rax
             break;
         }
@@ -617,7 +542,11 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
             | vmLoadArg vmArg2, instr->args[0]
             | vmLoadArg vmArg3, instr->args[1]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_get
-            | vmCall vmRegTmp1
+            | push r11
+            | push r10
+            | call vmRegTmp1
+            | pop r10
+            | pop r11
             | vmStore instr->out->reg, rax
             break;
         }
@@ -628,7 +557,11 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
             | vmLoadArg vmArg3, instr->args[1]
             | vmLoadArg vmArg4, instr->args[2]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_set
-            | vmCall vmRegTmp1
+            | push r11
+            | push r10
+            | call vmRegTmp1
+            | pop r10
+            | pop r11
             break;
         }
         case VM_IR_IOP_LEN:
@@ -636,13 +569,18 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
             | mov64 vmArg1, (size_t) gc
             | vmLoadArg vmArg2, instr->args[0]
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_len
-            | vmCall vmRegTmp1
+            | push r11
+            | push r10
+            | call vmRegTmp1
+            | pop r10
+            | pop r11
             | vmStore instr->out->reg, rax
             break;
         }
         case VM_IR_IOP_TYPE:
         {
-            |vmPrintStr "error: type\n"
+            // |vmPrintStr "error: type\n"
+            | int 3
             break;
         }
         case VM_IR_IOP_OUT:
@@ -650,7 +588,11 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
             | vmLoadArg vmArg1, instr->args[0]
             | shr vmArg1, 1
             | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc
-            | vmCall vmRegTmp1
+            | push r11
+            | push r10
+            | call vmRegTmp1
+            | pop r10
+            | pop r11
             break;
         }
         }
@@ -748,7 +690,12 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
     {
         | mov64 rax, (size_t) store
         | mov rsp, [rax]
-        | popa
+        | pop r15
+        | pop r14
+        | pop r13
+        | pop r12
+        | pop rbp
+        | pop rbx
         | ret
         break;
     }
@@ -773,13 +720,23 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
     size_t out;
     |.code
     |->entry:
-    | pusha
+    | push rbx
+    | push rbp
+    | push r12
+    | push r13
+    | push r14
+    | push r15
     | mov64 rax, (size_t) &out
     | mov [rax], rsp
     | call =>0
     | mov64 rax, (size_t) &out
     | mov rsp, [rax]
-    | popa
+    | pop r15
+    | pop r14
+    | pop r13
+    | pop r12
+    | pop rbp
+    | pop rbx
     | ret
     for (size_t index = 0; index < nops; index++)
     {
@@ -811,7 +768,7 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
     dasm_free(Dst);
     void (*fn)(void) = labels[lbl_entry];
     fn();
-#if VM_WIN
+#ifdef _WIN32
     VirtualFree(map, sz, MEM_RELEASE);
 #else
     munmap(map, sz);
