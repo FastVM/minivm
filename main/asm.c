@@ -42,7 +42,7 @@ int main(int argc, char **argv)
     const char *filename = NULL;
     size_t jit = 1;
     size_t runs = 1;
-    size_t jitdumppre = 0;
+    size_t jitdumpir = 0;
     size_t jitdumpopt = 0;
     while (true)
     {
@@ -97,9 +97,9 @@ int main(int argc, char **argv)
             {
                 jit = 0;
             }
-            else if (!strcmp(tmp, "dump=raw"))
+            else if (!strcmp(tmp, "dump=ir"))
             {
-                jitdumppre = 1;
+                jitdumpir = 1;
             }
             else if (!strcmp(tmp, "dump=opt"))
             {
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
             argc -= 1;
         }
     }
-    if (!jit && (jitdumpopt || jitdumppre))
+    if (!jit && (jitdumpopt || jitdumpir))
     {
         fprintf(stderr, "cannot use -jdump with out jit turned on (-jon vs -joff)");
         return 1;
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
         {
             size_t nblocks = buf.nops;
             vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
-            if (jitdumppre)
+            if (jitdumpir)
             {
                 vm_ir_print_blocks(stderr, nblocks, blocks);
             }
