@@ -22,6 +22,4 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index);
 
 vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops);
 
-void vm_ir_print_blocks(size_t nops, vm_ir_block_t *blocks);
-
 #endif

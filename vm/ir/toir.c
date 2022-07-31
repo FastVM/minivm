@@ -265,35 +265,6 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
     }
 }
 
-void vm_ir_print_blocks(size_t nops, vm_ir_block_t *blocks)
-{
-    for (size_t i = 0; i < nops ; i++)
-    {
-        if (blocks[i].id == i)
-        {
-            if (blocks[i].nargs == 0)
-            {
-                fprintf(stdout, "bb.%zu():\n", i);
-            }
-            else
-            {
-                fprintf(stdout, "bb.%zu(", i);
-                for (size_t j = 0; j < blocks[i].nargs; j++)
-                {
-                    if (j != 0)
-                    {
-                        fprintf(stdout, " ");
-                    }
-                    fprintf(stdout, "r%zu", blocks[i].args[j]);
-                }
-                fprintf(stdout, ") {\n");
-            }
-            vm_ir_print_block(stdout, &blocks[i]);
-            fprintf(stdout, "}\n");
-        }
-    }
-}
-
 vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops)
 {
     size_t index = 0;

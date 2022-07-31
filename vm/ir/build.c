@@ -262,7 +262,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
     }
     if (val->targets[0])
     {
-        fprintf(out, " .%zu", (size_t) val->targets[0]->id);
+        fprintf(out, " .%zu", (size_t)val->targets[0]->id);
         fprintf(out, "(");
         for (size_t i = 0; i < val->targets[0]->nargs; i++)
         {
@@ -276,7 +276,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val)
     }
     if (val->targets[1])
     {
-        fprintf(out, " .%zu", (size_t) val->targets[1]->id);
+        fprintf(out, " .%zu", (size_t)val->targets[1]->id);
         fprintf(out, "(");
         for (size_t i = 0; i < val->targets[1]->nargs; i++)
         {
@@ -396,5 +396,35 @@ void vm_ir_print_block(FILE *out, vm_ir_block_t *val)
     else
     {
         fprintf(out, "    <fall>\n");
+    }
+}
+
+void vm_ir_print_blocks(FILE *out, size_t nblocks, vm_ir_block_t *blocks)
+{
+    for (size_t i = 0; i < nblocks; i++)
+    {
+        vm_ir_block_t *block = &blocks[i];
+        if (block->id != i)
+        {
+            continue;
+        }
+        if (block->isfunc)
+        {
+            fprintf(stderr, "\nfunc .%zu(", i);
+        }
+        else
+        {
+            fprintf(stderr, ".%zu(", i);
+        }
+        for (size_t i = 0; i < block->nargs; i++)
+        {
+            if (i != 0)
+            {
+                fprintf(stderr, " ");
+            }
+            fprintf(stderr, "r%zu", block->args[i]);
+        }
+        fprintf(stderr, ")\n");
+        vm_ir_print_block(stderr, block);
     }
 }

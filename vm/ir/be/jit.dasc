@@ -54,8 +54,6 @@ static size_t vm_ir_be_jit_arg_reg(size_t n)
         2,
         8,
         9,
-        1,
-        4,
     };
     return args[n];
 }
@@ -280,50 +278,50 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
         }
         case VM_IR_IOP_ADD:
         {
-            // if (instr->args[0]->type == VM_IR_ARG_REG && instr->args[0]->reg == instr->out->reg)
-            // {
-            //     if (instr->out->reg < VM_REG_MAX)
-            //     {
-            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
-            //         {
-            //             | add Rq(VM_REG_OFFSET(instr->out->reg)), instr->args[1]->num * 2
-            //         }
-            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
-            //         {
-            //             __builtin_trap();
-            //         }
-            //         else if (instr->args[1]->reg < VM_REG_MAX)
-            //         {
-            //             | add Rq(VM_REG_OFFSET(instr->out->reg)), Rq(VM_REG_OFFSET(instr->args[1]->reg))
-            //         }
-            //         else
-            //         {
-            //             | add Rq(VM_REG_OFFSET(instr->out->reg)), [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
-            //         }
-            //     }
-            //     else
-            //     {
-            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
-            //         {
-            //             | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], instr->args[1]->num * 2
-            //         }
-            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
-            //         {
-            //             __builtin_trap();
-            //         }
-            //         else if (instr->args[1]->reg < VM_REG_MAX)
-            //         {
-            //             | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], Rq(VM_REG_OFFSET(instr->args[1]->reg))
-            //         }
-            //         else
-            //         {
-            //             | vmLoadArg vmRegTmp1, instr->args[1]
-            //             | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], vmRegTmp1
-            //         }
-            //     }
-            // }
-            // else
-            // {
+            if (instr->args[0]->type == VM_IR_ARG_REG && instr->args[0]->reg == instr->out->reg)
+            {
+                if (instr->out->reg < VM_REG_MAX)
+                {
+                    if (instr->args[1]->type == VM_IR_ARG_NUM)
+                    {
+                        | add Rq(VM_REG_OFFSET(instr->out->reg)), instr->args[1]->num * 2
+                    }
+                    else if (instr->args[1]->type != VM_IR_ARG_REG)
+                    {
+                        __builtin_trap();
+                    }
+                    else if (instr->args[1]->reg < VM_REG_MAX)
+                    {
+                        | add Rq(VM_REG_OFFSET(instr->out->reg)), Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    }
+                    else
+                    {
+                        | add Rq(VM_REG_OFFSET(instr->out->reg)), [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                    }
+                }
+                else
+                {
+                    if (instr->args[1]->type == VM_IR_ARG_NUM)
+                    {
+                        | add qword [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], instr->args[1]->num * 2
+                    }
+                    else if (instr->args[1]->type != VM_IR_ARG_REG)
+                    {
+                        __builtin_trap();
+                    }
+                    else if (instr->args[1]->reg < VM_REG_MAX)
+                    {
+                        | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    }
+                    else
+                    {
+                        | vmLoadArg vmRegTmp1, instr->args[1]
+                        | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], vmRegTmp1
+                    }
+                }
+            }
+            else
+            {
                 | vmLoadArg vmRegTmp1, instr->args[0]
                 if (instr->args[1]->type == VM_IR_ARG_REG)
                 {
@@ -345,55 +343,55 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
                     __builtin_trap();
                 }
                 | vmStore instr->out->reg, vmRegTmp1
-            // }
+            }
             break;
         }
         case VM_IR_IOP_SUB:
         {
-            // if (instr->args[0]->type == VM_IR_ARG_REG && instr->args[0]->reg == instr->out->reg)
-            // {
-            //     if (instr->out->reg < VM_REG_MAX)
-            //     {
-            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
-            //         {
-            //             | sub Rq(VM_REG_OFFSET(instr->out->reg)), instr->args[1]->num * 2
-            //         }
-            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
-            //         {
-            //             __builtin_trap();
-            //         }
-            //         else if (instr->args[1]->reg < VM_REG_MAX)
-            //         {
-            //             | sub Rq(VM_REG_OFFSET(instr->out->reg)), Rq(VM_REG_OFFSET(instr->args[1]->reg))
-            //         }
-            //         else
-            //         {
-            //             | sub Rq(VM_REG_OFFSET(instr->out->reg)), [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
-            //         }
-            //     }
-            //     else
-            //     {
-            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
-            //         {
-            //             | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], instr->args[1]->num * 2
-            //         }
-            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
-            //         {
-            //             __builtin_trap();
-            //         }
-            //         else if (instr->args[1]->reg < VM_REG_MAX)
-            //         {
-            //             | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], Rq(VM_REG_OFFSET(instr->args[1]->reg))
-            //         }
-            //         else
-            //         {
-            //             | vmLoadArg vmRegTmp1, instr->args[1]
-            //             | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], vmRegTmp1
-            //         }
-            //     }
-            // }
-            // else
-            // {
+            if (instr->args[0]->type == VM_IR_ARG_REG && instr->args[0]->reg == instr->out->reg)
+            {
+                if (instr->out->reg < VM_REG_MAX)
+                {
+                    if (instr->args[1]->type == VM_IR_ARG_NUM)
+                    {
+                        | sub Rq(VM_REG_OFFSET(instr->out->reg)), instr->args[1]->num * 2
+                    }
+                    else if (instr->args[1]->type != VM_IR_ARG_REG)
+                    {
+                        __builtin_trap();
+                    }
+                    else if (instr->args[1]->reg < VM_REG_MAX)
+                    {
+                        | sub Rq(VM_REG_OFFSET(instr->out->reg)), Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    }
+                    else
+                    {
+                        | sub Rq(VM_REG_OFFSET(instr->out->reg)), [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                    }
+                }
+                else
+                {
+                    if (instr->args[1]->type == VM_IR_ARG_NUM)
+                    {
+                        | sub qword [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], instr->args[1]->num * 2
+                    }
+                    else if (instr->args[1]->type != VM_IR_ARG_REG)
+                    {
+                        __builtin_trap();
+                    }
+                    else if (instr->args[1]->reg < VM_REG_MAX)
+                    {
+                        | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    }
+                    else
+                    {
+                        | vmLoadArg vmRegTmp1, instr->args[1]
+                        | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], vmRegTmp1
+                    }
+                }
+            }
+            else
+            {
                 | vmLoadArg vmRegTmp1, instr->args[0]
                 if (instr->args[1]->type == VM_IR_ARG_REG)
                 {
@@ -415,16 +413,44 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
                     __builtin_trap();
                 }
                 | vmStore instr->out->reg, vmRegTmp1
-            // }
+            }
             break;
         }
         case VM_IR_IOP_MUL:
         {
-            | vmLoadArg rax, instr->args[0]
-            | vmLoadArg vmRegTmp1, instr->args[1]
-            | imul vmRegTmp1
-            | shr rax, 1
-            | vmStore instr->out->reg, rax
+            if (instr->args[0]->type == VM_IR_ARG_NUM)
+            {
+
+            }
+            else if (instr->args[0]->type != VM_IR_ARG_REG)
+            {
+                __builtin_trap();
+            }
+            else
+            {
+                | vmLoad vmRegTmp1, instr->args[0]->reg
+                if (instr->args[1]->type == VM_IR_ARG_REG)
+                {
+                    if (instr->args[1]->reg < VM_REG_MAX)
+                    {
+                        | imul vmRegTmp1, Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    }
+                    else
+                    {
+                        | imul vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                    }
+                    | shr vmRegTmp1, 1
+                }
+                else if (instr->args[1]->type == VM_IR_ARG_NUM)
+                {
+                    | imul vmRegTmp1, vmRegTmp1, instr->args[1]->num
+                }
+                else
+                {
+                    __builtin_trap();
+                }
+                | vmStore instr->out->reg, vmRegTmp1
+            }
             break;
         }
         case VM_IR_IOP_DIV:
@@ -432,8 +458,27 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
             | xor edx, edx
             | vmLoadArg rax, instr->args[0]
             | vmLoadArg vmRegTmp1, instr->args[1]
-            | idiv vmRegTmp1
-            | shl rax, 1
+            if (instr->args[1]->type == VM_IR_ARG_REG)
+            {
+                if (instr->args[1]->reg < VM_REG_MAX)
+                {
+                    | idiv Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                }
+                else
+                {
+                    | idiv qword [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                }
+                | shl rax, 1
+            }
+            else if (instr->args[1]->type == VM_IR_ARG_NUM)
+            {
+                | mov64 vmRegTmp1, instr->args[1]->num
+                | idiv vmRegTmp1
+            }
+            else
+            {
+                __builtin_trap();
+            }
             | vmStore instr->out->reg, rax
             break;
         }
@@ -441,8 +486,26 @@ void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t 
         {
             | xor edx, edx
             | vmLoadArg rax, instr->args[0]
-            | vmLoadArg vmRegTmp1, instr->args[1]
-            | idiv vmRegTmp1
+            if (instr->args[1]->type == VM_IR_ARG_REG)
+            {
+                if (instr->args[1]->reg < VM_REG_MAX)
+                {
+                    | idiv Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                }
+                else
+                {
+                    | idiv qword [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                }
+            }
+            else if (instr->args[1]->type == VM_IR_ARG_NUM)
+            {
+                | mov64 vmRegTmp1, instr->args[1]->num*2
+                | idiv vmRegTmp1
+            }
+            else
+            {
+                __builtin_trap();
+            }
             | vmStore instr->out->reg, rdx
             break;
         }

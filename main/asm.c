@@ -39,9 +39,11 @@ int main(int argc, char **argv)
 {
     // const char *dump = "out.bc";
     const char *dump = NULL;
-    const char *target = "vm";
-    size_t runs = 1;
     const char *filename = NULL;
+    size_t jit = 1;
+    size_t runs = 1;
+    size_t jitdumppre = 0;
+    size_t jitdumpopt = 0;
     while (true)
     {
         if (argc < 2)
@@ -82,18 +84,32 @@ int main(int argc, char **argv)
             runs = n;
             continue;
         }
-        if (!strcmp(argv[1], "-t") || !strcmp(argv[1], "--target"))
+        if (argv[1][0] == '-' && argv[1][1] == 'j')
         {
+            char *tmp = argv[1] + 2;
             argv += 1;
             argc -= 1;
-            if (argc < 2)
+            if (!strcmp(tmp, "on"))
             {
-                fprintf(stderr, "too few args following -t\n");
+                jit = 1;
+            }
+            else if (!strcmp(tmp, "off"))
+            {
+                jit = 0;
+            }
+            else if (!strcmp(tmp, "dump=raw"))
+            {
+                jitdumppre = 1;
+            }
+            else if (!strcmp(tmp, "dump=opt"))
+            {
+                jitdumpopt = 1;
+            }
+            else
+            {
+                fprintf(stderr, "unknown -j option: -j%s\n", tmp);
                 return 1;
             }
-            target = argv[1];
-            argv += 1;
-            argc -= 1;
             continue;
         }
         if (filename != NULL)
@@ -108,6 +124,11 @@ int main(int argc, char **argv)
             argc -= 1;
         }
     }
+    if (!jit && (jitdumpopt || jitdumppre))
+    {
+        fprintf(stderr, "cannot use -jdump with out jit turned on (-jon vs -joff)");
+        return 1;
+    }
     const char *src = vm_asm_io_read(filename);
     if (src == NULL)
     {
@@ -117,15 +138,20 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < runs; i++)
     {
         vm_bc_buf_t buf = vm_asm(src);
-        if (!strcmp(target, "js") || !strcmp(target, "lua") || !strcmp(target, "jit"))
+        if (jit)
         {
             size_t nblocks = buf.nops;
             vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
-            vm_ir_opt_all(&nblocks, &blocks);
-            if (!strcmp(target, "jit"))
+            if (jitdumppre)
             {
-                vm_ir_be_jit(nblocks, blocks);
+                vm_ir_print_blocks(stderr, nblocks, blocks);
             }
+            vm_ir_opt_all(&nblocks, &blocks);
+            if (jitdumpopt)
+            {
+                vm_ir_print_blocks(stderr, nblocks, blocks);
+            }
+            vm_ir_be_jit(nblocks, blocks);
             vm_ir_blocks_free(nblocks, blocks);
         }
         else

@@ -54,7 +54,7 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
             block->branch->args[i]->reg = vm_ir_opt_alloc(used, regs, block->branch->args[i]->reg, &max);
         }
     }
-    for (ptrdiff_t i = block->len-1; i >= 0; i--)
+    for (ptrdiff_t i = block->len - 1; i >= 0; i--)
     {
         vm_ir_instr_t *instr = block->instrs[i];
         if (instr->out && instr->out->type == VM_IR_ARG_REG)
@@ -114,20 +114,5 @@ void vm_ir_opt_reg(size_t nblocks, vm_ir_block_t *blocks)
         {
             func->nregs = block->nregs;
         }
-        // if (block->isfunc) {
-        //     fprintf(stderr, "\nfunc .%zu(", i);
-        // } else {
-        //     fprintf(stderr, ".%zu(", i);
-        // }
-        // for (size_t i = 0; i < block->nargs; i++)
-        // {
-        //     if (i != 0)
-        //     {
-        //         fprintf(stderr, " ");
-        //     }
-        //     fprintf(stderr, "r%zu", block->args[i]);
-        // }
-        // fprintf(stderr, ")\n");
-        // vm_ir_print_block(stderr, block);
     }
 }
