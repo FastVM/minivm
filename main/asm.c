@@ -3,8 +3,6 @@
 #include "../vm/ir/toir.h"
 #include "../vm/ir/opt.h"
 #include "../vm/ir/build.h"
-#include "../vm/ir/be/js.h"
-#include "../vm/ir/be/lua.h"
 #include "../vm/ir/be/jit.h"
 
 static const char *vm_asm_io_read(const char *filename)
@@ -42,12 +40,21 @@ int main(int argc, char **argv)
     // const char *dump = "out.bc";
     const char *dump = NULL;
     const char *target = "vm";
+    size_t runs = 1;
+    const char *filename = NULL;
     while (true)
     {
         if (argc < 2)
         {
-            fprintf(stderr, "too few args\n");
-            return 1;
+            if (filename == NULL)
+            {
+                fprintf(stderr, "too few args\n");
+                return 1;
+            }
+            else
+            {
+                break;
+            }
         }
         if (!strcmp(argv[1], "-o") || !strcmp(argv[1], "--output"))
         {
@@ -56,6 +63,24 @@ int main(int argc, char **argv)
             dump = argv[1];
             argv += 1;
             argc -= 1;
+            continue;
+        }
+        if (!strcmp(argv[1], "-n"))
+        {
+            argv += 1;
+            argc -= 1;
+            size_t n = 0;
+            char *ptr = argv[1];
+            while (*ptr != '\0')
+            {
+                n *= 10;
+                n += *ptr - '0';
+                ptr += 1;
+            }
+            argv += 1;
+            argc -= 1;
+            runs = n;
+            continue;
         }
         if (!strcmp(argv[1], "-t") || !strcmp(argv[1], "--target"))
         {
@@ -71,72 +96,62 @@ int main(int argc, char **argv)
             argc -= 1;
             continue;
         }
-        break;
+        if (filename != NULL)
+        {
+            fprintf(stderr, "cannot handle multiple files at cli\n");
+            return 1;
+        }
+        else
+        {
+            filename = argv[1];
+            argv += 1;
+            argc -= 1;
+        }
     }
-    const char *src = vm_asm_io_read(argv[1]);
+    const char *src = vm_asm_io_read(filename);
     if (src == NULL)
     {
         fprintf(stderr, "could not read file\n");
         return 1;
     }
-    vm_bc_buf_t buf = vm_asm(src);
-    vm_free((void *)src);
-    if (!strcmp(target, "js") || !strcmp(target, "lua") || !strcmp(target, "jit"))
+    for (size_t i = 0; i < runs; i++)
     {
-        vm_ir_block_t *blocks = vm_ir_parse(buf.nops, buf.ops);
-        vm_free(buf.ops);
-        size_t nblocks = buf.nops;
-        vm_ir_opt_all(&nblocks, &blocks);
-        if (!strcmp(target, "js"))
+        vm_bc_buf_t buf = vm_asm(src);
+        if (!strcmp(target, "js") || !strcmp(target, "lua") || !strcmp(target, "jit"))
         {
-            if (dump == NULL)
+            vm_ir_block_t *blocks = vm_ir_parse(buf.nops, buf.ops);
+            size_t nblocks = buf.nops;
+            if (!strcmp(target, "jit"))
             {
-                dump = "out.js";
+                vm_ir_be_jit(nblocks, blocks);
             }
-            FILE *out = fopen(dump, "w");
-            vm_ir_be_js(out, nblocks, blocks);
-            fclose(out);
-        }
-        if (!strcmp(target, "lua"))
-        {
-            if (dump == NULL)
-            {
-                dump = "out.lua";
-            }
-            FILE *out = fopen(dump, "w");
-            vm_ir_be_lua(out, nblocks, blocks);
-            fclose(out);
-        }
-        if (!strcmp(target, "jit"))
-        {
-            static int x = 0;
-            vm_ir_be_jit(nblocks, blocks);
-        }
-        vm_ir_blocks_free(nblocks, blocks);
-    }
-    else
-    {
-        if (buf.nops == 0)
-        {
-            fprintf(stderr, "could not assemble file\n");
-            return 1;
-        }
-        if (dump)
-        {
-            void *out = fopen(dump, "wb");
-            fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
-            fclose(out);
+            vm_ir_blocks_free(nblocks, blocks);
         }
         else
         {
-            int res = vm_run_arch_int(buf.nops, buf.ops);
-            if (res != 0)
+            if (buf.nops == 0)
             {
-                fprintf(stderr, "could not run asm\n");
+                fprintf(stderr, "could not assemble file\n");
                 return 1;
+            }
+            if (dump)
+            {
+                void *out = fopen(dump, "wb");
+                fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
+                fclose(out);
+            }
+            else
+            {
+                int res = vm_run_arch_int(buf.nops, buf.ops);
+                if (res != 0)
+                {
+                    fprintf(stderr, "could not run asm\n");
+                    return 1;
+                }
             }
         }
         vm_free(buf.ops);
-        return 0;
     }
+    vm_free((void *)src);
+    return 0;
 }
