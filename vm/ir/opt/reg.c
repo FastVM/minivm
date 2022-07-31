@@ -1,6 +1,6 @@
 #include "../build.h"
 
-static inline size_t vm_ir_opt_alloc(uint8_t *used, size_t *regs, size_t reg)
+static inline size_t vm_ir_opt_alloc(uint8_t *used, size_t *regs, size_t reg, size_t *max)
 {
     if (regs[reg] == SIZE_MAX)
     {
@@ -12,11 +12,20 @@ static inline size_t vm_ir_opt_alloc(uint8_t *used, size_t *regs, size_t reg)
         used[i] = 1;
         regs[reg] = i;
     }
+    if (regs[reg] >= *max)
+    {
+        *max = regs[reg] + 1;
+    }
     return regs[reg];
 }
 
 static inline void vm_ir_opt_block(vm_ir_block_t *block)
 {
+    if (block->nregs < 16)
+    {
+        block->nregs = 16;
+    }
+    size_t max = 0;
     uint8_t *used = vm_alloc0(sizeof(uint8_t) * block->nregs);
     size_t *regs = vm_alloc0(sizeof(size_t) * block->nregs);
     for (size_t i = 0; i < block->nregs; i++)
@@ -34,7 +43,7 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
         {
             if (pass[j]->type == VM_IR_ARG_REG)
             {
-                pass[j]->reg = vm_ir_opt_alloc(used, regs, pass[j]->reg);
+                pass[j]->reg = vm_ir_opt_alloc(used, regs, pass[j]->reg, &max);
             }
         }
     }
@@ -42,7 +51,7 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
     {
         if (block->branch->args[i] != NULL && block->branch->args[i]->type == VM_IR_ARG_REG)
         {
-            block->branch->args[i]->reg = vm_ir_opt_alloc(used, regs, block->branch->args[i]->reg);
+            block->branch->args[i]->reg = vm_ir_opt_alloc(used, regs, block->branch->args[i]->reg, &max);
         }
     }
     for (ptrdiff_t i = block->len-1; i >= 0; i--)
@@ -68,7 +77,7 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
             vm_ir_arg_t *arg = instr->args[j];
             if (arg->type == VM_IR_ARG_REG)
             {
-                arg->reg = vm_ir_opt_alloc(used, regs, arg->reg);
+                arg->reg = vm_ir_opt_alloc(used, regs, arg->reg, &max);
             }
         }
     }
@@ -81,12 +90,14 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
         }
     }
     block->nargs = write;
+    block->nregs = max;
     vm_free(used);
     vm_free(regs);
 }
 
 void vm_ir_opt_reg(size_t nblocks, vm_ir_block_t *blocks)
 {
+    vm_ir_block_t *func = &blocks[0];
     for (size_t i = 0; i < nblocks; i++)
     {
         vm_ir_block_t *block = &blocks[i];
@@ -94,7 +105,15 @@ void vm_ir_opt_reg(size_t nblocks, vm_ir_block_t *blocks)
         {
             continue;
         }
+        if (block->isfunc)
+        {
+            func = block;
+        }
         vm_ir_opt_block(block);
+        if (block->nregs > func->nregs)
+        {
+            func->nregs = block->nregs;
+        }
         // if (block->isfunc) {
         //     fprintf(stderr, "\nfunc .%zu(", i);
         // } else {

@@ -20,32 +20,32 @@
 #define VM_REG_OFFSET(n) (n == 0 ? 1 : n+9)
 #define VM_STACK_OFFSET(n) (((n)-VM_REG_MAX) * 8)
 
-void vm_ir_be_jit_putc(int n)
+static void vm_ir_be_jit_putc(int n)
 {
     fprintf(stdout, "%c", n);
 }
 
-ptrdiff_t vm_ir_be_jit_len(vm_gc_t *gc, ptrdiff_t ptr)
+static ptrdiff_t vm_ir_be_jit_len(vm_gc_t *gc, ptrdiff_t ptr)
 {
     return gc->buf[(ptr << 1) - 1].header.len << 1;
 }
 
-ptrdiff_t vm_ir_be_jit_alloc(vm_gc_t *gc, ptrdiff_t ptr)
+static ptrdiff_t vm_ir_be_jit_alloc(vm_gc_t *gc, ptrdiff_t ptr)
 {
     return (vm_gc_arr(gc, ptr >> 1) << 1) | 1;
 }
 
-ptrdiff_t vm_ir_be_jit_get(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth)
+static ptrdiff_t vm_ir_be_jit_get(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth)
 {
     return gc->buf[(ptr + nth) >> 1].value.ival;
 }
 
-void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
+static void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
 {
     gc->buf[(ptr + nth) >> 1].value.ival = val;
 }
 
-size_t vm_ir_be_jit_arg_reg(size_t n)
+static size_t vm_ir_be_jit_arg_reg(size_t n)
 {
     size_t args[] = {
         7,
@@ -54,19 +54,22 @@ size_t vm_ir_be_jit_arg_reg(size_t n)
         2,
         8,
         9,
+        1,
+        4,
     };
     return args[n];
 }
 
 |.arch x64
 
-#define VM_WIN 0
 |.if WIN
+||#define VM_WIN 1
 |.define vmArg1, rcx
 |.define vmArg2, rdx
 |.define vmArg3, r8
 |.define vmArg4, r9
 |.else
+||#define VM_WIN 0
 |.define vmRegTmp1, rbx
 |.define vmArg1, rdi
 |.define vmArg2, rsi
@@ -216,8 +219,50 @@ static void *link_and_encode(dasm_State **d, size_t *sz)
     return buf;
 }
 
-void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
+static void vm_ir_be_jit_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **args, size_t *targets)
 {
+    size_t npush = 0;
+    for (ptrdiff_t i = 0; i < nargs; i++)
+    {
+        if (args[i]->type == VM_IR_ARG_REG && args[i]->reg != targets[i])
+        {
+            if (npush > 8)
+            {
+                fprintf(stderr, "register allocation failed in JIT\n");
+                __builtin_trap();
+            }
+            | vmLoad Rq(vm_ir_be_jit_arg_reg(npush)), args[i]->reg
+            npush += 1;
+        }
+    }
+    size_t npop = 0;
+    for (ptrdiff_t i = 0; i < nargs; i++)
+    {
+        if (args[i]->type == VM_IR_ARG_REG && args[i]->reg != targets[i])
+        {
+            | vmStore targets[i], Rq(vm_ir_be_jit_arg_reg(npop))
+            npop += 1;
+        }
+    }
+}
+
+static void vm_ir_be_jit_jump(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *last, vm_ir_block_t *block)
+{
+    if (last->id < block->id)
+    {
+        vm_ir_be_jit_block(Dst, gc, store, block);
+    }
+    else
+    {
+        | jmp =>block->id*2+1
+    }
+}
+
+void vm_ir_be_jit_block_impl(void *vDst, void *vgc, void *vstore, vm_ir_block_t *block)
+{
+    dasm_State **Dst = vDst;
+    vm_gc_t *gc = vgc;
+    size_t *store = vstore;
     for (size_t ninstr = 0; ninstr < block->len; ninstr++)
     {
         vm_ir_instr_t *instr = block->instrs[ninstr];
@@ -235,52 +280,142 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         }
         case VM_IR_IOP_ADD:
         {
-            | vmLoadArg vmRegTmp1, instr->args[0]
-            if (instr->args[1]->type == VM_IR_ARG_REG)
-            {
-                if (instr->args[1]->reg < VM_REG_MAX)
+            // if (instr->args[0]->type == VM_IR_ARG_REG && instr->args[0]->reg == instr->out->reg)
+            // {
+            //     if (instr->out->reg < VM_REG_MAX)
+            //     {
+            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
+            //         {
+            //             | add Rq(VM_REG_OFFSET(instr->out->reg)), instr->args[1]->num * 2
+            //         }
+            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
+            //         {
+            //             __builtin_trap();
+            //         }
+            //         else if (instr->args[1]->reg < VM_REG_MAX)
+            //         {
+            //             | add Rq(VM_REG_OFFSET(instr->out->reg)), Rq(VM_REG_OFFSET(instr->args[1]->reg))
+            //         }
+            //         else
+            //         {
+            //             | add Rq(VM_REG_OFFSET(instr->out->reg)), [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+            //         }
+            //     }
+            //     else
+            //     {
+            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
+            //         {
+            //             | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], instr->args[1]->num * 2
+            //         }
+            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
+            //         {
+            //             __builtin_trap();
+            //         }
+            //         else if (instr->args[1]->reg < VM_REG_MAX)
+            //         {
+            //             | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], Rq(VM_REG_OFFSET(instr->args[1]->reg))
+            //         }
+            //         else
+            //         {
+            //             | vmLoadArg vmRegTmp1, instr->args[1]
+            //             | add [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], vmRegTmp1
+            //         }
+            //     }
+            // }
+            // else
+            // {
+                | vmLoadArg vmRegTmp1, instr->args[0]
+                if (instr->args[1]->type == VM_IR_ARG_REG)
                 {
-                    | add vmRegTmp1, Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    if (instr->args[1]->reg < VM_REG_MAX)
+                    {
+                        | add vmRegTmp1, Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    }
+                    else
+                    {
+                        | add vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                    }
+                }
+                else if (instr->args[1]->type == VM_IR_ARG_NUM)
+                {
+                    | add vmRegTmp1, instr->args[1]->num * 2
                 }
                 else
                 {
-                    | add vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                    __builtin_trap();
                 }
-            }
-            else if (instr->args[1]->type == VM_IR_ARG_NUM)
-            {
-                | add vmRegTmp1, instr->args[1]->num * 2
-            }
-            else
-            {
-                __builtin_trap();
-            }
-            | vmStore instr->out->reg, vmRegTmp1
+                | vmStore instr->out->reg, vmRegTmp1
+            // }
             break;
         }
         case VM_IR_IOP_SUB:
         {
-            | vmLoadArg vmRegTmp1, instr->args[0]
-            if (instr->args[1]->type == VM_IR_ARG_REG)
-            {
-                if (instr->args[1]->reg < VM_REG_MAX)
+            // if (instr->args[0]->type == VM_IR_ARG_REG && instr->args[0]->reg == instr->out->reg)
+            // {
+            //     if (instr->out->reg < VM_REG_MAX)
+            //     {
+            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
+            //         {
+            //             | sub Rq(VM_REG_OFFSET(instr->out->reg)), instr->args[1]->num * 2
+            //         }
+            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
+            //         {
+            //             __builtin_trap();
+            //         }
+            //         else if (instr->args[1]->reg < VM_REG_MAX)
+            //         {
+            //             | sub Rq(VM_REG_OFFSET(instr->out->reg)), Rq(VM_REG_OFFSET(instr->args[1]->reg))
+            //         }
+            //         else
+            //         {
+            //             | sub Rq(VM_REG_OFFSET(instr->out->reg)), [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+            //         }
+            //     }
+            //     else
+            //     {
+            //         if (instr->args[1]->type == VM_IR_ARG_NUM)
+            //         {
+            //             | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], instr->args[1]->num * 2
+            //         }
+            //         else if (instr->args[1]->type != VM_IR_ARG_REG)
+            //         {
+            //             __builtin_trap();
+            //         }
+            //         else if (instr->args[1]->reg < VM_REG_MAX)
+            //         {
+            //             | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], Rq(VM_REG_OFFSET(instr->args[1]->reg))
+            //         }
+            //         else
+            //         {
+            //             | vmLoadArg vmRegTmp1, instr->args[1]
+            //             | sub [rsp + VM_STACK_OFFSET(instr->args[1]->reg)], vmRegTmp1
+            //         }
+            //     }
+            // }
+            // else
+            // {
+                | vmLoadArg vmRegTmp1, instr->args[0]
+                if (instr->args[1]->type == VM_IR_ARG_REG)
                 {
-                    | sub vmRegTmp1, Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    if (instr->args[1]->reg < VM_REG_MAX)
+                    {
+                        | sub vmRegTmp1, Rq(VM_REG_OFFSET(instr->args[1]->reg))
+                    }
+                    else
+                    {
+                        | sub vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                    }
+                }
+                else if (instr->args[1]->type == VM_IR_ARG_NUM)
+                {
+                    | sub vmRegTmp1, instr->args[1]->num * 2
                 }
                 else
                 {
-                    | sub vmRegTmp1, [rsp + VM_STACK_OFFSET(instr->args[1]->reg)]
+                    __builtin_trap();
                 }
-            }
-            else if (instr->args[1]->type == VM_IR_ARG_NUM)
-            {
-                | sub vmRegTmp1, instr->args[1]->num * 2
-            }
-            else
-            {
-                __builtin_trap();
-            }
-            | vmStore instr->out->reg, vmRegTmp1
+                | vmStore instr->out->reg, vmRegTmp1
+            // }
             break;
         }
         case VM_IR_IOP_MUL:
@@ -461,17 +596,8 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
     {
     case VM_IR_BOP_JUMP:
     {
-        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
-        {
-            | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
-            | push vmRegTmp1
-        }
-        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
-        {
-            | pop vmRegTmp1
-            | vmStore block->branch->targets[0]->args[i], vmRegTmp1
-        }
-        | jmp =>block->branch->targets[0]->id*2+1;
+        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
         break;
     }
     case VM_IR_BOP_BOOL:
@@ -480,41 +606,11 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
         | sar vmRegTmp1, 1
         | test vmRegTmp1, vmRegTmp1
         | jnz >1
-        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
-        {
-            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
-            {
-                | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
-                | push vmRegTmp1
-            }
-        }
-        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
-        {
-            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
-            {
-                | pop vmRegTmp1
-                | vmStore block->branch->targets[0]->args[i], vmRegTmp1
-            }
-        }
-        | jmp =>block->branch->targets[0]->id*2+1
+        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
         |1:
-        for (ptrdiff_t i = 0; i < block->branch->targets[1]->nargs; i++)
-        {
-            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
-            {
-                | vmLoadArg vmRegTmp1, block->branch->pass[1][i]
-                | push vmRegTmp1
-            }
-        }
-        for (ptrdiff_t i = block->branch->targets[1]->nargs-1; i >= 0; i--)
-        {
-            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
-            {
-                | pop vmRegTmp1
-                | vmStore block->branch->targets[1]->args[i], vmRegTmp1
-            }
-        }
-        | jmp =>block->branch->targets[1]->id*2+1
+        vm_ir_be_jit_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
+        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[1]);
         break;
     }
     case VM_IR_BOP_LESS:
@@ -540,41 +636,11 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
             __builtin_trap();
         }
         | jl >1
-        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
-        {
-            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
-            {
-                | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
-                | push vmRegTmp1
-            }
-        }
-        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
-        {
-            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
-            {
-                | pop vmRegTmp1
-                | vmStore block->branch->targets[0]->args[i], vmRegTmp1
-            }
-        }
-        | jmp =>block->branch->targets[0]->id*2+1
+        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
         |1:
-        for (ptrdiff_t i = 0; i < block->branch->targets[1]->nargs; i++)
-        {
-            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
-            {
-                | vmLoadArg vmRegTmp1, block->branch->pass[1][i]
-                | push vmRegTmp1
-            }
-        }
-        for (ptrdiff_t i = block->branch->targets[1]->nargs-1; i >= 0; i--)
-        {
-            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
-            {
-                | pop vmRegTmp1
-                | vmStore block->branch->targets[1]->args[i], vmRegTmp1
-            }
-        }
-        | jmp =>block->branch->targets[1]->id*2+1
+        vm_ir_be_jit_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
+        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[1]);
         break;
     }
     case VM_IR_BOP_EQUAL:
@@ -600,41 +666,11 @@ void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_bloc
             __builtin_trap();
         }
         | je >1
-        for (ptrdiff_t i = 0; i < block->branch->targets[0]->nargs; i++)
-        {
-            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
-            {
-                | vmLoadArg vmRegTmp1, block->branch->pass[0][i]
-                | push vmRegTmp1
-            }
-        }
-        for (ptrdiff_t i = block->branch->targets[0]->nargs-1; i >= 0; i--)
-        {
-            if (block->branch->pass[0][i]->type == VM_IR_ARG_REG && block->branch->pass[0][i]->reg != block->branch->targets[0]->args[i])
-            {
-                | pop vmRegTmp1
-                | vmStore block->branch->targets[0]->args[i], vmRegTmp1
-            }
-        }
-        | jmp =>block->branch->targets[0]->id*2+1
+        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
         |1:
-        for (ptrdiff_t i = 0; i < block->branch->targets[1]->nargs; i++)
-        {
-            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
-            {
-                | vmLoadArg vmRegTmp1, block->branch->pass[1][i]
-                | push vmRegTmp1
-            }
-        }
-        for (ptrdiff_t i = block->branch->targets[1]->nargs-1; i >= 0; i--)
-        {
-            if (block->branch->pass[1][i]->type == VM_IR_ARG_REG && block->branch->pass[1][i]->reg != block->branch->targets[1]->args[i])
-            {
-                | pop vmRegTmp1
-                | vmStore block->branch->targets[1]->args[i], vmRegTmp1
-            }
-        }
-        | jmp =>block->branch->targets[1]->id*2+1
+        vm_ir_be_jit_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
+        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[1]);
         break;
     }
     case VM_IR_BOP_RET:
