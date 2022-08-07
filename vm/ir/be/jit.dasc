@@ -1,6 +1,7 @@
 
 #include "jit.h"
 #include "../build.h"
+#include "../opt.h"
 #include "../../int/gc.h"
 
 #include "../../../luajit/dynasm/dasm_proto.h"
@@ -22,6 +23,15 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
 #define VM_REG_MAX (7)
 #define VM_REG_OFFSET(n) ((n) == 0 ? 1 : 16-(n))
 #define VM_STACK_OFFSET(n) (((n)-VM_REG_MAX) * 8)
+
+#define VM_RAX 0
+#define VM_RCX 1
+#define VM_RDX 2
+#define VM_RBX 3
+#define VM_RSP 4 
+#define VM_RBP 5
+#define VM_RSI 6
+#define VM_RDI 7
 
 static void vm_ir_be_jit_putc(int n)
 {
@@ -109,7 +119,11 @@ static size_t vm_ir_be_jit_arg_reg(size_t n)
 ||}
 ||case VM_IR_ARG_NUM:
 ||{
-    || if (arg->num * 2 <= INT32_MAX && arg->num * 2 >= INT32_MIN)
+    || if (arg->num == 0)
+    ||{
+        | xor x64reg, x64reg
+    ||}
+    ||else if (arg->num * 2 <= INT32_MAX && arg->num * 2 >= INT32_MIN)
     ||{
         | mov x64reg, arg_->num * 2
     ||}
@@ -148,7 +162,7 @@ static void vm_ir_be_jit_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **arg
     {
         if (args[i]->type == VM_IR_ARG_REG && args[i]->reg != targets[i])
         {
-            if (npush > 8)
+            if (npush > 6)
             {
                 fprintf(stderr, "register allocation failed in JIT\n");
                 __builtin_trap();
@@ -162,6 +176,7 @@ static void vm_ir_be_jit_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **arg
     {
         if (args[i]->type == VM_IR_ARG_REG && args[i]->reg != targets[i])
         {
+            // printf("SPILL: r%zu -> r%zu\n", args[i]->reg, targets[i]);
             | vmStore targets[i], Rq(vm_ir_be_jit_arg_reg(npop))
             npop += 1;
         }
@@ -170,14 +185,14 @@ static void vm_ir_be_jit_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **arg
 
 static void vm_ir_be_jit_jump(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *last, vm_ir_block_t *block)
 {
-    if (last->id < block->id)
-    {
-        vm_ir_be_jit_block(Dst, gc, store, block);
-    }
-    else
-    {
+    // if (last->id < block->id)
+    // {
+        // vm_ir_be_jit_block(Dst, gc, store, block);
+    // }
+    // else
+    // {
         | jmp =>block->id*2+1
-    }
+    // }
 }
 
 static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
@@ -768,6 +783,11 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
     dasm_free(Dst);
     void (*fn)(void) = labels[lbl_entry];
     fn();
+    {
+        FILE *out = fopen("out.dump", "wb");
+        fwrite(map, 1, sz, out);
+        fclose(out);
+    }
 #ifdef _WIN32
     VirtualFree(map, sz, MEM_RELEASE);
 #else

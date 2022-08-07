@@ -2,7 +2,6 @@
 GCC ?= gcc
 CLANG ?= 14
 OPT ?= -O2
-NUM ?= 3
 HOST_CC ?= $(CC)
 
 PROG_SRCS := main/asm.c main/run.c
@@ -11,7 +10,7 @@ PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 DASM_SRCS := vm/ir/be/jit.dasc
 DASM_OBJS := $(DASM_SRCS:%.dasc=%.o)
 
-VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c vm/ir/opt/const.c
+VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c vm/ir/opt/const.c vm/ir/opt/arrmem.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS) $(DASM_OBJS)
@@ -25,17 +24,17 @@ all: bins libs
 gcc-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm bench/fib35.vasm
-	./bin/minivm-asm bench/memfib.vasm
-	./bin/minivm-asm bench/primecount.vasm
+	./bin/minivm-asm -joff bench/fib40.vasm
+	./bin/minivm-asm -joff bench/memfib35.vasm
+	./bin/minivm-asm -joff bench/primecount.vasm
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' all
 
 clang-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='clang-$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm bench/fib40.vasm
-	./bin/minivm-asm bench/memfib.vasm
-	./bin/minivm-asm bench/primecount.vasm
+	./bin/minivm-asm -joff bench/fib40.vasm
+	./bin/minivm-asm -joff bench/memfib35.vasm
+	./bin/minivm-asm -joff bench/primecount.vasm
 	llvm-profdata-$(CLANG) merge -o profdata.profdata profraw.profraw
 	$(MAKE) -B CC='clang-$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' all
 

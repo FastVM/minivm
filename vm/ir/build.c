@@ -420,7 +420,7 @@ void vm_ir_print_blocks(FILE *out, size_t nblocks, vm_ir_block_t *blocks)
         {
             if (i != 0)
             {
-                fprintf(stderr, " ");
+                fprintf(stderr, ", ");
             }
             fprintf(stderr, "r%zu", block->args[i]);
         }
