@@ -21,6 +21,10 @@ static inline size_t vm_ir_opt_alloc(uint8_t *used, size_t *regs, size_t reg, si
 
 static inline size_t vm_ir_opt_use(uint8_t *used, size_t *regs, size_t reg, size_t i, size_t *max)
 {
+    if (used[i] || regs[reg] != SIZE_MAX)
+    {
+        return vm_ir_opt_alloc(used, regs, reg, max);
+    }
     used[i] = 1;
     regs[reg] = i;
     if (regs[reg] >= *max)
@@ -51,6 +55,7 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
         {
             continue;
         }
+        size_t n = 0;
         if (block->branch->targets[i]->id == SIZE_MAX)
         {
             vm_ir_arg_t **pass = block->branch->pass[i];
@@ -58,7 +63,7 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
             {
                 if (pass[j]->type == VM_IR_ARG_REG)
                 {
-                    pass[j]->reg = vm_ir_opt_alloc(used, regs, pass[j]->reg, &max);
+                    pass[j]->reg = vm_ir_opt_use(used, regs, pass[j]->reg, n++, &max);
                 }
             }
             continue;
