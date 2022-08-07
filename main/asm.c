@@ -3,7 +3,8 @@
 #include "../vm/ir/toir.h"
 #include "../vm/ir/opt.h"
 #include "../vm/ir/build.h"
-#include "../vm/ir/be/jit.h"
+#include "../vm/ir/be/x64.h"
+#include "../vm/ir/be/arm64.h"
 
 static const char *vm_asm_io_read(const char *filename)
 {
@@ -151,7 +152,12 @@ int main(int argc, char **argv)
             {
                 vm_ir_print_blocks(stderr, nblocks, blocks);
             }
-            vm_ir_be_jit(nblocks, blocks);
+            #ifdef __x86_64__
+            vm_ir_be_x64(nblocks, blocks);
+            #endif
+            #ifdef __aarch64__
+            vm_ir_be_arm(nblocks, blocks);
+            #endif
             vm_ir_blocks_free(nblocks, blocks);
         }
         else

@@ -7,7 +7,7 @@ HOST_CC ?= $(CC)
 PROG_SRCS := main/asm.c main/run.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-DASM_SRCS := vm/ir/be/jit.dasc
+DASM_SRCS := vm/ir/be/x64.dasc vm/ir/be/arm64.dasc
 DASM_OBJS := $(DASM_SRCS:%.dasc=%.o)
 
 VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c vm/ir/opt/const.c vm/ir/opt/arrmem.c

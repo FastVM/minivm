@@ -1,12 +1,13 @@
 
-#include "jit.h"
+#include "x64.h"
 #include "../build.h"
 #include "../opt.h"
 #include "../../int/gc.h"
 
+#define DASM_FDEF static
+
 #include "../../../luajit/dynasm/dasm_proto.h"
 #include "../../../luajit/dynasm/dasm_x86.h"
-
 
 #if _WIN32
 #include <stdio.h>
@@ -18,7 +19,7 @@
 #endif
 #endif
 
-static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block);
+static void vm_ir_be_x64_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block);
 
 #define VM_REG_MAX (7)
 #define VM_REG_OFFSET(n) ((n) == 0 ? 1 : 16-(n))
@@ -33,32 +34,32 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
 #define VM_RSI 6
 #define VM_RDI 7
 
-static void vm_ir_be_jit_putc(int n)
+static void vm_ir_be_x64_putc(int n)
 {
     fprintf(stdout, "%c", n);
 }
 
-static ptrdiff_t vm_ir_be_jit_len(vm_gc_t *gc, ptrdiff_t ptr)
+static ptrdiff_t vm_ir_be_x64_len(vm_gc_t *gc, ptrdiff_t ptr)
 {
     return gc->buf[(ptr << 1) - 1].header.len << 1;
 }
 
-static ptrdiff_t vm_ir_be_jit_alloc(vm_gc_t *gc, ptrdiff_t ptr)
+static ptrdiff_t vm_ir_be_x64_alloc(vm_gc_t *gc, ptrdiff_t ptr)
 {
     return (vm_gc_arr(gc, ptr >> 1) << 1) | 1;
 }
 
-static ptrdiff_t vm_ir_be_jit_get(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth)
+static ptrdiff_t vm_ir_be_x64_get(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth)
 {
     return gc->buf[(ptr + nth) >> 1].value.ival;
 }
 
-static void vm_ir_be_jit_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
+static void vm_ir_be_x64_set(vm_gc_t *gc, ptrdiff_t ptr, ptrdiff_t nth, ptrdiff_t val)
 {
     gc->buf[(ptr + nth) >> 1].value.ival = val;
 }
 
-static size_t vm_ir_be_jit_arg_reg(size_t n)
+static size_t vm_ir_be_x64_arg_reg(size_t n)
 {
     size_t args[] = {
         7,
@@ -155,7 +156,7 @@ static void *link_and_encode(dasm_State **d, size_t *sz)
     return buf;
 }
 
-static void vm_ir_be_jit_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **args, size_t *targets)
+static void vm_ir_be_x64_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **args, size_t *targets)
 {
     size_t npush = 0;
     for (ptrdiff_t i = 0; i < nargs; i++)
@@ -167,7 +168,7 @@ static void vm_ir_be_jit_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **arg
                 fprintf(stderr, "register allocation failed in JIT\n");
                 __builtin_trap();
             }
-            | vmLoad Rq(vm_ir_be_jit_arg_reg(npush)), args[i]->reg
+            | vmLoad Rq(vm_ir_be_x64_arg_reg(npush)), args[i]->reg
             npush += 1;
         }
     }
@@ -177,17 +178,17 @@ static void vm_ir_be_jit_tcall(dasm_State **Dst, size_t nargs, vm_ir_arg_t **arg
         if (args[i]->type == VM_IR_ARG_REG && args[i]->reg != targets[i])
         {
             // printf("SPILL: r%zu -> r%zu\n", args[i]->reg, targets[i]);
-            | vmStore targets[i], Rq(vm_ir_be_jit_arg_reg(npop))
+            | vmStore targets[i], Rq(vm_ir_be_x64_arg_reg(npop))
             npop += 1;
         }
     }
 }
 
-static void vm_ir_be_jit_jump(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *last, vm_ir_block_t *block)
+static void vm_ir_be_x64_jump(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *last, vm_ir_block_t *block)
 {
     // if (last->id < block->id)
     // {
-        // vm_ir_be_jit_block(Dst, gc, store, block);
+        // vm_ir_be_x64_block(Dst, gc, store, block);
     // }
     // else
     // {
@@ -195,7 +196,7 @@ static void vm_ir_be_jit_jump(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_i
     // }
 }
 
-static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
+static void vm_ir_be_x64_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_ir_block_t *block)
 {
     for (size_t ninstr = 0; ninstr < block->len; ninstr++)
     {
@@ -449,7 +450,7 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
         {
             for (size_t arg = 1; instr->args[arg]; arg++)
             {
-                | vmLoadArg Rq(vm_ir_be_jit_arg_reg(arg-1)), instr->args[arg]
+                | vmLoadArg Rq(vm_ir_be_x64_arg_reg(arg-1)), instr->args[arg]
             }
             uint8_t saved[8] = {0};
             {
@@ -542,7 +543,7 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
         {
             | mov64 vmArg1, (size_t) gc
             | vmLoadArg vmArg2, instr->args[0]
-            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_alloc
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_x64_alloc
             | push r11
             | push r10
             | call vmRegTmp1
@@ -556,7 +557,7 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
             | mov64 vmArg1, (size_t) gc
             | vmLoadArg vmArg2, instr->args[0]
             | vmLoadArg vmArg3, instr->args[1]
-            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_get
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_x64_get
             | push r11
             | push r10
             | call vmRegTmp1
@@ -571,7 +572,7 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
             | vmLoadArg vmArg2, instr->args[0]
             | vmLoadArg vmArg3, instr->args[1]
             | vmLoadArg vmArg4, instr->args[2]
-            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_set
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_x64_set
             | push r11
             | push r10
             | call vmRegTmp1
@@ -583,7 +584,7 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
         {
             | mov64 vmArg1, (size_t) gc
             | vmLoadArg vmArg2, instr->args[0]
-            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_len
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_x64_len
             | push r11
             | push r10
             | call vmRegTmp1
@@ -602,7 +603,7 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
         {
             | vmLoadArg vmArg1, instr->args[0]
             | shr vmArg1, 1
-            | mov64 vmRegTmp1, (size_t) &vm_ir_be_jit_putc
+            | mov64 vmRegTmp1, (size_t) &vm_ir_be_x64_putc
             | push r11
             | push r10
             | call vmRegTmp1
@@ -616,8 +617,8 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
     {
     case VM_IR_BOP_JUMP:
     {
-        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
-        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
+        vm_ir_be_x64_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_x64_jump(Dst, gc, store, block, block->branch->targets[0]);
         break;
     }
     case VM_IR_BOP_BOOL:
@@ -626,11 +627,11 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
         | sar vmRegTmp1, 1
         | test vmRegTmp1, vmRegTmp1
         | jnz >1
-        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
-        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
+        vm_ir_be_x64_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_x64_jump(Dst, gc, store, block, block->branch->targets[0]);
         |1:
-        vm_ir_be_jit_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
-        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[1]);
+        vm_ir_be_x64_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
+        vm_ir_be_x64_jump(Dst, gc, store, block, block->branch->targets[1]);
         break;
     }
     case VM_IR_BOP_LESS:
@@ -656,11 +657,11 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
             __builtin_trap();
         }
         | jl >1
-        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
-        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
+        vm_ir_be_x64_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_x64_jump(Dst, gc, store, block, block->branch->targets[0]);
         |1:
-        vm_ir_be_jit_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
-        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[1]);
+        vm_ir_be_x64_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
+        vm_ir_be_x64_jump(Dst, gc, store, block, block->branch->targets[1]);
         break;
     }
     case VM_IR_BOP_EQUAL:
@@ -686,11 +687,11 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
             __builtin_trap();
         }
         | je >1
-        vm_ir_be_jit_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
-        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[0]);
+        vm_ir_be_x64_tcall(Dst, block->branch->targets[0]->nargs, block->branch->pass[0], block->branch->targets[0]->args);
+        vm_ir_be_x64_jump(Dst, gc, store, block, block->branch->targets[0]);
         |1:
-        vm_ir_be_jit_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
-        vm_ir_be_jit_jump(Dst, gc, store, block, block->branch->targets[1]);
+        vm_ir_be_x64_tcall(Dst, block->branch->targets[1]->nargs, block->branch->pass[1], block->branch->targets[1]->args);
+        vm_ir_be_x64_jump(Dst, gc, store, block, block->branch->targets[1]);
         break;
     }
     case VM_IR_BOP_RET:
@@ -717,7 +718,7 @@ static void vm_ir_be_jit_block(dasm_State **Dst, vm_gc_t *gc, size_t *store, vm_
     }
 }
 
-void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
+void vm_ir_be_x64(size_t nops, vm_ir_block_t *blocks)
 {
     vm_gc_t gc;
     size_t nregs = 0;
@@ -772,11 +773,11 @@ void vm_ir_be_jit(size_t nops, vm_ir_block_t *blocks)
             }
             for (size_t i = 0; i < block->nargs; i++)
             {
-                | vmStore block->args[i], Rq(vm_ir_be_jit_arg_reg(i))
+                | vmStore block->args[i], Rq(vm_ir_be_x64_arg_reg(i))
             }
         }
         |=>index*2+1:
-        vm_ir_be_jit_block(Dst, &gc, &out, block);
+        vm_ir_be_x64_block(Dst, &gc, &out, block);
     }
     size_t sz = 0;
     void *map = link_and_encode(Dst, &sz);
