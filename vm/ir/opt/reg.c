@@ -55,20 +55,10 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
         {
             continue;
         }
-        size_t n = 0;
-        if (block->branch->targets[i]->id == SIZE_MAX)
+        if (block->branch->targets[i]->id != SIZE_MAX)
         {
-            vm_ir_arg_t **pass = block->branch->pass[i];
-            for (size_t j = 0; j < block->branch->targets[i]->nargs; j++)
-            {
-                if (pass[j]->type == VM_IR_ARG_REG)
-                {
-                    pass[j]->reg = vm_ir_opt_use(used, regs, pass[j]->reg, n++, &max);
-                }
-            }
-            continue;
+            vm_ir_opt_block(block->branch->targets[i]);
         }
-        vm_ir_opt_block(block->branch->targets[i]);
         vm_ir_arg_t **pass = block->branch->pass[i];
         for (size_t j = 0; j < block->branch->targets[i]->nargs; j++)
         {
