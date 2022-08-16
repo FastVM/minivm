@@ -29,7 +29,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
             {
                 nregs = instr->out.reg + 1;
             }
-            for (size_t k = 0; k < instr->nargs; k++)
+            for (size_t k = 0; instr->args[k].type != VM_IR_ARG_NONE; k++)
             {
                 vm_ir_arg_t arg = instr->args[k];
                 if (arg.type == VM_IR_ARG_REG && arg.reg >= nregs)
@@ -40,7 +40,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         }
         for (size_t j = 0; j < 2; j++)
         {
-            if (block->branch->args[j].type != VM_IR_ARG_NONE && block->branch->args[j].type = VM_IR_ARG_REG && block->branch->args[j].reg >= nregs)
+            if (block->branch->args[j].type != VM_IR_ARG_NONE && block->branch->args[j].type == VM_IR_ARG_REG && block->branch->args[j].reg >= nregs)
             {
                 nregs = block->branch->args[j].reg + 1;
             }
@@ -67,7 +67,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         for (size_t j = 0; j < block->len; j++)
         {
             vm_ir_instr_t *instr = block->instrs[j];
-            for (size_t k = 0; k < instr->nargs; k++)
+            for (size_t k = 0; instr->args[k].type != VM_IR_ARG_NONE; k++)
             {
                 vm_ir_arg_t arg = instr->args[k];
                 if (arg.type == VM_IR_ARG_REG && regs[arg.reg] == VM_IR_INFO_REG_UNK)
@@ -76,14 +76,14 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                     nargs += 1;
                 }
             }
-            if (instr->out && instr->out.type == VM_IR_ARG_REG && regs[instr->out.reg] == VM_IR_INFO_REG_UNK)
+            if (instr->out.type == VM_IR_ARG_REG && regs[instr->out.reg] == VM_IR_INFO_REG_UNK)
             {
                 regs[instr->out.reg] = VM_IR_INFO_REG_DEF;
             }
         }
         for (size_t j = 0; j < 2; j++)
         {
-            if (block->branch->args[j].type != VM_IR_ARG_NONE && block->branch->args[j].type = VM_IR_ARG_REG && regs[block->branch->args[j].reg] == VM_IR_INFO_REG_UNK)
+            if (block->branch->args[j].type != VM_IR_ARG_NONE && block->branch->args[j].type == VM_IR_ARG_REG && regs[block->branch->args[j].reg] == VM_IR_INFO_REG_UNK)
             {
                 regs[block->branch->args[j].reg] = VM_IR_INFO_REG_ARG;
                 nargs += 1;   
@@ -218,7 +218,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
             {
                 continue;
             }
-            vm_ir_arg_t cur = vm_malloc(sizeof(vm_ir_arg_t ) * next->nargs);
+            vm_ir_arg_t *cur = vm_malloc(sizeof(vm_ir_arg_t ) * next->nargs);
             for (size_t k = 0; k < next->nargs; k++)
             {
                 cur[k] = vm_ir_arg_reg(next->args[k]);

@@ -59,10 +59,10 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
         {
             vm_ir_opt_block(block->branch->targets[i]);
         }
-        vm_ir_arg_t **pass = block->branch->pass[i];
+        vm_ir_arg_t *pass = block->branch->pass[i];
         for (size_t j = 0; j < block->branch->targets[i]->nargs; j++)
         {
-            if (pass[j].type = VM_IR_ARG_REG)
+            if (pass[j].type == VM_IR_ARG_REG)
             {
                 pass[j].reg = vm_ir_opt_use(used, regs, pass[j].reg, block->branch->targets[i]->args[j], &max);
             }
@@ -70,7 +70,7 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
     }
     for (size_t i = 0; i < 2; i++)
     {
-        if (block->branch->args[i].type = VM_IR_ARG_REG)
+        if (block->branch->args[i].type == VM_IR_ARG_REG)
         {
             block->branch->args[i].reg = vm_ir_opt_alloc(used, regs, block->branch->args[i].reg, &max);
         }
@@ -78,13 +78,12 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
     for (ptrdiff_t i = block->len - 1; i >= 0; i--)
     {
         vm_ir_instr_t *instr = block->instrs[i];
-        if (instr->out && instr->out.type == VM_IR_ARG_REG)
+        if (instr->out.type == VM_IR_ARG_REG)
         {
             size_t old = instr->out.reg;
             if (regs[old] == SIZE_MAX)
             {
-                vm_ir_arg_free(instr->out);
-                instr->out = NULL;
+                instr->out.type = VM_IR_ARG_NONE;
             }
             else
             {
@@ -93,13 +92,14 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
                 regs[old] = SIZE_MAX;
             }
         }
-        for (size_t j = 0; j < instr->nargs; j++)
+        for (size_t j = 0; instr->args[j].type != VM_IR_ARG_NONE; j++)
         {
-            vm_ir_arg_t *arg = instr->args[j];
+            vm_ir_arg_t arg = instr->args[j];
             if (arg.type == VM_IR_ARG_REG)
             {
                 arg.reg = vm_ir_opt_alloc(used, regs, arg.reg, &max);
             }
+            instr->args[j] = arg;
         }
     }
     size_t write = 0;

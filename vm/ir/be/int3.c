@@ -22,7 +22,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_MOVE: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     switch (instr->args[0].type) 
                     {
@@ -51,7 +51,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_ADD: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -79,7 +79,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_SUB: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -107,7 +107,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_MUL: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -135,7 +135,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_DIV: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -163,7 +163,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_MOD: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -201,19 +201,19 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                     next = &state->blocks[vm_value_to_func(gc, locals[instr->args[0].reg])];
                 }
                 vm_value_t *regs = locals + block->nregs;
-                for (size_t i = 1; i < instr->nargs&& i-1 < next->nargs; i++)
+                for (size_t i = 1; instr->args[i].type != VM_IR_ARG_NONE&& i-1 < next->nargs; i++)
                 {
-                    if (instr->args[i].type = VM_IR_ARG_REG)
+                    if (instr->args[i].type == VM_IR_ARG_REG)
                     {
                         regs[next->args[i-1]] = locals[instr->args[i].reg];
                     }
                     else
                     {
-                        regs[next->args[i-1]] = vm_value_from_int(gc, instr->args[i]->num);
+                        regs[next->args[i-1]] = vm_value_from_int(gc, instr->args[i].num);
                     }
                 }
                 vm_value_t res = vm_ir_be_int3_block(state, next, regs);
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     locals[instr->out.reg] = res;
                 }
@@ -221,7 +221,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
             }
             case VM_IR_IOP_ARR: {
                 vm_gc_run(gc);
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -235,7 +235,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_GET: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -256,31 +256,31 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 {
                     if (instr->args[1].type == VM_IR_ARG_REG)
                     {
-                        if (instr->args[2].type = VM_IR_ARG_REG)
+                        if (instr->args[2].type == VM_IR_ARG_REG)
                         {
                             vm_gc_set_vv(gc, locals[instr->args[0].reg], locals[instr->args[1].reg], locals[instr->args[2].reg]);
                         }
                         else
                         {
-                            vm_gc_set_vi(gc, locals[instr->args[0].reg], locals[instr->args[1].reg], instr->args[2]->num);
+                            vm_gc_set_vi(gc, locals[instr->args[0].reg], locals[instr->args[1].reg], instr->args[2].num);
                         }
                     }
                     else
                     {
-                        if (instr->args[2].type = VM_IR_ARG_REG)
+                        if (instr->args[2].type == VM_IR_ARG_REG)
                         {
                             vm_gc_set_iv(gc, locals[instr->args[0].reg], instr->args[1].num, locals[instr->args[2].reg]);
                         }
                         else
                         {
-                            vm_gc_set_ii(gc, locals[instr->args[0].reg], instr->args[1].num, instr->args[2]->num);
+                            vm_gc_set_ii(gc, locals[instr->args[0].reg], instr->args[1].num, instr->args[2].num);
                         }
                     }
                 }
                 break;
             }
             case VM_IR_IOP_LEN: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -290,7 +290,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_TYPE: {
-                if (instr->out && instr->out.type == VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
@@ -409,7 +409,7 @@ vm_value_t vm_ir_be_int3_block(vm_ir_be_int3_state_t *state, vm_ir_block_t *bloc
         vm_value_t *args = locals + block->nregs;
         for (size_t i = 0; i < block->branch->targets[next]->nargs; i++)
         {
-            vm_ir_arg_t *arg = block->branch->pass[next][i];
+            vm_ir_arg_t arg = block->branch->pass[next][i];
             if (arg.type == VM_IR_ARG_REG)
             {
                 args[i] = locals[arg.reg];

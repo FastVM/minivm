@@ -121,21 +121,8 @@ void vm_ir_block_end_exit(vm_ir_block_t *block)
     block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_EXIT);
 }
 
-void vm_ir_arg_free(vm_ir_arg_t arg)
-{
-}
-
 void vm_ir_instr_free(vm_ir_instr_t *instr)
 {
-    if (instr == NULL)
-    {
-        return;
-    }
-    vm_ir_arg_free(instr->out);
-    for (size_t i = 0; i < instr->nargs; i++)
-    {
-        vm_ir_arg_free(instr->args[i]);
-    }
     vm_free(instr);
 }
 
@@ -153,15 +140,7 @@ void vm_ir_block_free(vm_ir_block_t *block)
     {
         for (size_t i = 0; i < 2; i++)
         {
-            vm_ir_arg_free(block->branch->args[i]);
-            if (block->branch->targets[i] != NULL)
-            {
-                for (size_t j = 0; j < block->branch->targets[i]->nargs; j++)
-                {
-                    vm_ir_arg_free(block->branch->pass[i][j]);
-                }
-                vm_free(block->branch->pass[i]);
-            }
+            vm_free(block->branch->pass[i]);
         }
         vm_free(block->branch);
     }
@@ -364,7 +343,7 @@ void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val)
         break;
     }
     }
-    for (size_t i = 0; i < val->nargs; i++)
+    for (size_t i = 0; val->args[i].type != VM_IR_ARG_NONE; i++)
     {
         fprintf(out, " ");
         vm_ir_print_arg(out, val->args[i]);

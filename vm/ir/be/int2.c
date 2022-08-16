@@ -17,23 +17,25 @@ vm_value_t vm_ir_be_int2_block(vm_ir_be_int2_state_t *state, vm_ir_block_t *bloc
     while (true) {
         for (size_t arg = 0; arg < block->len; arg++) {
             vm_ir_instr_t *instr = block->instrs[arg];
+            // vm_ir_print_instr(stderr, instr);
+            // fprintf(stderr, "\n");
             switch (instr->op) {
             case VM_IR_IOP_NOP: {
                 break;
             }
             case VM_IR_IOP_MOVE: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     switch (instr->args[0].type) 
                     {
                     case VM_IR_ARG_REG:
                     {
-                        locals[instr->out->reg] = locals[instr->args[0].reg];
+                        locals[instr->out.reg] = locals[instr->args[0].reg];
                         break;
                     }
                     case VM_IR_ARG_NUM:
                     {
-                        locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num);
+                        locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num);
                         break;
                     }
                     case VM_IR_ARG_STR:
@@ -43,7 +45,7 @@ vm_value_t vm_ir_be_int2_block(vm_ir_be_int2_state_t *state, vm_ir_block_t *bloc
                     }
                     case VM_IR_ARG_FUNC:
                     {
-                        locals[instr->out->reg] = vm_value_from_func(gc, instr->args[0].func->id);
+                        locals[instr->out.reg] = vm_value_from_func(gc, instr->args[0].func->id);
                         break;
                     }
                     }
@@ -51,140 +53,140 @@ vm_value_t vm_ir_be_int2_block(vm_ir_be_int2_state_t *state, vm_ir_block_t *bloc
                 break;
             }
             case VM_IR_IOP_ADD: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) + vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) + vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) + instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) + instr->args[1].num);
                         }
                     }
                     else
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num + vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num + vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num +  instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num +  instr->args[1].num);
                         }
                     }
                 }
                 break;
             }
             case VM_IR_IOP_SUB: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) - vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) - vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) - instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) - instr->args[1].num);
                         }
                     }
                     else
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num - vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num - vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num -  instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num -  instr->args[1].num);
                         }
                     }
                 }
                 break;
             }
             case VM_IR_IOP_MUL: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) * vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) * vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) * instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) * instr->args[1].num);
                         }
                     }
                     else
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num * vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num * vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num *  instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num *  instr->args[1].num);
                         }
                     }
                 }
                 break;
             }
             case VM_IR_IOP_DIV: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) / vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) / vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) / instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) / instr->args[1].num);
                         }
                     }
                     else
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num / vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num / vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num /  instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num /  instr->args[1].num);
                         }
                     }
                 }
                 break;
             }
             case VM_IR_IOP_MOD: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) % vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) % vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) % instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, vm_value_to_int(gc, locals[instr->args[0].reg]) % instr->args[1].num);
                         }
                     }
                     else
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num % vm_value_to_int(gc, locals[instr->args[1].reg]));
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num % vm_value_to_int(gc, locals[instr->args[1].reg]));
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_value_from_int(gc, instr->args[0].num %  instr->args[1].num);
+                            locals[instr->out.reg] = vm_value_from_int(gc, instr->args[0].num %  instr->args[1].num);
                         }
                     }
                 }
@@ -201,51 +203,51 @@ vm_value_t vm_ir_be_int2_block(vm_ir_be_int2_state_t *state, vm_ir_block_t *bloc
                     next = &state->blocks[vm_value_to_func(gc, locals[instr->args[0].reg])];
                 }
                 vm_value_t *regs = locals + block->nregs;
-                for (size_t i = 1; i < instr->nargs&& i-1 < next->nargs; i++)
+                for (size_t i = 1; instr->args[i].type != VM_IR_ARG_NONE && i-1 < next->nargs; i++)
                 {
-                    if (instr->args[i].type = VM_IR_ARG_REG)
+                    if (instr->args[i].type == VM_IR_ARG_REG)
                     {
                         regs[next->args[i-1]] = locals[instr->args[i].reg];
                     }
                     else
                     {
-                        regs[next->args[i-1]] = vm_value_from_int(gc, instr->args[i]->num);
+                        regs[next->args[i-1]] = vm_value_from_int(gc, instr->args[i].num);
                     }
                 }
                 vm_value_t res = vm_ir_be_int2_block(state, next, regs);
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
-                    locals[instr->out->reg] = res;
+                    locals[instr->out.reg] = res;
                 }
                 break;
             }
             case VM_IR_IOP_ARR: {
                 vm_gc_run(gc);
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
-                        locals[instr->out->reg] = VM_VALUE_SET_ARR(vm_gc_arr(gc, vm_value_to_int(gc, locals[instr->args[0].reg])));
+                        locals[instr->out.reg] = VM_VALUE_SET_ARR(vm_gc_arr(gc, vm_value_to_int(gc, locals[instr->args[0].reg])));
                     }
                     else
                     {
-                        locals[instr->out->reg] = VM_VALUE_SET_ARR(vm_gc_arr(gc, instr->args[0].num));
+                        locals[instr->out.reg] = VM_VALUE_SET_ARR(vm_gc_arr(gc, instr->args[0].num));
                     }
                 }
                 break;
             }
             case VM_IR_IOP_GET: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
-                            locals[instr->out->reg] = vm_gc_get_v(gc, locals[instr->args[0].reg], locals[instr->args[1].reg]);
+                            locals[instr->out.reg] = vm_gc_get_v(gc, locals[instr->args[0].reg], locals[instr->args[1].reg]);
                         }
                         else
                         {
-                            locals[instr->out->reg] = vm_gc_get_i(gc, locals[instr->args[0].reg], instr->args[1].num);
+                            locals[instr->out.reg] = vm_gc_get_i(gc, locals[instr->args[0].reg], instr->args[1].num);
                         }
                     }
                 }
@@ -256,49 +258,49 @@ vm_value_t vm_ir_be_int2_block(vm_ir_be_int2_state_t *state, vm_ir_block_t *bloc
                 {
                     if (instr->args[1].type == VM_IR_ARG_REG)
                     {
-                        if (instr->args[2].type = VM_IR_ARG_REG)
+                        if (instr->args[2].type == VM_IR_ARG_REG)
                         {
                             vm_gc_set_vv(gc, locals[instr->args[0].reg], locals[instr->args[1].reg], locals[instr->args[2].reg]);
                         }
                         else
                         {
-                            vm_gc_set_vi(gc, locals[instr->args[0].reg], locals[instr->args[1].reg], instr->args[2]->num);
+                            vm_gc_set_vi(gc, locals[instr->args[0].reg], locals[instr->args[1].reg], instr->args[2].num);
                         }
                     }
                     else
                     {
-                        if (instr->args[2].type = VM_IR_ARG_REG)
+                        if (instr->args[2].type == VM_IR_ARG_REG)
                         {
                             vm_gc_set_iv(gc, locals[instr->args[0].reg], instr->args[1].num, locals[instr->args[2].reg]);
                         }
                         else
                         {
-                            vm_gc_set_ii(gc, locals[instr->args[0].reg], instr->args[1].num, instr->args[2]->num);
+                            vm_gc_set_ii(gc, locals[instr->args[0].reg], instr->args[1].num, instr->args[2].num);
                         }
                     }
                 }
                 break;
             }
             case VM_IR_IOP_LEN: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
-                        locals[instr->out->reg] = vm_value_from_int(gc, vm_gc_len(gc, locals[instr->args[0].reg]));
+                        locals[instr->out.reg] = vm_value_from_int(gc, vm_gc_len(gc, locals[instr->args[0].reg]));
                     }
                 }
                 break;
             }
             case VM_IR_IOP_TYPE: {
-                if (instr->out && instr->out.type = VM_IR_ARG_REG)
+                if (instr->out.type == VM_IR_ARG_REG)
                 {
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
-                        locals[instr->out->reg] = vm_value_from_int(gc, vm_value_typeof(gc, locals[instr->args[0].reg]));
+                        locals[instr->out.reg] = vm_value_from_int(gc, vm_value_typeof(gc, locals[instr->args[0].reg]));
                     }
                     else
                     {
-                        locals[instr->out->reg] = vm_value_from_int(gc, vm_value_typeof(gc, vm_value_from_int(gc, instr->args[0].num)));
+                        locals[instr->out.reg] = vm_value_from_int(gc, vm_value_typeof(gc, vm_value_from_int(gc, instr->args[0].num)));
                     }
                 }
                 break;
