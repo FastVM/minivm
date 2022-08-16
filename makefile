@@ -7,13 +7,10 @@ HOST_CC ?= $(CC)
 PROG_SRCS := main/asm.c main/run.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-DASM_SRCS := vm/ir/be/x64.dasc vm/ir/be/arm64.dasc
-DASM_OBJS := $(DASM_SRCS:%.dasc=%.o)
-
-VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c vm/ir/opt/const.c vm/ir/opt/arrmem.c
+VM_SRCS := vm/asm.c vm/jump.c vm/int/run.c vm/int/comp.c vm/int/gc.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c vm/ir/opt/const.c vm/ir/be/int.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
-OBJS := $(VM_OBJS) $(DASM_OBJS)
+OBJS := $(VM_OBJS)
 
 default: all
 
@@ -44,10 +41,6 @@ libs: bin/libminivm.a
 
 bins: bin/minivm-run bin/minivm-asm
 
-bin/minilua: luajit/src/host/minilua.c
-	@mkdir -p bin
-	$(HOST_CC) -o $(@) luajit/src/host/minilua.c -lm
-
 bin/libminivm.a: $(OBJS)
 	ar cr $(@) $(OBJS)
 
@@ -76,10 +69,6 @@ objs-clean: .dummy
 
 $(PROG_OBJS) $(VM_OBJS): $(@:%.o=%.c)
 	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)
-
-$(DASM_OBJS): $(@:%.o=%.dasc) luajit/dynasm/dynasm.lua | bin/minilua
-	bin/minilua luajit/dynasm/dynasm.lua -o $(@:%.o=%.tmp.c) $(@:%.o=%.dasc)
-	$(CC) -c $(OPT) $(@:%.o=%.tmp.c) -o $(@) $(CFLAGS)
 
 # dummy
 
