@@ -3,7 +3,8 @@
 #include "../vm/ir/toir.h"
 #include "../vm/ir/opt.h"
 #include "../vm/ir/build.h"
-#include "../vm/ir/be/int.h"
+#include "../vm/ir/be/int2.h"
+#include "../vm/ir/be/int3.h"
 
 static const char *vm_asm_io_read(const char *filename)
 {
@@ -84,20 +85,24 @@ int main(int argc, char **argv)
             runs = n;
             continue;
         }
-        if (argv[1][0] == '-' && argv[1][1] == 'j')
+        if (argv[1][0] == '-' && argv[1][1] == 'i')
         {
             char *tmp = argv[1] + 2;
             argv += 1;
             argc -= 1;
-            if (!strcmp(tmp, "on"))
+            if (!strcmp(tmp, "1"))
             {
                 jit = 1;
             }
-            else if (!strcmp(tmp, "off"))
+            else if (!strcmp(tmp, "2"))
             {
-                jit = 0;
+                jit = 2;
             }
-            else if (!strcmp(tmp, "dump=ir"))
+            else if (!strcmp(tmp, "3"))
+            {
+                jit = 3;
+            }
+            else if (!strcmp(tmp, "dump=pre"))
             {
                 jitdumpir = 1;
             }
@@ -138,7 +143,7 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < runs; i++)
     {
         vm_bc_buf_t buf = vm_asm(src);
-        if (jit)
+        if (jit != 1)
         {
             size_t nblocks = buf.nops;
             vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
@@ -151,7 +156,14 @@ int main(int argc, char **argv)
             {
                 vm_ir_print_blocks(stderr, nblocks, blocks);
             }
-            vm_ir_be_int(nblocks, blocks);
+            if (jit == 2)
+            {
+                vm_ir_be_int2(nblocks, blocks);
+            }
+            else if (jit == 3)
+            {
+                vm_ir_be_int3(nblocks, blocks);
+            }
             vm_ir_blocks_free(nblocks, blocks);
         }
         else

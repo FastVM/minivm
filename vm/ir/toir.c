@@ -65,17 +65,16 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
             vm_opcode_t func = ops[(*index)++];
             blocks[func].isfunc = true;
             vm_opcode_t nargs = ops[(*index)++];
-            vm_ir_arg_t **args = vm_malloc(sizeof(vm_ir_arg_t *) * (nargs + 1));
+            vm_ir_arg_t *args = vm_malloc(sizeof(vm_ir_arg_t ) * nargs);
             for (size_t i = 0; i < nargs; i++)
             {
                 args[i] = vm_ir_arg_reg(ops[(*index)++]);
             }
-            args[nargs] = NULL;
             size_t tmp = state->nops;
             state->nops = ops[func-3];
             vm_ir_read_from(state, func);
             state->nops = tmp;
-            vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_func(&blocks[func]), args);
+            vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_func(&blocks[func]), nargs, args);
             vm_free(args);
             break;
         }
@@ -84,13 +83,12 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
             vm_opcode_t rreg = ops[(*index)++];
             vm_opcode_t func = ops[(*index)++];
             vm_opcode_t nargs = ops[(*index)++];
-            vm_ir_arg_t **args = vm_malloc(sizeof(vm_ir_arg_t *) * (nargs + 1));
+            vm_ir_arg_t *args = vm_malloc(sizeof(vm_ir_arg_t ) * nargs);
             for (size_t i = 0; i < nargs; i++)
             {
                 args[i] = vm_ir_arg_reg(ops[(*index)++]);
             }
-            args[nargs] = NULL;
-            vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_reg(func), args);
+            vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_reg(func), nargs, args);
             vm_free(args);
             break;
         }

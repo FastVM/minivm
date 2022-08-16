@@ -156,7 +156,7 @@ exec_movf:
 {
   vm_value_t *out = vm_int_read_store();
   vm_loc_t in = vm_int_read_loc();
-  *out = vm_value_from_func(in);
+  *out = vm_value_from_func(gc, in);
   vm_int_jump_next();
 }
 exec_add:
@@ -357,7 +357,7 @@ exec_dcall0:
   vm_reg_t nregs = vm_int_read_reg();
   *stack++ = index;
   regs += nregs;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall1:
@@ -368,7 +368,7 @@ exec_dcall1:
   *stack++ = index;
   regs += nregs;
   regs[1] = r1;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall2:
@@ -381,7 +381,7 @@ exec_dcall2:
   regs += nregs;
   regs[1] = r1;
   regs[2] = r2;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall3:
@@ -396,7 +396,7 @@ exec_dcall3:
   regs[1] = r1;
   regs[2] = r2;
   regs[3] = r3;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall4:
@@ -413,7 +413,7 @@ exec_dcall4:
   regs[2] = r2;
   regs[3] = r3;
   regs[4] = r4;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall5:
@@ -432,7 +432,7 @@ exec_dcall5:
   regs[3] = r3;
   regs[4] = r4;
   regs[5] = r5;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall6:
@@ -453,7 +453,7 @@ exec_dcall6:
   regs[4] = r4;
   regs[5] = r5;
   regs[6] = r6;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall7:
@@ -476,7 +476,7 @@ exec_dcall7:
   regs[5] = r5;
   regs[6] = r6;
   regs[7] = r7;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_dcall8:
@@ -501,7 +501,7 @@ exec_dcall8:
   regs[6] = r6;
   regs[7] = r7;
   regs[8] = r8;
-  index = vm_value_to_func(func);
+  index = vm_value_to_func(gc, func);
   vm_int_jump_next_check();
 }
 exec_jump:

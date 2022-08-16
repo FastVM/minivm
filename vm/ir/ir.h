@@ -66,16 +66,17 @@ struct vm_ir_arg_t
 
 struct vm_ir_branch_t
 {
-    vm_ir_arg_t **pass[2];
+    vm_ir_arg_t *pass[2];
     vm_ir_block_t *targets[2];
-    vm_ir_arg_t *args[2];
+    vm_ir_arg_t args[2];
     uint8_t op;
 };
 
 struct vm_ir_instr_t
 {
-    vm_ir_arg_t *args[10];
-    vm_ir_arg_t *out;
+    vm_ir_arg_t args[9];
+    vm_ir_arg_t out;
+    uint8_t nargs;
     uint8_t op;
 };
 

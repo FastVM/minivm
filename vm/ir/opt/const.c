@@ -28,30 +28,30 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                 for (size_t j = 0; j < block->len; j++)
                 {
                     vm_ir_instr_t *instr = block->instrs[j];
-                    for (size_t k = 0; instr->args[k] != NULL; k++)
+                    for (size_t k = 0; k < instr->nargs; k++)
                     {
-                        vm_ir_arg_t *arg = instr->args[k];
-                        if (arg->type == VM_IR_ARG_REG)
+                        vm_ir_arg_t arg = instr->args[k];
+                        if (arg.type == VM_IR_ARG_REG)
                         {
-                            if (named[arg->reg] == VM_IR_OPT_CONST_REG_HAS_VALUE)
+                            if (named[arg.reg] == VM_IR_OPT_CONST_REG_HAS_VALUE)
                             {
-                                arg->type = VM_IR_ARG_NUM;
-                                arg->num = regs[arg->reg];
+                                arg.type = VM_IR_ARG_NUM;
+                                arg.num = regs[arg.reg];
                             }
-                            else if (named[arg->reg] == VM_IR_OPT_CONST_REG_NOT_NEEDED)
+                            else if (named[arg.reg] == VM_IR_OPT_CONST_REG_NOT_NEEDED)
                             {
-                                named[arg->reg] = VM_IR_OPT_CONST_REG_NEEDED;
+                                named[arg.reg] = VM_IR_OPT_CONST_REG_NEEDED;
                             }
                         }
                     }
-                    if (instr->out != NULL)
+                    if (instr->out.type != VM_IR_ARG_NONE)
                     {
-                        vm_ir_arg_t *out = instr->out;
+                        vm_ir_arg_t out = instr->out;
                         named[out->reg] = VM_IR_OPT_CONST_REG_NOT_NEEDED;
                         if (instr->op == VM_IR_IOP_MOVE)
                         {
-                            vm_ir_arg_t *arg0 = instr->args[0];
-                            if (arg0->type == VM_IR_ARG_NUM)
+                            vm_ir_arg_t arg0 = instr->args[0];
+                            if (arg0.type = VM_IR_ARG_NUM)
                             {
                                 named[out->reg] = VM_IR_OPT_CONST_REG_HAS_VALUE;
                                 regs[out->reg] = arg0->num;
@@ -59,9 +59,9 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                         }
                         if (instr->op == VM_IR_IOP_ADD)
                         {
-                            vm_ir_arg_t *arg0 = instr->args[0];
-                            vm_ir_arg_t *arg1 = instr->args[1];
-                            if (arg0->type == VM_IR_ARG_NUM && arg1->type == VM_IR_ARG_NUM)
+                            vm_ir_arg_t arg0 = instr->args[0];
+                            vm_ir_arg_t arg1 = instr->args[1];
+                            if (arg0.type = VM_IR_ARG_NUM && arg1.type = VM_IR_ARG_NUM)
                             {
                                 if (arg0->num == 0)
                                 {
@@ -85,9 +85,9 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                         }
                         if (instr->op == VM_IR_IOP_SUB)
                         {
-                            vm_ir_arg_t *arg0 = instr->args[0];
-                            vm_ir_arg_t *arg1 = instr->args[1];
-                            if (arg0->type == VM_IR_ARG_NUM && arg1->type == VM_IR_ARG_NUM)
+                            vm_ir_arg_t arg0 = instr->args[0];
+                            vm_ir_arg_t arg1 = instr->args[1];
+                            if (arg0.type = VM_IR_ARG_NUM && arg1.type = VM_IR_ARG_NUM)
                             {
                                 if (arg1->num == 0)
                                 {
@@ -106,9 +106,9 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                         }
                         if (instr->op == VM_IR_IOP_MUL)
                         {
-                            vm_ir_arg_t *arg0 = instr->args[0];
-                            vm_ir_arg_t *arg1 = instr->args[1];
-                            if (arg0->type == VM_IR_ARG_NUM && arg1->type == VM_IR_ARG_NUM)
+                            vm_ir_arg_t arg0 = instr->args[0];
+                            vm_ir_arg_t arg1 = instr->args[1];
+                            if (arg0.type = VM_IR_ARG_NUM && arg1.type = VM_IR_ARG_NUM)
                             {
                                 if (arg0->num == 1)
                                 {
@@ -134,11 +134,11 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                 }
                 for (size_t i = 0; i < 2; i++)
                 {
-                    vm_ir_arg_t *arg = block->branch->args[i];
-                    if (arg != NULL && arg->type == VM_IR_ARG_REG && named[arg->reg] == VM_IR_OPT_CONST_REG_HAS_VALUE)
+                    vm_ir_arg_t arg = block->branch->args[i];
+                    if (arg != NULL && arg.type == VM_IR_ARG_REG && named[arg.reg] == VM_IR_OPT_CONST_REG_HAS_VALUE)
                     {
-                        arg->type = VM_IR_ARG_NUM;
-                        arg->num = regs[arg->reg];
+                        arg.type = VM_IR_ARG_NUM;
+                        arg.num = regs[arg.reg];
                     }
                 }
                 vm_free(named);
@@ -168,40 +168,40 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
             }
             for (size_t j = 0; j < block->branch->targets[t]->nargs; j++)
             {
-                ptrs[block->branch->pass[t][j]->reg] = 1;
+                ptrs[block->branch->pass[t][j].reg] = 1;
             }
         }
         for (size_t r = 0; r < 2; r++)
         {
-            if (block->branch->args[r] != NULL && block->branch->args[r]->type == VM_IR_ARG_REG)
+            if (block->branch->args[r].type = VM_IR_ARG_REG)
             {
-                ptrs[block->branch->args[r]->reg] = 1;
+                ptrs[block->branch->args[r].reg] = 1;
             }
         }
         for (ptrdiff_t j = block->len - 1; j >= 0; j--)
         {
             vm_ir_instr_t *instr = block->instrs[j];
             uint8_t outp = 1;
-            if (instr->out != NULL && instr->out->type == VM_IR_ARG_REG)
+            if (instr->out.type == VM_IR_ARG_REG)
             {
-                outp = ptrs[instr->out->reg];
+                outp = ptrs[instr->out.reg];
                 if (outp == 0 && instr->op != VM_IR_IOP_CALL)
                 {
                     block->instrs[j] = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_NOP);
                 }
-                ptrs[instr->out->reg] = 0;
+                ptrs[instr->out.reg] = 0;
             }
             if (instr->op == VM_IR_IOP_NOP)
             {
                 continue;
             }
-            for (size_t k = 0; instr->args[k] != NULL; k++)
+            for (size_t k = 0; k < instr->nargs; k++)
             {
                 if (instr->args[k]->type != VM_IR_ARG_REG)
                 {
                     continue;
                 }
-                ptrs[instr->args[k]->reg] = 1;
+                ptrs[instr->args[k].reg] = 1;
             }
         }
         vm_free(ptrs);

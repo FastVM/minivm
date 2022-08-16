@@ -62,25 +62,25 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
         vm_ir_arg_t **pass = block->branch->pass[i];
         for (size_t j = 0; j < block->branch->targets[i]->nargs; j++)
         {
-            if (pass[j]->type == VM_IR_ARG_REG)
+            if (pass[j].type = VM_IR_ARG_REG)
             {
-                pass[j]->reg = vm_ir_opt_use(used, regs, pass[j]->reg, block->branch->targets[i]->args[j], &max);
+                pass[j].reg = vm_ir_opt_use(used, regs, pass[j].reg, block->branch->targets[i]->args[j], &max);
             }
         }
     }
     for (size_t i = 0; i < 2; i++)
     {
-        if (block->branch->args[i] != NULL && block->branch->args[i]->type == VM_IR_ARG_REG)
+        if (block->branch->args[i].type = VM_IR_ARG_REG)
         {
-            block->branch->args[i]->reg = vm_ir_opt_alloc(used, regs, block->branch->args[i]->reg, &max);
+            block->branch->args[i].reg = vm_ir_opt_alloc(used, regs, block->branch->args[i].reg, &max);
         }
     }
     for (ptrdiff_t i = block->len - 1; i >= 0; i--)
     {
         vm_ir_instr_t *instr = block->instrs[i];
-        if (instr->out && instr->out->type == VM_IR_ARG_REG)
+        if (instr->out && instr->out.type == VM_IR_ARG_REG)
         {
-            size_t old = instr->out->reg;
+            size_t old = instr->out.reg;
             if (regs[old] == SIZE_MAX)
             {
                 vm_ir_arg_free(instr->out);
@@ -88,17 +88,17 @@ static inline void vm_ir_opt_block(vm_ir_block_t *block)
             }
             else
             {
-                instr->out->reg = regs[old];
+                instr->out.reg = regs[old];
                 used[regs[old]] = 0;
                 regs[old] = SIZE_MAX;
             }
         }
-        for (size_t j = 0; instr->args[j] != NULL; j++)
+        for (size_t j = 0; j < instr->nargs; j++)
         {
             vm_ir_arg_t *arg = instr->args[j];
-            if (arg->type == VM_IR_ARG_REG)
+            if (arg.type == VM_IR_ARG_REG)
             {
-                arg->reg = vm_ir_opt_alloc(used, regs, arg->reg, &max);
+                arg.reg = vm_ir_opt_alloc(used, regs, arg.reg, &max);
             }
         }
     }
