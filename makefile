@@ -21,17 +21,17 @@ all: bins libs
 gcc-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm -joff bench/fib40.vasm
-	./bin/minivm-asm -joff bench/memfib35.vasm
-	./bin/minivm-asm -joff bench/primecount.vasm
+	./bin/minivm-asm -i1 bench/fib40.vasm
+	./bin/minivm-asm -i1 bench/memfib35.vasm
+	./bin/minivm-asm -i1 bench/primecount.vasm
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' all
 
 clang-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='clang-$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm -joff bench/fib40.vasm
-	./bin/minivm-asm -joff bench/memfib35.vasm
-	./bin/minivm-asm -joff bench/primecount.vasm
+	./bin/minivm-asm -i1 bench/fib40.vasm
+	./bin/minivm-asm -i1 bench/memfib35.vasm
+	./bin/minivm-asm -i1 bench/primecount.vasm
 	llvm-profdata-$(CLANG) merge -o profdata.profdata profraw.profraw
 	$(MAKE) -B CC='clang-$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' all
 

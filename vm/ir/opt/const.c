@@ -43,6 +43,10 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                                 named[arg.reg] = VM_IR_OPT_CONST_REG_NEEDED;
                             }
                         }
+                        if (instr->op != VM_IR_IOP_CALL)
+                        {
+                            instr->args[k] = arg;
+                        }
                     }
                     if (instr->out.type != VM_IR_ARG_NONE)
                     {
@@ -140,6 +144,7 @@ void vm_ir_opt_const(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                         arg.type = VM_IR_ARG_NUM;
                         arg.num = regs[arg.reg];
                     }
+                    block->branch->args[i] = arg;
                 }
                 vm_free(named);
                 vm_free(regs);
@@ -173,7 +178,7 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
         }
         for (size_t r = 0; r < 2; r++)
         {
-            if (block->branch->args[r].type = VM_IR_ARG_REG)
+            if (block->branch->args[r].type == VM_IR_ARG_REG)
             {
                 ptrs[block->branch->args[r].reg] = 1;
             }
@@ -190,6 +195,10 @@ void vm_ir_opt_dead(size_t *ptr_nops, vm_ir_block_t **ptr_blocks)
                     block->instrs[j] = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_NOP);
                 }
                 ptrs[instr->out.reg] = 0;
+            }
+            else if (instr->op != VM_IR_IOP_CALL && instr->op != VM_IR_IOP_SET && instr->op != VM_IR_IOP_OUT)
+            {
+                instr->op = VM_IR_IOP_NOP;
             }
             if (instr->op == VM_IR_IOP_NOP)
             {

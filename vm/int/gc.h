@@ -58,14 +58,14 @@ void vm_gc_run(vm_gc_t *restrict gc);
 
 vm_int_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t size);
 
-#define VM_VALUE_GET_INT(n_) ((n_).ival / 2)
-#define VM_VALUE_GET_ARR(n_) ((n_).ival / 2)
+#define VM_VALUE_GET_INT(n_) ((n_).ival >> 1)
+#define VM_VALUE_GET_ARR(n_) ((n_).ival >> 1)
 
 #define VM_VALUE_SET_INT(n_) ((vm_value_t) {.ival = (n_) * 2})
-#define VM_VALUE_SET_ARR(n_) ((vm_value_t) {.ival = ((n_) * 2) + 1})
+#define VM_VALUE_SET_ARR(n_) ((vm_value_t) {.ival = ((n_) * 2) | 1})
 
-#define VM_VALUE_IS_INT(n_) (((n_).ival % 2) == 0)
-#define VM_VALUE_IS_ARR(n_) (((n_).ival % 2) == 1)
+#define VM_VALUE_IS_INT(n_) (((n_).ival & 1) == 0)
+#define VM_VALUE_IS_ARR(n_) (((n_).ival & 1) == 1)
 
 #define vm_gc_len(gc_, obj_) (gc_->buf[VM_VALUE_GET_ARR(obj_) - 1].header.len)
 #define vm_gc_get_v(gc_, obj_, nth_) (gc_->buf[VM_VALUE_GET_ARR(obj_) + VM_VALUE_GET_INT(nth_)].value)

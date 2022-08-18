@@ -35,7 +35,7 @@ func putn
 end
 
 func main
-    r0 <- int 25
+    r0 <- int 5
     r0 <- call fib r0
     r0 <- call putn r0
     r0 <- int 10

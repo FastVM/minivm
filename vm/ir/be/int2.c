@@ -318,6 +318,8 @@ vm_value_t vm_ir_be_int2_block(vm_ir_be_int2_state_t *state, vm_ir_block_t *bloc
             }
             }   
         }
+        // vm_ir_print_branch(stderr, block->branch);
+        // fprintf(stderr, "\n");
         uint8_t next;
         switch(block->branch->op)
         {
@@ -408,6 +410,7 @@ vm_value_t vm_ir_be_int2_block(vm_ir_be_int2_state_t *state, vm_ir_block_t *bloc
             exit(0);
         }
         }
+        // fprintf(stderr, "took branch: %zu\n", (size_t) next);
         vm_value_t *args = locals + block->nregs;
         for (size_t i = 0; i < block->branch->targets[next]->nargs; i++)
         {

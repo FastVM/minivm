@@ -76,7 +76,6 @@ struct vm_ir_instr_t
 {
     vm_ir_arg_t args[9];
     vm_ir_arg_t out;
-    uint8_t nargs;
     uint8_t op;
 };
 
