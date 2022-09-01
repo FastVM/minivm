@@ -20,6 +20,8 @@ enum
 
     VM_IR_BE_INT3_OP_MOV_I,
     VM_IR_BE_INT3_OP_MOV_R,
+    VM_IR_BE_INT3_OP_MOV_L,
+    VM_IR_BE_INT3_OP_MOV_T,
 
     VM_IR_BE_INT3_OP_ADD_RR,
     VM_IR_BE_INT3_OP_ADD_RI,
@@ -156,7 +158,10 @@ struct vm_ir_be_int3_opcode_t {
         } \
     })
 
-vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir_block_t *block) {
+void *vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir_block_t *block) {
+    if (block->ops != NULL) {
+        return block->ops;
+    }
     vm_ir_be_int3_buf_t buf;
     buf.len = 0;
     buf.alloc = 16;
@@ -206,6 +211,9 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                     case VM_IR_ARG_FUNC:
                     {
                         // r = move i
+                        vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_MOV_T);
+                        vm_ir_be_int3_block_comp_put_out(instr->out.reg);
+                        vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
                         break;
                     }
                     }
@@ -471,10 +479,16 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         // r = new r
+                        vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_NEW_R);
+                        vm_ir_be_int3_block_comp_put_out(instr->out.reg);
+                        vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
                     }
                     else
                     {
                         // r = new i
+                        vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_NEW_I);
+                        vm_ir_be_int3_block_comp_put_out(instr->out.reg);
+                        vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
                     }
                 }
                 break;
@@ -487,10 +501,18 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                         if (instr->args[1].type == VM_IR_ARG_REG)
                         {
                             // r = get r r
+                            vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_GET_RR);
+                            vm_ir_be_int3_block_comp_put_out(instr->out.reg);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[1]);
                         }
                         else
                         {
                             // r = get r i
+                            vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_GET_RI);
+                            vm_ir_be_int3_block_comp_put_out(instr->out.reg);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[1]);
                         }
                     }
                 }
@@ -504,10 +526,18 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                         if (instr->args[2].type == VM_IR_ARG_REG)
                         {
                             // set r r r
+                            vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_SET_RRR);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[1]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[2]);
                         }
                         else
                         {
                             // set r r i
+                            vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_SET_RRI);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[1]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[2]);
                         }
                     }
                     else
@@ -515,10 +545,18 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                         if (instr->args[2].type == VM_IR_ARG_REG)
                         {
                             // set r i r
+                            vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_SET_RIR);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[1]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[2]);
                         }
                         else
                         {
                             // set r i i
+                            vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_SET_RII);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[1]);
+                            vm_ir_be_int3_block_comp_put_arg(instr->args[2]);
                         }
                     }
                 }
@@ -530,6 +568,9 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                     if (instr->args[0].type == VM_IR_ARG_REG)
                     {
                         // r = len r
+                        vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_LEN_R);
+                        vm_ir_be_int3_block_comp_put_out(instr->out.reg);
+                        vm_ir_be_int3_block_comp_put_arg(instr->args[0]);
                     }
                 }
                 break;
@@ -579,14 +620,16 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
             if (block->branch->args[0].type == VM_IR_ARG_NUM)
             {
                 // jump l
+                vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_JUMP_T);
+                vm_ir_be_int3_block_comp_put_block(block->branch->targets[block->branch->args[0].num != 0]);
             }
             else
             {
+                // bb r l l
                 vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_BB_RTT);
                 vm_ir_be_int3_block_comp_put_arg(block->branch->args[0]);
                 vm_ir_be_int3_block_comp_put_block(block->branch->targets[0]);
                 vm_ir_be_int3_block_comp_put_block(block->branch->targets[1]);
-                // bb r l l
             }
             break;
         }
@@ -597,6 +640,8 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                 if (block->branch->args[1].type == VM_IR_ARG_NUM)
                 {
                     // jump l
+                    vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_JUMP_T);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[block->branch->args[0].num < block->branch->args[1].num]);
                 }
                 else
                 {
@@ -638,10 +683,17 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                 if (block->branch->args[1].type == VM_IR_ARG_NUM)
                 {
                     // jump l
+                    vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_JUMP_T);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[block->branch->args[0].num == block->branch->args[1].num]);
                 }
                 else
                 {
                     // beq i r l l
+                    vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_BEQ_IRTT);
+                    vm_ir_be_int3_block_comp_put_arg(block->branch->args[0]);
+                    vm_ir_be_int3_block_comp_put_arg(block->branch->args[1]);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[0]);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[1]);
                 }
             }
             else
@@ -649,10 +701,20 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
                 if (block->branch->args[1].type == VM_IR_ARG_NUM)
                 {
                     // beq r i l l
+                    vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_BEQ_RITT);
+                    vm_ir_be_int3_block_comp_put_arg(block->branch->args[0]);
+                    vm_ir_be_int3_block_comp_put_arg(block->branch->args[1]);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[0]);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[1]);
                 }
                 else
                 {
                     // beq r r l l
+                    vm_ir_be_int3_block_comp_put_ptr(VM_IR_BE_INT3_OP_BEQ_RRTT);
+                    vm_ir_be_int3_block_comp_put_arg(block->branch->args[0]);
+                    vm_ir_be_int3_block_comp_put_arg(block->branch->args[1]);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[0]);
+                    vm_ir_be_int3_block_comp_put_block(block->branch->targets[1]);
                 }
             }
             break;
@@ -681,29 +743,8 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
             break;
         }
     }
-#if 0
-    fprintf(stderr, "%s", "----------------\n");
-    fprintf(stderr, ".%zu(", block->id);
-    for (size_t i = 0; i < block->nargs; i++)
-    {
-        if (i != 0)
-        {
-            fprintf(stderr, ", ");
-        }
-        fprintf(stderr, "r%zu", block->args[i]);
-    }
-    fprintf(stderr, "):\n");
-    vm_ir_print_block(stderr, block);
-    fprintf(stderr, "%s", "----------------\n");
-#endif
-    {
-    // fprintf(stderr, "\n.len = %zu {\n", buf.len);
-    // for (size_t i = 0; i < buf.len; i++) {
-    //     fprintf(stderr, "  %zX: %zX\n", i, buf.ops[i].val);
-    // }
-    // fprintf(stderr, "}\n");
-    }
-    return buf;
+    block->ops = buf.ops;
+    return buf.ops;
 }
 
 #define vm_ir_be_int3_run_read() (*head++)
@@ -713,7 +754,7 @@ vm_ir_be_int3_buf_t vm_ir_be_int3_block_comp(vm_ir_be_int3_state_t *state, vm_ir
 #define vm_ir_be_int3_debug(v) (v)
 #endif
 #define vm_ir_be_int3_run_next() goto *vm_ir_be_int3_debug(vm_ir_be_int3_run_read().ptr)
-#define vm_ir_be_int3_not_implemented() ({fprintf(stderr, "UNIMPLEMENTED %zu\n", (size_t) __LINE__); return;})
+#define vm_ir_be_int3_not_implemented() ({fprintf(stderr, "UNIMPLEMENTED line=%zu\n", (size_t) __LINE__); return;})
 
 void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
 {
@@ -726,9 +767,10 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         [VM_IR_BE_INT3_OP_ARGS6] = &&do_args6,
         [VM_IR_BE_INT3_OP_ARGS7] = &&do_args7,
         [VM_IR_BE_INT3_OP_ARGS8] = &&do_args8,
-
         [VM_IR_BE_INT3_OP_MOV_I] = &&do_mov_i,
         [VM_IR_BE_INT3_OP_MOV_R] = &&do_mov_r,
+        [VM_IR_BE_INT3_OP_MOV_L] = &&do_mov_l,
+        [VM_IR_BE_INT3_OP_MOV_T] = &&do_mov_t,
         [VM_IR_BE_INT3_OP_ADD_RR] = &&do_add_rr,
         [VM_IR_BE_INT3_OP_ADD_RI] = &&do_add_ri,
         [VM_IR_BE_INT3_OP_ADD_IR] = &&do_add_ir,
@@ -803,7 +845,7 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         [VM_IR_BE_INT3_OP_EXIT] = &&do_exit,
     };
     state->ptrs = &ptrs[0];
-    vm_ir_be_int3_opcode_t *head = vm_ir_be_int3_block_comp(state, block).ops;
+    vm_ir_be_int3_opcode_t *head = vm_ir_be_int3_block_comp(state, block);
     vm_value_t *locals = state->gc.regs;
     vm_value_t args[8];
     vm_ir_be_int3_run_next();
@@ -877,76 +919,128 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         vm_ir_be_int3_run_next();
     }
     do_mov_r: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        vm_ir_be_int3_opcode_t value = vm_ir_be_int3_run_read();
+        vm_ir_be_int3_run_next();
+    }
+    do_mov_l: {
+        vm_value_t *out = &locals[vm_ir_be_int3_run_read().reg];
+        out->ptr = vm_ir_be_int3_run_read().ptr;
+        vm_ir_be_int3_run_next();
+    }
+    do_mov_t: {
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_mov_l;
+        vm_value_t *out = &locals[vm_ir_be_int3_run_read().reg];
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_add_rr: {
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
         vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
-        locals[out.reg] = vm_value_add(gc, lhs, rhs);
+        locals[out.reg] = vm_value_add(&state->gc, lhs, rhs);
         vm_ir_be_int3_run_next();
     }
     do_add_ri: {
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
         ptrdiff_t rhs = vm_ir_be_int3_run_read().val;
-        locals[out.reg] = vm_value_addi(gc, lhs, rhs);
+        locals[out.reg] = vm_value_addi(&state->gc, lhs, rhs);
         vm_ir_be_int3_run_next();
     }
     do_add_ir: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        ptrdiff_t lhs = vm_ir_be_int3_run_read().val;
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_addi(&state->gc, rhs, lhs);
+        vm_ir_be_int3_run_next();
     }
     do_sub_rr: {
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
         vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
-        locals[out.reg] = vm_value_sub(gc, lhs, rhs);
+        locals[out.reg] = vm_value_sub(&state->gc, lhs, rhs);
         vm_ir_be_int3_run_next();
     }
     do_sub_ri: {
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
         ptrdiff_t rhs = vm_ir_be_int3_run_read().val;
-        locals[out.reg] = vm_value_subi(gc, lhs, rhs);
+        locals[out.reg] = vm_value_subi(&state->gc, lhs, rhs);
         vm_ir_be_int3_run_next();
     }
     do_sub_ir: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        ptrdiff_t lhs = vm_ir_be_int3_run_read().val;
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_isub(&state->gc, lhs, rhs);
+        vm_ir_be_int3_run_next();
     }
     do_mul_rr: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_mul(&state->gc, lhs, rhs);
+        vm_ir_be_int3_run_next();
     }
     do_mul_ri: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
+        ptrdiff_t rhs = vm_ir_be_int3_run_read().val;
+        locals[out.reg] = vm_value_muli(&state->gc, lhs, rhs);
+        vm_ir_be_int3_run_next();
     }
     do_mul_ir: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        ptrdiff_t lhs = vm_ir_be_int3_run_read().val;
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_muli(&state->gc, rhs, lhs);
+        vm_ir_be_int3_run_next();
     }
     do_div_rr: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_div(&state->gc, lhs, rhs);
+        vm_ir_be_int3_run_next();
     }
     do_div_ri: {
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
         ptrdiff_t rhs = vm_ir_be_int3_run_read().val;
-        locals[out.reg] = vm_value_divi(gc, lhs, rhs);
+        locals[out.reg] = vm_value_divi(&state->gc, lhs, rhs);
         vm_ir_be_int3_run_next();
     }
     do_div_ir: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        ptrdiff_t lhs = vm_ir_be_int3_run_read().val;
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_idiv(&state->gc, lhs, rhs);
+        vm_ir_be_int3_run_next();
     }
     do_mod_rr: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_mod(&state->gc, lhs, rhs);
+        vm_ir_be_int3_run_next();
     }
     do_mod_ri: {
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         vm_value_t lhs = locals[vm_ir_be_int3_run_read().reg];
         ptrdiff_t rhs = vm_ir_be_int3_run_read().val;
-        locals[out.reg] = vm_value_modi(gc, lhs, rhs);
+        locals[out.reg] = vm_value_modi(&state->gc, lhs, rhs);
         vm_ir_be_int3_run_next();
     }
     do_mod_ir: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        ptrdiff_t lhs = vm_ir_be_int3_run_read().val;
+        vm_value_t rhs = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_value_imod(&state->gc, lhs, rhs);
+        vm_ir_be_int3_run_next();
     }
     do_call_l0: {
         vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
@@ -958,94 +1052,260 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
     do_call_l1: {
         vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
         args[0] = locals[vm_ir_be_int3_run_read().reg];
-        // fprintf(stderr, "%zi\n", args[0].ival);
         *state->heads++ = head;
         locals += VM_IR_BE_INT3_FRAME_SIZE;
-        // fprintf(stderr, "ARG(1): %zi\n", vm_value_to_int(state.gc, a0));
         head = block.ptr;
         vm_ir_be_int3_run_next();
     }
     do_call_l2: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = block.ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_l3: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = block.ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_l4: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = block.ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_l5: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = block.ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_l6: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        args[5] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = block.ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_l7: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        args[5] = locals[vm_ir_be_int3_run_read().reg];
+        args[6] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = block.ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_l8: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t block = vm_ir_be_int3_run_read();
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        args[5] = locals[vm_ir_be_int3_run_read().reg];
+        args[6] = locals[vm_ir_be_int3_run_read().reg];
+        args[7] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = block.ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r0: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r1: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r2: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r3: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r4: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r5: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r6: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        args[5] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r7: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        args[5] = locals[vm_ir_be_int3_run_read().reg];
+        args[6] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_call_r8: {
-        vm_ir_be_int3_not_implemented();
+        void *ptr = locals[vm_ir_be_int3_run_read().reg].ptr;
+        args[0] = locals[vm_ir_be_int3_run_read().reg];
+        args[1] = locals[vm_ir_be_int3_run_read().reg];
+        args[2] = locals[vm_ir_be_int3_run_read().reg];
+        args[3] = locals[vm_ir_be_int3_run_read().reg];
+        args[4] = locals[vm_ir_be_int3_run_read().reg];
+        args[5] = locals[vm_ir_be_int3_run_read().reg];
+        args[6] = locals[vm_ir_be_int3_run_read().reg];
+        args[7] = locals[vm_ir_be_int3_run_read().reg];
+        *state->heads++ = head;
+        locals += VM_IR_BE_INT3_FRAME_SIZE;
+        head = ptr;
+        vm_ir_be_int3_run_next();
     }
     do_new_i: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        vm_ir_be_int3_opcode_t len = vm_ir_be_int3_run_read();
+        locals[out.reg] = vm_gc_new(&state->gc, len.val);
+        vm_ir_be_int3_run_next();
     }
     do_new_r: {
-        vm_ir_be_int3_not_implemented();
+        vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
+        vm_value_t len = locals[vm_ir_be_int3_run_read().reg];
+        locals[out.reg] = vm_gc_new(&state->gc, vm_value_to_int(&state->gc, len));
+        vm_ir_be_int3_run_next();
     }
     do_set_rrr: {
-        vm_ir_be_int3_not_implemented();
+        vm_value_t obj = locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t key = locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t val = locals[vm_ir_be_int3_run_read().reg];
+        vm_gc_set_vv(&state->gc, obj, key, val);
+        vm_ir_be_int3_run_next();
     }
     do_set_rri: {
-        vm_ir_be_int3_not_implemented();
+        vm_value_t obj = locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t key = locals[vm_ir_be_int3_run_read().reg];
+        ptrdiff_t val = vm_ir_be_int3_run_read().val;
+        vm_gc_set_vi(&state->gc, obj, key, val);
+        vm_ir_be_int3_run_next();
     }
     do_set_rir: {
-        vm_ir_be_int3_not_implemented();
+        vm_value_t obj = locals[vm_ir_be_int3_run_read().reg];
+        ptrdiff_t key = vm_ir_be_int3_run_read().val;
+        vm_value_t val = locals[vm_ir_be_int3_run_read().reg];
+        vm_gc_set_iv(&state->gc, obj, key, val);
+        vm_ir_be_int3_run_next();
     }
     do_set_rii: {
-        vm_ir_be_int3_not_implemented();
+        vm_value_t obj = locals[vm_ir_be_int3_run_read().reg];
+        ptrdiff_t key = vm_ir_be_int3_run_read().val;
+        ptrdiff_t val = vm_ir_be_int3_run_read().val;
+        vm_gc_set_ii(&state->gc, obj, key, val);
+        vm_ir_be_int3_run_next();
     }
     do_get_rr: {
-        vm_ir_be_int3_not_implemented();
+        vm_value_t *out = &locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t obj = locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t key = locals[vm_ir_be_int3_run_read().reg];
+        *out = vm_gc_get_v(&state->gc, obj, key);
+        vm_ir_be_int3_run_next();
     }
     do_get_ri: {
-        vm_ir_be_int3_not_implemented();
+        vm_value_t *out = &locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t obj = locals[vm_ir_be_int3_run_read().reg];
+        ptrdiff_t key = vm_ir_be_int3_run_read().val;
+        *out = vm_gc_get_i(&state->gc, obj, key);
+        vm_ir_be_int3_run_next();
     }
     do_len_r: {
-        vm_ir_be_int3_not_implemented();
+        vm_value_t *out = &locals[vm_ir_be_int3_run_read().reg];
+        vm_value_t obj = locals[vm_ir_be_int3_run_read().reg];
+        *out = vm_value_from_int(&state->gc, vm_gc_len(&state->gc, obj));
+        vm_ir_be_int3_run_next();
     }
     do_out_i: {
         fprintf(stdout, "%c", (int) vm_ir_be_int3_run_read().val);
         vm_ir_be_int3_run_next();
     }
     do_out_r: {
-        fprintf(stdout, "%c", (int) vm_value_to_int(state.gc, locals[vm_ir_be_int3_run_read().reg]));
+        fprintf(stdout, "%c", (int) vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]));
         vm_ir_be_int3_run_next();
     }
     do_jump_l: {
@@ -1053,34 +1313,90 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         vm_ir_be_int3_run_next();
     }
     do_bb_rll: {
-        ptrdiff_t val = vm_value_to_int(state.gc, locals[vm_ir_be_int3_run_read().reg]);
-        head = (head + (size_t) (val != 0))->ptr;
+        ptrdiff_t val = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        if (val != 0) {
+            head = head[1].ptr;
+        }
+        else
+        {
+            head = head[0].ptr;
+        }
         vm_ir_be_int3_run_next();
     }
     do_blt_rrll: {
-        vm_ir_be_int3_not_implemented();
+        ptrdiff_t lhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        ptrdiff_t rhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        if (lhs < rhs) {
+            head = head[1].ptr;
+        }
+        else
+        {
+            head = head[0].ptr;
+        }
+        vm_ir_be_int3_run_next();
     }
     do_blt_rill: {
-        ptrdiff_t lhs = vm_value_to_int(state.gc, locals[vm_ir_be_int3_run_read().reg]);
+        ptrdiff_t lhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
         ptrdiff_t rhs = vm_ir_be_int3_run_read().val;
-        // fprintf(stderr, "test %zi < %zi\n", lhs, rhs);
-        head = (head + (size_t) (lhs < rhs))->ptr;
+        if (lhs < rhs) {
+            head = head[1].ptr;
+        }
+        else
+        {
+            head = head[0].ptr;
+        }
         vm_ir_be_int3_run_next();
     }
     do_blt_irll: {
-        vm_ir_be_int3_not_implemented();
+        ptrdiff_t lhs = vm_ir_be_int3_run_read().val;
+        ptrdiff_t rhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        if (lhs < rhs) {
+            head = head[1].ptr;
+        }
+        else
+        {
+            head = head[0].ptr;
+        }
+        vm_ir_be_int3_run_next();
     }
     do_beq_rrll: {
-        vm_ir_be_int3_not_implemented();
+        ptrdiff_t lhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        ptrdiff_t rhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        if (lhs == rhs) {
+            head = head[1].ptr;
+        }
+        else
+        {
+            head = head[0].ptr;
+        }
+        vm_ir_be_int3_run_next();
     }
     do_beq_rill: {
-        vm_ir_be_int3_not_implemented();
+        ptrdiff_t lhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        ptrdiff_t rhs = vm_ir_be_int3_run_read().val;
+        if (lhs == rhs) {
+            head = head[1].ptr;
+        }
+        else
+        {
+            head = head[0].ptr;
+        }
+        vm_ir_be_int3_run_next();
     }
     do_beq_irll: {
-        vm_ir_be_int3_not_implemented();
+        ptrdiff_t lhs = vm_ir_be_int3_run_read().val;
+        ptrdiff_t rhs = vm_value_to_int(&state->gc, locals[vm_ir_be_int3_run_read().reg]);
+        if (lhs == rhs) {
+            head = head[1].ptr;
+        }
+        else
+        {
+            head = head[0].ptr;
+        }
+        vm_ir_be_int3_run_next();
     }
     do_ret_i: {
-        vm_value_t value = vm_value_from_int(gc, vm_ir_be_int3_run_read().val);
+        vm_value_t value = vm_value_from_int(&state->gc, vm_ir_be_int3_run_read().val);
         head = *--state->heads;
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         locals -= VM_IR_BE_INT3_FRAME_SIZE;
@@ -1093,7 +1409,6 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         vm_ir_be_int3_opcode_t out = vm_ir_be_int3_run_read();
         locals -= VM_IR_BE_INT3_FRAME_SIZE;
         locals[out.reg] = value;
-        // fprintf(stderr, "ret %li / 2\n", value.ival);
         vm_ir_be_int3_run_next();
     }
     do_exit: {
@@ -1103,7 +1418,7 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         void *loc = --head;
         vm_ir_be_int3_run_read().ptr = &&do_call_l0;
         vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
-        block->ptr = vm_ir_be_int3_block_comp(state, block->block).ops;
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
         head = loc;
         vm_ir_be_int3_run_next();
     }
@@ -1111,36 +1426,71 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         void *loc = --head;
         vm_ir_be_int3_run_read().ptr = &&do_call_l1;
         vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
-        block->ptr = vm_ir_be_int3_block_comp(state, block->block).ops;
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
         head = loc;
         vm_ir_be_int3_run_next();
     }
     do_call_t2: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_call_l2;
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_call_t3: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_call_l3;
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_call_t4: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_call_l4;
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_call_t5: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_call_l5;
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_call_t6: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_call_l6;
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_call_t7: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_call_l7;
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_call_t8: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_call_l8;
+        vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_jump_t: {
         void *loc = --head;
         vm_ir_be_int3_run_read().ptr = &&do_jump_l;
         vm_ir_be_int3_opcode_t *block = &vm_ir_be_int3_run_read();
-        block->ptr = vm_ir_be_int3_block_comp(state, block->block).ops;
+        block->ptr = vm_ir_be_int3_block_comp(state, block->block);
         head = loc;
         vm_ir_be_int3_run_next();
     }
@@ -1150,13 +1500,21 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         head += 1;
         vm_ir_be_int3_opcode_t *block1 = &vm_ir_be_int3_run_read();
         vm_ir_be_int3_opcode_t *block2 = &vm_ir_be_int3_run_read();
-        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block).ops;
-        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block).ops;
+        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block);
+        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block);
         head = loc;
         vm_ir_be_int3_run_next();
     }
     do_blt_rrtt: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_blt_rrll;
+        head += 2;
+        vm_ir_be_int3_opcode_t *block1 = &vm_ir_be_int3_run_read();
+        vm_ir_be_int3_opcode_t *block2 = &vm_ir_be_int3_run_read();
+        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block);
+        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_blt_ritt: {
         void *loc = --head;
@@ -1164,22 +1522,54 @@ void vm_ir_be_int3_run(vm_ir_be_int3_state_t *state, vm_ir_block_t *block)
         head += 2;
         vm_ir_be_int3_opcode_t *block1 = &vm_ir_be_int3_run_read();
         vm_ir_be_int3_opcode_t *block2 = &vm_ir_be_int3_run_read();
-        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block).ops;
-        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block).ops;
+        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block);
+        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block);
         head = loc;
         vm_ir_be_int3_run_next();
     }
     do_blt_irtt: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_blt_irll;
+        head += 2;
+        vm_ir_be_int3_opcode_t *block1 = &vm_ir_be_int3_run_read();
+        vm_ir_be_int3_opcode_t *block2 = &vm_ir_be_int3_run_read();
+        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block);
+        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_beq_rrtt: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_beq_rrll;
+        head += 2;
+        vm_ir_be_int3_opcode_t *block1 = &vm_ir_be_int3_run_read();
+        vm_ir_be_int3_opcode_t *block2 = &vm_ir_be_int3_run_read();
+        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block);
+        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_beq_ritt: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_beq_rill;
+        head += 2;
+        vm_ir_be_int3_opcode_t *block1 = &vm_ir_be_int3_run_read();
+        vm_ir_be_int3_opcode_t *block2 = &vm_ir_be_int3_run_read();
+        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block);
+        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
     do_beq_irtt: {
-        vm_ir_be_int3_not_implemented();
+        void *loc = --head;
+        vm_ir_be_int3_run_read().ptr = &&do_beq_irll;
+        head += 2;
+        vm_ir_be_int3_opcode_t *block1 = &vm_ir_be_int3_run_read();
+        vm_ir_be_int3_opcode_t *block2 = &vm_ir_be_int3_run_read();
+        block1->ptr = vm_ir_be_int3_block_comp(state, block1->block);
+        block2->ptr = vm_ir_be_int3_block_comp(state, block2->block);
+        head = loc;
+        vm_ir_be_int3_run_next();
     }
 }
 

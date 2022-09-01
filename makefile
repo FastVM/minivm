@@ -21,6 +21,7 @@ all: bins libs
 gcc-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' bins
+	./bin/minivm-asm -i3 bench/fib40.vasm
 	./bin/minivm-asm -i1 bench/fib40.vasm
 	./bin/minivm-asm -i1 bench/memfib35.vasm
 	./bin/minivm-asm -i1 bench/primecount.vasm
@@ -29,6 +30,7 @@ gcc-pgo-build: .dummy
 clang-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='clang-$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' bins
+	./bin/minivm-asm -i3 bench/fib40.vasm
 	./bin/minivm-asm -i1 bench/fib40.vasm
 	./bin/minivm-asm -i1 bench/memfib35.vasm
 	./bin/minivm-asm -i1 bench/primecount.vasm
