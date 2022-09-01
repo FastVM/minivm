@@ -23,19 +23,17 @@ all: bins libs
 gcc-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm -i3 bench/fib40.vasm || true
-	./bin/minivm-asm -i1 bench/fib40.vasm || true
-	./bin/minivm-asm -i1 bench/memfib35.vasm || true
-	./bin/minivm-asm -i1 bench/primecount.vasm || true
+	./bin/minivm-asm bench/fib40.vasm || true
+	./bin/minivm-asm bench/memfib35.vasm || true
+	./bin/minivm-asm bench/primecount.vasm || true
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' all
 
 clang-pgo-build: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm -i3 bench/fib40.vasm || true
-	./bin/minivm-asm -i1 bench/fib40.vasm || true
-	./bin/minivm-asm -i1 bench/memfib35.vasm || true
-	./bin/minivm-asm -i1 bench/primecount.vasm || true
+	./bin/minivm-asm bench/fib40.vasm || true
+	./bin/minivm-asm bench/memfib35.vasm || true
+	./bin/minivm-asm bench/primecount.vasm || true
 	$(LLVM_PROFDATA) merge -o profdata.profdata profraw.profraw
 	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' all
 

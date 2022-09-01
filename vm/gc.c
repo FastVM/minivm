@@ -106,7 +106,7 @@ void vm_gc_run(vm_gc_t* restrict gc)
     }
     gc->buf_used = used;
     gc->count = 0;
-    gc->max = gc->buf_alloc - gc->buf_used;
+    gc->max = used * 2;
     if (gc->max < VM_GC_MIN)
     {
         gc->max = VM_GC_MIN;
