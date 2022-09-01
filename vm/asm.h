@@ -4,7 +4,6 @@
 
 #include "jump.h"
 #include "lib.h"
-#include "vm.h"
 #include "bc.h"
 
 enum vm_asm_instr_type_t

@@ -1,6 +1,9 @@
 
-#include "../vm/vm.h"
 #include "../vm/bc.h"
+#include "../vm/ir/opt.h"
+#include "../vm/ir/toir.h"
+#include "../vm/ir/build.h"
+#include "../vm/ir/be/int3.h"
 
 static vm_bc_buf_t vm_io_bc_read(const char *filename)
 {
@@ -48,12 +51,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "could not read file\n");
         return 1;
     }
-    int res = vm_run_arch_int(buf.nops, buf.ops);
-    if (res != 0)
-    {
-        fprintf(stderr, "could not run\n");
-        return 1;
-    }
+        size_t nblocks = buf.nops;
+    vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
+    vm_ir_opt_all(&nblocks, &blocks);
+    vm_ir_be_int3(nblocks, blocks);
+    vm_ir_blocks_free(nblocks, blocks);
     vm_free(buf.ops);
     return 0;
 }

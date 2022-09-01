@@ -130,11 +130,16 @@ void vm_ir_opt_reg(size_t nblocks, vm_ir_block_t *blocks)
         if (block->isfunc)
         {
             func = block;
+            vm_ir_opt_block(block);
         }
-        vm_ir_opt_block(block);
-        if (block->nregs > func->nregs)
+        else
         {
-            func->nregs = block->nregs;
+            vm_ir_opt_block(block);
+            if (block->nregs > func->nregs)
+            {
+                func->nregs = block->nregs;
+            }
         }
     }
+    vm_ir_print_blocks(stderr, nblocks, blocks);
 }

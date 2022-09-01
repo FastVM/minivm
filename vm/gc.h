@@ -2,7 +2,7 @@
 #if !defined(VM_HEADER_INT_GC)
 #define VM_HEADER_INT_GC
 
-#include "../lib.h"
+#include "lib.h"
 
 typedef int64_t vm_int_t;
 typedef int64_t vm_loc_t;

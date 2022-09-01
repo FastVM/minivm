@@ -3,7 +3,6 @@
 #include "../vm/ir/toir.h"
 #include "../vm/ir/opt.h"
 #include "../vm/ir/build.h"
-#include "../vm/ir/be/int2.h"
 #include "../vm/ir/be/int3.h"
 
 static const char *vm_asm_io_read(const char *filename)
@@ -90,19 +89,7 @@ int main(int argc, char **argv)
             char *tmp = argv[1] + 2;
             argv += 1;
             argc -= 1;
-            if (!strcmp(tmp, "1"))
-            {
-                jit = 1;
-            }
-            else if (!strcmp(tmp, "2"))
-            {
-                jit = 2;
-            }
-            else if (!strcmp(tmp, "3"))
-            {
-                jit = 3;
-            }
-            else if (!strcmp(tmp, "dump=pre"))
+            if (!strcmp(tmp, "dump=pre"))
             {
                 jitdumpir = 1;
             }
@@ -143,52 +130,19 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < runs; i++)
     {
         vm_bc_buf_t buf = vm_asm(src);
-        if (jit != 1)
+        size_t nblocks = buf.nops;
+        vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
+        if (jitdumpir)
         {
-            size_t nblocks = buf.nops;
-            vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
-            if (jitdumpir)
-            {
-                vm_ir_print_blocks(stderr, nblocks, blocks);
-            }
-            vm_ir_opt_all(&nblocks, &blocks);
-            if (jitdumpopt)
-            {
-                vm_ir_print_blocks(stderr, nblocks, blocks);
-            }
-            if (jit == 2)
-            {
-                vm_ir_be_int2(nblocks, blocks);
-            }
-            else if (jit == 3)
-            {
-                vm_ir_be_int3(nblocks, blocks);
-            }
-            vm_ir_blocks_free(nblocks, blocks);
+            vm_ir_print_blocks(stderr, nblocks, blocks);
         }
-        else
+        vm_ir_opt_all(&nblocks, &blocks);
+        if (jitdumpopt)
         {
-            if (buf.nops == 0)
-            {
-                fprintf(stderr, "could not assemble file\n");
-                return 1;
-            }
-            if (dump)
-            {
-                void *out = fopen(dump, "wb");
-                fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
-                fclose(out);
-            }
-            else
-            {
-                int res = vm_run_arch_int(buf.nops, buf.ops);
-                if (res != 0)
-                {
-                    fprintf(stderr, "could not run asm\n");
-                    return 1;
-                }
-            }
+            vm_ir_print_blocks(stderr, nblocks, blocks);
         }
+        vm_ir_be_int3(nblocks, blocks);
+        vm_ir_blocks_free(nblocks, blocks);
         vm_free(buf.ops);
     }
     vm_free((void *)src);
