@@ -1203,6 +1203,7 @@ do_new_i:
 {
     vm_int_opcode_t out = vm_int_run_read();
     vm_int_opcode_t len = vm_int_run_read();
+    vm_gc_run(&state->gc);
     locals[out.reg] = vm_gc_new(&state->gc, len.val);
     vm_int_run_next();
 }
@@ -1210,6 +1211,7 @@ do_new_r:
 {
     vm_int_opcode_t out = vm_int_run_read();
     vm_value_t len = locals[vm_int_run_read().reg];
+    vm_gc_run(&state->gc);
     locals[out.reg] = vm_gc_new(&state->gc, vm_value_to_int(&state->gc, len));
     vm_int_run_next();
 }
@@ -1581,7 +1583,7 @@ do_beq_irtt:
 void vm_ir_be_int3(size_t nblocks, vm_ir_block_t *blocks)
 {
     vm_ir_block_t *cur = &blocks[0];
-    vm_int_state_t state;
+    vm_int_state_t state = (vm_int_state_t) {0};
     vm_gc_init(&state.gc);
     state.gc.nregs = (1 << 16);
     vm_value_t *locals = vm_malloc(sizeof(vm_value_t) * state.gc.nregs);
@@ -1603,4 +1605,16 @@ void vm_ir_be_int3(size_t nblocks, vm_ir_block_t *blocks)
     state.heads = vm_malloc(sizeof(vm_int_opcode_t *) * (state.gc.nregs / state.framesize + 1));
     vm_int_run(&state, cur);
     vm_gc_stop(state.gc);
+}
+
+#include "../toir.h"
+#include "../opt.h"
+
+void vm_run_arch_int(size_t nops, vm_opcode_t *ops)
+{
+    size_t nblocks = nops;
+    vm_ir_block_t *blocks = vm_ir_parse(nblocks, ops);
+    vm_ir_opt_all(&nblocks, &blocks);
+    vm_ir_be_int3(nblocks, blocks);
+    vm_ir_blocks_free(nblocks, blocks);
 }

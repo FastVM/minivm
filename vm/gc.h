@@ -19,8 +19,10 @@ typedef struct vm_gc_t vm_gc_t;
 
 struct vm_value_t
 {
-  void *ptr;
-  vm_int_t ival;
+  union {
+    void *ptr;
+    vm_int_t ival;
+  };
 };
 
 struct vm_gc_header_t

@@ -106,7 +106,7 @@ void vm_gc_run(vm_gc_t* restrict gc)
     }
     gc->buf_used = used;
     gc->count = 0;
-    gc->max = gc->buf_used;
+    gc->max = gc->buf_alloc - gc->buf_used;
     if (gc->max < VM_GC_MIN)
     {
         gc->max = VM_GC_MIN;
@@ -119,7 +119,7 @@ vm_int_t vm_gc_arr(vm_gc_t* restrict gc, vm_int_t size)
     if (gc->buf_alloc <= next_head + 4)
     {
         vm_int_t next_alloc = (next_head + 4) * 2;
-        gc->buf = vm_realloc(gc->buf, sizeof(vm_gc_header_t) * next_alloc);
+        gc->buf = vm_realloc(gc->buf, sizeof(vm_gc_data_t) * next_alloc);
         for (vm_int_t i = gc->buf_alloc; i < next_alloc; i++) {
             gc->buf[i].value = VM_VALUE_SET_INT(0);
         }
