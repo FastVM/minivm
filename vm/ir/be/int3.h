@@ -1,4 +1,3 @@
-
 #if !defined(VM_HEADER_IR_BE_INT3)
 #define VM_HEADER_IR_BE_INT3
 
