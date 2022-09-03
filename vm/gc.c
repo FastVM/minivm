@@ -133,3 +133,18 @@ vm_int_t vm_gc_arr(vm_gc_t* restrict gc, vm_int_t size)
     gc->buf_used = next_head;
     return ret + 1;
 }
+
+vm_value_t vm_gc_get(vm_gc_t *restrict gc, vm_value_t obj, vm_int_t index)
+{
+    return gc->buf[VM_VALUE_GET_ARR(obj) + index].value;
+}
+
+void vm_gc_set(vm_gc_t *restrict gc, vm_value_t obj, vm_int_t index, vm_value_t value)
+{
+    gc->buf[VM_VALUE_GET_ARR(obj) + index].value = value;
+}
+
+vm_int_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t obj)
+{
+    return gc->buf[VM_VALUE_GET_ARR(obj) - 1].header.len;
+}
