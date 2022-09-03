@@ -267,7 +267,7 @@ void *vm_int_block_comp(vm_int_state_t *state, vm_ir_block_t *block)
                         // r = move i
                         vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_val(instr->args[0].num + instr->args[0].num);
+                        vm_int_block_comp_put_val(instr->args[0].num + instr->args[1].num);
                     }
                 }
             }
@@ -311,7 +311,7 @@ void *vm_int_block_comp(vm_int_state_t *state, vm_ir_block_t *block)
                         // r = move i
                         vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_val(instr->args[0].num + instr->args[0].num);
+                        vm_int_block_comp_put_val(instr->args[0].num - instr->args[1].num);
                     }
                 }
             }
@@ -355,7 +355,7 @@ void *vm_int_block_comp(vm_int_state_t *state, vm_ir_block_t *block)
                         // r = move i
                         vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_val(instr->args[0].num + instr->args[0].num);
+                        vm_int_block_comp_put_val(instr->args[0].num * instr->args[1].num);
                     }
                 }
             }
@@ -399,7 +399,7 @@ void *vm_int_block_comp(vm_int_state_t *state, vm_ir_block_t *block)
                         // r = move i
                         vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_val(instr->args[0].num + instr->args[0].num);
+                        vm_int_block_comp_put_val(instr->args[0].num / instr->args[1].num);
                     }
                 }
             }
@@ -443,7 +443,7 @@ void *vm_int_block_comp(vm_int_state_t *state, vm_ir_block_t *block)
                         // r = move i
                         vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_val(instr->args[0].num + instr->args[0].num);
+                        vm_int_block_comp_put_val(instr->args[0].num % instr->args[1].num);
                     }
                 }
             }
