@@ -44,6 +44,7 @@ libs: bin/libminivm.a
 bins: bin/minivm-run bin/minivm-asm
 
 bin/libminivm.a: $(OBJS)
+	@mkdir -p bin
 	ar cr $(@) $(OBJS)
 
 bin/minivm-run: main/run.o $(OBJS)

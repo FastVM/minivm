@@ -13,6 +13,7 @@ void vm_ir_block_free(vm_ir_block_t *block);
 void vm_ir_blocks_free(size_t nblocks, vm_ir_block_t *blocks);
 
 vm_ir_arg_t vm_ir_arg_reg(size_t reg);
+vm_ir_arg_t vm_ir_arg_extern(size_t reg);
 vm_ir_arg_t vm_ir_arg_num(ptrdiff_t num);
 vm_ir_arg_t vm_ir_arg_str(const char *str);
 vm_ir_arg_t vm_ir_arg_func(vm_ir_block_t *func);
@@ -25,6 +26,7 @@ void vm_ir_block_add_sub(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs,
 void vm_ir_block_add_mul(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs);
 void vm_ir_block_add_div(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs);
 void vm_ir_block_add_mod(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs);
+void vm_ir_block_add_xcall(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t func, size_t nargs, vm_ir_arg_t *args);
 void vm_ir_block_add_call(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t func, size_t nargs, vm_ir_arg_t *args);
 void vm_ir_block_add_arr(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t num);
 void vm_ir_block_add_get(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t obj, vm_ir_arg_t index);

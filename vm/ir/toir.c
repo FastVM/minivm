@@ -92,6 +92,20 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index)
             vm_free(args);
             break;
         }
+        case VM_OPCODE_XCALL:
+        {
+            vm_opcode_t rreg = ops[(*index)++];
+            vm_opcode_t func = ops[(*index)++];
+            vm_opcode_t nargs = ops[(*index)++];
+            vm_ir_arg_t *args = vm_malloc(sizeof(vm_ir_arg_t ) * nargs);
+            for (size_t i = 0; i < nargs; i++)
+            {
+                args[i] = vm_ir_arg_reg(ops[(*index)++]);
+            }
+            vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_extern(func), nargs, args);
+            vm_free(args);
+            break;
+        }
         case VM_OPCODE_ADDR:
         {
             vm_opcode_t reg = ops[(*index)++];

@@ -126,6 +126,14 @@ void vm_jump_reachable_from(size_t index, size_t nops, const vm_opcode_t *ops, u
       vm_jump_reachable_from(func, nops, ops, jumps);
       break;
     }
+    case VM_OPCODE_XCALL:
+    {
+      vm_opcode_t rreg = ops[index++];
+      vm_opcode_t func = ops[index++];
+      vm_opcode_t nargs = ops[index++];
+      index += nargs;
+      break;
+    }
     case VM_OPCODE_DCALL:
     {
       vm_opcode_t rreg = ops[index++];
@@ -309,6 +317,14 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops)
       break;
     }
     case VM_OPCODE_DCALL:
+    {
+      vm_opcode_t rreg = ops[index++];
+      vm_opcode_t func = ops[index++];
+      vm_opcode_t nargs = ops[index++];
+      index += nargs;
+      break;
+    }
+    case VM_OPCODE_XCALL:
     {
       vm_opcode_t rreg = ops[index++];
       vm_opcode_t func = ops[index++];

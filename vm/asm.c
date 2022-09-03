@@ -276,6 +276,23 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks)
           }
           continue;
         }
+        if (vm_asm_starts(opname, "xcall")) {
+          vm_asm_put_op(VM_OPCODE_XCALL);
+          vm_asm_put_reg(regno);
+          vm_asm_put_int(vm_asm_read_int(src));
+          vm_opcode_t args[8] = {0};
+          size_t nargs = 0;
+          vm_asm_strip(src);
+          while (**src != '\n') {
+            args[nargs++] = vm_asm_read_reg(src);
+            vm_asm_strip(src);
+          }
+          vm_asm_put_int(nargs);
+          for (size_t i = 0; i < nargs; i++) {
+            vm_asm_put_reg(args[i]);
+          }
+          continue;
+        }
         if (vm_asm_starts(opname, "add"))
         {
           vm_asm_put_op(VM_OPCODE_ADD);

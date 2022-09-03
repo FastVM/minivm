@@ -54,7 +54,7 @@ int main(int argc, char **argv)
         size_t nblocks = buf.nops;
     vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
     vm_ir_opt_all(&nblocks, &blocks);
-    vm_ir_be_int3(nblocks, blocks);
+    vm_ir_be_int3(nblocks, blocks, NULL);
     vm_ir_blocks_free(nblocks, blocks);
     vm_free(buf.ops);
     return 0;

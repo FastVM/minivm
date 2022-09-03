@@ -16,6 +16,11 @@ vm_ir_arg_t vm_ir_arg_reg(size_t reg)
     return (vm_ir_arg_t) { .type = VM_IR_ARG_REG, .reg = reg };
 }
 
+vm_ir_arg_t vm_ir_arg_extern(size_t num)
+{
+    return (vm_ir_arg_t) { .type = VM_IR_ARG_EXTERN, .num = num };
+}
+
 vm_ir_arg_t vm_ir_arg_func(vm_ir_block_t *func)
 {
     return (vm_ir_arg_t) { .type = VM_IR_ARG_FUNC, .func = func };

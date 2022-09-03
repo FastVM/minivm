@@ -141,7 +141,7 @@ int main(int argc, char **argv)
         {
             vm_ir_print_blocks(stderr, nblocks, blocks);
         }
-        vm_ir_be_int3(nblocks, blocks);
+        vm_ir_be_int3(nblocks, blocks, NULL);
         vm_ir_blocks_free(nblocks, blocks);
         vm_free(buf.ops);
     }

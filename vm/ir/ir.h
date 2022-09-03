@@ -20,6 +20,7 @@ enum
     VM_IR_ARG_REG,
     VM_IR_ARG_NUM,
     VM_IR_ARG_STR,
+    VM_IR_ARG_EXTERN,
     VM_IR_ARG_FUNC,
 };
 
