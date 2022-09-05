@@ -12,7 +12,7 @@
 #define vm_malloc(size) (malloc(size))
 #define vm_alloc0(size) (calloc(size, 1))
 #define vm_realloc(ptr, size) (realloc(ptr, size))
-#define vm_free(ptr) (free((void*) ptr))
+#define vm_free(ptr) (free((void *)ptr))
 
 #include "config.h"
 

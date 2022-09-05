@@ -2,12 +2,11 @@
 #if !defined(VM_HEADER_ASM)
 #define VM_HEADER_ASM
 
+#include "bc.h"
 #include "jump.h"
 #include "lib.h"
-#include "bc.h"
 
-enum vm_asm_instr_type_t
-{
+enum vm_asm_instr_type_t {
   VM_ASM_INSTR_END,
   VM_ASM_INSTR_RAW,
   VM_ASM_INSTR_GET,
@@ -20,8 +19,7 @@ typedef enum vm_asm_instr_type_t vm_asm_instr_type_t;
 struct vm_asm_instr_t;
 typedef struct vm_asm_instr_t vm_asm_instr_t;
 
-struct vm_asm_instr_t
-{
+struct vm_asm_instr_t {
   size_t value;
   uint8_t type;
 };
