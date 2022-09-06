@@ -622,7 +622,7 @@ do_mov_r : {
 do_mov_t : {
   vm_value_t *out = &locals[vm_int_run_read().reg];
   vm_ir_block_t *block = vm_int_run_read().block;
-  out->ptr = block;
+  *out = vm_value_from_block(block);
   vm_int_run_next();
 }
 do_add_rr : {
@@ -816,16 +816,16 @@ do_call_l8 : {
   vm_int_run_next();
 }
 do_call_r0 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
   locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r1 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   *state->heads++ = head;
   locals += state->framesize;
@@ -833,8 +833,8 @@ do_call_r1 : {
   vm_int_run_next();
 }
 do_call_r2 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
   *state->heads++ = head;
@@ -843,8 +843,8 @@ do_call_r2 : {
   vm_int_run_next();
 }
 do_call_r3 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
@@ -854,8 +854,8 @@ do_call_r3 : {
   vm_int_run_next();
 }
 do_call_r4 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
@@ -866,8 +866,8 @@ do_call_r4 : {
   vm_int_run_next();
 }
 do_call_r5 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
@@ -879,8 +879,8 @@ do_call_r5 : {
   vm_int_run_next();
 }
 do_call_r6 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
@@ -893,8 +893,8 @@ do_call_r6 : {
   vm_int_run_next();
 }
 do_call_r7 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
@@ -908,8 +908,8 @@ do_call_r7 : {
   vm_int_run_next();
 }
 do_call_r8 : {
-  void *ptr = locals[vm_int_run_read().reg].ptr;
-  ptr = vm_int_block_comp(state, ptrs, ptr);
+  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
+  void *ptr = vm_int_block_comp(state, ptrs, func);
   locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
   locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
@@ -1034,61 +1034,61 @@ do_call_x8 : {
 do_new_i : {
   vm_int_opcode_t out = vm_int_run_read();
   vm_int_opcode_t len = vm_int_run_read();
-  locals[out.reg] = vm_gc_arr_new(len.val);
+  locals[out.reg] = vm_gc_new(&state->gc, len.val);
   vm_int_run_next();
 }
 do_new_r : {
   vm_int_opcode_t out = vm_int_run_read();
   vm_value_t len = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_gc_arr_new(vm_value_to_int(len));
+  locals[out.reg] = vm_gc_new(&state->gc, vm_value_to_int(len));
   vm_int_run_next();
 }
 do_set_rrr : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   vm_value_t key = locals[vm_int_run_read().reg];
   vm_value_t val = locals[vm_int_run_read().reg];
-  vm_gc_set_vv(obj, key, val);
+  vm_gc_set_vv(&state->gc, obj, key, val);
   vm_int_run_next();
 }
 do_set_rri : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   vm_value_t key = locals[vm_int_run_read().reg];
   ptrdiff_t val = vm_int_run_read().val;
-  vm_gc_set_vi(obj, key, val);
+  vm_gc_set_vi(&state->gc, obj, key, val);
   vm_int_run_next();
 }
 do_set_rir : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
   vm_value_t val = locals[vm_int_run_read().reg];
-  vm_gc_set_iv(obj, key, val);
+  vm_gc_set_iv(&state->gc, obj, key, val);
   vm_int_run_next();
 }
 do_set_rii : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
   ptrdiff_t val = vm_int_run_read().val;
-  vm_gc_set_ii(obj, key, val);
+  vm_gc_set_ii(&state->gc, obj, key, val);
   vm_int_run_next();
 }
 do_get_rr : {
   vm_value_t *out = &locals[vm_int_run_read().reg];
   vm_value_t obj = locals[vm_int_run_read().reg];
   vm_value_t key = locals[vm_int_run_read().reg];
-  *out = vm_gc_get_v(obj, key);
+  *out = vm_gc_get_v(&state->gc, obj, key);
   vm_int_run_next();
 }
 do_get_ri : {
   vm_value_t *out = &locals[vm_int_run_read().reg];
   vm_value_t obj = locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
-  *out = vm_gc_get_i(obj, key);
+  *out = vm_gc_get_i(&state->gc, obj, key);
   vm_int_run_next();
 }
 do_len_r : {
   vm_value_t *out = &locals[vm_int_run_read().reg];
   vm_value_t obj = locals[vm_int_run_read().reg];
-  *out = vm_value_from_int(vm_gc_len(obj));
+  *out = vm_value_from_int(vm_gc_len(&state->gc, obj));
   vm_int_run_next();
 }
 do_out_i : {

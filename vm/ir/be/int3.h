@@ -122,6 +122,7 @@ struct vm_int_state_t {
   size_t framesize;
   vm_int_func_t *funcs;
   vm_value_t *locals;
+  vm_gc_t gc;
 };
 
 struct vm_int_buf_t {
