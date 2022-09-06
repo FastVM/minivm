@@ -5,7 +5,7 @@
 #include "../../opcode.h"
 #include "../ir.h"
 
-typedef vm_value_t (*vm_int_func_ptr_t)(void *ptr, vm_gc_t *gc, size_t nargs,
+typedef vm_value_t (*vm_int_func_ptr_t)(void *ptr, size_t nargs,
                                         vm_value_t *args);
 
 typedef struct {
@@ -118,13 +118,9 @@ struct vm_int_opcode_t;
 typedef struct vm_int_opcode_t vm_int_opcode_t;
 
 struct vm_int_state_t {
-  size_t nblocks;
-  vm_ir_block_t *blocks;
   vm_int_opcode_t **heads;
-  vm_gc_t gc;
   size_t framesize;
   vm_int_func_t *funcs;
-  void **ptrs;
   vm_value_t *locals;
 };
 
