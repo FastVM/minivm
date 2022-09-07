@@ -10,7 +10,7 @@
 #include <string.h>
 #include <math.h>
 
-#if 1
+#if 0
 #define vm_malloc(size) (malloc(size))
 #define vm_alloc0(size) (calloc(size, 1))
 #define vm_realloc(ptr, size) (realloc(ptr, size))

@@ -38,7 +38,7 @@ enum {
 union vm_value_data_t {
   void *block;
   vm_value_array_t *arr;
-  vm_int_t ival;
+  double ival;
 };
 
 struct vm_value_t {
