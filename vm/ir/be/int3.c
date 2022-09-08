@@ -1034,61 +1034,61 @@ do_call_x8 : {
 do_new_i : {
   vm_int_opcode_t out = vm_int_run_read();
   vm_int_opcode_t len = vm_int_run_read();
-  locals[out.reg] = vm_gc_new(&state->gc, len.val);
+  locals[out.reg] = vm_gc_new(len.val);
   vm_int_run_next();
 }
 do_new_r : {
   vm_int_opcode_t out = vm_int_run_read();
   vm_value_t len = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_gc_new(&state->gc, vm_value_to_int(len));
+  locals[out.reg] = vm_gc_new(vm_value_to_int(len));
   vm_int_run_next();
 }
 do_set_rrr : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   vm_value_t key = locals[vm_int_run_read().reg];
   vm_value_t val = locals[vm_int_run_read().reg];
-  vm_gc_set_vv(&state->gc, obj, key, val);
+  vm_gc_set_vv(obj, key, val);
   vm_int_run_next();
 }
 do_set_rri : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   vm_value_t key = locals[vm_int_run_read().reg];
   ptrdiff_t val = vm_int_run_read().val;
-  vm_gc_set_vi(&state->gc, obj, key, val);
+  vm_gc_set_vi(obj, key, val);
   vm_int_run_next();
 }
 do_set_rir : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
   vm_value_t val = locals[vm_int_run_read().reg];
-  vm_gc_set_iv(&state->gc, obj, key, val);
+  vm_gc_set_iv(obj, key, val);
   vm_int_run_next();
 }
 do_set_rii : {
   vm_value_t obj = locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
   ptrdiff_t val = vm_int_run_read().val;
-  vm_gc_set_ii(&state->gc, obj, key, val);
+  vm_gc_set_ii(obj, key, val);
   vm_int_run_next();
 }
 do_get_rr : {
   vm_value_t *out = &locals[vm_int_run_read().reg];
   vm_value_t obj = locals[vm_int_run_read().reg];
   vm_value_t key = locals[vm_int_run_read().reg];
-  *out = vm_gc_get_v(&state->gc, obj, key);
+  *out = vm_gc_get_v(obj, key);
   vm_int_run_next();
 }
 do_get_ri : {
   vm_value_t *out = &locals[vm_int_run_read().reg];
   vm_value_t obj = locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
-  *out = vm_gc_get_i(&state->gc, obj, key);
+  *out = vm_gc_get_i(obj, key);
   vm_int_run_next();
 }
 do_len_r : {
   vm_value_t *out = &locals[vm_int_run_read().reg];
   vm_value_t obj = locals[vm_int_run_read().reg];
-  *out = vm_value_from_int(vm_gc_len(&state->gc, obj));
+  *out = vm_value_from_int(vm_gc_len(obj));
   vm_int_run_next();
 }
 do_out_i : {

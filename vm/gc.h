@@ -17,9 +17,6 @@ typedef union vm_value_data_t vm_value_data_t;
 struct vm_value_t;
 typedef struct vm_value_t vm_value_t;
 
-struct vm_gc_t;
-typedef struct vm_gc_t vm_gc_t;
-
 struct vm_value_array_t {
   vm_value_data_t *datas;
   uint8_t *types;
@@ -46,26 +43,22 @@ struct vm_value_t {
   uint8_t type;
 };
 
-struct vm_gc_t {
-  size_t alloc;
-};
+vm_value_t vm_gc_new(vm_int_t slots);
+vm_value_t vm_gc_get(vm_value_t obj, vm_value_t index);
+void vm_gc_set(vm_value_t obj, vm_value_t index, vm_value_t value);
+vm_int_t vm_gc_len(vm_value_t obj);
 
-vm_value_t vm_gc_new(vm_gc_t *gc, vm_int_t slots);
-vm_value_t vm_gc_get(vm_gc_t *gc, vm_value_t obj, vm_value_t index);
-void vm_gc_set(vm_gc_t *gc, vm_value_t obj, vm_value_t index, vm_value_t value);
-vm_int_t vm_gc_len(vm_gc_t *gc, vm_value_t obj);
+#define vm_gc_get_v(obj_, nth_) vm_gc_get(obj_, (nth_))
+#define vm_gc_get_i(obj_, nth_)                                           \
+  vm_gc_get(obj_, vm_value_from_int(nth_))
 
-#define vm_gc_get_v(gc_, obj_, nth_) vm_gc_get(gc_, obj_, (nth_))
-#define vm_gc_get_i(gc_, obj_, nth_)                                           \
-  vm_gc_get(gc_, obj_, vm_value_from_int(nth_))
-
-#define vm_gc_set_vv(gc_, obj_, nth_, val_) vm_gc_set(gc_, obj_, nth_, val_)
-#define vm_gc_set_vi(gc_, obj_, nth_, val_)                                    \
-  vm_gc_set(gc_, obj_, nth_, vm_value_from_int(val_))
-#define vm_gc_set_iv(gc_, obj_, nth_, val_)                                    \
-  vm_gc_set(gc_, obj_, vm_value_from_int(nth_), val_)
-#define vm_gc_set_ii(gc_, obj_, nth_, val_)                                    \
-  vm_gc_set(gc_, obj_, vm_value_from_int(nth_), vm_value_from_int(val_))
+#define vm_gc_set_vv(obj_, nth_, val_) vm_gc_set(obj_, nth_, val_)
+#define vm_gc_set_vi(obj_, nth_, val_)                                    \
+  vm_gc_set(obj_, nth_, vm_value_from_int(val_))
+#define vm_gc_set_iv(obj_, nth_, val_)                                    \
+  vm_gc_set(obj_, vm_value_from_int(nth_), val_)
+#define vm_gc_set_ii(obj_, nth_, val_)                                    \
+  vm_gc_set(obj_, vm_value_from_int(nth_), vm_value_from_int(val_))
 
 #define vm_value_from_int(n_) ((vm_value_t){.data.ival = (n_), .type = VM_TYPE_INT})
 #define vm_value_from_block(n_) ((vm_value_t){.data.block = (n_), .type = VM_TYPE_BLOCK})
