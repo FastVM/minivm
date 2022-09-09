@@ -1,6 +1,5 @@
 
 #include "toir.h"
-#include "../jump.h"
 #include "build.h"
 
 void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
@@ -8,7 +7,6 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
 }
 
 void vm_ir_read(vm_ir_read_t *state, size_t *index) {
-  uint8_t *jumps = state->jumps;
   vm_ir_block_t *blocks = state->blocks;
   size_t nops = state->nops;
   const vm_opcode_t *ops = state->ops;
@@ -19,7 +17,8 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index) {
   block->nregs = state->nregs;
   block->id = *index;
   while (*index < nops) {
-    switch (ops[(*index)++]) {
+    vm_opcode_t op = ops[(*index)++];
+    switch (op) {
     case VM_OPCODE_EXIT: {
       vm_ir_block_end_exit(block);
       return;
@@ -247,17 +246,14 @@ void vm_ir_read(vm_ir_read_t *state, size_t *index) {
       break;
     }
     }
-    if ((jumps[*index] & VM_JUMP_IN)) {
-      vm_ir_read_from(state, *index);
-      vm_ir_block_end_jump(block, &blocks[*index]);
-      return;
-    }
+    vm_ir_read_from(state, *index);
+    vm_ir_block_end_jump(block, &blocks[*index]);
+    return;
   }
 }
 
 vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops) {
   size_t index = 0;
-  uint8_t *jumps = vm_jump_base(nops, ops);
   vm_ir_block_t *blocks = vm_malloc(sizeof(vm_ir_block_t) * nops);
   for (size_t i = 0; i < nops; i++) {
     blocks[i] = (vm_ir_block_t){
@@ -265,14 +261,12 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops) {
     };
   }
   vm_ir_read_t state;
-  state.jumps = jumps;
   state.blocks = blocks;
   state.nregs = 0;
   state.nops = nops;
   state.ops = ops;
   vm_ir_read_from(&state, index);
   vm_ir_info(&nops, &blocks);
-  vm_free(jumps);
   for (size_t i = 0; i < nops; i++) {
     vm_ir_block_t *block = &blocks[i];
     if (block->id != i) {

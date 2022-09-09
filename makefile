@@ -9,7 +9,7 @@ HOST_CC ?= $(CC)
 PROG_SRCS := main/asm.c main/run.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-VM_SRCS := vm/asm.c vm/gc.c vm/jump.c vm/reguse.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c vm/ir/opt/const.c vm/ir/opt/denop.c vm/ir/be/int3.c
+VM_SRCS := vm/asm.c vm/gc.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/opt/reg.c vm/ir/opt/const.c vm/ir/opt/denop.c vm/ir/be/int3.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS)
@@ -49,11 +49,11 @@ bin/libminivm.a: $(OBJS)
 
 bin/minivm-run: main/run.o $(OBJS)
 	@mkdir -p bin
-	$(CC) $(OPT) main/run.o $(OBJS) -o $(@) $(LDFLAGS)
+	$(CC) $(OPT) main/run.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 bin/minivm-asm: main/asm.o $(OBJS)
 	@mkdir -p bin
-	$(CC) $(OPT) main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
+	$(CC) $(OPT) main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 # clean
 

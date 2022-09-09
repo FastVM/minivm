@@ -4,8 +4,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define vm_int_block_comp_put_ptr(arg_)                                        \
-  buf.ops[buf.len++].ptr = ptrs[(arg_)]
+#define vm_int_block_comp_put_ptr(arg_) buf.ops[buf.len++].ptr = ptrs[(arg_)]
 #define vm_int_block_comp_put_out(out_) buf.ops[buf.len++].reg = (out_)
 #define vm_int_block_comp_put_reg(reg_) buf.ops[buf.len++].reg = (reg_)
 #define vm_int_block_comp_put_val(val_) buf.ops[buf.len++].val = (val_)
@@ -25,9 +24,51 @@
     }                                                                          \
   })
 
-void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block) {
-  if (block->data != NULL) {
-    return block->data;
+struct vm_int_data_t;
+typedef struct vm_int_data_t vm_int_data_t;
+
+struct vm_int_data_t {
+  vm_int_buf_t *bufs;
+  uint8_t **types;
+  size_t len;
+  size_t alloc;
+};
+
+static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf,
+                             uint8_t *types) {
+  if (data->len + 1 >= data->alloc) {
+    data->alloc = (data->len + 1) * 2;
+    data->bufs = vm_realloc(data->bufs, sizeof(vm_int_buf_t) * data->alloc);
+    data->types = vm_realloc(data->types, sizeof(uint8_t *) * data->alloc);
+  }
+  data->bufs[data->len] = buf;
+  data->types[data->len] = types;
+  data->len += 1;
+}
+
+void *vm_int_block_comp(vm_int_state_t *state, void **ptrs,
+                        vm_ir_block_t *block) {
+  vm_value_t *locals = state->locals;
+  vm_int_data_t *data = block->data;
+  if (data == NULL) {
+    data = vm_malloc(sizeof(vm_int_data_t));
+    block->data = data;
+    data->alloc = 0;
+    data->len = 0;
+    data->bufs = NULL;
+    data->types = NULL;
+  } else {
+    for (size_t i = 0; i < data->len; i++) {
+      uint8_t *types = data->types[i];
+      for (size_t a = 0; a < block->nargs; a++) {
+        vm_value_t arg = state->locals[block->args[a]];
+        if (arg.type != types[a]) {
+          goto next;
+        }
+      }
+      return data->bufs[i].ops;
+    next:;
+    }
   }
   vm_int_buf_t buf;
   buf.len = 0;
@@ -493,16 +534,27 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
   }
   }
   vm_int_block_comp_put_block(block);
-  block->data = buf.ops;
+  uint8_t *types = vm_alloc0(sizeof(uint8_t) * (block->nargs + 1));
+  for (size_t a = 0; a < block->nargs; a++) {
+    vm_value_t arg = state->locals[block->args[a]];
+    types[a] = arg.type;
+  }
+  vm_int_data_push(data, buf, types);
+  // fprintf(stderr, "block(%zu).len = %zu\n", block->id, data->len);
   return buf.ops;
 }
 
-#define vm_int_run_read() (*({vm_int_opcode_t *ret = head; head += 1; ret;}))
+#define vm_int_run_read()                                                      \
+  (*({                                                                         \
+    vm_int_opcode_t *ret = head;                                               \
+    head += 1;                                                                 \
+    ret;                                                                       \
+  }))
 #if 0
 #define vm_int_debug(v)                                                        \
   ({                                                                           \
     typeof(v) v_ = v;                                                          \
-    fprintf(stderr, "DEBUG(%zu): %zX\n", (size_t) __LINE__, (size_t)v_);                               \
+    fprintf(stderr, "DEBUG(%zu): %zX\n", (size_t)__LINE__, (size_t)v_);        \
     v_;                                                                        \
   })
 #else
@@ -600,494 +652,574 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
       [VM_INT_OP_BEQ_IRTT] = &&do_beq_irtt,
       [VM_INT_OP_EXIT] = &&do_exit,
   };
+  vm_value_t *init_locals = state->locals;
   vm_int_opcode_t *head = vm_int_block_comp(state, ptrs, block);
-  vm_value_t *locals = state->locals;
-  vm_value_t *init_locals = locals;
-  static int n=0;
+  static int n = 0;
   // if (++n == 2)
-    // __builtin_trap();
+  // __builtin_trap();
   vm_int_run_next();
 do_mov_i : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_int_opcode_t value = vm_int_run_read();
-  locals[out.reg] = vm_value_from_int(value.val);
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  ptrdiff_t value = vm_int_run_read().val;
+  *out = vm_value_from_int(value);
   vm_int_run_next();
 }
 do_mov_r : {
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t value = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t value = state->locals[vm_int_run_read().reg];
   *out = value;
   vm_int_run_next();
 }
 do_mov_t : {
-  vm_value_t *out = &locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
   vm_ir_block_t *block = vm_int_run_read().block;
   *out = vm_value_from_block(block);
   vm_int_run_next();
 }
 do_add_rr : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_add(lhs, rhs);
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(vm_value_to_int(lhs) + vm_value_to_int(lhs));
   vm_int_run_next();
 }
 do_add_ri : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
   ptrdiff_t rhs = vm_int_run_read().val;
-  locals[out.reg] = vm_value_addi(lhs, rhs);
+  *out = vm_value_from_int(vm_value_to_int(lhs) + rhs);
   vm_int_run_next();
 }
 do_sub_rr : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_sub(lhs, rhs);
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(vm_value_to_int(lhs) - vm_value_to_int(lhs));
   vm_int_run_next();
 }
 do_sub_ri : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
   ptrdiff_t rhs = vm_int_run_read().val;
-  locals[out.reg] = vm_value_subi(lhs, rhs);
+  *out = vm_value_from_int(vm_value_to_int(lhs) - rhs);
   vm_int_run_next();
 }
 do_sub_ir : {
-  vm_int_opcode_t out = vm_int_run_read();
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
   ptrdiff_t lhs = vm_int_run_read().val;
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_isub(lhs, rhs);
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(lhs - vm_value_to_int(rhs));
   vm_int_run_next();
 }
 do_mul_rr : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_mul(lhs, rhs);
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(vm_value_to_int(lhs) * vm_value_to_int(lhs));
   vm_int_run_next();
 }
 do_mul_ri : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
   ptrdiff_t rhs = vm_int_run_read().val;
-  locals[out.reg] = vm_value_muli(lhs, rhs);
+  *out = vm_value_from_int(vm_value_to_int(lhs) * rhs);
   vm_int_run_next();
 }
 do_div_rr : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_div(lhs, rhs);
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(vm_value_to_int(lhs) / vm_value_to_int(lhs));
   vm_int_run_next();
 }
 do_div_ri : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
   ptrdiff_t rhs = vm_int_run_read().val;
-  locals[out.reg] = vm_value_divi(lhs, rhs);
+  *out = vm_value_from_int(vm_value_to_int(lhs) / rhs);
   vm_int_run_next();
 }
 do_div_ir : {
-  vm_int_opcode_t out = vm_int_run_read();
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
   ptrdiff_t lhs = vm_int_run_read().val;
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_idiv(lhs, rhs);
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(lhs / vm_value_to_int(rhs));
   vm_int_run_next();
 }
 do_mod_rr : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_mod(lhs, rhs);
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(fmod(vm_value_to_int(lhs), vm_value_to_int(lhs)));
   vm_int_run_next();
 }
 do_mod_ri : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t lhs = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t lhs = state->locals[vm_int_run_read().reg];
   ptrdiff_t rhs = vm_int_run_read().val;
-  locals[out.reg] = vm_value_modi(lhs, rhs);
+  *out = vm_value_from_int(fmod(vm_value_to_int(lhs), rhs));
   vm_int_run_next();
 }
 do_mod_ir : {
-  vm_int_opcode_t out = vm_int_run_read();
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
   ptrdiff_t lhs = vm_int_run_read().val;
-  vm_value_t rhs = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_value_imod(lhs, rhs);
+  vm_value_t rhs = state->locals[vm_int_run_read().reg];
+  *out = vm_value_from_int(fmod(lhs, vm_value_to_int(rhs)));
   vm_int_run_next();
 }
 do_call_l0 : {
   vm_int_opcode_t block = vm_int_run_read();
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l1 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l2 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l3 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l4 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l5 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l6 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 5] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 5] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l7 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 5] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 6] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 5] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 6] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_l8 : {
   vm_int_opcode_t block = vm_int_run_read();
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 5] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 6] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 7] = locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 5] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 6] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 7] =
+      state->locals[vm_int_run_read().reg];
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = block.ptr;
   vm_int_run_next();
 }
 do_call_r0 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r1 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r2 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r3 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r4 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r5 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r6 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 5] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 5] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r7 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 5] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 6] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 5] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 6] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_r8 : {
-  vm_ir_block_t *func = vm_value_to_block(locals[vm_int_run_read().reg]);
-  void *ptr = vm_int_block_comp(state, ptrs, func);
-  locals[state->framesize + 1 + 0] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 1] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 2] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 3] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 4] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 5] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 6] = locals[vm_int_run_read().reg];
-  locals[state->framesize + 1 + 7] = locals[vm_int_run_read().reg];
+  vm_ir_block_t *func = vm_value_to_block(state->locals[vm_int_run_read().reg]);
+  state->locals[state->framesize + 1 + 0] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 1] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 2] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 3] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 4] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 5] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 6] =
+      state->locals[vm_int_run_read().reg];
+  state->locals[state->framesize + 1 + 7] =
+      state->locals[vm_int_run_read().reg];
+  void *ptr =
+      vm_int_block_comp(state, ptrs, func);
   *state->heads++ = head;
-  locals += state->framesize;
+  state->locals += state->framesize;
   head = ptr;
   vm_int_run_next();
 }
 do_call_x0 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 0, NULL);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x1 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[1] = {locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[1] = {state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 1, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x2 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[2] = {locals[vm_int_run_read().reg],
-                          locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[2] = {state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 2, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x3 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[3] = {locals[vm_int_run_read().reg],
-                          locals[vm_int_run_read().reg],
-                          locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[3] = {state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 3, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x4 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[4] = {
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[4] = {state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 4, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x5 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[5] = {
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[5] = {state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 5, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x6 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[6] = {
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[6] = {state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 6, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x7 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[7] = {
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[7] = {state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 7, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_call_x8 : {
   vm_int_func_t ptr = state->funcs[vm_int_run_read().val];
-  vm_value_t values[8] = {
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg],
-      locals[vm_int_run_read().reg], locals[vm_int_run_read().reg]};
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t *last = state->locals;
-  state->locals = locals + state->framesize;
+  vm_value_t values[8] = {state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg],
+                          state->locals[vm_int_run_read().reg]};
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  state->locals += state->framesize;
   *out = ptr.func(ptr.data, 8, &values[0]);
-  state->locals = last;
+  state->locals -= state->framesize;
   vm_int_run_next();
 }
 do_new_i : {
-  vm_int_opcode_t out = vm_int_run_read();
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
   vm_int_opcode_t len = vm_int_run_read();
-  locals[out.reg] = vm_gc_new(len.val);
+  *out = vm_gc_new(len.val);
   vm_int_run_next();
 }
 do_new_r : {
-  vm_int_opcode_t out = vm_int_run_read();
-  vm_value_t len = locals[vm_int_run_read().reg];
-  locals[out.reg] = vm_gc_new(vm_value_to_int(len));
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t len = state->locals[vm_int_run_read().reg];
+  *out = vm_gc_new(vm_value_to_int(len));
   vm_int_run_next();
 }
 do_set_rrr : {
-  vm_value_t obj = locals[vm_int_run_read().reg];
-  vm_value_t key = locals[vm_int_run_read().reg];
-  vm_value_t val = locals[vm_int_run_read().reg];
+  vm_value_t obj = state->locals[vm_int_run_read().reg];
+  vm_value_t key = state->locals[vm_int_run_read().reg];
+  vm_value_t val = state->locals[vm_int_run_read().reg];
   vm_gc_set_vv(obj, key, val);
   vm_int_run_next();
 }
 do_set_rri : {
-  vm_value_t obj = locals[vm_int_run_read().reg];
-  vm_value_t key = locals[vm_int_run_read().reg];
+  vm_value_t obj = state->locals[vm_int_run_read().reg];
+  vm_value_t key = state->locals[vm_int_run_read().reg];
   ptrdiff_t val = vm_int_run_read().val;
   vm_gc_set_vi(obj, key, val);
   vm_int_run_next();
 }
 do_set_rir : {
-  vm_value_t obj = locals[vm_int_run_read().reg];
+  vm_value_t obj = state->locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
-  vm_value_t val = locals[vm_int_run_read().reg];
+  vm_value_t val = state->locals[vm_int_run_read().reg];
   vm_gc_set_iv(obj, key, val);
   vm_int_run_next();
 }
 do_set_rii : {
-  vm_value_t obj = locals[vm_int_run_read().reg];
+  vm_value_t obj = state->locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
   ptrdiff_t val = vm_int_run_read().val;
   vm_gc_set_ii(obj, key, val);
   vm_int_run_next();
 }
 do_get_rr : {
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t obj = locals[vm_int_run_read().reg];
-  vm_value_t key = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t obj = state->locals[vm_int_run_read().reg];
+  vm_value_t key = state->locals[vm_int_run_read().reg];
   *out = vm_gc_get_v(obj, key);
   vm_int_run_next();
 }
 do_get_ri : {
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t obj = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t obj = state->locals[vm_int_run_read().reg];
   ptrdiff_t key = vm_int_run_read().val;
   *out = vm_gc_get_i(obj, key);
   vm_int_run_next();
 }
 do_len_r : {
-  vm_value_t *out = &locals[vm_int_run_read().reg];
-  vm_value_t obj = locals[vm_int_run_read().reg];
+  vm_value_t *out = &state->locals[vm_int_run_read().reg];
+  vm_value_t obj = state->locals[vm_int_run_read().reg];
   *out = vm_value_from_int(vm_gc_len(obj));
   vm_int_run_next();
 }
@@ -1097,7 +1229,7 @@ do_out_i : {
 }
 do_out_r : {
   fprintf(stdout, "%c",
-          (int)vm_value_to_int(locals[vm_int_run_read().reg]));
+          (int)vm_value_to_int(state->locals[vm_int_run_read().reg]));
   vm_int_run_next();
 }
 do_jump_l : {
@@ -1105,7 +1237,7 @@ do_jump_l : {
   vm_int_run_next();
 }
 do_bb_rll : {
-  ptrdiff_t val = vm_value_to_int(locals[vm_int_run_read().reg]);
+  ptrdiff_t val = vm_value_to_int(state->locals[vm_int_run_read().reg]);
   if (val != 0) {
     head = head[1].ptr;
   } else {
@@ -1114,8 +1246,8 @@ do_bb_rll : {
   vm_int_run_next();
 }
 do_blt_rrll : {
-  ptrdiff_t lhs = vm_value_to_int(locals[vm_int_run_read().reg]);
-  ptrdiff_t rhs = vm_value_to_int(locals[vm_int_run_read().reg]);
+  ptrdiff_t lhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
+  ptrdiff_t rhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
   if (lhs < rhs) {
     head = head[1].ptr;
   } else {
@@ -1124,7 +1256,7 @@ do_blt_rrll : {
   vm_int_run_next();
 }
 do_blt_rill : {
-  ptrdiff_t lhs = vm_value_to_int(locals[vm_int_run_read().reg]);
+  ptrdiff_t lhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
   ptrdiff_t rhs = vm_int_run_read().val;
   if (lhs < rhs) {
     head = head[1].ptr;
@@ -1135,7 +1267,7 @@ do_blt_rill : {
 }
 do_blt_irll : {
   ptrdiff_t lhs = vm_int_run_read().val;
-  ptrdiff_t rhs = vm_value_to_int(locals[vm_int_run_read().reg]);
+  ptrdiff_t rhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
   if (lhs < rhs) {
     head = head[1].ptr;
   } else {
@@ -1144,8 +1276,8 @@ do_blt_irll : {
   vm_int_run_next();
 }
 do_beq_rrll : {
-  ptrdiff_t lhs = vm_value_to_int(locals[vm_int_run_read().reg]);
-  ptrdiff_t rhs = vm_value_to_int(locals[vm_int_run_read().reg]);
+  ptrdiff_t lhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
+  ptrdiff_t rhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
   if (lhs == rhs) {
     head = head[1].ptr;
   } else {
@@ -1154,7 +1286,7 @@ do_beq_rrll : {
   vm_int_run_next();
 }
 do_beq_rill : {
-  ptrdiff_t lhs = vm_value_to_int(locals[vm_int_run_read().reg]);
+  ptrdiff_t lhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
   ptrdiff_t rhs = vm_int_run_read().val;
   if (lhs == rhs) {
     head = head[1].ptr;
@@ -1165,7 +1297,7 @@ do_beq_rill : {
 }
 do_beq_irll : {
   ptrdiff_t lhs = vm_int_run_read().val;
-  ptrdiff_t rhs = vm_value_to_int(locals[vm_int_run_read().reg]);
+  ptrdiff_t rhs = vm_value_to_int(state->locals[vm_int_run_read().reg]);
   if (lhs == rhs) {
     head = head[1].ptr;
   } else {
@@ -1175,24 +1307,24 @@ do_beq_irll : {
 }
 do_ret_i : {
   vm_value_t value = vm_value_from_int(vm_int_run_read().val);
-  if (locals == init_locals) {
+  if (state->locals == init_locals) {
     return value;
   }
   head = *--state->heads;
+  state->locals -= state->framesize;
   vm_int_opcode_t out = vm_int_run_read();
-  locals -= state->framesize;
-  locals[out.reg] = value;
+  state->locals[out.reg] = value;
   vm_int_run_next();
 }
 do_ret_r : {
-  vm_value_t value = locals[vm_int_run_read().reg];
-  if (locals == init_locals) {
+  vm_value_t value = state->locals[vm_int_run_read().reg];
+  if (state->locals == init_locals) {
     return value;
   }
   head = *--state->heads;
+  state->locals -= state->framesize;
   vm_int_opcode_t out = vm_int_run_read();
-  locals -= state->framesize;
-  locals[out.reg] = value;
+  state->locals[out.reg] = value;
   vm_int_run_next();
 }
 do_exit : { return vm_value_from_int(0); }
@@ -1366,7 +1498,7 @@ vm_value_t vm_ir_be_int3(size_t nblocks, vm_ir_block_t *blocks,
   vm_ir_block_t *cur = &blocks[0];
   vm_int_state_t state = (vm_int_state_t){0};
   size_t nregs = 1 << 16;
-  vm_value_t *locals = vm_malloc(sizeof(vm_value_t) * nregs);
+  vm_value_t *state->locals = vm_malloc(sizeof(vm_value_t) * nregs);
   state.framesize = 1;
   state.funcs = funcs;
   for (size_t i = 0; i < nblocks; i++) {
@@ -1376,9 +1508,9 @@ vm_value_t vm_ir_be_int3(size_t nblocks, vm_ir_block_t *blocks,
       }
     }
   }
-  state.locals = locals;
-  state.heads = vm_malloc(sizeof(vm_int_opcode_t *) *
-                          (nregs / (state.framesize - 1)));
+  state.state->locals = state->locals;
+  state.heads =
+      vm_malloc(sizeof(vm_int_opcode_t *) * (nregs / (state.framesize - 1)));
   vm_value_t ret = vm_int_run(&state, cur);
   return ret;
 }

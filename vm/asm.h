@@ -3,7 +3,6 @@
 #define VM_HEADER_ASM
 
 #include "bc.h"
-#include "jump.h"
 #include "lib.h"
 
 enum vm_asm_instr_type_t {
