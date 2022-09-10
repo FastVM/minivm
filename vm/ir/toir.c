@@ -298,7 +298,6 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
                 vm_opcode_t lhs = ops[(index)++];
                 vm_opcode_t rhs = ops[(index)++];
                 vm_ir_block_add_mul(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
-
                 break;
             }
             case VM_OPCODE_DIV: {
@@ -306,7 +305,7 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
                 vm_opcode_t lhs = ops[(index)++];
                 vm_opcode_t rhs = ops[(index)++];
                 vm_ir_block_add_div(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
-                break;
+                goto vm_break;
             }
             case VM_OPCODE_MOD: {
                 vm_opcode_t out = ops[(index)++];
