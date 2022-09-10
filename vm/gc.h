@@ -51,27 +51,25 @@ vm_int_t vm_gc_len(vm_value_t obj);
 #define vm_value_from_int(n_) (vm_box_from_int(n_))
 #define vm_value_from_float(n_) (vm_box_from_double(n_))
 #define vm_value_from_block(n_) (vm_box_from_pointer(n_))
-#define vm_value_from_array(n_) (vm_box_from_pointer(n_))
 #define vm_value_from_static(n_) (vm_box_from_pointer(n_))
 
 #define vm_value_to_int(v_) (vm_box_to_int(v_))
 #define vm_value_to_float(v_) (vm_box_to_double(v_))
 #define vm_value_to_block(v_) ((void *)vm_box_to_pointer(v_))
 #define vm_value_to_array(v_) ((vm_value_array_t *)vm_box_to_pointer(v_))
-#define vm_value_to_static(n_) ((vm_value_array_t *)vm_box_to_pointer(v_))
 
 static inline uint8_t vm_typeof(vm_value_t val) {
-    if (vm_box_is_empty(val)) {
-        return VM_TYPE_NIL;
-    }
-    if (vm_box_is_boolean(val)) {
-        return VM_TYPE_BOOL;
-    }
     if (vm_box_is_int(val)) {
         return VM_TYPE_INT;
     }
     if (vm_box_is_double(val)) {
         return VM_TYPE_FLOAT;
+    }
+    if (vm_box_is_empty(val)) {
+        return VM_TYPE_NIL;
+    }
+    if (vm_box_is_boolean(val)) {
+        return VM_TYPE_BOOL;
     }
     if (vm_box_is_pointer(val)) {
         return VM_TYPE_PTR;
