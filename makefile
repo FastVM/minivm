@@ -18,6 +18,10 @@ default: all
 
 all: bins libs
 
+format: .dummy
+	find . -name '*.c' | xargs -I FILENAME clang-format -style=file -i FILENAME
+	find . -name '*.h' | xargs -I FILENAME clang-format -style=file -i FILENAME
+
 # profile guided optimization
 
 gcc-pgo-build: .dummy

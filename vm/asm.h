@@ -6,12 +6,12 @@
 #include "lib.h"
 
 enum vm_asm_instr_type_t {
-  VM_ASM_INSTR_END,
-  VM_ASM_INSTR_RAW,
-  VM_ASM_INSTR_GET,
-  VM_ASM_INSTR_SET,
-  VM_ASM_INSTR_GETI,
-  VM_ASM_INSTR_SETI,
+    VM_ASM_INSTR_END,
+    VM_ASM_INSTR_RAW,
+    VM_ASM_INSTR_GET,
+    VM_ASM_INSTR_SET,
+    VM_ASM_INSTR_GETI,
+    VM_ASM_INSTR_SETI,
 };
 typedef enum vm_asm_instr_type_t vm_asm_instr_type_t;
 
@@ -19,8 +19,8 @@ struct vm_asm_instr_t;
 typedef struct vm_asm_instr_t vm_asm_instr_t;
 
 struct vm_asm_instr_t {
-  size_t value;
-  uint8_t type;
+    size_t value;
+    uint8_t type;
 };
 
 void vm_asm_strip(const char **src);

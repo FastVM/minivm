@@ -14,3 +14,11 @@
 #define VM_CONFIG_GROW_STACK (1)
 #endif
 #endif
+
+#if !defined(VM_INT_DEBUG_OPCODE)
+#define VM_INT_DEBUG_OPCODE 0
+#endif
+
+#if !defined(VM_INT_DEBUG_LOAD)
+#define VM_INT_DEBUG_LOAD 0
+#endif

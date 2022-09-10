@@ -2,13 +2,13 @@
 #if !defined(VM_HEADER_LIB)
 #define VM_HEADER_LIB
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #if 1
 #define vm_malloc(size) (malloc(size))
