@@ -3,7 +3,6 @@
 
 #include "../vm/ir/be/int3.h"
 #include "../vm/ir/build.h"
-#include "../vm/ir/opt.h"
 #include "../vm/ir/toir.h"
 
 static const char *vm_asm_io_read(const char *filename) {
@@ -110,7 +109,6 @@ int main(int argc, char **argv) {
         if (jitdumpir) {
             vm_ir_print_blocks(stderr, nblocks, blocks);
         }
-        vm_ir_opt_all(&nblocks, &blocks);
         if (jitdumpopt) {
             vm_ir_print_blocks(stderr, nblocks, blocks);
         }

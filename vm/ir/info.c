@@ -161,16 +161,5 @@ redo:
         if (block->nregs > func->nregs) {
             func->nregs = block->nregs;
         }
-        for (size_t j = 0; j < 2; j++) {
-            vm_ir_block_t *next = block->branch->targets[j];
-            if (next == NULL) {
-                continue;
-            }
-            vm_ir_arg_t *cur = vm_malloc(sizeof(vm_ir_arg_t) * next->nargs);
-            for (size_t k = 0; k < next->nargs; k++) {
-                cur[k] = vm_ir_arg_reg(next->args[k]);
-            }
-            block->branch->pass[j] = cur;
-        }
     }
 }

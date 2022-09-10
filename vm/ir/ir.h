@@ -2,6 +2,7 @@
 #if !defined(VM_HEADER_IR_IR)
 #define VM_HEADER_IR_IR
 
+#include "../gc.h"
 #include "../lib.h"
 
 struct vm_ir_arg_t;
@@ -52,7 +53,7 @@ enum {
 struct vm_ir_arg_t {
     union {
         size_t reg;
-        ptrdiff_t num;
+        vm_number_t num;
         const char *str;
         vm_ir_block_t *func;
         vm_ir_instr_t *instr;
@@ -61,7 +62,6 @@ struct vm_ir_arg_t {
 };
 
 struct vm_ir_branch_t {
-    vm_ir_arg_t *pass[2];
     vm_ir_block_t *targets[2];
     vm_ir_arg_t args[2];
     uint8_t op;

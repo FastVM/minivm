@@ -1,7 +1,7 @@
 
 #include "build.h"
 
-static void vm_ir_block_realloc(vm_ir_block_t *block, vm_ir_instr_t *instr) {
+void vm_ir_block_realloc(vm_ir_block_t *block, vm_ir_instr_t *instr) {
     if (block->len + 4 >= block->alloc) {
         block->alloc = (block->len + 4) * 4;
         block->instrs = vm_realloc(block->instrs, sizeof(vm_ir_arg_t) * block->alloc);
@@ -106,9 +106,6 @@ void vm_ir_block_free(vm_ir_block_t *block) {
         vm_ir_instr_free(block->instrs[i]);
     }
     if (block->branch != NULL) {
-        for (size_t i = 0; i < 2; i++) {
-            vm_free(block->branch->pass[i]);
-        }
         vm_free(block->branch);
     }
     vm_free(block->instrs);
@@ -129,7 +126,7 @@ void vm_ir_blocks_free(size_t nblocks, vm_ir_block_t *blocks) {
 void vm_ir_print_arg(FILE *out, vm_ir_arg_t val) {
     switch (val.type) {
         case VM_IR_ARG_NUM: {
-            fprintf(out, "%zi", val.num);
+            fprintf(out, "%lf", val.num);
             break;
         }
         case VM_IR_ARG_STR: {
@@ -188,7 +185,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val) {
             if (i != 0) {
                 fprintf(out, ", ");
             }
-            vm_ir_print_arg(out, val->pass[0][i]);
+            fprintf(out, "r%zu", val->targets[0]->args[i]);
         }
         fprintf(out, ")");
     }
@@ -199,7 +196,7 @@ void vm_ir_print_branch(FILE *out, vm_ir_branch_t *val) {
             if (i != 0) {
                 fprintf(out, ", ");
             }
-            vm_ir_print_arg(out, val->pass[1][i]);
+            fprintf(out, "r%zu", val->targets[1]->args[i]);
         }
         fprintf(out, ")");
     }

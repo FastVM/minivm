@@ -30,6 +30,8 @@ vm_ir_arg_t vm_ir_arg_func(vm_ir_block_t *func);
 
 vm_ir_block_t *vm_ir_block_new(void);
 
+void vm_ir_block_realloc(vm_ir_block_t *block, vm_ir_instr_t *instr);
+
 void vm_ir_block_add_move(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t arg);
 void vm_ir_block_add_add(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs);
 void vm_ir_block_add_sub(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs);
