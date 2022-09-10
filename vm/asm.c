@@ -150,38 +150,6 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_asm_put_int(vm_asm_read_int(src));
                     continue;
                 }
-                if (vm_asm_starts(opname, "str")) {
-                    vm_asm_put_op(VM_OPCODE_STR);
-                    vm_asm_put_reg(regno);
-                    vm_asm_strip(src);
-                    if (**src == ':') {
-                        *src += 1;
-                    }
-                    size_t nbuf = head;
-                    vm_asm_put_int(0);
-                    while (**src != '\n' && **src != '\0') {
-                        if (**src != '\\') {
-                            vm_asm_put_int((int)**src);
-                        } else {
-                            *src += 1;
-                            if (**src == 'n') {
-                                vm_asm_put_int((int)'\n');
-                            }
-                            if (**src == 't') {
-                                vm_asm_put_int((int)'\t');
-                            }
-                            if (**src == 'r') {
-                                vm_asm_put_int((int)'\r');
-                            }
-                            if (**src == 's') {
-                                vm_asm_put_int((int)' ');
-                            }
-                        }
-                        *src += 1;
-                    }
-                    instrs[nbuf].value = head - (nbuf + 1);
-                    continue;
-                }
                 if (vm_asm_starts(opname, "arr")) {
                     vm_asm_put_op(VM_OPCODE_ARR);
                     vm_asm_put_reg(regno);

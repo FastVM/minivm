@@ -180,7 +180,6 @@ struct vm_int_opcode_t {
     };
 };
 
-vm_ir_block_t *vm_ir_block_opt(vm_int_state_t *state, vm_ir_block_t *block, vm_value_t *locals);
 vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block);
 vm_value_t vm_ir_be_int3(size_t nblocks, vm_ir_block_t *blocks, vm_int_func_t *funcs);
 vm_value_t vm_run_arch_int(size_t nops, vm_opcode_t *opcodes, vm_int_func_t *funcs);

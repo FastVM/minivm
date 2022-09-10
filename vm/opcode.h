@@ -28,8 +28,6 @@ enum {
     VM_OPCODE_BEQ,
     VM_OPCODE_BLT,
 
-    VM_OPCODE_STR,
-
     VM_OPCODE_ARR,
     VM_OPCODE_SET,
     VM_OPCODE_GET,
