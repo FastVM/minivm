@@ -1938,7 +1938,7 @@ do_fbeq_irtt : {
     vm_int_run_next();
 }
 do_bty_t : {
-    vm_int_t *tags = &vm_int_run_read().ival;
+    ptrdiff_t *tags = &vm_int_run_read().ival;
     uint8_t type = vm_typeof(vm_int_run_read_load());
     if (!(*tags & (1 << type))) {
         *tags |= 1 << type;
