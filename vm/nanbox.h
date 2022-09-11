@@ -283,7 +283,9 @@ static inline bool NANBOX_NAME(_is_boolean)(NANBOX_T val) {
     return (val.as_int64 & ~1) == NANBOX_VALUE_FALSE;
 }
 static inline bool NANBOX_NAME(_to_boolean)(NANBOX_T val) {
+#if VM_DEBUG_TYPES
     assert(NANBOX_NAME(_is_boolean)(val));
+#endif
     return val.as_int64 & 1;
 }
 static inline NANBOX_T NANBOX_NAME(_from_boolean)(bool b) {
@@ -306,7 +308,9 @@ static inline NANBOX_T NANBOX_NAME(_from_int)(int32_t i) {
     return val;
 }
 static inline int32_t NANBOX_NAME(_to_int)(NANBOX_T val) {
+#if VM_DEBUG_TYPES
     assert(NANBOX_NAME(_is_int)(val));
+#endif
     return (int32_t)val.as_int64;
 }
 
@@ -317,11 +321,15 @@ static inline NANBOX_T NANBOX_NAME(_from_double)(double d) {
     NANBOX_T val;
     val.as_double = d;
     val.as_int64 += NANBOX_DOUBLE_ENCODE_OFFSET;
+#if VM_DEBUG_TYPES
     assert(NANBOX_NAME(_is_double)(val));
+#endif
     return val;
 }
 static inline double NANBOX_NAME(_to_double)(NANBOX_T val) {
+#if VM_DEBUG_TYPES
     assert(NANBOX_NAME(_is_double)(val));
+#endif
     val.as_int64 -= NANBOX_DOUBLE_ENCODE_OFFSET;
     return val.as_double;
 }
@@ -330,13 +338,17 @@ static inline bool NANBOX_NAME(_is_pointer)(NANBOX_T val) {
     return !(val.as_int64 & ~NANBOX_MASK_POINTER) && val.as_int64;
 }
 static inline NANBOX_POINTER_TYPE NANBOX_NAME(_to_pointer)(NANBOX_T val) {
+#if VM_DEBUG_TYPES
     assert(NANBOX_NAME(_is_pointer)(val));
+#endif
     return val.pointer;
 }
 static inline NANBOX_T NANBOX_NAME(_from_pointer)(NANBOX_POINTER_TYPE pointer) {
     NANBOX_T val;
     val.pointer = pointer;
+#if VM_DEBUG_TYPES
     assert(NANBOX_NAME(_is_pointer)(val));
+#endif
     return val;
 }
 

@@ -208,6 +208,23 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     }
                     continue;
                 }
+                if (vm_asm_starts(opname, "ccall")) {
+                    vm_asm_put_op(VM_OPCODE_CCALL);
+                    vm_asm_put_reg(regno);
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    vm_opcode_t args[8] = {0};
+                    size_t nargs = 0;
+                    vm_asm_strip(src);
+                    while (**src != '\n') {
+                        args[nargs++] = vm_asm_read_reg(src);
+                        vm_asm_strip(src);
+                    }
+                    vm_asm_put_int(nargs);
+                    for (size_t i = 0; i < nargs; i++) {
+                        vm_asm_put_reg(args[i]);
+                    }
+                    continue;
+                }
                 if (vm_asm_starts(opname, "dcall")) {
                     vm_asm_put_op(VM_OPCODE_DCALL);
                     vm_asm_put_reg(regno);

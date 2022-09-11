@@ -34,16 +34,12 @@ func .4
     r0 <- get r1 r0
     r5 <- int 2
     r6 <- sub r2 r5
-    r7 <- int 0
-    r7 <- get r0 r7
-    r8 <- dcall r7 r0 r6
+    r8 <- ccall r0 r6
     r0 <- int 1
     r0 <- get r1 r0
     r9 <- int 1
     r10 <- sub r2 r9
-    r11 <- int 0
-    r11 <- get r0 r11
-    r12 <- dcall r11 r0 r10
+    r12 <- ccall r0 r10
     r13 <- add r8 r12
     ret r13
     r3 <- int 0

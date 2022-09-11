@@ -34,6 +34,7 @@ enum {
     VM_OPCODE_LEN,
 
     VM_OPCODE_XCALL,
+    VM_OPCODE_CCALL,
 
     VM_OPCODE_TYPE,
 };

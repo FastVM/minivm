@@ -74,6 +74,8 @@ struct vm_ir_instr_t {
 };
 
 struct vm_ir_block_t {
+    uint8_t tag;
+    
     ptrdiff_t id;
 
     vm_ir_instr_t **instrs;

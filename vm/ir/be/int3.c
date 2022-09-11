@@ -8,7 +8,9 @@
 #define vm_int_block_comp_put_reg(vreg_) buf.ops[buf.len++].reg = (vreg_)
 #define vm_int_block_comp_put_ival(val_) buf.ops[buf.len++].ival = (val_)
 #define vm_int_block_comp_put_fval(val_) buf.ops[buf.len++].fval = (val_)
-#define vm_int_block_comp_put_block(block_) buf.ops[buf.len++].block = (block_)
+#define vm_int_block_comp_put_block(block_) ({ \
+    buf.ops[buf.len++].block = (block_);       \
+})
 #define vm_int_block_comp_put_arg(arg_)            \
     ({                                             \
         vm_ir_arg_t arg = (arg_);                  \
@@ -45,36 +47,36 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
     data->len += 1;
 }
 
-#define vm_int_block_comp_mov(vreg_, fval_)                  \
-    ({                                                      \
-        size_t reg = vreg_;                                 \
-        double val = fval_;                                 \
-        if (fmod(val, 1) == 0) {                            \
-            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I);     \
-            vm_int_block_comp_put_out(reg);      \
-            vm_int_block_comp_put_ival(val); \
-            types[reg] = VM_TYPE_INT;            \
-        } else {                                            \
-            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_F);     \
-            vm_int_block_comp_put_out(reg);      \
-            vm_int_block_comp_put_fval(val); \
-            types[reg] = VM_TYPE_FLOAT;            \
-        }                                                   \
+#define vm_int_block_comp_mov(vreg_, fval_)             \
+    ({                                                  \
+        size_t reg = vreg_;                             \
+        double val = fval_;                             \
+        if (fmod(val, 1) == 0) {                        \
+            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I); \
+            vm_int_block_comp_put_out(reg);             \
+            vm_int_block_comp_put_ival(val);            \
+            types[reg] = VM_TYPE_INT;                   \
+        } else {                                        \
+            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_F); \
+            vm_int_block_comp_put_out(reg);             \
+            vm_int_block_comp_put_fval(val);            \
+            types[reg] = VM_TYPE_FLOAT;                 \
+        }                                               \
     })
 
-#define vm_int_block_comp_ensure_float_reg(reg_)                                   \
-    ({                                                                             \
-        size_t reg = (reg_);                                                       \
-        if (types[reg] == VM_TYPE_FLOAT) {                                         \
-            /* :) */                                                               \
-        } else if (types[reg] == VM_TYPE_INT) {                                    \
-            vm_int_block_comp_put_ptr(VM_INT_OP_FLOAT);                            \
-            vm_int_block_comp_put_out(reg);                                        \
-            types[reg] = VM_TYPE_FLOAT;                                            \
-        } else {                                                                   \
-            fprintf(stderr, "TYPE ERROR: attemtpt to make a float of bad type\n"); \
-            __builtin_trap();                                                      \
-        }                                                                          \
+#define vm_int_block_comp_ensure_float_reg(reg_)                                                       \
+    ({                                                                                                 \
+        size_t reg = (reg_);                                                                           \
+        if (types[reg] == VM_TYPE_FLOAT) {                                                             \
+            /* :) */                                                                                   \
+        } else if (types[reg] == VM_TYPE_INT) {                                                        \
+            vm_int_block_comp_put_ptr(VM_INT_OP_FLOAT);                                                \
+            vm_int_block_comp_put_out(reg);                                                            \
+            types[reg] = VM_TYPE_FLOAT;                                                                \
+        } else {                                                                                       \
+            fprintf(stderr, "TYPE ERROR (reg: %zu) (type: %zu)\n", reg, (size_t)types[reg]); \
+            __builtin_trap();                                                                          \
+        }                                                                                              \
     })
 
 void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block) {
@@ -100,10 +102,6 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
         next:;
         }
     }
-    // for (size_t a = 0; a < block->nargs; a++) {
-    //     size_t reg = block->args[a];
-    //     fprintf(stderr, "type r%zu = %zu\n", reg, (size_t) vm_typeof(state->locals[reg]));
-    // }
     vm_int_buf_t buf;
     buf.len = 0;
     buf.alloc = 16;
@@ -113,9 +111,46 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
         size_t reg = block->args[i];
         types[reg] = vm_typeof(state->locals[reg]);
     }
-    // fprintf(stderr, "\nblock %zu:\n", block->id);
+#if VM_INT_DEBUG_COMP
+    fprintf(stderr, "block .%zu(", block->id);
+    for (size_t i = 0; i < block->nargs; i++) {
+        if (i != 0) {
+            fprintf(stderr, " ");
+        }
+        size_t reg = block->args[i];
+        uint8_t type = types[reg];
+        const char *typename;
+        switch (type) {
+        case VM_TYPE_NIL: {
+            typename = "nil";
+            break;
+        }
+        case VM_TYPE_BOOL: {
+            typename = "bool";
+            break;
+        }
+        case VM_TYPE_INT: {
+            typename = "int";
+            break;
+        }
+        case VM_TYPE_FLOAT: {
+            typename = "float";
+            break;
+        }
+        case VM_TYPE_FUNC: {
+            typename = "func";
+            break;
+        }
+        case VM_TYPE_ARRAY: {
+            typename = "array";
+            break;
+        }
+        }
+        fprintf(stderr, "r%zu : %s", reg, typename);
+    }
+    fprintf(stderr, ") {\n", block->id);
+#endif
 inline_jump:;
-    // vm_ir_print_block(stderr, block);
     ptrdiff_t typecheck = -1;
     for (size_t arg = 0; arg < block->len; arg++) {
         if (buf.len + 16 >= buf.alloc) {
@@ -123,6 +158,13 @@ inline_jump:;
             buf.ops = vm_realloc(buf.ops, sizeof(vm_int_opcode_t) * buf.alloc);
         }
         vm_ir_instr_t *instr = block->instrs[arg];
+#if VM_INT_DEBUG_COMP
+        if (instr->op != VM_IR_IOP_NOP) {
+            fprintf(stderr, "  ");
+            vm_ir_print_instr(stderr, instr);
+            fprintf(stderr, "\n");
+        }
+#endif
         switch (instr->op) {
             case VM_IR_IOP_NOP: {
                 break;
@@ -152,7 +194,7 @@ inline_jump:;
                             vm_int_block_comp_put_ptr(VM_INT_OP_MOV_T);
                             vm_int_block_comp_put_out(instr->out.reg);
                             vm_int_block_comp_put_arg(instr->args[0]);
-                            types[instr->out.reg] = VM_TYPE_PTR;
+                            types[instr->out.reg] = VM_TYPE_FUNC;
                             break;
                         }
                     }
@@ -454,8 +496,16 @@ inline_jump:;
                     vm_int_block_comp_put_ptr(VM_INT_OP_CALL_X0 + nargs);
                     vm_int_block_comp_put_ival(instr->args[0].num);
                 } else {
-                    vm_int_block_comp_put_ptr(VM_INT_OP_CALL_R0 + nargs);
-                    vm_int_block_comp_put_arg(instr->args[0]);
+                    if (types[instr->args[0].reg] == VM_TYPE_FUNC) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_CALL_R0 + nargs);
+                        vm_int_block_comp_put_arg(instr->args[0]);
+                    } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_CALL_C0 + nargs);
+                        vm_int_block_comp_put_arg(instr->args[0]);
+                    } else {
+                        fprintf(stderr, "type error on call r%zu (type %zu)\n", instr->args[0].reg, (size_t)types[instr->args[0].reg]);
+                        __builtin_trap();
+                    }
                 }
                 for (size_t i = 1; instr->args[i].type != VM_IR_ARG_NONE; i++) {
                     if (instr->args[i].type == VM_IR_ARG_NUM) {
@@ -479,13 +529,13 @@ inline_jump:;
                         vm_int_block_comp_put_ptr(VM_INT_OP_NEW_R);
                         vm_int_block_comp_put_out(instr->out.reg);
                         vm_int_block_comp_put_arg(instr->args[0]);
-                        types[instr->out.reg] = VM_TYPE_PTR;
+                        types[instr->out.reg] = VM_TYPE_ARRAY;
                     } else {
                         // r = new i
                         vm_int_block_comp_put_ptr(VM_INT_OP_NEW_I);
                         vm_int_block_comp_put_out(instr->out.reg);
                         vm_int_block_comp_put_arg(instr->args[0]);
-                        types[instr->out.reg] = VM_TYPE_PTR;
+                        types[instr->out.reg] = VM_TYPE_ARRAY;
                     }
                 }
                 break;
@@ -596,16 +646,13 @@ inline_jump:;
                     vm_int_block_comp_put_block(block->branch->targets[0]);
                 }
             } else {
-                vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
-                vm_int_block_comp_put_block(block->branch->targets[0]);
-
-                // if (block->branch->targets[0]->id <= block->id) {
-                //     vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
-                //     vm_int_block_comp_put_block(block->branch->targets[0]);
-                // } else {
-                //     block = block->branch->targets[0];
-                //     goto inline_jump;
-                // }
+                if (block->branch->targets[0]->id <= block->id) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
+                    vm_int_block_comp_put_block(block->branch->targets[0]);
+                } else {
+                    block = block->branch->targets[0];
+                    goto inline_jump;
+                }
             }
             break;
         }
@@ -753,12 +800,15 @@ inline_jump:;
             break;
         }
     }
+#if VM_INT_DEBUG_COMP
+    fprintf(stderr, "  ");
+    vm_ir_print_branch(stderr, block->branch);
+    fprintf(stderr, "\n}\n\n");
+#endif
     for (size_t a = 0; a < state->framesize; a++) {
         types[a] = vm_typeof(state->locals[a]);
     }
     vm_int_data_push(data, buf, types);
-    // fprintf(stderr, "  ^ versions = %zu\n", data->len);
-    // fprintf(stderr, "  ^ ptr = %p\n", buf.ops);
     return buf.ops;
 }
 
@@ -774,7 +824,7 @@ inline_jump:;
         typeof(v) v_ = v;                                                 \
         fprintf(stderr, "LINE = %zu\n", (size_t)__LINE__);                \
         fprintf(stderr, "DEPTH = %zu\n", (size_t)(locals - init_locals)); \
-        fprintf(stderr, "GOTO PTR = %zu\n", (size_t)(v_));                \
+        fprintf(stderr, "GOTO PTR = %zX\n", (size_t)(v_));                \
         v_;                                                               \
     })
 #else
@@ -872,6 +922,14 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_CALL_X6] = &&do_call_x6,
         [VM_INT_OP_CALL_X7] = &&do_call_x7,
         [VM_INT_OP_CALL_X8] = &&do_call_x8,
+        [VM_INT_OP_CALL_C0] = &&do_call_c0,
+        [VM_INT_OP_CALL_C1] = &&do_call_c1,
+        [VM_INT_OP_CALL_C2] = &&do_call_c2,
+        [VM_INT_OP_CALL_C3] = &&do_call_c3,
+        [VM_INT_OP_CALL_C4] = &&do_call_c4,
+        [VM_INT_OP_CALL_C5] = &&do_call_c5,
+        [VM_INT_OP_CALL_C6] = &&do_call_c6,
+        [VM_INT_OP_CALL_C7] = &&do_call_c7,
         [VM_INT_OP_NEW_I] = &&do_new_i,
         [VM_INT_OP_NEW_R] = &&do_new_r,
         [VM_INT_OP_SET_RRR] = &&do_set_rrr,
@@ -1425,6 +1483,114 @@ do_call_x8 : {
     locals -= state->framesize;
     vm_int_run_next();
 }
+do_call_c0 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
+do_call_c1 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
+do_call_c2 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
+do_call_c3 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
+do_call_c4 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
+do_call_c5 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
+do_call_c6 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
+do_call_c7 : {
+    vm_value_t obj = vm_int_run_read_load();
+    locals[state->framesize + 1 + 0] = obj;
+    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
+    locals[state->framesize + 1 + 7] = vm_int_run_read_load();
+    locals += state->framesize;
+    *state->heads++ = head;
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
+    void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
+    head = ptr;
+    vm_int_run_next();
+}
 // memorys
 do_new_i : {
     vm_value_t *out = vm_int_run_read_store();
@@ -1685,7 +1851,7 @@ do_call_t1 : {
     vm_int_run_next();
 }
 do_call_t2 : {
-    head[-1].ptr = &&do_call_l1;
+    head[-1].ptr = &&do_call_l2;
     vm_int_opcode_t *block = &vm_int_run_read();
     locals[state->framesize + 1 + 0] = vm_int_run_read_load();
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
@@ -1695,7 +1861,7 @@ do_call_t2 : {
     vm_int_run_next();
 }
 do_call_t3 : {
-    head[-1].ptr = &&do_call_l1;
+    head[-1].ptr = &&do_call_l3;
     vm_int_opcode_t *block = &vm_int_run_read();
     locals[state->framesize + 1 + 0] = vm_int_run_read_load();
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
@@ -1706,7 +1872,7 @@ do_call_t3 : {
     vm_int_run_next();
 }
 do_call_t4 : {
-    head[-1].ptr = &&do_call_l1;
+    head[-1].ptr = &&do_call_l4;
     vm_int_opcode_t *block = &vm_int_run_read();
     locals[state->framesize + 1 + 0] = vm_int_run_read_load();
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
@@ -1718,7 +1884,7 @@ do_call_t4 : {
     vm_int_run_next();
 }
 do_call_t5 : {
-    head[-1].ptr = &&do_call_l1;
+    head[-1].ptr = &&do_call_l5;
     vm_int_opcode_t *block = &vm_int_run_read();
     locals[state->framesize + 1 + 0] = vm_int_run_read_load();
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
@@ -1731,7 +1897,7 @@ do_call_t5 : {
     vm_int_run_next();
 }
 do_call_t6 : {
-    head[-1].ptr = &&do_call_l1;
+    head[-1].ptr = &&do_call_l6;
     vm_int_opcode_t *block = &vm_int_run_read();
     locals[state->framesize + 1 + 0] = vm_int_run_read_load();
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
@@ -1745,7 +1911,7 @@ do_call_t6 : {
     vm_int_run_next();
 }
 do_call_t7 : {
-    head[-1].ptr = &&do_call_l1;
+    head[-1].ptr = &&do_call_l7;
     vm_int_opcode_t *block = &vm_int_run_read();
     locals[state->framesize + 1 + 0] = vm_int_run_read_load();
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
@@ -1760,7 +1926,7 @@ do_call_t7 : {
     vm_int_run_next();
 }
 do_call_t8 : {
-    head[-1].ptr = &&do_call_l1;
+    head[-1].ptr = &&do_call_l8;
     vm_int_opcode_t *block = &vm_int_run_read();
     locals[state->framesize + 1 + 0] = vm_int_run_read_load();
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
@@ -1958,8 +2124,11 @@ do_bty_t : {
             case VM_TYPE_FLOAT:
                 head = head[VM_TYPE_FLOAT].ptr;
                 vm_int_run_next();
-            case VM_TYPE_PTR:
-                head = head[VM_TYPE_PTR].ptr;
+            case VM_TYPE_FUNC:
+                head = head[VM_TYPE_FUNC].ptr;
+                vm_int_run_next();
+            case VM_TYPE_ARRAY:
+                head = head[VM_TYPE_ARRAY].ptr;
                 vm_int_run_next();
             default:
                 head = head[type].ptr;

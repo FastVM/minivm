@@ -110,6 +110,13 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 index += nargs;
                 break;
             }
+            case VM_OPCODE_CCALL: {
+                vm_opcode_t rreg = ops[index++];
+                vm_opcode_t func = ops[index++];
+                vm_opcode_t nargs = ops[index++];
+                index += nargs;
+                break;
+            }
             case VM_OPCODE_XCALL: {
                 vm_opcode_t rreg = ops[index++];
                 vm_opcode_t func = ops[index++];
@@ -234,6 +241,18 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
                 vm_free(args);
                 goto vm_break;
             }
+            case VM_OPCODE_CCALL: {
+                vm_opcode_t rreg = ops[(index)++];
+                vm_opcode_t func = ops[(index)++];
+                vm_opcode_t nargs = ops[(index)++];
+                vm_ir_arg_t *args = vm_malloc(sizeof(vm_ir_arg_t) * nargs);
+                for (size_t i = 0; i < nargs; i++) {
+                    args[i] = vm_ir_arg_reg(ops[(index)++]);
+                }
+                vm_ir_block_add_call(block, vm_ir_arg_reg(rreg), vm_ir_arg_reg(func), nargs, args);
+                vm_free(args);
+                goto vm_break;
+            }
             case VM_OPCODE_XCALL: {
                 vm_opcode_t rreg = ops[(index)++];
                 vm_opcode_t func = ops[(index)++];
@@ -284,21 +303,21 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
                 vm_opcode_t lhs = ops[(index)++];
                 vm_opcode_t rhs = ops[(index)++];
                 vm_ir_block_add_add(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
-                break;
+                goto vm_break;
             }
             case VM_OPCODE_SUB: {
                 vm_opcode_t out = ops[(index)++];
                 vm_opcode_t lhs = ops[(index)++];
                 vm_opcode_t rhs = ops[(index)++];
                 vm_ir_block_add_sub(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
-                break;
+                goto vm_break;
             }
             case VM_OPCODE_MUL: {
                 vm_opcode_t out = ops[(index)++];
                 vm_opcode_t lhs = ops[(index)++];
                 vm_opcode_t rhs = ops[(index)++];
                 vm_ir_block_add_mul(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
-                break;
+                goto vm_break;
             }
             case VM_OPCODE_DIV: {
                 vm_opcode_t out = ops[(index)++];
@@ -312,7 +331,7 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
                 vm_opcode_t lhs = ops[(index)++];
                 vm_opcode_t rhs = ops[(index)++];
                 vm_ir_block_add_mod(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
-                break;
+                goto vm_break;
             }
             case VM_OPCODE_BB: {
                 vm_opcode_t val = ops[(index)++];
@@ -361,7 +380,7 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
                 vm_opcode_t obj = ops[(index)++];
                 vm_opcode_t ind = ops[(index)++];
                 vm_ir_block_add_get(block, vm_ir_arg_reg(reg), vm_ir_arg_reg(obj), vm_ir_arg_reg(ind));
-                break;
+                goto vm_break;
             }
             case VM_OPCODE_LEN: {
                 vm_opcode_t reg = ops[(index)++];
@@ -404,6 +423,7 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops) {
     vm_ir_info(&nops, &blocks);
     for (size_t i = 0; i < nops; i++) {
         vm_ir_block_t *block = &blocks[i];
+        block->tag = VM_TYPE_FUNC;
         if (block->id != i) {
             continue;
         }

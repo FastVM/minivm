@@ -19,8 +19,6 @@ vm_ir_arg_t vm_ir_arg_num(ptrdiff_t num) { return (vm_ir_arg_t){.type = VM_IR_AR
 
 vm_ir_arg_t vm_ir_arg_str(const char *str) { return (vm_ir_arg_t){.type = VM_IR_ARG_STR, .str = str}; }
 
-vm_ir_block_t *vm_ir_block_new(void) { return vm_ir_new(vm_ir_block_t); }
-
 void vm_ir_block_add_move(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t arg) {
     vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MOVE, .out = out, .args[0] = arg));
 }

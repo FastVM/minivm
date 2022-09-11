@@ -20,6 +20,7 @@ typedef struct vm_value_array_t vm_value_array_t;
 typedef vm_box_t vm_value_t;
 
 struct vm_value_array_t {
+    uint8_t tag;
     vm_value_t *data;
     size_t len : 32;
     size_t alloc : 32;
@@ -31,7 +32,8 @@ enum {
     VM_TYPE_BOOL,
     VM_TYPE_INT,
     VM_TYPE_FLOAT,
-    VM_TYPE_PTR,
+    VM_TYPE_FUNC,
+    VM_TYPE_ARRAY,
     VM_TYPE_MAX,
 };
 
@@ -72,7 +74,7 @@ static inline uint8_t vm_typeof(vm_value_t val) {
         return VM_TYPE_BOOL;
     }
     if (vm_box_is_pointer(val)) {
-        return VM_TYPE_PTR;
+        return *(uint8_t *)vm_box_to_pointer(val);
     }
     __builtin_unreachable();
 }

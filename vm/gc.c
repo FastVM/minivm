@@ -3,7 +3,8 @@
 
 vm_value_t vm_gc_new(vm_int_t slots) {
     vm_value_array_t *arr =
-        vm_malloc(sizeof(vm_value_array_t) + sizeof(vm_value_t) * slots);
+        vm_alloc0(sizeof(vm_value_array_t) + sizeof(vm_value_t) * slots);
+    arr->tag = VM_TYPE_ARRAY;
     arr->alloc = slots;
     arr->len = slots;
     arr->data = (vm_value_t *)&arr[1];
