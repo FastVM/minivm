@@ -177,7 +177,7 @@ inline_jump:;
                             vm_int_block_comp_put_ptr(VM_INT_OP_MOV_R);
                             vm_int_block_comp_put_out(instr->out.reg);
                             vm_int_block_comp_put_arg(instr->args[0]);
-                            types[instr->out.reg] = types[instr->args[0].type];
+                            types[instr->out.reg] = types[instr->args[0].reg];
                             break;
                         }
                         case VM_IR_ARG_NUM: {
