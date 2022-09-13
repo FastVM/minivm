@@ -303,13 +303,13 @@ inline_jump:;
                             if (types[instr->args[1].reg] == VM_TYPE_INT) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_ISUB_IR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1].num);
+                                vm_int_block_comp_put_ival(instr->args[0].num);
+                                vm_int_block_comp_put_arg(instr->args[1]);
                                 types[instr->out.reg] = VM_TYPE_INT;
                             } else {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FSUB_FR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[0].num);
                                 vm_int_block_comp_put_arg(instr->args[1]);
                                 types[instr->out.reg] = VM_TYPE_FLOAT;
                             }
@@ -461,8 +461,8 @@ inline_jump:;
                             if (types[instr->args[1].reg] == VM_TYPE_INT) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_IMOD_IR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1].num);
+                                vm_int_block_comp_put_ival(instr->args[0].num);
+                                vm_int_block_comp_put_arg(instr->args[1]);
                                 types[instr->out.reg] = VM_TYPE_INT;
                             } else {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FMOD_FR);

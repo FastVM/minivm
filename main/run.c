@@ -34,6 +34,7 @@ static vm_bc_buf_t vm_io_bc_read(const char *filename) {
 }
 
 int main(int argc, char **argv) {
+    vm_init();
     if (argc != 2) {
         fprintf(stderr, "need exactly 1 cli argument");
     }
