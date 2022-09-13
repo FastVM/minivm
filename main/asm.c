@@ -31,7 +31,6 @@ static const char *vm_asm_io_read(const char *filename) {
 }
 
 int main(int argc, char **argv) {
-    vm_init();
     // const char *dump = "out.bc";
     const char *dump = NULL;
     const char *filename = NULL;
