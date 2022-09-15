@@ -22,3 +22,7 @@
 #if !defined(VM_INT_DEBUG_LOAD)
 #define VM_INT_DEBUG_LOAD 0
 #endif
+
+#if !defined(VM_TABLE_OPT)
+#define VM_TABLE_OPT 1
+#endif

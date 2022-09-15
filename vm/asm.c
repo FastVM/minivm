@@ -98,7 +98,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
     size_t head = 0;
     vm_asm_put_op(VM_OPCODE_JUMP);
     vm_asm_put_get("__entry");
-    size_t where;
+    size_t where = 0;
     int nregs = 0;
     for (;;) {
         if (head + 16 > alloc) {

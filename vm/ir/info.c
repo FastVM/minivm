@@ -14,7 +14,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks) {
     uint8_t **all_regs = vm_malloc(sizeof(uint8_t *) * nblocks);
     for (size_t i = 0; i < nblocks; i++) {
         vm_ir_block_t *block = &blocks[i];
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         size_t nregs = 1;
@@ -42,7 +42,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks) {
     }
     for (size_t i = 0; i < nblocks; i++) {
         vm_ir_block_t *block = &blocks[i];
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         uint8_t *regs = vm_malloc(sizeof(uint8_t) * (block->nregs + 1));
@@ -85,7 +85,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks) {
 redo:
     for (size_t i = 0; i < nblocks; i++) {
         vm_ir_block_t *block = &blocks[i];
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         for (size_t t = 0; t < 2; t++) {
@@ -143,7 +143,7 @@ redo:
     }
     for (size_t i = 0; i < nblocks; i++) {
         vm_ir_block_t *block = &blocks[i];
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         vm_free(all_regs[i]);
@@ -152,7 +152,7 @@ redo:
     vm_ir_block_t *func = &blocks[0];
     for (size_t i = 0; i < nblocks; i++) {
         vm_ir_block_t *block = &blocks[i];
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         if (block->isfunc) {

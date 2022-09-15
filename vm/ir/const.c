@@ -14,7 +14,7 @@ void vm_ir_opt_const(size_t nops, vm_ir_block_t *blocks) {
     redo = false;
     for (size_t i = 0; i < nops; i++) {
       vm_ir_block_t *block = &blocks[i];
-      if (block->id == i) {
+      if (block->id >= 0) {
         uint8_t *named = vm_alloc0(sizeof(uint8_t) * block->nregs);
         ptrdiff_t *regs = vm_alloc0(sizeof(ptrdiff_t) * block->nregs);
         for (size_t j = 0; j < block->len; j++) {
@@ -118,7 +118,7 @@ void vm_ir_opt_const(size_t nops, vm_ir_block_t *blocks) {
 void vm_ir_opt_dead(size_t nops, vm_ir_block_t *blocks) {
   for (size_t i = 0; i < nops; i++) {
     vm_ir_block_t *block = &blocks[i];
-    if (block->id != i) {
+    if (block->id < 0) {
       continue;
     }
     uint8_t *ptrs = vm_alloc0(sizeof(uint8_t) * block->nregs);

@@ -69,7 +69,6 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
     })
 
 void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block) {
-    vm_value_t *locals = state->locals;
     vm_int_data_t *data = block->data;
     if (data == NULL) {
         data = vm_malloc(sizeof(vm_int_data_t));
@@ -459,7 +458,7 @@ inline_jump:;
                                 vm_int_block_comp_put_arg(instr->args[1]);
                                 typecheck = instr->out.reg;
                             } else {
-                                fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, types[ instr->args[0].reg]);
+                                fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t) types[instr->args[0].reg]);
                                 __builtin_trap();
                             }
                         } else {
@@ -729,7 +728,6 @@ inline_jump:;
             break;
         }
         case VM_IR_BOP_RET: {
-            vm_value_t val;
             if (block->branch->args[0].type == VM_IR_ARG_NUM) {
                 // ret i
                 vm_int_block_comp_put_ptr(VM_INT_OP_RET_I);
@@ -897,7 +895,7 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_CALL_T7] = &&do_call_t7,
         [VM_INT_OP_CALL_T8] = &&do_call_t8,
         [VM_INT_OP_JUMP_T] = &&do_jump_t,
-        [VM_INT_OP_BB_RTT] = &&do_fblt_rrtt,
+        [VM_INT_OP_BB_RTT] = &&do_bb_rtt,
         [VM_INT_OP_FBLT_RRTT] = &&do_fblt_rrtt,
         [VM_INT_OP_FBLT_RITT] = &&do_fblt_ritt,
         [VM_INT_OP_FBLT_IRTT] = &&do_fblt_irtt,
@@ -1900,7 +1898,7 @@ vm_value_t vm_ir_be_int3(size_t nblocks, vm_ir_block_t *blocks, vm_int_func_t *f
     state.framesize = 1;
     state.funcs = funcs;
     for (size_t i = 0; i < nblocks; i++) {
-        if (blocks[i].id == i) {
+        if (blocks[i].id >= 0) {
             if (blocks[i].nregs >= state.framesize) {
                 state.framesize = blocks[i].nregs + 1;
             }

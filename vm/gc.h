@@ -36,10 +36,14 @@ struct vm_value_array_t {
 struct vm_value_table_t {
     uint8_t tag;
     uint8_t mark;
-    vm_value_t *keys;
-    vm_value_t *values;
-    uint32_t len;
-    uint32_t alloc;
+    uint8_t hash_alloc;
+    vm_value_t *hash_keys;
+    vm_value_t *hash_values;
+#if VM_TABLE_OPT
+    vm_value_t *arr_data;
+    uint32_t arr_len;
+    uint32_t arr_alloc;
+#endif
 };
 
 enum {
@@ -98,11 +102,11 @@ static inline uint8_t vm_typeof(vm_value_t val) {
     if (vm_box_is_number(val)) {
         return VM_TYPE_FLOAT;
     }
-    if (vm_box_is_empty(val)) {
-        return VM_TYPE_NIL;
-    }
     if (vm_box_is_boolean(val)) {
         return VM_TYPE_BOOL;
+    }
+    if (vm_box_is_empty(val)) {
+        return VM_TYPE_NIL;
     }
     if (vm_box_is_pointer(val)) {
         return *(uint8_t *)vm_box_to_pointer(val);

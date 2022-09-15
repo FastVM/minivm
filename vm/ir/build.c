@@ -118,7 +118,7 @@ void vm_ir_block_free(vm_ir_block_t *block) {
 void vm_ir_blocks_free(size_t nblocks, vm_ir_block_t *blocks) {
     for (size_t i = 0; i < nblocks; i++) {
         vm_ir_block_t *block = &blocks[i];
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         vm_ir_block_free(block);
@@ -297,7 +297,7 @@ void vm_ir_print_block(FILE *out, vm_ir_block_t *val) {
 void vm_ir_print_blocks(FILE *out, size_t nblocks, vm_ir_block_t *blocks) {
     for (size_t i = 0; i < nblocks; i++) {
         vm_ir_block_t *block = &blocks[i];
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         if (block->isfunc) {

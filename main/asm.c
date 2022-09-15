@@ -104,16 +104,26 @@ int main(int argc, char **argv) {
     }
     for (size_t i = 0; i < runs; i++) {
         vm_bc_buf_t buf = vm_asm(src);
-        size_t nblocks = buf.nops;
-        vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
-        if (jitdumpir) {
-            vm_ir_print_blocks(stderr, nblocks, blocks);
+        if (dump != NULL) {
+            FILE *out = fopen(dump, "wb");
+            if (!out) {
+                fprintf(stderr, "error opening output file");
+                return 1;
+            }
+            fwrite(buf.ops, sizeof(vm_opcode_t), buf.nops, out);
+            fclose(out);
+        } else {
+            size_t nblocks = buf.nops;
+            vm_ir_block_t *blocks = vm_ir_parse(nblocks, buf.ops);
+            if (jitdumpir) {
+                vm_ir_print_blocks(stderr, nblocks, blocks);
+            }
+            if (jitdumpopt) {
+                vm_ir_print_blocks(stderr, nblocks, blocks);
+            }
+            vm_ir_be_int3(nblocks, blocks, NULL);
+            vm_ir_blocks_free(nblocks, blocks);
         }
-        if (jitdumpopt) {
-            vm_ir_print_blocks(stderr, nblocks, blocks);
-        }
-        vm_ir_be_int3(nblocks, blocks, NULL);
-        vm_ir_blocks_free(nblocks, blocks);
         vm_free(buf.ops);
     }
     vm_free((void *)src);

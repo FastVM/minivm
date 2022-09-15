@@ -17,79 +17,79 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_REG: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t inreg = ops[index++];
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_INT:
             case VM_OPCODE_NEG: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t value = ops[index++];
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_ARR: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t size = ops[index++];
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_GET: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t obj = ops[index++];
-                vm_opcode_t ind = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_LEN: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t obj = ops[index++];
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_TYPE: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t obj = ops[index++];
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_SET: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t obj = ops[index++];
-                vm_opcode_t ind = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_RET: {
-                vm_opcode_t outreg = ops[index++];
+                index += 1;
                 break;
             }
             case VM_OPCODE_ADD: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t lhs = ops[index++];
-                vm_opcode_t rhs = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_SUB: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t lhs = ops[index++];
-                vm_opcode_t rhs = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_MUL: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t lhs = ops[index++];
-                vm_opcode_t rhs = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_DIV: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t lhs = ops[index++];
-                vm_opcode_t rhs = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_MOD: {
-                vm_opcode_t outreg = ops[index++];
-                vm_opcode_t lhs = ops[index++];
-                vm_opcode_t rhs = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_BB: {
-                vm_opcode_t inreg = ops[index++];
+                index += 1;
                 vm_opcode_t jfalse = ops[index++];
                 vm_opcode_t jtrue = ops[index++];
                 ret[jfalse] |= VM_BREAK;
@@ -97,35 +97,35 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_CALL: {
-                vm_opcode_t rreg = ops[index++];
-                vm_opcode_t func = ops[index++];
+                index += 1;
+                index += 1;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
             }
             case VM_OPCODE_DCALL: {
-                vm_opcode_t rreg = ops[index++];
-                vm_opcode_t func = ops[index++];
+                index += 1;
+                index += 1;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
             }
             case VM_OPCODE_CCALL: {
-                vm_opcode_t rreg = ops[index++];
-                vm_opcode_t func = ops[index++];
+                index += 1;
+                index += 1;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
             }
             case VM_OPCODE_XCALL: {
-                vm_opcode_t rreg = ops[index++];
-                vm_opcode_t func = ops[index++];
+                index += 1;
+                index += 1;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
             }
             case VM_OPCODE_PUTCHAR: {
-                vm_opcode_t inreg = ops[index++];
+                index += 1;
                 break;
             }
             case VM_OPCODE_JUMP: {
@@ -134,14 +134,14 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_FUNC: {
-                vm_opcode_t over = ops[index++];
-                vm_opcode_t nargs = ops[index++];
-                vm_opcode_t nregs = ops[index++];
+                index += 1;
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_BEQ: {
-                vm_opcode_t lhs = ops[index++];
-                vm_opcode_t rhs = ops[index++];
+                index += 1;
+                index += 1;
                 vm_opcode_t jfalse = ops[index++];
                 vm_opcode_t jtrue = ops[index++];
                 ret[jfalse] |= VM_BREAK;
@@ -149,8 +149,8 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_BLT: {
-                vm_opcode_t lhs = ops[index++];
-                vm_opcode_t rhs = ops[index++];
+                index += 1;
+                index += 1;
                 vm_opcode_t jfalse = ops[index++];
                 vm_opcode_t jtrue = ops[index++];
                 ret[jfalse] |= VM_BREAK;
@@ -158,24 +158,24 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_ADDR: {
-                vm_opcode_t reg = ops[index++];
-                vm_opcode_t func = ops[index++];
+                index += 1;
+                index += 1;
                 break;
             }
             case VM_OPCODE_TAB: {
-                vm_opcode_t outreg = ops[index++];
+                index += 1;
                 break;
             }
             case VM_OPCODE_NIL: {
-                vm_opcode_t outreg = ops[index++];
+                index += 1;
                 break;
             }
             case VM_OPCODE_TRUE: {
-                vm_opcode_t outreg = ops[index++];
+                index += 1;
                 break;
             }
             case VM_OPCODE_FALSE: {
-                vm_opcode_t outreg = ops[index++];
+                index += 1;
                 break;
             }
             default:
@@ -187,10 +187,9 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
 }
 void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
     vm_ir_block_t *blocks = state->blocks;
-    size_t nops = state->nops;
     const vm_opcode_t *ops = state->ops;
     vm_ir_block_t *block = &blocks[index];
-    if (block->id == index) {
+    if (block->id >= 0) {
         return;
     }
     block->nregs = state->nregs;
@@ -216,7 +215,7 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
             }
             case VM_OPCODE_FUNC: {
                 vm_opcode_t over = ops[(index)++];
-                vm_opcode_t nargs = ops[(index)++];
+                index += 1;
                 vm_opcode_t nregs = ops[(index)++];
                 size_t tmp1 = state->nops;
                 size_t tmp2 = state->nregs;
@@ -460,7 +459,7 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops) {
     for (size_t i = 0; i < nops; i++) {
         vm_ir_block_t *block = &blocks[i];
         block->tag = VM_TYPE_FUNC;
-        if (block->id != i) {
+        if (block->id < 0) {
             continue;
         }
         for (size_t i = 0; i < 2; i++) {
