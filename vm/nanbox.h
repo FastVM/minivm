@@ -304,14 +304,14 @@ static inline bool NANBOX_NAME(_is_int)(NANBOX_T val) {
 }
 static inline NANBOX_T NANBOX_NAME(_from_int)(int32_t i) {
     NANBOX_T val;
-    val.as_int64 = NANBOX_MIN_NUMBER | (uint32_t)i;
+    val.as_int64 = NANBOX_MIN_NUMBER | *(uint32_t*)&i;
     return val;
 }
 static inline int32_t NANBOX_NAME(_to_int)(NANBOX_T val) {
 #if VM_DEBUG_TYPES
     assert(NANBOX_NAME(_is_int)(val));
 #endif
-    return (int32_t)val.as_int64;
+    return *(int32_t*)&val.as_bits.payload;
 }
 
 static inline bool NANBOX_NAME(_is_double)(NANBOX_T val) {

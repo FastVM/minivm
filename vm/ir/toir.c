@@ -162,6 +162,19 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 vm_opcode_t func = ops[index++];
                 break;
             }
+            case VM_OPCODE_TAB: {
+                vm_opcode_t outreg = ops[index++];
+            }
+            case VM_OPCODE_NIL: {
+                vm_opcode_t outreg = ops[index++];
+            }
+            case VM_OPCODE_TRUE: {
+                vm_opcode_t outreg = ops[index++];
+            }
+            case VM_OPCODE_FALSE: {
+                vm_opcode_t outreg = ops[index++];
+                break;
+            }
             default:
                 fprintf(stderr, "unknown opcode: %zu\n", (size_t)ops[index - 1]);
                 return NULL;
@@ -367,6 +380,26 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
                 vm_opcode_t len = ops[(index)++];
                 vm_ir_block_add_arr(block, vm_ir_arg_reg(reg), vm_ir_arg_reg(len));
                 break;
+            }
+            case VM_OPCODE_TAB: {
+                vm_opcode_t reg = ops[(index)++];
+                vm_ir_block_add_tab(block, vm_ir_arg_reg(reg));
+                goto vm_break;
+            }
+            case VM_OPCODE_NIL: {
+                vm_opcode_t reg = ops[(index)++];
+                vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_nil());
+                goto vm_break;
+            }
+            case VM_OPCODE_TRUE: {
+                vm_opcode_t reg = ops[(index)++];
+                vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_bool(true));
+                goto vm_break;
+            }
+            case VM_OPCODE_FALSE: {
+                vm_opcode_t reg = ops[(index)++];
+                vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_bool(false));
+                goto vm_break;
             }
             case VM_OPCODE_SET: {
                 vm_opcode_t obj = ops[(index)++];

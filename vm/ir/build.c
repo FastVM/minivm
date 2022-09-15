@@ -9,6 +9,8 @@ void vm_ir_block_realloc(vm_ir_block_t *block, vm_ir_instr_t *instr) {
     block->instrs[block->len++] = instr;
 }
 
+vm_ir_arg_t vm_ir_arg_nil(void) { return (vm_ir_arg_t){.type = VM_IR_ARG_NIL}; }
+vm_ir_arg_t vm_ir_arg_bool(bool t) { return (vm_ir_arg_t){.type = VM_IR_ARG_BOOL, .logic = t}; }
 vm_ir_arg_t vm_ir_arg_reg(size_t reg) { return (vm_ir_arg_t){.type = VM_IR_ARG_REG, .reg = reg}; }
 
 vm_ir_arg_t vm_ir_arg_extern(size_t num) { return (vm_ir_arg_t){.type = VM_IR_ARG_EXTERN, .num = num}; }
@@ -53,6 +55,9 @@ void vm_ir_block_add_call(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t fun
 }
 void vm_ir_block_add_arr(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t num) {
     vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_ARR, .out = out, .args[0] = num));
+}
+void vm_ir_block_add_tab(vm_ir_block_t *block, vm_ir_arg_t out) {
+    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_TAB, .out = out));
 }
 void vm_ir_block_add_get(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t obj, vm_ir_arg_t index) {
     vm_ir_block_realloc(block,
@@ -238,6 +243,10 @@ void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val) {
             break;
         }
         case VM_IR_IOP_ARR: {
+            fprintf(out, "arr");
+            break;
+        }
+        case VM_IR_IOP_TAB: {
             fprintf(out, "arr");
             break;
         }

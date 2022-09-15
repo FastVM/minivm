@@ -156,6 +156,26 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_asm_put_reg(vm_asm_read_reg(src));
                     continue;
                 }
+                if (vm_asm_starts(opname, "tab")) {
+                    vm_asm_put_op(VM_OPCODE_TAB);
+                    vm_asm_put_reg(regno);
+                    continue;
+                }
+                if (vm_asm_starts(opname, "nil")) {
+                    vm_asm_put_op(VM_OPCODE_NIL);
+                    vm_asm_put_reg(regno);
+                    continue;
+                }
+                if (vm_asm_starts(opname, "true")) {
+                    vm_asm_put_op(VM_OPCODE_TRUE);
+                    vm_asm_put_reg(regno);
+                    continue;
+                }
+                if (vm_asm_starts(opname, "false")) {
+                    vm_asm_put_op(VM_OPCODE_FALSE);
+                    vm_asm_put_reg(regno);
+                    continue;
+                }
                 if (vm_asm_starts(opname, "get")) {
                     vm_asm_put_op(VM_OPCODE_GET);
                     vm_asm_put_reg(regno);

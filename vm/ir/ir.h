@@ -17,6 +17,8 @@ typedef struct vm_ir_block_t vm_ir_block_t;
 
 enum {
     VM_IR_ARG_NONE,
+    VM_IR_ARG_NIL,
+    VM_IR_ARG_BOOL,
     VM_IR_ARG_REG,
     VM_IR_ARG_NUM,
     VM_IR_ARG_STR,
@@ -43,6 +45,7 @@ enum {
     VM_IR_IOP_MOD,
     VM_IR_IOP_CALL,
     VM_IR_IOP_ARR,
+    VM_IR_IOP_TAB,
     VM_IR_IOP_GET,
     VM_IR_IOP_SET,
     VM_IR_IOP_LEN,
@@ -57,6 +60,7 @@ struct vm_ir_arg_t {
         const char *str;
         vm_ir_block_t *func;
         vm_ir_instr_t *instr;
+        bool logic;
     };
     uint8_t type;
 };

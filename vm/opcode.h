@@ -37,6 +37,10 @@ enum {
     VM_OPCODE_CCALL,
 
     VM_OPCODE_TYPE,
+    VM_OPCODE_TAB,
+    VM_OPCODE_NIL,
+    VM_OPCODE_TRUE,
+    VM_OPCODE_FALSE,
 };
 
 typedef uint32_t vm_opcode_t;
