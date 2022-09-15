@@ -12,15 +12,26 @@ void vm_gc_deinit(vm_gc_t *gc) {
     vm_free(gc->vals);
 }
 
-static void vm_gc_mark(vm_value_array_t *val) {
-    if (val->mark != 0) {
-        return;
-    }
-    val->mark = 1;
-    for (size_t i = 0; i < val->len; i++) {
-        vm_value_t el = val->data[i];
-        if (vm_typeof(el) == VM_TYPE_ARRAY) {
-            vm_gc_mark(vm_value_to_array(el));
+static void vm_gc_mark(vm_value_t value) {
+    uint8_t type = vm_typeof(value);
+    if (type == VM_TYPE_ARRAY) {
+        vm_value_array_t *val = vm_value_to_array(value);
+        if (val->mark != 0) {
+            return;
+        }
+        val->mark = 1;
+        for (size_t i = 0; i < val->len; i++) {
+            vm_gc_mark(val->data[i]);
+        }
+    } else if (type == VM_TYPE_TABLE) {
+        vm_value_table_t *val = vm_value_to_table(value);
+        if (val->mark != 0) {
+            return;
+        }
+        val->mark = 1;
+        for (size_t i = 0; i < val->len; i++) {
+            vm_gc_mark(val->keys[i]);
+            vm_gc_mark(val->values[i]);
         }
     }
 }
@@ -30,20 +41,31 @@ void vm_gc_run(vm_gc_t *restrict gc) {
         return;
     }
     for (size_t i = 0; i < gc->nstack; i++) {
-        vm_value_t el = gc->stack[i];
-        if (vm_typeof(el) == VM_TYPE_ARRAY) {
-            vm_gc_mark(vm_value_to_array(el));
-        }
+        vm_gc_mark(gc->stack[i]);
     }
     size_t head = 0;
     for (size_t i = 0; i < gc->len; i++) {
-        vm_value_array_t *val = gc->vals[i];
-        if (val->mark != 0) {
-            val->mark = 0;
-            gc->vals[head++] = val;
+        vm_value_t value = gc->vals[i];
+        uint8_t type = vm_typeof(value);
+        if (type == VM_TYPE_ARRAY) {
+            vm_value_array_t *val = vm_value_to_array(value);
+            if (val->mark != 0) {
+                val->mark = 0;
+                gc->vals[head++] = value;
+            } else {
+                vm_free(val->data);
+                vm_free(val);
+            }
         } else {
-            vm_free(gc->vals[i]->data);
-            vm_free(gc->vals[i]);
+            vm_value_table_t *val = vm_value_to_table(value);
+            if (val->mark != 0) {
+                val->mark = 0;
+                gc->vals[head++] = value;
+            } else {
+                vm_free(val->keys);
+                vm_free(val->values);
+                vm_free(val);
+            }
         }
     }
     gc->len = head;
@@ -53,12 +75,12 @@ void vm_gc_run(vm_gc_t *restrict gc) {
 vm_value_t vm_gc_arr(vm_gc_t *gc, vm_int_t slots) {
     vm_value_array_t *arr =
         vm_malloc(sizeof(vm_value_array_t));
+    arr->tag = VM_TYPE_ARRAY;
     if (gc->len + 1 >= gc->alloc) {
         gc->alloc = gc->len * 2;
-        gc->vals = vm_realloc(gc->vals, sizeof(vm_value_array_t *) * gc->alloc);
+        gc->vals = vm_realloc(gc->vals, sizeof(vm_value_t) * gc->alloc);
     }
-    gc->vals[gc->len++] = arr;
-    arr->tag = VM_TYPE_ARRAY;
+    gc->vals[gc->len++] = vm_value_from_array(arr);
     arr->alloc = slots;
     arr->len = slots;
     arr->mark = 0;
@@ -100,6 +122,11 @@ vm_int_t vm_gc_len(vm_gc_t *gc, vm_value_t obj) { return (vm_int_t)vm_value_to_a
 vm_value_t vm_gc_tab(vm_gc_t *gc) {
     vm_value_table_t *tab = vm_alloc0(sizeof(vm_value_table_t));
     tab->tag = VM_TYPE_TABLE;
+    if (gc->len + 1 >= gc->alloc) {
+        gc->alloc = gc->len * 2;
+        gc->vals = vm_realloc(gc->vals, sizeof(vm_value_t) * gc->alloc);
+    }
+    gc->vals[gc->len++] = vm_value_from_table(tab);
     return vm_value_from_table(tab);
 }
 

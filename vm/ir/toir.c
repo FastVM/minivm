@@ -164,12 +164,15 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
             }
             case VM_OPCODE_TAB: {
                 vm_opcode_t outreg = ops[index++];
+                break;
             }
             case VM_OPCODE_NIL: {
                 vm_opcode_t outreg = ops[index++];
+                break;
             }
             case VM_OPCODE_TRUE: {
                 vm_opcode_t outreg = ops[index++];
+                break;
             }
             case VM_OPCODE_FALSE: {
                 vm_opcode_t outreg = ops[index++];

@@ -632,8 +632,10 @@ inline_jump:;
             } else {
                 // bb r l l
                 if (types[block->branch->args[0].reg] == VM_TYPE_BOOL) {
-                    fprintf(stderr, "branch does not work yet\n");
-                    __builtin_trap();
+                    vm_int_block_comp_put_ptr(VM_INT_OP_BB_RTT);
+                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                    vm_int_block_comp_put_block(block->branch->targets[0]);
+                    vm_int_block_comp_put_block(block->branch->targets[1]);
                 } else if (types[block->branch->args[0].reg] == VM_TYPE_NIL) {
                     if (block->branch->targets[0]->id <= block->id) {
                         vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
@@ -643,11 +645,11 @@ inline_jump:;
                         goto inline_jump;
                     }
                 } else {
-                    if (block->branch->targets[0]->id <= block->id) {
+                    if (block->branch->targets[1]->id <= block->id) {
                         vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
-                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
                     } else {
-                        block = block->branch->targets[0];
+                        block = block->branch->targets[1];
                         goto inline_jump;
                     }
                 }
@@ -876,6 +878,7 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_OUT_I] = &&do_out_i,
         [VM_INT_OP_OUT_R] = &&do_out_r,
         [VM_INT_OP_JUMP_L] = &&do_jump_l,
+        [VM_INT_OP_BB_RLL] = &&do_bb_rll,
         [VM_INT_OP_FBLT_RRLL] = &&do_fblt_rrll,
         [VM_INT_OP_FBLT_RILL] = &&do_fblt_rill,
         [VM_INT_OP_FBLT_IRLL] = &&do_fblt_irll,
@@ -894,7 +897,7 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_CALL_T7] = &&do_call_t7,
         [VM_INT_OP_CALL_T8] = &&do_call_t8,
         [VM_INT_OP_JUMP_T] = &&do_jump_t,
-        [VM_INT_OP_FBB_RTT] = &&do_fbb_rtt,
+        [VM_INT_OP_BB_RTT] = &&do_fblt_rrtt,
         [VM_INT_OP_FBLT_RRTT] = &&do_fblt_rrtt,
         [VM_INT_OP_FBLT_RITT] = &&do_fblt_ritt,
         [VM_INT_OP_FBLT_IRTT] = &&do_fblt_irtt,
@@ -1518,9 +1521,9 @@ do_jump_l : {
     vm_int_run_next();
 }
 // float branch compiled
-do_fbb_rll : {
-    ptrdiff_t val = vm_value_to_float(vm_int_run_read_load());
-    if (val != 0) {
+do_bb_rll : {
+    vm_value_t value = vm_int_run_read_load();
+    if (vm_value_to_bool(value)) {
         head = head[1].ptr;
     } else {
         head = head[0].ptr;
@@ -1528,10 +1531,8 @@ do_fbb_rll : {
     vm_int_run_next();
 }
 do_fblt_rrll : {
-    vm_value_t lhsv = vm_int_run_read_load();
-    vm_value_t rhsv = vm_int_run_read_load();
-    vm_number_t lhs = vm_value_to_float(lhsv);
-    vm_number_t rhs = vm_value_to_float(rhsv);
+    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
+    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
     if (lhs < rhs) {
         head = head[1].ptr;
     } else {
@@ -1730,9 +1731,9 @@ do_jump_t : {
     head = loc;
     vm_int_run_next();
 }
-do_fbb_rtt : {
+do_bb_rtt : {
     vm_int_opcode_t *loc = --head;
-    vm_int_run_read().ptr = &&do_fbb_rll;
+    vm_int_run_read().ptr = &&do_bb_rll;
     head += 1;
     vm_int_opcode_t *block1 = &vm_int_run_read();
     vm_int_opcode_t *block2 = &vm_int_run_read();

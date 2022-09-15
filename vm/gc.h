@@ -35,6 +35,7 @@ struct vm_value_array_t {
 
 struct vm_value_table_t {
     uint8_t tag;
+    uint8_t mark;
     vm_value_t *keys;
     vm_value_t *values;
     uint32_t len;
@@ -53,7 +54,7 @@ enum {
 };
 
 struct vm_gc_t {
-    vm_value_array_t **vals;
+    vm_value_t *vals;
     size_t len;
     size_t alloc;
     size_t max;
