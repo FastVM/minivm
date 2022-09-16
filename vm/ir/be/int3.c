@@ -1338,7 +1338,7 @@ do_call_c0 : {
     locals[state->framesize + 1 + 0] = obj;
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1349,7 +1349,7 @@ do_call_c1 : {
     locals[state->framesize + 1 + 1] = vm_int_run_read_load();
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1361,7 +1361,7 @@ do_call_c2 : {
     locals[state->framesize + 1 + 2] = vm_int_run_read_load();
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1374,7 +1374,7 @@ do_call_c3 : {
     locals[state->framesize + 1 + 3] = vm_int_run_read_load();
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1388,7 +1388,7 @@ do_call_c4 : {
     locals[state->framesize + 1 + 4] = vm_int_run_read_load();
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1403,7 +1403,7 @@ do_call_c5 : {
     locals[state->framesize + 1 + 5] = vm_int_run_read_load();
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1419,7 +1419,7 @@ do_call_c6 : {
     locals[state->framesize + 1 + 6] = vm_int_run_read_load();
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1436,7 +1436,7 @@ do_call_c7 : {
     locals[state->framesize + 1 + 7] = vm_int_run_read_load();
     locals += state->framesize;
     *state->heads++ = head;
-    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(&state->gc, obj, 0));
+    vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1446,62 +1446,62 @@ do_arr_f : {
     vm_value_t *out = vm_int_run_read_store();
     double len = vm_int_run_read().fval;
     vm_gc_run(&state->gc);
-    *out = vm_gc_arr(&state->gc, len);
+    *out = vm_gc_arr(&state->gc, (vm_int_t) len);
     vm_int_run_next();
 }
 do_arr_r : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t len = vm_int_run_read_load();
     vm_gc_run(&state->gc);
-    *out = vm_gc_arr(&state->gc, vm_value_to_float(len));
+    *out = vm_gc_arr(&state->gc, (vm_int_t) vm_value_to_float(len));
     vm_int_run_next();
 }
 do_set_rrr : {
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t key = vm_int_run_read_load();
     vm_value_t val = vm_int_run_read_load();
-    vm_gc_set_vv(&state->gc, obj, key, val);
+    vm_gc_set_vv(obj, key, val);
     vm_int_run_next();
 }
 do_set_rri : {
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t key = vm_int_run_read_load();
     vm_int_t val = vm_int_run_read().ival;
-    vm_gc_set_vi(&state->gc, obj, key, val);
+    vm_gc_set_vi(obj, key, val);
     vm_int_run_next();
 }
 do_set_rir : {
     vm_value_t obj = vm_int_run_read_load();
     vm_int_t key = vm_int_run_read().ival;
     vm_value_t val = vm_int_run_read_load();
-    vm_gc_set_iv(&state->gc, obj, key, val);
+    vm_gc_set_iv(obj, key, val);
     vm_int_run_next();
 }
 do_set_rii : {
     vm_value_t obj = vm_int_run_read_load();
     vm_int_t key = vm_int_run_read().ival;
     vm_int_t val = vm_int_run_read().ival;
-    vm_gc_set_ii(&state->gc, obj, key, val);
+    vm_gc_set_ii(obj, key, val);
     vm_int_run_next();
 }
 do_get_rr : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t key = vm_int_run_read_load();
-    *out = vm_gc_get_v(&state->gc, obj, key);
+    *out = vm_gc_get_v(obj, key);
     vm_int_run_next();
 }
 do_get_ri : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
     vm_int_t key = vm_int_run_read().ival;
-    *out = vm_gc_get_i(&state->gc, obj, key);
+    *out = vm_gc_get_i(obj, key);
     vm_int_run_next();
 }
 do_len_r : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
-    *out = vm_value_from_float(vm_gc_len(&state->gc, obj));
+    *out = vm_value_from_float(vm_gc_len(obj));
     vm_int_run_next();
 }
 // io

@@ -71,19 +71,19 @@ void vm_gc_deinit(vm_gc_t *out);
 void vm_gc_run(vm_gc_t *gc);
 vm_value_t vm_gc_tab(vm_gc_t *gc);
 vm_value_t vm_gc_arr(vm_gc_t *gc, vm_int_t slots);
-vm_value_t vm_gc_get(vm_gc_t *gc, vm_value_t obj, vm_value_t index);
-void vm_gc_set(vm_gc_t *gc, vm_value_t obj, vm_value_t index, vm_value_t value);
-vm_int_t vm_gc_len(vm_gc_t *gc, vm_value_t obj);
+vm_value_t vm_gc_get(vm_value_t obj, vm_value_t index);
+void vm_gc_set(vm_value_t obj, vm_value_t index, vm_value_t value);
+vm_int_t vm_gc_len(vm_value_t obj);
 vm_value_t vm_gc_table_get(vm_value_table_t *tab, vm_value_t key);
 void vm_gc_table_set(vm_value_table_t *tab, vm_value_t key, vm_value_t val);
 
-#define vm_gc_get_v(gc_, obj_, nth_) vm_gc_get(gc_, obj_, (nth_))
-#define vm_gc_get_i(gc_, obj_, nth_) vm_gc_get(gc_, obj_, vm_value_from_float(nth_))
+#define vm_gc_get_v(obj_, nth_) vm_gc_get(obj_, (nth_))
+#define vm_gc_get_i(obj_, nth_) vm_gc_get(obj_, vm_value_from_float(nth_))
 
-#define vm_gc_set_vv(gc_, obj_, nth_, val_) vm_gc_set(gc_, obj_, nth_, val_)
-#define vm_gc_set_vi(gc_, obj_, nth_, val_) vm_gc_set(gc_, obj_, nth_, vm_value_from_float(val_))
-#define vm_gc_set_iv(gc_, obj_, nth_, val_) vm_gc_set(gc_, obj_, vm_value_from_float(nth_), val_)
-#define vm_gc_set_ii(gc_, obj_, nth_, val_) vm_gc_set(gc_, obj_, vm_value_from_float(nth_), vm_value_from_float(val_))
+#define vm_gc_set_vv(obj_, nth_, val_) vm_gc_set(obj_, nth_, val_)
+#define vm_gc_set_vi(obj_, nth_, val_) vm_gc_set(obj_, nth_, vm_value_from_float(val_))
+#define vm_gc_set_iv(obj_, nth_, val_) vm_gc_set(obj_, vm_value_from_float(nth_), val_)
+#define vm_gc_set_ii(obj_, nth_, val_) vm_gc_set(obj_, vm_value_from_float(nth_), vm_value_from_float(val_))
 
 #define vm_value_nil() (vm_box_empty())
 #define vm_value_from_bool(n_) (vm_box_from_boolean(n_))

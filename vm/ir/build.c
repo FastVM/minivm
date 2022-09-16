@@ -301,17 +301,17 @@ void vm_ir_print_blocks(FILE *out, size_t nblocks, vm_ir_block_t *blocks) {
             continue;
         }
         if (block->isfunc) {
-            fprintf(stderr, "\nfunc .%zu(", i);
+            fprintf(out, "\nfunc .%zu(", i);
         } else {
-            fprintf(stderr, ".%zu(", i);
+            fprintf(out, ".%zu(", i);
         }
         for (size_t i = 0; i < block->nargs; i++) {
             if (i != 0) {
-                fprintf(stderr, ", ");
+                fprintf(out, ", ");
             }
-            fprintf(stderr, "r%zu", block->args[i]);
+            fprintf(out, "r%zu", block->args[i]);
         }
-        fprintf(stderr, ")\n");
-        vm_ir_print_block(stderr, block);
+        fprintf(out, ")\n");
+        vm_ir_print_block(out, block);
     }
 }

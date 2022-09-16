@@ -368,7 +368,7 @@ vm_value_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t slots) {
     return vm_value_from_array(arr);
 }
 
-vm_value_t vm_gc_get(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t ind) {
+vm_value_t vm_gc_get(vm_value_t obj, vm_value_t ind) {
     size_t index = (size_t)vm_value_to_float(ind);
     vm_value_array_t *arr = vm_value_to_array(obj);
     if (index >= arr->len) {
@@ -377,7 +377,7 @@ vm_value_t vm_gc_get(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t ind) {
     return arr->data[index];
 }
 
-void vm_gc_set(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t ind, vm_value_t value) {
+void vm_gc_set(vm_value_t obj, vm_value_t ind, vm_value_t value) {
     size_t index = (size_t)vm_value_to_float(ind);
     vm_value_array_t *arr = vm_value_to_array(obj);
     if (index >= arr->alloc) {
@@ -392,7 +392,7 @@ void vm_gc_set(vm_gc_t *restrict gc, vm_value_t obj, vm_value_t ind, vm_value_t 
     arr->data[index] = value;
 }
 
-vm_int_t vm_gc_len(vm_gc_t *restrict gc, vm_value_t obj) { return (vm_int_t)vm_value_to_array(obj)->len; }
+vm_int_t vm_gc_len(vm_value_t obj) { return (vm_int_t)vm_value_to_array(obj)->len; }
 
 vm_value_t vm_gc_tab(vm_gc_t *gc) {
     vm_value_table_t *tab = vm_alloc0(sizeof(vm_value_table_t));

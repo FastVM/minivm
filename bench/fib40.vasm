@@ -19,7 +19,8 @@ func fib
 end
 
 func putn
-    bb r1 putn.ret putn.digit 
+    r0 <- int 1
+    blt r1 r0 putn.digit putn.ret 
 @putn.digit
     r0 <- int 10
     r0 <- div r1 r0
