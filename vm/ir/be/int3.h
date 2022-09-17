@@ -93,7 +93,12 @@ enum {
     VM_INT_OP_FBEQ_IRLL,
 
     VM_INT_OP_RET_I,
-    VM_INT_OP_RET_R,
+    VM_INT_OP_RET_RV,
+    VM_INT_OP_RET_RB,
+    VM_INT_OP_RET_RI,
+    VM_INT_OP_RET_RF,
+    VM_INT_OP_RET_RA,
+    VM_INT_OP_RET_RT,
 
     VM_INT_OP_CALL_T0,
     VM_INT_OP_CALL_T1,
@@ -114,9 +119,6 @@ enum {
     VM_INT_OP_FBEQ_RITT,
     VM_INT_OP_FBEQ_IRTT,
 
-    VM_INT_OP_BTY_T,
-    VM_INT_OP_BTY_L,
-    
     VM_INT_OP_TAB,
     VM_INT_OP_TSET_RRR,
     VM_INT_OP_TSET_RRF,

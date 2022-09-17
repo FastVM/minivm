@@ -139,7 +139,6 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
     fprintf(stderr, ") {\n", block->id);
 #endif
 inline_jump:;
-    ptrdiff_t typecheck = -1;
     for (size_t arg = 0; arg < block->len; arg++) {
         if (buf.len + 16 >= buf.alloc) {
             buf.alloc = buf.len * 2 + 16;
@@ -408,10 +407,14 @@ inline_jump:;
                 }
                 if (instr->out.type == VM_IR_ARG_REG) {
                     vm_int_block_comp_put_out(instr->out.reg);
-                    typecheck = instr->out.reg;
                 } else {
                     vm_int_block_comp_put_out(block->nregs + 1);
                 }
+                vm_int_block_comp_put_block(block->branch->targets[0]);
+                for (uint8_t i = 1; i < VM_TYPE_MAX; i++) {
+                    vm_int_block_comp_put_block(NULL);
+                }
+                goto retv;
                 break;
             }
             case VM_IR_IOP_TAB: {
@@ -450,13 +453,11 @@ inline_jump:;
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_arg(instr->args[0]);
                                 vm_int_block_comp_put_arg(instr->args[1]);
-                                typecheck = instr->out.reg;
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_GET_RR);
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_arg(instr->args[0]);
                                 vm_int_block_comp_put_arg(instr->args[1]);
-                                typecheck = instr->out.reg;
                             } else {
                                 fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t) types[instr->args[0].reg]);
                                 __builtin_trap();
@@ -468,18 +469,21 @@ inline_jump:;
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_arg(instr->args[0]);
                                 vm_int_block_comp_put_fval(instr->args[1].num);
-                                typecheck = instr->out.reg;
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_GET_RI);
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_arg(instr->args[0]);
                                 vm_int_block_comp_put_ival(instr->args[1].num);
-                                typecheck = instr->out.reg;
                             } else {
                                 fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t) types[ instr->args[0].reg]);
                                 __builtin_trap();
                             }
                         }
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        for (uint8_t i = 1; i < VM_TYPE_MAX; i++) {
+                            vm_int_block_comp_put_block(NULL);
+                        }
+                        goto retv;
                     }
                 }
                 break;
@@ -605,21 +609,12 @@ inline_jump:;
     switch (block->branch->op) {
         case VM_IR_BOP_JUMP: {
             // jump l
-            if (typecheck >= 0) {
-                vm_int_block_comp_put_ptr(VM_INT_OP_BTY_T);
-                vm_int_block_comp_put_ival(0);
-                vm_int_block_comp_put_reg((size_t)typecheck);
-                for (uint8_t i = 0; i < VM_TYPE_MAX; i++) {
-                    vm_int_block_comp_put_block(block->branch->targets[0]);
-                }
+            if (block->branch->targets[0]->id <= block->id) {
+                vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
+                vm_int_block_comp_put_block(block->branch->targets[0]);
             } else {
-                if (block->branch->targets[0]->id <= block->id) {
-                    vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
-                    vm_int_block_comp_put_block(block->branch->targets[0]);
-                } else {
-                    block = block->branch->targets[0];
-                    goto inline_jump;
-                }
+                block = block->branch->targets[0];
+                goto inline_jump;
             }
             break;
         }
@@ -733,9 +728,31 @@ inline_jump:;
                 vm_int_block_comp_put_ptr(VM_INT_OP_RET_I);
                 vm_int_block_comp_put_arg(block->branch->args[0]);
             } else {
+                uint8_t type = types[block->branch->args[0].reg];
+                if (type == VM_TYPE_NIL) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_RET_RV);
+                }
+                if (type == VM_TYPE_BOOL) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_RET_RB);
+                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                }
+                if (type == VM_TYPE_FLOAT) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_RET_RI);
+                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                }
+                if (type == VM_TYPE_FUNC) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_RET_RF);
+                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                }
+                if (type == VM_TYPE_ARRAY) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_RET_RA);
+                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                }
+                if (type == VM_TYPE_TABLE) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_RET_RT);
+                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                }
                 // ret r
-                vm_int_block_comp_put_ptr(VM_INT_OP_RET_R);
-                vm_int_block_comp_put_arg(block->branch->args[0]);
             }
             break;
         }
@@ -745,6 +762,7 @@ inline_jump:;
             break;
         }
     }
+retv:
 #if VM_INT_DEBUG_COMP
     fprintf(stderr, "  ");
     vm_ir_print_branch(stderr, block->branch);
@@ -806,6 +824,7 @@ inline_jump:;
 #define vm_int_run_save()       \
     ({                          \
         state->locals = locals; \
+        state->heads = heads; \
         state;                  \
     })
 
@@ -884,7 +903,12 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_FBEQ_RILL] = &&do_fbeq_rill,
         [VM_INT_OP_FBEQ_IRLL] = &&do_fbeq_irll,
         [VM_INT_OP_RET_I] = &&do_ret_i,
-        [VM_INT_OP_RET_R] = &&do_ret_r,
+        [VM_INT_OP_RET_RV] = &&do_ret_rv,
+        [VM_INT_OP_RET_RB] = &&do_ret_rb,
+        [VM_INT_OP_RET_RI] = &&do_ret_ri,
+        [VM_INT_OP_RET_RF] = &&do_ret_rf,
+        [VM_INT_OP_RET_RA] = &&do_ret_ra,
+        [VM_INT_OP_RET_RT] = &&do_ret_rt,
         [VM_INT_OP_CALL_T0] = &&do_call_t0,
         [VM_INT_OP_CALL_T1] = &&do_call_t1,
         [VM_INT_OP_CALL_T2] = &&do_call_t2,
@@ -902,7 +926,6 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_FBEQ_RRTT] = &&do_fbeq_rrtt,
         [VM_INT_OP_FBEQ_RITT] = &&do_fbeq_ritt,
         [VM_INT_OP_FBEQ_IRTT] = &&do_fbeq_irtt,
-        [VM_INT_OP_BTY_T] = &&do_bty_t,
         [VM_INT_OP_TAB] = &&do_tab,
         [VM_INT_OP_TSET_RRR] = &&do_tset_rrr,
         [VM_INT_OP_TSET_RRF] = &&do_tset_rrf,
@@ -914,6 +937,8 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
     vm_value_t *init_locals = state->locals;
     vm_value_t *locals = init_locals;
     vm_int_opcode_t **init_heads = state->heads;
+    vm_int_opcode_t **heads = init_heads;
+    size_t framesize = state->framesize;
     vm_int_opcode_t *head = vm_int_block_comp(vm_int_run_save(), ptrs, block);
     vm_int_run_next();
 // movs
@@ -1035,207 +1060,207 @@ do_fmod_ir : {
 // calls
 do_call_l0 : {
     void *ptr = vm_int_run_read().ptr;
-    *state->heads++ = head;
-    locals += state->framesize;
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l1 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l2 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l3 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l4 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l5 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l6 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l7 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_l8 : {
     void *ptr = vm_int_run_read().ptr;
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 7] = vm_int_run_read_load();
-    *state->heads++ = head;
-    locals += state->framesize;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    locals[framesize + 1 + 7] = vm_int_run_read_load();
+    *heads++ = head;
+    locals += framesize;
     head = ptr;
     vm_int_run_next();
 }
 do_call_r0 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r1 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r2 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r3 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r4 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r5 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r6 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r7 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
 }
 do_call_r8 : {
     vm_ir_block_t *func = vm_value_to_block(vm_int_run_read_load());
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 7] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    locals[framesize + 1 + 7] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
     vm_int_run_next();
@@ -1244,27 +1269,27 @@ do_call_r8 : {
 do_call_x0 : {
     vm_int_func_t ptr = state->funcs[vm_int_run_read().ival];
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 0, NULL);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x1 : {
     vm_int_func_t ptr = state->funcs[vm_int_run_read().ival];
     vm_value_t values[1] = {vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 1, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x2 : {
     vm_int_func_t ptr = state->funcs[vm_int_run_read().ival];
     vm_value_t values[2] = {vm_int_run_read_load(), vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 2, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x3 : {
@@ -1272,9 +1297,9 @@ do_call_x3 : {
     vm_value_t values[3] = {vm_int_run_read_load(), vm_int_run_read_load(),
                             vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 3, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x4 : {
@@ -1282,9 +1307,9 @@ do_call_x4 : {
     vm_value_t values[4] = {vm_int_run_read_load(), vm_int_run_read_load(),
                             vm_int_run_read_load(), vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 4, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x5 : {
@@ -1293,9 +1318,9 @@ do_call_x5 : {
                             vm_int_run_read_load(), vm_int_run_read_load(),
                             vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 5, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x6 : {
@@ -1304,9 +1329,9 @@ do_call_x6 : {
                             vm_int_run_read_load(), vm_int_run_read_load(),
                             vm_int_run_read_load(), vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 6, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x7 : {
@@ -1316,9 +1341,9 @@ do_call_x7 : {
                             vm_int_run_read_load(), vm_int_run_read_load(),
                             vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 7, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_x8 : {
@@ -1328,16 +1353,16 @@ do_call_x8 : {
                             vm_int_run_read_load(), vm_int_run_read_load(),
                             vm_int_run_read_load(), vm_int_run_read_load()};
     vm_value_t *out = vm_int_run_read_store();
-    locals += state->framesize;
+    locals += framesize;
     *out = ptr.func(ptr.data, vm_int_run_save(), 8, &values[0]);
-    locals -= state->framesize;
+    locals -= framesize;
     vm_int_run_next();
 }
 do_call_c0 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1345,10 +1370,10 @@ do_call_c0 : {
 }
 do_call_c1 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1356,11 +1381,11 @@ do_call_c1 : {
 }
 do_call_c2 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1368,12 +1393,12 @@ do_call_c2 : {
 }
 do_call_c3 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1381,13 +1406,13 @@ do_call_c3 : {
 }
 do_call_c4 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1395,14 +1420,14 @@ do_call_c4 : {
 }
 do_call_c5 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1410,15 +1435,15 @@ do_call_c5 : {
 }
 do_call_c6 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1426,16 +1451,16 @@ do_call_c6 : {
 }
 do_call_c7 : {
     vm_value_t obj = vm_int_run_read_load();
-    locals[state->framesize + 1 + 0] = obj;
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 7] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = obj;
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    locals[framesize + 1 + 7] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     vm_ir_block_t *func = vm_value_to_block(vm_gc_get_i(obj, 0));
     void *ptr = vm_int_block_comp(vm_int_run_save(), ptrs, func);
     head = ptr;
@@ -1488,15 +1513,65 @@ do_get_rr : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t key = vm_int_run_read_load();
-    *out = vm_gc_get_v(obj, key);
-    vm_int_run_next();
+    vm_value_t data = vm_gc_get_v(obj, key);
+    *out = data;
+    uint8_t type = vm_typeof(data);
+    if (head[type].ptr == NULL) {
+        head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    }
+    switch (type) {
+        case VM_TYPE_NIL: 
+            head = head[VM_TYPE_NIL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_BOOL:
+            head = head[VM_TYPE_BOOL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FLOAT:
+            head = head[VM_TYPE_FLOAT].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FUNC:
+            head = head[VM_TYPE_FUNC].ptr;
+            vm_int_run_next();
+        case VM_TYPE_ARRAY:
+            head = head[VM_TYPE_ARRAY].ptr;
+            vm_int_run_next();
+        case VM_TYPE_TABLE:
+            head = head[VM_TYPE_TABLE].ptr;
+            vm_int_run_next();
+    }
+    __builtin_unreachable();
 }
 do_get_ri : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
     vm_int_t key = vm_int_run_read().ival;
-    *out = vm_gc_get_i(obj, key);
-    vm_int_run_next();
+    vm_value_t data = vm_gc_get_i(obj, key);
+    *out = data;
+    uint8_t type = vm_typeof(data);
+    if (head[type].ptr == NULL) {
+        head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    }
+    switch (type) {
+        case VM_TYPE_NIL: 
+            head = head[VM_TYPE_NIL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_BOOL:
+            head = head[VM_TYPE_BOOL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FLOAT:
+            head = head[VM_TYPE_FLOAT].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FUNC:
+            head = head[VM_TYPE_FUNC].ptr;
+            vm_int_run_next();
+        case VM_TYPE_ARRAY:
+            head = head[VM_TYPE_ARRAY].ptr;
+            vm_int_run_next();
+        case VM_TYPE_TABLE:
+            head = head[VM_TYPE_TABLE].ptr;
+            vm_int_run_next();
+    }
+    __builtin_unreachable();
 }
 do_len_r : {
     vm_value_t *out = vm_int_run_read_store();
@@ -1591,24 +1666,94 @@ do_fbeq_irll : {
 // ret
 do_ret_i : {
     vm_value_t value = vm_value_from_float(vm_int_run_read().fval);
-    if (state->heads == init_heads) {
-        return value;
-    }
-    head = *--state->heads;
-    locals -= state->framesize;
+    head = *--heads;
+    locals -= framesize;
     vm_int_opcode_t out = vm_int_run_read();
     locals[out.reg] = value;
+    void *pblock = head[VM_TYPE_FLOAT].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_FLOAT].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
+    }
     vm_int_run_next();
 }
-do_ret_r : {
-    vm_value_t value = vm_int_run_read_load();
-    if (state->heads == init_heads) {
-        return value;
+do_ret_rv : {
+    vm_value_t value = locals[head->reg];
+    locals -= framesize;
+    head = *--heads;
+    locals[vm_int_run_read().reg] = value;
+    void *pblock = head[VM_TYPE_NIL].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_NIL].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
     }
-    head = *--state->heads;
-    locals -= state->framesize;
-    vm_int_opcode_t out = vm_int_run_read();
-    locals[out.reg] = value;
+    vm_int_run_next();
+}
+do_ret_rb : {
+    vm_value_t value = locals[head->reg];
+    locals -= framesize;
+    head = *--heads;
+    locals[vm_int_run_read().reg] = value;
+    void *pblock = head[VM_TYPE_BOOL].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_BOOL].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
+    }
+    vm_int_run_next();
+}
+do_ret_ri : {
+    vm_value_t value = locals[head->reg];
+    locals -= framesize;
+    head = *--heads;
+    locals[vm_int_run_read().reg] = value;
+    void *pblock = head[VM_TYPE_FLOAT].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_FLOAT].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
+    }
+    vm_int_run_next();
+}
+do_ret_rf : {
+    vm_value_t value = locals[head->reg];
+    locals -= framesize;
+    head = *--heads;
+    locals[vm_int_run_read().reg] = value;
+    void *pblock = head[VM_TYPE_FUNC].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_FUNC].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
+    }
+    vm_int_run_next();
+}
+do_ret_ra : {
+    vm_value_t value = locals[head->reg];
+    locals -= framesize;
+    head = *--heads;
+    locals[vm_int_run_read().reg] = value;
+    void *pblock = head[VM_TYPE_ARRAY].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_ARRAY].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
+    }
+    vm_int_run_next();
+}
+do_ret_rt : {
+    vm_value_t value = locals[head->reg];
+    locals -= framesize;
+    head = *--heads;
+    locals[vm_int_run_read().reg] = value;
+    void *pblock = head[VM_TYPE_TABLE].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_TABLE].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
+    }
     vm_int_run_next();
 }
 do_exit : { return vm_value_from_float(0); }
@@ -1616,108 +1761,108 @@ do_exit : { return vm_value_from_float(0); }
 do_call_t0 : {
     head[-1].ptr = &&do_call_l0;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t1 : {
     head[-1].ptr = &&do_call_l1;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t2 : {
     head[-1].ptr = &&do_call_l2;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t3 : {
     head[-1].ptr = &&do_call_l3;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t4 : {
     head[-1].ptr = &&do_call_l4;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t5 : {
     head[-1].ptr = &&do_call_l5;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t6 : {
     head[-1].ptr = &&do_call_l6;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t7 : {
     head[-1].ptr = &&do_call_l7;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
 do_call_t8 : {
     head[-1].ptr = &&do_call_l8;
     vm_int_opcode_t *block = &vm_int_run_read();
-    locals[state->framesize + 1 + 0] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 1] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 2] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 3] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 4] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 5] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 6] = vm_int_run_read_load();
-    locals[state->framesize + 1 + 7] = vm_int_run_read_load();
-    locals += state->framesize;
-    *state->heads++ = head;
+    locals[framesize + 1 + 0] = vm_int_run_read_load();
+    locals[framesize + 1 + 1] = vm_int_run_read_load();
+    locals[framesize + 1 + 2] = vm_int_run_read_load();
+    locals[framesize + 1 + 3] = vm_int_run_read_load();
+    locals[framesize + 1 + 4] = vm_int_run_read_load();
+    locals[framesize + 1 + 5] = vm_int_run_read_load();
+    locals[framesize + 1 + 6] = vm_int_run_read_load();
+    locals[framesize + 1 + 7] = vm_int_run_read_load();
+    locals += framesize;
+    *heads++ = head;
     head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
     vm_int_run_next();
 }
@@ -1806,40 +1951,6 @@ do_fbeq_irtt : {
     head = loc;
     vm_int_run_next();
 }
-do_bty_t : {
-    ptrdiff_t *tags = &vm_int_run_read().ival;
-    uint8_t type = vm_typeof(vm_int_run_read_load());
-    if (!(*tags & (1 << type))) {
-        *tags |= 1 << type;
-        head = head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[type].block);
-        vm_int_run_next();
-    } else {
-        switch (type) {
-            case VM_TYPE_NIL:
-                head = head[VM_TYPE_NIL].ptr;
-                vm_int_run_next();
-            case VM_TYPE_BOOL:
-                head = head[VM_TYPE_BOOL].ptr;
-                vm_int_run_next();
-            case VM_TYPE_FLOAT:
-                head = head[VM_TYPE_FLOAT].ptr;
-                vm_int_run_next();
-            case VM_TYPE_FUNC:
-                head = head[VM_TYPE_FUNC].ptr;
-                vm_int_run_next();
-            case VM_TYPE_ARRAY:
-                head = head[VM_TYPE_ARRAY].ptr;
-                vm_int_run_next();
-            case VM_TYPE_TABLE:
-                head = head[VM_TYPE_TABLE].ptr;
-                vm_int_run_next();
-            default:
-                head = head[type].ptr;
-                vm_int_run_next();
-        }
-    }
-    __builtin_unreachable();
-}
 do_tab : {
     vm_value_t *out = vm_int_run_read_store();
     vm_gc_run(&state->gc);
@@ -1850,15 +1961,65 @@ do_tget_rr : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t ind = vm_int_run_read_load();
-    *out = vm_gc_table_get(vm_value_to_table(obj), ind);
-    vm_int_run_next();
+    vm_value_t data = vm_gc_table_get(vm_value_to_table(obj), ind);
+    *out = data;
+    uint8_t type = vm_typeof(data);
+    if (head[type].ptr == NULL) {
+        head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    }
+    switch (type) {
+        case VM_TYPE_NIL: 
+            head = head[VM_TYPE_NIL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_BOOL:
+            head = head[VM_TYPE_BOOL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FLOAT:
+            head = head[VM_TYPE_FLOAT].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FUNC:
+            head = head[VM_TYPE_FUNC].ptr;
+            vm_int_run_next();
+        case VM_TYPE_ARRAY:
+            head = head[VM_TYPE_ARRAY].ptr;
+            vm_int_run_next();
+        case VM_TYPE_TABLE:
+            head = head[VM_TYPE_TABLE].ptr;
+            vm_int_run_next();
+    }
+    __builtin_unreachable();
 }
 do_tget_rf : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t ind = vm_value_from_float(vm_int_run_read().fval);
-    *out = vm_gc_table_get(vm_value_to_table(obj), ind);
-    vm_int_run_next();
+    vm_value_t data = vm_gc_table_get(vm_value_to_table(obj), ind);
+    *out = data;
+    uint8_t type = vm_typeof(data);
+    if (head[type].ptr == NULL) {
+        head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    }
+    switch (type) {
+        case VM_TYPE_NIL: 
+            head = head[VM_TYPE_NIL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_BOOL:
+            head = head[VM_TYPE_BOOL].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FLOAT:
+            head = head[VM_TYPE_FLOAT].ptr;
+            vm_int_run_next();
+        case VM_TYPE_FUNC:
+            head = head[VM_TYPE_FUNC].ptr;
+            vm_int_run_next();
+        case VM_TYPE_ARRAY:
+            head = head[VM_TYPE_ARRAY].ptr;
+            vm_int_run_next();
+        case VM_TYPE_TABLE:
+            head = head[VM_TYPE_TABLE].ptr;
+            vm_int_run_next();
+    }
+    __builtin_unreachable();
 }
 do_tset_rrr : {
     vm_value_t obj = vm_int_run_read_load();
