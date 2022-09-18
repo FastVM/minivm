@@ -6,6 +6,7 @@
 #define vm_int_block_comp_put_ptr(arg_) buf.ops[buf.len++].ptr = ptrs[(arg_)]
 #define vm_int_block_comp_put_out(out_) buf.ops[buf.len++].reg = (out_)
 #define vm_int_block_comp_put_reg(vreg_) buf.ops[buf.len++].reg = (vreg_)
+#define vm_int_block_comp_put_bval(val_) buf.ops[buf.len++].bval = (val_)
 #define vm_int_block_comp_put_ival(val_) buf.ops[buf.len++].ival = (val_)
 #define vm_int_block_comp_put_fval(val_) buf.ops[buf.len++].fval = (val_)
 #define vm_int_block_comp_put_block(block_) ({ \
@@ -165,6 +166,21 @@ inline_jump:;
                             vm_int_block_comp_put_out(instr->out.reg);
                             vm_int_block_comp_put_arg(instr->args[0]);
                             types[instr->out.reg] = types[instr->args[0].reg];
+                            break;
+                        }
+                        case VM_IR_ARG_NIL: {
+                            // r = move i                             
+                            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_V);
+                            vm_int_block_comp_put_out(instr->out.reg);
+                            types[instr->out.reg] = VM_TYPE_NIL;
+                            break;
+                        }
+                        case VM_IR_ARG_BOOL: {
+                            // r = move i                             
+                            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_B);
+                            vm_int_block_comp_put_out(instr->out.reg);
+                            vm_int_block_comp_put_bval(instr->args[0].logic);
+                            types[instr->out.reg] = VM_TYPE_BOOL;
                             break;
                         }
                         case VM_IR_ARG_NUM: {
@@ -437,7 +453,7 @@ inline_jump:;
                         // r = new i
                         vm_int_block_comp_put_ptr(VM_INT_OP_ARR_F);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_ival(instr->args[0].num);
+                        vm_int_block_comp_put_fval(instr->args[0].num);
                         types[instr->out.reg] = VM_TYPE_ARRAY;
                     }
                 }
@@ -830,11 +846,12 @@ retv:
 
 vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
     static void *ptrs[VM_INT_MAX_OP] = {
-        [VM_INT_OP_EXIT] = &&do_exit,
+        [VM_INT_OP_EXIT] = &&do_exit, 
+        [VM_INT_OP_MOV_V] = &&do_mov_v,
+        [VM_INT_OP_MOV_B] = &&do_mov_b,
         [VM_INT_OP_MOV_F] = &&do_mov_f,
         [VM_INT_OP_MOV_R] = &&do_mov_r,
         [VM_INT_OP_MOV_T] = &&do_mov_t,
-        [VM_INT_OP_FLOAT] = &&do_float,
         [VM_INT_OP_FADD_RR] = &&do_fadd_rr,
         [VM_INT_OP_FADD_RF] = &&do_fadd_ri,
         [VM_INT_OP_FSUB_RR] = &&do_fsub_rr,
@@ -942,6 +959,17 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
     vm_int_opcode_t *head = vm_int_block_comp(vm_int_run_save(), ptrs, block);
     vm_int_run_next();
 // movs
+do_mov_v : {
+    vm_value_t *out = vm_int_run_read_store();
+    *out = vm_value_nil();
+    vm_int_run_next();
+}
+do_mov_b : {
+    vm_value_t *out = vm_int_run_read_store();
+    bool value = vm_int_run_read().bval;
+    *out = vm_value_from_bool(value);
+    vm_int_run_next();
+}
 do_mov_f : {
     vm_value_t *out = vm_int_run_read_store();
     vm_number_t value = vm_int_run_read().fval;
@@ -1470,14 +1498,14 @@ do_call_c7 : {
 do_arr_f : {
     vm_value_t *out = vm_int_run_read_store();
     double len = vm_int_run_read().fval;
-    vm_gc_run(&state->gc);
+    vm_gc_run(&state->gc, locals + state->framesize);
     *out = vm_gc_arr(&state->gc, (vm_int_t) len);
     vm_int_run_next();
 }
 do_arr_r : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t len = vm_int_run_read_load();
-    vm_gc_run(&state->gc);
+    vm_gc_run(&state->gc, locals + state->framesize);
     *out = vm_gc_arr(&state->gc, (vm_int_t) vm_value_to_float(len));
     vm_int_run_next();
 }
@@ -1756,7 +1784,7 @@ do_ret_rt : {
     }
     vm_int_run_next();
 }
-do_exit : { return vm_value_from_float(0); }
+do_exit : { return vm_value_nil(); }
 // jmp/call tmp
 do_call_t0 : {
     head[-1].ptr = &&do_call_l0;
@@ -1953,7 +1981,7 @@ do_fbeq_irtt : {
 }
 do_tab : {
     vm_value_t *out = vm_int_run_read_store();
-    vm_gc_run(&state->gc);
+    vm_gc_run(&state->gc, locals + state->framesize);
     *out = vm_gc_tab(&state->gc);
     vm_int_run_next();
 }

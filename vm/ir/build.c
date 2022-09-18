@@ -1,5 +1,6 @@
 
 #include "build.h"
+#include <stdio.h>
 
 void vm_ir_block_realloc(vm_ir_block_t *block, vm_ir_instr_t *instr) {
     if (block->len + 4 >= block->alloc) {
@@ -128,6 +129,14 @@ void vm_ir_blocks_free(size_t nblocks, vm_ir_block_t *blocks) {
 
 void vm_ir_print_arg(FILE *out, vm_ir_arg_t val) {
     switch (val.type) {
+        case VM_IR_ARG_NIL: {
+            fprintf(out, "nil");
+            break;
+        }
+        case VM_IR_ARG_BOOL: {
+            fprintf(out, "%s", val.logic ? "true" : "false");
+            break;
+        }
         case VM_IR_ARG_NUM: {
             fprintf(out, "%lf", val.num);
             break;
@@ -247,7 +256,7 @@ void vm_ir_print_instr(FILE *out, vm_ir_instr_t *val) {
             break;
         }
         case VM_IR_IOP_TAB: {
-            fprintf(out, "arr");
+            fprintf(out, "tab");
             break;
         }
         case VM_IR_IOP_GET: {

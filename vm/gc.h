@@ -68,7 +68,7 @@ struct vm_gc_t {
 
 void vm_gc_init(vm_gc_t *out, size_t nstack, vm_value_t *stack);
 void vm_gc_deinit(vm_gc_t *out);
-void vm_gc_run(vm_gc_t *gc);
+void vm_gc_run(vm_gc_t *gc, vm_value_t *high);
 vm_value_t vm_gc_tab(vm_gc_t *gc);
 vm_value_t vm_gc_arr(vm_gc_t *gc, vm_int_t slots);
 vm_value_t vm_gc_get(vm_value_t obj, vm_value_t index);

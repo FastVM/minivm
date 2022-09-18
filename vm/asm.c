@@ -1,4 +1,5 @@
 #include "asm.h"
+#include <stdio.h>
 
 void vm_asm_strip(const char **src) {
     while (**src == ' ' || **src == '\t') {
@@ -56,6 +57,10 @@ vm_opcode_t vm_asm_read_int(const char **src) {
 
 vm_opcode_t vm_asm_read_reg(const char **src) {
     vm_asm_strip(src);
+    if (**src != 'r') {
+        fprintf(stderr, "asm: bad char: expected 'r' (for reg)\n");
+        __builtin_trap();
+    }
     *src += 1;
     size_t n = 0;
     while ('0' <= **src && **src <= '9') {

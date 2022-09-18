@@ -269,6 +269,7 @@ void vm_gc_init(vm_gc_t *gc, size_t nstack, vm_value_t *stack) {
     gc->vals = vm_malloc(sizeof(vm_value_t) * gc->alloc);
     gc->nstack = nstack;
     gc->stack = stack;
+    gc->max = 256;
 }
 
 void vm_gc_deinit(vm_gc_t *gc) {
@@ -307,12 +308,14 @@ static void vm_gc_mark(vm_value_t value) {
     }
 }
 
-void vm_gc_run(vm_gc_t *restrict gc) {
+void vm_gc_run(vm_gc_t *restrict gc, vm_value_t *high) {
     if (gc->len < gc->max) {
         return;
     }
-    for (size_t i = 0; i < gc->nstack; i++) {
-        vm_gc_mark(gc->stack[i]);
+    vm_value_t *cur = gc->stack;
+    while (cur < high) {
+        vm_gc_mark(*cur);
+        cur += 1;
     }
     size_t head = 0;
     for (size_t i = 0; i < gc->len; i++) {
@@ -324,7 +327,7 @@ void vm_gc_run(vm_gc_t *restrict gc) {
                 val->mark = 0;
                 gc->vals[head++] = value;
             } else {
-                vm_free(val->data);
+                // vm_free(val->data);
                 vm_free(val);
             }
         } else {
@@ -345,11 +348,17 @@ void vm_gc_run(vm_gc_t *restrict gc) {
     gc->len = head;
     // fprintf(stderr, "%zu : %zu\n", gc->len, gc->alloc);
     gc->max = gc->len * 2;
+    if (gc->max < cur - gc->stack) {
+        gc->max = cur - gc->stack;
+    }
 }
 
 vm_value_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t slots) {
+    if (slots == 0) {
+        __builtin_trap();
+    }
     vm_value_array_t *arr =
-        vm_malloc(sizeof(vm_value_array_t));
+        vm_malloc(sizeof(vm_value_array_t) + sizeof(vm_value_t) * slots);
     arr->tag = VM_TYPE_ARRAY;
     if (gc->len + 1 >= gc->alloc) {
         gc->alloc = gc->len * 2;
@@ -359,12 +368,13 @@ vm_value_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t slots) {
     arr->alloc = slots;
     arr->len = slots;
     arr->mark = 0;
-#if NANBOX_EMPTY_BYTE == 0
-    arr->data = vm_alloc0(sizeof(vm_value_t) * slots);
-#else
-    arr->data = vm_malloc(sizeof(vm_value_t) * slots);
+    arr->data = (vm_value_t *) &arr[1];
+// #if NANBOX_EMPTY_BYTE == 0
+//     arr->data = vm_alloc0(sizeof(vm_value_t) * slots);
+// #else
+//     arr->data = vm_malloc(sizeof(vm_value_t) * slots);
     memset(arr->data, NANBOX_EMPTY_BYTE, sizeof(vm_value_t) * slots);
-#endif
+// #endif
     return vm_value_from_array(arr);
 }
 
@@ -381,10 +391,12 @@ void vm_gc_set(vm_value_t obj, vm_value_t ind, vm_value_t value) {
     size_t index = (size_t)vm_value_to_float(ind);
     vm_value_array_t *arr = vm_value_to_array(obj);
     if (index >= arr->alloc) {
-        size_t next = index * 2 + 1;
-        arr->data = vm_realloc(arr->data, sizeof(vm_value_t) * next);
-        memset(&arr->data[arr->alloc], NANBOX_EMPTY_BYTE, next - arr->alloc);
-        arr->alloc = next;
+        fprintf(stderr, "(alloc: %zu) (index: %zu)\n", arr->alloc, index);
+        // size_t next = index * 2 + 1;
+        // arr->data = vm_realloc(arr->data, sizeof(vm_value_t) * next);
+        // memset(&arr->data[arr->alloc], NANBOX_EMPTY_BYTE, next - arr->alloc);
+        // arr->alloc = next;
+        return;
     }
     if (index >= arr->len) {
         arr->len = index + 1;

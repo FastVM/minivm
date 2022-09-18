@@ -14,11 +14,11 @@
 enum {
     VM_INT_OP_EXIT,
 
+    VM_INT_OP_MOV_V,
+    VM_INT_OP_MOV_B,
     VM_INT_OP_MOV_F,
     VM_INT_OP_MOV_R,
     VM_INT_OP_MOV_T,
-
-    VM_INT_OP_FLOAT,
 
     VM_INT_OP_FADD_RR,
     VM_INT_OP_FADD_RF,
@@ -167,6 +167,7 @@ struct vm_int_opcode_t {
         size_t reg;
         ptrdiff_t ival;
         vm_number_t fval;
+        bool bval;
     };
 };
 
