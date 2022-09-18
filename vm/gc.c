@@ -348,8 +348,9 @@ void vm_gc_run(vm_gc_t *restrict gc, vm_value_t *high) {
     gc->len = head;
     // fprintf(stderr, "%zu : %zu\n", gc->len, gc->alloc);
     gc->max = gc->len * 2;
-    if (gc->max < cur - gc->stack) {
-        gc->max = cur - gc->stack;
+    size_t min = (size_t) (cur - gc->stack) * 2;
+    if (gc->max < min) {
+        gc->max = min;
     }
 }
 
