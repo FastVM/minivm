@@ -88,11 +88,9 @@
 #define NANBOX_AUX5_TYPE void*
 #endif
 
-#include <assert.h>
 #include <stdbool.h>  // bool, true, false
 #include <stddef.h>   // size_t
 #include <stdint.h>   // int64_t, int32_t
-#include <string.h>   // memset
 
 /*
  * Macros to expand the prefix.
@@ -430,7 +428,6 @@ static inline bool NANBOX_NAME(_is_aux)(NANBOX_T val) {
         return val.as_bits.tag == TAG;                         \
     }                                                          \
     static inline TYPE NANBOX_NAME(_to_##NAME)(NANBOX_T val) { \
-        assert(val.as_bits.tag == TAG);                        \
         return (TYPE)val.as_bits.payload;                      \
     }                                                          \
     static inline NANBOX_T NANBOX_NAME(_from_##NAME)(TYPE a) { \
@@ -468,12 +465,9 @@ static inline bool NANBOX_NAME(_is_number)(NANBOX_T val) {
 static inline NANBOX_T NANBOX_NAME(_from_double)(double d) {
     NANBOX_T val;
     val.as_double = d;
-    assert(NANBOX_NAME(_is_double)(val) &&
-           val.as_bits.tag <= NANBOX_MAX_DOUBLE_TAG);
     return val;
 }
 static inline double NANBOX_NAME(_to_double)(NANBOX_T val) {
-    assert(NANBOX_NAME(_is_double)(val));
     return val.as_double;
 }
 
@@ -484,7 +478,6 @@ static inline double NANBOX_NAME(_to_double)(NANBOX_T val) {
  */
 
 static inline double NANBOX_NAME(_to_number)(NANBOX_T val) {
-    assert(NANBOX_NAME(_is_number)(val));
     return NANBOX_NAME(_is_int)(val) ? NANBOX_NAME(_to_int)(val)
                                      : NANBOX_NAME(_to_double)(val);
 }

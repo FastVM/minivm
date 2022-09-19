@@ -33,38 +33,6 @@ static inline size_t vm_gc_table_size(vm_value_table_t *tab) {
         1164186217ul,
         2364114217ul, 
         4294967291ul,
-        8589934583ull,
-        17179869143ull,
-        34359738337ull,
-        68719476731ull,
-        137438953447ull,
-        274877906899ull,
-        549755813881ull,
-        1099511627689ull,
-        2199023255531ull,
-        4398046511093ull,
-        8796093022151ull,
-        17592186044399ull,
-        35184372088777ull,
-        70368744177643ull,
-        140737488355213ull,
-        281474976710597ull,
-        562949953421231ull, 
-        1125899906842597ull,
-        2251799813685119ull, 
-        4503599627370449ull,
-        9007199254740881ull, 
-        18014398509481951ull,
-        36028797018963913ull, 
-        72057594037927931ull,
-        144115188075855859ull,
-        288230376151711717ull,
-        576460752303423433ull,
-        1152921504606846883ull,
-        2305843009213693951ull,
-        4611686018427387847ull,
-        9223372036854775783ull,
-        18446744073709551557ull,
     };
     return table[tab->hash_alloc - 1];
 }
@@ -161,102 +129,6 @@ static inline size_t vm_gc_table_modsize(uint8_t index, size_t hash) {
     case 29: {
         return hash % 4294967291ull; 
     }
-    case 30: {
-        return hash % 8589934583ull; 
-    }
-    case 31: {
-        return hash % 17179869143ull; 
-    }
-    case 32: {
-        return hash % 34359738337ull; 
-    }
-    case 33: {
-        return hash % 68719476731ull; 
-    }
-    case 34: {
-        return hash % 137438953447ull; 
-    }
-    case 35: {
-        return hash % 274877906899ull; 
-    }
-    case 36: {
-        return hash % 549755813881ull; 
-    }
-    case 37: {
-        return hash % 1099511627689ull; 
-    }
-    case 38: {
-        return hash % 2199023255531ull; 
-    }
-    case 39: {
-        return hash % 4398046511093ull; 
-    }
-    case 40: {
-        return hash % 8796093022151ull; 
-    }
-    case 41: {
-        return hash % 17592186044399ull; 
-    }
-    case 42: {
-        return hash % 35184372088777ull; 
-    }
-    case 43: {
-        return hash % 70368744177643ull; 
-    }
-    case 44: {
-        return hash % 140737488355213ull;
-    }
-    case 45: {
-        return hash % 281474976710597ull; 
-    }
-    case 46: {
-        return hash % 562949953421231ull; 
-    }
-    case 47: {
-        return hash % 1125899906842597ull; 
-    }
-    case 48: {
-        return hash % 2251799813685119ull; 
-    }
-    case 49: {
-        return hash % 4503599627370449ull; 
-    }
-    case 50: {
-        return hash % 9007199254740881ull; 
-    }
-    case 51: {
-        return hash % 18014398509481951ull; 
-    }
-    case 52: {
-        return hash % 36028797018963913ull; 
-    }
-    case 53: {
-        return hash % 72057594037927931ull; 
-    }
-    case 54: {
-        return hash % 144115188075855859ull; 
-    }
-    case 55: {
-        return hash % 288230376151711717ull; 
-    }
-    case 56: {
-        return hash % 576460752303423433ull; 
-    }
-    case 57: {
-        return hash % 1152921504606846883ull; 
-    }
-    case 58: {
-        return hash % 2305843009213693951ull; 
-    }
-    case 59: {
-        return hash % 4611686018427387847ull; 
-    }
-    case 60: {
-        return hash % 9223372036854775783ull; 
-    }
-    case 61: {
-        return hash % 18446744073709551557ull; 
-    }
     default: {
         __builtin_unreachable();
     }
@@ -346,7 +218,6 @@ void vm_gc_run(vm_gc_t *restrict gc, vm_value_t *high) {
         }
     }
     gc->len = head;
-    // fprintf(stderr, "%zu : %zu\n", gc->len, gc->alloc);
     gc->max = gc->len * 2;
     size_t min = (size_t) (cur - gc->stack) * 2;
     if (gc->max < min) {
@@ -392,11 +263,6 @@ void vm_gc_set(vm_value_t obj, vm_value_t ind, vm_value_t value) {
     size_t index = (size_t)vm_value_to_float(ind);
     vm_value_array_t *arr = vm_value_to_array(obj);
     if (index >= arr->alloc) {
-        fprintf(stderr, "(alloc: %zu) (index: %zu)\n", arr->alloc, index);
-        // size_t next = index * 2 + 1;
-        // arr->data = vm_realloc(arr->data, sizeof(vm_value_t) * next);
-        // memset(&arr->data[arr->alloc], NANBOX_EMPTY_BYTE, next - arr->alloc);
-        // arr->alloc = next;
         return;
     }
     if (index >= arr->len) {

@@ -1,5 +1,4 @@
 #include "asm.h"
-#include <stdio.h>
 
 void vm_asm_strip(const char **src) {
     while (**src == ' ' || **src == '\t') {

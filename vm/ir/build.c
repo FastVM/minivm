@@ -1,6 +1,5 @@
 
 #include "build.h"
-#include <stdio.h>
 
 void vm_ir_block_realloc(vm_ir_block_t *block, vm_ir_instr_t *instr) {
     if (block->len + 4 >= block->alloc) {
