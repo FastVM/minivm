@@ -9,7 +9,7 @@ void vm_asm_strip(const char **src) {
 void vm_asm_stripln(const char **src) {
     while (**src == ' ' || **src == '\t' || **src == '\n' || **src == '\r' || **src == ';' || **src == '#') {
         if (**src == '#') {
-            while (**src != '\n' && **src != '\0') {
+            while (**src != '\n' && **src != '\r' && **src != '\0') {
                 *src += 1;
             }
         } else {
@@ -222,7 +222,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_opcode_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
-                    while (**src != '\n') {
+                    while (**src != '\n' && **src != '\r') {
                         args[nargs++] = vm_asm_read_reg(src);
                         vm_asm_strip(src);
                     }
@@ -239,7 +239,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_opcode_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
-                    while (**src != '\n') {
+                    while (**src != '\n' && **src != '\r') {
                         args[nargs++] = vm_asm_read_reg(src);
                         vm_asm_strip(src);
                     }
@@ -256,7 +256,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_opcode_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
-                    while (**src != '\n') {
+                    while (**src != '\n' && **src != '\r') {
                         args[nargs++] = vm_asm_read_reg(src);
                         vm_asm_strip(src);
                     }
@@ -273,7 +273,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_opcode_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
-                    while (**src != '\n') {
+                    while (**src != '\n' && **src != '\r') {
                         args[nargs++] = vm_asm_read_reg(src);
                         vm_asm_strip(src);
                     }
