@@ -115,40 +115,24 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
     fprintf(stderr, "block .%zu(", block->id);
     for (size_t i = 0; i < block->nargs; i++) {
         if (i != 0) {
-            fprintf(stderr, " ");
+            fprintf(stderr, ", ");
         }
         size_t reg = block->args[i];
         uint8_t type = types[reg];
-        const char *typename;
-        switch (type) {
-            case VM_TYPE_NIL: {
-                typename = "nil";
-                break;
-            }
-            case VM_TYPE_BOOL: {
-                typename = "bool";
-                break;
-            }
-            case VM_TYPE_F64: {
-                typename = "float";
-                break;
-            }
-            case VM_TYPE_FUNC: {
-                typename = "func";
-                break;
-            }
-            case VM_TYPE_ARRAY: {
-                typename = "array";
-                break;
-            }
-            case VM_TYPE_TABLE: {
-                typename = "table";
-                break;
-            }
-        }
+        static const char *const typenames[VM_TYPE_MAX] = {
+            [VM_TYPE_NIL] = "nil",
+            [VM_TYPE_BOOL] = "bool",
+            [VM_TYPE_I32] = "int",
+            [VM_TYPE_F64] = "float",
+            [VM_TYPE_FUNC] = "func",
+            [VM_TYPE_ARRAY] = "array",
+            [VM_TYPE_TABLE] = "table",
+        };
+        const char *typename = typenames[type];
+        if (!typename) __builtin_trap();
         fprintf(stderr, "r%zu : %s", reg, typename);
     }
-    fprintf(stderr, ") {\n", block->id);
+    fprintf(stderr, ") {\n");
 #endif
 inline_jump:;
     for (size_t arg = 0; arg < block->len; arg++) {
