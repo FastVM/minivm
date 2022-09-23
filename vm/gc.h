@@ -50,7 +50,8 @@ enum {
     VM_TYPE_UNKNOWN,
     VM_TYPE_NIL,
     VM_TYPE_BOOL,
-    VM_TYPE_FLOAT,
+    VM_TYPE_I32,
+    VM_TYPE_F64,
     VM_TYPE_FUNC,
     VM_TYPE_ARRAY,
     VM_TYPE_TABLE,
@@ -87,20 +88,25 @@ void vm_gc_table_set(vm_value_table_t *tab, vm_value_t key, vm_value_t val);
 
 #define vm_value_nil() (vm_box_empty())
 #define vm_value_from_bool(n_) (vm_box_from_boolean(n_))
+#define vm_value_from_int(n_) (vm_box_from_int(n_))
 #define vm_value_from_float(n_) (vm_box_from_double(n_))
 #define vm_value_from_block(n_) (vm_box_from_pointer(n_))
 #define vm_value_from_array(n_) (vm_box_from_pointer(n_))
 #define vm_value_from_table(n_) (vm_box_from_pointer(n_))
 
 #define vm_value_to_bool(v_) (vm_box_to_boolean(v_))
+#define vm_value_to_int(v_) (vm_box_to_int(v_))
 #define vm_value_to_float(v_) (vm_box_to_double(v_))
 #define vm_value_to_block(v_) ((void *)vm_box_to_pointer(v_))
 #define vm_value_to_array(v_) ((vm_value_array_t *)vm_box_to_pointer(v_))
 #define vm_value_to_table(v_) ((vm_value_table_t *)vm_box_to_pointer(v_))
 
 static inline uint8_t vm_typeof(vm_value_t val) {
+    if (vm_box_is_int(val)) {
+        return VM_TYPE_I32;
+    }
     if (vm_box_is_number(val)) {
-        return VM_TYPE_FLOAT;
+        return VM_TYPE_F64;
     }
     if (vm_box_is_boolean(val)) {
         return VM_TYPE_BOOL;

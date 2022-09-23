@@ -3,29 +3,30 @@
 
 #include "../build.h"
 
-#define vm_int_block_comp_put_ptr(arg_) buf.ops[buf.len++].ptr = ptrs[(arg_)]
+#define vm_int_block_comp_put_ptr(arg_)                 \
+    ({                                                  \
+        size_t arg = (arg_);                            \
+        if (ptrs[arg] == NULL) {                        \
+            fprintf(stderr, "bad ptr: ptrs[%zu]", arg); \
+            __builtin_trap();                           \
+        }                                               \
+        buf.ops[buf.len++].ptr = ptrs[(arg_)];          \
+    })
 #define vm_int_block_comp_put_out(out_) buf.ops[buf.len++].reg = (out_)
-#define vm_int_block_comp_put_reg(vreg_) buf.ops[buf.len++].reg = (vreg_)
-#define vm_int_block_comp_put_bval(val_) buf.ops[buf.len++].bval = (val_)
-#define vm_int_block_comp_put_ival(val_) buf.ops[buf.len++].ival = (val_)
-#define vm_int_block_comp_put_fval(val_) buf.ops[buf.len++].fval = (val_)
+
+#define vm_int_block_comp_put_reg(vreg_) buf.ops[buf.len++].reg = (vreg_).reg
+#define vm_int_block_comp_put_bval(val_) buf.ops[buf.len++].bval = (val_).logic
+#define vm_int_block_comp_put_ival(val_) buf.ops[buf.len++].ival = (val_).num
+#define vm_int_block_comp_put_fval(val_) buf.ops[buf.len++].fval = (val_).num
+
+#define vm_int_block_comp_put_regc(vreg_) buf.ops[buf.len++].reg = (vreg_)
+#define vm_int_block_comp_put_bvalc(val_) buf.ops[buf.len++].bval = (val_)
+#define vm_int_block_comp_put_ivalc(val_) buf.ops[buf.len++].ival = (val_)
+#define vm_int_block_comp_put_fvalc(val_) buf.ops[buf.len++].fval = (val_)
+
 #define vm_int_block_comp_put_block(block_) ({ \
     buf.ops[buf.len++].block = (block_);       \
 })
-#define vm_int_block_comp_put_arg(arg_)            \
-    ({                                             \
-        vm_ir_arg_t arg = (arg_);                  \
-        if (arg.type == VM_IR_ARG_REG) {           \
-            vm_int_block_comp_put_reg(arg.reg);    \
-        } else if (arg.type == VM_IR_ARG_NUM) {    \
-            vm_int_block_comp_put_fval(arg.num);   \
-        } else if (arg.type == VM_IR_ARG_FUNC) {   \
-            vm_int_block_comp_put_block(arg.func); \
-        } else {                                   \
-            fprintf(stderr, "unknown arg type\n"); \
-            __builtin_trap();                      \
-        }                                          \
-    })
 
 struct vm_int_data_t;
 typedef struct vm_int_data_t vm_int_data_t;
@@ -52,21 +53,31 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
     ({                                                  \
         size_t reg = vreg_;                             \
         double val = fval_;                             \
-        vm_int_block_comp_put_ptr(VM_INT_OP_MOV_F); \
-        vm_int_block_comp_put_out(reg);             \
-        vm_int_block_comp_put_fval(val);            \
-        types[reg] = VM_TYPE_FLOAT;                 \
+        if (fmod(val, 1) == 0.0) {                      \
+            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I); \
+            vm_int_block_comp_put_out(reg);             \
+            vm_int_block_comp_put_ivalc(val);            \
+            types[reg] = VM_TYPE_I32;                   \
+        } else {                                        \
+            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_F); \
+            vm_int_block_comp_put_out(reg);             \
+            vm_int_block_comp_put_fvalc(val);  \
+            types[reg] = VM_TYPE_F64;                   \
+        }                                               \
     })
 
-#define vm_int_block_comp_ensure_float_reg(reg_)                                                       \
-    ({                                                                                                 \
-        size_t reg = (reg_);                                                                           \
-        if (types[reg] == VM_TYPE_FLOAT) {                                                             \
-            /* :) */                                                                                   \
-        } else {                                                                                       \
+#define vm_int_block_comp_ensure_float_reg(reg_)                                             \
+    ({                                                                                       \
+        size_t reg = (reg_);                                                                 \
+        if (types[reg] == VM_TYPE_F64) {                                                     \
+            /* :) */                                                                         \
+        } else if (types[reg] == VM_TYPE_I32) {                                              \
+            vm_int_block_comp_put_ptr(VM_INT_OP_FMOV_R);                                     \
+            vm_int_block_comp_put_out(reg);                                                  \
+        } else {                                                                             \
             fprintf(stderr, "TYPE ERROR (reg: %zu) (type: %zu)\n", reg, (size_t)types[reg]); \
-            __builtin_trap();                                                                          \
-        }                                                                                              \
+            __builtin_trap();                                                                \
+        }                                                                                    \
     })
 
 void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block) {
@@ -110,30 +121,30 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
         uint8_t type = types[reg];
         const char *typename;
         switch (type) {
-        case VM_TYPE_NIL: {
-            typename = "nil";
-            break;
-        }
-        case VM_TYPE_BOOL: {
-            typename = "bool";
-            break;
-        }
-        case VM_TYPE_FLOAT: {
-            typename = "float";
-            break;
-        }
-        case VM_TYPE_FUNC: {
-            typename = "func";
-            break;
-        }
-        case VM_TYPE_ARRAY: {
-            typename = "array";
-            break;
-        }
-        case VM_TYPE_TABLE: {
-            typename = "table";
-            break;
-        }
+            case VM_TYPE_NIL: {
+                typename = "nil";
+                break;
+            }
+            case VM_TYPE_BOOL: {
+                typename = "bool";
+                break;
+            }
+            case VM_TYPE_F64: {
+                typename = "float";
+                break;
+            }
+            case VM_TYPE_FUNC: {
+                typename = "func";
+                break;
+            }
+            case VM_TYPE_ARRAY: {
+                typename = "array";
+                break;
+            }
+            case VM_TYPE_TABLE: {
+                typename = "table";
+                break;
+            }
         }
         fprintf(stderr, "r%zu : %s", reg, typename);
     }
@@ -164,22 +175,22 @@ inline_jump:;
                             // r = move r
                             vm_int_block_comp_put_ptr(VM_INT_OP_MOV_R);
                             vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
+                            vm_int_block_comp_put_reg(instr->args[0]);
                             types[instr->out.reg] = types[instr->args[0].reg];
                             break;
                         }
                         case VM_IR_ARG_NIL: {
-                            // r = move i                             
+                            // r = move i
                             vm_int_block_comp_put_ptr(VM_INT_OP_MOV_V);
                             vm_int_block_comp_put_out(instr->out.reg);
                             types[instr->out.reg] = VM_TYPE_NIL;
                             break;
                         }
                         case VM_IR_ARG_BOOL: {
-                            // r = move i                             
+                            // r = move i
                             vm_int_block_comp_put_ptr(VM_INT_OP_MOV_B);
                             vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_bval(instr->args[0].logic);
+                            vm_int_block_comp_put_bval(instr->args[0]);
                             types[instr->out.reg] = VM_TYPE_BOOL;
                             break;
                         }
@@ -196,7 +207,7 @@ inline_jump:;
                             // r = move i
                             vm_int_block_comp_put_ptr(VM_INT_OP_MOV_T);
                             vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
+                            vm_int_block_comp_put_block(instr->args[0].func);
                             types[instr->out.reg] = VM_TYPE_FUNC;
                             break;
                         }
@@ -209,29 +220,55 @@ inline_jump:;
                     if (instr->args[0].type == VM_IR_ARG_REG) {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = add r r
-                            vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
-                            vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FADD_RR);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && types[instr->args[1].reg] == VM_TYPE_I32) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32ADD_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FADD_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = add r i
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && fmod(instr->args[1].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32ADD_RI);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FADD_RF);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_FLOAT;
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         }
                     } else {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = add i r
+                            if (types[instr->args[1].reg] == VM_TYPE_I32 && fmod(instr->args[0].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32ADD_RI);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_ival(instr->args[0]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FADD_RF);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                types[instr->out.reg] = VM_TYPE_FLOAT;
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_fval(instr->args[0]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = move i
                             vm_int_block_comp_mov(instr->out.reg, instr->args[0].num + instr->args[1].num);
@@ -245,29 +282,55 @@ inline_jump:;
                     if (instr->args[0].type == VM_IR_ARG_REG) {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = sub r r
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && types[instr->args[1].reg] == VM_TYPE_I32) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32SUB_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
                                 vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
                                 vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FSUB_RR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_FLOAT;
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = sub r i
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && fmod(instr->args[1].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32SUB_RI);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FSUB_RF);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_FLOAT;
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         }
                     } else {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = sub i r
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FSUB_FR);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_fval(instr->args[0].num);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[1].reg] == VM_TYPE_I32 && fmod(instr->args[0].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32SUB_IR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_ival(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FSUB_FR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_fval(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = move i
                             vm_int_block_comp_mov(instr->out.reg, instr->args[0].num - instr->args[1].num);
@@ -281,32 +344,58 @@ inline_jump:;
                     if (instr->args[0].type == VM_IR_ARG_REG) {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = mul r r
-                            vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
-                            vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FMUL_RR);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && types[instr->args[1].reg] == VM_TYPE_I32) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32MUL_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FMUL_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = mul r i
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FMUL_RF);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && fmod(instr->args[1].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32MUL_RI);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FMUL_RF);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         }
                     } else {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = mul i r
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FMUL_RF);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[1].reg] == VM_TYPE_I32 && fmod(instr->args[0].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32MUL_RI);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_ival(instr->args[0]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FMUL_RF);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_fval(instr->args[0]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = move i
-                            vm_int_block_comp_mov(instr->out.reg, instr->args[0].num * instr->args[1].num);
+                            vm_int_block_comp_mov(instr->out.reg, instr->args[0].num + instr->args[1].num);
                         }
                     }
                 }
@@ -317,31 +406,67 @@ inline_jump:;
                     if (instr->args[0].type == VM_IR_ARG_REG) {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = div r r
-                            vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
-                            vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FDIV_RR);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && types[instr->args[1].reg] == VM_TYPE_I32) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32DIV_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_UNKNOWN;
+                                vm_int_block_comp_put_block(block->branch->targets[0]);
+                                vm_int_block_comp_put_block(NULL);
+                                vm_int_block_comp_put_block(NULL);
+                                goto retv;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FDIV_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = div r i
-                            vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FDIV_RF);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && fmod(instr->args[1].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32DIV_RI);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_UNKNOWN;
+                                vm_int_block_comp_put_block(block->branch->targets[0]);
+                                vm_int_block_comp_put_block(NULL);
+                                vm_int_block_comp_put_block(NULL);
+                                goto retv;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FDIV_RF);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         }
                     } else {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = div i r
-                            vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
-                            vm_int_block_comp_put_ptr(VM_INT_OP_FDIV_FR);
-                            vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            vm_int_block_comp_put_arg(instr->args[1]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            if (types[instr->args[1].reg] == VM_TYPE_I32 && fmod(instr->args[0].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32DIV_IR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_ival(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_UNKNOWN;
+                                vm_int_block_comp_put_block(block->branch->targets[0]);
+                                vm_int_block_comp_put_block(NULL);
+                                vm_int_block_comp_put_block(NULL);
+                                goto retv;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
+                                vm_int_block_comp_put_ptr(VM_INT_OP_FDIV_FR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_fval(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = move i
                             vm_int_block_comp_mov(instr->out.reg, instr->args[0].num / instr->args[1].num);
@@ -355,29 +480,55 @@ inline_jump:;
                     if (instr->args[0].type == VM_IR_ARG_REG) {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = mod r r
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && types[instr->args[1].reg] == VM_TYPE_I32) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32MOD_RR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
                                 vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
                                 vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FMOD_RR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_FLOAT;
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = mod r i
+                            if (types[instr->args[0].reg] == VM_TYPE_I32 && fmod(instr->args[1].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32MOD_RI);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FMOD_RF);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_FLOAT;
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         }
                     } else {
                         if (instr->args[1].type == VM_IR_ARG_REG) {
                             // r = mod i r
+                            if (types[instr->args[1].reg] == VM_TYPE_I32 && fmod(instr->args[0].num, 1) == 0.0) {
+                                vm_int_block_comp_put_ptr(VM_INT_OP_I32MOD_IR);
+                                vm_int_block_comp_put_out(instr->out.reg);
+                                vm_int_block_comp_put_ival(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_I32;
+                            } else {
+                                vm_int_block_comp_ensure_float_reg(instr->args[1].reg);
                                 vm_int_block_comp_put_ptr(VM_INT_OP_FMOD_FR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_FLOAT;
+                                vm_int_block_comp_put_fval(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                types[instr->out.reg] = VM_TYPE_F64;
+                            }
                         } else {
                             // r = move i
                             vm_int_block_comp_mov(instr->out.reg, fmod(instr->args[0].num, instr->args[1].num));
@@ -401,14 +552,14 @@ inline_jump:;
                     vm_int_block_comp_put_block(instr->args[0].func);
                 } else if (instr->args[0].type == VM_IR_ARG_EXTERN) {
                     vm_int_block_comp_put_ptr(VM_INT_OP_CALL_X0 + nargs);
-                    vm_int_block_comp_put_ival(instr->args[0].num);
+                    vm_int_block_comp_put_ival(instr->args[0]);
                 } else {
                     if (types[instr->args[0].reg] == VM_TYPE_FUNC) {
                         vm_int_block_comp_put_ptr(VM_INT_OP_CALL_R0 + nargs);
-                        vm_int_block_comp_put_arg(instr->args[0]);
+                        vm_int_block_comp_put_block(instr->args[0].func);
                     } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                         vm_int_block_comp_put_ptr(VM_INT_OP_CALL_C0 + nargs);
-                        vm_int_block_comp_put_arg(instr->args[0]);
+                        vm_int_block_comp_put_reg(instr->args[0]);
                     } else {
                         fprintf(stderr, "type error on call r%zu (type %zu)\n", instr->args[0].reg, (size_t)types[instr->args[0].reg]);
                         __builtin_trap();
@@ -416,9 +567,9 @@ inline_jump:;
                 }
                 for (size_t i = 1; instr->args[i].type != VM_IR_ARG_NONE; i++) {
                     if (instr->args[i].type == VM_IR_ARG_NUM) {
-                        vm_int_block_comp_put_reg(state->framesize + i);
+                        vm_int_block_comp_put_regc(state->framesize + i);
                     } else {
-                        vm_int_block_comp_put_arg(instr->args[i]);
+                        vm_int_block_comp_put_reg(instr->args[i]);
                     }
                 }
                 if (instr->out.type == VM_IR_ARG_REG) {
@@ -447,13 +598,13 @@ inline_jump:;
                         // r = new r
                         vm_int_block_comp_put_ptr(VM_INT_OP_ARR_R);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_arg(instr->args[0]);
+                        vm_int_block_comp_put_reg(instr->args[0]);
                         types[instr->out.reg] = VM_TYPE_ARRAY;
                     } else {
                         // r = new i
                         vm_int_block_comp_put_ptr(VM_INT_OP_ARR_F);
                         vm_int_block_comp_put_out(instr->out.reg);
-                        vm_int_block_comp_put_fval(instr->args[0].num);
+                        vm_int_block_comp_put_fval(instr->args[0]);
                         types[instr->out.reg] = VM_TYPE_ARRAY;
                     }
                 }
@@ -467,15 +618,15 @@ inline_jump:;
                             if (types[instr->args[0].reg] == VM_TYPE_TABLE) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_TGET_RR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_GET_RR);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
                             } else {
-                                fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t) types[instr->args[0].reg]);
+                                fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t)types[instr->args[0].reg]);
                                 __builtin_trap();
                             }
                         } else {
@@ -483,15 +634,15 @@ inline_jump:;
                             if (types[instr->args[0].reg] == VM_TYPE_TABLE) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_TGET_RF);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_fval(instr->args[1].num);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_GET_RI);
                                 vm_int_block_comp_put_out(instr->out.reg);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1].num);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
                             } else {
-                                fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t) types[ instr->args[0].reg]);
+                                fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t)types[instr->args[0].reg]);
                                 __builtin_trap();
                             }
                         }
@@ -511,14 +662,14 @@ inline_jump:;
                             // set r r r
                             if (types[instr->args[0].reg] == VM_TYPE_TABLE) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_TSET_RRR);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                vm_int_block_comp_put_arg(instr->args[2]);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_reg(instr->args[2]);
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_SET_RRR);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                vm_int_block_comp_put_arg(instr->args[2]);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_reg(instr->args[2]);
                             } else {
                                 fprintf(stderr, "cannot set: r%zu\n", instr->args[0].reg);
                                 __builtin_trap();
@@ -527,14 +678,14 @@ inline_jump:;
                             // set r r i
                             if (types[instr->args[0].reg] == VM_TYPE_TABLE) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_TSET_RRF);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                vm_int_block_comp_put_fval(instr->args[2].num);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_fval(instr->args[2]);
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_SET_RRI);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_arg(instr->args[1]);
-                                vm_int_block_comp_put_ival(instr->args[2].num);
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_reg(instr->args[1]);
+                                vm_int_block_comp_put_ival(instr->args[2]);
                             } else {
                                 fprintf(stderr, "cannot set: r%zu\n", instr->args[0].reg);
                                 __builtin_trap();
@@ -545,14 +696,14 @@ inline_jump:;
                             // set r i r
                             if (types[instr->args[0].reg] == VM_TYPE_TABLE) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_TSET_RFR);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_fval(instr->args[1].num);
-                                vm_int_block_comp_put_arg(instr->args[2]); 
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                vm_int_block_comp_put_reg(instr->args[2]);
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_SET_RIR);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1].num);
-                                vm_int_block_comp_put_arg(instr->args[2]); 
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
+                                vm_int_block_comp_put_reg(instr->args[2]);
                             } else {
                                 fprintf(stderr, "cannot set: r%zu\n", instr->args[0].reg);
                                 __builtin_trap();
@@ -561,14 +712,14 @@ inline_jump:;
                             // set r i i
                             if (types[instr->args[0].reg] == VM_TYPE_TABLE) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_TSET_RFF);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_fval(instr->args[1].num);
-                                vm_int_block_comp_put_fval(instr->args[2].num); 
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                vm_int_block_comp_put_fval(instr->args[2]);
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_SET_RII);
-                                vm_int_block_comp_put_arg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1].num);
-                                vm_int_block_comp_put_ival(instr->args[2].num); 
+                                vm_int_block_comp_put_reg(instr->args[0]);
+                                vm_int_block_comp_put_ival(instr->args[1]);
+                                vm_int_block_comp_put_ival(instr->args[2]);
                             } else {
                                 fprintf(stderr, "cannot set: r%zu\n", instr->args[0].reg);
                                 __builtin_trap();
@@ -585,8 +736,8 @@ inline_jump:;
                         if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                             vm_int_block_comp_put_ptr(VM_INT_OP_LEN_R);
                             vm_int_block_comp_put_out(instr->out.reg);
-                            vm_int_block_comp_put_arg(instr->args[0]);
-                            types[instr->out.reg] = VM_TYPE_FLOAT;
+                            vm_int_block_comp_put_reg(instr->args[0]);
+                            types[instr->out.reg] = VM_TYPE_I32;
                         } else {
                             fprintf(stderr, "cannot len: r%zu\n", instr->args[0].reg);
                             __builtin_trap();
@@ -602,7 +753,7 @@ inline_jump:;
                         vm_int_block_comp_mov(instr->out.reg, types[instr->args[0].reg]);
                     } else {
                         // r = move i
-                        vm_int_block_comp_mov(instr->out.reg, VM_TYPE_FLOAT);
+                        vm_int_block_comp_mov(instr->out.reg, VM_TYPE_F64);
                     }
                 }
                 break;
@@ -611,12 +762,12 @@ inline_jump:;
                 if (instr->args[0].type == VM_IR_ARG_NUM) {
                     // out i
                     vm_int_block_comp_put_ptr(VM_INT_OP_OUT_I);
-                    vm_int_block_comp_put_ival(instr->args[0].num);
+                    vm_int_block_comp_put_ival(instr->args[0]);
                 } else {
                     // out r
                     vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
                     vm_int_block_comp_put_ptr(VM_INT_OP_OUT_R);
-                    vm_int_block_comp_put_arg(instr->args[0]);
+                    vm_int_block_comp_put_reg(instr->args[0]);
                 }
                 break;
             }
@@ -643,7 +794,7 @@ inline_jump:;
                 // bb r l l
                 if (types[block->branch->args[0].reg] == VM_TYPE_BOOL) {
                     vm_int_block_comp_put_ptr(VM_INT_OP_BB_RTT);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                    vm_int_block_comp_put_reg(block->branch->args[0]);
                     vm_int_block_comp_put_block(block->branch->targets[0]);
                     vm_int_block_comp_put_block(block->branch->targets[1]);
                 } else if (types[block->branch->args[0].reg] == VM_TYPE_NIL) {
@@ -675,29 +826,55 @@ inline_jump:;
                         block->branch->targets[block->branch->args[0].num < block->branch->args[1].num]);
                 } else {
                     // blt i r l l
-                        vm_int_block_comp_put_ptr(VM_INT_OP_FBLT_IRTT);
-                        vm_int_block_comp_put_fval(block->branch->args[0].num);
-                        vm_int_block_comp_put_arg(block->branch->args[1]);
+                    if (types[block->branch->args[0].reg] == VM_TYPE_I32 && fmod(block->branch->args[1].num, 1) == 0.0) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_I32BLT_IRTT);
+                        vm_int_block_comp_put_ival(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
+                        vm_int_block_comp_put_ptr(VM_INT_OP_FBLT_FRTT);
+                        vm_int_block_comp_put_fval(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    }
                 }
             } else {
                 if (block->branch->args[1].type == VM_IR_ARG_NUM) {
                     // blt r i l l
-                        vm_int_block_comp_put_ptr(VM_INT_OP_FBLT_RITT);
-                        vm_int_block_comp_put_arg(block->branch->args[0]);
-                        vm_int_block_comp_put_fval(block->branch->args[1].num);
+                    if (types[block->branch->args[0].reg] == VM_TYPE_I32 && fmod(block->branch->args[1].num, 1) == 0.0) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_I32BLT_RITT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_ival(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
+                        vm_int_block_comp_put_ptr(VM_INT_OP_FBLT_RFTT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_fval(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    }
                 } else {
                     // blt r r l l
-                    vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
-                    vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
-                    vm_int_block_comp_put_ptr(VM_INT_OP_FBLT_RRTT);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
-                    vm_int_block_comp_put_arg(block->branch->args[1]);
-                    vm_int_block_comp_put_block(block->branch->targets[0]);
-                    vm_int_block_comp_put_block(block->branch->targets[1]);
+                    if (types[block->branch->args[0].reg] == VM_TYPE_I32 && types[block->branch->args[1].reg] == VM_TYPE_I32) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_I32BLT_RRTT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
+                        vm_int_block_comp_put_ptr(VM_INT_OP_FBLT_RRTT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    }
                 }
             }
             break;
@@ -711,29 +888,55 @@ inline_jump:;
                         block->branch->targets[block->branch->args[0].num == block->branch->args[1].num]);
                 } else {
                     // beq i r l l
-                        vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_IRTT);
-                        vm_int_block_comp_put_fval(block->branch->args[0].num);
-                        vm_int_block_comp_put_arg(block->branch->args[1]);
+                    if (types[block->branch->args[0].reg] == VM_TYPE_I32 && fmod(block->branch->args[1].num, 1) == 0.0) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_I32BEQ_IRTT);
+                        vm_int_block_comp_put_ival(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
+                        vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_FRTT);
+                        vm_int_block_comp_put_fval(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    }
                 }
             } else {
                 if (block->branch->args[1].type == VM_IR_ARG_NUM) {
                     // beq r i l l
-                        vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_RITT);
-                        vm_int_block_comp_put_arg(block->branch->args[0]);
-                        vm_int_block_comp_put_fval(block->branch->args[1].num);
+                    if (types[block->branch->args[0].reg] == VM_TYPE_I32 && fmod(block->branch->args[1].num, 1) == 0.0) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_I32BEQ_RITT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_ival(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
+                        vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_RFTT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_fval(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    }
                 } else {
                     // beq r r l l
-                    vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
-                    vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
-                    vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_RRTT);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
-                    vm_int_block_comp_put_arg(block->branch->args[1]);
-                    vm_int_block_comp_put_block(block->branch->targets[0]);
-                    vm_int_block_comp_put_block(block->branch->targets[1]);
+                    if (types[block->branch->args[0].reg] == VM_TYPE_I32 && types[block->branch->args[1].reg] == VM_TYPE_I32) {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_I32BEQ_RRTT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
+                        vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_RRTT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    }
                 }
             }
             break;
@@ -742,7 +945,7 @@ inline_jump:;
             if (block->branch->args[0].type == VM_IR_ARG_NUM) {
                 // ret i
                 vm_int_block_comp_put_ptr(VM_INT_OP_RET_I);
-                vm_int_block_comp_put_arg(block->branch->args[0]);
+                vm_int_block_comp_put_reg(block->branch->args[0]);
             } else {
                 uint8_t type = types[block->branch->args[0].reg];
                 if (type == VM_TYPE_NIL) {
@@ -750,23 +953,27 @@ inline_jump:;
                 }
                 if (type == VM_TYPE_BOOL) {
                     vm_int_block_comp_put_ptr(VM_INT_OP_RET_RB);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                    vm_int_block_comp_put_reg(block->branch->args[0]);
                 }
-                if (type == VM_TYPE_FLOAT) {
+                if (type == VM_TYPE_I32) {
                     vm_int_block_comp_put_ptr(VM_INT_OP_RET_RI);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                    vm_int_block_comp_put_reg(block->branch->args[0]);
+                }
+                if (type == VM_TYPE_F64) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_RET_RF);
+                    vm_int_block_comp_put_reg(block->branch->args[0]);
                 }
                 if (type == VM_TYPE_FUNC) {
                     vm_int_block_comp_put_ptr(VM_INT_OP_RET_RF);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                    vm_int_block_comp_put_reg(block->branch->args[0]);
                 }
                 if (type == VM_TYPE_ARRAY) {
                     vm_int_block_comp_put_ptr(VM_INT_OP_RET_RA);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                    vm_int_block_comp_put_reg(block->branch->args[0]);
                 }
                 if (type == VM_TYPE_TABLE) {
                     vm_int_block_comp_put_ptr(VM_INT_OP_RET_RT);
-                    vm_int_block_comp_put_arg(block->branch->args[0]);
+                    vm_int_block_comp_put_reg(block->branch->args[0]);
                 }
                 // ret r
             }
@@ -840,31 +1047,70 @@ retv:
 #define vm_int_run_save()       \
     ({                          \
         state->locals = locals; \
-        state->heads = heads; \
+        state->heads = heads;   \
         state;                  \
     })
 
 vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
     static void *ptrs[VM_INT_MAX_OP] = {
-        [VM_INT_OP_EXIT] = &&do_exit, 
+        [VM_INT_OP_EXIT] = &&do_exit,
         [VM_INT_OP_MOV_V] = &&do_mov_v,
         [VM_INT_OP_MOV_B] = &&do_mov_b,
+        [VM_INT_OP_MOV_I] = &&do_mov_i,
         [VM_INT_OP_MOV_F] = &&do_mov_f,
         [VM_INT_OP_MOV_R] = &&do_mov_r,
         [VM_INT_OP_MOV_T] = &&do_mov_t,
+        [VM_INT_OP_FMOV_R] = &&do_fmov_r,
+        [VM_INT_OP_I32ADD_RR] = &&do_i32add_rr,
+        [VM_INT_OP_I32ADD_RI] = &&do_i32add_ri,
+        [VM_INT_OP_I32SUB_RR] = &&do_i32sub_rr,
+        [VM_INT_OP_I32SUB_RI] = &&do_i32sub_ri,
+        [VM_INT_OP_I32SUB_IR] = &&do_i32sub_ir,
+        [VM_INT_OP_I32MUL_RR] = &&do_i32mul_rr,
+        [VM_INT_OP_I32MUL_RI] = &&do_i32mul_ri,
+        [VM_INT_OP_I32DIV_RR] = &&do_i32div_rr,
+        [VM_INT_OP_I32DIV_RI] = &&do_i32div_ri,
+        [VM_INT_OP_I32DIV_IR] = &&do_i32div_ir,
+        [VM_INT_OP_I32MOD_RR] = &&do_i32mod_rr,
+        [VM_INT_OP_I32MOD_RI] = &&do_i32mod_ri,
+        [VM_INT_OP_I32MOD_IR] = &&do_i32mod_ir,
+        [VM_INT_OP_I32BLT_RRLL] = &&do_i32blt_rrll,
+        [VM_INT_OP_I32BLT_RILL] = &&do_i32blt_rill,
+        [VM_INT_OP_I32BLT_IRLL] = &&do_i32blt_irll,
+        [VM_INT_OP_I32BEQ_RRLL] = &&do_i32beq_rrll,
+        [VM_INT_OP_I32BEQ_RILL] = &&do_i32beq_rill,
+        [VM_INT_OP_I32BEQ_IRLL] = &&do_i32beq_irll,
+        [VM_INT_OP_I32BLT_RRTT] = &&do_i32blt_rrtt,
+        [VM_INT_OP_I32BLT_RITT] = &&do_i32blt_ritt,
+        [VM_INT_OP_I32BLT_IRTT] = &&do_i32blt_irtt,
+        [VM_INT_OP_I32BEQ_RRTT] = &&do_i32beq_rrtt,
+        [VM_INT_OP_I32BEQ_RITT] = &&do_i32beq_ritt,
+        [VM_INT_OP_I32BEQ_IRTT] = &&do_i32beq_irtt,
         [VM_INT_OP_FADD_RR] = &&do_fadd_rr,
-        [VM_INT_OP_FADD_RF] = &&do_fadd_ri,
+        [VM_INT_OP_FADD_RF] = &&do_fadd_rf,
         [VM_INT_OP_FSUB_RR] = &&do_fsub_rr,
-        [VM_INT_OP_FSUB_RF] = &&do_fsub_ri,
-        [VM_INT_OP_FSUB_FR] = &&do_fsub_ir,
+        [VM_INT_OP_FSUB_RF] = &&do_fsub_rf,
+        [VM_INT_OP_FSUB_FR] = &&do_fsub_fr,
         [VM_INT_OP_FMUL_RR] = &&do_fmul_rr,
-        [VM_INT_OP_FMUL_RF] = &&do_fmul_ri,
+        [VM_INT_OP_FMUL_RF] = &&do_fmul_rf,
         [VM_INT_OP_FDIV_RR] = &&do_fdiv_rr,
-        [VM_INT_OP_FDIV_RF] = &&do_fdiv_ri,
-        [VM_INT_OP_FDIV_FR] = &&do_fdiv_ir,
+        [VM_INT_OP_FDIV_RF] = &&do_fdiv_rf,
+        [VM_INT_OP_FDIV_FR] = &&do_fdiv_fr,
         [VM_INT_OP_FMOD_RR] = &&do_fmod_rr,
-        [VM_INT_OP_FMOD_RF] = &&do_fmod_ri,
-        [VM_INT_OP_FMOD_FR] = &&do_fmod_ir,
+        [VM_INT_OP_FMOD_RF] = &&do_fmod_rf,
+        [VM_INT_OP_FMOD_FR] = &&do_fmod_fr,
+        [VM_INT_OP_FBLT_RRLL] = &&do_fblt_rrll,
+        [VM_INT_OP_FBLT_RFLL] = &&do_fblt_rfll,
+        [VM_INT_OP_FBLT_FRLL] = &&do_fblt_frll,
+        [VM_INT_OP_FBEQ_RRLL] = &&do_fbeq_rrll,
+        [VM_INT_OP_FBEQ_RFLL] = &&do_fbeq_rfll,
+        [VM_INT_OP_FBEQ_FRLL] = &&do_fbeq_frll,
+        [VM_INT_OP_FBLT_RRTT] = &&do_fblt_rrtt,
+        [VM_INT_OP_FBLT_RFTT] = &&do_fblt_rftt,
+        [VM_INT_OP_FBLT_FRTT] = &&do_fblt_frtt,
+        [VM_INT_OP_FBEQ_RRTT] = &&do_fbeq_rrtt,
+        [VM_INT_OP_FBEQ_RFTT] = &&do_fbeq_rftt,
+        [VM_INT_OP_FBEQ_FRTT] = &&do_fbeq_frtt,
         [VM_INT_OP_CALL_L0] = &&do_call_l0,
         [VM_INT_OP_CALL_L1] = &&do_call_l1,
         [VM_INT_OP_CALL_L2] = &&do_call_l2,
@@ -913,16 +1159,11 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_OUT_R] = &&do_out_r,
         [VM_INT_OP_JUMP_L] = &&do_jump_l,
         [VM_INT_OP_BB_RLL] = &&do_bb_rll,
-        [VM_INT_OP_FBLT_RRLL] = &&do_fblt_rrll,
-        [VM_INT_OP_FBLT_RILL] = &&do_fblt_rill,
-        [VM_INT_OP_FBLT_IRLL] = &&do_fblt_irll,
-        [VM_INT_OP_FBEQ_RRLL] = &&do_fbeq_rrll,
-        [VM_INT_OP_FBEQ_RILL] = &&do_fbeq_rill,
-        [VM_INT_OP_FBEQ_IRLL] = &&do_fbeq_irll,
         [VM_INT_OP_RET_I] = &&do_ret_i,
         [VM_INT_OP_RET_RV] = &&do_ret_rv,
         [VM_INT_OP_RET_RB] = &&do_ret_rb,
         [VM_INT_OP_RET_RI] = &&do_ret_ri,
+        [VM_INT_OP_RET_RIF] = &&do_ret_rif,
         [VM_INT_OP_RET_RF] = &&do_ret_rf,
         [VM_INT_OP_RET_RA] = &&do_ret_ra,
         [VM_INT_OP_RET_RT] = &&do_ret_rt,
@@ -937,12 +1178,6 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
         [VM_INT_OP_CALL_T8] = &&do_call_t8,
         [VM_INT_OP_JUMP_T] = &&do_jump_t,
         [VM_INT_OP_BB_RTT] = &&do_bb_rtt,
-        [VM_INT_OP_FBLT_RRTT] = &&do_fblt_rrtt,
-        [VM_INT_OP_FBLT_RITT] = &&do_fblt_ritt,
-        [VM_INT_OP_FBLT_IRTT] = &&do_fblt_irtt,
-        [VM_INT_OP_FBEQ_RRTT] = &&do_fbeq_rrtt,
-        [VM_INT_OP_FBEQ_RITT] = &&do_fbeq_ritt,
-        [VM_INT_OP_FBEQ_IRTT] = &&do_fbeq_irtt,
         [VM_INT_OP_TAB] = &&do_tab,
         [VM_INT_OP_TSET_RRR] = &&do_tset_rrr,
         [VM_INT_OP_TSET_RRF] = &&do_tset_rrf,
@@ -970,6 +1205,12 @@ do_mov_b : {
     *out = vm_value_from_bool(value);
     vm_int_run_next();
 }
+do_mov_i : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_int_t value = vm_int_run_read().ival;
+    *out = vm_value_from_int(value);
+    vm_int_run_next();
+}
 do_mov_f : {
     vm_value_t *out = vm_int_run_read_store();
     vm_number_t value = vm_int_run_read().fval;
@@ -988,12 +1229,275 @@ do_mov_t : {
     *out = vm_value_from_block(block);
     vm_int_run_next();
 }
-do_float : {
+do_fmov_r : {
     vm_value_t *out = vm_int_run_read_store();
-    *out = vm_value_from_float((vm_number_t)vm_value_to_float(*out));
+    *out = vm_value_from_float((vm_number_t)vm_value_to_int(*out));
     vm_int_run_next();
 }
-// math ops
+
+
+// int ops
+do_i32add_rr : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_value_t rhs = vm_int_run_read_load();
+    *out = vm_value_from_int(vm_value_to_int(lhs) + vm_value_to_int(rhs));
+    vm_int_run_next();
+}
+do_i32add_ri : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_int_t rhs = vm_int_run_read().ival;
+    *out = vm_value_from_int(vm_value_to_int(lhs) + rhs);
+    vm_int_run_next();
+}
+do_i32sub_rr : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_value_t rhs = vm_int_run_read_load();
+    *out = vm_value_from_int(vm_value_to_int(lhs) - vm_value_to_int(rhs));
+    vm_int_run_next();
+}
+do_i32sub_ri : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_int_t rhs = vm_int_run_read().ival;
+    *out = vm_value_from_int(vm_value_to_int(lhs) - rhs);
+    vm_int_run_next();
+}
+do_i32sub_ir : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_int_t lhs = vm_int_run_read().ival;
+    vm_value_t rhs = vm_int_run_read_load();
+    *out = vm_value_from_int(lhs - vm_value_to_int(rhs));
+    vm_int_run_next();
+}
+do_i32mul_rr : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_value_t rhs = vm_int_run_read_load();
+    *out = vm_value_from_int(vm_value_to_int(lhs) * vm_value_to_int(rhs));
+    vm_int_run_next();
+}
+do_i32mul_ri : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_int_t rhs = vm_int_run_read().ival;
+    *out = vm_value_from_int(vm_value_to_int(lhs) * rhs);
+    vm_int_run_next();
+}
+do_i32div_rr : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_int_t lhs = vm_value_to_int(vm_int_run_read_load());
+    vm_int_t rhs = vm_value_to_int(vm_int_run_read_load());
+    if (lhs % rhs == 0) {
+        *out = vm_value_from_int(lhs / rhs);
+        if (head[1].ptr == NULL) {
+            head = head[1].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        } else {
+            head = head[1].ptr;
+        }
+    } else {
+        *out = vm_value_from_float((double) lhs / (double) rhs);
+        if (head[2].ptr == NULL) {
+            head = head[2].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        } else {
+            head = head[2].ptr;
+        }
+    }
+    vm_int_run_next();
+}
+do_i32div_ri : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_int_t lhs = vm_value_to_int(vm_int_run_read_load());
+    vm_int_t rhs = vm_int_run_read().ival;
+    if (lhs % rhs == 0) {
+        *out = vm_value_from_int(lhs / rhs);
+        if (head[1].ptr == NULL) {
+            head = head[1].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        } else {
+            head = head[1].ptr;
+        }
+    } else {
+        *out = vm_value_from_float((double) lhs / (double) rhs);
+        if (head[2].ptr == NULL) {
+            head = head[2].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        } else {
+            head = head[2].ptr;
+        }
+    }
+    vm_int_run_next();
+}
+do_i32div_ir : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_int_t lhs = vm_int_run_read().ival;
+    vm_int_t rhs = vm_value_to_int(vm_int_run_read_load());
+    if (lhs % rhs == 0) {
+        *out = vm_value_from_int(lhs / rhs);
+        if (head[1].ptr == NULL) {
+            head = head[1].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        } else {
+            head = head[1].ptr;
+        }
+    } else {
+        *out = vm_value_from_float((double) lhs / (double) rhs);
+        if (head[2].ptr == NULL) {
+            head = head[2].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        } else {
+            head = head[2].ptr;
+        }
+    }
+    vm_int_run_next();
+}
+do_i32mod_rr : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_value_t rhs = vm_int_run_read_load();
+    *out = vm_value_from_int(vm_value_to_int(lhs) % vm_value_to_int(rhs));
+    vm_int_run_next();
+}
+do_i32mod_ri : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_value_t lhs = vm_int_run_read_load();
+    vm_int_t rhs = vm_int_run_read().ival;
+    *out = vm_value_from_int(vm_value_to_int(lhs) % rhs);
+    vm_int_run_next();
+}
+do_i32mod_ir : {
+    vm_value_t *out = vm_int_run_read_store();
+    vm_int_t lhs = vm_int_run_read().ival;
+    vm_value_t rhs = vm_int_run_read_load();
+    *out = vm_value_from_int(lhs % vm_value_to_int(rhs));
+    vm_int_run_next();
+}
+do_i32blt_rrll : {
+    vm_int_t lhs = vm_value_to_int(vm_int_run_read_load());
+    vm_int_t rhs = vm_value_to_int(vm_int_run_read_load());
+    if (lhs < rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_i32blt_rill : {
+    vm_int_t lhs = vm_value_to_int(vm_int_run_read_load());
+    vm_int_t rhs = vm_int_run_read().ival;
+    if (lhs < rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_i32blt_irll : {
+    vm_int_t lhs = vm_int_run_read().ival;
+    vm_int_t rhs = vm_value_to_int(vm_int_run_read_load());
+    if (lhs < rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_i32beq_rrll : {
+    vm_int_t lhs = vm_value_to_int(vm_int_run_read_load());
+    vm_int_t rhs = vm_value_to_int(vm_int_run_read_load());
+    if (lhs == rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_i32beq_rill : {
+    vm_int_t lhs = vm_value_to_int(vm_int_run_read_load());
+    vm_int_t rhs = vm_int_run_read().ival;
+    if (lhs == rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_i32beq_irll : {
+    vm_int_t lhs = vm_int_run_read().ival;
+    vm_int_t rhs = vm_value_to_int(vm_int_run_read_load());
+    if (lhs == rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_i32blt_rrtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_i32blt_rrll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_i32blt_ritt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_i32blt_rill;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_i32blt_irtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_i32blt_irll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_i32beq_rrtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_i32beq_rrll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_i32beq_ritt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_i32beq_rill;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_i32beq_irtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_i32beq_irll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+
+// float ops
 do_fadd_rr : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t lhs = vm_int_run_read_load();
@@ -1001,7 +1505,7 @@ do_fadd_rr : {
     *out = vm_value_from_float(vm_value_to_float(lhs) + vm_value_to_float(rhs));
     vm_int_run_next();
 }
-do_fadd_ri : {
+do_fadd_rf : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t lhs = vm_int_run_read_load();
     vm_number_t rhs = vm_int_run_read().fval;
@@ -1015,14 +1519,14 @@ do_fsub_rr : {
     *out = vm_value_from_float(vm_value_to_float(lhs) - vm_value_to_float(rhs));
     vm_int_run_next();
 }
-do_fsub_ri : {
+do_fsub_rf : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t lhs = vm_int_run_read_load();
     vm_number_t rhs = vm_int_run_read().fval;
     *out = vm_value_from_float(vm_value_to_float(lhs) - rhs);
     vm_int_run_next();
 }
-do_fsub_ir : {
+do_fsub_fr : {
     vm_value_t *out = vm_int_run_read_store();
     vm_number_t lhs = vm_int_run_read().fval;
     vm_value_t rhs = vm_int_run_read_load();
@@ -1036,7 +1540,7 @@ do_fmul_rr : {
     *out = vm_value_from_float(vm_value_to_float(lhs) * vm_value_to_float(rhs));
     vm_int_run_next();
 }
-do_fmul_ri : {
+do_fmul_rf : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t lhs = vm_int_run_read_load();
     vm_number_t rhs = vm_int_run_read().fval;
@@ -1050,14 +1554,14 @@ do_fdiv_rr : {
     *out = vm_value_from_float(vm_value_to_float(lhs) / vm_value_to_float(rhs));
     vm_int_run_next();
 }
-do_fdiv_ri : {
+do_fdiv_rf : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t lhs = vm_int_run_read_load();
     vm_number_t rhs = vm_int_run_read().fval;
     *out = vm_value_from_float(vm_value_to_float(lhs) / rhs);
     vm_int_run_next();
 }
-do_fdiv_ir : {
+do_fdiv_fr : {
     vm_value_t *out = vm_int_run_read_store();
     vm_number_t lhs = vm_int_run_read().fval;
     vm_value_t rhs = vm_int_run_read_load();
@@ -1071,18 +1575,154 @@ do_fmod_rr : {
     *out = vm_value_from_float(fmod(vm_value_to_float(lhs), vm_value_to_float(rhs)));
     vm_int_run_next();
 }
-do_fmod_ri : {
+do_fmod_rf : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t lhs = vm_int_run_read_load();
     vm_number_t rhs = vm_int_run_read().fval;
     *out = vm_value_from_float(fmod(vm_value_to_float(lhs), rhs));
     vm_int_run_next();
 }
-do_fmod_ir : {
+do_fmod_fr : {
     vm_value_t *out = vm_int_run_read_store();
     vm_number_t lhs = vm_int_run_read().fval;
     vm_value_t rhs = vm_int_run_read_load();
     *out = vm_value_from_float(fmod(lhs, vm_value_to_float(rhs)));
+    vm_int_run_next();
+}
+do_fblt_rrll : {
+    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
+    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
+    if (lhs < rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_fblt_rfll : {
+    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
+    vm_number_t rhs = vm_int_run_read().fval;
+    if (lhs < rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_fblt_frll : {
+    vm_number_t lhs = vm_int_run_read().fval;
+    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
+    if (lhs < rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_fbeq_rrll : {
+    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
+    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
+    if (lhs == rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_fbeq_rfll : {
+    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
+    vm_number_t rhs = vm_int_run_read().fval;
+    if (lhs == rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_fbeq_frll : {
+    vm_number_t lhs = vm_int_run_read().fval;
+    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
+    if (lhs == rhs) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
+    vm_int_run_next();
+}
+do_fblt_rrtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_fblt_rrll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_fblt_rftt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_fblt_rfll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_fblt_frtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_fblt_frll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_fbeq_rrtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_fbeq_rrll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_fbeq_rftt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_fbeq_rfll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+do_fbeq_frtt : {
+    vm_int_opcode_t *loc = --head;
+    vm_int_run_read().ptr = &&do_fbeq_frll;
+    head += 2;
+    vm_int_opcode_t *block1 = &vm_int_run_read();
+    vm_int_opcode_t *block2 = &vm_int_run_read();
+    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
+    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
+    head = loc;
+    vm_int_run_next();
+}
+// other
+do_bb_rll : {
+    vm_value_t value = vm_int_run_read_load();
+    if (vm_value_to_bool(value)) {
+        head = head[1].ptr;
+    } else {
+        head = head[0].ptr;
+    }
     vm_int_run_next();
 }
 // calls
@@ -1499,14 +2139,14 @@ do_arr_f : {
     vm_value_t *out = vm_int_run_read_store();
     double len = vm_int_run_read().fval;
     vm_gc_run(&state->gc, locals + state->framesize);
-    *out = vm_gc_arr(&state->gc, (vm_int_t) len);
+    *out = vm_gc_arr(&state->gc, (vm_int_t)len);
     vm_int_run_next();
 }
 do_arr_r : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t len = vm_int_run_read_load();
     vm_gc_run(&state->gc, locals + state->framesize);
-    *out = vm_gc_arr(&state->gc, (vm_int_t) vm_value_to_float(len));
+    *out = vm_gc_arr(&state->gc, (vm_int_t)vm_value_to_float(len));
     vm_int_run_next();
 }
 do_set_rrr : {
@@ -1548,14 +2188,14 @@ do_get_rr : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
-        case VM_TYPE_NIL: 
+        case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
         case VM_TYPE_BOOL:
             head = head[VM_TYPE_BOOL].ptr;
             vm_int_run_next();
-        case VM_TYPE_FLOAT:
-            head = head[VM_TYPE_FLOAT].ptr;
+        case VM_TYPE_F64:
+            head = head[VM_TYPE_F64].ptr;
             vm_int_run_next();
         case VM_TYPE_FUNC:
             head = head[VM_TYPE_FUNC].ptr;
@@ -1580,14 +2220,14 @@ do_get_ri : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
-        case VM_TYPE_NIL: 
+        case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
         case VM_TYPE_BOOL:
             head = head[VM_TYPE_BOOL].ptr;
             vm_int_run_next();
-        case VM_TYPE_FLOAT:
-            head = head[VM_TYPE_FLOAT].ptr;
+        case VM_TYPE_F64:
+            head = head[VM_TYPE_F64].ptr;
             vm_int_run_next();
         case VM_TYPE_FUNC:
             head = head[VM_TYPE_FUNC].ptr;
@@ -1604,7 +2244,7 @@ do_get_ri : {
 do_len_r : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
-    *out = vm_value_from_float(vm_gc_len(obj));
+    *out = vm_value_from_int(vm_gc_len(obj));
     vm_int_run_next();
 }
 // io
@@ -1622,75 +2262,6 @@ do_jump_l : {
     vm_int_run_next();
 }
 // float branch compiled
-do_bb_rll : {
-    vm_value_t value = vm_int_run_read_load();
-    if (vm_value_to_bool(value)) {
-        head = head[1].ptr;
-    } else {
-        head = head[0].ptr;
-    }
-    vm_int_run_next();
-}
-do_fblt_rrll : {
-    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
-    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
-    if (lhs < rhs) {
-        head = head[1].ptr;
-    } else {
-        head = head[0].ptr;
-    }
-    vm_int_run_next();
-}
-do_fblt_rill : {
-    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
-    vm_number_t rhs = vm_int_run_read().fval;
-    if (lhs < rhs) {
-        head = head[1].ptr;
-    } else {
-        head = head[0].ptr;
-    }
-    vm_int_run_next();
-}
-do_fblt_irll : {
-    vm_number_t lhs = vm_int_run_read().fval;
-    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
-    if (lhs < rhs) {
-        head = head[1].ptr;
-    } else {
-        head = head[0].ptr;
-    }
-    vm_int_run_next();
-}
-do_fbeq_rrll : {
-    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
-    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
-    if (lhs == rhs) {
-        head = head[1].ptr;
-    } else {
-        head = head[0].ptr;
-    }
-    vm_int_run_next();
-}
-do_fbeq_rill : {
-    vm_number_t lhs = vm_value_to_float(vm_int_run_read_load());
-    vm_number_t rhs = vm_int_run_read().fval;
-    if (lhs == rhs) {
-        head = head[1].ptr;
-    } else {
-        head = head[0].ptr;
-    }
-    vm_int_run_next();
-}
-do_fbeq_irll : {
-    vm_number_t lhs = vm_int_run_read().fval;
-    vm_number_t rhs = vm_value_to_float(vm_int_run_read_load());
-    if (lhs == rhs) {
-        head = head[1].ptr;
-    } else {
-        head = head[0].ptr;
-    }
-    vm_int_run_next();
-}
 // ret
 do_ret_i : {
     vm_value_t value = vm_value_from_float(vm_int_run_read().fval);
@@ -1698,9 +2269,9 @@ do_ret_i : {
     locals -= framesize;
     vm_int_opcode_t out = vm_int_run_read();
     locals[out.reg] = value;
-    void *pblock = head[VM_TYPE_FLOAT].ptr;
+    void *pblock = head[VM_TYPE_F64].ptr;
     if (pblock == NULL) {
-        head = head[VM_TYPE_FLOAT].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        head = head[VM_TYPE_F64].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     } else {
         head = pblock;
     }
@@ -1737,9 +2308,22 @@ do_ret_ri : {
     locals -= framesize;
     head = *--heads;
     locals[vm_int_run_read().reg] = value;
-    void *pblock = head[VM_TYPE_FLOAT].ptr;
+    void *pblock = head[VM_TYPE_I32].ptr;
     if (pblock == NULL) {
-        head = head[VM_TYPE_FLOAT].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+        head = head[VM_TYPE_I32].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
+    } else {
+        head = pblock;
+    }
+    vm_int_run_next();
+}
+do_ret_rif : {
+    vm_value_t value = locals[head->reg];
+    locals -= framesize;
+    head = *--heads;
+    locals[vm_int_run_read().reg] = value;
+    void *pblock = head[VM_TYPE_F64].ptr;
+    if (pblock == NULL) {
+        head = head[VM_TYPE_F64].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     } else {
         head = pblock;
     }
@@ -1913,72 +2497,6 @@ do_bb_rtt : {
     head = loc;
     vm_int_run_next();
 }
-do_fblt_rrtt : {
-    vm_int_opcode_t *loc = --head;
-    vm_int_run_read().ptr = &&do_fblt_rrll;
-    head += 2;
-    vm_int_opcode_t *block1 = &vm_int_run_read();
-    vm_int_opcode_t *block2 = &vm_int_run_read();
-    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
-    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
-    head = loc;
-    vm_int_run_next();
-}
-do_fblt_ritt : {
-    vm_int_opcode_t *loc = --head;
-    vm_int_run_read().ptr = &&do_fblt_rill;
-    head += 2;
-    vm_int_opcode_t *block1 = &vm_int_run_read();
-    vm_int_opcode_t *block2 = &vm_int_run_read();
-    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
-    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
-    head = loc;
-    vm_int_run_next();
-}
-do_fblt_irtt : {
-    vm_int_opcode_t *loc = --head;
-    vm_int_run_read().ptr = &&do_fblt_irll;
-    head += 2;
-    vm_int_opcode_t *block1 = &vm_int_run_read();
-    vm_int_opcode_t *block2 = &vm_int_run_read();
-    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
-    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
-    head = loc;
-    vm_int_run_next();
-}
-do_fbeq_rrtt : {
-    vm_int_opcode_t *loc = --head;
-    vm_int_run_read().ptr = &&do_fbeq_rrll;
-    head += 2;
-    vm_int_opcode_t *block1 = &vm_int_run_read();
-    vm_int_opcode_t *block2 = &vm_int_run_read();
-    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
-    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
-    head = loc;
-    vm_int_run_next();
-}
-do_fbeq_ritt : {
-    vm_int_opcode_t *loc = --head;
-    vm_int_run_read().ptr = &&do_fbeq_rill;
-    head += 2;
-    vm_int_opcode_t *block1 = &vm_int_run_read();
-    vm_int_opcode_t *block2 = &vm_int_run_read();
-    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
-    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
-    head = loc;
-    vm_int_run_next();
-}
-do_fbeq_irtt : {
-    vm_int_opcode_t *loc = --head;
-    vm_int_run_read().ptr = &&do_fbeq_irll;
-    head += 2;
-    vm_int_opcode_t *block1 = &vm_int_run_read();
-    vm_int_opcode_t *block2 = &vm_int_run_read();
-    block1->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block1->block);
-    block2->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block2->block);
-    head = loc;
-    vm_int_run_next();
-}
 do_tab : {
     vm_value_t *out = vm_int_run_read_store();
     vm_gc_run(&state->gc, locals + state->framesize);
@@ -1996,14 +2514,14 @@ do_tget_rr : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
-        case VM_TYPE_NIL: 
+        case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
         case VM_TYPE_BOOL:
             head = head[VM_TYPE_BOOL].ptr;
             vm_int_run_next();
-        case VM_TYPE_FLOAT:
-            head = head[VM_TYPE_FLOAT].ptr;
+        case VM_TYPE_F64:
+            head = head[VM_TYPE_F64].ptr;
             vm_int_run_next();
         case VM_TYPE_FUNC:
             head = head[VM_TYPE_FUNC].ptr;
@@ -2028,14 +2546,14 @@ do_tget_rf : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
-        case VM_TYPE_NIL: 
+        case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
         case VM_TYPE_BOOL:
             head = head[VM_TYPE_BOOL].ptr;
             vm_int_run_next();
-        case VM_TYPE_FLOAT:
-            head = head[VM_TYPE_FLOAT].ptr;
+        case VM_TYPE_F64:
+            head = head[VM_TYPE_F64].ptr;
             vm_int_run_next();
         case VM_TYPE_FUNC:
             head = head[VM_TYPE_FUNC].ptr;

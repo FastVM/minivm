@@ -287,8 +287,8 @@ vm_value_t vm_gc_tab(vm_gc_t *gc) {
 static inline bool vm_gc_table_eq(vm_value_t v1, vm_value_t v2) {
     uint8_t t1 = vm_typeof(v1);
     uint8_t t2 = vm_typeof(v2);
-    if (t2 == VM_TYPE_FLOAT) {
-        if (t2 == VM_TYPE_FLOAT) {
+    if (t2 == VM_TYPE_F64) {
+        if (t2 == VM_TYPE_F64) {
             return vm_value_to_float(v1) == vm_value_to_float(v2);
         } else {
             return false;
@@ -324,7 +324,7 @@ static inline bool vm_gc_table_eq(vm_value_t v1, vm_value_t v2) {
 
 static inline size_t vm_gc_table_hash(uint8_t nth, vm_value_t val) {
     uint8_t type = vm_typeof(val);
-    if (type == VM_TYPE_FLOAT) {
+    if (type == VM_TYPE_F64) {
         return vm_gc_table_modsize(nth, (1 << 24) + (size_t) vm_value_to_float(val));
     } else if (type == VM_TYPE_BOOL) {
         return (size_t) vm_value_to_bool(val);
