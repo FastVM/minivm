@@ -43,7 +43,21 @@ jobs:
             bin/minivm-asm
             bin/minivm-run
             bin/libminivm.a
-  windows-minivm:
+  windows-minivm-gcc:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: $env:CC = 'gcc'; ./build.bat
+      - uses: actions/upload-artifact@v2
+        with:
+          name: minivm-windows-gcc
+          path:  | 
+            bin/minivm-asm.exe
+            bin/libminivm.lib
+            bin/minivm-run.exe
+  windows-minivm-clang:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -52,7 +66,7 @@ jobs:
       - run: ./build.bat
       - uses: actions/upload-artifact@v2
         with:
-          name: minivm-windows
+          name: minivm-windows-clang
           path:  | 
             bin/minivm-asm.exe
             bin/libminivm.lib
