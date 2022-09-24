@@ -49,10 +49,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: egor-tensin/setup-clang@v1
-        with:
-          version: latest
-          platform: x64
       - run: ./build.bat
       - uses: actions/upload-artifact@v2
         with:
