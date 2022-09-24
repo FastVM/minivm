@@ -1,41 +1,30 @@
 
-#pragma once
+#if !defined(VM_HEADER_LIB)
+#define VM_HEADER_LIB
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <string.h>
 
-static inline size_t vm_strlen(const char *str)
-{
-  size_t len = 0;
-  while (str[len] != '\0')
-  {
-    len += 1;
-  }
-  return len;
-}
-
-static inline int vm_streq(const char *str1, const char *str2)
-{
-  for (;;)
-  {
-    if (*str1 != *str2)
-    {
-      return 0;
-    }
-    if (*str1 == '\0')
-    {
-      return 1;
-    }
-    str1 += 1;
-    str2 += 1;
-  }
-}
-
+#if VM_MIMALLOC
+#include <mimalloc.h>
+#define vm_malloc(size) (mi_malloc(size))
+#define vm_alloc0(size) (mi_calloc(size, 1))
+#define vm_realloc(ptr, size) (mi_realloc(ptr, size))
+#define vm_free(ptr) (mi_free((void *)ptr))
+#else
 #define vm_malloc(size) (malloc(size))
 #define vm_alloc0(size) (calloc(size, 1))
 #define vm_realloc(ptr, size) (realloc(ptr, size))
-#define vm_free(ptr) (free(ptr))
+#define vm_free(ptr) (free((void *)ptr))
+#endif
+
+#include "config.h"
+
+#endif

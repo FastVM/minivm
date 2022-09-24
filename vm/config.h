@@ -1,32 +1,28 @@
-#pragma once
 
-#if !defined(VM_CONFIG_GC_ENTRIES)
-#define VM_CONFIG_GC_ENTRIES 200
+#if !defined(VM_HEADER_CONFIG)
+#define VM_HEADER_CONFIG
+
+#if !defined(VM_CONFIG_NUM_FRAMES)
+#define VM_CONFIG_NUM_FRAMES 1000
 #endif
 
-#if !defined(VM_CONFIG_GC_INIT)
-#define VM_CONFIG_GC_INIT (1000)
+#if !defined(VM_CONFIG_NUM_REGS)
+#define VM_CONFIG_NUM_REGS (VM_CONFIG_NUM_FRAMES * 16)
 #endif
 
-#if !defined(VM_CONFIG_GC_SHRINK)
-#define VM_CONFIG_GC_SHRINK 0
+#if !defined(VM_CONFIG_GROW_STACK)
+#define VM_CONFIG_GROW_STACK (1)
+#endif
 #endif
 
-struct vm_config_t;
-typedef struct vm_config_t vm_config_t;
+#if !defined(VM_INT_DEBUG_OPCODE)
+#define VM_INT_DEBUG_OPCODE 0
+#endif
 
-#include "lib.h"
+#if !defined(VM_INT_DEBUG_LOAD)
+#define VM_INT_DEBUG_LOAD 0
+#endif
 
-struct vm_config_t {
-  size_t gc_ents;
-  size_t gc_init;
-  size_t gc_shrink;
-};
-
-static inline vm_config_t vm_config_init(void) {
-  return (vm_config_t) {
-    .gc_ents = VM_CONFIG_GC_ENTRIES,
-    .gc_init = VM_CONFIG_GC_INIT,
-    .gc_shrink = VM_CONFIG_GC_SHRINK,
-  };
-}
+#if !defined(VM_TABLE_OPT)
+#define VM_TABLE_OPT 1
+#endif

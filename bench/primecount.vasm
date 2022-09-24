@@ -1,56 +1,58 @@
 
 func isprime
-    r2 <- uint 3
+    r2 <- int 3
 @isprime.loop
-    r0 <- umod r1 r2
-    ubb r0 isprime.notprime isprime.next
+    r0 <- mod r1 r2
+    r3 <- int 0
+    beq r0 r3 isprime.next isprime.notprime
 @isprime.next
-    r0 <- uint 2
-    r2 <- uadd r2 r0
-    r0 <- umul r2 r2
-    ublt r1 r0 isprime.loop isprime.done 
+    r0 <- int 2
+    r2 <- add r2 r0
+    r0 <- mul r2 r2
+    blt r1 r0 isprime.loop isprime.done 
 @isprime.notprime
-    r0 <- uint 0
+    r0 <- int 0
     ret r0
 @isprime.done
-    r0 <- uint 1
+    r0 <- int 1
     ret r0
 end
 
 func puti
-    ubb r1 puti.ret puti.digit 
+    r0 <- int 1
+    blt r1 r0 puti.digit puti.ret 
 @puti.digit
-    r0 <- uint 10
-    r0 <- udiv r1 r0
+    r0 <- int 10
+    r0 <- div r1 r0
     r0 <- call puti r0
-    r0 <- uint 10
-    r1 <- umod r1 r0
-    r0 <- uint 48
-    r1 <- uadd r1 r0
+    r0 <- int 10
+    r1 <- mod r1 r0
+    r0 <- int 48
+    r1 <- add r1 r0
     putchar r1
 @puti.ret
-    r0 <- uint 0
+    r0 <- int 0
     ret r0
 end
 
 func primes
-    r3 <- uint 2
-    r0 <- uint 5
+    r3 <- int 2
+    r0 <- int 5
 @primes.next
     r2 <- call isprime r0
-    r3 <- uadd r3 r2
-    r2 <- uint 2
-    r0 <- uadd r0 r2
-    ublt r0 r1 primes.ret primes.next
+    r3 <- add r3 r2
+    r2 <- int 2
+    r0 <- add r0 r2
+    blt r0 r1 primes.ret primes.next
 @primes.ret
     r3 <- call puti r3
-    r3 <- uint 10
+    r3 <- int 10
     putchar r3
-    r3 <- uint 0
+    r3 <- int 0
     ret r3
 end
 
-@main
-    r0 <- uint 1000000
+@__entry
+    r0 <- int 1000000
     r0 <- call primes r0
     exit

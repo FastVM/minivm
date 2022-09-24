@@ -1,0 +1,290 @@
+func .0
+    r4 <- int 0
+    beq r2 r4 .1 .2
+@.2
+    r5 <- int 1
+    ret r5
+    r3 <- int 0
+    jump .3
+@.1
+    r6 <- int 1
+    r7 <- sub r2 r6
+    r8 <- call .0 r1 r7
+    r9 <- int 2
+    r10 <- mul r8 r9
+    ret r10
+    r3 <- int 0
+@.3
+    ret r3
+end
+func .4
+    r4 <- int 10
+    blt r2 r4 .6 .5
+@.6
+    r5 <- int 10
+    r6 <- div r2 r5
+    r7 <- call .4 r1 r6
+    r3 <- reg r7
+    jump .7
+@.5
+    r3 <- int 0
+@.7
+    r8 <- int 10
+    r9 <- mod r2 r8
+    r10 <- int 48
+    r11 <- add r9 r10
+    putchar r11
+    r0 <- int 0
+    ret r0
+end
+func .8
+    r4 <- int 0
+    blt r2 r4 .9 .10
+@.10
+    r5 <- int 0
+    r2 <- sub r5 r2
+    r6 <- int 45
+    putchar r6
+    r3 <- int 0
+    jump .11
+@.9
+    r3 <- int 0
+@.11
+    r7 <- int 1
+    r7 <- get r1 r7
+    r8 <- int 0
+    r8 <- get r7 r8
+    r9 <- dcall r8 r7 r2
+    r10 <- int 10
+    putchar r10
+    r0 <- int 0
+    ret r0
+end
+func .12
+    r5 <- int 0
+    blt r5 r3 .13 .14
+@.14
+    r6 <- add r2 r2
+    r8 <- int 1
+    r7 <- sub r3 r8
+    r10 <- int 1
+    r11 <- sub r6 r10
+    r9 <- call .12 r1 r11 r7
+    r12 <- call .12 r1 r6 r7
+    r13 <- int 3
+    r13 <- arr r13
+    r14 <- int 0
+    set r13 r14 r2
+    r14 <- int 1
+    set r13 r14 r9
+    r14 <- int 2
+    set r13 r14 r12
+    ret r13
+    r4 <- int 0
+    jump .15
+@.13
+    r15 <- int 1
+    r15 <- arr r15
+    r16 <- int 0
+    set r15 r16 r2
+    ret r15
+    r4 <- int 0
+@.15
+    ret r4
+end
+func .16
+    r4 <- len r2
+    r5 <- int 3
+    beq r4 r5 .17 .18
+@.18
+    r6 <- int 0
+    r7 <- get r2 r6
+    r8 <- int 1
+    r9 <- get r2 r8
+    r10 <- call .16 r1 r9
+    r11 <- int 2
+    r12 <- get r2 r11
+    r13 <- call .16 r1 r12
+    r14 <- sub r10 r13
+    r15 <- add r7 r14
+    ret r15
+    r3 <- int 0
+    jump .19
+@.17
+    r16 <- int 0
+    r17 <- get r2 r16
+    ret r17
+    r3 <- int 0
+@.19
+    ret r3
+end
+func .20
+    blt r3 r2 .21 .22
+@.22
+    ret r2
+    r4 <- int 0
+    jump .23
+@.21
+    ret r3
+    r4 <- int 0
+@.23
+    ret r4
+end
+func .24
+    r3 <- int 4
+    r5 <- int 1
+    r5 <- get r1 r5
+    r6 <- int 2
+    r7 <- add r3 r6
+    r8 <- int 0
+    r8 <- get r5 r8
+    r4 <- dcall r8 r5 r7 r2
+    r9 <- int 2
+    r9 <- get r1 r9
+    r10 <- int 3
+    r10 <- get r1 r10
+    r11 <- int 4
+    r11 <- get r1 r11
+    r12 <- int 0
+    r13 <- int 1
+    r14 <- add r4 r13
+    r15 <- int 0
+    r15 <- get r11 r15
+    r16 <- dcall r15 r11 r12 r14
+    r17 <- int 0
+    r17 <- get r10 r17
+    r18 <- dcall r17 r10 r16
+    r19 <- int 0
+    r19 <- get r9 r19
+    r20 <- dcall r19 r9 r18
+    r22 <- int 4
+    r22 <- get r1 r22
+    r23 <- int 0
+    r24 <- int 0
+    r24 <- get r22 r24
+    r21 <- dcall r24 r22 r23 r4
+    r25 <- reg r3
+    blt r4 r25 .25 .27
+@.25
+    r27 <- int 5
+    r27 <- get r1 r27
+    r28 <- sub r4 r25
+    r29 <- add r28 r3
+    r30 <- int 0
+    r30 <- get r27 r30
+    r26 <- dcall r30 r27 r29
+    r31 <- int 0
+    r32 <- int 0
+    blt r32 r26 .30 .28
+@.28
+    r33 <- int 3
+    r33 <- get r1 r33
+    r34 <- int 4
+    r34 <- get r1 r34
+    r35 <- int 1
+    r36 <- int 0
+    r36 <- get r34 r36
+    r37 <- dcall r36 r34 r35 r25
+    r38 <- int 0
+    r38 <- get r33 r38
+    r39 <- dcall r38 r33 r37
+    r40 <- add r31 r39
+    r41 <- int 3
+    r41 <- get r1 r41
+    r42 <- int 4
+    r42 <- get r1 r42
+    r43 <- int 0
+    r44 <- int 1
+    r45 <- sub r43 r44
+    r46 <- int 0
+    r46 <- get r42 r46
+    r47 <- dcall r46 r42 r45 r25
+    r48 <- int 0
+    r48 <- get r41 r48
+    r49 <- dcall r48 r41 r47
+    r31 <- add r40 r49
+    r50 <- int 1
+    r32 <- add r32 r50
+@.29
+    blt r32 r26 .30 .28
+@.30
+    r51 <- int 2
+    r51 <- get r1 r51
+    r52 <- int 0
+    r52 <- get r51 r52
+    r53 <- dcall r52 r51 r31
+    r54 <- int 2
+    r25 <- add r25 r54
+@.26
+    blt r4 r25 .25 .27
+@.27
+    r55 <- int 2
+    r55 <- get r1 r55
+    r56 <- int 3
+    r56 <- get r1 r56
+    r57 <- int 0
+    r57 <- get r56 r57
+    r58 <- dcall r57 r56 r21
+    r59 <- int 0
+    r59 <- get r55 r59
+    r60 <- dcall r59 r55 r58
+    ret r60
+end
+func toplevel
+    r2 <- int 1
+    r2 <- arr r2
+    r3 <- int 0
+    r4 <- addr .0
+    set r2 r3 r4
+    r5 <- int 1
+    r5 <- arr r5
+    r6 <- int 0
+    r7 <- addr .4
+    set r5 r6 r7
+    r8 <- int 2
+    r8 <- arr r8
+    r9 <- int 0
+    r10 <- addr .8
+    set r8 r9 r10
+    r9 <- int 1
+    set r8 r9 r5
+    r11 <- int 1
+    r11 <- arr r11
+    r12 <- int 0
+    r13 <- addr .12
+    set r11 r12 r13
+    r14 <- int 1
+    r14 <- arr r14
+    r15 <- int 0
+    r16 <- addr .16
+    set r14 r15 r16
+    r17 <- int 1
+    r17 <- arr r17
+    r18 <- int 0
+    r19 <- addr .20
+    set r17 r18 r19
+    r20 <- int 6
+    r20 <- arr r20
+    r21 <- int 0
+    r22 <- addr .24
+    set r20 r21 r22
+    r21 <- int 1
+    set r20 r21 r17
+    r21 <- int 5
+    set r20 r21 r2
+    r21 <- int 3
+    set r20 r21 r14
+    r21 <- int 4
+    set r20 r21 r11
+    r21 <- int 2
+    set r20 r21 r8
+    r23 <- int 14
+    r24 <- int 0
+    r24 <- get r20 r24
+    r25 <- dcall r24 r20 r23
+    ret r25
+end
+@__entry
+    r0 <- call toplevel
+    exit
+
