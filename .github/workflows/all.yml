@@ -55,7 +55,6 @@ jobs:
           name: minivm-windows-gcc
           path:  | 
             bin/minivm-asm.exe
-            bin/libminivm.lib
             bin/minivm-run.exe
   windows-minivm-clang:
     runs-on: windows-latest
@@ -69,5 +68,4 @@ jobs:
           name: minivm-windows-clang
           path:  | 
             bin/minivm-asm.exe
-            bin/libminivm.lib
             bin/minivm-run.exe
