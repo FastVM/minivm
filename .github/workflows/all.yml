@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - run: ./build.bat
+      - run: ./build.bat -Oz
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-windows-clang
