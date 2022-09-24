@@ -53,7 +53,7 @@ jobs:
         with:
           version: latest
           platform: x64
-      - run: build.bat
+      - run: ./build.bat
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-windows
