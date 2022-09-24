@@ -13,6 +13,8 @@ jobs:
           name: minivm-linux
           path:  | 
             bin/minivm-asm
+            bin/minivm-run
+            bin/libminivm.a
   linux-minivm-warnings:
     runs-on: ubuntu-latest
     steps:
@@ -25,6 +27,8 @@ jobs:
           name: minivm-linux-debug
           path:  | 
             bin/minivm-asm
+            bin/minivm-run
+            bin/libminivm.a
   macos-minivm:
     runs-on: macos-latest
     steps:
@@ -37,18 +41,23 @@ jobs:
           name: minivm-mac
           path: | 
             bin/minivm-asm
+            bin/minivm-run
+            bin/libminivm.a
   windows-minivm:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: egor-tensin/setup-mingw@v2
+      - uses: egor-tensin/setup-clang@v1
         with:
+          version: latest
           platform: x64
-      - run: make CC=cc OPT='-O3 -fomit-frame-pointer' bin/minivm-asm
+      - run: build.bat
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-windows
           path:  | 
             bin/minivm-asm.exe
+            bin/libminivm.lib
+            bin/minivm-run.exe
