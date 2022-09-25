@@ -1,6 +1,10 @@
 #if !defined(VM_HEADER_IR_BE_INT3)
 #define VM_HEADER_IR_BE_INT3
 
+#if VM_DEBUG_SPALL
+#include "spall.h"
+#endif
+
 #include "../../gc.h"
 #include "../../opcode.h"
 #include "../ir.h"
@@ -155,6 +159,8 @@ enum {
     VM_INT_OP_TSET_RFF,
     VM_INT_OP_TGET_RR,
     VM_INT_OP_TGET_RF,
+    
+    VM_INT_OP_DEBUG_PRINT_INSTRS,
 
     VM_INT_MAX_OP,
 };
@@ -181,6 +187,11 @@ struct vm_int_state_t {
     vm_int_func_t *funcs;
     vm_value_t *locals;
     vm_gc_t gc;
+    FILE *debug_print_instrs;
+#if VM_DEBUG_SPALL
+    bool use_spall;
+    SpallProfile spall_ctx;
+#endif
 };
 
 struct vm_int_buf_t {
