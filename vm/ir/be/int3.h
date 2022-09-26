@@ -1,9 +1,7 @@
 #if !defined(VM_HEADER_IR_BE_INT3)
 #define VM_HEADER_IR_BE_INT3
 
-#if VM_DEBUG_SPALL
 #include "spall.h"
-#endif
 
 #include "../../gc.h"
 #include "../../opcode.h"
@@ -188,10 +186,8 @@ struct vm_int_state_t {
     vm_value_t *locals;
     vm_gc_t gc;
     FILE *debug_print_instrs;
-#if VM_DEBUG_SPALL
+    vm_trace_profile_t spall_ctx;
     bool use_spall;
-    SpallProfile spall_ctx;
-#endif
 };
 
 struct vm_int_buf_t {

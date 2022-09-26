@@ -156,22 +156,18 @@ int main(int argc, char **argv) {
             }
             state.locals = locals;
             state.heads = vm_malloc(sizeof(vm_int_opcode_t *) * (nregs / state.framesize + 1));
-#if VM_DEBUG_SPALL
             if (iit != NULL) {
                 state.use_spall = true;
-                state.spall_ctx = SpallInit(iit, 1);
-                SpallTraceBegin(&state.spall_ctx, NULL, vm_trace_time(), "MiniVM Invocation");
+                state.spall_ctx = vm_trace_init(iit, 0.000303);
+                vm_trace_begin(&state.spall_ctx, NULL, vm_trace_time(), "MiniVM Invocation");
             }
-#endif
             vm_gc_init(&state.gc, nregs, locals);
             vm_value_t ret = vm_int_run(&state, cur);
             vm_gc_deinit(&state.gc);
-#if VM_DEBUG_SPALL
             if (iit != NULL) {
-                SpallQuit(&state.spall_ctx);
-                SpallTraceEnd(&state.spall_ctx, NULL, vm_trace_time());
+                vm_trace_quit(&state.spall_ctx);
+                vm_trace_end(&state.spall_ctx, NULL, vm_trace_time());
             }
-#endif
             vm_ir_blocks_free(nblocks, blocks);
         }
         vm_free(buf.ops);
