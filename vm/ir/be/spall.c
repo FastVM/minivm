@@ -8,23 +8,19 @@
 #ifdef SPALL_BUFFER_PROFILING
 #define SPALL_BUFFER_PROFILE_BEGIN() double spall_time_begin = (SPALL_BUFFER_PROFILING_GET_TIME())
 // Don't call this with anything other than a string literal
-#define SPALL_BUFFER_PROFILE_END(name)                                                                                                                       \
-    do {                                                                                                                                                     \
-        double spall_time_end = (SPALL_BUFFER_PROFILING_GET_TIME());                                                                                         \
-        char temp_buffer_data[sizeof(vm_trace_begin_event_t) + sizeof("" name "") - 2 + sizeof(vm_trace_EndEvent)];                                                     \
-        vm_trace_buffer_t temp_buffer = {temp_buffer_data, sizeof(temp_buffer_data)};                                                                              \
+#define SPALL_BUFFER_PROFILE_END(name)                                                                                                                         \
+    do {                                                                                                                                                       \
+        double spall_time_end = (SPALL_BUFFER_PROFILING_GET_TIME());                                                                                           \
+        char temp_buffer_data[sizeof(vm_trace_begin_event_t) + sizeof("" name "") - 2 + sizeof(vm_trace_EndEvent)];                                            \
+        vm_trace_buffer_t temp_buffer = {temp_buffer_data, sizeof(temp_buffer_data)};                                                                          \
         if (!vm_trace_begin_len_tid_pid(ctx, &temp_buffer, spall_time_begin, name, sizeof(name) - 1, (uint32_t)(uintptr_t)wb->data, 4222222222)) return false; \
-        if (!vm_trace_end_tid_pid(ctx, &temp_buffer, spall_time_end, (uint32_t)(uintptr_t)wb->data, 4222222222)) return false;                                \
-        vm_trace___FileWrite(ctx, temp_buffer_data, sizeof(temp_buffer_data));                                                                                   \
+        if (!vm_trace_end_tid_pid(ctx, &temp_buffer, spall_time_end, (uint32_t)(uintptr_t)wb->data, 4222222222)) return false;                                 \
+        vm_trace___FileWrite(ctx, temp_buffer_data, sizeof(temp_buffer_data));                                                                                 \
     } while (0)
 #else
 #define SPALL_BUFFER_PROFILE_BEGIN()
 #define SPALL_BUFFER_PROFILE_END(name)
 #endif
-
-extern char vm_trace_SingleThreadedBufferData[];
-char vm_trace_SingleThreadedBufferData[1 << 16];
-vm_trace_buffer_t vm_trace_SingleThreadedBuffer = {vm_trace_SingleThreadedBufferData, sizeof(vm_trace_SingleThreadedBufferData)};
 
 static bool vm_trace___FileWrite(vm_trace_profile_t *ctx, void *p, size_t n) {
     if (!ctx->file) return false;
@@ -40,37 +36,6 @@ static bool vm_trace___FileFlush(vm_trace_profile_t *ctx) {
 }
 // TODO: vm_trace___FilePrintf
 // TODO: vm_trace___FileClose
-
-static void vm_trace___BufferPushString(vm_trace_buffer_t *wb, size_t n, signed long name_len) {
-    vm_trace_RecentString recent_string = {0};
-    // precon: wb
-    // precon: n > 0
-    // precon: name_len > 0
-    // precon: name_len < n
-    // precon: name_len <= 255
-    if (wb->head + n > wb->length) return;  // will (try to) flush or do an unbuffered write, so don't push a string
-    recent_string.pointer = (char *)wb->data + wb->head + n - name_len;
-    recent_string.length = (uint8_t)name_len;
-    wb->recent_strings[wb->recent_string_index++] = recent_string;
-}
-
-// returns -1 or a backreference number in [0, 255] -- telling you how many "strings ago" the string can be found (0 is the most recent string)
-static int vm_trace___BufferFindString(vm_trace_buffer_t *wb, char *name, signed long name_len) {
-    // precon: wb
-    // precon: wb->data
-    // precon: name
-    // precon: name_len > 0
-    // precon: name_len <= 255
-    for (int i = 0; i < 256; i++) {
-        unsigned int index = ((wb->recent_string_index - 1) - i + 256) % 256;
-        vm_trace_RecentString recent_string = wb->recent_strings[index];
-        if (!recent_string.pointer) return -1;  // early-out: NULLs mean the ring buffer isn't even full yet
-        if (recent_string.length == name_len && memcmp(name, recent_string.pointer, recent_string.length) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
 
 static bool vm_trace___BufferFlush(vm_trace_profile_t *ctx, vm_trace_buffer_t *wb) {
     // precon: wb
@@ -123,13 +88,6 @@ bool vm_trace_buffer_quit(vm_trace_profile_t *ctx, vm_trace_buffer_t *wb) {
     return true;
 }
 
-bool vm_trace_buffer_tAbort(vm_trace_buffer_t *wb) {
-    if (!wb) return false;
-    wb->ctx = NULL;
-    if (!vm_trace___BufferFlush(NULL, wb)) return false;
-    return true;
-}
-
 static vm_trace_profile_t vm_trace___Init(const char *filename, double timestamp_unit, bool is_json) {
     vm_trace_profile_t ctx;
     memset(&ctx, 0, sizeof(ctx));
@@ -177,13 +135,6 @@ void vm_trace_quit(vm_trace_profile_t *ctx) {
         fclose(ctx->file);
     }
     memset(ctx, 0, sizeof(*ctx));
-}
-
-bool vm_trace_flush(vm_trace_profile_t *ctx) {
-    if (!ctx) return false;
-    if (!ctx->file) return false;
-    if (!ctx->flush(ctx)) return false;
-    return true;
 }
 
 bool vm_trace_begin_len_tid_pid(vm_trace_profile_t *ctx, vm_trace_buffer_t *wb, double when, const char *name, signed long name_len, uint32_t tid, uint32_t pid) {

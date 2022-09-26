@@ -193,7 +193,7 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
         return;
     }
     block->nregs = state->nregs;
-    block->id = index;
+    block->id = (ptrdiff_t)index;
     for (;;) {
         vm_opcode_t op = ops[(index)++];
         switch (op) {
@@ -304,13 +304,13 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
             case VM_OPCODE_INT: {
                 vm_opcode_t reg = ops[(index)++];
                 vm_opcode_t val = ops[(index)++];
-                vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_num(val));
+                vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_num((double)val));
                 break;
             }
             case VM_OPCODE_NEG: {
                 vm_opcode_t reg = ops[(index)++];
                 vm_opcode_t val = ops[(index)++];
-                vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_num(-(ptrdiff_t)val));
+                vm_ir_block_add_move(block, vm_ir_arg_reg(reg), vm_ir_arg_num(-(double)val));
                 break;
             }
             case VM_OPCODE_ADD: {
@@ -462,8 +462,8 @@ vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops) {
         if (block->id < 0) {
             continue;
         }
-        for (size_t i = 0; i < 2; i++) {
-            vm_ir_block_t *next = block->branch->targets[i];
+        for (size_t j = 0; j < 2; j++) {
+            vm_ir_block_t *next = block->branch->targets[j];
             if (next == NULL) {
                 continue;
             }

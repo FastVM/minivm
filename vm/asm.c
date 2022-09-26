@@ -43,18 +43,18 @@ size_t vm_asm_word(const char *src) {
     return n;
 }
 
-vm_opcode_t vm_asm_read_int(const char **src) {
+size_t vm_asm_read_int(const char **src) {
     vm_asm_strip(src);
-    size_t n = 0;
+    vm_opcode_t n = 0;
     while ('0' <= **src && **src <= '9') {
         n *= 10;
-        n += **src - '0';
+        n += (size_t)(**src - '0');
         *src += 1;
     }
     return n;
 }
 
-vm_opcode_t vm_asm_read_reg(const char **src) {
+size_t vm_asm_read_reg(const char **src) {
     vm_asm_strip(src);
     if (**src != 'r') {
         fprintf(stderr, "asm: bad char: expected 'r' (for reg)\n");
@@ -64,7 +64,7 @@ vm_opcode_t vm_asm_read_reg(const char **src) {
     size_t n = 0;
     while ('0' <= **src && **src <= '9') {
         n *= 10;
-        n += **src - '0';
+        n += (size_t)(**src - '0');
         *src += 1;
     }
     return n;
@@ -80,7 +80,7 @@ vm_opcode_t vm_asm_read_reg(const char **src) {
 #define vm_asm_put_op(op_) vm_asm_put((VM_ASM_INSTR_RAW), (op_))
 #define vm_asm_put_reg(reg_)                 \
     ({                                       \
-        int r = reg_;                        \
+        size_t r = reg_;                     \
         if (r > nregs) {                     \
             nregs = r;                       \
         }                                    \
@@ -103,7 +103,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
     vm_asm_put_op(VM_OPCODE_JUMP);
     vm_asm_put_get("__entry");
     size_t where = 0;
-    int nregs = 0;
+    size_t nregs = 0;
     for (;;) {
         if (head + 16 > alloc) {
             alloc = head * 4 + 16;
@@ -121,7 +121,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
             continue;
         } else if (**src == 'r' && '0' <= (*src)[1] && (*src)[1] <= '9') {
             size_t regn = vm_asm_word(*src);
-            vm_opcode_t regno = 0;
+            size_t regno = 0;
             int isreg = 1;
             for (size_t i = 1; i < regn; i++) {
                 if (vm_asm_isdigit((*src)[i]) == 0) {
@@ -129,7 +129,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     break;
                 }
                 regno *= 10;
-                regno += (*src)[i] - '0';
+                regno += (size_t)((*src)[i] - '0');
             }
             if (isreg) {
                 *src += regn;
@@ -219,7 +219,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_asm_strip(src);
                     vm_asm_put_get(*src);
                     *src += vm_asm_word(*src);
-                    vm_opcode_t args[8] = {0};
+                    size_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
                     while (**src != '\n' && **src != '\r') {
@@ -236,7 +236,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_asm_put_op(VM_OPCODE_CCALL);
                     vm_asm_put_reg(regno);
                     vm_asm_put_reg(vm_asm_read_reg(src));
-                    vm_opcode_t args[8] = {0};
+                    size_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
                     while (**src != '\n' && **src != '\r') {
@@ -253,7 +253,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_asm_put_op(VM_OPCODE_DCALL);
                     vm_asm_put_reg(regno);
                     vm_asm_put_reg(vm_asm_read_reg(src));
-                    vm_opcode_t args[8] = {0};
+                    size_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
                     while (**src != '\n' && **src != '\r') {
@@ -270,7 +270,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_asm_put_op(VM_OPCODE_XCALL);
                     vm_asm_put_reg(regno);
                     vm_asm_put_int(vm_asm_read_int(src));
-                    vm_opcode_t args[8] = {0};
+                    size_t args[8] = {0};
                     size_t nargs = 0;
                     vm_asm_strip(src);
                     while (**src != '\n' && **src != '\r') {
@@ -425,7 +425,7 @@ typedef struct {
 static size_t vm_asm_hash(const char *str, size_t n) {
     size_t hash = 5381;
     for (size_t i = 0; i < n; i++) {
-        hash = ((hash << 5) + hash) + str[i];
+        hash = ((hash << 5) + hash) + (size_t)str[i];
     }
     return hash;
 }
@@ -460,7 +460,7 @@ vm_bc_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t ns, size_t ni) {
                     put += 1;
                 }
                 links[put % links_alloc].name = str;
-                links[put % links_alloc].where = cur_loc;
+                links[put % links_alloc].where = (vm_opcode_t)cur_loc;
                 break;
             }
         }
@@ -475,15 +475,15 @@ vm_bc_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t ns, size_t ni) {
         }
         switch (cur->type) {
             case VM_ASM_INSTR_RAW: {
-                ops[nops++] = cur->value;
+                ops[nops++] = (vm_opcode_t)cur->value;
                 break;
             }
             case VM_ASM_INSTR_GETI: {
-                ops[nops++] = nums[cur->value];
+                ops[nops++] = (vm_opcode_t)nums[cur->value];
                 break;
             }
             case VM_ASM_INSTR_GET: {
-                int val = -1;
+                size_t val = 0;
                 const char *find = (const char *)cur->value;
                 size_t findlen = vm_asm_word(find);
                 size_t get = vm_asm_hash(find, findlen);

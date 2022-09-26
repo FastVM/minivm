@@ -1,11 +1,10 @@
 #if !defined(VM_HEADER_IR_BE_INT3)
 #define VM_HEADER_IR_BE_INT3
 
-#include "spall.h"
-
 #include "../../gc.h"
 #include "../../opcode.h"
 #include "../ir.h"
+#include "spall.h"
 
 /// I = Int Value
 /// R = Reg Local
@@ -157,7 +156,7 @@ enum {
     VM_INT_OP_TSET_RFF,
     VM_INT_OP_TGET_RR,
     VM_INT_OP_TGET_RF,
-    
+
     VM_INT_OP_DEBUG_PRINT_INSTRS,
 
     VM_INT_MAX_OP,
@@ -201,7 +200,7 @@ struct vm_int_opcode_t {
         void *ptr;
         vm_ir_block_t *block;
         size_t reg;
-        ptrdiff_t ival;
+        int32_t ival;
         vm_number_t fval;
         bool bval;
     };

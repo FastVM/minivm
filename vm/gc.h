@@ -8,7 +8,7 @@
 
 #include "nanbox.h"
 
-typedef int64_t vm_int_t;
+typedef int32_t vm_int_t;
 typedef int64_t vm_loc_t;
 typedef int64_t vm_reg_t;
 

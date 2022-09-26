@@ -408,10 +408,8 @@ static inline const char *vm_int_debug_instr_format(size_t opcode) {
         [VM_INT_OP_TSET_RFR] = "oFd",
         [VM_INT_OP_TSET_RFF] = "oFF",
         [VM_INT_OP_TGET_RR] = ":od",
-        [VM_INT_OP_TGET_RF] = ":oF"
-    };
+        [VM_INT_OP_TGET_RF] = ":oF"};
     return table[opcode];
 }
-    
 
 #endif

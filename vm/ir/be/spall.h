@@ -36,21 +36,19 @@ TODO: Optional Helper APIs:
 #include "../../lib.h"
 
 #if defined(__GNUC__) || defined(__clang__)
-static inline uint64_t vm_trace_time(void) {
+static inline double vm_trace_time(void) {
     uint32_t eax, edx;
     __asm__ volatile("rdtsc\n\t"
                      : "=a"(eax), "=d"(edx));
-    return (uint64_t)eax | (uint64_t)edx << 32;
+    return (double)((uint64_t)eax | (uint64_t)edx << 32);
 }
 #else
 #include <intrin.h>
 #pragma intrinsic(__rdtsc)
-#define vm_trace_time __rdtsc
+#define vm_trace_time() ((double)__rdtsc())
 #endif
 
-#pragma pack(push, 1)
-
-typedef struct vm_trace_header_t {
+typedef struct __attribute__((__packed__)) vm_trace_header_t {
     uint64_t magic_header;  // = 0x0BADF00D
     uint64_t version;       // = 0
     double timestamp_unit;
@@ -71,7 +69,7 @@ typedef struct vm_trace_String {
 #define VM_TRACE_EVENT_TYPE_OVERWRITE_TIMESTAMP 6 /* Retroactively change timestamp units - useful for incrementally improving RDTSC frequency. */
 #define VM_TRACE_EVENT_TYPE_UPDATE_CHECKSUM 7     /* Verify rolling checksum. Basic readers/writers can ignore/omit this. */
 
-typedef struct vm_trace_begin_event_t {
+typedef struct __attribute__((__packed__)) vm_trace_begin_event_t {
     uint8_t type;  // = vm_trace_EventType_Begin
     uint32_t pid;
     uint32_t tid;
@@ -79,19 +77,17 @@ typedef struct vm_trace_begin_event_t {
     vm_trace_String name;
 } vm_trace_begin_event_t;
 
-typedef struct vm_trace_EndEvent {
+typedef struct __attribute__((__packed__)) vm_trace_EndEvent {
     uint8_t type;  // = vm_trace_EventType_End
     uint32_t pid;
     uint32_t tid;
     double when;
 } vm_trace_EndEvent;
 
-typedef struct vm_trace_begin_event_max_t {
+typedef struct __attribute__((__packed__)) vm_trace_begin_event_max_t {
     vm_trace_begin_event_t event;
     char name_bytes[254];
 } vm_trace_begin_event_max_t;
-
-#pragma pack(pop)
 
 typedef struct vm_trace_profile_t {
     double timestamp_unit;
@@ -104,7 +100,7 @@ typedef struct vm_trace_profile_t {
     };
 } vm_trace_profile_t;
 
-typedef struct vm_trace_RecentString {
+typedef struct __attribute__((__packed__)) vm_trace_RecentString {
     char *pointer;
     uint8_t length;
 } vm_trace_RecentString;

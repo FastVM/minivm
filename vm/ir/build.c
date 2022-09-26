@@ -13,11 +13,11 @@ vm_ir_arg_t vm_ir_arg_nil(void) { return (vm_ir_arg_t){.type = VM_IR_ARG_NIL}; }
 vm_ir_arg_t vm_ir_arg_bool(bool t) { return (vm_ir_arg_t){.type = VM_IR_ARG_BOOL, .logic = t}; }
 vm_ir_arg_t vm_ir_arg_reg(size_t reg) { return (vm_ir_arg_t){.type = VM_IR_ARG_REG, .reg = reg}; }
 
-vm_ir_arg_t vm_ir_arg_extern(size_t num) { return (vm_ir_arg_t){.type = VM_IR_ARG_EXTERN, .num = num}; }
+vm_ir_arg_t vm_ir_arg_extern(size_t num) { return (vm_ir_arg_t){.type = VM_IR_ARG_EXTERN, .num = (double)num}; }
 
 vm_ir_arg_t vm_ir_arg_func(vm_ir_block_t *func) { return (vm_ir_arg_t){.type = VM_IR_ARG_FUNC, .func = func}; }
 
-vm_ir_arg_t vm_ir_arg_num(ptrdiff_t num) { return (vm_ir_arg_t){.type = VM_IR_ARG_NUM, .num = num}; }
+vm_ir_arg_t vm_ir_arg_num(double num) { return (vm_ir_arg_t){.type = VM_IR_ARG_NUM, .num = num}; }
 
 vm_ir_arg_t vm_ir_arg_str(const char *str) { return (vm_ir_arg_t){.type = VM_IR_ARG_STR, .str = str}; }
 
@@ -313,11 +313,11 @@ void vm_ir_print_blocks(FILE *out, size_t nblocks, vm_ir_block_t *blocks) {
         } else {
             fprintf(out, ".%zu(", i);
         }
-        for (size_t i = 0; i < block->nargs; i++) {
+        for (size_t j = 0; j < block->nargs; j++) {
             if (i != 0) {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", block->args[i]);
+            fprintf(out, "r%zu", block->args[j]);
         }
         fprintf(out, ")\n");
         vm_ir_print_block(out, block);

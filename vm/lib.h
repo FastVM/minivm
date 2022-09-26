@@ -2,17 +2,15 @@
 #if !defined(VM_HEADER_LIB)
 #define VM_HEADER_LIB
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#if VM_MIMALLOC
+#if defined(VM_MIMALLOC)
 #include <mimalloc.h>
 #define vm_malloc(size) (mi_malloc(size))
 #define vm_alloc0(size) (mi_calloc(size, 1))

@@ -5,7 +5,7 @@
 #include "../vm/ir/build.h"
 #include "../vm/ir/toir.h"
 
-static const char *vm_asm_io_read(const char *filename) {
+static char *vm_asm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
     if (file == NULL) {
         return NULL;
@@ -36,7 +36,6 @@ int main(int argc, char **argv) {
     const char *iit = NULL;
     const char *dump = NULL;
     const char *filename = NULL;
-    const char *debug = NULL;
     size_t jit = 1;
     size_t runs = 1;
     size_t jitdumpir = 0;
@@ -65,7 +64,7 @@ int main(int argc, char **argv) {
             char *ptr = argv[1];
             while (*ptr != '\0') {
                 n *= 10;
-                n += *ptr - '0';
+                n += (size_t) (*ptr - '0');
                 ptr += 1;
             }
             argv += 1;
@@ -115,7 +114,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "cannot use -jdump with out jit turned on (-jon vs -joff)");
         return 1;
     }
-    const char *src = vm_asm_io_read(filename);
+    char *src = vm_asm_io_read(filename);
     if (src == NULL) {
         fprintf(stderr, "could not read file\n");
         return 1;
@@ -147,10 +146,10 @@ int main(int argc, char **argv) {
             state.debug_print_instrs = iii;
             state.framesize = 1;
             state.funcs = NULL;
-            for (size_t i = 0; i < nblocks; i++) {
-                if (blocks[i].id >= 0) {
-                    if (blocks[i].nregs >= state.framesize) {
-                        state.framesize = blocks[i].nregs + 1;
+            for (size_t j = 0; j < nblocks; j++) {
+                if (blocks[j].id >= 0) {
+                    if (blocks[j].nregs >= state.framesize) {
+                        state.framesize = blocks[j].nregs + 1;
                     }
                 }
             }
@@ -162,7 +161,7 @@ int main(int argc, char **argv) {
                 vm_trace_begin(&state.spall_ctx, NULL, vm_trace_time(), "MiniVM Invocation");
             }
             vm_gc_init(&state.gc, nregs, locals);
-            vm_value_t ret = vm_int_run(&state, cur);
+            vm_int_run(&state, cur);
             vm_gc_deinit(&state.gc);
             if (iit != NULL) {
                 vm_trace_quit(&state.spall_ctx);

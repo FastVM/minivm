@@ -1,36 +1,34 @@
 
-#include "../../lib.h"
+#include "int3.h"
 
-#define SPALL_IMPLEMENTATION
+#include "../../lib.h"
 #include "../build.h"
 #include "debug.h"
-#include "int3.h"
 #include "spall.h"
 
 #define vm_int_block_comp_put_ptr(arg_)                                  \
     ({                                                                   \
-        size_t arg = (arg_);                                             \
-        if (ptrs[arg] == NULL) {                                         \
-            fprintf(stderr, "bad ptr: ptrs[%zu]", arg);                  \
+        size_t arg__ = (arg_);                                           \
+        if (ptrs[arg__] == NULL) {                                       \
+            fprintf(stderr, "bad ptr: ptrs[%zu]", arg__);                \
             __builtin_trap();                                            \
         }                                                                \
         if (state->debug_print_instrs || state->use_spall) {             \
             buf.ops[buf.len++].ptr = ptrs[VM_INT_OP_DEBUG_PRINT_INSTRS]; \
-            buf.ops[buf.len++].reg = (arg_);                             \
-            buf.ops[buf.len++].ptr = ptrs[(arg_)];                       \
+            buf.ops[buf.len++].reg = (arg__);                            \
+            buf.ops[buf.len++].ptr = ptrs[(arg__)];                      \
         } else {                                                         \
-            buf.ops[buf.len++].ptr = ptrs[(arg_)];                       \
+            buf.ops[buf.len++].ptr = ptrs[(arg__)];                      \
         }                                                                \
     })
 #define vm_int_block_comp_put_out(out_) buf.ops[buf.len++].reg = (out_)
 
 #define vm_int_block_comp_put_reg(vreg_) buf.ops[buf.len++].reg = (vreg_).reg
 #define vm_int_block_comp_put_bval(val_) buf.ops[buf.len++].bval = (val_).logic
-#define vm_int_block_comp_put_ival(val_) buf.ops[buf.len++].ival = (val_).num
+#define vm_int_block_comp_put_ival(val_) buf.ops[buf.len++].ival = (int32_t) (val_).num
 #define vm_int_block_comp_put_fval(val_) buf.ops[buf.len++].fval = (val_).num
 
 #define vm_int_block_comp_put_regc(vreg_) buf.ops[buf.len++].reg = (vreg_)
-#define vm_int_block_comp_put_bvalc(val_) buf.ops[buf.len++].bval = (val_)
 #define vm_int_block_comp_put_ivalc(val_) buf.ops[buf.len++].ival = (val_)
 #define vm_int_block_comp_put_fvalc(val_) buf.ops[buf.len++].fval = (val_)
 
@@ -59,21 +57,21 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
     data->len += 1;
 }
 
-#define vm_int_block_comp_mov(vreg_, fval_)             \
-    ({                                                  \
-        size_t reg = vreg_;                             \
-        double val = fval_;                             \
-        if (fmod(val, 1) == 0.0) {                      \
-            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I); \
-            vm_int_block_comp_put_out(reg);             \
-            vm_int_block_comp_put_ivalc(val);           \
-            types[reg] = VM_TYPE_I32;                   \
-        } else {                                        \
-            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_F); \
-            vm_int_block_comp_put_out(reg);             \
-            vm_int_block_comp_put_fvalc(val);           \
-            types[reg] = VM_TYPE_F64;                   \
-        }                                               \
+#define vm_int_block_comp_mov(vreg_, fval_)              \
+    ({                                                   \
+        size_t reg = vreg_;                              \
+        double val = fval_;                              \
+        if (fmod(val, 1) == 0.0) {                       \
+            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_I);  \
+            vm_int_block_comp_put_out(reg);              \
+            vm_int_block_comp_put_ivalc((int32_t)val); \
+            types[reg] = VM_TYPE_I32;                    \
+        } else {                                         \
+            vm_int_block_comp_put_ptr(VM_INT_OP_MOV_F);  \
+            vm_int_block_comp_put_out(reg);              \
+            vm_int_block_comp_put_fvalc(val);            \
+            types[reg] = VM_TYPE_F64;                    \
+        }                                                \
     })
 
 #define vm_int_block_comp_ensure_float_reg(reg_)                                             \
@@ -90,9 +88,9 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
         }                                                                                    \
     })
 
-void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block) {
+static void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block) {
     if (state->use_spall) {
-        uint64_t begin = vm_trace_time();
+        double begin = vm_trace_time();
         vm_trace_begin(&state->spall_ctx, NULL, begin, "Basic Block Compile");
         vm_trace_begin(&state->spall_ctx, NULL, begin, "Basic Block Cache Check");
     }
@@ -114,7 +112,7 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
                 }
             }
             if (state->use_spall) {
-                uint64_t end = vm_trace_time();
+                double end = vm_trace_time();
                 vm_trace_end(&state->spall_ctx, NULL, end);
                 vm_trace_end(&state->spall_ctx, NULL, end);
             }
@@ -134,7 +132,7 @@ void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t *block
         size_t reg = block->args[i];
         types[reg] = vm_typeof(state->locals[reg]);
     }
-#if VM_DEBUG_COMP
+#if defined(VM_DEBUG_COMP)
     fprintf(stderr, "block .%zu(", block->id);
     for (size_t i = 0; i < block->nargs; i++) {
         if (i != 0) {
@@ -164,7 +162,7 @@ inline_jump:;
             buf.ops = vm_realloc(buf.ops, sizeof(vm_int_opcode_t) * buf.alloc);
         }
         vm_ir_instr_t *instr = block->instrs[arg];
-#if VM_DEBUG_COMP
+#if defined(VM_DEBUG_COMP)
         if (instr->op != VM_IR_IOP_NOP) {
             fprintf(stderr, "  ");
             vm_ir_print_instr(stderr, instr);
@@ -589,7 +587,6 @@ inline_jump:;
                     vm_int_block_comp_put_block(NULL);
                 }
                 goto retv;
-                break;
             }
             case VM_IR_IOP_TAB: {
                 if (instr->out.type == VM_IR_ARG_REG) {
@@ -993,7 +990,7 @@ inline_jump:;
         }
     }
 retv:
-#if VM_DEBUG_COMP
+#if defined(VM_DEBUG_COMP)
     fprintf(stderr, "  ");
     vm_ir_print_branch(stderr, block->branch);
     fprintf(stderr, "\n}\n\n");
@@ -1017,12 +1014,6 @@ retv:
 
 #define vm_int_run_next() goto *vm_int_run_read().ptr
 
-#define vm_int_not_implemented()                                       \
-    ({                                                                 \
-        fprintf(stderr, "UNIMPLEMENTED line=%zu\n", (size_t)__LINE__); \
-        return;                                                        \
-    })
-
 #define vm_int_run_read_store() (&locals[vm_int_run_read().reg])
 
 #define vm_int_run_read_load() (locals[vm_int_run_read().reg])
@@ -1034,7 +1025,7 @@ retv:
         state;                  \
     })
 
-vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
+vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block0) {
     static void *ptrs[VM_INT_MAX_OP] = {
         [VM_INT_OP_EXIT] = &&do_exit,
         [VM_INT_OP_MOV_V] = &&do_mov_v,
@@ -1175,7 +1166,7 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block) {
     vm_int_opcode_t **init_heads = state->heads;
     vm_int_opcode_t **heads = init_heads;
     size_t framesize = state->framesize;
-    vm_int_opcode_t *head = vm_int_block_comp(vm_int_run_save(), ptrs, block);
+    vm_int_opcode_t *head = vm_int_block_comp(vm_int_run_save(), ptrs, block0);
     if (state->use_spall) {
         vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "init");
     }
@@ -1213,11 +1204,11 @@ do_debug_print_instrs : {
             fprintf(state->debug_print_instrs, " ");
             switch (*fmt) {
                 case 'a': {
-                    fprintf(state->debug_print_instrs, "[array %p]", vm_value_to_array(vm_int_run_read_load()));
+                    fprintf(state->debug_print_instrs, "[array %p]", (void*) vm_value_to_array(vm_int_run_read_load()));
                     break;
                 }
                 case 'o': {
-                    fprintf(state->debug_print_instrs, "[table %p]", vm_value_to_table(vm_int_run_read_load()));
+                    fprintf(state->debug_print_instrs, "[table %p]", (void*) vm_value_to_table(vm_int_run_read_load()));
                     break;
                 }
                 case 'd': {
@@ -1239,16 +1230,16 @@ do_debug_print_instrs : {
                             fprintf(state->debug_print_instrs, "[any func %p]", vm_value_to_block(dyn));
                             break;
                         case VM_TYPE_ARRAY:
-                            fprintf(state->debug_print_instrs, "[any array %p]", vm_value_to_array(dyn));
+                            fprintf(state->debug_print_instrs, "[any array %p]", (void*) vm_value_to_array(dyn));
                             break;
                         case VM_TYPE_TABLE:
-                            fprintf(state->debug_print_instrs, "[any table %p]", vm_value_to_array(dyn));
+                            fprintf(state->debug_print_instrs, "[any table %p]", (void*) vm_value_to_array(dyn));
                             break;
                     }
                     break;
                 }
                 case 'c': {
-                    fprintf(state->debug_print_instrs, "[closure %p]", vm_value_to_array(vm_int_run_read_load()));
+                    fprintf(state->debug_print_instrs, "[closure %p]", (void*) vm_value_to_array(vm_int_run_read_load()));
                     break;
                 }
                 case 'i': {
@@ -1260,7 +1251,7 @@ do_debug_print_instrs : {
                     break;
                 }
                 case 't': {
-                    fprintf(state->debug_print_instrs, "[func %p]", vm_value_to_block(vm_int_run_read_load()));
+                    fprintf(state->debug_print_instrs, "[func %p]", (void*) vm_value_to_block(vm_int_run_read_load()));
                     break;
                 }
                 case 'I': {
@@ -1312,9 +1303,9 @@ do_debug_print_instrs : {
         if (VM_INT_OP_RET_RV <= opcode && opcode <= VM_INT_OP_RET_RT) {
             vm_trace_end(&state->spall_ctx, NULL, vm_trace_time());
         }
-        #if VM_SPALL_LEVEL
+#if defined(VM_SPALL_LEVEL)
         const char *buf = opname;
-        #else
+#else
         char buf[256];
         char *name = &buf[0];
         const char *fmt = vm_int_debug_instr_format(opcode);
@@ -1341,11 +1332,11 @@ do_debug_print_instrs : {
             name += snprintf(name, 48, " ");
             switch (*fmt) {
                 case 'a': {
-                    name += snprintf(name, 48, "[%p]", vm_value_to_array(vm_int_run_read_load()));
+                    name += snprintf(name, 48, "[%p]", (void*) vm_value_to_array(vm_int_run_read_load()));
                     break;
                 }
                 case 'o': {
-                    name += snprintf(name, 48, "{%p}", vm_value_to_table(vm_int_run_read_load()));
+                    name += snprintf(name, 48, "{%p}", (void*) vm_value_to_table(vm_int_run_read_load()));
                     break;
                 }
                 case 'd': {
@@ -1376,7 +1367,7 @@ do_debug_print_instrs : {
                     break;
                 }
                 case 'c': {
-                    name += snprintf(name, 48, "%p", vm_value_to_array(vm_int_run_read_load()));
+                    name += snprintf(name, 48, "%p", (void*) vm_value_to_array(vm_int_run_read_load()));
                     break;
                 }
                 case 'i': {
@@ -1414,7 +1405,7 @@ do_debug_print_instrs : {
             }
             fmt += 1;
         }
-        #endif
+#endif
         vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), buf);
         // vm_free(buf);
     }
@@ -1453,8 +1444,8 @@ do_mov_r : {
 }
 do_mov_t : {
     vm_value_t *out = vm_int_run_read_store();
-    vm_ir_block_t *block = vm_int_run_read().block;
-    *out = vm_value_from_block(block);
+    vm_ir_block_t *cblock = vm_int_run_read().block;
+    *out = vm_value_from_block(cblock);
     vm_int_run_next();
 }
 do_fmov_r : {
@@ -2399,21 +2390,21 @@ do_set_rri : {
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t key = vm_int_run_read_load();
     vm_int_t val = vm_int_run_read().ival;
-    vm_gc_set_vi(obj, key, val);
+    vm_gc_set_vi(obj, key, (double) val);
     vm_int_run_next();
 }
 do_set_rir : {
     vm_value_t obj = vm_int_run_read_load();
     vm_int_t key = vm_int_run_read().ival;
     vm_value_t val = vm_int_run_read_load();
-    vm_gc_set_iv(obj, key, val);
+    vm_gc_set_iv(obj, (double) key, val);
     vm_int_run_next();
 }
 do_set_rii : {
     vm_value_t obj = vm_int_run_read_load();
     vm_int_t key = vm_int_run_read().ival;
     vm_int_t val = vm_int_run_read().ival;
-    vm_gc_set_ii(obj, key, val);
+    vm_gc_set_ii(obj, (double) key, (double) val);
     vm_int_run_next();
 }
 do_get_rr : {
@@ -2452,7 +2443,7 @@ do_get_ri : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
     vm_int_t key = vm_int_run_read().ival;
-    vm_value_t data = vm_gc_get_i(obj, key);
+    vm_value_t data = vm_gc_get_i(obj, (double) key);
     *out = data;
     uint8_t type = vm_typeof(data);
     if (head[type].ptr == NULL) {
@@ -2613,57 +2604,57 @@ do_exit : {
 // jmp/call tmp
 do_call_t0 : {
     head[-1].ptr = &&do_call_l0;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t1 : {
     head[-1].ptr = &&do_call_l1;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t2 : {
     head[-1].ptr = &&do_call_l2;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals[framesize + 1 + 1] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t3 : {
     head[-1].ptr = &&do_call_l3;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals[framesize + 1 + 1] = vm_int_run_read_load();
     locals[framesize + 1 + 2] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t4 : {
     head[-1].ptr = &&do_call_l4;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals[framesize + 1 + 1] = vm_int_run_read_load();
     locals[framesize + 1 + 2] = vm_int_run_read_load();
     locals[framesize + 1 + 3] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t5 : {
     head[-1].ptr = &&do_call_l5;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals[framesize + 1 + 1] = vm_int_run_read_load();
     locals[framesize + 1 + 2] = vm_int_run_read_load();
@@ -2671,12 +2662,12 @@ do_call_t5 : {
     locals[framesize + 1 + 4] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t6 : {
     head[-1].ptr = &&do_call_l6;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals[framesize + 1 + 1] = vm_int_run_read_load();
     locals[framesize + 1 + 2] = vm_int_run_read_load();
@@ -2685,12 +2676,12 @@ do_call_t6 : {
     locals[framesize + 1 + 5] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t7 : {
     head[-1].ptr = &&do_call_l7;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals[framesize + 1 + 1] = vm_int_run_read_load();
     locals[framesize + 1 + 2] = vm_int_run_read_load();
@@ -2700,12 +2691,12 @@ do_call_t7 : {
     locals[framesize + 1 + 6] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_call_t8 : {
     head[-1].ptr = &&do_call_l8;
-    vm_int_opcode_t *block = &vm_int_run_read();
+    vm_int_opcode_t *cblock = &vm_int_run_read();
     locals[framesize + 1 + 0] = vm_int_run_read_load();
     locals[framesize + 1 + 1] = vm_int_run_read_load();
     locals[framesize + 1 + 2] = vm_int_run_read_load();
@@ -2716,14 +2707,14 @@ do_call_t8 : {
     locals[framesize + 1 + 7] = vm_int_run_read_load();
     locals += framesize;
     *heads++ = head;
-    head = block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    head = cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     vm_int_run_next();
 }
 do_jump_t : {
     vm_int_opcode_t *loc = --head;
     vm_int_run_read().ptr = &&do_jump_l;
-    vm_int_opcode_t *block = &vm_int_run_read();
-    block->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, block->block);
+    vm_int_opcode_t *cblock = &vm_int_run_read();
+    cblock->ptr = vm_int_block_comp(vm_int_run_save(), ptrs, cblock->block);
     head = loc;
     vm_int_run_next();
 }

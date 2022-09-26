@@ -53,7 +53,7 @@ enum {
     VM_IR_IOP_OUT,
 };
 
-struct vm_ir_arg_t {
+struct __attribute__((__packed__)) vm_ir_arg_t {
     union {
         size_t reg;
         vm_number_t num;
@@ -65,7 +65,7 @@ struct vm_ir_arg_t {
     uint8_t type;
 };
 
-struct vm_ir_branch_t {
+struct __attribute__((__packed__)) vm_ir_branch_t {
     vm_ir_block_t *targets[2];
     vm_ir_arg_t args[2];
     uint8_t op;
@@ -79,7 +79,7 @@ struct vm_ir_instr_t {
 
 struct vm_ir_block_t {
     uint8_t tag;
-    
+
     ptrdiff_t id;
 
     vm_ir_instr_t **instrs;
