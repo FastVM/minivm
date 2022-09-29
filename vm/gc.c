@@ -340,15 +340,20 @@ bool vm_gc_eq(vm_value_t v1, vm_value_t v2) {
 static inline size_t vm_gc_table_hash(uint8_t nth, vm_value_t val) {
     uint8_t type = vm_typeof(val);
     if (type == VM_TYPE_I32) {
-        return vm_gc_table_modsize(nth, vm_value_to_int(val));
+        vm_int_t ival = vm_value_to_int(val);
+        if (ival < 0) {
+            return vm_gc_table_modsize(nth, (size_t) ((1 << 24) - ival));
+        } else {
+            return vm_gc_table_modsize(nth, (size_t) ival);
+        }
     } else if (type == VM_TYPE_F64) {
-        return vm_gc_table_modsize(nth, (1 << 24) + (size_t)vm_value_to_float(val));
+        return vm_gc_table_modsize(nth, (2 << 24) + (size_t)vm_value_to_float(val));
     } else if (type == VM_TYPE_BOOL) {
         return (size_t)vm_value_to_bool(val);
     } else if (type == VM_TYPE_FUNC) {
-        return vm_gc_table_modsize(nth, (2 << 24));
-    } else if (type == VM_TYPE_NIL) {
         return vm_gc_table_modsize(nth, (3 << 24));
+    } else if (type == VM_TYPE_NIL) {
+        return vm_gc_table_modsize(nth, (4 << 24));
     } else if (type == VM_TYPE_ARRAY) {
         vm_value_array_t *arr = vm_value_to_array(val);
         size_t ret = arr->len;
@@ -363,7 +368,7 @@ static inline size_t vm_gc_table_hash(uint8_t nth, vm_value_t val) {
     } else if (type == VM_TYPE_TABLE) {
         return vm_gc_table_modsize(nth, (size_t)vm_value_to_table(val) >> 4);
     } else {
-        return vm_gc_table_modsize(nth, 4 << 24);
+        return vm_gc_table_modsize(nth, 5 << 24);
     }
 }
 

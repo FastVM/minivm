@@ -82,6 +82,7 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
         } else if (types[reg] == VM_TYPE_I32) {                                              \
             vm_int_block_comp_put_ptr(VM_INT_OP_FMOV_R);                                     \
             vm_int_block_comp_put_out(reg);                                                  \
+            types[reg_] = VM_TYPE_F64;\
         } else {                                                                             \
             fprintf(stderr, "TYPE ERROR (reg: %zu) (type: %zu)\n", reg, (size_t)types[reg]); \
             __builtin_trap();                                                                \
@@ -598,6 +599,7 @@ inline_jump:;
                 if (instr->out.type == VM_IR_ARG_REG) {
                     if (instr->args[0].type == VM_IR_ARG_REG) {
                         // r = new r
+                        vm_int_block_comp_ensure_float_reg(instr->args[0].reg);
                         vm_int_block_comp_put_ptr(VM_INT_OP_ARR_R);
                         vm_int_block_comp_put_out(instr->out.reg);
                         vm_int_block_comp_put_reg(instr->args[0]);
@@ -1037,6 +1039,17 @@ retv:
         state;                  \
     })
 
+void vm_main_spall_init(vm_int_state_t *state, const char *name) {
+    state->use_spall = true;
+    state->spall_ctx = vm_trace_init(name, 0.000303);
+    vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "MiniVM Invocation");
+}
+
+void vm_main_spall_deinit(vm_int_state_t *state) {
+    vm_trace_end(&state->spall_ctx, NULL, vm_trace_time());
+    vm_trace_quit(&state->spall_ctx);
+}
+
 vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block0) {
     static void *ptrs[VM_INT_MAX_OP] = {
         [VM_INT_OP_EXIT] = &&do_exit,
@@ -1309,18 +1322,18 @@ do_debug_print_instrs : {
         if (VM_INT_OP_CALL_C0 <= opcode && opcode <= VM_INT_OP_CALL_C7) {
             vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "call/c");
         }
-        if (VM_INT_OP_CALL_X0 <= opcode && opcode <= VM_INT_OP_CALL_X8) {
-            vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "call/x");
-        }
+        // if (VM_INT_OP_CALL_X0 <= opcode && opcode <= VM_INT_OP_CALL_X8) {
+        //     vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "call/x");
+        // }
         if (VM_INT_OP_CALL_L0 <= opcode && opcode <= VM_INT_OP_CALL_L8) {
             vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "call/l");
         }
         if (VM_INT_OP_CALL_R0 <= opcode && opcode <= VM_INT_OP_CALL_R8) {
             vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "call/r");
         }
-        if (VM_INT_OP_CALL_T0 <= opcode && opcode <= VM_INT_OP_CALL_T8) {
-            vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "call/t");
-        }
+        // if (VM_INT_OP_CALL_T0 <= opcode && opcode <= VM_INT_OP_CALL_T8) {
+        //     vm_trace_begin(&state->spall_ctx, NULL, vm_trace_time(), "call/t");
+        // }
         if (VM_OPCODE_EXIT == opcode) {
             vm_trace_end(&state->spall_ctx, NULL, vm_trace_time());
         }

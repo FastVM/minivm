@@ -164,8 +164,8 @@ int main(int argc, char **argv) {
             vm_int_run(&state, cur);
             vm_gc_deinit(&state.gc);
             if (iit != NULL) {
-                vm_trace_quit(&state.spall_ctx);
                 vm_trace_end(&state.spall_ctx, NULL, vm_trace_time());
+                vm_trace_quit(&state.spall_ctx);
             }
             vm_ir_blocks_free(nblocks, blocks);
         }
