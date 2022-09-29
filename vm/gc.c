@@ -284,7 +284,7 @@ vm_value_t vm_gc_tab(vm_gc_t *gc) {
     return vm_value_from_table(tab);
 }
 
-static inline bool vm_gc_table_eq(vm_value_t v1, vm_value_t v2) {
+bool vm_gc_eq(vm_value_t v1, vm_value_t v2) {
     uint8_t t1 = vm_typeof(v1);
     uint8_t t2 = vm_typeof(v2);
     if (t2 == VM_TYPE_F64) {
@@ -309,7 +309,7 @@ static inline bool vm_gc_table_eq(vm_value_t v1, vm_value_t v2) {
                 return false;
             }
             for (size_t i = 0; i < a1->len; i++) {
-                if (!vm_gc_table_eq(a1->data[i], a2->data[i])) {
+                if (!vm_gc_eq(a1->data[i], a2->data[i])) {
                     return false;
                 }
             }
@@ -374,7 +374,7 @@ vm_value_t vm_gc_table_get(vm_value_table_t *tab, vm_value_t key) {
     size_t look = start;
     for (;;) {
         vm_value_t found = tab->hash_keys[look];
-        if (vm_gc_table_eq(found, key)) {
+        if (vm_gc_eq(found, key)) {
             return tab->hash_values[look];
         }
         if (vm_box_is_empty(found)) {

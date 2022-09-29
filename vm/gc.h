@@ -77,6 +77,7 @@ void vm_gc_set(vm_value_t obj, vm_value_t index, vm_value_t value);
 vm_int_t vm_gc_len(vm_value_t obj);
 vm_value_t vm_gc_table_get(vm_value_table_t *tab, vm_value_t key);
 void vm_gc_table_set(vm_value_table_t *tab, vm_value_t key, vm_value_t val);
+bool vm_gc_eq(vm_value_t v1, vm_value_t v2);
 
 #define vm_gc_get_v(obj_, nth_) vm_gc_get(obj_, (nth_))
 #define vm_gc_get_i(obj_, nth_) vm_gc_get(obj_, vm_value_from_float(nth_))
