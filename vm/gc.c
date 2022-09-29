@@ -1,8 +1,10 @@
 #include "gc.h"
+#include "nanbox.h"
 
-static inline size_t vm_gc_table_size(vm_value_table_t *tab) {
+size_t vm_gc_table_size(vm_value_table_t *tab) {
     static const size_t table[] =
         {
+            0ul,
             5ul,
             11ul,
             23ul,
@@ -34,7 +36,7 @@ static inline size_t vm_gc_table_size(vm_value_table_t *tab) {
             2364114217ul,
             4294967291ul,
         };
-    return table[tab->hash_alloc - 1];
+    return table[tab->hash_alloc];
 }
 
 static inline size_t vm_gc_table_modsize(uint8_t index, size_t hash) {
@@ -181,6 +183,9 @@ static void vm_gc_mark(vm_value_t value) {
 }
 
 void vm_gc_run(vm_gc_t *restrict gc, vm_value_t *high) {
+#if VM_XGC
+    return;
+#endif
     if (gc->len < gc->max) {
         return;
     }
@@ -290,6 +295,16 @@ bool vm_gc_eq(vm_value_t v1, vm_value_t v2) {
     if (t2 == VM_TYPE_F64) {
         if (t2 == VM_TYPE_F64) {
             return vm_value_to_float(v1) == vm_value_to_float(v2);
+        } else if (t2 == VM_TYPE_I32) {
+            return vm_value_to_float(v1) == (double) vm_value_to_int(v2);
+        } else {
+            return false;
+        }
+    } else if (t2 == VM_TYPE_I32) {
+        if (t2 == VM_TYPE_F64) {
+            return (double) vm_value_to_int(v1) == vm_value_to_float(v2);
+        } else if (t2 == VM_TYPE_I32) {
+            return vm_value_to_int(v1) == vm_value_to_int(v2);
         } else {
             return false;
         }
@@ -324,7 +339,9 @@ bool vm_gc_eq(vm_value_t v1, vm_value_t v2) {
 
 static inline size_t vm_gc_table_hash(uint8_t nth, vm_value_t val) {
     uint8_t type = vm_typeof(val);
-    if (type == VM_TYPE_F64) {
+    if (type == VM_TYPE_I32) {
+        return vm_gc_table_modsize(nth, vm_value_to_int(val));
+    } else if (type == VM_TYPE_F64) {
         return vm_gc_table_modsize(nth, (1 << 24) + (size_t)vm_value_to_float(val));
     } else if (type == VM_TYPE_BOOL) {
         return (size_t)vm_value_to_bool(val);
@@ -429,7 +446,7 @@ void vm_gc_table_set(vm_value_table_t *tab, vm_value_t key, vm_value_t val) {
         size_t count = 7;
         for (;;) {
             vm_value_t found = tab->hash_keys[look];
-            if (vm_box_is_empty(found)) {
+            if (vm_gc_eq(tab->hash_keys[look], key) || vm_box_is_empty(found)) {
                 tab->hash_keys[look] = key;
                 tab->hash_values[look] = val;
                 return;
@@ -454,6 +471,9 @@ void vm_gc_table_set(vm_value_table_t *tab, vm_value_t key, vm_value_t val) {
         memset(next_values, NANBOX_EMPTY_BYTE, sizeof(vm_value_t) * nsize);
 #endif
         for (size_t i = 0; i < max; i++) {
+            if (vm_box_is_empty(tab->hash_keys[i])) {
+                continue;
+            }
             size_t start2 = vm_gc_table_hash(tab->hash_alloc, tab->hash_keys[i]);
             size_t look2 = start2;
             for (;;) {

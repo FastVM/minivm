@@ -131,6 +131,7 @@ enum {
     VM_INT_OP_BB_RLL,
 
     VM_INT_OP_RET_I,
+    VM_INT_OP_RET_F,
     VM_INT_OP_RET_RV,
     VM_INT_OP_RET_RB,
     VM_INT_OP_RET_RI,
