@@ -186,6 +186,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
     return ret;
 }
 void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
+redo:;
     vm_ir_block_t *blocks = state->blocks;
     const vm_opcode_t *ops = state->ops;
     vm_ir_block_t *block = &blocks[index];
@@ -435,8 +436,8 @@ void vm_ir_read_from(vm_ir_read_t *state, size_t index) {
         }
     }
 vm_break:
-    vm_ir_read_from(state, index);
     vm_ir_block_end_jump(block, &blocks[index]);
+    goto redo;
 }
 
 vm_ir_block_t *vm_ir_parse(size_t nops, const vm_opcode_t *ops) {

@@ -82,62 +82,65 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks) {
             }
         }
     }
-redo:
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_ir_block_t *block = &blocks[i];
-        if (block->id < 0) {
-            continue;
-        }
-        for (size_t t = 0; t < 2; t++) {
-            vm_ir_block_t *target = block->branch->targets[t];
-            if (target == NULL) {
+    bool redo = true;
+    while (redo) {
+        redo = false;
+        for (size_t i = 0; i < nblocks; i++) {
+            vm_ir_block_t *block = &blocks[i];
+            if (block->id < 0) {
                 continue;
             }
-            size_t total = block->nargs + target->nargs;
-            size_t *next = vm_malloc(sizeof(size_t) * total);
-            size_t nargs = 0;
-            size_t bi = 0;
-            size_t ti = 0;
-            for (;;) {
-                if (bi == block->nargs) {
-                    while (ti < target->nargs) {
-                        size_t newreg = target->args[ti++];
-                        if (newreg >= blocks[i].nregs) {
-                            all_regs[i] = vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg + 1));
-                            for (size_t c = blocks[i].nregs; c < newreg + 1; c++) {
-                                all_regs[i][c] = VM_IR_INFO_REG_UNK;
+            for (size_t t = 0; t < 2; t++) {
+                vm_ir_block_t *target = block->branch->targets[t];
+                if (target == NULL) {
+                    continue;
+                }
+                size_t total = block->nargs + target->nargs;
+                size_t *next = vm_malloc(sizeof(size_t) * total);
+                size_t nargs = 0;
+                size_t bi = 0;
+                size_t ti = 0;
+                for (;;) {
+                    if (bi == block->nargs) {
+                        while (ti < target->nargs) {
+                            size_t newreg = target->args[ti++];
+                            if (newreg >= blocks[i].nregs) {
+                                all_regs[i] = vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg + 1));
+                                for (size_t c = blocks[i].nregs; c < newreg + 1; c++) {
+                                    all_regs[i][c] = VM_IR_INFO_REG_UNK;
+                                }
+                                blocks[i].nregs = newreg + 1;
                             }
-                            blocks[i].nregs = newreg + 1;
+                            if (all_regs[i][newreg] != VM_IR_INFO_REG_DEF) {
+                                next[nargs++] = newreg;
+                            }
                         }
+                        break;
+                    } else if (ti == target->nargs) {
+                        while (bi < block->nargs) {
+                            next[nargs++] = block->args[bi++];
+                        }
+                        break;
+                    } else if (block->args[bi] == target->args[ti]) {
+                        next[nargs++] = block->args[bi++];
+                        ti += 1;
+                    } else if (block->args[bi] > target->args[ti]) {
+                        size_t newreg = target->args[ti++];
                         if (all_regs[i][newreg] != VM_IR_INFO_REG_DEF) {
                             next[nargs++] = newreg;
                         }
-                    }
-                    break;
-                } else if (ti == target->nargs) {
-                    while (bi < block->nargs) {
+                    } else if (block->args[bi] < target->args[ti]) {
                         next[nargs++] = block->args[bi++];
                     }
-                    break;
-                } else if (block->args[bi] == target->args[ti]) {
-                    next[nargs++] = block->args[bi++];
-                    ti += 1;
-                } else if (block->args[bi] > target->args[ti]) {
-                    size_t newreg = target->args[ti++];
-                    if (all_regs[i][newreg] != VM_IR_INFO_REG_DEF) {
-                        next[nargs++] = newreg;
-                    }
-                } else if (block->args[bi] < target->args[ti]) {
-                    next[nargs++] = block->args[bi++];
                 }
-            }
-            if (nargs != block->nargs) {
-                vm_free(block->args);
-                block->args = next;
-                block->nargs = nargs;
-                goto redo;
-            } else {
-                vm_free(next);
+                if (nargs != block->nargs) {
+                    vm_free(block->args);
+                    block->args = next;
+                    block->nargs = nargs;
+                    redo = true;
+                } else {
+                    vm_free(next);
+                }
             }
         }
     }

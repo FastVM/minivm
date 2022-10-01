@@ -261,6 +261,7 @@ vm_value_t vm_gc_get(vm_value_t obj, vm_value_t ind) {
     if (index >= arr->len) {
         return vm_value_nil();
     }
+    uint8_t type = vm_typeof(arr->data[index]);
     return arr->data[index];
 }
 

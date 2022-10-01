@@ -82,7 +82,7 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
         } else if (types[reg] == VM_TYPE_I32) {                                              \
             vm_int_block_comp_put_ptr(VM_INT_OP_FMOV_R);                                     \
             vm_int_block_comp_put_out(reg);                                                  \
-            types[reg_] = VM_TYPE_F64;\
+            types[reg] = VM_TYPE_F64;\
         } else {                                                                             \
             fprintf(stderr, "TYPE ERROR (reg: %zu) (type: %zu)\n", reg, (size_t)types[reg]); \
             __builtin_trap();                                                                \
@@ -645,7 +645,7 @@ inline_jump:;
                                 vm_int_block_comp_put_ptr(VM_INT_OP_GET_RI);
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_reg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
                             } else {
                                 fprintf(stderr, "cannot get: r%zu (tag: %zu)\n", instr->args[0].reg, (size_t)types[instr->args[0].reg]);
                                 __builtin_trap();
@@ -692,7 +692,7 @@ inline_jump:;
                                 vm_int_block_comp_put_ptr(VM_INT_OP_SET_RRI);
                                 vm_int_block_comp_put_reg(instr->args[0]);
                                 vm_int_block_comp_put_reg(instr->args[1]);
-                                vm_int_block_comp_put_ival(instr->args[2]);
+                                vm_int_block_comp_put_fval(instr->args[2]);
                             } else {
                                 fprintf(stderr, "cannot set: r%zu\n", instr->args[0].reg);
                                 __builtin_trap();
@@ -709,7 +709,7 @@ inline_jump:;
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_SET_RIR);
                                 vm_int_block_comp_put_reg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
                                 vm_int_block_comp_put_reg(instr->args[2]);
                             } else {
                                 fprintf(stderr, "cannot set: r%zu\n", instr->args[0].reg);
@@ -725,8 +725,8 @@ inline_jump:;
                             } else if (types[instr->args[0].reg] == VM_TYPE_ARRAY) {
                                 vm_int_block_comp_put_ptr(VM_INT_OP_SET_RII);
                                 vm_int_block_comp_put_reg(instr->args[0]);
-                                vm_int_block_comp_put_ival(instr->args[1]);
-                                vm_int_block_comp_put_ival(instr->args[2]);
+                                vm_int_block_comp_put_fval(instr->args[1]);
+                                vm_int_block_comp_put_fval(instr->args[2]);
                             } else {
                                 fprintf(stderr, "cannot set: r%zu\n", instr->args[0].reg);
                                 __builtin_trap();
@@ -1210,6 +1210,12 @@ do_debug_print_instrs : {
     if (state->debug_print_instrs) {
         const char *fmt = vm_int_debug_instr_format(opcode);
         switch (*fmt) {
+            case ';': {
+                fprintf(state->debug_print_instrs, "r%zu <- ", vm_int_run_read().reg);
+                fmt += 1;
+                head -= 1;
+                break;
+            }
             case ':': {
                 fprintf(state->debug_print_instrs, "r%zu <- ", vm_int_run_read().reg);
                 fmt += 1;
@@ -2501,21 +2507,21 @@ do_set_rrr : {
 do_set_rri : {
     vm_value_t obj = vm_int_run_read_load();
     vm_value_t key = vm_int_run_read_load();
-    vm_int_t val = vm_int_run_read().ival;
+    double val = vm_int_run_read().fval;
     vm_gc_set_vi(obj, key, (double) val);
     vm_int_run_next();
 }
 do_set_rir : {
     vm_value_t obj = vm_int_run_read_load();
-    vm_int_t key = vm_int_run_read().ival;
+    double key = vm_int_run_read().fval;
     vm_value_t val = vm_int_run_read_load();
     vm_gc_set_iv(obj, (double) key, val);
     vm_int_run_next();
 }
 do_set_rii : {
     vm_value_t obj = vm_int_run_read_load();
-    vm_int_t key = vm_int_run_read().ival;
-    vm_int_t val = vm_int_run_read().ival;
+    double key = vm_int_run_read().fval;
+    double val = vm_int_run_read().fval;
     vm_gc_set_ii(obj, (double) key, (double) val);
     vm_int_run_next();
 }
@@ -2557,7 +2563,7 @@ do_get_rr : {
 do_get_ri : {
     vm_value_t *out = vm_int_run_read_store();
     vm_value_t obj = vm_int_run_read_load();
-    vm_int_t key = vm_int_run_read().ival;
+    double key = vm_int_run_read().fval;
     vm_value_t data = vm_gc_get_i(obj, (double) key);
     *out = data;
     uint8_t type = vm_typeof(data);
@@ -2640,10 +2646,9 @@ do_ret_f : {
     vm_int_run_next();
 }
 do_ret_rv : {
-    vm_value_t value = locals[head->reg];
     locals -= framesize;
     head = *--heads;
-    locals[vm_int_run_read().reg] = value;
+    locals[vm_int_run_read().reg] = vm_value_nil();
     void *pblock = head[VM_TYPE_NIL].ptr;
     if (pblock == NULL) {
         head = head[VM_TYPE_NIL].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
