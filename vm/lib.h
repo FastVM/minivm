@@ -14,7 +14,7 @@
 
 void *vm_malloc(size_t size);
 void *vm_alloc0(size_t size);
-void *vm_realloc(void *ptr, size_t size); 
+void *vm_realloc(void *ptr, size_t size);
 void vm_free(void *ptr);
 
 #elif defined(VM_MIMALLOC)

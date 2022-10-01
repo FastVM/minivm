@@ -1,4 +1,5 @@
 #include "gc.h"
+
 #include "nanbox.h"
 
 size_t vm_gc_table_size(vm_value_table_t *tab) {
@@ -297,13 +298,13 @@ bool vm_gc_eq(vm_value_t v1, vm_value_t v2) {
         if (t2 == VM_TYPE_F64) {
             return vm_value_to_float(v1) == vm_value_to_float(v2);
         } else if (t2 == VM_TYPE_I32) {
-            return vm_value_to_float(v1) == (double) vm_value_to_int(v2);
+            return vm_value_to_float(v1) == (double)vm_value_to_int(v2);
         } else {
             return false;
         }
     } else if (t2 == VM_TYPE_I32) {
         if (t2 == VM_TYPE_F64) {
-            return (double) vm_value_to_int(v1) == vm_value_to_float(v2);
+            return (double)vm_value_to_int(v1) == vm_value_to_float(v2);
         } else if (t2 == VM_TYPE_I32) {
             return vm_value_to_int(v1) == vm_value_to_int(v2);
         } else {
@@ -343,9 +344,9 @@ static inline size_t vm_gc_table_hash(uint8_t nth, vm_value_t val) {
     if (type == VM_TYPE_I32) {
         vm_int_t ival = vm_value_to_int(val);
         if (ival < 0) {
-            return vm_gc_table_modsize(nth, (size_t) ((1 << 24) - ival));
+            return vm_gc_table_modsize(nth, (size_t)((1 << 24) - ival));
         } else {
-            return vm_gc_table_modsize(nth, (size_t) ival);
+            return vm_gc_table_modsize(nth, (size_t)ival);
         }
     } else if (type == VM_TYPE_F64) {
         return vm_gc_table_modsize(nth, (2 << 24) + (size_t)vm_value_to_float(val));

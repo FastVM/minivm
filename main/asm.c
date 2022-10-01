@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
             char *ptr = argv[1];
             while (*ptr != '\0') {
                 n *= 10;
-                n += (size_t) (*ptr - '0');
+                n += (size_t)(*ptr - '0');
                 ptr += 1;
             }
             argv += 1;
