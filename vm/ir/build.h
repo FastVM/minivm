@@ -52,6 +52,7 @@ void vm_ir_block_add_len(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t obj)
 void vm_ir_block_add_type(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t obj);
 void vm_ir_block_add_set(vm_ir_block_t *block, vm_ir_arg_t obj, vm_ir_arg_t index, vm_ir_arg_t value);
 void vm_ir_block_add_out(vm_ir_block_t *block, vm_ir_arg_t val);
+void vm_ir_block_add_in(vm_ir_block_t *block, vm_ir_arg_t val);
 
 void vm_ir_block_end_jump(vm_ir_block_t *block, vm_ir_block_t *target);
 void vm_ir_block_end_bb(vm_ir_block_t *block, vm_ir_arg_t val, vm_ir_block_t *iffalse, vm_ir_block_t *iftrue);

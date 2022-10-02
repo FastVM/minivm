@@ -170,6 +170,11 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                     vm_asm_put_reg(regno);
                     continue;
                 }
+                if (vm_asm_starts(opname, "getchar")) {
+                    vm_asm_put_op(VM_OPCODE_GETCHAR);
+                    vm_asm_put_reg(regno);
+                    continue;
+                }
                 if (vm_asm_starts(opname, "true")) {
                     vm_asm_put_op(VM_OPCODE_TRUE);
                     vm_asm_put_reg(regno);

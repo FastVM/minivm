@@ -96,6 +96,9 @@ void vm_ir_block_add_set(vm_ir_block_t *block, vm_ir_arg_t obj, vm_ir_arg_t inde
 void vm_ir_block_add_out(vm_ir_block_t *block, vm_ir_arg_t arg) {
     vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_OUT, .args[0] = arg));
 }
+void vm_ir_block_add_in(vm_ir_block_t *block, vm_ir_arg_t arg) {
+    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_IN, .out = arg));
+}
 
 void vm_ir_block_end_jump(vm_ir_block_t *block, vm_ir_block_t *target) {
     block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_JUMP, .targets[0] = target);

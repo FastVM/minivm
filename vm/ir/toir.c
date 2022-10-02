@@ -70,32 +70,13 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 ret[jtrue] |= VM_BREAK;
                 break;
             }
-            case VM_OPCODE_CALL: {
-                index += 2;
-                vm_opcode_t nargs = ops[index++];
-                index += nargs;
-                break;
-            }
-            case VM_OPCODE_DCALL: {
-                index += 2;
-                vm_opcode_t nargs = ops[index++];
-                index += nargs;
-                break;
-            }
-            case VM_OPCODE_CCALL: {
-                index += 2;
-                vm_opcode_t nargs = ops[index++];
-                index += nargs;
-                break;
-            }
+            case VM_OPCODE_CALL: 
+            case VM_OPCODE_CCALL: 
+            case VM_OPCODE_DCALL: 
             case VM_OPCODE_XCALL: {
                 index += 2;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
-                break;
-            }
-            case VM_OPCODE_PUTCHAR: {
-                index += 1;
                 break;
             }
             case VM_OPCODE_JUMP: {
@@ -107,14 +88,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 index += 3;
                 break;
             }
-            case VM_OPCODE_BEQ: {
-                index += 2;
-                vm_opcode_t jfalse = ops[index++];
-                vm_opcode_t jtrue = ops[index++];
-                ret[jfalse] |= VM_BREAK;
-                ret[jtrue] |= VM_BREAK;
-                break;
-            }
+            case VM_OPCODE_BEQ:
             case VM_OPCODE_BLT: {
                 index += 2;
                 vm_opcode_t jfalse = ops[index++];
@@ -127,18 +101,11 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 index += 2;
                 break;
             }
-            case VM_OPCODE_TAB: {
-                index += 1;
-                break;
-            }
-            case VM_OPCODE_NIL: {
-                index += 1;
-                break;
-            }
-            case VM_OPCODE_TRUE: {
-                index += 1;
-                break;
-            }
+            case VM_OPCODE_PUTCHAR:
+            case VM_OPCODE_TAB:
+            case VM_OPCODE_GETCHAR: 
+            case VM_OPCODE_NIL:
+            case VM_OPCODE_TRUE:
             case VM_OPCODE_FALSE: {
                 index += 1;
                 break;
@@ -387,6 +354,11 @@ redo:;
             case VM_OPCODE_TAB: {
                 vm_opcode_t reg = ops[(index)++];
                 vm_ir_block_add_tab(block, vm_ir_arg_reg(reg));
+                goto vm_break;
+            }
+            case VM_OPCODE_GETCHAR: {
+                vm_opcode_t reg = ops[(index)++];
+                vm_ir_block_add_in(block, vm_ir_arg_reg(reg));
                 goto vm_break;
             }
             case VM_OPCODE_NIL: {

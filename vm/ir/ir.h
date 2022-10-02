@@ -51,6 +51,7 @@ enum {
     VM_IR_IOP_LEN,
     VM_IR_IOP_TYPE,
     VM_IR_IOP_OUT,
+    VM_IR_IOP_IN,
     VM_IR_IOP_BOR,
     VM_IR_IOP_BAND,
     VM_IR_IOP_BXOR,

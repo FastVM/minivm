@@ -136,6 +136,7 @@ enum {
     VM_INT_OP_GET_RI,
     VM_INT_OP_LEN_R,
 
+    VM_INT_OP_IN_V,
     VM_INT_OP_OUT_I,
     VM_INT_OP_OUT_R,
 

@@ -6,8 +6,21 @@
 #include "debug.h"
 #include "spall.h"
 
+#if !defined(VM_ALLOW_INLINE_JUMPS)
+#define VM_ALLOW_INLINE_JUMPS 0
+#endif
+
+#define vm_int_block_comp_buf_check() \
+    ({ \
+        if (buf.len + 64 >= buf.alloc) { \
+            buf.alloc = buf.len * 2 + 16; \
+            buf.ops = vm_realloc(buf.ops, sizeof(vm_int_opcode_t) * buf.alloc); \
+        } \
+    })
+
 #define vm_int_block_comp_put_ptr(arg_)                                  \
     ({                                                                   \
+        vm_int_block_comp_buf_check(); \
         size_t arg__ = (arg_);                                           \
         if (ptrs[arg__] == NULL) {                                       \
             fprintf(stderr, "bad ptr: ptrs[%zu]", arg__);                \
@@ -21,6 +34,7 @@
             buf.ops[buf.len++].ptr = ptrs[(arg__)];                      \
         }                                                                \
     })
+
 #define vm_int_block_comp_put_out(out_) buf.ops[buf.len++].reg = (out_)
 
 #define vm_int_block_comp_put_reg(vreg_) buf.ops[buf.len++].reg = (vreg_).reg
@@ -141,12 +155,16 @@ static void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t
     }
     vm_int_buf_t buf;
     buf.len = 0;
-    buf.alloc = 16;
+    buf.alloc = 128;
     buf.ops = vm_alloc0(sizeof(vm_int_opcode_t) * buf.alloc);
     uint8_t *types = vm_malloc(sizeof(uint8_t) * state->framesize);
     for (size_t i = 0; i < block->nargs; i++) {
         size_t reg = block->args[i];
         types[reg] = vm_typeof(state->locals[reg]);
+        if (types[reg] == VM_TYPE_UNSET) {
+            fprintf(stderr, "unset reg in .L%zu: r%zu (arg #%zu)\n", block->id, reg, i);
+            __builtin_trap();
+        }
     }
 #if defined(VM_DEBUG_COMP)
     fprintf(stderr, "block .%zu(", block->id);
@@ -157,6 +175,7 @@ static void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t
         size_t reg = block->args[i];
         uint8_t type = types[reg];
         static const char *const typenames[VM_TYPE_MAX] = {
+            [VM_TYPE_UNSET] = "unset",
             [VM_TYPE_NIL] = "nil",
             [VM_TYPE_BOOL] = "bool",
             [VM_TYPE_I32] = "int",
@@ -173,10 +192,7 @@ static void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t
 #endif
 inline_jump:;
     for (size_t arg = 0; arg < block->len; arg++) {
-        if (buf.len + 16 >= buf.alloc) {
-            buf.alloc = buf.len * 2 + 16;
-            buf.ops = vm_realloc(buf.ops, sizeof(vm_int_opcode_t) * buf.alloc);
-        }
+        
         vm_ir_instr_t *instr = block->instrs[arg];
 #if defined(VM_DEBUG_COMP)
         if (instr->op != VM_IR_IOP_NOP) {
@@ -623,7 +639,6 @@ inline_jump:;
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_reg(instr->args[0]);
                                 vm_int_block_comp_put_reg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_UNKNOWN;
                                 vm_int_block_comp_put_block(block->branch->targets[0]);
                                 vm_int_block_comp_put_block(NULL);
                                 vm_int_block_comp_put_block(NULL);
@@ -644,7 +659,6 @@ inline_jump:;
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_reg(instr->args[0]);
                                 vm_int_block_comp_put_ival(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_UNKNOWN;
                                 vm_int_block_comp_put_block(block->branch->targets[0]);
                                 vm_int_block_comp_put_block(NULL);
                                 vm_int_block_comp_put_block(NULL);
@@ -666,7 +680,6 @@ inline_jump:;
                                 vm_int_block_comp_put_out(instr->out.reg);
                                 vm_int_block_comp_put_ival(instr->args[0]);
                                 vm_int_block_comp_put_reg(instr->args[1]);
-                                types[instr->out.reg] = VM_TYPE_UNKNOWN;
                                 vm_int_block_comp_put_block(block->branch->targets[0]);
                                 vm_int_block_comp_put_block(NULL);
                                 vm_int_block_comp_put_block(NULL);
@@ -971,6 +984,14 @@ inline_jump:;
                 }
                 break;
             }
+            case VM_IR_IOP_IN: {
+                if (instr->out.type == VM_IR_ARG_REG) {
+                    vm_int_block_comp_put_ptr(VM_INT_OP_IN_V);
+                    vm_int_block_comp_put_out(instr->out.reg);
+                    types[instr->out.reg] = VM_TYPE_I32;
+                }
+                break;
+            }
             case VM_IR_IOP_OUT: {
                 if (instr->args[0].type == VM_IR_ARG_NUM) {
                     // out i
@@ -993,7 +1014,7 @@ inline_jump:;
     switch (block->branch->op) {
         case VM_IR_BOP_JUMP: {
             // jump l
-            if (block->branch->targets[0]->id <= block->id) {
+            if (block->branch->targets[0]->id <= block->id || !VM_ALLOW_INLINE_JUMPS) {
                 vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
                 vm_int_block_comp_put_block(block->branch->targets[0]);
             } else {
@@ -1111,13 +1132,16 @@ inline_jump:;
                         vm_int_block_comp_put_reg(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
-                    } else {
-                        vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
+                    } else if (types[block->branch->args[1].reg] == VM_TYPE_I32 || types[block->branch->args[1].reg] == VM_TYPE_F64) {
+                        vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
                         vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_FRTT);
                         vm_int_block_comp_put_fval(block->branch->args[0]);
                         vm_int_block_comp_put_reg(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
                     }
                 }
             } else {
@@ -1129,32 +1153,35 @@ inline_jump:;
                         vm_int_block_comp_put_ival(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
-                    } else {
+                    } else if (types[block->branch->args[0].reg] == VM_TYPE_I32 || types[block->branch->args[0].reg] == VM_TYPE_F64) {
                         vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
                         vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_RFTT);
                         vm_int_block_comp_put_reg(block->branch->args[0]);
                         vm_int_block_comp_put_fval(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_JUMP_T);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
                     }
                 } else {
                     // beq r r l l
-                    if (types[block->branch->args[0].reg] == VM_TYPE_ARRAY && types[block->branch->args[1].reg] == VM_TYPE_ARRAY) {
-                        vm_int_block_comp_put_ptr(VM_INT_OP_DYNBEQ_RRTT);
-                        vm_int_block_comp_put_reg(block->branch->args[0]);
-                        vm_int_block_comp_put_reg(block->branch->args[1]);
-                        vm_int_block_comp_put_block(block->branch->targets[0]);
-                        vm_int_block_comp_put_block(block->branch->targets[1]);
-                    } else if (types[block->branch->args[0].reg] == VM_TYPE_I32 && types[block->branch->args[1].reg] == VM_TYPE_I32) {
+                    if (types[block->branch->args[0].reg] == VM_TYPE_I32 && types[block->branch->args[1].reg] == VM_TYPE_I32) {
                         vm_int_block_comp_put_ptr(VM_INT_OP_I32BEQ_RRTT);
                         vm_int_block_comp_put_reg(block->branch->args[0]);
                         vm_int_block_comp_put_reg(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
                         vm_int_block_comp_put_block(block->branch->targets[1]);
-                    } else {
+                    } else if ((types[block->branch->args[0].reg] == VM_TYPE_I32 || types[block->branch->args[0].reg] == VM_TYPE_F64) && (types[block->branch->args[1].reg] == VM_TYPE_I32 || types[block->branch->args[1].reg] == VM_TYPE_F64)) {
                         vm_int_block_comp_ensure_float_reg(block->branch->args[0].reg);
                         vm_int_block_comp_ensure_float_reg(block->branch->args[1].reg);
                         vm_int_block_comp_put_ptr(VM_INT_OP_FBEQ_RRTT);
+                        vm_int_block_comp_put_reg(block->branch->args[0]);
+                        vm_int_block_comp_put_reg(block->branch->args[1]);
+                        vm_int_block_comp_put_block(block->branch->targets[0]);
+                        vm_int_block_comp_put_block(block->branch->targets[1]);
+                    } else {
+                        vm_int_block_comp_put_ptr(VM_INT_OP_DYNBEQ_RRTT);
                         vm_int_block_comp_put_reg(block->branch->args[0]);
                         vm_int_block_comp_put_reg(block->branch->args[1]);
                         vm_int_block_comp_put_block(block->branch->targets[0]);
@@ -1377,6 +1404,7 @@ vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block0) {
         [VM_INT_OP_GET_RR] = &&do_get_rr,
         [VM_INT_OP_GET_RI] = &&do_get_ri,
         [VM_INT_OP_LEN_R] = &&do_len_r,
+        [VM_INT_OP_IN_V] = &&do_in_v,
         [VM_INT_OP_OUT_I] = &&do_out_i,
         [VM_INT_OP_OUT_R] = &&do_out_r,
         [VM_INT_OP_JUMP_L] = &&do_jump_l,
@@ -1469,6 +1497,9 @@ do_debug_print_instrs : {
                 case 'd': {
                     vm_value_t dyn = vm_int_run_read_load();
                     switch (vm_typeof(dyn)) {
+                        case VM_TYPE_UNSET:
+                            fprintf(state->debug_print_instrs, "[any unset]");
+                            break;
                         case VM_TYPE_NIL:
                             fprintf(state->debug_print_instrs, "[any nil]");
                             break;
@@ -2523,6 +2554,8 @@ do_call_x_check : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
+        case VM_TYPE_UNSET:
+            __builtin_trap();
         case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
@@ -2836,6 +2869,8 @@ do_get_rr : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
+        case VM_TYPE_UNSET:
+            __builtin_trap();
         case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
@@ -2871,6 +2906,8 @@ do_get_ri : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
+        case VM_TYPE_UNSET:
+            __builtin_trap();
         case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
@@ -2902,6 +2939,11 @@ do_len_r : {
     vm_int_run_next();
 }
 // io
+do_in_v : {
+    vm_value_t *out = vm_int_run_read_store();
+    *out = vm_value_from_int((int) fgetc(stdin));
+    vm_int_run_next();
+}
 do_out_i : {
     fprintf(stdout, "%c", (int)vm_int_run_read().ival);
     vm_int_run_next();
@@ -3183,6 +3225,9 @@ do_tget_rr : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
+        case VM_TYPE_UNSET:
+            head = head[VM_TYPE_UNSET].ptr;
+            vm_int_run_next();
         case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();
@@ -3218,6 +3263,9 @@ do_tget_rf : {
         head[type].ptr = vm_int_block_comp(vm_int_run_save(), ptrs, head[0].block);
     }
     switch (type) {
+        case VM_TYPE_UNSET:
+            head = head[VM_TYPE_UNSET].ptr;
+            vm_int_run_next();
         case VM_TYPE_NIL:
             head = head[VM_TYPE_NIL].ptr;
             vm_int_run_next();

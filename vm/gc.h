@@ -28,9 +28,8 @@ typedef vm_box_t vm_value_t;
 struct vm_value_array_t {
     uint8_t tag;
     uint8_t mark;
-    vm_value_t *data;
     uint32_t len;
-    uint32_t alloc;
+    vm_value_t *data;
 };
 
 struct vm_value_table_t {
@@ -48,6 +47,7 @@ struct vm_value_table_t {
 
 enum {
     VM_TYPE_UNKNOWN,
+    VM_TYPE_UNSET,
     VM_TYPE_NIL,
     VM_TYPE_BOOL,
     VM_TYPE_I32,
@@ -87,7 +87,7 @@ bool vm_gc_eq(vm_value_t v1, vm_value_t v2);
 #define vm_gc_set_iv(obj_, nth_, val_) vm_gc_set(obj_, vm_value_from_float(nth_), val_)
 #define vm_gc_set_ii(obj_, nth_, val_) vm_gc_set(obj_, vm_value_from_float(nth_), vm_value_from_float(val_))
 
-#define vm_value_nil() (vm_box_empty())
+#define vm_value_nil() (vm_box_null())
 #define vm_value_from_bool(n_) (vm_box_from_boolean(n_))
 #define vm_value_from_int(n_) (vm_box_from_int(n_))
 #define vm_value_from_float(n_) (vm_box_from_double(n_))
@@ -113,6 +113,9 @@ static inline uint8_t vm_typeof(vm_value_t val) {
         return VM_TYPE_BOOL;
     }
     if (vm_box_is_empty(val)) {
+        return VM_TYPE_UNSET;
+    }
+    if (vm_box_is_null(val)) {
         return VM_TYPE_NIL;
     }
     if (vm_box_is_pointer(val)) {

@@ -47,6 +47,8 @@ enum {
     VM_OPCODE_BXOR,
     VM_OPCODE_BSHL,
     VM_OPCODE_BSHR,
+
+    VM_OPCODE_GETCHAR,
 };
 
 typedef uint32_t vm_opcode_t;

@@ -242,7 +242,6 @@ vm_value_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t slots) {
         gc->vals = vm_realloc(gc->vals, sizeof(vm_value_t) * gc->alloc);
     }
     gc->vals[gc->len++] = vm_value_from_array(arr);
-    arr->alloc = (uint32_t)slots;
     arr->len = (uint32_t)slots;
     arr->mark = 0;
     arr->data = (vm_value_t *)&arr[1];
@@ -257,11 +256,6 @@ vm_value_t vm_gc_get(vm_value_t obj, vm_value_t ind) {
     vm_value_array_t *arr = vm_value_to_array(obj);
     if (index >= arr->len) {
         __builtin_trap();
-        // return vm_value_nil();
-    }
-    uint8_t type = vm_typeof(arr->data[index]);
-    if (type == VM_TYPE_NIL) {
-        __builtin_trap();
     }
     return arr->data[index];
 }
@@ -269,8 +263,8 @@ vm_value_t vm_gc_get(vm_value_t obj, vm_value_t ind) {
 void vm_gc_set(vm_value_t obj, vm_value_t ind, vm_value_t value) {
     size_t index = (size_t)vm_value_to_float(ind);
     vm_value_array_t *arr = vm_value_to_array(obj);
-    if (index >= arr->alloc) {
-        return;
+    if (index >= arr->len) {
+        __builtin_trap();
     }
     if (index >= arr->len) {
         arr->len = (uint32_t)(index + 1);
