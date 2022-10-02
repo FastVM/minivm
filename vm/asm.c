@@ -57,7 +57,7 @@ size_t vm_asm_read_int(const char **src) {
 size_t vm_asm_read_reg(const char **src) {
     vm_asm_strip(src);
     if (**src != 'r') {
-        fprintf(stderr, "asm: bad char: expected 'r' (for reg)\n");
+        fprintf(stderr, "asm: bad char: expected 'r' (for reg) (got '%c')\n%.*s\n", **src, 100, *src);
         __builtin_trap();
     }
     *src += 1;
@@ -313,6 +313,41 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                 }
                 if (vm_asm_starts(opname, "mod")) {
                     vm_asm_put_op(VM_OPCODE_MOD);
+                    vm_asm_put_reg(regno);
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    continue;
+                }
+                if (vm_asm_starts(opname, "bor")) {
+                    vm_asm_put_op(VM_OPCODE_BOR);
+                    vm_asm_put_reg(regno);
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    continue;
+                }
+                if (vm_asm_starts(opname, "band")) {
+                    vm_asm_put_op(VM_OPCODE_BAND);
+                    vm_asm_put_reg(regno);
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    continue;
+                }
+                if (vm_asm_starts(opname, "bxor")) {
+                    vm_asm_put_op(VM_OPCODE_BXOR);
+                    vm_asm_put_reg(regno);
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    continue;
+                }
+                if (vm_asm_starts(opname, "bshl")) {
+                    vm_asm_put_op(VM_OPCODE_BSHL);
+                    vm_asm_put_reg(regno);
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    vm_asm_put_reg(vm_asm_read_reg(src));
+                    continue;
+                }
+                if (vm_asm_starts(opname, "bshr")) {
+                    vm_asm_put_op(VM_OPCODE_BSHR);
                     vm_asm_put_reg(regno);
                     vm_asm_put_reg(vm_asm_read_reg(src));
                     vm_asm_put_reg(vm_asm_read_reg(src));

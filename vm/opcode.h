@@ -41,6 +41,12 @@ enum {
     VM_OPCODE_NIL,
     VM_OPCODE_TRUE,
     VM_OPCODE_FALSE,
+    
+    VM_OPCODE_BOR,
+    VM_OPCODE_BAND,
+    VM_OPCODE_BXOR,
+    VM_OPCODE_BSHL,
+    VM_OPCODE_BSHR,
 };
 
 typedef uint32_t vm_opcode_t;

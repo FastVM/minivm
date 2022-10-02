@@ -35,6 +35,7 @@ TODO: Optional Helper APIs:
 
 #include "../../lib.h"
 
+#if defined(__x86_64__)
 #if defined(__GNUC__) || defined(__clang__)
 static inline double vm_trace_time(void) {
     uint32_t eax, edx;
@@ -46,6 +47,9 @@ static inline double vm_trace_time(void) {
 #include <intrin.h>
 #pragma intrinsic(__rdtsc)
 #define vm_trace_time() ((double)__rdtsc())
+#endif
+#else
+#define vm_trace_time() ((double) 0)
 #endif
 
 typedef struct __attribute__((__packed__)) vm_trace_header_t {

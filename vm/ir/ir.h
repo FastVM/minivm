@@ -51,6 +51,11 @@ enum {
     VM_IR_IOP_LEN,
     VM_IR_IOP_TYPE,
     VM_IR_IOP_OUT,
+    VM_IR_IOP_BOR,
+    VM_IR_IOP_BAND,
+    VM_IR_IOP_BXOR,
+    VM_IR_IOP_BSHL,
+    VM_IR_IOP_BSHR,
 };
 
 struct vm_ir_arg_t {

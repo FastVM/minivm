@@ -17,75 +17,49 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_REG: {
-                index += 1;
-                index += 1;
+                index += 2;
                 break;
             }
             case VM_OPCODE_INT:
             case VM_OPCODE_NEG: {
-                index += 1;
-                index += 1;
+                index += 2;
                 break;
             }
             case VM_OPCODE_ARR: {
-                index += 1;
-                index += 1;
+                index += 2;
                 break;
             }
             case VM_OPCODE_GET: {
-                index += 1;
-                index += 1;
-                index += 1;
+                index += 3;
                 break;
             }
             case VM_OPCODE_LEN: {
-                index += 1;
-                index += 1;
+                index += 2;
                 break;
             }
             case VM_OPCODE_TYPE: {
-                index += 1;
-                index += 1;
+                index += 2;
                 break;
             }
             case VM_OPCODE_SET: {
-                index += 1;
-                index += 1;
-                index += 1;
+                index += 3;
                 break;
             }
             case VM_OPCODE_RET: {
                 index += 1;
                 break;
             }
-            case VM_OPCODE_ADD: {
-                index += 1;
-                index += 1;
-                index += 1;
-                break;
-            }
-            case VM_OPCODE_SUB: {
-                index += 1;
-                index += 1;
-                index += 1;
-                break;
-            }
-            case VM_OPCODE_MUL: {
-                index += 1;
-                index += 1;
-                index += 1;
-                break;
-            }
-            case VM_OPCODE_DIV: {
-                index += 1;
-                index += 1;
-                index += 1;
-                break;
-            }
-            case VM_OPCODE_MOD: {
-                index += 1;
-                index += 1;
-                index += 1;
+            case VM_OPCODE_ADD:
+            case VM_OPCODE_SUB:
+            case VM_OPCODE_MUL:
+            case VM_OPCODE_DIV:
+            case VM_OPCODE_MOD:
+            case VM_OPCODE_BOR:
+            case VM_OPCODE_BAND:
+            case VM_OPCODE_BXOR:
+            case VM_OPCODE_BSHL:
+            case VM_OPCODE_BSHR: {
+                index += 3;
                 break;
             }
             case VM_OPCODE_BB: {
@@ -97,29 +71,25 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_CALL: {
-                index += 1;
-                index += 1;
+                index += 2;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
             }
             case VM_OPCODE_DCALL: {
-                index += 1;
-                index += 1;
+                index += 2;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
             }
             case VM_OPCODE_CCALL: {
-                index += 1;
-                index += 1;
+                index += 2;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
             }
             case VM_OPCODE_XCALL: {
-                index += 1;
-                index += 1;
+                index += 2;
                 vm_opcode_t nargs = ops[index++];
                 index += nargs;
                 break;
@@ -134,14 +104,11 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_FUNC: {
-                index += 1;
-                index += 1;
-                index += 1;
+                index += 3;
                 break;
             }
             case VM_OPCODE_BEQ: {
-                index += 1;
-                index += 1;
+                index += 2;
                 vm_opcode_t jfalse = ops[index++];
                 vm_opcode_t jtrue = ops[index++];
                 ret[jfalse] |= VM_BREAK;
@@ -149,8 +116,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_BLT: {
-                index += 1;
-                index += 1;
+                index += 2;
                 vm_opcode_t jfalse = ops[index++];
                 vm_opcode_t jtrue = ops[index++];
                 ret[jfalse] |= VM_BREAK;
@@ -158,8 +124,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 break;
             }
             case VM_OPCODE_ADDR: {
-                index += 1;
-                index += 1;
+                index += 2;
                 break;
             }
             case VM_OPCODE_TAB: {
@@ -347,6 +312,41 @@ redo:;
                 vm_opcode_t lhs = ops[(index)++];
                 vm_opcode_t rhs = ops[(index)++];
                 vm_ir_block_add_mod(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
+                goto vm_break;
+            }
+            case VM_OPCODE_BOR: {
+                vm_opcode_t out = ops[(index)++];
+                vm_opcode_t lhs = ops[(index)++];
+                vm_opcode_t rhs = ops[(index)++];
+                vm_ir_block_add_bor(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
+                goto vm_break;
+            }
+            case VM_OPCODE_BAND: {
+                vm_opcode_t out = ops[(index)++];
+                vm_opcode_t lhs = ops[(index)++];
+                vm_opcode_t rhs = ops[(index)++];
+                vm_ir_block_add_band(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
+                goto vm_break;
+            }
+            case VM_OPCODE_BXOR: {
+                vm_opcode_t out = ops[(index)++];
+                vm_opcode_t lhs = ops[(index)++];
+                vm_opcode_t rhs = ops[(index)++];
+                vm_ir_block_add_bxor(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
+                goto vm_break;
+            }
+            case VM_OPCODE_BSHL: {
+                vm_opcode_t out = ops[(index)++];
+                vm_opcode_t lhs = ops[(index)++];
+                vm_opcode_t rhs = ops[(index)++];
+                vm_ir_block_add_bshl(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
+                goto vm_break;
+            }
+            case VM_OPCODE_BSHR: {
+                vm_opcode_t out = ops[(index)++];
+                vm_opcode_t lhs = ops[(index)++];
+                vm_opcode_t rhs = ops[(index)++];
+                vm_ir_block_add_bshr(block, vm_ir_arg_reg(out), vm_ir_arg_reg(lhs), vm_ir_arg_reg(rhs));
                 goto vm_break;
             }
             case VM_OPCODE_BB: {

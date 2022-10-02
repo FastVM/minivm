@@ -45,6 +45,26 @@ void vm_ir_block_add_mod(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs,
     vm_ir_block_realloc(block,
                         vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MOD, .out = out, .args[0] = lhs, .args[1] = rhs));
 }
+void vm_ir_block_add_bor(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
+    vm_ir_block_realloc(block,
+                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BOR, .out = out, .args[0] = lhs, .args[1] = rhs));
+}
+void vm_ir_block_add_band(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
+    vm_ir_block_realloc(block,
+                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BAND, .out = out, .args[0] = lhs, .args[1] = rhs));
+}
+void vm_ir_block_add_bxor(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
+    vm_ir_block_realloc(block,
+                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BXOR, .out = out, .args[0] = lhs, .args[1] = rhs));
+}
+void vm_ir_block_add_bshl(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
+    vm_ir_block_realloc(block,
+                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BSHL, .out = out, .args[0] = lhs, .args[1] = rhs));
+}
+void vm_ir_block_add_bshr(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
+    vm_ir_block_realloc(block,
+                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BSHR, .out = out, .args[0] = lhs, .args[1] = rhs));
+}
 void vm_ir_block_add_call(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t func, size_t nargs, vm_ir_arg_t *args) {
     vm_ir_instr_t *instr = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_CALL, .out = out, .args[0] = func);
     size_t i = 1;
