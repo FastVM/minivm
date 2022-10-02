@@ -1525,6 +1525,10 @@ do_debug_print_instrs : {
                     fprintf(state->debug_print_instrs, "[const float %lf]", vm_int_run_read().fval);
                     break;
                 }
+                case 'N': {
+                    fprintf(state->debug_print_instrs, "[const nil]", (size_t)vm_int_run_read().ival);
+                    break;
+                }
                 case 'X': {
                     fprintf(state->debug_print_instrs, "[const extern %zu]", (size_t)vm_int_run_read().ival);
                     break;
