@@ -1526,7 +1526,7 @@ do_debug_print_instrs : {
                     break;
                 }
                 case 'N': {
-                    fprintf(state->debug_print_instrs, "[const nil]", (size_t)vm_int_run_read().ival);
+                    fprintf(state->debug_print_instrs, "[const nil]");
                     break;
                 }
                 case 'X': {
