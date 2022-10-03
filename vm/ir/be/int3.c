@@ -20,7 +20,6 @@
 
 #define vm_int_block_comp_put_ptr(arg_)                                  \
     ({                                                                   \
-        vm_int_block_comp_buf_check(); \
         size_t arg__ = (arg_);                                           \
         if (ptrs[arg__] == NULL) {                                       \
             fprintf(stderr, "bad ptr: ptrs[%zu]", arg__);                \
@@ -202,6 +201,7 @@ inline_jump:;
             fflush(stderr);
         }
 #endif
+        vm_int_block_comp_buf_check();
         switch (instr->op) {
             case VM_IR_IOP_NOP: {
                 break;
@@ -1011,6 +1011,7 @@ inline_jump:;
             }
         }
     }
+    vm_int_block_comp_buf_check();
     switch (block->branch->op) {
         case VM_IR_BOP_JUMP: {
             // jump l
