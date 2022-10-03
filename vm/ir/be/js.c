@@ -52,6 +52,8 @@ void vm_ir_be_js(FILE *of, size_t nargs, vm_ir_block_t *blocks) {
     fprintf(of, "const call=(f)=>{while (f instanceof Function){f=f();}return f;};\n");
     fprintf(of, "const putchar=(c)=>{process.stdout.write(String.fromCharCode(c))};\n");
     fprintf(of, "const getchar=()=>{const buffer=Buffer.alloc(1);fs.readSync(0, buffer, 0, 1);return buffer.toString('utf8').charCodeAt(0);};\n");
+    fprintf(of, "const Exit=class extends Error{};\n");
+    fprintf(of, "const exit=()=>{throw new Exit();};\n");
     for (size_t nblock = 0; nblock < nargs; nblock++) {
         vm_ir_block_t *block = &blocks[nblock];
         if (block->id < 0) {
@@ -311,5 +313,5 @@ void vm_ir_be_js(FILE *of, size_t nargs, vm_ir_block_t *blocks) {
         fprintf(of, "};\n");
         vm_free(known);
     }
-    fprintf(of, "call(()=>l0());");
+    fprintf(of, "try{call(()=>l0());}catch(e){if(!(e instanceof Exit)){throw e;}}");
 }
