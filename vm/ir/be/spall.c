@@ -1,6 +1,7 @@
 
 #include "spall.h"
 
+#if !defined(VM_WASM)
 #if defined(SPALL_BUFFER_PROFILING) && !defined(SPALL_BUFFER_PROFILING_GET_TIME)
 #error "You must #define SPALL_BUFFER_PROFILING_GET_TIME() to profile buffer flushes."
 #endif
@@ -198,3 +199,4 @@ bool vm_trace_end_tid_pid(vm_trace_profile_t *ctx, vm_trace_buffer_t *wb, double
 
 bool vm_trace_end_tid(vm_trace_profile_t *ctx, vm_trace_buffer_t *wb, double when, uint32_t tid) { return vm_trace_end_tid_pid(ctx, wb, when, tid, 0); }
 bool vm_trace_end(vm_trace_profile_t *ctx, vm_trace_buffer_t *wb, double when) { return vm_trace_end_tid_pid(ctx, wb, when, 0, 0); }
+#endif
