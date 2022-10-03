@@ -255,7 +255,7 @@ void vm_ir_be_racket(FILE *of, size_t nargs, vm_ir_block_t *blocks) {
                     vm_ir_be_racket_arg(of, instr->out);
                     fprintf(of, " (arithmetic-shift (int ");
                     vm_ir_be_racket_arg(of, instr->args[0]);
-                    fprintf(of, ") (");
+                    fprintf(of, ") (int ");
                     vm_ir_be_racket_arg(of, instr->args[1]);
                     fprintf(of, "))");
                     fprintf(of, ")");
