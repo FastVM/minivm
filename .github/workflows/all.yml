@@ -15,6 +15,8 @@ jobs:
             bin/minivm-asm
             bin/minivm-run
             bin/libminivm.a
+            bin/vm2js
+            bin/vm2rkt
   linux-minivm-warnings:
     runs-on: ubuntu-latest
     steps:
@@ -29,6 +31,8 @@ jobs:
             bin/minivm-asm
             bin/minivm-run
             bin/libminivm.a
+            bin/vm2js
+            bin/vm2rkt
   macos-minivm:
     runs-on: macos-latest
     steps:
@@ -43,6 +47,8 @@ jobs:
             bin/minivm-asm
             bin/minivm-run
             bin/libminivm.a
+            bin/vm2js
+            bin/vm2rkt
   windows-minivm-gcc:
     runs-on: windows-latest
     steps:
@@ -60,6 +66,8 @@ jobs:
             bin/libminivm.a
             bin/minivm-run.exe
             bin/minivm-asm.exe
+            bin/vm2js.exe
+            bin/vm2rkt.exe
   windows-minivm-clang:
     runs-on: windows-latest
     steps:
@@ -74,3 +82,5 @@ jobs:
             bin/libminivm.lib
             bin/minivm-asm.exe
             bin/minivm-run.exe
+            bin/vm2js.exe
+            bin/vm2rkt.exe

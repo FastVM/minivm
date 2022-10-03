@@ -6,10 +6,10 @@ OPT ?= -O2
 HOST_CC ?= $(CC)
 
 
-PROG_SRCS := main/asm.c main/run.c main/racket.c
+PROG_SRCS := main/asm.c main/run.c main/racket.c main/js.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-VM_SRCS := vm/asm.c vm/gc.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/const.c vm/ir/be/int3.c vm/ir/be/lisp.c vm/ir/be/spall.c
+VM_SRCS := vm/asm.c vm/gc.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/const.c vm/ir/be/int3.c vm/ir/be/lisp.c vm/ir/be/js.c vm/ir/be/spall.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS)
@@ -45,7 +45,7 @@ clang-pgo-build: .dummy
 
 libs: bin/libminivm.a
 
-bins: bin/minivm-run bin/minivm-asm bin/vm2rkt
+bins: bin/minivm-run bin/minivm-asm bin/vm2rkt bin/vm2js
 
 bin/libminivm.a: $(OBJS)
 	@mkdir -p bin
@@ -54,6 +54,10 @@ bin/libminivm.a: $(OBJS)
 bin/vm2rkt: main/racket.o $(OBJS)
 	@mkdir -p bin
 	$(CC) $(OPT) main/racket.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+
+bin/vm2js: main/js.o $(OBJS)
+	@mkdir -p bin
+	$(CC) $(OPT) main/js.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 bin/minivm-run: main/run.o $(OBJS)
 	@mkdir -p bin

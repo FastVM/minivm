@@ -4,7 +4,7 @@
 #include "../vm/ir/build.h"
 #include "../vm/ir/toir.h"
 
-void vm_ir_be_racket(FILE *of, size_t nargs, vm_ir_block_t *blocks);
+void vm_ir_be_js(FILE *of, size_t nargs, vm_ir_block_t *blocks);
 
 static char *vm_asm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
             vm_ir_print_blocks(stderr, nblocks, blocks);
         }
         FILE *out = fopen(dump, "w");
-        vm_ir_be_racket(out, nblocks, blocks);
+        vm_ir_be_js(out, nblocks, blocks);
         fclose(out);
         vm_ir_blocks_free(nblocks, blocks);
         vm_free(buf.ops);
