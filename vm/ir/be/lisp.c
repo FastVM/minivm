@@ -55,7 +55,7 @@ void vm_ir_be_racket(FILE *of, size_t nargs, vm_ir_block_t *blocks) {
         }
         uint8_t *known = vm_alloc0(sizeof(size_t) * block->nregs);
         fprintf(of, "(define (l%zi return", block->id);
-        for (int i = 0; i < block->nargs; i++) {
+        for (ptrdiff_t i = 0; i < block->nargs; i++) {
             fprintf(of, " r%zu", block->args[i]);
             known[block->args[i]] = 1;
         }
