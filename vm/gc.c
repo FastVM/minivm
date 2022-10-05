@@ -133,7 +133,11 @@ static inline size_t vm_gc_table_modsize(uint8_t index, size_t hash) {
             return hash % 4294967291ull;
         }
         default: {
+#if defined(__MINIVM__)
+            return 0;
+#else
             __builtin_unreachable();
+#endif
         }
     }
 }
@@ -232,9 +236,6 @@ void vm_gc_run(vm_gc_t *restrict gc, vm_value_t *high) {
 }
 
 vm_value_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t slots) {
-    if (slots == 0) {
-        __builtin_trap();
-    }
     vm_value_array_t *arr = vm_malloc(sizeof(vm_value_array_t) + sizeof(vm_value_t) * (size_t)slots);
     arr->tag = VM_TYPE_ARRAY;
     if (gc->len + 1 >= gc->alloc) {
@@ -245,9 +246,9 @@ vm_value_t vm_gc_arr(vm_gc_t *restrict gc, vm_int_t slots) {
     arr->len = (uint32_t)slots;
     arr->mark = 0;
     arr->data = (vm_value_t *)&arr[1];
-    // #if NANBOX_EMPTY_BYTE != 0
-    // memset(arr->data, NANBOX_EMPTY_BYTE, sizeof(vm_value_t) * (size_t)slots);
-    // #endif
+    #if NANBOX_EMPTY_BYTE != 0
+    memset(arr->data, NANBOX_EMPTY_BYTE, sizeof(vm_value_t) * (size_t)slots);
+    #endif
     return vm_value_from_array(arr);
 }
 
@@ -255,6 +256,7 @@ vm_value_t vm_gc_get(vm_value_t obj, vm_value_t ind) {
     size_t index = (size_t)vm_value_to_float(ind);
     vm_value_array_t *arr = vm_value_to_array(obj);
     if (index >= arr->len) {
+        // printf("bounds error: %zu >= %zu\n", index, (size_t) arr->len);
         __builtin_trap();
     }
     return arr->data[index];
@@ -264,10 +266,8 @@ void vm_gc_set(vm_value_t obj, vm_value_t ind, vm_value_t value) {
     size_t index = (size_t)vm_value_to_float(ind);
     vm_value_array_t *arr = vm_value_to_array(obj);
     if (index >= arr->len) {
+        // printf("bounds error: %zu >= %zu\n", index, (size_t) arr->len);
         __builtin_trap();
-    }
-    if (index >= arr->len) {
-        arr->len = (uint32_t)(index + 1);
     }
     arr->data[index] = value;
 }

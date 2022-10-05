@@ -16,15 +16,6 @@ Move contents of `rY` to `rX`
 rX <- reg rY
 ```
 
-
-## Dynamic Jump
-
-Jump to address stored in `rX`
-
-```
-djump rX
-```
-
 ## Func
 
 Jump over function, define `label.a`

@@ -121,7 +121,7 @@ static inline uint8_t vm_typeof(vm_value_t val) {
     if (vm_box_is_pointer(val)) {
         return *(uint8_t *)vm_box_to_pointer(val);
     }
-    __builtin_unreachable();
+    return 0;
 }
 
 #endif

@@ -188,7 +188,7 @@ void vm_ir_block_end_bb(vm_ir_block_t *block, vm_ir_arg_t val, vm_ir_block_t *if
     block->branch->targets[0] = iffalse;
     block->branch->targets[1] = iftrue;
 }
-void vm_ir_block_end_blt(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse,  vm_ir_block_t *iftrue) {
+void vm_ir_block_end_blt(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse, vm_ir_block_t *iftrue) {
     block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
     block->branch->op = VM_IR_BOP_LESS;
     block->branch->args[0] = lhs;
@@ -196,7 +196,7 @@ void vm_ir_block_end_blt(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs,
     block->branch->targets[0] = iffalse;
     block->branch->targets[1] = iftrue;
 }
-void vm_ir_block_end_beq(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse,  vm_ir_block_t *iftrue) {
+void vm_ir_block_end_beq(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse, vm_ir_block_t *iftrue) {
     block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
     block->branch->op = VM_IR_BOP_EQUAL;
     block->branch->args[0] = lhs;

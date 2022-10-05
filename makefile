@@ -45,7 +45,7 @@ clang-pgo-build: .dummy
 
 libs: bin/libminivm.a
 
-bins: bin/minivm-run bin/minivm-asm bin/vm2rkt bin/vm2js
+bins: bin/minivm-run bin/minivm-asm bin/vm2js
 
 bin/libminivm.a: $(OBJS)
 	@mkdir -p bin

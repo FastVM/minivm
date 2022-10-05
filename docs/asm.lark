@@ -12,7 +12,6 @@ opexit: "exit"
 opreg: REG "<-" "reg" REG
 opfunc: "func" LABEL stmt* "end"
 opjump: "jump" LABEL
-opdjump: "djump" REG
 opcall: REG "<-" "call" LABEL REG*
 opdcall: REG "<-" "dcall" REG REG*
 opret: "ret" REG

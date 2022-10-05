@@ -161,6 +161,11 @@ void vm_ir_be_js_block_raw(FILE *of, vm_ir_block_t *block) {
                 fprintf(of, "[");
                 vm_ir_be_js_arg(of, instr->args[1]);
                 fprintf(of, "];");
+                fprintf(of, "if (");
+                vm_ir_be_js_arg(of, instr->out);
+                fprintf(of, "===undefined){throw new Error(`unset index: ${");
+                vm_ir_be_js_arg(of, instr->args[1]);
+                fprintf(of, "}`)}");
                 break;
             }
             case VM_IR_IOP_SET: {
@@ -170,6 +175,9 @@ void vm_ir_be_js_block_raw(FILE *of, vm_ir_block_t *block) {
                 fprintf(of, "]=");
                 vm_ir_be_js_arg(of, instr->args[2]);
                 fprintf(of, ";");
+                fprintf(of, "console.log(");
+                vm_ir_be_js_arg(of, instr->args[1]);
+                fprintf(of, ");");
                 break;
             }
             case VM_IR_IOP_LEN: {

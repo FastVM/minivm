@@ -74,8 +74,8 @@ size_t vm_asm_read_reg(const char **src) {
     ({                                        \
         instrs[head].type = (type_);          \
         instrs[head].value = (value_);        \
-        head += 1;                            \
-        instrs[head].type = VM_ASM_INSTR_END; \
+        /*printf("intrs[%i] = {%i, %i}\n", (int) head, (int) type, (int) value);*/ \
+        head += 1; \
     })
 #define vm_asm_put_op(op_) vm_asm_put((VM_ASM_INSTR_RAW), (op_))
 #define vm_asm_put_reg(reg_)                 \
@@ -105,6 +105,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
     size_t where = 0;
     size_t nregs = 0;
     for (;;) {
+        // printf("%i\n", instrs->type);
         if (head + 16 > alloc) {
             alloc = head * 4 + 16;
             instrs = vm_realloc(instrs, sizeof(vm_asm_instr_t) * alloc);
@@ -141,6 +142,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
                 vm_asm_strip(src);
                 const char *opname = *src;
                 *src += vm_asm_word(*src);
+                // printf("%s\n", opname);
                 if (vm_asm_starts(opname, "int")) {
                     vm_asm_strip(src);
                     if (**src == '-') {
@@ -449,6 +451,7 @@ vm_asm_instr_t *vm_asm_read(const char **src, size_t *nsets, size_t *nlinks) {
         }
         goto err;
     }
+    instrs[head].type = VM_ASM_INSTR_END;
     return instrs;
 err:
     fprintf(stderr, "%.100s", *src);
@@ -475,7 +478,9 @@ vm_bc_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t ns, size_t ni) {
     size_t *nums = vm_alloc0(sizeof(size_t) * ni);
     vm_asm_link_t *links = vm_alloc0(sizeof(vm_asm_link_t) * links_alloc);
     size_t cur_loc = 0;
+    // printf("%i != %i -> %i\n", instrs->type, VM_ASM_INSTR_END, instrs->type != VM_ASM_INSTR_END);
     for (vm_asm_instr_t *cur = instrs; cur->type != VM_ASM_INSTR_END; cur++) {
+        // printf("BEGIN\n");
         switch (cur->type) {
             case VM_ASM_INSTR_RAW: {
                 cur_loc += 1;
@@ -504,6 +509,7 @@ vm_bc_buf_t vm_asm_link(vm_asm_instr_t *instrs, size_t ns, size_t ni) {
                 break;
             }
         }
+        // printf("END\n");
     }
     size_t ops_alloc = 256;
     vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * ops_alloc);
@@ -586,6 +592,7 @@ vm_bc_buf_t vm_asm(const char *src) {
     size_t ns = 0;
     size_t ni = 0;
     vm_asm_instr_t *instrs = vm_asm_read(&src, &ns, &ni);
+    // printf("instrs = %i\n", (int) instrs);
     if (instrs == NULL) {
         return (vm_bc_buf_t){
             .nops = 0,

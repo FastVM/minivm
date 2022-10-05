@@ -10,7 +10,7 @@
 
 #if defined(__MINIVM__)
 const char *__minivm__ferror = NULL;
-#define __attribute__(...) 
+#define __attribute__(...)
 #define VM_SPALL_LEVEL 1
 #define fflush(...) (0)
 #define fgetc(...) (getchar())
