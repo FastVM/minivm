@@ -2,11 +2,11 @@
 #if !defined(VM_HEADER_LIB)
 #define VM_HEADER_LIB
 
+#include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <limits.h>
 
 #if defined(VM_WASM)
 
@@ -64,8 +64,8 @@ void *memcpy(void *dest, const void *src, size_t n);
 
 char *strpbrk(const char *str1, const char *str2);
 
-int vsnprintf(char *s, size_t n, const char *format, va_list arg );
-int vfprintf(FILE *F, const char * format, va_list arg );
+int vsnprintf(char *s, size_t n, const char *format, va_list arg);
+int vfprintf(FILE *F, const char *format, va_list arg);
 
 const char *getcwd(char *cwd, size_t path_max);
 
@@ -77,7 +77,7 @@ const char *getcwd(char *cwd, size_t path_max);
 
 #define assert(x) ((void)(x))
 
-#define EOF ((char) -1)
+#define EOF ((char)-1)
 #define PATH_MAX 2048
 
 #else

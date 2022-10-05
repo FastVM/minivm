@@ -49,7 +49,7 @@ static inline double vm_trace_time(void) {
 #define vm_trace_time() ((double)__rdtsc())
 #endif
 #else
-#define vm_trace_time() ((double) 0)
+#define vm_trace_time() ((double)0)
 #endif
 
 typedef struct __attribute__((__packed__)) vm_trace_header_t {

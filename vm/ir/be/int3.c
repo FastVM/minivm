@@ -7,15 +7,15 @@
 #include "spall.h"
 
 #if !defined(VM_ALLOW_INLINE_JUMPS)
-#define VM_ALLOW_INLINE_JUMPS 0
+#define VM_ALLOW_INLINE_JUMPS 1
 #endif
 
-#define vm_int_block_comp_buf_check() \
-    ({ \
-        if (buf.len + 64 >= buf.alloc) { \
-            buf.alloc = buf.len * 2 + 16; \
+#define vm_int_block_comp_buf_check()                                           \
+    ({                                                                          \
+        if (buf.len + 64 >= buf.alloc) {                                        \
+            buf.alloc = buf.len * 2 + 16;                                       \
             buf.ops = vm_realloc(buf.ops, sizeof(vm_int_opcode_t) * buf.alloc); \
-        } \
+        }                                                                       \
     })
 
 #define vm_int_block_comp_put_ptr(arg_)                                  \
@@ -102,7 +102,7 @@ static void vm_int_data_push(vm_int_data_t *data, vm_int_buf_t buf, uint8_t *typ
         }                                                                                    \
     })
 
-#define vm_int_block_comp_ensure_int_reg(reg_)                                             \
+#define vm_int_block_comp_ensure_int_reg(reg_)                                               \
     ({                                                                                       \
         size_t reg = (reg_);                                                                 \
         if (types[reg] == VM_TYPE_I32) {                                                     \
@@ -191,7 +191,6 @@ static void *vm_int_block_comp(vm_int_state_t *state, void **ptrs, vm_ir_block_t
 #endif
 inline_jump:;
     for (size_t arg = 0; arg < block->len; arg++) {
-        
         vm_ir_instr_t *instr = block->instrs[arg];
 #if defined(VM_DEBUG_COMP)
         if (instr->op != VM_IR_IOP_NOP) {
@@ -285,7 +284,7 @@ inline_jump:;
                             types[instr->out.reg] = VM_TYPE_I32;
                         } else {
                             // r = move i
-                            vm_int_block_comp_mov(instr->out.reg, (double) ((vm_int_t) instr->args[0].num | (vm_int_t) instr->args[1].num));
+                            vm_int_block_comp_mov(instr->out.reg, (double)((vm_int_t)instr->args[0].num | (vm_int_t)instr->args[1].num));
                         }
                     }
                 }
@@ -323,7 +322,7 @@ inline_jump:;
                             types[instr->out.reg] = VM_TYPE_I32;
                         } else {
                             // r = move i
-                            vm_int_block_comp_mov(instr->out.reg, (double) ((vm_int_t) instr->args[0].num & (vm_int_t) instr->args[1].num));
+                            vm_int_block_comp_mov(instr->out.reg, (double)((vm_int_t)instr->args[0].num & (vm_int_t)instr->args[1].num));
                         }
                     }
                 }
@@ -361,7 +360,7 @@ inline_jump:;
                             types[instr->out.reg] = VM_TYPE_I32;
                         } else {
                             // r = move i
-                            vm_int_block_comp_mov(instr->out.reg, (double) ((vm_int_t) instr->args[0].num ^ (vm_int_t) instr->args[1].num));
+                            vm_int_block_comp_mov(instr->out.reg, (double)((vm_int_t)instr->args[0].num ^ (vm_int_t)instr->args[1].num));
                         }
                     }
                 }
@@ -399,7 +398,7 @@ inline_jump:;
                             types[instr->out.reg] = VM_TYPE_I32;
                         } else {
                             // r = move i
-                            vm_int_block_comp_mov(instr->out.reg, (double) ((vm_int_t) instr->args[0].num << (vm_int_t) instr->args[1].num));
+                            vm_int_block_comp_mov(instr->out.reg, (double)((vm_int_t)instr->args[0].num << (vm_int_t)instr->args[1].num));
                         }
                     }
                 }
@@ -437,7 +436,7 @@ inline_jump:;
                             types[instr->out.reg] = VM_TYPE_I32;
                         } else {
                             // r = move i
-                            vm_int_block_comp_mov(instr->out.reg, (double) ((vm_int_t) instr->args[0].num >> (vm_int_t) instr->args[1].num));
+                            vm_int_block_comp_mov(instr->out.reg, (double)((vm_int_t)instr->args[0].num >> (vm_int_t)instr->args[1].num));
                         }
                     }
                 }
@@ -1006,7 +1005,7 @@ inline_jump:;
                 break;
             }
             default: {
-                fprintf(stderr, "unimplemented op: %zu\n", (size_t) instr->op);
+                fprintf(stderr, "unimplemented op: %zu\n", (size_t)instr->op);
                 __builtin_trap();
             }
         }
@@ -2942,7 +2941,7 @@ do_len_r : {
 // io
 do_in_v : {
     vm_value_t *out = vm_int_run_read_store();
-    *out = vm_value_from_int((int) fgetc(stdin));
+    *out = vm_value_from_int((int)fgetc(stdin));
     vm_int_run_next();
 }
 do_out_i : {

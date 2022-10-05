@@ -41,7 +41,7 @@ enum {
     VM_OPCODE_NIL,
     VM_OPCODE_TRUE,
     VM_OPCODE_FALSE,
-    
+
     VM_OPCODE_BOR,
     VM_OPCODE_BAND,
     VM_OPCODE_BXOR,

@@ -70,9 +70,9 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
                 ret[jtrue] |= VM_BREAK;
                 break;
             }
-            case VM_OPCODE_CALL: 
-            case VM_OPCODE_CCALL: 
-            case VM_OPCODE_DCALL: 
+            case VM_OPCODE_CALL:
+            case VM_OPCODE_CCALL:
+            case VM_OPCODE_DCALL:
             case VM_OPCODE_XCALL: {
                 index += 2;
                 vm_opcode_t nargs = ops[index++];
@@ -103,7 +103,7 @@ uint8_t *vm_jump_base(size_t nops, const vm_opcode_t *ops) {
             }
             case VM_OPCODE_PUTCHAR:
             case VM_OPCODE_TAB:
-            case VM_OPCODE_GETCHAR: 
+            case VM_OPCODE_GETCHAR:
             case VM_OPCODE_NIL:
             case VM_OPCODE_TRUE:
             case VM_OPCODE_FALSE: {
