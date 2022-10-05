@@ -25,8 +25,6 @@
 
 static bool vm_trace___FileWrite(vm_trace_profile_t *ctx, void *p, size_t n) {
     if (!ctx->file) return false;
-    // if (feof(ctx->file)) return false;
-    if (ferror(ctx->file)) return false;
     if (fwrite(p, n, 1, ctx->file) != 1) return false;
     return true;
 }

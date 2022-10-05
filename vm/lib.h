@@ -8,6 +8,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(__MINIVM__)
+const char *__minivm__ferror = NULL;
+#define __attribute__(...) 
+#define VM_SPALL_LEVEL 1
+#define fflush(...) (0)
+#define fgetc(...) (getchar())
+#define ferror(...) (__minivm__ferror)
+#define fseek(...) (0)
+#endif
+
 #if defined(VM_WASM)
 
 struct FILE;

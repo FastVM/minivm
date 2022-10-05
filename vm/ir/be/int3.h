@@ -185,8 +185,8 @@ typedef struct vm_int_state_t vm_int_state_t;
 struct vm_int_buf_t;
 typedef struct vm_int_buf_t vm_int_buf_t;
 
-struct vm_int_opcode_t;
-typedef struct vm_int_opcode_t vm_int_opcode_t;
+union vm_int_opcode_t;
+typedef union vm_int_opcode_t vm_int_opcode_t;
 
 typedef vm_value_t (*vm_int_func_ptr_t)(void *ptr, vm_int_state_t *state, size_t nargs, vm_value_t *args);
 
@@ -212,15 +212,13 @@ struct vm_int_buf_t {
     vm_int_opcode_t *ops;
 };
 
-struct vm_int_opcode_t {
-    union {
-        void *ptr;
-        vm_ir_block_t *block;
-        size_t reg;
-        int32_t ival;
-        vm_number_t fval;
-        bool bval;
-    };
+union vm_int_opcode_t {
+    void *ptr;
+    vm_ir_block_t *block;
+    size_t reg;
+    int32_t ival;
+    vm_number_t fval;
+    bool bval;
 };
 
 vm_value_t vm_int_run(vm_int_state_t *state, vm_ir_block_t *block);

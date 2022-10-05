@@ -60,6 +60,7 @@ enum {
 };
 
 struct vm_ir_arg_t {
+#if !defined(__MINIVM__)
     union {
         size_t reg;
         vm_number_t num;
@@ -68,6 +69,14 @@ struct vm_ir_arg_t {
         vm_ir_instr_t *instr;
         bool logic;
     };
+#else
+    size_t reg;
+    vm_number_t num;
+    const char *str;
+    vm_ir_block_t *func;
+    vm_ir_instr_t *instr;
+    bool logic;
+#endif
     uint8_t type;
 };
 

@@ -5,19 +5,6 @@
 #include "../lib.h"
 #include "ir.h"
 
-#define vm_ir_dup(v)                              \
-    ({                                            \
-        __typeof__(v) *k_ = vm_alloc0(sizeof(v)); \
-        *k = (v);                                 \
-        k;                                        \
-    })
-#define vm_ir_new(t_, ...)             \
-    ({                                 \
-        t_ *k = vm_alloc0(sizeof(t_)); \
-        *k = (t_){__VA_ARGS__};        \
-        k;                             \
-    })
-
 void vm_ir_instr_free(vm_ir_instr_t *instr);
 void vm_ir_block_free(vm_ir_block_t *block);
 void vm_ir_blocks_free(size_t nblocks, vm_ir_block_t *blocks);

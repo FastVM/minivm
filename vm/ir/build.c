@@ -22,51 +22,98 @@ vm_ir_arg_t vm_ir_arg_num(double num) { return (vm_ir_arg_t){.type = VM_IR_ARG_N
 vm_ir_arg_t vm_ir_arg_str(const char *str) { return (vm_ir_arg_t){.type = VM_IR_ARG_STR, .str = str}; }
 
 void vm_ir_block_add_move(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t arg) {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MOVE, .out = out, .args[0] = arg));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_MOVE;
+    instr->out = out;
+    instr->args[0] = arg;
+    vm_ir_block_realloc(block, instr);
 }
 
 void vm_ir_block_add_add(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_ADD, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_ADD;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_sub(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_SUB, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_SUB;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_mul(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MUL, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_MUL;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_div(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_DIV, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_DIV;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_mod(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_MOD, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_MOD;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_bor(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BOR, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_BOR;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_band(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BAND, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_BAND;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_bxor(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BXOR, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_BXOR;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_bshl(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BSHL, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_BSHL;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_bshr(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t lhs, vm_ir_arg_t rhs) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_BSHR, .out = out, .args[0] = lhs, .args[1] = rhs));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_BSHR;
+    instr->out = out;
+    instr->args[0] = lhs;
+    instr->args[1] = rhs;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_call(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t func, size_t nargs, vm_ir_arg_t *args) {
-    vm_ir_instr_t *instr = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_CALL, .out = out, .args[0] = func);
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_CALL;
+    instr->out = out;
+    instr->args[0] = func;
     size_t i = 1;
     while (i <= nargs) {
         instr->args[i++] = *args++;
@@ -74,53 +121,98 @@ void vm_ir_block_add_call(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t fun
     vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_arr(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t num) {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_ARR, .out = out, .args[0] = num));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_ARR;
+    instr->out = out;
+    instr->args[0] = num;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_tab(vm_ir_block_t *block, vm_ir_arg_t out) {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_TAB, .out = out));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_TAB;
+    instr->out = out;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_get(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t obj, vm_ir_arg_t index) {
-    vm_ir_block_realloc(block,
-                        vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_GET, .out = out, .args[0] = obj, .args[1] = index));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_GET;
+    instr->out = out;
+    instr->args[0] = obj;
+    instr->args[1] = index;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_len(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t obj) {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_LEN, .out = out, .args[0] = obj));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_LEN;
+    instr->out = out;
+    instr->args[0] = obj;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_type(vm_ir_block_t *block, vm_ir_arg_t out, vm_ir_arg_t obj) {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_TYPE, .out = out, .args[0] = obj));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_TYPE;
+    instr->out = out;
+    instr->args[0] = obj;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_set(vm_ir_block_t *block, vm_ir_arg_t obj, vm_ir_arg_t index, vm_ir_arg_t value) {
-    vm_ir_block_realloc(
-        block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_SET, .args[0] = obj, .args[1] = index, .args[2] = value));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_SET;
+    instr->args[0] = obj;
+    instr->args[1] = index;
+    instr->args[2] = value;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_out(vm_ir_block_t *block, vm_ir_arg_t arg) {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_OUT, .args[0] = arg));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_OUT;
+    instr->args[0] = arg;
+    vm_ir_block_realloc(block, instr);
 }
 void vm_ir_block_add_in(vm_ir_block_t *block, vm_ir_arg_t arg) {
-    vm_ir_block_realloc(block, vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_IN, .out = arg));
+    vm_ir_instr_t *instr = vm_alloc0(sizeof(vm_ir_instr_t));
+    instr->op = VM_IR_IOP_IN;
+    instr->out = arg;
+    vm_ir_block_realloc(block, instr);
 }
 
 void vm_ir_block_end_jump(vm_ir_block_t *block, vm_ir_block_t *target) {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_JUMP, .targets[0] = target);
+    block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
+    block->branch->op = VM_IR_BOP_JUMP;
+    block->branch->targets[0] = target;
 }
 void vm_ir_block_end_bb(vm_ir_block_t *block, vm_ir_arg_t val, vm_ir_block_t *iffalse, vm_ir_block_t *iftrue) {
-    block->branch =
-        vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_BOOL, .args[0] = val, .targets[0] = iffalse, .targets[1] = iftrue);
+    block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
+    block->branch->op = VM_IR_BOP_BOOL;
+    block->branch->args[0] = val;
+    block->branch->targets[0] = iffalse;
+    block->branch->targets[1] = iftrue;
 }
-void vm_ir_block_end_blt(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse,
-                         vm_ir_block_t *iftrue) {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_LESS, .args[0] = lhs, .args[1] = rhs,
-                              .targets[0] = iffalse, .targets[1] = iftrue);
+void vm_ir_block_end_blt(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse,  vm_ir_block_t *iftrue) {
+    block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
+    block->branch->op = VM_IR_BOP_LESS;
+    block->branch->args[0] = lhs;
+    block->branch->args[1] = rhs;
+    block->branch->targets[0] = iffalse;
+    block->branch->targets[1] = iftrue;
 }
-void vm_ir_block_end_beq(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse,
-                         vm_ir_block_t *iftrue) {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_EQUAL, .args[0] = lhs, .args[1] = rhs,
-                              .targets[0] = iffalse, .targets[1] = iftrue);
+void vm_ir_block_end_beq(vm_ir_block_t *block, vm_ir_arg_t lhs, vm_ir_arg_t rhs, vm_ir_block_t *iffalse,  vm_ir_block_t *iftrue) {
+    block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
+    block->branch->op = VM_IR_BOP_EQUAL;
+    block->branch->args[0] = lhs;
+    block->branch->args[1] = rhs;
+    block->branch->targets[0] = iffalse;
+    block->branch->targets[1] = iftrue;
 }
 void vm_ir_block_end_ret(vm_ir_block_t *block, vm_ir_arg_t arg) {
-    block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_RET, .args[0] = arg);
+    block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
+    block->branch->op = VM_IR_BOP_RET;
+    block->branch->args[0] = arg;
 }
-void vm_ir_block_end_exit(vm_ir_block_t *block) { block->branch = vm_ir_new(vm_ir_branch_t, .op = VM_IR_BOP_EXIT); }
+void vm_ir_block_end_exit(vm_ir_block_t *block) {
+    block->branch = vm_alloc0(sizeof(vm_ir_branch_t));
+    block->branch->op = VM_IR_BOP_EXIT;
+}
 
 void vm_ir_instr_free(vm_ir_instr_t *instr) { vm_free(instr); }
 

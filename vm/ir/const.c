@@ -144,7 +144,8 @@ void vm_ir_opt_dead(size_t nops, vm_ir_block_t *blocks) {
             if (instr->out.type == VM_IR_ARG_REG) {
                 outp = ptrs[instr->out.reg];
                 if (outp == 0 && instr->op != VM_IR_IOP_CALL) {
-                    block->instrs[j] = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_NOP);
+                    // block->instrs[j] = vm_ir_new(vm_ir_instr_t, .op = VM_IR_IOP_NOP);
+                    block->instrs[j]->op = VM_IR_IOP_NOP;
                 }
                 ptrs[instr->out.reg] = 0;
             } else if (instr->op != VM_IR_IOP_CALL && instr->op != VM_IR_IOP_SET &&
