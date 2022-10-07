@@ -325,7 +325,7 @@ void vm_ir_be_js(FILE *of, size_t nargs, vm_ir_block_t *blocks) {
             continue;
         }
         fprintf(of, "const l%zi = (", block->id);
-        for (ptrdiff_t i = 0; i < block->nargs; i++) {
+        for (size_t i = 0; i < block->nargs; i++) {
             if (i != 0) {
                 fprintf(of, ",");
             }
