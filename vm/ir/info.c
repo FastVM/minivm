@@ -85,7 +85,7 @@ void vm_ir_info(size_t *ptr_nops, vm_ir_block_t **ptr_blocks) {
     bool redo = true;
     while (redo) {
         redo = false;
-        for (size_t i = 0; i < nblocks; i++) {
+        for (ptrdiff_t i = nblocks - 1; i >= 0; i--) {
             vm_ir_block_t *block = &blocks[i];
             if (block->id < 0) {
                 continue;
