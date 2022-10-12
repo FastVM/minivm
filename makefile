@@ -6,10 +6,10 @@ OPT ?= -O2
 HOST_CC ?= $(CC)
 
 
-PROG_SRCS := main/asm.c main/run.c main/js.c
+PROG_SRCS := main/asm.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-VM_SRCS := vm/asm.c vm/gc.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/const.c vm/ir/be/int3.c vm/ir/be/js.c vm/ir/be/spall.c
+VM_SRCS := vm/build.c vm/toir.c vm/info.c vm/const.c vm/be/int3.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS)
@@ -24,40 +24,50 @@ format: .dummy
 
 # profile guided optimization
 
-gcc-pgo-build: .dummy
+gcc-pgo-posix: .dummy
 	$(MAKE) clean
-	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' bins
+	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
 	./bin/minivm-asm bench/fib40.vasm || true
 	./bin/minivm-asm bench/memfib35.vasm || true
 	./bin/minivm-asm bench/primecount.vasm || true
-	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' all
+	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
 
-clang-pgo-build: .dummy
+clang-pgo-posix: .dummy
 	$(MAKE) clean
-	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' bins
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
 	./bin/minivm-asm bench/fib40.vasm || true
 	./bin/minivm-asm bench/memfib35.vasm || true
 	./bin/minivm-asm bench/primecount.vasm || true
 	$(LLVM_PROFDATA) merge -o profdata.profdata profraw.profraw
-	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' all
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
+
+clang-pgo-windows: .dummy
+	$(MAKE) clean
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' CFLAGS+=-D_CRT_SECURE_NO_WARNINGS ./bin/minivm-asm.exe
+	./bin/minivm-asm bench/fib40.vasm || true
+	./bin/minivm-asm bench/memfib35.vasm || true
+	./bin/minivm-asm bench/primecount.vasm || true
+	$(LLVM_PROFDATA) merge -o profdata.profdata profraw.profraw
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' CFLAGS+=-D_CRT_SECURE_NO_WARNINGS ./bin/minivm-asm.exe
+
+# windows
+
+clang-windows: .dummy
+	$(MAKE) -B CC=$(CLANG) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' bin/minivm-asm.exe
 
 # binaries
 
 libs: bin/libminivm.a
 
-bins: bin/minivm-run bin/minivm-asm bin/vm2js
+bins: bin/minivm-asm
 
 bin/libminivm.a: $(OBJS)
 	@mkdir -p bin
-	ar cr $(@) $(OBJS)
+	$(AR) cr $(@) $(OBJS)
 
-bin/vm2js: main/js.o $(OBJS)
+bin/minivm-asm.exe: main/asm.o $(OBJS)
 	@mkdir -p bin
-	$(CC) $(OPT) main/js.o $(OBJS) -o $(@) -lm $(LDFLAGS)
-
-bin/minivm-run: main/run.o $(OBJS)
-	@mkdir -p bin
-	$(CC) $(OPT) main/run.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+	$(CC) $(OPT) main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
 
 bin/minivm-asm: main/asm.o $(OBJS)
 	@mkdir -p bin
