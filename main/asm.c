@@ -1,5 +1,4 @@
 #include "../vm/be/int3.h"
-#include "../vm/build.h"
 #include "../vm/toir.h"
 
 static char *vm_asm_io_read(const char *filename) {

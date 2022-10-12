@@ -9,7 +9,7 @@ HOST_CC ?= $(CC)
 PROG_SRCS := main/asm.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-VM_SRCS := vm/build.c vm/toir.c vm/info.c vm/const.c vm/be/int3.c
+VM_SRCS := vm/toir.c vm/ir.c vm/info.c vm/const.c vm/be/int3.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS)

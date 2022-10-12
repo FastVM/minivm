@@ -1,8 +1,6 @@
 
 #include "const.h"
 
-#include "build.h"
-
 enum {
     VM_OPT_CONST_REG_NOT_SET,
     VM_OPT_CONST_REG_NOT_NEEDED,
@@ -22,7 +20,7 @@ void vm_opt_const(size_t nops, vm_block_t *blocks) {
             uint8_t *named = vm_alloc0(sizeof(uint8_t) * block->nregs);
             double *regs = vm_alloc0(sizeof(double) * block->nregs);
             for (size_t j = 0; j < block->len; j++) {
-                vm_instr_t *instr = block->instrs[j];
+                vm_instr_t *instr = &block->instrs[j];
                 for (size_t k = 0; instr->args[k].type != VM_ARG_NONE; k++) {
                     vm_arg_t arg = instr->args[k];
                     if (arg.type == VM_ARG_REG) {
@@ -61,7 +59,7 @@ void vm_opt_const(size_t nops, vm_block_t *blocks) {
                                 named[out.reg] = VM_OPT_CONST_REG_HAS_VALUE;
                                 regs[out.reg] = arg0.num + arg1.num;
                                 instr->op = VM_IOP_MOVE;
-                                instr->args[0] = vm_arg_num(arg0.num + arg1.num);
+                                instr->args[0].num = arg0.num + arg1.num;
                             }
                             redo = true;
                         }
@@ -77,7 +75,7 @@ void vm_opt_const(size_t nops, vm_block_t *blocks) {
                                 named[out.reg] = VM_OPT_CONST_REG_HAS_VALUE;
                                 regs[out.reg] = arg0.num - arg1.num;
                                 instr->op = VM_IOP_MOVE;
-                                instr->args[0] = vm_arg_num(arg0.num - arg1.num);
+                                instr->args[0].num = arg0.num - arg1.num;
                             }
                             redo = true;
                         }
@@ -96,7 +94,7 @@ void vm_opt_const(size_t nops, vm_block_t *blocks) {
                                 named[out.reg] = VM_OPT_CONST_REG_HAS_VALUE;
                                 regs[out.reg] = arg0.num * arg1.num;
                                 instr->op = VM_IOP_MOVE;
-                                instr->args[0] = vm_arg_num(arg0.num * arg1.num);
+                                instr->args[0].num = arg0.num * arg1.num;
                             }
                             redo = true;
                         }
@@ -104,13 +102,13 @@ void vm_opt_const(size_t nops, vm_block_t *blocks) {
                 }
             }
             for (size_t j = 0; j < 2; j++) {
-                vm_arg_t arg = block->branch->args[j];
+                vm_arg_t arg = block->branch.args[j];
                 if (arg.type == VM_ARG_REG &&
                     named[arg.reg] == VM_OPT_CONST_REG_HAS_VALUE) {
                     arg.type = VM_ARG_NUM;
                     arg.num = regs[arg.reg];
                 }
-                block->branch->args[j] = arg;
+                block->branch.args[j] = arg;
             }
             vm_free(named);
             vm_free(regs);
@@ -126,26 +124,26 @@ void vm_opt_dead(size_t nops, vm_block_t *blocks) {
         }
         uint8_t *ptrs = vm_alloc0(sizeof(uint8_t) * block->nregs);
         for (size_t t = 0; t < 2; t++) {
-            if (block->branch->targets[t] == NULL) {
+            if (block->branch.targets[t] == NULL) {
                 break;
             }
-            for (size_t j = 0; j < block->branch->targets[t]->nargs; j++) {
-                ptrs[block->branch->targets[t]->args[j]] = 1;
+            for (size_t j = 0; j < block->branch.targets[t]->nargs; j++) {
+                ptrs[block->branch.targets[t]->args[j]] = 1;
             }
         }
         for (size_t r = 0; r < 2; r++) {
-            if (block->branch->args[r].type == VM_ARG_REG) {
-                ptrs[block->branch->args[r].reg] = 1;
+            if (block->branch.args[r].type == VM_ARG_REG) {
+                ptrs[block->branch.args[r].reg] = 1;
             }
         }
         for (ptrdiff_t j = (ptrdiff_t)block->len - 1; j >= 0; j--) {
-            vm_instr_t *instr = block->instrs[j];
+            vm_instr_t *instr = &block->instrs[j];
             uint8_t outp = 1;
             if (instr->out.type == VM_ARG_REG) {
                 outp = ptrs[instr->out.reg];
                 if (outp == 0 && instr->op != VM_IOP_CALL) {
                     // block->instrs[j] = vm_new(vm_instr_t, .op = VM_IOP_NOP);
-                    block->instrs[j]->op = VM_IOP_NOP;
+                    block->instrs[j].op = VM_IOP_NOP;
                 }
                 ptrs[instr->out.reg] = 0;
             } else if (instr->op != VM_IOP_CALL && instr->op != VM_IOP_SET &&

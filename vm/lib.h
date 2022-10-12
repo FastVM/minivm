@@ -12,9 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef double vm_number_t;
-typedef int64_t vm_t;
+#include <ctype.h>
 
 #if defined(VM_XGC)
 

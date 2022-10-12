@@ -16,6 +16,6 @@ void vm_state_deinit(vm_state_t *state) {
 }
 
 void vm_run(vm_state_t *state, vm_block_t *block) {
-    
+    // vm_print_block(stderr, block);
 }
 

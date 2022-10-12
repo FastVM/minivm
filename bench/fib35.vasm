@@ -1,45 +1,31 @@
 
-@__entry
-    r0 <- call main
+@fib:
+    blt.i64 %1 2 [fib.then] [fib.else]
+@fib.then:
+    ret.i64 %1
+@fib.else:
+    sub.i64 %0 %1 2
+    call %0 [fib] %0
+    sub.i64 %1 %1 1
+    call %1 [fib] %1
+    add.i64 %0 %0 %1
+    ret.i64 %0
+
+@putn:
+    blt.i64 %1 1.i64 [putn.digit] [putn.ret]
+@putn.digit:
+    div.i64 %0 %1 10
+    call %0 [putn] %0
+    mod.i64 %1 %1 10
+    add.i64 %1 %1 48
+    putchar %1
+    jump [putn.ret]
+@putn.ret:
+    mov.i64 %0 0.i64
+    ret %0
+
+@:
+    mov.i64 %0 10.i64
+    call %0 [fib] %0
+    putchar.i64 %0
     exit
-
-func fib
-    r0 <- int 2
-    blt r1 r0 fib.else fib.then
-@fib.then
-    ret r1
-@fib.else
-    r0 <- int 1
-    r1 <- sub r1 r0
-    r0 <- sub r1 r0
-    r1 <- call fib r1
-    r0 <- call fib r0
-    r0 <- add r0 r1
-    ret r0
-end
-
-func putn
-    r0 <- int 1
-    blt r1 r0 putn.digit putn.ret 
-@putn.digit
-    r0 <- int 10
-    r0 <- div r1 r0
-    r0 <- call putn r0
-    r0 <- int 10
-    r1 <- mod r1 r0
-    r0 <- int 48
-    r1 <- add r1 r0
-    putchar r1
-@putn.ret
-    r0 <- int 0
-    ret r0
-end
-
-func main
-    r0 <- int 35
-    r0 <- call fib r0
-    r0 <- call putn r0
-    r0 <- int 10
-    putchar r0
-    exit
-end

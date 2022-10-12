@@ -15,6 +15,7 @@ typedef struct vm_instr_t vm_instr_t;
 typedef struct vm_block_t vm_block_t;
 
 enum {
+    VM_ARG_UNK,
     VM_ARG_NONE,
     VM_ARG_NIL,
     VM_ARG_BOOL,
@@ -26,12 +27,14 @@ enum {
 };
 
 enum {
+    VM_BOP_FALL,
     VM_BOP_JUMP,
     VM_BOP_BOOL,
     VM_BOP_LESS,
     VM_BOP_EQUAL,
     VM_BOP_RET,
     VM_BOP_EXIT,
+    VM_BOP_MAX,
 };
 
 enum {
@@ -51,31 +54,24 @@ enum {
     VM_IOP_TYPE,
     VM_IOP_OUT,
     VM_IOP_IN,
+    VM_IOP_BNOT,
     VM_IOP_BOR,
     VM_IOP_BAND,
     VM_IOP_BXOR,
     VM_IOP_BSHL,
     VM_IOP_BSHR,
+    VM_IOP_MAX,
 };
 
 struct vm_arg_t {
-#if !defined(__MINIVM__)
     union {
         size_t reg;
-        vm_number_t num;
+        double num;
         const char *str;
         vm_block_t *func;
         vm_instr_t *instr;
         bool logic;
     };
-#else
-    size_t reg;
-    vm_number_t num;
-    const char *str;
-    vm_block_t *func;
-    vm_instr_t *instr;
-    bool logic;
-#endif
     uint8_t type;
 };
 
@@ -83,12 +79,14 @@ struct vm_branch_t {
     vm_block_t *targets[2];
     vm_arg_t args[2];
     uint8_t op;
+    uint8_t tag;
 };
 
 struct vm_instr_t {
-    vm_arg_t *args;
+    vm_arg_t args[9];
     vm_arg_t out;
     uint8_t op;
+    uint8_t tag;
 };
 
 struct vm_block_t {
@@ -96,11 +94,11 @@ struct vm_block_t {
 
     ptrdiff_t id;
 
-    vm_instr_t **instrs;
+    vm_instr_t *instrs;
     size_t len;
     size_t alloc;
 
-    vm_branch_t *branch;
+    vm_branch_t branch;
 
     size_t *args;
     size_t nargs;
@@ -111,5 +109,19 @@ struct vm_block_t {
 
     bool isfunc : 1;
 };
+
+void vm_instr_free(vm_instr_t *instr);
+void vm_block_free(vm_block_t *block);
+void vm_blocks_free(size_t nblocks, vm_block_t *blocks);
+
+void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
+
+void vm_print_arg(FILE *out, vm_arg_t val);
+void vm_print_branch(FILE *out, vm_branch_t val);
+void vm_print_instr(FILE *out, vm_instr_t val);
+void vm_print_block(FILE *out, vm_block_t *val);
+void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *val);
+
+void vm_info(size_t *nops, vm_block_t **blocks);
 
 #endif

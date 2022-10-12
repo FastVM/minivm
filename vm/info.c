@@ -1,6 +1,5 @@
 
-#include "lib.h"
-#include "build.h"
+#include "ir.h"
 
 enum {
     VM_INFO_REG_DEF,
@@ -19,7 +18,7 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
         }
         size_t nregs = 1;
         for (size_t j = 0; j < block->len; j++) {
-            vm_instr_t *instr = block->instrs[j];
+            vm_instr_t *instr = &block->instrs[j];
             if (instr->out.type == VM_ARG_REG && instr->out.reg >= nregs) {
                 nregs = instr->out.reg + 1;
             }
@@ -31,9 +30,9 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
             }
         }
         for (size_t j = 0; j < 2; j++) {
-            if (block->branch->args[j].type != VM_ARG_NONE && block->branch->args[j].type == VM_ARG_REG &&
-                block->branch->args[j].reg >= nregs) {
-                nregs = block->branch->args[j].reg + 1;
+            if (block->branch.args[j].type != VM_ARG_NONE && block->branch.args[j].type == VM_ARG_REG &&
+                block->branch.args[j].reg >= nregs) {
+                nregs = block->branch.args[j].reg + 1;
             }
         }
         if (nregs > block->nregs) {
@@ -52,7 +51,7 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
         }
         size_t nargs = 0;
         for (size_t j = 0; j < block->len; j++) {
-            vm_instr_t *instr = block->instrs[j];
+            vm_instr_t *instr = &block->instrs[j];
             for (size_t k = 0; instr->args[k].type != VM_ARG_NONE; k++) {
                 vm_arg_t arg = instr->args[k];
                 if (arg.type == VM_ARG_REG && regs[arg.reg] == VM_INFO_REG_UNK) {
@@ -65,9 +64,9 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
             }
         }
         for (size_t j = 0; j < 2; j++) {
-            if (block->branch->args[j].type != VM_ARG_NONE && block->branch->args[j].type == VM_ARG_REG &&
-                regs[block->branch->args[j].reg] == VM_INFO_REG_UNK) {
-                regs[block->branch->args[j].reg] = VM_INFO_REG_ARG;
+            if (block->branch.args[j].type != VM_ARG_NONE && block->branch.args[j].type == VM_ARG_REG &&
+                regs[block->branch.args[j].reg] == VM_INFO_REG_UNK) {
+                regs[block->branch.args[j].reg] = VM_INFO_REG_ARG;
                 nargs += 1;
             }
         }
@@ -91,7 +90,7 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
                 continue;
             }
             for (size_t t = 0; t < 2; t++) {
-                vm_block_t *target = block->branch->targets[t];
+                vm_block_t *target = block->branch.targets[t];
                 if (target == NULL) {
                     continue;
                 }
