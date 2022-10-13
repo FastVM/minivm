@@ -15,7 +15,11 @@ typedef struct vm_instr_t vm_instr_t;
 typedef struct vm_block_t vm_block_t;
 
 enum {
+    // internal error if found
+    VM_ARG_INIT,
+    // we dont know
     VM_ARG_UNK,
+    // there are no more args
     VM_ARG_NONE,
     VM_ARG_NIL,
     VM_ARG_BOOL,
@@ -46,11 +50,6 @@ enum {
     VM_IOP_DIV,
     VM_IOP_MOD,
     VM_IOP_CALL,
-    VM_IOP_ARR,
-    VM_IOP_TAB,
-    VM_IOP_GET,
-    VM_IOP_SET,
-    VM_IOP_LEN,
     VM_IOP_TYPE,
     VM_IOP_OUT,
     VM_IOP_IN,

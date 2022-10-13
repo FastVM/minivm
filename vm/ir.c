@@ -133,26 +133,6 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "call");
             break;
         }
-        case VM_IOP_ARR: {
-            fprintf(out, "arr");
-            break;
-        }
-        case VM_IOP_TAB: {
-            fprintf(out, "tab");
-            break;
-        }
-        case VM_IOP_GET: {
-            fprintf(out, "get");
-            break;
-        }
-        case VM_IOP_SET: {
-            fprintf(out, "set");
-            break;
-        }
-        case VM_IOP_LEN: {
-            fprintf(out, "len");
-            break;
-        }
         case VM_IOP_TYPE: {
             fprintf(out, "type");
             break;

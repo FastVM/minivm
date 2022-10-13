@@ -146,8 +146,7 @@ void vm_opt_dead(size_t nops, vm_block_t *blocks) {
                     block->instrs[j].op = VM_IOP_NOP;
                 }
                 ptrs[instr->out.reg] = 0;
-            } else if (instr->op != VM_IOP_CALL && instr->op != VM_IOP_SET &&
-                       instr->op != VM_IOP_OUT) {
+            } else if (instr->op != VM_IOP_CALL && instr->op != VM_IOP_OUT) {
                 instr->op = VM_IOP_NOP;
             }
             if (instr->op == VM_IOP_NOP) {

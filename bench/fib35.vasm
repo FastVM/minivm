@@ -12,20 +12,20 @@
     ret.i64 %0
 
 @putn:
-    blt.i64 %1 1.i64 [putn.digit] [putn.ret]
+    blt.i64 %1 1 [putn.digit] [putn.ret]
 @putn.digit:
     div.i64 %0 %1 10
     call %0 [putn] %0
     mod.i64 %1 %1 10
     add.i64 %1 %1 48
-    putchar %1
+    out.i64 %1
     jump [putn.ret]
 @putn.ret:
-    mov.i64 %0 0.i64
+    move.i64 %0 0
     ret %0
 
 @:
-    mov.i64 %0 10.i64
+    move.i64 %0 10
     call %0 [fib] %0
-    putchar.i64 %0
+    out.i64 10
     exit

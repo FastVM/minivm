@@ -30,8 +30,7 @@ static char *vm_strdup(const char *str) {
 }
 
 static void vm_skip(vm_parser_t *state) {
-    char got = **state->src;
-    if (got == '\n') {
+    if (**state->src == '\n') {
         state->line += 1;
         state->col = 1;
     } else {
@@ -58,10 +57,17 @@ static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
         .tag = VM_TAG_FN,
     };
     state->blocks[where] = block;
+    block->id = (ptrdiff_t) where;
     return state->blocks[where];
 }
 
 static void vm_parse_strip(vm_parser_t *state) {
+    while (**state->src != '\0' && (**state->src == '\t' || **state->src == ' ')) {
+        vm_skip(state);
+    }
+}
+
+static void vm_parse_stripln(vm_parser_t *state) {
     while (**state->src != '\0' && isspace(**state->src)) {
         vm_skip(state);
     }
@@ -74,14 +80,18 @@ static const char *vm_parse_word_until(vm_parser_t *state, char stop) {
     size_t len = 0;
     while (**state->src != '\0' && **state->src != stop && !isspace(**state->src)) {
         name[len] = **state->src;
-        len += 1;
         vm_skip(state);
+        len += 1;
         if (len >= maxlen) {
             maxlen = len * 2;
             name = vm_realloc(name, sizeof(char) * maxlen);
         }
-        name[len] = '\0';
     }
+    if (len >= maxlen) {
+        maxlen = (len + 1);
+        name = vm_realloc(name, sizeof(char) * maxlen);
+    }
+    name[len] = '\0';
     return name;
 }
 
@@ -159,9 +169,9 @@ static vm_arg_t vm_parse_arg(vm_parser_t *state) {
 }
 
 static bool vm_parse_state(vm_parser_t *state) {
+    vm_parse_stripln(state);
     vm_block_t *block = NULL;
     while (**state->src != '\0') {
-        vm_parse_strip(state);
         if (**state->src == '@') {
             vm_skip(state);
             const char *name = vm_parse_word_until(state, ':');
@@ -169,7 +179,9 @@ static bool vm_parse_state(vm_parser_t *state) {
             block = vm_parse_find(state, name);
             vm_free(name);
         } else {
+            const char *n1 = *state->src;
             const char *name = vm_parse_word_until(state, '.');
+            const char *n2 = *state->src;
             if (block == NULL) {
                 fprintf(stderr, "%s not within a block\n", name);
                 vm_free(name);
@@ -263,7 +275,13 @@ static bool vm_parse_state(vm_parser_t *state) {
                 vm_instr_t instr = (vm_instr_t) {
                     .op = VM_IOP_NOP,
                     .tag = VM_TAG_UNK,
+                    .out = (vm_arg_t) {
+                        .type = VM_ARG_NONE,
+                    },
                 };
+                if (!strcmp(name, "move")) {
+                    instr.op = VM_IOP_MOVE;
+                }
                 if (!strcmp(name, "add")) {
                     instr.op = VM_IOP_ADD;
                 }
@@ -281,21 +299,6 @@ static bool vm_parse_state(vm_parser_t *state) {
                 }
                 if (!strcmp(name, "call")) {
                     instr.op = VM_IOP_CALL;
-                }
-                if (!strcmp(name, "arr")) {
-                    instr.op = VM_IOP_ARR;
-                }
-                if (!strcmp(name, "tab")) {
-                    instr.op = VM_IOP_TAB;
-                }
-                if (!strcmp(name, "get")) {
-                    instr.op = VM_IOP_GET;
-                }
-                if (!strcmp(name, "set")) {
-                    instr.op = VM_IOP_SET;
-                }
-                if (!strcmp(name, "len")) {
-                    instr.op = VM_IOP_LEN;
                 }
                 if (!strcmp(name, "type")) {
                     instr.op = VM_IOP_TYPE;
@@ -322,7 +325,7 @@ static bool vm_parse_state(vm_parser_t *state) {
                     instr.op = VM_IOP_BSHR;
                 }
                 if (instr.op == VM_IOP_NOP) {
-                    fprintf(stderr, "unknown name: %s\n", name);
+                    fprintf(stderr, "unknown name: `%s`\n", name);
                     vm_free(name);
                     return true;
                 }
@@ -376,32 +379,6 @@ static bool vm_parse_state(vm_parser_t *state) {
                     }
                     break;
                 }
-                case VM_IOP_ARR: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_TAB: {
-                    instr.out = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_GET: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_SET: {
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    instr.args[2] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_LEN: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    break;
-                }
                 case VM_IOP_TYPE: {
                     instr.out = vm_parse_arg(state);
                     instr.args[0] = vm_parse_arg(state);
@@ -446,14 +423,22 @@ static bool vm_parse_state(vm_parser_t *state) {
                     break;
                 }
                 }
+                size_t n = 0;
+                while (instr.args[n].type != VM_ARG_INIT) {
+                    if (instr.args[n].type == VM_ARG_UNK) {
+                        goto fail;
+                    }
+                    n += 1;
+                }
+                instr.args[n].type = VM_ARG_NONE;
                 vm_block_realloc(block, instr);
             }
         }
-        vm_parse_strip(state);
+        vm_parse_stripln(state);
     }
     return false;
 fail:
-    fprintf(stderr, "error on line %zu, col %zu", state->line, state->col);
+    fprintf(stderr, "error on line %zu, col %zu\n", state->line, state->col);
     return true;
 }
 
