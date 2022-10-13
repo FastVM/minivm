@@ -1,0 +1,8 @@
+@:
+    jump [redo]
+@redo:
+    add.i64 %0 48 5
+    out.i64 %0
+    sub.i64 %0 %0 43
+    out.i64 %0
+    exit

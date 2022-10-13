@@ -43,15 +43,15 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             fprintf(out, "jump");
             break;
         }
-        case VM_BOP_BOOL: {
+        case VM_BOP_BB: {
             fprintf(out, "bb");
             break;
         }
-        case VM_BOP_LESS: {
+        case VM_BOP_BLT: {
             fprintf(out, "blt");
             break;
         }
-        case VM_BOP_EQUAL: {
+        case VM_BOP_BEQ: {
             fprintf(out, "beq");
             break;
         }

@@ -2598,6 +2598,561 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_block_t *block) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_EXIT_BREAK_VOID];
             break;
         }
+        case VM_BOP_JUMP: {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_JUMP_FUNC_CONST];
+                    ops[nops++].func = block->branch.targets[0];
+            break;
+        }
+        case VM_BOP_BLT: {
+            if (block->branch.tag == VM_TAG_I8) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
+                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_I16) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
+                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_I32) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
+                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_I64) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
+                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U8) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
+                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U16) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
+                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U32) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
+                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U64) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
+                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+             goto err;
+        }
+        case VM_BOP_BEQ: {
+            if (block->branch.tag == VM_TAG_I8) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
+                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_I16) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
+                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_I32) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
+                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_I64) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_CONST_REG_FUNC_FUNC];
+                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
+                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U8) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
+                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U16) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
+                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U32) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
+                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+            if (block->branch.tag == VM_TAG_U64) {
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_REG_REG_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_REG_CONST_FUNC_FUNC];
+                    ops[nops++].reg = block->branch.args[0].reg;
+                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_CONST_REG_FUNC_FUNC];
+                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
+                    ops[nops++].reg = block->branch.args[1].reg;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                    ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_CONST_CONST_FUNC_FUNC];
+                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
+                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
+                    ops[nops++].func = block->branch.targets[0];
+                    ops[nops++].func = block->branch.targets[1];
+                    break;
+                }
+            }
+             goto err;
+        }
         default: goto err;
      }
      return ops;
@@ -2627,26 +3182,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I8_REG_CONST] = &&do_mod_i8_reg_const,
         [VM_OPCODE_MOD_I8_CONST_REG] = &&do_mod_i8_const_reg,
         [VM_OPCODE_MOD_I8_CONST_CONST] = &&do_mod_i8_const_const,
-        [VM_OPCODE_EQ_I8_REG_REG] = &&do_eq_i8_reg_reg,
-        [VM_OPCODE_EQ_I8_REG_CONST] = &&do_eq_i8_reg_const,
-        [VM_OPCODE_EQ_I8_CONST_REG] = &&do_eq_i8_const_reg,
-        [VM_OPCODE_EQ_I8_CONST_CONST] = &&do_eq_i8_const_const,
-        [VM_OPCODE_LT_I8_REG_REG] = &&do_lt_i8_reg_reg,
-        [VM_OPCODE_LT_I8_REG_CONST] = &&do_lt_i8_reg_const,
-        [VM_OPCODE_LT_I8_CONST_REG] = &&do_lt_i8_const_reg,
-        [VM_OPCODE_LT_I8_CONST_CONST] = &&do_lt_i8_const_const,
-        [VM_OPCODE_BB_I8_REG_REG] = &&do_bb_i8_reg_reg,
-        [VM_OPCODE_BB_I8_REG_CONST] = &&do_bb_i8_reg_const,
-        [VM_OPCODE_BB_I8_CONST_REG] = &&do_bb_i8_const_reg,
-        [VM_OPCODE_BB_I8_CONST_CONST] = &&do_bb_i8_const_const,
-        [VM_OPCODE_BEQ_I8_REG_REG] = &&do_beq_i8_reg_reg,
-        [VM_OPCODE_BEQ_I8_REG_CONST] = &&do_beq_i8_reg_const,
-        [VM_OPCODE_BEQ_I8_CONST_REG] = &&do_beq_i8_const_reg,
-        [VM_OPCODE_BEQ_I8_CONST_CONST] = &&do_beq_i8_const_const,
-        [VM_OPCODE_BLT_I8_REG_REG] = &&do_blt_i8_reg_reg,
-        [VM_OPCODE_BLT_I8_REG_CONST] = &&do_blt_i8_reg_const,
-        [VM_OPCODE_BLT_I8_CONST_REG] = &&do_blt_i8_const_reg,
-        [VM_OPCODE_BLT_I8_CONST_CONST] = &&do_blt_i8_const_const,
+        [VM_OPCODE_BB_I8_REG_FUNC_FUNC] = &&do_bb_i8_reg_func_func,
+        [VM_OPCODE_BB_I8_CONST_FUNC_FUNC] = &&do_bb_i8_const_func_func,
+        [VM_OPCODE_BEQ_I8_REG_REG_FUNC_FUNC] = &&do_beq_i8_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I8_REG_CONST_FUNC_FUNC] = &&do_beq_i8_reg_const_func_func,
+        [VM_OPCODE_BEQ_I8_CONST_REG_FUNC_FUNC] = &&do_beq_i8_const_reg_func_func,
+        [VM_OPCODE_BEQ_I8_CONST_CONST_FUNC_FUNC] = &&do_beq_i8_const_const_func_func,
+        [VM_OPCODE_BLT_I8_REG_REG_FUNC_FUNC] = &&do_blt_i8_reg_reg_func_func,
+        [VM_OPCODE_BLT_I8_REG_CONST_FUNC_FUNC] = &&do_blt_i8_reg_const_func_func,
+        [VM_OPCODE_BLT_I8_CONST_REG_FUNC_FUNC] = &&do_blt_i8_const_reg_func_func,
+        [VM_OPCODE_BLT_I8_CONST_CONST_FUNC_FUNC] = &&do_blt_i8_const_const_func_func,
         [VM_OPCODE_MOVE_I8_REG] = &&do_move_i8_reg,
         [VM_OPCODE_MOVE_I8_CONST] = &&do_move_i8_const,
         [VM_OPCODE_OUT_I8_REG] = &&do_out_i8_reg,
@@ -2698,26 +3243,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I16_REG_CONST] = &&do_mod_i16_reg_const,
         [VM_OPCODE_MOD_I16_CONST_REG] = &&do_mod_i16_const_reg,
         [VM_OPCODE_MOD_I16_CONST_CONST] = &&do_mod_i16_const_const,
-        [VM_OPCODE_EQ_I16_REG_REG] = &&do_eq_i16_reg_reg,
-        [VM_OPCODE_EQ_I16_REG_CONST] = &&do_eq_i16_reg_const,
-        [VM_OPCODE_EQ_I16_CONST_REG] = &&do_eq_i16_const_reg,
-        [VM_OPCODE_EQ_I16_CONST_CONST] = &&do_eq_i16_const_const,
-        [VM_OPCODE_LT_I16_REG_REG] = &&do_lt_i16_reg_reg,
-        [VM_OPCODE_LT_I16_REG_CONST] = &&do_lt_i16_reg_const,
-        [VM_OPCODE_LT_I16_CONST_REG] = &&do_lt_i16_const_reg,
-        [VM_OPCODE_LT_I16_CONST_CONST] = &&do_lt_i16_const_const,
-        [VM_OPCODE_BB_I16_REG_REG] = &&do_bb_i16_reg_reg,
-        [VM_OPCODE_BB_I16_REG_CONST] = &&do_bb_i16_reg_const,
-        [VM_OPCODE_BB_I16_CONST_REG] = &&do_bb_i16_const_reg,
-        [VM_OPCODE_BB_I16_CONST_CONST] = &&do_bb_i16_const_const,
-        [VM_OPCODE_BEQ_I16_REG_REG] = &&do_beq_i16_reg_reg,
-        [VM_OPCODE_BEQ_I16_REG_CONST] = &&do_beq_i16_reg_const,
-        [VM_OPCODE_BEQ_I16_CONST_REG] = &&do_beq_i16_const_reg,
-        [VM_OPCODE_BEQ_I16_CONST_CONST] = &&do_beq_i16_const_const,
-        [VM_OPCODE_BLT_I16_REG_REG] = &&do_blt_i16_reg_reg,
-        [VM_OPCODE_BLT_I16_REG_CONST] = &&do_blt_i16_reg_const,
-        [VM_OPCODE_BLT_I16_CONST_REG] = &&do_blt_i16_const_reg,
-        [VM_OPCODE_BLT_I16_CONST_CONST] = &&do_blt_i16_const_const,
+        [VM_OPCODE_BB_I16_REG_FUNC_FUNC] = &&do_bb_i16_reg_func_func,
+        [VM_OPCODE_BB_I16_CONST_FUNC_FUNC] = &&do_bb_i16_const_func_func,
+        [VM_OPCODE_BEQ_I16_REG_REG_FUNC_FUNC] = &&do_beq_i16_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I16_REG_CONST_FUNC_FUNC] = &&do_beq_i16_reg_const_func_func,
+        [VM_OPCODE_BEQ_I16_CONST_REG_FUNC_FUNC] = &&do_beq_i16_const_reg_func_func,
+        [VM_OPCODE_BEQ_I16_CONST_CONST_FUNC_FUNC] = &&do_beq_i16_const_const_func_func,
+        [VM_OPCODE_BLT_I16_REG_REG_FUNC_FUNC] = &&do_blt_i16_reg_reg_func_func,
+        [VM_OPCODE_BLT_I16_REG_CONST_FUNC_FUNC] = &&do_blt_i16_reg_const_func_func,
+        [VM_OPCODE_BLT_I16_CONST_REG_FUNC_FUNC] = &&do_blt_i16_const_reg_func_func,
+        [VM_OPCODE_BLT_I16_CONST_CONST_FUNC_FUNC] = &&do_blt_i16_const_const_func_func,
         [VM_OPCODE_MOVE_I16_REG] = &&do_move_i16_reg,
         [VM_OPCODE_MOVE_I16_CONST] = &&do_move_i16_const,
         [VM_OPCODE_OUT_I16_REG] = &&do_out_i16_reg,
@@ -2769,26 +3304,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I32_REG_CONST] = &&do_mod_i32_reg_const,
         [VM_OPCODE_MOD_I32_CONST_REG] = &&do_mod_i32_const_reg,
         [VM_OPCODE_MOD_I32_CONST_CONST] = &&do_mod_i32_const_const,
-        [VM_OPCODE_EQ_I32_REG_REG] = &&do_eq_i32_reg_reg,
-        [VM_OPCODE_EQ_I32_REG_CONST] = &&do_eq_i32_reg_const,
-        [VM_OPCODE_EQ_I32_CONST_REG] = &&do_eq_i32_const_reg,
-        [VM_OPCODE_EQ_I32_CONST_CONST] = &&do_eq_i32_const_const,
-        [VM_OPCODE_LT_I32_REG_REG] = &&do_lt_i32_reg_reg,
-        [VM_OPCODE_LT_I32_REG_CONST] = &&do_lt_i32_reg_const,
-        [VM_OPCODE_LT_I32_CONST_REG] = &&do_lt_i32_const_reg,
-        [VM_OPCODE_LT_I32_CONST_CONST] = &&do_lt_i32_const_const,
-        [VM_OPCODE_BB_I32_REG_REG] = &&do_bb_i32_reg_reg,
-        [VM_OPCODE_BB_I32_REG_CONST] = &&do_bb_i32_reg_const,
-        [VM_OPCODE_BB_I32_CONST_REG] = &&do_bb_i32_const_reg,
-        [VM_OPCODE_BB_I32_CONST_CONST] = &&do_bb_i32_const_const,
-        [VM_OPCODE_BEQ_I32_REG_REG] = &&do_beq_i32_reg_reg,
-        [VM_OPCODE_BEQ_I32_REG_CONST] = &&do_beq_i32_reg_const,
-        [VM_OPCODE_BEQ_I32_CONST_REG] = &&do_beq_i32_const_reg,
-        [VM_OPCODE_BEQ_I32_CONST_CONST] = &&do_beq_i32_const_const,
-        [VM_OPCODE_BLT_I32_REG_REG] = &&do_blt_i32_reg_reg,
-        [VM_OPCODE_BLT_I32_REG_CONST] = &&do_blt_i32_reg_const,
-        [VM_OPCODE_BLT_I32_CONST_REG] = &&do_blt_i32_const_reg,
-        [VM_OPCODE_BLT_I32_CONST_CONST] = &&do_blt_i32_const_const,
+        [VM_OPCODE_BB_I32_REG_FUNC_FUNC] = &&do_bb_i32_reg_func_func,
+        [VM_OPCODE_BB_I32_CONST_FUNC_FUNC] = &&do_bb_i32_const_func_func,
+        [VM_OPCODE_BEQ_I32_REG_REG_FUNC_FUNC] = &&do_beq_i32_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I32_REG_CONST_FUNC_FUNC] = &&do_beq_i32_reg_const_func_func,
+        [VM_OPCODE_BEQ_I32_CONST_REG_FUNC_FUNC] = &&do_beq_i32_const_reg_func_func,
+        [VM_OPCODE_BEQ_I32_CONST_CONST_FUNC_FUNC] = &&do_beq_i32_const_const_func_func,
+        [VM_OPCODE_BLT_I32_REG_REG_FUNC_FUNC] = &&do_blt_i32_reg_reg_func_func,
+        [VM_OPCODE_BLT_I32_REG_CONST_FUNC_FUNC] = &&do_blt_i32_reg_const_func_func,
+        [VM_OPCODE_BLT_I32_CONST_REG_FUNC_FUNC] = &&do_blt_i32_const_reg_func_func,
+        [VM_OPCODE_BLT_I32_CONST_CONST_FUNC_FUNC] = &&do_blt_i32_const_const_func_func,
         [VM_OPCODE_MOVE_I32_REG] = &&do_move_i32_reg,
         [VM_OPCODE_MOVE_I32_CONST] = &&do_move_i32_const,
         [VM_OPCODE_OUT_I32_REG] = &&do_out_i32_reg,
@@ -2840,26 +3365,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I64_REG_CONST] = &&do_mod_i64_reg_const,
         [VM_OPCODE_MOD_I64_CONST_REG] = &&do_mod_i64_const_reg,
         [VM_OPCODE_MOD_I64_CONST_CONST] = &&do_mod_i64_const_const,
-        [VM_OPCODE_EQ_I64_REG_REG] = &&do_eq_i64_reg_reg,
-        [VM_OPCODE_EQ_I64_REG_CONST] = &&do_eq_i64_reg_const,
-        [VM_OPCODE_EQ_I64_CONST_REG] = &&do_eq_i64_const_reg,
-        [VM_OPCODE_EQ_I64_CONST_CONST] = &&do_eq_i64_const_const,
-        [VM_OPCODE_LT_I64_REG_REG] = &&do_lt_i64_reg_reg,
-        [VM_OPCODE_LT_I64_REG_CONST] = &&do_lt_i64_reg_const,
-        [VM_OPCODE_LT_I64_CONST_REG] = &&do_lt_i64_const_reg,
-        [VM_OPCODE_LT_I64_CONST_CONST] = &&do_lt_i64_const_const,
-        [VM_OPCODE_BB_I64_REG_REG] = &&do_bb_i64_reg_reg,
-        [VM_OPCODE_BB_I64_REG_CONST] = &&do_bb_i64_reg_const,
-        [VM_OPCODE_BB_I64_CONST_REG] = &&do_bb_i64_const_reg,
-        [VM_OPCODE_BB_I64_CONST_CONST] = &&do_bb_i64_const_const,
-        [VM_OPCODE_BEQ_I64_REG_REG] = &&do_beq_i64_reg_reg,
-        [VM_OPCODE_BEQ_I64_REG_CONST] = &&do_beq_i64_reg_const,
-        [VM_OPCODE_BEQ_I64_CONST_REG] = &&do_beq_i64_const_reg,
-        [VM_OPCODE_BEQ_I64_CONST_CONST] = &&do_beq_i64_const_const,
-        [VM_OPCODE_BLT_I64_REG_REG] = &&do_blt_i64_reg_reg,
-        [VM_OPCODE_BLT_I64_REG_CONST] = &&do_blt_i64_reg_const,
-        [VM_OPCODE_BLT_I64_CONST_REG] = &&do_blt_i64_const_reg,
-        [VM_OPCODE_BLT_I64_CONST_CONST] = &&do_blt_i64_const_const,
+        [VM_OPCODE_BB_I64_REG_FUNC_FUNC] = &&do_bb_i64_reg_func_func,
+        [VM_OPCODE_BB_I64_CONST_FUNC_FUNC] = &&do_bb_i64_const_func_func,
+        [VM_OPCODE_BEQ_I64_REG_REG_FUNC_FUNC] = &&do_beq_i64_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I64_REG_CONST_FUNC_FUNC] = &&do_beq_i64_reg_const_func_func,
+        [VM_OPCODE_BEQ_I64_CONST_REG_FUNC_FUNC] = &&do_beq_i64_const_reg_func_func,
+        [VM_OPCODE_BEQ_I64_CONST_CONST_FUNC_FUNC] = &&do_beq_i64_const_const_func_func,
+        [VM_OPCODE_BLT_I64_REG_REG_FUNC_FUNC] = &&do_blt_i64_reg_reg_func_func,
+        [VM_OPCODE_BLT_I64_REG_CONST_FUNC_FUNC] = &&do_blt_i64_reg_const_func_func,
+        [VM_OPCODE_BLT_I64_CONST_REG_FUNC_FUNC] = &&do_blt_i64_const_reg_func_func,
+        [VM_OPCODE_BLT_I64_CONST_CONST_FUNC_FUNC] = &&do_blt_i64_const_const_func_func,
         [VM_OPCODE_MOVE_I64_REG] = &&do_move_i64_reg,
         [VM_OPCODE_MOVE_I64_CONST] = &&do_move_i64_const,
         [VM_OPCODE_OUT_I64_REG] = &&do_out_i64_reg,
@@ -2911,26 +3426,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U8_REG_CONST] = &&do_mod_u8_reg_const,
         [VM_OPCODE_MOD_U8_CONST_REG] = &&do_mod_u8_const_reg,
         [VM_OPCODE_MOD_U8_CONST_CONST] = &&do_mod_u8_const_const,
-        [VM_OPCODE_EQ_U8_REG_REG] = &&do_eq_u8_reg_reg,
-        [VM_OPCODE_EQ_U8_REG_CONST] = &&do_eq_u8_reg_const,
-        [VM_OPCODE_EQ_U8_CONST_REG] = &&do_eq_u8_const_reg,
-        [VM_OPCODE_EQ_U8_CONST_CONST] = &&do_eq_u8_const_const,
-        [VM_OPCODE_LT_U8_REG_REG] = &&do_lt_u8_reg_reg,
-        [VM_OPCODE_LT_U8_REG_CONST] = &&do_lt_u8_reg_const,
-        [VM_OPCODE_LT_U8_CONST_REG] = &&do_lt_u8_const_reg,
-        [VM_OPCODE_LT_U8_CONST_CONST] = &&do_lt_u8_const_const,
-        [VM_OPCODE_BB_U8_REG_REG] = &&do_bb_u8_reg_reg,
-        [VM_OPCODE_BB_U8_REG_CONST] = &&do_bb_u8_reg_const,
-        [VM_OPCODE_BB_U8_CONST_REG] = &&do_bb_u8_const_reg,
-        [VM_OPCODE_BB_U8_CONST_CONST] = &&do_bb_u8_const_const,
-        [VM_OPCODE_BEQ_U8_REG_REG] = &&do_beq_u8_reg_reg,
-        [VM_OPCODE_BEQ_U8_REG_CONST] = &&do_beq_u8_reg_const,
-        [VM_OPCODE_BEQ_U8_CONST_REG] = &&do_beq_u8_const_reg,
-        [VM_OPCODE_BEQ_U8_CONST_CONST] = &&do_beq_u8_const_const,
-        [VM_OPCODE_BLT_U8_REG_REG] = &&do_blt_u8_reg_reg,
-        [VM_OPCODE_BLT_U8_REG_CONST] = &&do_blt_u8_reg_const,
-        [VM_OPCODE_BLT_U8_CONST_REG] = &&do_blt_u8_const_reg,
-        [VM_OPCODE_BLT_U8_CONST_CONST] = &&do_blt_u8_const_const,
+        [VM_OPCODE_BB_U8_REG_FUNC_FUNC] = &&do_bb_u8_reg_func_func,
+        [VM_OPCODE_BB_U8_CONST_FUNC_FUNC] = &&do_bb_u8_const_func_func,
+        [VM_OPCODE_BEQ_U8_REG_REG_FUNC_FUNC] = &&do_beq_u8_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U8_REG_CONST_FUNC_FUNC] = &&do_beq_u8_reg_const_func_func,
+        [VM_OPCODE_BEQ_U8_CONST_REG_FUNC_FUNC] = &&do_beq_u8_const_reg_func_func,
+        [VM_OPCODE_BEQ_U8_CONST_CONST_FUNC_FUNC] = &&do_beq_u8_const_const_func_func,
+        [VM_OPCODE_BLT_U8_REG_REG_FUNC_FUNC] = &&do_blt_u8_reg_reg_func_func,
+        [VM_OPCODE_BLT_U8_REG_CONST_FUNC_FUNC] = &&do_blt_u8_reg_const_func_func,
+        [VM_OPCODE_BLT_U8_CONST_REG_FUNC_FUNC] = &&do_blt_u8_const_reg_func_func,
+        [VM_OPCODE_BLT_U8_CONST_CONST_FUNC_FUNC] = &&do_blt_u8_const_const_func_func,
         [VM_OPCODE_MOVE_U8_REG] = &&do_move_u8_reg,
         [VM_OPCODE_MOVE_U8_CONST] = &&do_move_u8_const,
         [VM_OPCODE_OUT_U8_REG] = &&do_out_u8_reg,
@@ -2982,26 +3487,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U16_REG_CONST] = &&do_mod_u16_reg_const,
         [VM_OPCODE_MOD_U16_CONST_REG] = &&do_mod_u16_const_reg,
         [VM_OPCODE_MOD_U16_CONST_CONST] = &&do_mod_u16_const_const,
-        [VM_OPCODE_EQ_U16_REG_REG] = &&do_eq_u16_reg_reg,
-        [VM_OPCODE_EQ_U16_REG_CONST] = &&do_eq_u16_reg_const,
-        [VM_OPCODE_EQ_U16_CONST_REG] = &&do_eq_u16_const_reg,
-        [VM_OPCODE_EQ_U16_CONST_CONST] = &&do_eq_u16_const_const,
-        [VM_OPCODE_LT_U16_REG_REG] = &&do_lt_u16_reg_reg,
-        [VM_OPCODE_LT_U16_REG_CONST] = &&do_lt_u16_reg_const,
-        [VM_OPCODE_LT_U16_CONST_REG] = &&do_lt_u16_const_reg,
-        [VM_OPCODE_LT_U16_CONST_CONST] = &&do_lt_u16_const_const,
-        [VM_OPCODE_BB_U16_REG_REG] = &&do_bb_u16_reg_reg,
-        [VM_OPCODE_BB_U16_REG_CONST] = &&do_bb_u16_reg_const,
-        [VM_OPCODE_BB_U16_CONST_REG] = &&do_bb_u16_const_reg,
-        [VM_OPCODE_BB_U16_CONST_CONST] = &&do_bb_u16_const_const,
-        [VM_OPCODE_BEQ_U16_REG_REG] = &&do_beq_u16_reg_reg,
-        [VM_OPCODE_BEQ_U16_REG_CONST] = &&do_beq_u16_reg_const,
-        [VM_OPCODE_BEQ_U16_CONST_REG] = &&do_beq_u16_const_reg,
-        [VM_OPCODE_BEQ_U16_CONST_CONST] = &&do_beq_u16_const_const,
-        [VM_OPCODE_BLT_U16_REG_REG] = &&do_blt_u16_reg_reg,
-        [VM_OPCODE_BLT_U16_REG_CONST] = &&do_blt_u16_reg_const,
-        [VM_OPCODE_BLT_U16_CONST_REG] = &&do_blt_u16_const_reg,
-        [VM_OPCODE_BLT_U16_CONST_CONST] = &&do_blt_u16_const_const,
+        [VM_OPCODE_BB_U16_REG_FUNC_FUNC] = &&do_bb_u16_reg_func_func,
+        [VM_OPCODE_BB_U16_CONST_FUNC_FUNC] = &&do_bb_u16_const_func_func,
+        [VM_OPCODE_BEQ_U16_REG_REG_FUNC_FUNC] = &&do_beq_u16_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U16_REG_CONST_FUNC_FUNC] = &&do_beq_u16_reg_const_func_func,
+        [VM_OPCODE_BEQ_U16_CONST_REG_FUNC_FUNC] = &&do_beq_u16_const_reg_func_func,
+        [VM_OPCODE_BEQ_U16_CONST_CONST_FUNC_FUNC] = &&do_beq_u16_const_const_func_func,
+        [VM_OPCODE_BLT_U16_REG_REG_FUNC_FUNC] = &&do_blt_u16_reg_reg_func_func,
+        [VM_OPCODE_BLT_U16_REG_CONST_FUNC_FUNC] = &&do_blt_u16_reg_const_func_func,
+        [VM_OPCODE_BLT_U16_CONST_REG_FUNC_FUNC] = &&do_blt_u16_const_reg_func_func,
+        [VM_OPCODE_BLT_U16_CONST_CONST_FUNC_FUNC] = &&do_blt_u16_const_const_func_func,
         [VM_OPCODE_MOVE_U16_REG] = &&do_move_u16_reg,
         [VM_OPCODE_MOVE_U16_CONST] = &&do_move_u16_const,
         [VM_OPCODE_OUT_U16_REG] = &&do_out_u16_reg,
@@ -3053,26 +3548,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U32_REG_CONST] = &&do_mod_u32_reg_const,
         [VM_OPCODE_MOD_U32_CONST_REG] = &&do_mod_u32_const_reg,
         [VM_OPCODE_MOD_U32_CONST_CONST] = &&do_mod_u32_const_const,
-        [VM_OPCODE_EQ_U32_REG_REG] = &&do_eq_u32_reg_reg,
-        [VM_OPCODE_EQ_U32_REG_CONST] = &&do_eq_u32_reg_const,
-        [VM_OPCODE_EQ_U32_CONST_REG] = &&do_eq_u32_const_reg,
-        [VM_OPCODE_EQ_U32_CONST_CONST] = &&do_eq_u32_const_const,
-        [VM_OPCODE_LT_U32_REG_REG] = &&do_lt_u32_reg_reg,
-        [VM_OPCODE_LT_U32_REG_CONST] = &&do_lt_u32_reg_const,
-        [VM_OPCODE_LT_U32_CONST_REG] = &&do_lt_u32_const_reg,
-        [VM_OPCODE_LT_U32_CONST_CONST] = &&do_lt_u32_const_const,
-        [VM_OPCODE_BB_U32_REG_REG] = &&do_bb_u32_reg_reg,
-        [VM_OPCODE_BB_U32_REG_CONST] = &&do_bb_u32_reg_const,
-        [VM_OPCODE_BB_U32_CONST_REG] = &&do_bb_u32_const_reg,
-        [VM_OPCODE_BB_U32_CONST_CONST] = &&do_bb_u32_const_const,
-        [VM_OPCODE_BEQ_U32_REG_REG] = &&do_beq_u32_reg_reg,
-        [VM_OPCODE_BEQ_U32_REG_CONST] = &&do_beq_u32_reg_const,
-        [VM_OPCODE_BEQ_U32_CONST_REG] = &&do_beq_u32_const_reg,
-        [VM_OPCODE_BEQ_U32_CONST_CONST] = &&do_beq_u32_const_const,
-        [VM_OPCODE_BLT_U32_REG_REG] = &&do_blt_u32_reg_reg,
-        [VM_OPCODE_BLT_U32_REG_CONST] = &&do_blt_u32_reg_const,
-        [VM_OPCODE_BLT_U32_CONST_REG] = &&do_blt_u32_const_reg,
-        [VM_OPCODE_BLT_U32_CONST_CONST] = &&do_blt_u32_const_const,
+        [VM_OPCODE_BB_U32_REG_FUNC_FUNC] = &&do_bb_u32_reg_func_func,
+        [VM_OPCODE_BB_U32_CONST_FUNC_FUNC] = &&do_bb_u32_const_func_func,
+        [VM_OPCODE_BEQ_U32_REG_REG_FUNC_FUNC] = &&do_beq_u32_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U32_REG_CONST_FUNC_FUNC] = &&do_beq_u32_reg_const_func_func,
+        [VM_OPCODE_BEQ_U32_CONST_REG_FUNC_FUNC] = &&do_beq_u32_const_reg_func_func,
+        [VM_OPCODE_BEQ_U32_CONST_CONST_FUNC_FUNC] = &&do_beq_u32_const_const_func_func,
+        [VM_OPCODE_BLT_U32_REG_REG_FUNC_FUNC] = &&do_blt_u32_reg_reg_func_func,
+        [VM_OPCODE_BLT_U32_REG_CONST_FUNC_FUNC] = &&do_blt_u32_reg_const_func_func,
+        [VM_OPCODE_BLT_U32_CONST_REG_FUNC_FUNC] = &&do_blt_u32_const_reg_func_func,
+        [VM_OPCODE_BLT_U32_CONST_CONST_FUNC_FUNC] = &&do_blt_u32_const_const_func_func,
         [VM_OPCODE_MOVE_U32_REG] = &&do_move_u32_reg,
         [VM_OPCODE_MOVE_U32_CONST] = &&do_move_u32_const,
         [VM_OPCODE_OUT_U32_REG] = &&do_out_u32_reg,
@@ -3124,26 +3609,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U64_REG_CONST] = &&do_mod_u64_reg_const,
         [VM_OPCODE_MOD_U64_CONST_REG] = &&do_mod_u64_const_reg,
         [VM_OPCODE_MOD_U64_CONST_CONST] = &&do_mod_u64_const_const,
-        [VM_OPCODE_EQ_U64_REG_REG] = &&do_eq_u64_reg_reg,
-        [VM_OPCODE_EQ_U64_REG_CONST] = &&do_eq_u64_reg_const,
-        [VM_OPCODE_EQ_U64_CONST_REG] = &&do_eq_u64_const_reg,
-        [VM_OPCODE_EQ_U64_CONST_CONST] = &&do_eq_u64_const_const,
-        [VM_OPCODE_LT_U64_REG_REG] = &&do_lt_u64_reg_reg,
-        [VM_OPCODE_LT_U64_REG_CONST] = &&do_lt_u64_reg_const,
-        [VM_OPCODE_LT_U64_CONST_REG] = &&do_lt_u64_const_reg,
-        [VM_OPCODE_LT_U64_CONST_CONST] = &&do_lt_u64_const_const,
-        [VM_OPCODE_BB_U64_REG_REG] = &&do_bb_u64_reg_reg,
-        [VM_OPCODE_BB_U64_REG_CONST] = &&do_bb_u64_reg_const,
-        [VM_OPCODE_BB_U64_CONST_REG] = &&do_bb_u64_const_reg,
-        [VM_OPCODE_BB_U64_CONST_CONST] = &&do_bb_u64_const_const,
-        [VM_OPCODE_BEQ_U64_REG_REG] = &&do_beq_u64_reg_reg,
-        [VM_OPCODE_BEQ_U64_REG_CONST] = &&do_beq_u64_reg_const,
-        [VM_OPCODE_BEQ_U64_CONST_REG] = &&do_beq_u64_const_reg,
-        [VM_OPCODE_BEQ_U64_CONST_CONST] = &&do_beq_u64_const_const,
-        [VM_OPCODE_BLT_U64_REG_REG] = &&do_blt_u64_reg_reg,
-        [VM_OPCODE_BLT_U64_REG_CONST] = &&do_blt_u64_reg_const,
-        [VM_OPCODE_BLT_U64_CONST_REG] = &&do_blt_u64_const_reg,
-        [VM_OPCODE_BLT_U64_CONST_CONST] = &&do_blt_u64_const_const,
+        [VM_OPCODE_BB_U64_REG_FUNC_FUNC] = &&do_bb_u64_reg_func_func,
+        [VM_OPCODE_BB_U64_CONST_FUNC_FUNC] = &&do_bb_u64_const_func_func,
+        [VM_OPCODE_BEQ_U64_REG_REG_FUNC_FUNC] = &&do_beq_u64_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U64_REG_CONST_FUNC_FUNC] = &&do_beq_u64_reg_const_func_func,
+        [VM_OPCODE_BEQ_U64_CONST_REG_FUNC_FUNC] = &&do_beq_u64_const_reg_func_func,
+        [VM_OPCODE_BEQ_U64_CONST_CONST_FUNC_FUNC] = &&do_beq_u64_const_const_func_func,
+        [VM_OPCODE_BLT_U64_REG_REG_FUNC_FUNC] = &&do_blt_u64_reg_reg_func_func,
+        [VM_OPCODE_BLT_U64_REG_CONST_FUNC_FUNC] = &&do_blt_u64_reg_const_func_func,
+        [VM_OPCODE_BLT_U64_CONST_REG_FUNC_FUNC] = &&do_blt_u64_const_reg_func_func,
+        [VM_OPCODE_BLT_U64_CONST_CONST_FUNC_FUNC] = &&do_blt_u64_const_const_func_func,
         [VM_OPCODE_MOVE_U64_REG] = &&do_move_u64_reg,
         [VM_OPCODE_MOVE_U64_CONST] = &&do_move_u64_const,
         [VM_OPCODE_OUT_U64_REG] = &&do_out_u64_reg,
@@ -3195,26 +3670,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_F32_REG_CONST] = &&do_mod_f32_reg_const,
         [VM_OPCODE_MOD_F32_CONST_REG] = &&do_mod_f32_const_reg,
         [VM_OPCODE_MOD_F32_CONST_CONST] = &&do_mod_f32_const_const,
-        [VM_OPCODE_EQ_F32_REG_REG] = &&do_eq_f32_reg_reg,
-        [VM_OPCODE_EQ_F32_REG_CONST] = &&do_eq_f32_reg_const,
-        [VM_OPCODE_EQ_F32_CONST_REG] = &&do_eq_f32_const_reg,
-        [VM_OPCODE_EQ_F32_CONST_CONST] = &&do_eq_f32_const_const,
-        [VM_OPCODE_LT_F32_REG_REG] = &&do_lt_f32_reg_reg,
-        [VM_OPCODE_LT_F32_REG_CONST] = &&do_lt_f32_reg_const,
-        [VM_OPCODE_LT_F32_CONST_REG] = &&do_lt_f32_const_reg,
-        [VM_OPCODE_LT_F32_CONST_CONST] = &&do_lt_f32_const_const,
-        [VM_OPCODE_BB_F32_REG_REG] = &&do_bb_f32_reg_reg,
-        [VM_OPCODE_BB_F32_REG_CONST] = &&do_bb_f32_reg_const,
-        [VM_OPCODE_BB_F32_CONST_REG] = &&do_bb_f32_const_reg,
-        [VM_OPCODE_BB_F32_CONST_CONST] = &&do_bb_f32_const_const,
-        [VM_OPCODE_BEQ_F32_REG_REG] = &&do_beq_f32_reg_reg,
-        [VM_OPCODE_BEQ_F32_REG_CONST] = &&do_beq_f32_reg_const,
-        [VM_OPCODE_BEQ_F32_CONST_REG] = &&do_beq_f32_const_reg,
-        [VM_OPCODE_BEQ_F32_CONST_CONST] = &&do_beq_f32_const_const,
-        [VM_OPCODE_BLT_F32_REG_REG] = &&do_blt_f32_reg_reg,
-        [VM_OPCODE_BLT_F32_REG_CONST] = &&do_blt_f32_reg_const,
-        [VM_OPCODE_BLT_F32_CONST_REG] = &&do_blt_f32_const_reg,
-        [VM_OPCODE_BLT_F32_CONST_CONST] = &&do_blt_f32_const_const,
+        [VM_OPCODE_BB_F32_REG_FUNC_FUNC] = &&do_bb_f32_reg_func_func,
+        [VM_OPCODE_BB_F32_CONST_FUNC_FUNC] = &&do_bb_f32_const_func_func,
+        [VM_OPCODE_BEQ_F32_REG_REG_FUNC_FUNC] = &&do_beq_f32_reg_reg_func_func,
+        [VM_OPCODE_BEQ_F32_REG_CONST_FUNC_FUNC] = &&do_beq_f32_reg_const_func_func,
+        [VM_OPCODE_BEQ_F32_CONST_REG_FUNC_FUNC] = &&do_beq_f32_const_reg_func_func,
+        [VM_OPCODE_BEQ_F32_CONST_CONST_FUNC_FUNC] = &&do_beq_f32_const_const_func_func,
+        [VM_OPCODE_BLT_F32_REG_REG_FUNC_FUNC] = &&do_blt_f32_reg_reg_func_func,
+        [VM_OPCODE_BLT_F32_REG_CONST_FUNC_FUNC] = &&do_blt_f32_reg_const_func_func,
+        [VM_OPCODE_BLT_F32_CONST_REG_FUNC_FUNC] = &&do_blt_f32_const_reg_func_func,
+        [VM_OPCODE_BLT_F32_CONST_CONST_FUNC_FUNC] = &&do_blt_f32_const_const_func_func,
         [VM_OPCODE_MOVE_F32_REG] = &&do_move_f32_reg,
         [VM_OPCODE_MOVE_F32_CONST] = &&do_move_f32_const,
         [VM_OPCODE_OUT_F32_REG] = &&do_out_f32_reg,
@@ -3246,26 +3711,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_F64_REG_CONST] = &&do_mod_f64_reg_const,
         [VM_OPCODE_MOD_F64_CONST_REG] = &&do_mod_f64_const_reg,
         [VM_OPCODE_MOD_F64_CONST_CONST] = &&do_mod_f64_const_const,
-        [VM_OPCODE_EQ_F64_REG_REG] = &&do_eq_f64_reg_reg,
-        [VM_OPCODE_EQ_F64_REG_CONST] = &&do_eq_f64_reg_const,
-        [VM_OPCODE_EQ_F64_CONST_REG] = &&do_eq_f64_const_reg,
-        [VM_OPCODE_EQ_F64_CONST_CONST] = &&do_eq_f64_const_const,
-        [VM_OPCODE_LT_F64_REG_REG] = &&do_lt_f64_reg_reg,
-        [VM_OPCODE_LT_F64_REG_CONST] = &&do_lt_f64_reg_const,
-        [VM_OPCODE_LT_F64_CONST_REG] = &&do_lt_f64_const_reg,
-        [VM_OPCODE_LT_F64_CONST_CONST] = &&do_lt_f64_const_const,
-        [VM_OPCODE_BB_F64_REG_REG] = &&do_bb_f64_reg_reg,
-        [VM_OPCODE_BB_F64_REG_CONST] = &&do_bb_f64_reg_const,
-        [VM_OPCODE_BB_F64_CONST_REG] = &&do_bb_f64_const_reg,
-        [VM_OPCODE_BB_F64_CONST_CONST] = &&do_bb_f64_const_const,
-        [VM_OPCODE_BEQ_F64_REG_REG] = &&do_beq_f64_reg_reg,
-        [VM_OPCODE_BEQ_F64_REG_CONST] = &&do_beq_f64_reg_const,
-        [VM_OPCODE_BEQ_F64_CONST_REG] = &&do_beq_f64_const_reg,
-        [VM_OPCODE_BEQ_F64_CONST_CONST] = &&do_beq_f64_const_const,
-        [VM_OPCODE_BLT_F64_REG_REG] = &&do_blt_f64_reg_reg,
-        [VM_OPCODE_BLT_F64_REG_CONST] = &&do_blt_f64_reg_const,
-        [VM_OPCODE_BLT_F64_CONST_REG] = &&do_blt_f64_const_reg,
-        [VM_OPCODE_BLT_F64_CONST_CONST] = &&do_blt_f64_const_const,
+        [VM_OPCODE_BB_F64_REG_FUNC_FUNC] = &&do_bb_f64_reg_func_func,
+        [VM_OPCODE_BB_F64_CONST_FUNC_FUNC] = &&do_bb_f64_const_func_func,
+        [VM_OPCODE_BEQ_F64_REG_REG_FUNC_FUNC] = &&do_beq_f64_reg_reg_func_func,
+        [VM_OPCODE_BEQ_F64_REG_CONST_FUNC_FUNC] = &&do_beq_f64_reg_const_func_func,
+        [VM_OPCODE_BEQ_F64_CONST_REG_FUNC_FUNC] = &&do_beq_f64_const_reg_func_func,
+        [VM_OPCODE_BEQ_F64_CONST_CONST_FUNC_FUNC] = &&do_beq_f64_const_const_func_func,
+        [VM_OPCODE_BLT_F64_REG_REG_FUNC_FUNC] = &&do_blt_f64_reg_reg_func_func,
+        [VM_OPCODE_BLT_F64_REG_CONST_FUNC_FUNC] = &&do_blt_f64_reg_const_func_func,
+        [VM_OPCODE_BLT_F64_CONST_REG_FUNC_FUNC] = &&do_blt_f64_const_reg_func_func,
+        [VM_OPCODE_BLT_F64_CONST_CONST_FUNC_FUNC] = &&do_blt_f64_const_const_func_func,
         [VM_OPCODE_MOVE_F64_REG] = &&do_move_f64_reg,
         [VM_OPCODE_MOVE_F64_CONST] = &&do_move_f64_const,
         [VM_OPCODE_OUT_F64_REG] = &&do_out_f64_reg,
@@ -3278,6 +3733,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_RET_F64_REG] = &&do_ret_f64_reg,
         [VM_OPCODE_RET_F64_CONST] = &&do_ret_f64_const,
         [VM_OPCODE_EXIT_BREAK_VOID] = &&do_exit_break_void,
+        [VM_OPCODE_JUMP_FUNC_CONST] = &&do_jump_func_const,
         [VM_OPCODE_CALL_FUNC_CONST] = &&do_call_func_const,
         [VM_OPCODE_CALL_FUNC_REG] = &&do_call_func_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG] = &&do_call_func_const_reg,
@@ -3417,104 +3873,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I8_REG_REG\n");
+    do_bb_i8_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I8_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I8_REG_CONST\n");
+    do_bb_i8_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I8_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I8_CONST_REG\n");
-        __builtin_trap();
+    do_beq_i8_reg_reg_func_func: {
+        int8_t a0 = locals[(ip++)->reg].i8;
+        int8_t a1 = locals[(ip++)->reg].i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_i8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I8_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_i8_reg_const_func_func: {
+        int8_t a0 = locals[(ip++)->reg].i8;
+        int8_t a1 = (ip++)->i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I8_REG_REG\n");
-        __builtin_trap();
+    do_beq_i8_const_reg_func_func: {
+        int8_t a0 = (ip++)->i8;
+        int8_t a1 = locals[(ip++)->reg].i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I8_REG_CONST\n");
-        __builtin_trap();
+    do_beq_i8_const_const_func_func: {
+        int8_t a0 = (ip++)->i8;
+        int8_t a1 = (ip++)->i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I8_CONST_REG\n");
-        __builtin_trap();
+    do_blt_i8_reg_reg_func_func: {
+        int8_t a0 = locals[(ip++)->reg].i8;
+        int8_t a1 = locals[(ip++)->reg].i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I8_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i8_reg_const_func_func: {
+        int8_t a0 = locals[(ip++)->reg].i8;
+        int8_t a1 = (ip++)->i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I8_REG_REG\n");
-        __builtin_trap();
+    do_blt_i8_const_reg_func_func: {
+        int8_t a0 = (ip++)->i8;
+        int8_t a1 = locals[(ip++)->reg].i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I8_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I8_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I8_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I8_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I8_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I8_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I8_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I8_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I8_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I8_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I8_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i8_const_const_func_func: {
+        int8_t a0 = (ip++)->i8;
+        int8_t a1 = (ip++)->i8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_i8_reg: {
@@ -3808,104 +4270,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I16_REG_REG\n");
+    do_bb_i16_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I16_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I16_REG_CONST\n");
+    do_bb_i16_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I16_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I16_CONST_REG\n");
-        __builtin_trap();
+    do_beq_i16_reg_reg_func_func: {
+        int16_t a0 = locals[(ip++)->reg].i16;
+        int16_t a1 = locals[(ip++)->reg].i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_i16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I16_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_i16_reg_const_func_func: {
+        int16_t a0 = locals[(ip++)->reg].i16;
+        int16_t a1 = (ip++)->i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I16_REG_REG\n");
-        __builtin_trap();
+    do_beq_i16_const_reg_func_func: {
+        int16_t a0 = (ip++)->i16;
+        int16_t a1 = locals[(ip++)->reg].i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I16_REG_CONST\n");
-        __builtin_trap();
+    do_beq_i16_const_const_func_func: {
+        int16_t a0 = (ip++)->i16;
+        int16_t a1 = (ip++)->i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I16_CONST_REG\n");
-        __builtin_trap();
+    do_blt_i16_reg_reg_func_func: {
+        int16_t a0 = locals[(ip++)->reg].i16;
+        int16_t a1 = locals[(ip++)->reg].i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I16_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i16_reg_const_func_func: {
+        int16_t a0 = locals[(ip++)->reg].i16;
+        int16_t a1 = (ip++)->i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I16_REG_REG\n");
-        __builtin_trap();
+    do_blt_i16_const_reg_func_func: {
+        int16_t a0 = (ip++)->i16;
+        int16_t a1 = locals[(ip++)->reg].i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I16_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I16_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I16_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I16_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I16_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I16_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I16_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I16_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I16_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I16_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I16_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i16_const_const_func_func: {
+        int16_t a0 = (ip++)->i16;
+        int16_t a1 = (ip++)->i16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_i16_reg: {
@@ -4199,104 +4667,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I32_REG_REG\n");
+    do_bb_i32_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I32_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I32_REG_CONST\n");
+    do_bb_i32_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I32_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I32_CONST_REG\n");
-        __builtin_trap();
+    do_beq_i32_reg_reg_func_func: {
+        int32_t a0 = locals[(ip++)->reg].i32;
+        int32_t a1 = locals[(ip++)->reg].i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_i32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I32_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_i32_reg_const_func_func: {
+        int32_t a0 = locals[(ip++)->reg].i32;
+        int32_t a1 = (ip++)->i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I32_REG_REG\n");
-        __builtin_trap();
+    do_beq_i32_const_reg_func_func: {
+        int32_t a0 = (ip++)->i32;
+        int32_t a1 = locals[(ip++)->reg].i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I32_REG_CONST\n");
-        __builtin_trap();
+    do_beq_i32_const_const_func_func: {
+        int32_t a0 = (ip++)->i32;
+        int32_t a1 = (ip++)->i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I32_CONST_REG\n");
-        __builtin_trap();
+    do_blt_i32_reg_reg_func_func: {
+        int32_t a0 = locals[(ip++)->reg].i32;
+        int32_t a1 = locals[(ip++)->reg].i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I32_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i32_reg_const_func_func: {
+        int32_t a0 = locals[(ip++)->reg].i32;
+        int32_t a1 = (ip++)->i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I32_REG_REG\n");
-        __builtin_trap();
+    do_blt_i32_const_reg_func_func: {
+        int32_t a0 = (ip++)->i32;
+        int32_t a1 = locals[(ip++)->reg].i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I32_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I32_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I32_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I32_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I32_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i32_const_const_func_func: {
+        int32_t a0 = (ip++)->i32;
+        int32_t a1 = (ip++)->i32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_i32_reg: {
@@ -4590,104 +5064,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I64_REG_REG\n");
+    do_bb_i64_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I64_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I64_REG_CONST\n");
+    do_bb_i64_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I64_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_i64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I64_CONST_REG\n");
-        __builtin_trap();
+    do_beq_i64_reg_reg_func_func: {
+        int64_t a0 = locals[(ip++)->reg].i64;
+        int64_t a1 = locals[(ip++)->reg].i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_i64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_I64_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_i64_reg_const_func_func: {
+        int64_t a0 = locals[(ip++)->reg].i64;
+        int64_t a1 = (ip++)->i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I64_REG_REG\n");
-        __builtin_trap();
+    do_beq_i64_const_reg_func_func: {
+        int64_t a0 = (ip++)->i64;
+        int64_t a1 = locals[(ip++)->reg].i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I64_REG_CONST\n");
-        __builtin_trap();
+    do_beq_i64_const_const_func_func: {
+        int64_t a0 = (ip++)->i64;
+        int64_t a1 = (ip++)->i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I64_CONST_REG\n");
-        __builtin_trap();
+    do_blt_i64_reg_reg_func_func: {
+        int64_t a0 = locals[(ip++)->reg].i64;
+        int64_t a1 = locals[(ip++)->reg].i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_i64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_I64_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i64_reg_const_func_func: {
+        int64_t a0 = locals[(ip++)->reg].i64;
+        int64_t a1 = (ip++)->i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I64_REG_REG\n");
-        __builtin_trap();
+    do_blt_i64_const_reg_func_func: {
+        int64_t a0 = (ip++)->i64;
+        int64_t a1 = locals[(ip++)->reg].i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_i64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_i64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_I64_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I64_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_i64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_I64_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I64_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_i64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_I64_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_i64_const_const_func_func: {
+        int64_t a0 = (ip++)->i64;
+        int64_t a1 = (ip++)->i64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_i64_reg: {
@@ -4981,104 +5461,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U8_REG_REG\n");
+    do_bb_u8_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U8_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U8_REG_CONST\n");
+    do_bb_u8_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U8_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U8_CONST_REG\n");
-        __builtin_trap();
+    do_beq_u8_reg_reg_func_func: {
+        uint8_t a0 = locals[(ip++)->reg].u8;
+        uint8_t a1 = locals[(ip++)->reg].u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_u8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U8_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_u8_reg_const_func_func: {
+        uint8_t a0 = locals[(ip++)->reg].u8;
+        uint8_t a1 = (ip++)->u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U8_REG_REG\n");
-        __builtin_trap();
+    do_beq_u8_const_reg_func_func: {
+        uint8_t a0 = (ip++)->u8;
+        uint8_t a1 = locals[(ip++)->reg].u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U8_REG_CONST\n");
-        __builtin_trap();
+    do_beq_u8_const_const_func_func: {
+        uint8_t a0 = (ip++)->u8;
+        uint8_t a1 = (ip++)->u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U8_CONST_REG\n");
-        __builtin_trap();
+    do_blt_u8_reg_reg_func_func: {
+        uint8_t a0 = locals[(ip++)->reg].u8;
+        uint8_t a1 = locals[(ip++)->reg].u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U8_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u8_reg_const_func_func: {
+        uint8_t a0 = locals[(ip++)->reg].u8;
+        uint8_t a1 = (ip++)->u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U8_REG_REG\n");
-        __builtin_trap();
+    do_blt_u8_const_reg_func_func: {
+        uint8_t a0 = (ip++)->u8;
+        uint8_t a1 = locals[(ip++)->reg].u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U8_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U8_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U8_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U8_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U8_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U8_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U8_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u8_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U8_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u8_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U8_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u8_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U8_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u8_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U8_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u8_const_const_func_func: {
+        uint8_t a0 = (ip++)->u8;
+        uint8_t a1 = (ip++)->u8;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_u8_reg: {
@@ -5372,104 +5858,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U16_REG_REG\n");
+    do_bb_u16_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U16_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U16_REG_CONST\n");
+    do_bb_u16_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U16_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U16_CONST_REG\n");
-        __builtin_trap();
+    do_beq_u16_reg_reg_func_func: {
+        uint16_t a0 = locals[(ip++)->reg].u16;
+        uint16_t a1 = locals[(ip++)->reg].u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_u16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U16_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_u16_reg_const_func_func: {
+        uint16_t a0 = locals[(ip++)->reg].u16;
+        uint16_t a1 = (ip++)->u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U16_REG_REG\n");
-        __builtin_trap();
+    do_beq_u16_const_reg_func_func: {
+        uint16_t a0 = (ip++)->u16;
+        uint16_t a1 = locals[(ip++)->reg].u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U16_REG_CONST\n");
-        __builtin_trap();
+    do_beq_u16_const_const_func_func: {
+        uint16_t a0 = (ip++)->u16;
+        uint16_t a1 = (ip++)->u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U16_CONST_REG\n");
-        __builtin_trap();
+    do_blt_u16_reg_reg_func_func: {
+        uint16_t a0 = locals[(ip++)->reg].u16;
+        uint16_t a1 = locals[(ip++)->reg].u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U16_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u16_reg_const_func_func: {
+        uint16_t a0 = locals[(ip++)->reg].u16;
+        uint16_t a1 = (ip++)->u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U16_REG_REG\n");
-        __builtin_trap();
+    do_blt_u16_const_reg_func_func: {
+        uint16_t a0 = (ip++)->u16;
+        uint16_t a1 = locals[(ip++)->reg].u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U16_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U16_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U16_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U16_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U16_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U16_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U16_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u16_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U16_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u16_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U16_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u16_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U16_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u16_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U16_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u16_const_const_func_func: {
+        uint16_t a0 = (ip++)->u16;
+        uint16_t a1 = (ip++)->u16;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_u16_reg: {
@@ -5763,104 +6255,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U32_REG_REG\n");
+    do_bb_u32_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U32_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U32_REG_CONST\n");
+    do_bb_u32_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U32_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U32_CONST_REG\n");
-        __builtin_trap();
+    do_beq_u32_reg_reg_func_func: {
+        uint32_t a0 = locals[(ip++)->reg].u32;
+        uint32_t a1 = locals[(ip++)->reg].u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_u32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U32_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_u32_reg_const_func_func: {
+        uint32_t a0 = locals[(ip++)->reg].u32;
+        uint32_t a1 = (ip++)->u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U32_REG_REG\n");
-        __builtin_trap();
+    do_beq_u32_const_reg_func_func: {
+        uint32_t a0 = (ip++)->u32;
+        uint32_t a1 = locals[(ip++)->reg].u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U32_REG_CONST\n");
-        __builtin_trap();
+    do_beq_u32_const_const_func_func: {
+        uint32_t a0 = (ip++)->u32;
+        uint32_t a1 = (ip++)->u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U32_CONST_REG\n");
-        __builtin_trap();
+    do_blt_u32_reg_reg_func_func: {
+        uint32_t a0 = locals[(ip++)->reg].u32;
+        uint32_t a1 = locals[(ip++)->reg].u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U32_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u32_reg_const_func_func: {
+        uint32_t a0 = locals[(ip++)->reg].u32;
+        uint32_t a1 = (ip++)->u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U32_REG_REG\n");
-        __builtin_trap();
+    do_blt_u32_const_reg_func_func: {
+        uint32_t a0 = (ip++)->u32;
+        uint32_t a1 = locals[(ip++)->reg].u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U32_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U32_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U32_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U32_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U32_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u32_const_const_func_func: {
+        uint32_t a0 = (ip++)->u32;
+        uint32_t a1 = (ip++)->u32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_u32_reg: {
@@ -6154,104 +6652,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U64_REG_REG\n");
+    do_bb_u64_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U64_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U64_REG_CONST\n");
+    do_bb_u64_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U64_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_u64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U64_CONST_REG\n");
-        __builtin_trap();
+    do_beq_u64_reg_reg_func_func: {
+        uint64_t a0 = locals[(ip++)->reg].u64;
+        uint64_t a1 = locals[(ip++)->reg].u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_u64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_U64_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_u64_reg_const_func_func: {
+        uint64_t a0 = locals[(ip++)->reg].u64;
+        uint64_t a1 = (ip++)->u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U64_REG_REG\n");
-        __builtin_trap();
+    do_beq_u64_const_reg_func_func: {
+        uint64_t a0 = (ip++)->u64;
+        uint64_t a1 = locals[(ip++)->reg].u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U64_REG_CONST\n");
-        __builtin_trap();
+    do_beq_u64_const_const_func_func: {
+        uint64_t a0 = (ip++)->u64;
+        uint64_t a1 = (ip++)->u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U64_CONST_REG\n");
-        __builtin_trap();
+    do_blt_u64_reg_reg_func_func: {
+        uint64_t a0 = locals[(ip++)->reg].u64;
+        uint64_t a1 = locals[(ip++)->reg].u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_u64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_U64_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u64_reg_const_func_func: {
+        uint64_t a0 = locals[(ip++)->reg].u64;
+        uint64_t a1 = (ip++)->u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U64_REG_REG\n");
-        __builtin_trap();
+    do_blt_u64_const_reg_func_func: {
+        uint64_t a0 = (ip++)->u64;
+        uint64_t a1 = locals[(ip++)->reg].u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_u64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_u64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_U64_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U64_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_u64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_U64_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U64_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_u64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_U64_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_u64_const_const_func_func: {
+        uint64_t a0 = (ip++)->u64;
+        uint64_t a1 = (ip++)->u64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_u64_reg: {
@@ -6545,104 +7049,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_f32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F32_REG_REG\n");
+    do_bb_f32_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F32_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_f32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F32_REG_CONST\n");
+    do_bb_f32_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F32_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_f32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F32_CONST_REG\n");
-        __builtin_trap();
+    do_beq_f32_reg_reg_func_func: {
+        float a0 = locals[(ip++)->reg].f32;
+        float a1 = locals[(ip++)->reg].f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_f32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F32_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_f32_reg_const_func_func: {
+        float a0 = locals[(ip++)->reg].f32;
+        float a1 = (ip++)->f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F32_REG_REG\n");
-        __builtin_trap();
+    do_beq_f32_const_reg_func_func: {
+        float a0 = (ip++)->f32;
+        float a1 = locals[(ip++)->reg].f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F32_REG_CONST\n");
-        __builtin_trap();
+    do_beq_f32_const_const_func_func: {
+        float a0 = (ip++)->f32;
+        float a1 = (ip++)->f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F32_CONST_REG\n");
-        __builtin_trap();
+    do_blt_f32_reg_reg_func_func: {
+        float a0 = locals[(ip++)->reg].f32;
+        float a1 = locals[(ip++)->reg].f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F32_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_f32_reg_const_func_func: {
+        float a0 = locals[(ip++)->reg].f32;
+        float a1 = (ip++)->f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_f32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F32_REG_REG\n");
-        __builtin_trap();
+    do_blt_f32_const_reg_func_func: {
+        float a0 = (ip++)->f32;
+        float a1 = locals[(ip++)->reg].f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_f32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_f32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_f32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F32_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F32_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F32_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f32_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F32_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f32_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F32_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f32_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F32_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f32_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F32_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_f32_const_const_func_func: {
+        float a0 = (ip++)->f32;
+        float a1 = (ip++)->f32;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_f32_reg: {
@@ -6816,104 +7326,110 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_f64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F64_REG_REG\n");
+    do_bb_f64_reg_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F64_REG_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_f64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F64_REG_CONST\n");
+    do_bb_f64_const_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F64_CONST_FUNC_FUNC\n");
         __builtin_trap();
         goto *(ip++)->ptr;
     }
-    do_eq_f64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F64_CONST_REG\n");
-        __builtin_trap();
+    do_beq_f64_reg_reg_func_func: {
+        double a0 = locals[(ip++)->reg].f64;
+        double a1 = locals[(ip++)->reg].f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_eq_f64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_EQ_F64_CONST_CONST\n");
-        __builtin_trap();
+    do_beq_f64_reg_const_func_func: {
+        double a0 = locals[(ip++)->reg].f64;
+        double a1 = (ip++)->f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F64_REG_REG\n");
-        __builtin_trap();
+    do_beq_f64_const_reg_func_func: {
+        double a0 = (ip++)->f64;
+        double a1 = locals[(ip++)->reg].f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F64_REG_CONST\n");
-        __builtin_trap();
+    do_beq_f64_const_const_func_func: {
+        double a0 = (ip++)->f64;
+        double a1 = (ip++)->f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 ==a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F64_CONST_REG\n");
-        __builtin_trap();
+    do_blt_f64_reg_reg_func_func: {
+        double a0 = locals[(ip++)->reg].f64;
+        double a1 = locals[(ip++)->reg].f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_lt_f64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_LT_F64_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_f64_reg_const_func_func: {
+        double a0 = locals[(ip++)->reg].f64;
+        double a1 = (ip++)->f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_f64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F64_REG_REG\n");
-        __builtin_trap();
+    do_blt_f64_const_reg_func_func: {
+        double a0 = (ip++)->f64;
+        double a1 = locals[(ip++)->reg].f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
-    do_bb_f64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_f64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_bb_f64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BB_F64_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F64_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_beq_f64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BEQ_F64_CONST_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f64_reg_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F64_REG_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f64_reg_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F64_REG_CONST\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f64_const_reg: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F64_CONST_REG\n");
-        __builtin_trap();
-        goto *(ip++)->ptr;
-    }
-    do_blt_f64_const_const: {
-        fprintf(stderr, "unimplemend label: VM_OPCODE_BLT_F64_CONST_CONST\n");
-        __builtin_trap();
+    do_blt_f64_const_const_func_func: {
+        double a0 = (ip++)->f64;
+        double a1 = (ip++)->f64;
+        vm_block_t *t0 = (ip++)->func;
+        vm_block_t *t1 = (ip++)->func;
+        if (a0 <a1) {
+            ip = vm_run_comp(state, t0);
+        } else {
+            ip = vm_run_comp(state, t1);
+        }
         goto *(ip++)->ptr;
     }
     do_move_f64_reg: {
@@ -6973,6 +7489,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_exit_break_void: {
         return;
+        goto *(ip++)->ptr;
+    }
+    do_jump_func_const: {
+        vm_block_t *t0 = (ip++)->func;
+        ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
     do_call_func_const: {

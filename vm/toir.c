@@ -193,13 +193,13 @@ static bool vm_parse_state(vm_parser_t *state) {
                     .tag = VM_TAG_UNK,
                 };
                 if (!strcmp(name, "bb")) {
-                    branch.op = VM_BOP_BOOL;
+                    branch.op = VM_BOP_BB;
                 }
                 if (!strcmp(name, "blt")) {
-                    branch.op = VM_BOP_LESS;
+                    branch.op = VM_BOP_BLT;
                 }
                 if (!strcmp(name, "beq")) {
-                    branch.op = VM_BOP_EQUAL;
+                    branch.op = VM_BOP_BEQ;
                 }
                 if (!strcmp(name, "jump")) {
                     branch.op = VM_BOP_JUMP;
@@ -223,7 +223,7 @@ static bool vm_parse_state(vm_parser_t *state) {
                     }
                     break;
                 }
-                case VM_BOP_BOOL: {
+                case VM_BOP_BB: {
                     branch.args[0] = vm_parse_arg(state);
                     branch.targets[0] = vm_parse_arg_block(state);
                     if (branch.targets[0] == NULL) {
@@ -235,7 +235,7 @@ static bool vm_parse_state(vm_parser_t *state) {
                     }
                     break;
                 }
-                case VM_BOP_LESS: {
+                case VM_BOP_BLT: {
                     branch.args[0] = vm_parse_arg(state);
                     branch.args[1] = vm_parse_arg(state);
                     branch.targets[0] = vm_parse_arg_block(state);
@@ -248,7 +248,7 @@ static bool vm_parse_state(vm_parser_t *state) {
                     }
                     break;
                 }
-                case VM_BOP_EQUAL: {
+                case VM_BOP_BEQ: {
                     branch.args[0] = vm_parse_arg(state);
                     branch.args[1] = vm_parse_arg(state);
                     branch.targets[0] = vm_parse_arg_block(state);

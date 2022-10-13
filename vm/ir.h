@@ -33,9 +33,9 @@ enum {
 enum {
     VM_BOP_FALL,
     VM_BOP_JUMP,
-    VM_BOP_BOOL,
-    VM_BOP_LESS,
-    VM_BOP_EQUAL,
+    VM_BOP_BB,
+    VM_BOP_BLT,
+    VM_BOP_BEQ,
     VM_BOP_RET,
     VM_BOP_EXIT,
     VM_BOP_MAX,

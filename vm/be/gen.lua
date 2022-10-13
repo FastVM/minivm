@@ -44,6 +44,27 @@ local function push(op, ctype, args)
     }
 end
 
+local function get_install_binary_branch(ctype)
+    return function(op)
+        local function install_math_const(lhs, rhs)
+            push(op, ctype, {lhs, rhs, 'func', 'func'})
+        end
+
+        install_math_const('reg', 'reg')
+        install_math_const('reg', 'const')
+        install_math_const('const', 'reg')
+        install_math_const('const', 'const')
+    end
+end
+
+local function install_basic_branch(ctype)
+    push('bb', ctype, {'reg', 'func', 'func'})
+    push('bb', ctype, {'const', 'func', 'func'})
+    local install_branch_op = get_install_binary_branch(ctype)
+    install_branch_op('beq')
+    install_branch_op('blt')
+end
+
 local function get_install_binary(ctype)
     return function(op)
         local function install_math_const(lhs, rhs)
@@ -57,13 +78,6 @@ local function get_install_binary(ctype)
     end
 end
 
-local function install_basic_branch(ctype)
-    local install_branch_op = get_install_binary(ctype)
-    install_branch_op('bb')
-    install_branch_op('beq')
-    install_branch_op('blt')
-end
-
 local function install_basic_math(ctype)
     local install_math_op = get_install_binary(ctype)
     install_math_op('add')
@@ -71,8 +85,6 @@ local function install_basic_math(ctype)
     install_math_op('mul')
     install_math_op('div')
     install_math_op('mod')
-    install_math_op('eq')
-    install_math_op('lt')
 end
 
 local function install_basic_extra(ctype)
@@ -130,6 +142,7 @@ install_basic('f32')
 install_basic('f64')
 
 push('exit', 'break', {})
+push('jump', 'func', {'const'})
 
 for i = 0, 8 do
     install_call(i)
@@ -241,6 +254,11 @@ void vm_state_deinit(vm_state_t *state) {
         bshr = '<<'
     }
 
+    local simplebranch = {
+        beq = '==',
+        blt = '<',
+    }
+
     do
         local binaryint = {'add', 'sub', 'mul', 'div', 'mod', 'bor', 'bxor', 'band', 'bshl', 'bshr'}
         local binaryfloat = {'add', 'sub', 'mul', 'div', 'mod'}
@@ -340,6 +358,51 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
             lines[#lines + 1] = '            break;'
             lines[#lines + 1] = '        }'
+        end
+        do
+            lines[#lines + 1] = '        case VM_BOP_JUMP: {'
+            local name = string.upper(table.concat({prefix, 'jump', 'func', 'const'}, '_'))
+            lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+            lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
+            lines[#lines + 1] = '            break;'
+            lines[#lines + 1] = '        }'
+        end
+        do
+            for key, value in ipairs({'blt', 'beq'}) do
+                lines[#lines + 1] = '        case VM_BOP_' .. string.upper(value) .. ': {'
+                for tkey, tvalue in ipairs(binarytypes) do
+                    if istypemap[tvalue] then
+                        lines[#lines + 1] = '            if (block->branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                        for _, pair in ipairs(kinds) do
+                            lines[#lines + 1] = '                if (block->branch.args[0].type ' .. map[pair[1]] .. ' && ' ..
+                                                    'block->branch.args[1].type ' .. map[pair[2]] .. ') {'
+                            local name = string.upper(table.concat({prefix, value, tvalue, pair[1], pair[2], 'func', 'func'}, '_'))
+                            lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                            if pair[1] == 'reg' then
+                                lines[#lines + 1] = '                    ops[nops++].reg = block->branch.args[0].reg;'
+                            else
+                                lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
+                                                        typename(tvalue) .. ') block->branch.args[0].num;'
+                            end
+                            if pair[2] == 'reg' then
+                                lines[#lines + 1] = '                    ops[nops++].reg = block->branch.args[1].reg;'
+                            else
+                                lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
+                                                        typename(tvalue) .. ') block->branch.args[1].num;'
+                            end
+                            lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
+                            lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[1];'
+                            lines[#lines + 1] = '                    break;'
+                            lines[#lines + 1] = '                }'
+                        end
+                        lines[#lines + 1] = '            }'
+                    end
+                end
+                lines[#lines + 1] = '             goto err;'
+                lines[#lines + 1] = '        }'
+            end
+        end
+        do
             lines[#lines + 1] = '        default: goto err;'
         end
         lines[#lines + 1] = '     }'
@@ -401,6 +464,29 @@ void vm_state_deinit(vm_state_t *state) {
                     case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
                 end
                 case[#case + 1] = '        putchar((int) a0);'
+            elseif instr.op == 'jump' then
+                case[#case + 1] = '        vm_block_t *t0 = (ip++)->func;'
+                case[#case + 1] = '        ip = vm_run_comp(state, t0);'
+            elseif instr.op == 'blt' or instr.op == 'beq' then
+                local tname = typename(instr.type)
+                local op = simplebranch[instr.op]
+                if instr.args[1] == 'reg' then
+                    case[#case + 1] = '        ' .. tname .. ' a0 = locals[(ip++)->reg].' .. instr.type .. ';'
+                else
+                    case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
+                end
+                if instr.args[2] == 'reg' then
+                    case[#case + 1] = '        ' .. tname .. ' a1 = locals[(ip++)->reg].' .. instr.type .. ';'
+                else
+                    case[#case + 1] = '        ' .. tname .. ' a1 = (ip++)->' .. instr.type .. ';'
+                end
+                case[#case + 1] = '        vm_block_t *t0 = (ip++)->func;'
+                case[#case + 1] = '        vm_block_t *t1 = (ip++)->func;'
+                case[#case + 1] = '        if (a0 ' .. op .. 'a1) {'
+                case[#case + 1] = '            ip = vm_run_comp(state, t0);'
+                case[#case + 1] = '        } else {'
+                case[#case + 1] = '            ip = vm_run_comp(state, t1);'
+                case[#case + 1] = '        }'
             elseif instr.op == 'exit' then
                 case[#case + 1] = '        return;'
             else

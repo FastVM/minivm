@@ -1,0 +1,10 @@
+@:
+    add.i64 %0 48 1
+    jump [head]
+@head:
+    out.i64 %0
+    out.i64 10
+    add.i64 %0 %0 1
+    blt.i64 %0 10 [head] [false]
+@false:
+    exit
