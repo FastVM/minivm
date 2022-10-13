@@ -3886,96 +3886,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_i8_reg_reg_func_func: {
         int8_t a0 = locals[(ip++)->reg].i8;
         int8_t a1 = locals[(ip++)->reg].i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i8_reg_const_func_func: {
         int8_t a0 = locals[(ip++)->reg].i8;
         int8_t a1 = (ip++)->i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i8_const_reg_func_func: {
         int8_t a0 = (ip++)->i8;
         int8_t a1 = locals[(ip++)->reg].i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i8_const_const_func_func: {
         int8_t a0 = (ip++)->i8;
         int8_t a1 = (ip++)->i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_reg_reg_func_func: {
         int8_t a0 = locals[(ip++)->reg].i8;
         int8_t a1 = locals[(ip++)->reg].i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_reg_const_func_func: {
         int8_t a0 = locals[(ip++)->reg].i8;
         int8_t a1 = (ip++)->i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_const_reg_func_func: {
         int8_t a0 = (ip++)->i8;
         int8_t a1 = locals[(ip++)->reg].i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_const_const_func_func: {
         int8_t a0 = (ip++)->i8;
         int8_t a1 = (ip++)->i8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -4283,96 +4267,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_i16_reg_reg_func_func: {
         int16_t a0 = locals[(ip++)->reg].i16;
         int16_t a1 = locals[(ip++)->reg].i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i16_reg_const_func_func: {
         int16_t a0 = locals[(ip++)->reg].i16;
         int16_t a1 = (ip++)->i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i16_const_reg_func_func: {
         int16_t a0 = (ip++)->i16;
         int16_t a1 = locals[(ip++)->reg].i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i16_const_const_func_func: {
         int16_t a0 = (ip++)->i16;
         int16_t a1 = (ip++)->i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_reg_reg_func_func: {
         int16_t a0 = locals[(ip++)->reg].i16;
         int16_t a1 = locals[(ip++)->reg].i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_reg_const_func_func: {
         int16_t a0 = locals[(ip++)->reg].i16;
         int16_t a1 = (ip++)->i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_const_reg_func_func: {
         int16_t a0 = (ip++)->i16;
         int16_t a1 = locals[(ip++)->reg].i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_const_const_func_func: {
         int16_t a0 = (ip++)->i16;
         int16_t a1 = (ip++)->i16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -4680,96 +4648,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_i32_reg_reg_func_func: {
         int32_t a0 = locals[(ip++)->reg].i32;
         int32_t a1 = locals[(ip++)->reg].i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i32_reg_const_func_func: {
         int32_t a0 = locals[(ip++)->reg].i32;
         int32_t a1 = (ip++)->i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i32_const_reg_func_func: {
         int32_t a0 = (ip++)->i32;
         int32_t a1 = locals[(ip++)->reg].i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i32_const_const_func_func: {
         int32_t a0 = (ip++)->i32;
         int32_t a1 = (ip++)->i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_reg_reg_func_func: {
         int32_t a0 = locals[(ip++)->reg].i32;
         int32_t a1 = locals[(ip++)->reg].i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_reg_const_func_func: {
         int32_t a0 = locals[(ip++)->reg].i32;
         int32_t a1 = (ip++)->i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_const_reg_func_func: {
         int32_t a0 = (ip++)->i32;
         int32_t a1 = locals[(ip++)->reg].i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_const_const_func_func: {
         int32_t a0 = (ip++)->i32;
         int32_t a1 = (ip++)->i32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -5077,96 +5029,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_i64_reg_reg_func_func: {
         int64_t a0 = locals[(ip++)->reg].i64;
         int64_t a1 = locals[(ip++)->reg].i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i64_reg_const_func_func: {
         int64_t a0 = locals[(ip++)->reg].i64;
         int64_t a1 = (ip++)->i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i64_const_reg_func_func: {
         int64_t a0 = (ip++)->i64;
         int64_t a1 = locals[(ip++)->reg].i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_i64_const_const_func_func: {
         int64_t a0 = (ip++)->i64;
         int64_t a1 = (ip++)->i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_reg_reg_func_func: {
         int64_t a0 = locals[(ip++)->reg].i64;
         int64_t a1 = locals[(ip++)->reg].i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_reg_const_func_func: {
         int64_t a0 = locals[(ip++)->reg].i64;
         int64_t a1 = (ip++)->i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_const_reg_func_func: {
         int64_t a0 = (ip++)->i64;
         int64_t a1 = locals[(ip++)->reg].i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_const_const_func_func: {
         int64_t a0 = (ip++)->i64;
         int64_t a1 = (ip++)->i64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -5474,96 +5410,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_u8_reg_reg_func_func: {
         uint8_t a0 = locals[(ip++)->reg].u8;
         uint8_t a1 = locals[(ip++)->reg].u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u8_reg_const_func_func: {
         uint8_t a0 = locals[(ip++)->reg].u8;
         uint8_t a1 = (ip++)->u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u8_const_reg_func_func: {
         uint8_t a0 = (ip++)->u8;
         uint8_t a1 = locals[(ip++)->reg].u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u8_const_const_func_func: {
         uint8_t a0 = (ip++)->u8;
         uint8_t a1 = (ip++)->u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_reg_reg_func_func: {
         uint8_t a0 = locals[(ip++)->reg].u8;
         uint8_t a1 = locals[(ip++)->reg].u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_reg_const_func_func: {
         uint8_t a0 = locals[(ip++)->reg].u8;
         uint8_t a1 = (ip++)->u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_const_reg_func_func: {
         uint8_t a0 = (ip++)->u8;
         uint8_t a1 = locals[(ip++)->reg].u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_const_const_func_func: {
         uint8_t a0 = (ip++)->u8;
         uint8_t a1 = (ip++)->u8;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -5871,96 +5791,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_u16_reg_reg_func_func: {
         uint16_t a0 = locals[(ip++)->reg].u16;
         uint16_t a1 = locals[(ip++)->reg].u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u16_reg_const_func_func: {
         uint16_t a0 = locals[(ip++)->reg].u16;
         uint16_t a1 = (ip++)->u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u16_const_reg_func_func: {
         uint16_t a0 = (ip++)->u16;
         uint16_t a1 = locals[(ip++)->reg].u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u16_const_const_func_func: {
         uint16_t a0 = (ip++)->u16;
         uint16_t a1 = (ip++)->u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_reg_reg_func_func: {
         uint16_t a0 = locals[(ip++)->reg].u16;
         uint16_t a1 = locals[(ip++)->reg].u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_reg_const_func_func: {
         uint16_t a0 = locals[(ip++)->reg].u16;
         uint16_t a1 = (ip++)->u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_const_reg_func_func: {
         uint16_t a0 = (ip++)->u16;
         uint16_t a1 = locals[(ip++)->reg].u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_const_const_func_func: {
         uint16_t a0 = (ip++)->u16;
         uint16_t a1 = (ip++)->u16;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -6268,96 +6172,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_u32_reg_reg_func_func: {
         uint32_t a0 = locals[(ip++)->reg].u32;
         uint32_t a1 = locals[(ip++)->reg].u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u32_reg_const_func_func: {
         uint32_t a0 = locals[(ip++)->reg].u32;
         uint32_t a1 = (ip++)->u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u32_const_reg_func_func: {
         uint32_t a0 = (ip++)->u32;
         uint32_t a1 = locals[(ip++)->reg].u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u32_const_const_func_func: {
         uint32_t a0 = (ip++)->u32;
         uint32_t a1 = (ip++)->u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_reg_reg_func_func: {
         uint32_t a0 = locals[(ip++)->reg].u32;
         uint32_t a1 = locals[(ip++)->reg].u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_reg_const_func_func: {
         uint32_t a0 = locals[(ip++)->reg].u32;
         uint32_t a1 = (ip++)->u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_const_reg_func_func: {
         uint32_t a0 = (ip++)->u32;
         uint32_t a1 = locals[(ip++)->reg].u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_const_const_func_func: {
         uint32_t a0 = (ip++)->u32;
         uint32_t a1 = (ip++)->u32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -6665,96 +6553,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_u64_reg_reg_func_func: {
         uint64_t a0 = locals[(ip++)->reg].u64;
         uint64_t a1 = locals[(ip++)->reg].u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u64_reg_const_func_func: {
         uint64_t a0 = locals[(ip++)->reg].u64;
         uint64_t a1 = (ip++)->u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u64_const_reg_func_func: {
         uint64_t a0 = (ip++)->u64;
         uint64_t a1 = locals[(ip++)->reg].u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_u64_const_const_func_func: {
         uint64_t a0 = (ip++)->u64;
         uint64_t a1 = (ip++)->u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_reg_reg_func_func: {
         uint64_t a0 = locals[(ip++)->reg].u64;
         uint64_t a1 = locals[(ip++)->reg].u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_reg_const_func_func: {
         uint64_t a0 = locals[(ip++)->reg].u64;
         uint64_t a1 = (ip++)->u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_const_reg_func_func: {
         uint64_t a0 = (ip++)->u64;
         uint64_t a1 = locals[(ip++)->reg].u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_const_const_func_func: {
         uint64_t a0 = (ip++)->u64;
         uint64_t a1 = (ip++)->u64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -7062,96 +6934,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_f32_reg_reg_func_func: {
         float a0 = locals[(ip++)->reg].f32;
         float a1 = locals[(ip++)->reg].f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_f32_reg_const_func_func: {
         float a0 = locals[(ip++)->reg].f32;
         float a1 = (ip++)->f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_f32_const_reg_func_func: {
         float a0 = (ip++)->f32;
         float a1 = locals[(ip++)->reg].f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_f32_const_const_func_func: {
         float a0 = (ip++)->f32;
         float a1 = (ip++)->f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_reg_reg_func_func: {
         float a0 = locals[(ip++)->reg].f32;
         float a1 = locals[(ip++)->reg].f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_reg_const_func_func: {
         float a0 = locals[(ip++)->reg].f32;
         float a1 = (ip++)->f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_const_reg_func_func: {
         float a0 = (ip++)->f32;
         float a1 = locals[(ip++)->reg].f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_const_const_func_func: {
         float a0 = (ip++)->f32;
         float a1 = (ip++)->f32;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
@@ -7339,96 +7195,80 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     do_beq_f64_reg_reg_func_func: {
         double a0 = locals[(ip++)->reg].f64;
         double a1 = locals[(ip++)->reg].f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_f64_reg_const_func_func: {
         double a0 = locals[(ip++)->reg].f64;
         double a1 = (ip++)->f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_f64_const_reg_func_func: {
         double a0 = (ip++)->f64;
         double a1 = locals[(ip++)->reg].f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_beq_f64_const_const_func_func: {
         double a0 = (ip++)->f64;
         double a1 = (ip++)->f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 ==a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_reg_reg_func_func: {
         double a0 = locals[(ip++)->reg].f64;
         double a1 = locals[(ip++)->reg].f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_reg_const_func_func: {
         double a0 = locals[(ip++)->reg].f64;
         double a1 = (ip++)->f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_const_reg_func_func: {
         double a0 = (ip++)->f64;
         double a1 = locals[(ip++)->reg].f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_const_const_func_func: {
         double a0 = (ip++)->f64;
         double a1 = (ip++)->f64;
-        vm_block_t *t0 = (ip++)->func;
-        vm_block_t *t1 = (ip++)->func;
         if (a0 <a1) {
-            ip = vm_run_comp(state, t0);
+            ip = vm_run_comp(state, ip[0].func);
         } else {
-            ip = vm_run_comp(state, t1);
+            ip = vm_run_comp(state, ip[1].func);
         }
         goto *(ip++)->ptr;
     }

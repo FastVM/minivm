@@ -480,12 +480,10 @@ void vm_state_deinit(vm_state_t *state) {
                 else
                     case[#case + 1] = '        ' .. tname .. ' a1 = (ip++)->' .. instr.type .. ';'
                 end
-                case[#case + 1] = '        vm_block_t *t0 = (ip++)->func;'
-                case[#case + 1] = '        vm_block_t *t1 = (ip++)->func;'
                 case[#case + 1] = '        if (a0 ' .. op .. 'a1) {'
-                case[#case + 1] = '            ip = vm_run_comp(state, t0);'
+                case[#case + 1] = '            ip = vm_run_comp(state, ip[0].func);'
                 case[#case + 1] = '        } else {'
-                case[#case + 1] = '            ip = vm_run_comp(state, t1);'
+                case[#case + 1] = '            ip = vm_run_comp(state, ip[1].func);'
                 case[#case + 1] = '        }'
             elseif instr.op == 'exit' then
                 case[#case + 1] = '        return;'
