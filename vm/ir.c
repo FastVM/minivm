@@ -4,7 +4,7 @@
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
         block->alloc = (block->len + 4) * 4;
-        block->instrs = vm_realloc(block->instrs, sizeof(vm_arg_t) * block->alloc);
+        block->instrs = vm_realloc(block->instrs, sizeof(vm_instr_t) * block->alloc);
     }
     block->instrs[block->len++] = instr;
 }

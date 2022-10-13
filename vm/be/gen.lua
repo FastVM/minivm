@@ -81,12 +81,12 @@ local function install_basic_extra(ctype)
     push('out', ctype, {'reg'})
     push('out', ctype, {'const'})
     push('in', ctype, {})
-    push('ret', ctype, {'reg'})
-    push('ret', ctype, {'const'})
     push('type', ctype, {'reg'})
     push('type', ctype, {'const'})
     push('bnot', ctype, {'reg'})
     push('bnot', ctype, {'const'})
+    push('ret', ctype, {'reg'})
+    push('ret', ctype, {'const'})
 end
 
 local function install_basic(ctype)
@@ -128,6 +128,8 @@ install_basic_and_bitwise('u64')
 
 install_basic('f32')
 install_basic('f64')
+
+push('exit', 'break', {})
 
 for i = 0, 8 do
     install_call(i)
@@ -327,8 +329,19 @@ void vm_state_deinit(vm_state_t *state) {
                 end
             end
             lines[#lines + 1] = '        }'
+            lines[#lines + 1] = '        default: goto err;'
         end
         lines[#lines + 1] = '         }'
+        lines[#lines + 1] = '     }'
+        lines[#lines + 1] = '     switch (block->branch.op) {'
+        do
+            lines[#lines + 1] = '        case VM_BOP_EXIT: {'
+            local name = string.upper(table.concat({prefix, 'exit', 'break', 'void'}, '_'))
+            lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+            lines[#lines + 1] = '            break;'
+            lines[#lines + 1] = '        }'
+            lines[#lines + 1] = '        default: goto err;'
+        end
         lines[#lines + 1] = '     }'
         lines[#lines + 1] = '     return ops;'
         lines[#lines + 1] = 'err:;'
@@ -363,7 +376,7 @@ void vm_state_deinit(vm_state_t *state) {
 
             case[#case + 1] = '    ' .. instr.label .. ': {'
             
-            case[#case+1] = '        printf("' .. instr.name .. '\\n");'
+            -- case[#case+1] = '        printf("' .. instr.name .. '\\n");'
             
             if simplebinary[instr.op] then
                 local tname = typename(instr.type)
@@ -388,6 +401,8 @@ void vm_state_deinit(vm_state_t *state) {
                     case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
                 end
                 case[#case + 1] = '        putchar((int) a0);'
+            elseif instr.op == 'exit' then
+                case[#case + 1] = '        return;'
             else
                 case[#case + 1] = '        fprintf(stderr, "unimplemend label: ' .. instr.name .. '\\n");'
                 case[#case + 1] = '        __builtin_trap();'

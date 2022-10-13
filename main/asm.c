@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
     }
     for (size_t i = 0; i < runs; i++) {
         vm_block_t *block = vm_parse(src);
-        vm_print_block(stderr, block);
+        // vm_print_block(stderr, block);
         vm_state_t *state = vm_state_init(1 << 16);
         vm_run(state, block);
         vm_state_deinit(state);
