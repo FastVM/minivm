@@ -4069,14 +4069,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I8_CONST_CONST] = &&do_mod_i8_const_const,
         [VM_OPCODE_BB_I8_REG_FUNC_FUNC] = &&do_bb_i8_reg_func_func,
         [VM_OPCODE_BB_I8_CONST_FUNC_FUNC] = &&do_bb_i8_const_func_func,
+        [VM_OPCODE_BB_I8_REG_PTR_PTR] = &&do_bb_i8_reg_ptr_ptr,
+        [VM_OPCODE_BB_I8_CONST_PTR_PTR] = &&do_bb_i8_const_ptr_ptr,
         [VM_OPCODE_BEQ_I8_REG_REG_FUNC_FUNC] = &&do_beq_i8_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I8_REG_REG_PTR_PTR] = &&do_beq_i8_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I8_REG_CONST_FUNC_FUNC] = &&do_beq_i8_reg_const_func_func,
+        [VM_OPCODE_BEQ_I8_REG_CONST_PTR_PTR] = &&do_beq_i8_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_I8_CONST_REG_FUNC_FUNC] = &&do_beq_i8_const_reg_func_func,
+        [VM_OPCODE_BEQ_I8_CONST_REG_PTR_PTR] = &&do_beq_i8_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I8_CONST_CONST_FUNC_FUNC] = &&do_beq_i8_const_const_func_func,
+        [VM_OPCODE_BEQ_I8_CONST_CONST_PTR_PTR] = &&do_beq_i8_const_const_ptr_ptr,
         [VM_OPCODE_BLT_I8_REG_REG_FUNC_FUNC] = &&do_blt_i8_reg_reg_func_func,
+        [VM_OPCODE_BLT_I8_REG_REG_PTR_PTR] = &&do_blt_i8_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_I8_REG_CONST_FUNC_FUNC] = &&do_blt_i8_reg_const_func_func,
+        [VM_OPCODE_BLT_I8_REG_CONST_PTR_PTR] = &&do_blt_i8_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_I8_CONST_REG_FUNC_FUNC] = &&do_blt_i8_const_reg_func_func,
+        [VM_OPCODE_BLT_I8_CONST_REG_PTR_PTR] = &&do_blt_i8_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I8_CONST_CONST_FUNC_FUNC] = &&do_blt_i8_const_const_func_func,
+        [VM_OPCODE_BLT_I8_CONST_CONST_PTR_PTR] = &&do_blt_i8_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_I8_REG] = &&do_move_i8_reg,
         [VM_OPCODE_MOVE_I8_CONST] = &&do_move_i8_const,
         [VM_OPCODE_OUT_I8_REG] = &&do_out_i8_reg,
@@ -4128,14 +4138,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I16_CONST_CONST] = &&do_mod_i16_const_const,
         [VM_OPCODE_BB_I16_REG_FUNC_FUNC] = &&do_bb_i16_reg_func_func,
         [VM_OPCODE_BB_I16_CONST_FUNC_FUNC] = &&do_bb_i16_const_func_func,
+        [VM_OPCODE_BB_I16_REG_PTR_PTR] = &&do_bb_i16_reg_ptr_ptr,
+        [VM_OPCODE_BB_I16_CONST_PTR_PTR] = &&do_bb_i16_const_ptr_ptr,
         [VM_OPCODE_BEQ_I16_REG_REG_FUNC_FUNC] = &&do_beq_i16_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I16_REG_REG_PTR_PTR] = &&do_beq_i16_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I16_REG_CONST_FUNC_FUNC] = &&do_beq_i16_reg_const_func_func,
+        [VM_OPCODE_BEQ_I16_REG_CONST_PTR_PTR] = &&do_beq_i16_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_I16_CONST_REG_FUNC_FUNC] = &&do_beq_i16_const_reg_func_func,
+        [VM_OPCODE_BEQ_I16_CONST_REG_PTR_PTR] = &&do_beq_i16_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I16_CONST_CONST_FUNC_FUNC] = &&do_beq_i16_const_const_func_func,
+        [VM_OPCODE_BEQ_I16_CONST_CONST_PTR_PTR] = &&do_beq_i16_const_const_ptr_ptr,
         [VM_OPCODE_BLT_I16_REG_REG_FUNC_FUNC] = &&do_blt_i16_reg_reg_func_func,
+        [VM_OPCODE_BLT_I16_REG_REG_PTR_PTR] = &&do_blt_i16_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_I16_REG_CONST_FUNC_FUNC] = &&do_blt_i16_reg_const_func_func,
+        [VM_OPCODE_BLT_I16_REG_CONST_PTR_PTR] = &&do_blt_i16_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_I16_CONST_REG_FUNC_FUNC] = &&do_blt_i16_const_reg_func_func,
+        [VM_OPCODE_BLT_I16_CONST_REG_PTR_PTR] = &&do_blt_i16_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I16_CONST_CONST_FUNC_FUNC] = &&do_blt_i16_const_const_func_func,
+        [VM_OPCODE_BLT_I16_CONST_CONST_PTR_PTR] = &&do_blt_i16_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_I16_REG] = &&do_move_i16_reg,
         [VM_OPCODE_MOVE_I16_CONST] = &&do_move_i16_const,
         [VM_OPCODE_OUT_I16_REG] = &&do_out_i16_reg,
@@ -4187,14 +4207,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I32_CONST_CONST] = &&do_mod_i32_const_const,
         [VM_OPCODE_BB_I32_REG_FUNC_FUNC] = &&do_bb_i32_reg_func_func,
         [VM_OPCODE_BB_I32_CONST_FUNC_FUNC] = &&do_bb_i32_const_func_func,
+        [VM_OPCODE_BB_I32_REG_PTR_PTR] = &&do_bb_i32_reg_ptr_ptr,
+        [VM_OPCODE_BB_I32_CONST_PTR_PTR] = &&do_bb_i32_const_ptr_ptr,
         [VM_OPCODE_BEQ_I32_REG_REG_FUNC_FUNC] = &&do_beq_i32_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I32_REG_REG_PTR_PTR] = &&do_beq_i32_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I32_REG_CONST_FUNC_FUNC] = &&do_beq_i32_reg_const_func_func,
+        [VM_OPCODE_BEQ_I32_REG_CONST_PTR_PTR] = &&do_beq_i32_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_I32_CONST_REG_FUNC_FUNC] = &&do_beq_i32_const_reg_func_func,
+        [VM_OPCODE_BEQ_I32_CONST_REG_PTR_PTR] = &&do_beq_i32_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I32_CONST_CONST_FUNC_FUNC] = &&do_beq_i32_const_const_func_func,
+        [VM_OPCODE_BEQ_I32_CONST_CONST_PTR_PTR] = &&do_beq_i32_const_const_ptr_ptr,
         [VM_OPCODE_BLT_I32_REG_REG_FUNC_FUNC] = &&do_blt_i32_reg_reg_func_func,
+        [VM_OPCODE_BLT_I32_REG_REG_PTR_PTR] = &&do_blt_i32_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_I32_REG_CONST_FUNC_FUNC] = &&do_blt_i32_reg_const_func_func,
+        [VM_OPCODE_BLT_I32_REG_CONST_PTR_PTR] = &&do_blt_i32_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_I32_CONST_REG_FUNC_FUNC] = &&do_blt_i32_const_reg_func_func,
+        [VM_OPCODE_BLT_I32_CONST_REG_PTR_PTR] = &&do_blt_i32_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I32_CONST_CONST_FUNC_FUNC] = &&do_blt_i32_const_const_func_func,
+        [VM_OPCODE_BLT_I32_CONST_CONST_PTR_PTR] = &&do_blt_i32_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_I32_REG] = &&do_move_i32_reg,
         [VM_OPCODE_MOVE_I32_CONST] = &&do_move_i32_const,
         [VM_OPCODE_OUT_I32_REG] = &&do_out_i32_reg,
@@ -4246,14 +4276,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_I64_CONST_CONST] = &&do_mod_i64_const_const,
         [VM_OPCODE_BB_I64_REG_FUNC_FUNC] = &&do_bb_i64_reg_func_func,
         [VM_OPCODE_BB_I64_CONST_FUNC_FUNC] = &&do_bb_i64_const_func_func,
+        [VM_OPCODE_BB_I64_REG_PTR_PTR] = &&do_bb_i64_reg_ptr_ptr,
+        [VM_OPCODE_BB_I64_CONST_PTR_PTR] = &&do_bb_i64_const_ptr_ptr,
         [VM_OPCODE_BEQ_I64_REG_REG_FUNC_FUNC] = &&do_beq_i64_reg_reg_func_func,
+        [VM_OPCODE_BEQ_I64_REG_REG_PTR_PTR] = &&do_beq_i64_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I64_REG_CONST_FUNC_FUNC] = &&do_beq_i64_reg_const_func_func,
+        [VM_OPCODE_BEQ_I64_REG_CONST_PTR_PTR] = &&do_beq_i64_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_I64_CONST_REG_FUNC_FUNC] = &&do_beq_i64_const_reg_func_func,
+        [VM_OPCODE_BEQ_I64_CONST_REG_PTR_PTR] = &&do_beq_i64_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_I64_CONST_CONST_FUNC_FUNC] = &&do_beq_i64_const_const_func_func,
+        [VM_OPCODE_BEQ_I64_CONST_CONST_PTR_PTR] = &&do_beq_i64_const_const_ptr_ptr,
         [VM_OPCODE_BLT_I64_REG_REG_FUNC_FUNC] = &&do_blt_i64_reg_reg_func_func,
+        [VM_OPCODE_BLT_I64_REG_REG_PTR_PTR] = &&do_blt_i64_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_I64_REG_CONST_FUNC_FUNC] = &&do_blt_i64_reg_const_func_func,
+        [VM_OPCODE_BLT_I64_REG_CONST_PTR_PTR] = &&do_blt_i64_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_I64_CONST_REG_FUNC_FUNC] = &&do_blt_i64_const_reg_func_func,
+        [VM_OPCODE_BLT_I64_CONST_REG_PTR_PTR] = &&do_blt_i64_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I64_CONST_CONST_FUNC_FUNC] = &&do_blt_i64_const_const_func_func,
+        [VM_OPCODE_BLT_I64_CONST_CONST_PTR_PTR] = &&do_blt_i64_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_I64_REG] = &&do_move_i64_reg,
         [VM_OPCODE_MOVE_I64_CONST] = &&do_move_i64_const,
         [VM_OPCODE_OUT_I64_REG] = &&do_out_i64_reg,
@@ -4305,14 +4345,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U8_CONST_CONST] = &&do_mod_u8_const_const,
         [VM_OPCODE_BB_U8_REG_FUNC_FUNC] = &&do_bb_u8_reg_func_func,
         [VM_OPCODE_BB_U8_CONST_FUNC_FUNC] = &&do_bb_u8_const_func_func,
+        [VM_OPCODE_BB_U8_REG_PTR_PTR] = &&do_bb_u8_reg_ptr_ptr,
+        [VM_OPCODE_BB_U8_CONST_PTR_PTR] = &&do_bb_u8_const_ptr_ptr,
         [VM_OPCODE_BEQ_U8_REG_REG_FUNC_FUNC] = &&do_beq_u8_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U8_REG_REG_PTR_PTR] = &&do_beq_u8_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U8_REG_CONST_FUNC_FUNC] = &&do_beq_u8_reg_const_func_func,
+        [VM_OPCODE_BEQ_U8_REG_CONST_PTR_PTR] = &&do_beq_u8_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_U8_CONST_REG_FUNC_FUNC] = &&do_beq_u8_const_reg_func_func,
+        [VM_OPCODE_BEQ_U8_CONST_REG_PTR_PTR] = &&do_beq_u8_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U8_CONST_CONST_FUNC_FUNC] = &&do_beq_u8_const_const_func_func,
+        [VM_OPCODE_BEQ_U8_CONST_CONST_PTR_PTR] = &&do_beq_u8_const_const_ptr_ptr,
         [VM_OPCODE_BLT_U8_REG_REG_FUNC_FUNC] = &&do_blt_u8_reg_reg_func_func,
+        [VM_OPCODE_BLT_U8_REG_REG_PTR_PTR] = &&do_blt_u8_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_U8_REG_CONST_FUNC_FUNC] = &&do_blt_u8_reg_const_func_func,
+        [VM_OPCODE_BLT_U8_REG_CONST_PTR_PTR] = &&do_blt_u8_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_U8_CONST_REG_FUNC_FUNC] = &&do_blt_u8_const_reg_func_func,
+        [VM_OPCODE_BLT_U8_CONST_REG_PTR_PTR] = &&do_blt_u8_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U8_CONST_CONST_FUNC_FUNC] = &&do_blt_u8_const_const_func_func,
+        [VM_OPCODE_BLT_U8_CONST_CONST_PTR_PTR] = &&do_blt_u8_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_U8_REG] = &&do_move_u8_reg,
         [VM_OPCODE_MOVE_U8_CONST] = &&do_move_u8_const,
         [VM_OPCODE_OUT_U8_REG] = &&do_out_u8_reg,
@@ -4364,14 +4414,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U16_CONST_CONST] = &&do_mod_u16_const_const,
         [VM_OPCODE_BB_U16_REG_FUNC_FUNC] = &&do_bb_u16_reg_func_func,
         [VM_OPCODE_BB_U16_CONST_FUNC_FUNC] = &&do_bb_u16_const_func_func,
+        [VM_OPCODE_BB_U16_REG_PTR_PTR] = &&do_bb_u16_reg_ptr_ptr,
+        [VM_OPCODE_BB_U16_CONST_PTR_PTR] = &&do_bb_u16_const_ptr_ptr,
         [VM_OPCODE_BEQ_U16_REG_REG_FUNC_FUNC] = &&do_beq_u16_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U16_REG_REG_PTR_PTR] = &&do_beq_u16_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U16_REG_CONST_FUNC_FUNC] = &&do_beq_u16_reg_const_func_func,
+        [VM_OPCODE_BEQ_U16_REG_CONST_PTR_PTR] = &&do_beq_u16_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_U16_CONST_REG_FUNC_FUNC] = &&do_beq_u16_const_reg_func_func,
+        [VM_OPCODE_BEQ_U16_CONST_REG_PTR_PTR] = &&do_beq_u16_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U16_CONST_CONST_FUNC_FUNC] = &&do_beq_u16_const_const_func_func,
+        [VM_OPCODE_BEQ_U16_CONST_CONST_PTR_PTR] = &&do_beq_u16_const_const_ptr_ptr,
         [VM_OPCODE_BLT_U16_REG_REG_FUNC_FUNC] = &&do_blt_u16_reg_reg_func_func,
+        [VM_OPCODE_BLT_U16_REG_REG_PTR_PTR] = &&do_blt_u16_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_U16_REG_CONST_FUNC_FUNC] = &&do_blt_u16_reg_const_func_func,
+        [VM_OPCODE_BLT_U16_REG_CONST_PTR_PTR] = &&do_blt_u16_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_U16_CONST_REG_FUNC_FUNC] = &&do_blt_u16_const_reg_func_func,
+        [VM_OPCODE_BLT_U16_CONST_REG_PTR_PTR] = &&do_blt_u16_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U16_CONST_CONST_FUNC_FUNC] = &&do_blt_u16_const_const_func_func,
+        [VM_OPCODE_BLT_U16_CONST_CONST_PTR_PTR] = &&do_blt_u16_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_U16_REG] = &&do_move_u16_reg,
         [VM_OPCODE_MOVE_U16_CONST] = &&do_move_u16_const,
         [VM_OPCODE_OUT_U16_REG] = &&do_out_u16_reg,
@@ -4423,14 +4483,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U32_CONST_CONST] = &&do_mod_u32_const_const,
         [VM_OPCODE_BB_U32_REG_FUNC_FUNC] = &&do_bb_u32_reg_func_func,
         [VM_OPCODE_BB_U32_CONST_FUNC_FUNC] = &&do_bb_u32_const_func_func,
+        [VM_OPCODE_BB_U32_REG_PTR_PTR] = &&do_bb_u32_reg_ptr_ptr,
+        [VM_OPCODE_BB_U32_CONST_PTR_PTR] = &&do_bb_u32_const_ptr_ptr,
         [VM_OPCODE_BEQ_U32_REG_REG_FUNC_FUNC] = &&do_beq_u32_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U32_REG_REG_PTR_PTR] = &&do_beq_u32_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U32_REG_CONST_FUNC_FUNC] = &&do_beq_u32_reg_const_func_func,
+        [VM_OPCODE_BEQ_U32_REG_CONST_PTR_PTR] = &&do_beq_u32_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_U32_CONST_REG_FUNC_FUNC] = &&do_beq_u32_const_reg_func_func,
+        [VM_OPCODE_BEQ_U32_CONST_REG_PTR_PTR] = &&do_beq_u32_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U32_CONST_CONST_FUNC_FUNC] = &&do_beq_u32_const_const_func_func,
+        [VM_OPCODE_BEQ_U32_CONST_CONST_PTR_PTR] = &&do_beq_u32_const_const_ptr_ptr,
         [VM_OPCODE_BLT_U32_REG_REG_FUNC_FUNC] = &&do_blt_u32_reg_reg_func_func,
+        [VM_OPCODE_BLT_U32_REG_REG_PTR_PTR] = &&do_blt_u32_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_U32_REG_CONST_FUNC_FUNC] = &&do_blt_u32_reg_const_func_func,
+        [VM_OPCODE_BLT_U32_REG_CONST_PTR_PTR] = &&do_blt_u32_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_U32_CONST_REG_FUNC_FUNC] = &&do_blt_u32_const_reg_func_func,
+        [VM_OPCODE_BLT_U32_CONST_REG_PTR_PTR] = &&do_blt_u32_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U32_CONST_CONST_FUNC_FUNC] = &&do_blt_u32_const_const_func_func,
+        [VM_OPCODE_BLT_U32_CONST_CONST_PTR_PTR] = &&do_blt_u32_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_U32_REG] = &&do_move_u32_reg,
         [VM_OPCODE_MOVE_U32_CONST] = &&do_move_u32_const,
         [VM_OPCODE_OUT_U32_REG] = &&do_out_u32_reg,
@@ -4482,14 +4552,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_U64_CONST_CONST] = &&do_mod_u64_const_const,
         [VM_OPCODE_BB_U64_REG_FUNC_FUNC] = &&do_bb_u64_reg_func_func,
         [VM_OPCODE_BB_U64_CONST_FUNC_FUNC] = &&do_bb_u64_const_func_func,
+        [VM_OPCODE_BB_U64_REG_PTR_PTR] = &&do_bb_u64_reg_ptr_ptr,
+        [VM_OPCODE_BB_U64_CONST_PTR_PTR] = &&do_bb_u64_const_ptr_ptr,
         [VM_OPCODE_BEQ_U64_REG_REG_FUNC_FUNC] = &&do_beq_u64_reg_reg_func_func,
+        [VM_OPCODE_BEQ_U64_REG_REG_PTR_PTR] = &&do_beq_u64_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U64_REG_CONST_FUNC_FUNC] = &&do_beq_u64_reg_const_func_func,
+        [VM_OPCODE_BEQ_U64_REG_CONST_PTR_PTR] = &&do_beq_u64_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_U64_CONST_REG_FUNC_FUNC] = &&do_beq_u64_const_reg_func_func,
+        [VM_OPCODE_BEQ_U64_CONST_REG_PTR_PTR] = &&do_beq_u64_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_U64_CONST_CONST_FUNC_FUNC] = &&do_beq_u64_const_const_func_func,
+        [VM_OPCODE_BEQ_U64_CONST_CONST_PTR_PTR] = &&do_beq_u64_const_const_ptr_ptr,
         [VM_OPCODE_BLT_U64_REG_REG_FUNC_FUNC] = &&do_blt_u64_reg_reg_func_func,
+        [VM_OPCODE_BLT_U64_REG_REG_PTR_PTR] = &&do_blt_u64_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_U64_REG_CONST_FUNC_FUNC] = &&do_blt_u64_reg_const_func_func,
+        [VM_OPCODE_BLT_U64_REG_CONST_PTR_PTR] = &&do_blt_u64_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_U64_CONST_REG_FUNC_FUNC] = &&do_blt_u64_const_reg_func_func,
+        [VM_OPCODE_BLT_U64_CONST_REG_PTR_PTR] = &&do_blt_u64_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U64_CONST_CONST_FUNC_FUNC] = &&do_blt_u64_const_const_func_func,
+        [VM_OPCODE_BLT_U64_CONST_CONST_PTR_PTR] = &&do_blt_u64_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_U64_REG] = &&do_move_u64_reg,
         [VM_OPCODE_MOVE_U64_CONST] = &&do_move_u64_const,
         [VM_OPCODE_OUT_U64_REG] = &&do_out_u64_reg,
@@ -4541,14 +4621,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_F32_CONST_CONST] = &&do_mod_f32_const_const,
         [VM_OPCODE_BB_F32_REG_FUNC_FUNC] = &&do_bb_f32_reg_func_func,
         [VM_OPCODE_BB_F32_CONST_FUNC_FUNC] = &&do_bb_f32_const_func_func,
+        [VM_OPCODE_BB_F32_REG_PTR_PTR] = &&do_bb_f32_reg_ptr_ptr,
+        [VM_OPCODE_BB_F32_CONST_PTR_PTR] = &&do_bb_f32_const_ptr_ptr,
         [VM_OPCODE_BEQ_F32_REG_REG_FUNC_FUNC] = &&do_beq_f32_reg_reg_func_func,
+        [VM_OPCODE_BEQ_F32_REG_REG_PTR_PTR] = &&do_beq_f32_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_F32_REG_CONST_FUNC_FUNC] = &&do_beq_f32_reg_const_func_func,
+        [VM_OPCODE_BEQ_F32_REG_CONST_PTR_PTR] = &&do_beq_f32_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_F32_CONST_REG_FUNC_FUNC] = &&do_beq_f32_const_reg_func_func,
+        [VM_OPCODE_BEQ_F32_CONST_REG_PTR_PTR] = &&do_beq_f32_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_F32_CONST_CONST_FUNC_FUNC] = &&do_beq_f32_const_const_func_func,
+        [VM_OPCODE_BEQ_F32_CONST_CONST_PTR_PTR] = &&do_beq_f32_const_const_ptr_ptr,
         [VM_OPCODE_BLT_F32_REG_REG_FUNC_FUNC] = &&do_blt_f32_reg_reg_func_func,
+        [VM_OPCODE_BLT_F32_REG_REG_PTR_PTR] = &&do_blt_f32_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_F32_REG_CONST_FUNC_FUNC] = &&do_blt_f32_reg_const_func_func,
+        [VM_OPCODE_BLT_F32_REG_CONST_PTR_PTR] = &&do_blt_f32_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_F32_CONST_REG_FUNC_FUNC] = &&do_blt_f32_const_reg_func_func,
+        [VM_OPCODE_BLT_F32_CONST_REG_PTR_PTR] = &&do_blt_f32_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_F32_CONST_CONST_FUNC_FUNC] = &&do_blt_f32_const_const_func_func,
+        [VM_OPCODE_BLT_F32_CONST_CONST_PTR_PTR] = &&do_blt_f32_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_F32_REG] = &&do_move_f32_reg,
         [VM_OPCODE_MOVE_F32_CONST] = &&do_move_f32_const,
         [VM_OPCODE_OUT_F32_REG] = &&do_out_f32_reg,
@@ -4578,14 +4668,24 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_MOD_F64_CONST_CONST] = &&do_mod_f64_const_const,
         [VM_OPCODE_BB_F64_REG_FUNC_FUNC] = &&do_bb_f64_reg_func_func,
         [VM_OPCODE_BB_F64_CONST_FUNC_FUNC] = &&do_bb_f64_const_func_func,
+        [VM_OPCODE_BB_F64_REG_PTR_PTR] = &&do_bb_f64_reg_ptr_ptr,
+        [VM_OPCODE_BB_F64_CONST_PTR_PTR] = &&do_bb_f64_const_ptr_ptr,
         [VM_OPCODE_BEQ_F64_REG_REG_FUNC_FUNC] = &&do_beq_f64_reg_reg_func_func,
+        [VM_OPCODE_BEQ_F64_REG_REG_PTR_PTR] = &&do_beq_f64_reg_reg_ptr_ptr,
         [VM_OPCODE_BEQ_F64_REG_CONST_FUNC_FUNC] = &&do_beq_f64_reg_const_func_func,
+        [VM_OPCODE_BEQ_F64_REG_CONST_PTR_PTR] = &&do_beq_f64_reg_const_ptr_ptr,
         [VM_OPCODE_BEQ_F64_CONST_REG_FUNC_FUNC] = &&do_beq_f64_const_reg_func_func,
+        [VM_OPCODE_BEQ_F64_CONST_REG_PTR_PTR] = &&do_beq_f64_const_reg_ptr_ptr,
         [VM_OPCODE_BEQ_F64_CONST_CONST_FUNC_FUNC] = &&do_beq_f64_const_const_func_func,
+        [VM_OPCODE_BEQ_F64_CONST_CONST_PTR_PTR] = &&do_beq_f64_const_const_ptr_ptr,
         [VM_OPCODE_BLT_F64_REG_REG_FUNC_FUNC] = &&do_blt_f64_reg_reg_func_func,
+        [VM_OPCODE_BLT_F64_REG_REG_PTR_PTR] = &&do_blt_f64_reg_reg_ptr_ptr,
         [VM_OPCODE_BLT_F64_REG_CONST_FUNC_FUNC] = &&do_blt_f64_reg_const_func_func,
+        [VM_OPCODE_BLT_F64_REG_CONST_PTR_PTR] = &&do_blt_f64_reg_const_ptr_ptr,
         [VM_OPCODE_BLT_F64_CONST_REG_FUNC_FUNC] = &&do_blt_f64_const_reg_func_func,
+        [VM_OPCODE_BLT_F64_CONST_REG_PTR_PTR] = &&do_blt_f64_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_F64_CONST_CONST_FUNC_FUNC] = &&do_blt_f64_const_const_func_func,
+        [VM_OPCODE_BLT_F64_CONST_CONST_PTR_PTR] = &&do_blt_f64_const_const_ptr_ptr,
         [VM_OPCODE_MOVE_F64_REG] = &&do_move_f64_reg,
         [VM_OPCODE_MOVE_F64_CONST] = &&do_move_f64_const,
         [VM_OPCODE_OUT_F64_REG] = &&do_out_f64_reg,
@@ -4740,100 +4840,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_i8_reg_func_func: {
-        int8_t a0 = locals[(ip++)->reg].i8;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i8_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_i8_const_func_func: {
-        int8_t a0 = (ip++)->i8;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i8_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_i8_reg_ptr_ptr: {
+        int8_t a0 = locals[ip[0].reg].i8;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_i8_const_ptr_ptr: {
+        int8_t a0 = ip[0].i8;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i8_reg_reg_func_func: {
-        int8_t a0 = locals[(ip++)->reg].i8;
-        int8_t a1 = locals[(ip++)->reg].i8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i8_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i8_reg_reg_ptr_ptr: {
+        int8_t a0 = locals[ip[0].reg].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i8_reg_const_func_func: {
-        int8_t a0 = locals[(ip++)->reg].i8;
-        int8_t a1 = (ip++)->i8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i8_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i8_reg_const_ptr_ptr: {
+        int8_t a0 = locals[ip[0].reg].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i8_const_reg_func_func: {
-        int8_t a0 = (ip++)->i8;
-        int8_t a1 = locals[(ip++)->reg].i8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i8_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i8_const_reg_ptr_ptr: {
+        int8_t a0 = ip[0].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i8_const_const_func_func: {
-        int8_t a0 = (ip++)->i8;
-        int8_t a1 = (ip++)->i8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i8_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i8_const_const_ptr_ptr: {
+        int8_t a0 = ip[0].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_reg_reg_func_func: {
-        int8_t a0 = locals[(ip++)->reg].i8;
-        int8_t a1 = locals[(ip++)->reg].i8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i8_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i8_reg_reg_ptr_ptr: {
+        int8_t a0 = locals[ip[0].reg].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_reg_const_func_func: {
-        int8_t a0 = locals[(ip++)->reg].i8;
-        int8_t a1 = (ip++)->i8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i8_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i8_reg_const_ptr_ptr: {
+        int8_t a0 = locals[ip[0].reg].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_const_reg_func_func: {
-        int8_t a0 = (ip++)->i8;
-        int8_t a1 = locals[(ip++)->reg].i8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i8_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i8_const_reg_ptr_ptr: {
+        int8_t a0 = ip[0].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i8_const_const_func_func: {
-        int8_t a0 = (ip++)->i8;
-        int8_t a1 = (ip++)->i8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i8_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i8_const_const_ptr_ptr: {
+        int8_t a0 = ip[0].i8;
+        int8_t a1 = ip[1].i8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -5126,100 +5304,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_i16_reg_func_func: {
-        int16_t a0 = locals[(ip++)->reg].i16;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i16_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_i16_const_func_func: {
-        int16_t a0 = (ip++)->i16;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i16_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_i16_reg_ptr_ptr: {
+        int16_t a0 = locals[ip[0].reg].i16;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_i16_const_ptr_ptr: {
+        int16_t a0 = ip[0].i16;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i16_reg_reg_func_func: {
-        int16_t a0 = locals[(ip++)->reg].i16;
-        int16_t a1 = locals[(ip++)->reg].i16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i16_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i16_reg_reg_ptr_ptr: {
+        int16_t a0 = locals[ip[0].reg].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i16_reg_const_func_func: {
-        int16_t a0 = locals[(ip++)->reg].i16;
-        int16_t a1 = (ip++)->i16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i16_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i16_reg_const_ptr_ptr: {
+        int16_t a0 = locals[ip[0].reg].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i16_const_reg_func_func: {
-        int16_t a0 = (ip++)->i16;
-        int16_t a1 = locals[(ip++)->reg].i16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i16_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i16_const_reg_ptr_ptr: {
+        int16_t a0 = ip[0].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i16_const_const_func_func: {
-        int16_t a0 = (ip++)->i16;
-        int16_t a1 = (ip++)->i16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i16_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i16_const_const_ptr_ptr: {
+        int16_t a0 = ip[0].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_reg_reg_func_func: {
-        int16_t a0 = locals[(ip++)->reg].i16;
-        int16_t a1 = locals[(ip++)->reg].i16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i16_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i16_reg_reg_ptr_ptr: {
+        int16_t a0 = locals[ip[0].reg].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_reg_const_func_func: {
-        int16_t a0 = locals[(ip++)->reg].i16;
-        int16_t a1 = (ip++)->i16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i16_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i16_reg_const_ptr_ptr: {
+        int16_t a0 = locals[ip[0].reg].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_const_reg_func_func: {
-        int16_t a0 = (ip++)->i16;
-        int16_t a1 = locals[(ip++)->reg].i16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i16_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i16_const_reg_ptr_ptr: {
+        int16_t a0 = ip[0].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i16_const_const_func_func: {
-        int16_t a0 = (ip++)->i16;
-        int16_t a1 = (ip++)->i16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i16_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i16_const_const_ptr_ptr: {
+        int16_t a0 = ip[0].i16;
+        int16_t a1 = ip[1].i16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -5512,100 +5768,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_i32_reg_func_func: {
-        int32_t a0 = locals[(ip++)->reg].i32;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i32_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_i32_const_func_func: {
-        int32_t a0 = (ip++)->i32;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i32_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_i32_reg_ptr_ptr: {
+        int32_t a0 = locals[ip[0].reg].i32;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_i32_const_ptr_ptr: {
+        int32_t a0 = ip[0].i32;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i32_reg_reg_func_func: {
-        int32_t a0 = locals[(ip++)->reg].i32;
-        int32_t a1 = locals[(ip++)->reg].i32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i32_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i32_reg_reg_ptr_ptr: {
+        int32_t a0 = locals[ip[0].reg].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i32_reg_const_func_func: {
-        int32_t a0 = locals[(ip++)->reg].i32;
-        int32_t a1 = (ip++)->i32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i32_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i32_reg_const_ptr_ptr: {
+        int32_t a0 = locals[ip[0].reg].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i32_const_reg_func_func: {
-        int32_t a0 = (ip++)->i32;
-        int32_t a1 = locals[(ip++)->reg].i32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i32_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i32_const_reg_ptr_ptr: {
+        int32_t a0 = ip[0].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i32_const_const_func_func: {
-        int32_t a0 = (ip++)->i32;
-        int32_t a1 = (ip++)->i32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i32_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i32_const_const_ptr_ptr: {
+        int32_t a0 = ip[0].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_reg_reg_func_func: {
-        int32_t a0 = locals[(ip++)->reg].i32;
-        int32_t a1 = locals[(ip++)->reg].i32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i32_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i32_reg_reg_ptr_ptr: {
+        int32_t a0 = locals[ip[0].reg].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_reg_const_func_func: {
-        int32_t a0 = locals[(ip++)->reg].i32;
-        int32_t a1 = (ip++)->i32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i32_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i32_reg_const_ptr_ptr: {
+        int32_t a0 = locals[ip[0].reg].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_const_reg_func_func: {
-        int32_t a0 = (ip++)->i32;
-        int32_t a1 = locals[(ip++)->reg].i32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i32_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i32_const_reg_ptr_ptr: {
+        int32_t a0 = ip[0].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i32_const_const_func_func: {
-        int32_t a0 = (ip++)->i32;
-        int32_t a1 = (ip++)->i32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i32_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i32_const_const_ptr_ptr: {
+        int32_t a0 = ip[0].i32;
+        int32_t a1 = ip[1].i32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -5898,100 +6232,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_i64_reg_func_func: {
-        int64_t a0 = locals[(ip++)->reg].i64;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i64_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_i64_const_func_func: {
-        int64_t a0 = (ip++)->i64;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_i64_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_i64_reg_ptr_ptr: {
+        int64_t a0 = locals[ip[0].reg].i64;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_i64_const_ptr_ptr: {
+        int64_t a0 = ip[0].i64;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i64_reg_reg_func_func: {
-        int64_t a0 = locals[(ip++)->reg].i64;
-        int64_t a1 = locals[(ip++)->reg].i64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i64_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i64_reg_reg_ptr_ptr: {
+        int64_t a0 = locals[ip[0].reg].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i64_reg_const_func_func: {
-        int64_t a0 = locals[(ip++)->reg].i64;
-        int64_t a1 = (ip++)->i64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i64_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i64_reg_const_ptr_ptr: {
+        int64_t a0 = locals[ip[0].reg].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i64_const_reg_func_func: {
-        int64_t a0 = (ip++)->i64;
-        int64_t a1 = locals[(ip++)->reg].i64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i64_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i64_const_reg_ptr_ptr: {
+        int64_t a0 = ip[0].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_i64_const_const_func_func: {
-        int64_t a0 = (ip++)->i64;
-        int64_t a1 = (ip++)->i64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_i64_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_i64_const_const_ptr_ptr: {
+        int64_t a0 = ip[0].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_reg_reg_func_func: {
-        int64_t a0 = locals[(ip++)->reg].i64;
-        int64_t a1 = locals[(ip++)->reg].i64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i64_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i64_reg_reg_ptr_ptr: {
+        int64_t a0 = locals[ip[0].reg].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_reg_const_func_func: {
-        int64_t a0 = locals[(ip++)->reg].i64;
-        int64_t a1 = (ip++)->i64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i64_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i64_reg_const_ptr_ptr: {
+        int64_t a0 = locals[ip[0].reg].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_const_reg_func_func: {
-        int64_t a0 = (ip++)->i64;
-        int64_t a1 = locals[(ip++)->reg].i64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i64_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i64_const_reg_ptr_ptr: {
+        int64_t a0 = ip[0].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_i64_const_const_func_func: {
-        int64_t a0 = (ip++)->i64;
-        int64_t a1 = (ip++)->i64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_i64_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_i64_const_const_ptr_ptr: {
+        int64_t a0 = ip[0].i64;
+        int64_t a1 = ip[1].i64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -6284,100 +6696,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_u8_reg_func_func: {
-        uint8_t a0 = locals[(ip++)->reg].u8;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u8_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_u8_const_func_func: {
-        uint8_t a0 = (ip++)->u8;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u8_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_u8_reg_ptr_ptr: {
+        uint8_t a0 = locals[ip[0].reg].u8;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_u8_const_ptr_ptr: {
+        uint8_t a0 = ip[0].u8;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u8_reg_reg_func_func: {
-        uint8_t a0 = locals[(ip++)->reg].u8;
-        uint8_t a1 = locals[(ip++)->reg].u8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u8_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u8_reg_reg_ptr_ptr: {
+        uint8_t a0 = locals[ip[0].reg].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u8_reg_const_func_func: {
-        uint8_t a0 = locals[(ip++)->reg].u8;
-        uint8_t a1 = (ip++)->u8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u8_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u8_reg_const_ptr_ptr: {
+        uint8_t a0 = locals[ip[0].reg].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u8_const_reg_func_func: {
-        uint8_t a0 = (ip++)->u8;
-        uint8_t a1 = locals[(ip++)->reg].u8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u8_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u8_const_reg_ptr_ptr: {
+        uint8_t a0 = ip[0].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u8_const_const_func_func: {
-        uint8_t a0 = (ip++)->u8;
-        uint8_t a1 = (ip++)->u8;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u8_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u8_const_const_ptr_ptr: {
+        uint8_t a0 = ip[0].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_reg_reg_func_func: {
-        uint8_t a0 = locals[(ip++)->reg].u8;
-        uint8_t a1 = locals[(ip++)->reg].u8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u8_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u8_reg_reg_ptr_ptr: {
+        uint8_t a0 = locals[ip[0].reg].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_reg_const_func_func: {
-        uint8_t a0 = locals[(ip++)->reg].u8;
-        uint8_t a1 = (ip++)->u8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u8_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u8_reg_const_ptr_ptr: {
+        uint8_t a0 = locals[ip[0].reg].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_const_reg_func_func: {
-        uint8_t a0 = (ip++)->u8;
-        uint8_t a1 = locals[(ip++)->reg].u8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u8_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u8_const_reg_ptr_ptr: {
+        uint8_t a0 = ip[0].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u8_const_const_func_func: {
-        uint8_t a0 = (ip++)->u8;
-        uint8_t a1 = (ip++)->u8;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u8_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u8_const_const_ptr_ptr: {
+        uint8_t a0 = ip[0].u8;
+        uint8_t a1 = ip[1].u8;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -6670,100 +7160,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_u16_reg_func_func: {
-        uint16_t a0 = locals[(ip++)->reg].u16;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u16_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_u16_const_func_func: {
-        uint16_t a0 = (ip++)->u16;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u16_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_u16_reg_ptr_ptr: {
+        uint16_t a0 = locals[ip[0].reg].u16;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_u16_const_ptr_ptr: {
+        uint16_t a0 = ip[0].u16;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u16_reg_reg_func_func: {
-        uint16_t a0 = locals[(ip++)->reg].u16;
-        uint16_t a1 = locals[(ip++)->reg].u16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u16_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u16_reg_reg_ptr_ptr: {
+        uint16_t a0 = locals[ip[0].reg].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u16_reg_const_func_func: {
-        uint16_t a0 = locals[(ip++)->reg].u16;
-        uint16_t a1 = (ip++)->u16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u16_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u16_reg_const_ptr_ptr: {
+        uint16_t a0 = locals[ip[0].reg].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u16_const_reg_func_func: {
-        uint16_t a0 = (ip++)->u16;
-        uint16_t a1 = locals[(ip++)->reg].u16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u16_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u16_const_reg_ptr_ptr: {
+        uint16_t a0 = ip[0].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u16_const_const_func_func: {
-        uint16_t a0 = (ip++)->u16;
-        uint16_t a1 = (ip++)->u16;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u16_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u16_const_const_ptr_ptr: {
+        uint16_t a0 = ip[0].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_reg_reg_func_func: {
-        uint16_t a0 = locals[(ip++)->reg].u16;
-        uint16_t a1 = locals[(ip++)->reg].u16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u16_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u16_reg_reg_ptr_ptr: {
+        uint16_t a0 = locals[ip[0].reg].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_reg_const_func_func: {
-        uint16_t a0 = locals[(ip++)->reg].u16;
-        uint16_t a1 = (ip++)->u16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u16_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u16_reg_const_ptr_ptr: {
+        uint16_t a0 = locals[ip[0].reg].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_const_reg_func_func: {
-        uint16_t a0 = (ip++)->u16;
-        uint16_t a1 = locals[(ip++)->reg].u16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u16_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u16_const_reg_ptr_ptr: {
+        uint16_t a0 = ip[0].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u16_const_const_func_func: {
-        uint16_t a0 = (ip++)->u16;
-        uint16_t a1 = (ip++)->u16;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u16_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u16_const_const_ptr_ptr: {
+        uint16_t a0 = ip[0].u16;
+        uint16_t a1 = ip[1].u16;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -7056,100 +7624,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_u32_reg_func_func: {
-        uint32_t a0 = locals[(ip++)->reg].u32;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u32_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_u32_const_func_func: {
-        uint32_t a0 = (ip++)->u32;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u32_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_u32_reg_ptr_ptr: {
+        uint32_t a0 = locals[ip[0].reg].u32;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_u32_const_ptr_ptr: {
+        uint32_t a0 = ip[0].u32;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u32_reg_reg_func_func: {
-        uint32_t a0 = locals[(ip++)->reg].u32;
-        uint32_t a1 = locals[(ip++)->reg].u32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u32_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u32_reg_reg_ptr_ptr: {
+        uint32_t a0 = locals[ip[0].reg].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u32_reg_const_func_func: {
-        uint32_t a0 = locals[(ip++)->reg].u32;
-        uint32_t a1 = (ip++)->u32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u32_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u32_reg_const_ptr_ptr: {
+        uint32_t a0 = locals[ip[0].reg].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u32_const_reg_func_func: {
-        uint32_t a0 = (ip++)->u32;
-        uint32_t a1 = locals[(ip++)->reg].u32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u32_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u32_const_reg_ptr_ptr: {
+        uint32_t a0 = ip[0].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u32_const_const_func_func: {
-        uint32_t a0 = (ip++)->u32;
-        uint32_t a1 = (ip++)->u32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u32_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u32_const_const_ptr_ptr: {
+        uint32_t a0 = ip[0].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_reg_reg_func_func: {
-        uint32_t a0 = locals[(ip++)->reg].u32;
-        uint32_t a1 = locals[(ip++)->reg].u32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u32_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u32_reg_reg_ptr_ptr: {
+        uint32_t a0 = locals[ip[0].reg].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_reg_const_func_func: {
-        uint32_t a0 = locals[(ip++)->reg].u32;
-        uint32_t a1 = (ip++)->u32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u32_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u32_reg_const_ptr_ptr: {
+        uint32_t a0 = locals[ip[0].reg].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_const_reg_func_func: {
-        uint32_t a0 = (ip++)->u32;
-        uint32_t a1 = locals[(ip++)->reg].u32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u32_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u32_const_reg_ptr_ptr: {
+        uint32_t a0 = ip[0].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u32_const_const_func_func: {
-        uint32_t a0 = (ip++)->u32;
-        uint32_t a1 = (ip++)->u32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u32_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u32_const_const_ptr_ptr: {
+        uint32_t a0 = ip[0].u32;
+        uint32_t a1 = ip[1].u32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -7442,100 +8088,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_u64_reg_func_func: {
-        uint64_t a0 = locals[(ip++)->reg].u64;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u64_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_u64_const_func_func: {
-        uint64_t a0 = (ip++)->u64;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_u64_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_u64_reg_ptr_ptr: {
+        uint64_t a0 = locals[ip[0].reg].u64;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_u64_const_ptr_ptr: {
+        uint64_t a0 = ip[0].u64;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u64_reg_reg_func_func: {
-        uint64_t a0 = locals[(ip++)->reg].u64;
-        uint64_t a1 = locals[(ip++)->reg].u64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u64_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u64_reg_reg_ptr_ptr: {
+        uint64_t a0 = locals[ip[0].reg].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u64_reg_const_func_func: {
-        uint64_t a0 = locals[(ip++)->reg].u64;
-        uint64_t a1 = (ip++)->u64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u64_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u64_reg_const_ptr_ptr: {
+        uint64_t a0 = locals[ip[0].reg].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u64_const_reg_func_func: {
-        uint64_t a0 = (ip++)->u64;
-        uint64_t a1 = locals[(ip++)->reg].u64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u64_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u64_const_reg_ptr_ptr: {
+        uint64_t a0 = ip[0].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_u64_const_const_func_func: {
-        uint64_t a0 = (ip++)->u64;
-        uint64_t a1 = (ip++)->u64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_u64_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_u64_const_const_ptr_ptr: {
+        uint64_t a0 = ip[0].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_reg_reg_func_func: {
-        uint64_t a0 = locals[(ip++)->reg].u64;
-        uint64_t a1 = locals[(ip++)->reg].u64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u64_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u64_reg_reg_ptr_ptr: {
+        uint64_t a0 = locals[ip[0].reg].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_reg_const_func_func: {
-        uint64_t a0 = locals[(ip++)->reg].u64;
-        uint64_t a1 = (ip++)->u64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u64_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u64_reg_const_ptr_ptr: {
+        uint64_t a0 = locals[ip[0].reg].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_const_reg_func_func: {
-        uint64_t a0 = (ip++)->u64;
-        uint64_t a1 = locals[(ip++)->reg].u64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u64_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u64_const_reg_ptr_ptr: {
+        uint64_t a0 = ip[0].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_u64_const_const_func_func: {
-        uint64_t a0 = (ip++)->u64;
-        uint64_t a1 = (ip++)->u64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_u64_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_u64_const_const_ptr_ptr: {
+        uint64_t a0 = ip[0].u64;
+        uint64_t a1 = ip[1].u64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -7828,100 +8552,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_f32_reg_func_func: {
-        float a0 = locals[(ip++)->reg].f32;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_f32_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_f32_const_func_func: {
-        float a0 = (ip++)->f32;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_f32_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_f32_reg_ptr_ptr: {
+        float a0 = locals[ip[0].reg].f32;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_f32_const_ptr_ptr: {
+        float a0 = ip[0].f32;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f32_reg_reg_func_func: {
-        float a0 = locals[(ip++)->reg].f32;
-        float a1 = locals[(ip++)->reg].f32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f32_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f32_reg_reg_ptr_ptr: {
+        float a0 = locals[ip[0].reg].f32;
+        float a1 = ip[1].f32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f32_reg_const_func_func: {
-        float a0 = locals[(ip++)->reg].f32;
-        float a1 = (ip++)->f32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f32_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f32_reg_const_ptr_ptr: {
+        float a0 = locals[ip[0].reg].f32;
+        float a1 = ip[1].f32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f32_const_reg_func_func: {
-        float a0 = (ip++)->f32;
-        float a1 = locals[(ip++)->reg].f32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f32_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f32_const_reg_ptr_ptr: {
+        float a0 = ip[0].f32;
+        float a1 = ip[1].f32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f32_const_const_func_func: {
-        float a0 = (ip++)->f32;
-        float a1 = (ip++)->f32;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f32_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f32_const_const_ptr_ptr: {
+        float a0 = ip[0].f32;
+        float a1 = ip[1].f32;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_reg_reg_func_func: {
-        float a0 = locals[(ip++)->reg].f32;
-        float a1 = locals[(ip++)->reg].f32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f32_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f32_reg_reg_ptr_ptr: {
+        float a0 = locals[ip[0].reg].f32;
+        float a1 = ip[1].f32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_reg_const_func_func: {
-        float a0 = locals[(ip++)->reg].f32;
-        float a1 = (ip++)->f32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f32_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f32_reg_const_ptr_ptr: {
+        float a0 = locals[ip[0].reg].f32;
+        float a1 = ip[1].f32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_const_reg_func_func: {
-        float a0 = (ip++)->f32;
-        float a1 = locals[(ip++)->reg].f32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f32_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f32_const_reg_ptr_ptr: {
+        float a0 = ip[0].f32;
+        float a1 = ip[1].f32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f32_const_const_func_func: {
-        float a0 = (ip++)->f32;
-        float a1 = (ip++)->f32;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f32_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f32_const_const_ptr_ptr: {
+        float a0 = ip[0].f32;
+        float a1 = ip[1].f32;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
@@ -8084,100 +8886,178 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_bb_f64_reg_func_func: {
-        double a0 = locals[(ip++)->reg].f64;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
-        } else {
-            ip = vm_run_comp(state, ip[1].func);
-        }
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_f64_reg_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
         goto *(ip++)->ptr;
     }
     do_bb_f64_const_func_func: {
-        double a0 = (ip++)->f64;
-        if (a0 != 0) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_bb_f64_const_ptr_ptr;
+        ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_bb_f64_reg_ptr_ptr: {
+        double a0 = locals[ip[0].reg].f64;
+        if (a0) {
+            ip = ip[1].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[2].ptr;
+        }
+        goto *(ip++)->ptr;
+    }
+    do_bb_f64_const_ptr_ptr: {
+        double a0 = ip[0].f64;
+        if (a0) {
+            ip = ip[1].ptr;
+        } else {
+            ip = ip[2].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f64_reg_reg_func_func: {
-        double a0 = locals[(ip++)->reg].f64;
-        double a1 = locals[(ip++)->reg].f64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f64_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f64_reg_reg_ptr_ptr: {
+        double a0 = locals[ip[0].reg].f64;
+        double a1 = ip[1].f64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f64_reg_const_func_func: {
-        double a0 = locals[(ip++)->reg].f64;
-        double a1 = (ip++)->f64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f64_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f64_reg_const_ptr_ptr: {
+        double a0 = locals[ip[0].reg].f64;
+        double a1 = ip[1].f64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f64_const_reg_func_func: {
-        double a0 = (ip++)->f64;
-        double a1 = locals[(ip++)->reg].f64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f64_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f64_const_reg_ptr_ptr: {
+        double a0 = ip[0].f64;
+        double a1 = ip[1].f64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_beq_f64_const_const_func_func: {
-        double a0 = (ip++)->f64;
-        double a1 = (ip++)->f64;
-        if (a0 ==a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_beq_f64_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_beq_f64_const_const_ptr_ptr: {
+        double a0 = ip[0].f64;
+        double a1 = ip[1].f64;
+        if (a0 == a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_reg_reg_func_func: {
-        double a0 = locals[(ip++)->reg].f64;
-        double a1 = locals[(ip++)->reg].f64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f64_reg_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f64_reg_reg_ptr_ptr: {
+        double a0 = locals[ip[0].reg].f64;
+        double a1 = ip[1].f64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_reg_const_func_func: {
-        double a0 = locals[(ip++)->reg].f64;
-        double a1 = (ip++)->f64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f64_reg_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f64_reg_const_ptr_ptr: {
+        double a0 = locals[ip[0].reg].f64;
+        double a1 = ip[1].f64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_const_reg_func_func: {
-        double a0 = (ip++)->f64;
-        double a1 = locals[(ip++)->reg].f64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f64_const_reg_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f64_const_reg_ptr_ptr: {
+        double a0 = ip[0].f64;
+        double a1 = ip[1].f64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }
     do_blt_f64_const_const_func_func: {
-        double a0 = (ip++)->f64;
-        double a1 = (ip++)->f64;
-        if (a0 <a1) {
-            ip = vm_run_comp(state, ip[0].func);
+        vm_opcode_t *head = ip-1;
+        head->ptr = &&do_blt_f64_const_const_ptr_ptr;
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
+        ip[3].ptr = vm_run_comp(state, ip[3].func);
+        ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_blt_f64_const_const_ptr_ptr: {
+        double a0 = ip[0].f64;
+        double a1 = ip[1].f64;
+        if (a0 < a1) {
+            ip = ip[2].ptr;
         } else {
-            ip = vm_run_comp(state, ip[1].func);
+            ip = ip[3].ptr;
         }
         goto *(ip++)->ptr;
     }

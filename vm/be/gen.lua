@@ -48,6 +48,7 @@ local function get_install_binary_branch(ctype)
     return function(op)
         local function install_math_const(lhs, rhs)
             push(op, ctype, {lhs, rhs, 'func', 'func'})
+            push(op, ctype, {lhs, rhs, 'ptr', 'ptr'})
         end
 
         install_math_const('reg', 'reg')
@@ -60,6 +61,8 @@ end
 local function install_basic_branch(ctype)
     push('bb', ctype, {'reg', 'func', 'func'})
     push('bb', ctype, {'const', 'func', 'func'})
+    push('bb', ctype, {'reg', 'ptr', 'ptr'})
+    push('bb', ctype, {'const', 'ptr', 'ptr'})
     local install_branch_op = get_install_binary_branch(ctype)
     install_branch_op('beq')
     install_branch_op('blt')
@@ -179,7 +182,6 @@ union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
 
 union vm_opcode_t {
-    void *ptr;
     size_t reg;
     int8_t i8;
     int16_t i16;
@@ -192,6 +194,7 @@ union vm_opcode_t {
     float f32;
     double f64;
     vm_block_t *func;
+    void *ptr;
 };
 
 struct vm_state_t {
@@ -657,36 +660,46 @@ void vm_state_deinit(vm_state_t *state) {
             elseif instr.op == 'jump' then
                 case[#case + 1] = '        vm_block_t *t0 = (ip++)->func;'
                 case[#case + 1] = '        ip = vm_run_comp(state, t0);'
-            elseif instr.op == 'bb' then
+            elseif instr.op == 'bb' and instr.args[2] == 'ptr' then
                 local tname = typename(instr.type)
                 if instr.args[1] == 'reg' then
-                    case[#case + 1] = '        ' .. tname .. ' a0 = locals[(ip++)->reg].' .. instr.type .. ';'
+                    case[#case + 1] = '        ' .. tname .. ' a0 = locals[ip[0].reg].' .. instr.type .. ';'
                 else
-                    case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
+                    case[#case + 1] = '        ' .. tname .. ' a0 = ip[0].' .. instr.type .. ';'
                 end
-                case[#case + 1] = '        if (a0 != 0) {'
-                case[#case + 1] = '            ip = vm_run_comp(state, ip[0].func);'
+                case[#case + 1] = '        if (a0) {'
+                case[#case + 1] = '            ip = ip[1].ptr;'
                 case[#case + 1] = '        } else {'
-                case[#case + 1] = '            ip = vm_run_comp(state, ip[1].func);'
+                case[#case + 1] = '            ip = ip[2].ptr;'
                 case[#case + 1] = '        }'
-            elseif instr.op == 'blt' or instr.op == 'beq' then
+            elseif instr.op == 'bb' and instr.args[2] == 'func' then
+                case[#case + 1] = '        vm_opcode_t *head = ip-1;'
+                case[#case + 1] = '        head->ptr = &&' .. table.concat({'do', instr.op, instr.type, instr.args[1], 'ptr', 'ptr'}, '_') .. ';'
+                case[#case + 1] = '        ip[1].ptr = vm_run_comp(state, ip[1].func);'
+                case[#case + 1] = '        ip = head;'
+            elseif (instr.op == 'blt' or instr.op == 'beq') and instr.args[3] == 'ptr' then
                 local tname = typename(instr.type)
-                local op = simplebranch[instr.op]
                 if instr.args[1] == 'reg' then
-                    case[#case + 1] = '        ' .. tname .. ' a0 = locals[(ip++)->reg].' .. instr.type .. ';'
+                    case[#case + 1] = '        ' .. tname .. ' a0 = locals[ip[0].reg].' .. instr.type .. ';'
                 else
-                    case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
+                    case[#case + 1] = '        ' .. tname .. ' a0 = ip[0].' .. instr.type .. ';'
                 end
-                if instr.args[2] == 'reg' then
-                    case[#case + 1] = '        ' .. tname .. ' a1 = locals[(ip++)->reg].' .. instr.type .. ';'
+                if instr.args[0] == 'reg' then
+                    case[#case + 1] = '        ' .. tname .. ' a1 = locals[ip[1].reg].' .. instr.type .. ';'
                 else
-                    case[#case + 1] = '        ' .. tname .. ' a1 = (ip++)->' .. instr.type .. ';'
+                    case[#case + 1] = '        ' .. tname .. ' a1 = ip[1].' .. instr.type .. ';'
                 end
-                case[#case + 1] = '        if (a0 ' .. op .. 'a1) {'
-                case[#case + 1] = '            ip = vm_run_comp(state, ip[0].func);'
+                case[#case + 1] = '        if (a0 ' .. simplebranch[instr.op] .. ' a1) {'
+                case[#case + 1] = '            ip = ip[2].ptr;'
                 case[#case + 1] = '        } else {'
-                case[#case + 1] = '            ip = vm_run_comp(state, ip[1].func);'
+                case[#case + 1] = '            ip = ip[3].ptr;'
                 case[#case + 1] = '        }'
+            elseif (instr.op == 'blt' or instr.op == 'beq') and instr.args[3] == 'func' then
+                case[#case + 1] = '        vm_opcode_t *head = ip-1;'
+                case[#case + 1] = '        head->ptr = &&' .. table.concat({'do', instr.op, instr.type, instr.args[1], instr.args[2], 'ptr', 'ptr'}, '_') .. ';'
+                case[#case + 1] = '        ip[2].ptr = vm_run_comp(state, ip[2].func);'
+                case[#case + 1] = '        ip[3].ptr = vm_run_comp(state, ip[3].func);'
+                case[#case + 1] = '        ip = head;'
             elseif instr.op == 'ret' then
                 local tname = typename(instr.type)
                 if instr.args[1] == 'reg' then
