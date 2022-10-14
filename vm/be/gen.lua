@@ -93,9 +93,6 @@ local function install_basic_extra(ctype)
     push('out', ctype, {'reg'})
     push('out', ctype, {'const'})
     push('in', ctype, {})
-    push('type', ctype, {})
-    push('bnot', ctype, {'reg'})
-    push('bnot', ctype, {'const'})
     push('ret', ctype, {'reg'})
     push('ret', ctype, {'const'})
 end
@@ -109,6 +106,8 @@ end
 local function install_basic_and_bitwise(ctype)
     install_basic(ctype)
     local install_bitwise_op = get_install_binary(ctype)
+    push('bnot', ctype, {'reg'})
+    push('bnot', ctype, {'const'})
     install_bitwise_op('bor')
     install_bitwise_op('bxor')
     install_bitwise_op('band')
@@ -258,7 +257,7 @@ void vm_state_deinit(vm_state_t *state) {
         blt = '<',
     }
 
-    local isfloattype = {
+    local isinttype = {
         i8 = true,
         i16 = true,
         i32 = true,
@@ -324,13 +323,41 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '            goto err;'
             lines[#lines + 1] = '        }'
         end
+        do
+            lines[#lines + 1] = '        case VM_IOP_BNOT: {'
+            lines[#lines + 1] = '            if (instr.out.type == VM_ARG_NONE) {'
+            lines[#lines + 1] = '                break;'
+            lines[#lines + 1] = '            }'
+            for tkey, tvalue in ipairs(binarytypes) do
+                if isinttype[tvalue] then
+                    lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                    for _, a0type in ipairs({'reg', 'const'}) do
+                        lines[#lines + 1] = '                if (instr.args[0].type ' .. map[a0type] .. ') {'
+                        local name = string.upper(table.concat({prefix, 'bnot', tvalue, a0type}, '_'))
+                        lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                        if a0type == 'reg' then
+                            lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                        else
+                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
+                                                    typename(tvalue) .. ') instr.args[0].num;'
+                        end
+                        lines[#lines + 1] = '                    ops[nops++].reg = instr.out.reg;'
+                        lines[#lines + 1] = '                    break;'
+                        lines[#lines + 1] = '                }'
+                    end
+                    lines[#lines + 1] = '            }'
+                end
+            end
+            lines[#lines + 1] = '            goto err;'
+            lines[#lines + 1] = '        }'
+        end
         for key, value in ipairs(binaryint) do
             lines[#lines + 1] = '        case VM_IOP_' .. string.upper(value) .. ': {'
             lines[#lines + 1] = '            if (instr.out.type == VM_ARG_NONE) {'
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
-                if isfloattype[tvalue] then
+                if isinttype[tvalue] then
                     lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                     for _, pair in ipairs(kinds) do
                         lines[#lines + 1] = '                if (instr.args[0].type ' .. map[pair[1]] .. ' && ' ..
@@ -466,10 +493,35 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '        }'
         end
         do
+            lines[#lines + 1] = '        case VM_BOP_BB: {'
+            for tkey, tvalue in ipairs(binarytypes) do
+                lines[#lines + 1] = '                if (block->branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                for _, val in ipairs({'const', 'reg'}) do
+                    lines[#lines + 1] = '                    if (block->branch.args[0].type ' .. map[val] .. ') {'
+                    local name = string.upper(table.concat({prefix, 'bb', tvalue, val, 'func', 'func'}, '_'))
+                    lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                    if val == 'reg' then
+                        lines[#lines + 1] = '                    ops[nops++].reg = block->branch.args[0].reg;'
+                    else
+                        lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
+                                                typename(tvalue) .. ') block->branch.args[0].num;'
+                    end
+                    lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
+                    lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[1];'
+                    lines[#lines + 1] = '                    break;'
+                    lines[#lines + 1] = '                    }'
+                end
+                lines[#lines + 1] = '                    break;'
+                lines[#lines + 1] = '                }'
+            end
+            lines[#lines + 1] = '             goto err;'
+            lines[#lines + 1] = '        }'
+        end
+        do
             for key, value in ipairs({'blt', 'beq'}) do
                 lines[#lines + 1] = '        case VM_BOP_' .. string.upper(value) .. ': {'
                 for tkey, tvalue in ipairs(binarytypes) do
-                    if isfloattype[tvalue] then
+                    if isinttype[tvalue] then
                         lines[#lines + 1] = '            if (block->branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                         for _, pair in ipairs(kinds) do
                             lines[#lines + 1] = '                if (block->branch.args[0].type ' .. map[pair[1]] .. ' && ' ..
@@ -583,6 +635,14 @@ void vm_state_deinit(vm_state_t *state) {
                     case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
                 end
                 case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = a0;'
+            elseif instr.op == 'bnot' then
+                local tname = typename(instr.type)
+                if instr.args[1] == 'reg' then
+                    case[#case + 1] = '        ' .. tname .. ' a0 = locals[(ip++)->reg].' .. instr.type .. ';'
+                else
+                    case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
+                end
+                case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = ~a0;'
             elseif instr.op == 'in' then
                 local tname = typename(instr.type)
                 case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = (' .. tname.. ') fgetc(stdin);'
@@ -597,6 +657,18 @@ void vm_state_deinit(vm_state_t *state) {
             elseif instr.op == 'jump' then
                 case[#case + 1] = '        vm_block_t *t0 = (ip++)->func;'
                 case[#case + 1] = '        ip = vm_run_comp(state, t0);'
+            elseif instr.op == 'bb' then
+                local tname = typename(instr.type)
+                if instr.args[1] == 'reg' then
+                    case[#case + 1] = '        ' .. tname .. ' a0 = locals[(ip++)->reg].' .. instr.type .. ';'
+                else
+                    case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
+                end
+                case[#case + 1] = '        if (a0 != 0) {'
+                case[#case + 1] = '            ip = vm_run_comp(state, ip[0].func);'
+                case[#case + 1] = '        } else {'
+                case[#case + 1] = '            ip = vm_run_comp(state, ip[1].func);'
+                case[#case + 1] = '        }'
             elseif instr.op == 'blt' or instr.op == 'beq' then
                 local tname = typename(instr.type)
                 local op = simplebranch[instr.op]

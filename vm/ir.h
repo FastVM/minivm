@@ -50,7 +50,6 @@ enum {
     VM_IOP_DIV,
     VM_IOP_MOD,
     VM_IOP_CALL,
-    VM_IOP_TYPE,
     VM_IOP_OUT,
     VM_IOP_IN,
     VM_IOP_BNOT,

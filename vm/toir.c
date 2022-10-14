@@ -324,9 +324,6 @@ static bool vm_parse_state(vm_parser_t *state) {
                 if (!strcmp(name, "call")) {
                     instr.op = VM_IOP_CALL;
                 }
-                if (!strcmp(name, "type")) {
-                    instr.op = VM_IOP_TYPE;
-                }
                 if (!strcmp(name, "out")) {
                     instr.op = VM_IOP_OUT;
                 }
@@ -401,11 +398,6 @@ static bool vm_parse_state(vm_parser_t *state) {
                         instr.args[i] = vm_parse_arg(state);
                         vm_parse_strip(state);
                     }
-                    break;
-                }
-                case VM_IOP_TYPE: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
                     break;
                 }
                 case VM_IOP_OUT: {

@@ -133,10 +133,6 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "call");
             break;
         }
-        case VM_IOP_TYPE: {
-            fprintf(out, "type");
-            break;
-        }
         case VM_IOP_OUT: {
             fprintf(out, "out");
             break;
