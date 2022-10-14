@@ -2,6 +2,7 @@
 #define VM_HEADER_IR_BE_INT3
 
 #include <stdint.h>
+
 #include "../ir.h"
 
 enum {

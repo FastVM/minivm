@@ -360,7 +360,7 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
-                if isinttype[tvalue] then
+                if isinttype[tvalue] or value == 'add' or value == 'sub' or value == 'mul' or value == 'div' or value == 'mod' then
                     lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                     for _, pair in ipairs(kinds) do
                         lines[#lines + 1] = '                if (instr.args[0].type ' .. map[pair[1]] .. ' && ' ..
@@ -524,32 +524,30 @@ void vm_state_deinit(vm_state_t *state) {
             for key, value in ipairs({'blt', 'beq'}) do
                 lines[#lines + 1] = '        case VM_BOP_' .. string.upper(value) .. ': {'
                 for tkey, tvalue in ipairs(binarytypes) do
-                    if isinttype[tvalue] then
-                        lines[#lines + 1] = '            if (block->branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
-                        for _, pair in ipairs(kinds) do
-                            lines[#lines + 1] = '                if (block->branch.args[0].type ' .. map[pair[1]] .. ' && ' ..
-                                                    'block->branch.args[1].type ' .. map[pair[2]] .. ') {'
-                            local name = string.upper(table.concat({prefix, value, tvalue, pair[1], pair[2], 'func', 'func'}, '_'))
-                            lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
-                            if pair[1] == 'reg' then
-                                lines[#lines + 1] = '                    ops[nops++].reg = block->branch.args[0].reg;'
-                            else
-                                lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
-                                                        typename(tvalue) .. ') block->branch.args[0].num;'
-                            end
-                            if pair[2] == 'reg' then
-                                lines[#lines + 1] = '                    ops[nops++].reg = block->branch.args[1].reg;'
-                            else
-                                lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
-                                                        typename(tvalue) .. ') block->branch.args[1].num;'
-                            end
-                            lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
-                            lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[1];'
-                            lines[#lines + 1] = '                    break;'
-                            lines[#lines + 1] = '                }'
+                    lines[#lines + 1] = '            if (block->branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                    for _, pair in ipairs(kinds) do
+                        lines[#lines + 1] = '                if (block->branch.args[0].type ' .. map[pair[1]] .. ' && ' ..
+                                                'block->branch.args[1].type ' .. map[pair[2]] .. ') {'
+                        local name = string.upper(table.concat({prefix, value, tvalue, pair[1], pair[2], 'func', 'func'}, '_'))
+                        lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                        if pair[1] == 'reg' then
+                            lines[#lines + 1] = '                    ops[nops++].reg = block->branch.args[0].reg;'
+                        else
+                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
+                                                    typename(tvalue) .. ') block->branch.args[0].num;'
                         end
-                        lines[#lines + 1] = '            }'
+                        if pair[2] == 'reg' then
+                            lines[#lines + 1] = '                    ops[nops++].reg = block->branch.args[1].reg;'
+                        else
+                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
+                                                    typename(tvalue) .. ') block->branch.args[1].num;'
+                        end
+                        lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
+                        lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[1];'
+                        lines[#lines + 1] = '                    break;'
+                        lines[#lines + 1] = '                }'
                     end
+                    lines[#lines + 1] = '            }'
                 end
                 lines[#lines + 1] = '             goto err;'
                 lines[#lines + 1] = '        }'

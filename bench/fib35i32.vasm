@@ -1,0 +1,31 @@
+
+@fib:
+    blt.i32 %1 2 [fib.then] [fib.else]
+@fib.then:
+    ret.i32 %1
+@fib.else:
+    sub.i32 %0 %1 2
+    call %0 [fib] %0
+    sub.i32 %1 %1 1
+    call %1 [fib] %1
+    add.i32 %0 %0 %1
+    ret.i32 %0
+
+@putn:
+    blt.i32 %1 1 [putn.ret] [putn.digit]
+@putn.digit:
+    div.i32 %0 %1 10
+    call %0 [putn] %0
+    mod.i32 %1 %1 10
+    add.i32 %1 %1 48
+    out.i32 %1
+    jump [putn.ret]
+@putn.ret:
+    ret.i32 0
+
+@:
+    move.i32 %0 35
+    call %0 [fib] %0
+    call %0 [putn] %0
+    out.i32 10
+    exit
