@@ -82,15 +82,13 @@ struct vm_branch_t {
 };
 
 struct vm_instr_t {
-    vm_arg_t args[9];
+    vm_arg_t args[11];
     vm_arg_t out;
     uint8_t op;
     uint8_t tag;
 };
 
 struct vm_block_t {
-    uint8_t tag;
-
     ptrdiff_t id;
 
     vm_instr_t *instrs;
@@ -104,7 +102,7 @@ struct vm_block_t {
 
     size_t nregs;
 
-    void *data;
+    void *cache;
 
     bool isfunc : 1;
 };

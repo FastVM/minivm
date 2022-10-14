@@ -24,7 +24,7 @@
     ret.i64 0
 
 @:
-    move.i64 %0 35
+    move.i64 %0 15
     call %0 [fib] %0
     call %0 [putn] %0
     out.i64 10

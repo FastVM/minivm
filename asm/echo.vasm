@@ -1,0 +1,6 @@
+@:
+    jump [loop]
+@loop:
+    in.i64 %0
+    out.i64 %0
+    jump [loop]

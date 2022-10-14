@@ -54,7 +54,7 @@ static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
     state->names[where] = vm_strdup(name);
     vm_block_t *block = vm_malloc(sizeof(vm_block_t));
     *block = (vm_block_t){
-        .tag = VM_TAG_FN,
+        .cache = NULL,
     };
     state->blocks[where] = block;
     block->id = (ptrdiff_t) where;
@@ -101,8 +101,32 @@ static uint8_t vm_parse_tag(vm_parser_t *state) {
     if (!strcmp(tname, "b")) {
         tag = VM_TAG_I64;
     }
+    if (!strcmp(tname, "i8")) {
+        tag = VM_TAG_I8;
+    }
+    if (!strcmp(tname, "i16")) {
+        tag = VM_TAG_I16;
+    }
+    if (!strcmp(tname, "i32")) {
+        tag = VM_TAG_I32;
+    }
     if (!strcmp(tname, "i64")) {
         tag = VM_TAG_I64;
+    }
+    if (!strcmp(tname, "u8")) {
+        tag = VM_TAG_U8;
+    }
+    if (!strcmp(tname, "u16")) {
+        tag = VM_TAG_U16;
+    }
+    if (!strcmp(tname, "u32")) {
+        tag = VM_TAG_U32;
+    }
+    if (!strcmp(tname, "u64")) {
+        tag = VM_TAG_U64;
+    }
+    if (!strcmp(tname, "f32")) {
+        tag = VM_TAG_F32;
     }
     if (!strcmp(tname, "f64")) {
         tag = VM_TAG_F64;
