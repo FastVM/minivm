@@ -19,7 +19,7 @@ union vm_value_t {
     uint64_t u64;
     float f32;
     double f64;
-    vm_block_t *func;
+    void *func;
 };
 
 #endif

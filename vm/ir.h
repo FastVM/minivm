@@ -1,6 +1,6 @@
 
-#if !defined(VM_HEADER_IR_IR)
-#define VM_HEADER_IR_IR
+#if !defined(VM_HEADER_IR)
+#define VM_HEADER_IR
 
 #include "lib.h"
 
@@ -102,7 +102,6 @@ struct vm_block_t {
     size_t nregs;
 
     void *cache;
-    void *rcache;
 
     bool isfunc : 1;
 };

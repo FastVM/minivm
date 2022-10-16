@@ -1,7 +1,8 @@
-#if !defined(VM_HEADER_IR_TAG)
-#define VM_HEADER_IR_TAG
+#if !defined(VM_HEADER_TAG)
+#define VM_HEADER_TAG
 
 enum {
+    VM_TAG_INIT,
     VM_TAG_UNK,
     VM_TAG_NIL,
     VM_TAG_BOOL,

@@ -1,6 +1,6 @@
 
-#if !defined(VM_HEADER_IR_TOIR)
-#define VM_HEADER_IR_TOIR
+#if !defined(VM_HEADER_ASM)
+#define VM_HEADER_ASM
 
 #include "ir.h"
 

@@ -1,5 +1,5 @@
-#if !defined(VM_HEADER_IR_BE_INT3)
-#define VM_HEADER_IR_BE_INT3
+#if !defined(VM_HEADER_BE_INT3)
+#define VM_HEADER_BE_INT3
 
 #include <stdint.h>
 #include "../ir.h"
@@ -682,11 +682,14 @@ enum {
     VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG_REG = 675,
     VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG = 676
 };
+#define VM_NREGS 256
 struct vm_state_t;
 typedef struct vm_state_t vm_state_t;
 
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
+
+#include "type.h"
 
 union vm_opcode_t {
     size_t reg;
@@ -700,7 +703,7 @@ union vm_opcode_t {
     uint64_t u64;
     float f32;
     double f64;
-    vm_block_t *func;
+    vm_rblock_t *func;
     void *ptr;
 };
 
@@ -712,9 +715,7 @@ struct vm_state_t {
     void **ptrs;
 };
 
-vm_state_t *vm_state_init(size_t nregs);
-void vm_state_deinit(vm_state_t *state);
 void vm_run(vm_state_t *state, vm_block_t *block);
-vm_opcode_t *vm_run_comp(vm_state_t *state, vm_block_t *block);
+
 
 #endif

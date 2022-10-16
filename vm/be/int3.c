@@ -1,21 +1,6 @@
 #include "int3.h"
 #include "value.h"
 #include "../tag.h"
-vm_state_t *vm_state_init(size_t nregs) {
-    vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
-    ret->framesize = 256;
-    ret->nlocals = nregs;
-    ret->locals = vm_malloc(sizeof(vm_value_t) * (ret->nlocals));
-    ret->ips = vm_malloc(sizeof(vm_opcode_t *) * (ret->nlocals / ret->framesize));
-    return ret;
-}
-
-void vm_state_deinit(vm_state_t *state) {
-    vm_free(state->ips);
-    vm_free(state->locals);
-    vm_free(state);
-}
-
 void vm_run(vm_state_t *state, vm_block_t *block) {
     void *ptrs[] = {
         [VM_OPCODE_ADD_I8_REG_REG] = &&do_add_i8_reg_reg,
@@ -696,9 +681,9 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg_reg_reg_reg
     };
     state->ptrs = ptrs;
-    vm_opcode_t *ip = vm_run_comp(state, block);
-    vm_value_t *locals = state->locals;
-    vm_opcode_t **ips = state->ips;
+    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty()));
+    vm_value_t *restrict locals = state->locals;
+    vm_opcode_t **restrict ips = state->ips;
     goto *(ip++)->ptr;
     do_add_i8_reg_reg: {
         int8_t a0 = locals[(ip++)->reg].i8;
@@ -1022,15 +1007,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_i8_reg: {
         int8_t a0 = locals[(ip++)->reg].i8;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i8 = (int8_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_i8_const: {
         int8_t a0 = (ip++)->i8;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i8 = (int8_t) a0;
         goto *(ip++)->ptr;
     }
@@ -1486,15 +1471,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_i16_reg: {
         int16_t a0 = locals[(ip++)->reg].i16;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i16 = (int16_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_i16_const: {
         int16_t a0 = (ip++)->i16;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i16 = (int16_t) a0;
         goto *(ip++)->ptr;
     }
@@ -1950,15 +1935,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_i32_reg: {
         int32_t a0 = locals[(ip++)->reg].i32;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i32 = (int32_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_i32_const: {
         int32_t a0 = (ip++)->i32;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i32 = (int32_t) a0;
         goto *(ip++)->ptr;
     }
@@ -2414,15 +2399,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_i64_reg: {
         int64_t a0 = locals[(ip++)->reg].i64;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i64 = (int64_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_i64_const: {
         int64_t a0 = (ip++)->i64;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].i64 = (int64_t) a0;
         goto *(ip++)->ptr;
     }
@@ -2878,15 +2863,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_u8_reg: {
         uint8_t a0 = locals[(ip++)->reg].u8;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u8 = (uint8_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_u8_const: {
         uint8_t a0 = (ip++)->u8;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u8 = (uint8_t) a0;
         goto *(ip++)->ptr;
     }
@@ -3342,15 +3327,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_u16_reg: {
         uint16_t a0 = locals[(ip++)->reg].u16;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u16 = (uint16_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_u16_const: {
         uint16_t a0 = (ip++)->u16;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u16 = (uint16_t) a0;
         goto *(ip++)->ptr;
     }
@@ -3806,15 +3791,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_u32_reg: {
         uint32_t a0 = locals[(ip++)->reg].u32;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u32 = (uint32_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_u32_const: {
         uint32_t a0 = (ip++)->u32;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u32 = (uint32_t) a0;
         goto *(ip++)->ptr;
     }
@@ -4270,15 +4255,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_u64_reg: {
         uint64_t a0 = locals[(ip++)->reg].u64;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u64 = (uint64_t) a0;
         goto *(ip++)->ptr;
     }
     do_ret_u64_const: {
         uint64_t a0 = (ip++)->u64;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].u64 = (uint64_t) a0;
         goto *(ip++)->ptr;
     }
@@ -4734,15 +4719,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_f32_reg: {
         float a0 = locals[(ip++)->reg].f32;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].f32 = (float) a0;
         goto *(ip++)->ptr;
     }
     do_ret_f32_const: {
         float a0 = (ip++)->f32;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].f32 = (float) a0;
         goto *(ip++)->ptr;
     }
@@ -5068,15 +5053,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_ret_f64_reg: {
         double a0 = locals[(ip++)->reg].f64;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].f64 = (double) a0;
         goto *(ip++)->ptr;
     }
     do_ret_f64_const: {
         double a0 = (ip++)->f64;
-        locals -= 256;
-        ip = *(--ips);
+        locals -= VM_NREGS;
+        ip = *(ips--);
         locals[(ip++)->reg].f64 = (double) a0;
         goto *(ip++)->ptr;
     }
@@ -5097,8 +5082,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5110,17 +5095,17 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg: {
-        vm_block_t *t0 = (ip++)->func;
-        locals += 256;
-        *(ips++) = ip;
+        vm_rblock_t *t0 = (ip++)->func;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
     do_call_ptr_const_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5132,10 +5117,10 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
@@ -5143,8 +5128,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5156,11 +5141,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
@@ -5169,8 +5154,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5182,12 +5167,12 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
@@ -5197,8 +5182,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
         locals[260] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5210,13 +5195,13 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
         locals[260] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
@@ -5227,8 +5212,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[259] = locals[(ip++)->reg];
         locals[260] = locals[(ip++)->reg];
         locals[261] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5240,14 +5225,14 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
         locals[260] = locals[(ip++)->reg];
         locals[261] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
@@ -5259,8 +5244,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[260] = locals[(ip++)->reg];
         locals[261] = locals[(ip++)->reg];
         locals[262] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5272,15 +5257,15 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
         locals[260] = locals[(ip++)->reg];
         locals[261] = locals[(ip++)->reg];
         locals[262] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
@@ -5293,8 +5278,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[261] = locals[(ip++)->reg];
         locals[262] = locals[(ip++)->reg];
         locals[263] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5306,7 +5291,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
@@ -5314,8 +5299,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[261] = locals[(ip++)->reg];
         locals[262] = locals[(ip++)->reg];
         locals[263] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
@@ -5329,8 +5314,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[262] = locals[(ip++)->reg];
         locals[263] = locals[(ip++)->reg];
         locals[264] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
@@ -5342,7 +5327,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg_reg_reg: {
-        vm_block_t *t0 = (ip++)->func;
+        vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
         locals[259] = locals[(ip++)->reg];
@@ -5351,8 +5336,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[262] = locals[(ip++)->reg];
         locals[263] = locals[(ip++)->reg];
         locals[264] = locals[(ip++)->reg];
-        locals += 256;
-        *(ips++) = ip;
+        locals += VM_NREGS;
+        *(++ips) = ip;
         ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }

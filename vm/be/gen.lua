@@ -1,3 +1,6 @@
+-- part: config
+local VM_NREGS = 256
+
 -- part: util
 local typenametab = {
     i8 = 'int8_t',
@@ -10,7 +13,7 @@ local typenametab = {
     u64 = 'uint64_t',
     f32 = 'float',
     f64 = 'double',
-    func = 'vm_block_t *'
+    func = 'vm_rblock_t *'
 }
 
 local function typename(name)
@@ -159,8 +162,8 @@ do
     local lines = {}
 
     lines[#lines + 1] = [[
-#if !defined(VM_HEADER_IR_BE_INT3)
-#define VM_HEADER_IR_BE_INT3
+#if !defined(VM_HEADER_BE_INT3)
+#define VM_HEADER_BE_INT3
 
 #include <stdint.h>
 #include "../ir.h"
@@ -177,6 +180,7 @@ do
     lines[#lines + 1] = table.concat(cases, ',\n')
 
     lines[#lines + 1] = '};'
+    lines[#lines + 1] = '#define VM_NREGS ' .. tostring(VM_NREGS)
 
     lines[#lines + 1] = [[
 struct vm_state_t;
@@ -184,6 +188,8 @@ typedef struct vm_state_t vm_state_t;
 
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
+
+#include "type.h"
 
 union vm_opcode_t {
     size_t reg;
@@ -197,7 +203,7 @@ union vm_opcode_t {
     uint64_t u64;
     float f32;
     double f64;
-    vm_block_t *func;
+    vm_rblock_t *func;
     void *ptr;
 };
 
@@ -209,10 +215,8 @@ struct vm_state_t {
     void **ptrs;
 };
 
-vm_state_t *vm_state_init(size_t nregs);
-void vm_state_deinit(vm_state_t *state);
 void vm_run(vm_state_t *state, vm_block_t *block);
-vm_opcode_t *vm_run_comp(vm_state_t *state, vm_block_t *block);
+
 
 #endif
 ]]
@@ -273,10 +277,19 @@ do
 
         local kinds = {{'reg', 'reg'}, {'reg', 'const'}, {'const', 'reg'}, {'const', 'const'}}
 
-        lines[#lines + 1] = 'vm_opcode_t *vm_run_comp(vm_state_t *state, vm_block_t *block) {'
-        lines[#lines + 1] = '    if (block->cache) {'
-        lines[#lines + 1] = '        return block->cache;'
+        lines[#lines + 1] = 'vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {'
+        lines[#lines + 1] = '    if (rblock->block->cache == NULL) {'
+        lines[#lines + 1] = '        rblock->block->cache = vm_cache_new();'
         lines[#lines + 1] = '    }'
+        lines[#lines + 1] = '    vm_opcode_t *ret = vm_cache_get(rblock->block->cache, rblock);'
+        lines[#lines + 1] = '    if (ret != NULL) {'
+        lines[#lines + 1] = '        return ret;'
+        lines[#lines + 1] = '    }'
+        lines[#lines + 1] = '    vm_block_t *block = rblock->block;'
+        lines[#lines + 1] = '    uint8_t *types = vm_rblock_regs_dup(rblock->regs);'
+        lines[#lines + 1] = '    vm_rblock_t *rnext = vm_rblock_new(rblock->block, rblock->regs);'
+        lines[#lines + 1] = '    rnext->regs = types;'
+        lines[#lines + 1] = '    rnext->block = rblock->block;'
         lines[#lines + 1] = '    size_t aops = 64;'
         lines[#lines + 1] = '    vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * aops);'
         lines[#lines + 1] = '    size_t nops = 0;'
@@ -408,14 +421,18 @@ do
                     if val == 'reg' then
                         lines[#lines + 1] = '                ops[nops++].reg = instr.args[0].reg;'
                     else
-                        lines[#lines + 1] = '                ops[nops++].func = instr.args[0].func;'
+                        lines[#lines + 1] = '                uint8_t *args = vm_rblock_regs_empty();'
+                        for argno = 1, nargs do
+                            lines[#lines + 1] = '                args[' .. tostring(argno) .. '] = types[instr.args[' .. tostring(argno) .. '].reg];'
+                        end
+                        lines[#lines + 1] = '                ops[nops++].func = vm_rblock_new(instr.args[0].func, args);'
                     end
                     for argno = 1, nargs do
                         lines[#lines + 1] = '                ops[nops++].reg = instr.args[' .. tostring(argno) ..
                                                 '].reg;'
                     end
                     lines[#lines + 1] = '                if (instr.out.type == VM_ARG_NONE) {'
-                    lines[#lines + 1] = '                        ops[nops++].reg = 256;'
+                    lines[#lines + 1] = '                        ops[nops++].reg = VM_NREGS;'
                     lines[#lines + 1] = '                } else {'
                     lines[#lines + 1] = '                        ops[nops++].reg = instr.out.reg;'
                     lines[#lines + 1] = '                }'
@@ -463,7 +480,7 @@ do
             lines[#lines + 1] = '        case VM_BOP_JUMP: {'
             local name = string.upper(table.concat({prefix, 'jump', 'func', 'const'}, '_'))
             lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
-            lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
+            lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);'
             lines[#lines + 1] = '            break;'
             lines[#lines + 1] = '        }'
         end
@@ -504,8 +521,8 @@ do
                             '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) ..
                                 ') block->branch.args[0].num;'
                     end
-                    lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
-                    lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[1];'
+                    lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);'
+                    lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);'
                     lines[#lines + 1] = '                    break;'
                     lines[#lines + 1] = '                    }'
                 end
@@ -539,8 +556,8 @@ do
                             lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' ..
                                                     typename(tvalue) .. ') block->branch.args[1].num;'
                         end
-                        lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[0];'
-                        lines[#lines + 1] = '                    ops[nops++].func = block->branch.targets[1];'
+                        lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);'
+                        lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);'
                         lines[#lines + 1] = '                    break;'
                         lines[#lines + 1] = '                }'
                     end
@@ -554,7 +571,7 @@ do
             lines[#lines + 1] = '        default: goto err;'
         end
         lines[#lines + 1] = '     }'
-        lines[#lines + 1] = '     block->cache = ops;'
+        lines[#lines + 1] = '     vm_cache_set(rblock->block->cache, rnext, ops);'
         lines[#lines + 1] = '     return ops;'
         lines[#lines + 1] = 'err:;'
         lines[#lines + 1] = '     fprintf(stderr, "BAD INSTR!\\n");'
@@ -572,23 +589,6 @@ do
     lines[#lines + 1] = '#include "value.h"'
     lines[#lines + 1] = '#include "../tag.h"'
 
-    lines[#lines + 1] = [[
-vm_state_t *vm_state_init(size_t nregs) {
-    vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
-    ret->framesize = 256;
-    ret->nlocals = nregs;
-    ret->locals = vm_malloc(sizeof(vm_value_t) * (ret->nlocals));
-    ret->ips = vm_malloc(sizeof(vm_opcode_t *) * (ret->nlocals / ret->framesize));
-    return ret;
-}
-
-void vm_state_deinit(vm_state_t *state) {
-    vm_free(state->ips);
-    vm_free(state->locals);
-    vm_free(state);
-}
-]]
-
     lines[#lines + 1] = 'void vm_run(vm_state_t *state, vm_block_t *block) {'
 
     do
@@ -604,7 +604,7 @@ void vm_state_deinit(vm_state_t *state) {
     end
 
     lines[#lines + 1] = '    state->ptrs = ptrs;'
-    lines[#lines + 1] = '    vm_opcode_t *restrict ip = vm_run_comp(state, block);'
+    lines[#lines + 1] = '    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty()));'
     lines[#lines + 1] = '    vm_value_t *restrict locals = state->locals;'
     lines[#lines + 1] = '    vm_opcode_t **restrict ips = state->ips;'
     lines[#lines + 1] = '    goto *(ip++)->ptr;'
@@ -740,23 +740,23 @@ void vm_state_deinit(vm_state_t *state) {
                 else
                     case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
                 end
-                case[#case + 1] = '        locals -= 256;'
+                case[#case + 1] = '        locals -= VM_NREGS;'
                 case[#case + 1] = '        ip = *(ips--);'
                 case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = (' .. tname .. ') a0;'
             elseif instr.op == 'call' and instr.args[1] == 'reg' then
-                case[#case + 1] = '        vm_block_t *t0 = (ip++)->func;'
+                case[#case + 1] = '        vm_rblock_t *t0 = (ip++)->func;'
                 for argno = 1, #instr.args - 1 do
-                    case[#case + 1] = '        locals[' .. tostring(argno + 256) .. '] = locals[(ip++)->reg];'
+                    case[#case + 1] = '        locals[' .. tostring(argno + VM_NREGS) .. '] = locals[(ip++)->reg];'
                 end
-                case[#case + 1] = '        locals += 256;'
+                case[#case + 1] = '        locals += VM_NREGS;'
                 case[#case + 1] = '        *(++ips) = ip;'
                 case[#case + 1] = '        ip = vm_run_comp(state, t0);'
             elseif instr.op == 'call' and instr.type == 'ptr' then
                 case[#case + 1] = '        vm_opcode_t *t0 = (ip++)->ptr;'
                 for argno = 1, #instr.args - 1 do
-                    case[#case + 1] = '        locals[' .. tostring(argno + 256) .. '] = locals[(ip++)->reg];'
+                    case[#case + 1] = '        locals[' .. tostring(argno + VM_NREGS) .. '] = locals[(ip++)->reg];'
                 end
-                case[#case + 1] = '        locals += 256;'
+                case[#case + 1] = '        locals += VM_NREGS;'
                 case[#case + 1] = '        *(++ips) = ip;'
                 case[#case + 1] = '        ip = t0;'
             elseif instr.op == 'call' and instr.type == 'func' then
