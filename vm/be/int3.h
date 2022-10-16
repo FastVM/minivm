@@ -688,21 +688,6 @@ typedef struct vm_state_t vm_state_t;
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
 
-typedef struct {
-    size_t aops;
-    size_t nops;
-    vm_opcode_t *ops;
-} vm_run_comp_t;
-
-typedef struct {
-    vm_block_t *block;
-    uint8_t *args;
-} vm_run_block_t;
-
-typedef struct {
-   vm_run_comp_t *comps;
-} vm_run_cache_t;
-
 union vm_opcode_t {
     size_t reg;
     int8_t i8;
@@ -715,7 +700,7 @@ union vm_opcode_t {
     uint64_t u64;
     float f32;
     double f64;
-    vm_run_block_t *func;
+    vm_block_t *func;
     void *ptr;
 };
 
@@ -726,10 +711,9 @@ struct vm_state_t {
     void *locals;
     void **ptrs;
 };
+
 vm_state_t *vm_state_init(size_t nregs);
 void vm_state_deinit(vm_state_t *state);
-
-vm_opcode_t *vm_run_comp(vm_state_t *state, vm_run_block_t *block);
 void vm_run(vm_state_t *state, vm_block_t *block);
 
 #endif
