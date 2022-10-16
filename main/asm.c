@@ -1,5 +1,5 @@
 #include "../vm/be/int3.h"
-#include "../vm/toir.h"
+#include "../vm/asm.h"
 
 static char *vm_asm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     for (size_t i = 0; i < runs; i++) {
-        vm_block_t *block = vm_parse(src);
+        vm_block_t *block = vm_parse_asm(src);
         // vm_print_block(stderr, block);
         vm_state_t *state = vm_state_init(1 << 16);
         vm_run(state, block);

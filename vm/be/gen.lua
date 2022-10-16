@@ -212,6 +212,7 @@ struct vm_state_t {
 vm_state_t *vm_state_init(size_t nregs);
 void vm_state_deinit(vm_state_t *state);
 void vm_run(vm_state_t *state, vm_block_t *block);
+vm_opcode_t *vm_run_comp(vm_state_t *state, vm_block_t *block);
 
 #endif
 ]]
@@ -229,23 +230,6 @@ do
     lines[#lines + 1] = '#include "int3.h"'
     lines[#lines + 1] = '#include "value.h"'
     lines[#lines + 1] = '#include "../tag.h"'
-    lines[#lines + 1] = [[
-
-vm_state_t *vm_state_init(size_t nregs) {
-    vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
-    ret->framesize = 256;
-    ret->nlocals = nregs;
-    ret->locals = vm_malloc(sizeof(vm_value_t) * (ret->nlocals));
-    ret->ips = vm_malloc(sizeof(vm_opcode_t *) * (ret->nlocals / ret->framesize));
-    return ret;
-}
-
-void vm_state_deinit(vm_state_t *state) {
-    vm_free(state->ips);
-    vm_free(state->locals);
-    vm_free(state);
-}
-]]
 
     local simplebinary = {
         add = '+',
@@ -576,7 +560,35 @@ void vm_state_deinit(vm_state_t *state) {
         lines[#lines + 1] = '     fprintf(stderr, "BAD INSTR!\\n");'
         lines[#lines + 1] = '     __builtin_trap();'
         lines[#lines + 1] = '}'
+    
+        local incheadersrc = table.concat(lines, '\n')
+
+        dump('vm/be/comp.c', incheadersrc)
     end
+
+    local lines = {}
+
+    lines[#lines + 1] = '#include "int3.h"'
+    lines[#lines + 1] = '#include "value.h"'
+    lines[#lines + 1] = '#include "../tag.h"'
+
+    lines[#lines + 1] = [[
+vm_state_t *vm_state_init(size_t nregs) {
+    vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
+    ret->framesize = 256;
+    ret->nlocals = nregs;
+    ret->locals = vm_malloc(sizeof(vm_value_t) * (ret->nlocals));
+    ret->ips = vm_malloc(sizeof(vm_opcode_t *) * (ret->nlocals / ret->framesize));
+    return ret;
+}
+
+void vm_state_deinit(vm_state_t *state) {
+    vm_free(state->ips);
+    vm_free(state->locals);
+    vm_free(state);
+}
+]]
+
     lines[#lines + 1] = 'void vm_run(vm_state_t *state, vm_block_t *block) {'
 
     do
@@ -592,9 +604,9 @@ void vm_state_deinit(vm_state_t *state) {
     end
 
     lines[#lines + 1] = '    state->ptrs = ptrs;'
-    lines[#lines + 1] = '    vm_opcode_t *ip = vm_run_comp(state, block);'
-    lines[#lines + 1] = '    vm_value_t *locals = state->locals;'
-    lines[#lines + 1] = '    vm_opcode_t **ips = state->ips;'
+    lines[#lines + 1] = '    vm_opcode_t *restrict ip = vm_run_comp(state, block);'
+    lines[#lines + 1] = '    vm_value_t *restrict locals = state->locals;'
+    lines[#lines + 1] = '    vm_opcode_t **restrict ips = state->ips;'
     lines[#lines + 1] = '    goto *(ip++)->ptr;'
 
     do
@@ -729,7 +741,7 @@ void vm_state_deinit(vm_state_t *state) {
                     case[#case + 1] = '        ' .. tname .. ' a0 = (ip++)->' .. instr.type .. ';'
                 end
                 case[#case + 1] = '        locals -= 256;'
-                case[#case + 1] = '        ip = *(--ips);'
+                case[#case + 1] = '        ip = *(ips--);'
                 case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = (' .. tname .. ') a0;'
             elseif instr.op == 'call' and instr.args[1] == 'reg' then
                 case[#case + 1] = '        vm_block_t *t0 = (ip++)->func;'
@@ -737,7 +749,7 @@ void vm_state_deinit(vm_state_t *state) {
                     case[#case + 1] = '        locals[' .. tostring(argno + 256) .. '] = locals[(ip++)->reg];'
                 end
                 case[#case + 1] = '        locals += 256;'
-                case[#case + 1] = '        *(ips++) = ip;'
+                case[#case + 1] = '        *(++ips) = ip;'
                 case[#case + 1] = '        ip = vm_run_comp(state, t0);'
             elseif instr.op == 'call' and instr.type == 'ptr' then
                 case[#case + 1] = '        vm_opcode_t *t0 = (ip++)->ptr;'
@@ -745,7 +757,7 @@ void vm_state_deinit(vm_state_t *state) {
                     case[#case + 1] = '        locals[' .. tostring(argno + 256) .. '] = locals[(ip++)->reg];'
                 end
                 case[#case + 1] = '        locals += 256;'
-                case[#case + 1] = '        *(ips++) = ip;'
+                case[#case + 1] = '        *(++ips) = ip;'
                 case[#case + 1] = '        ip = t0;'
             elseif instr.op == 'call' and instr.type == 'func' then
                 case[#case + 1] = '        vm_opcode_t *head = ip-1;'

@@ -1,5 +1,5 @@
 
-#include "toir.h"
+#include "asm.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -200,8 +200,13 @@ static bool vm_parse_state(vm_parser_t *state) {
             vm_skip(state);
             const char *name = vm_parse_word_until(state, ':');
             vm_skip(state);
-            block = vm_parse_find(state, name);
+            vm_block_t *next = vm_parse_find(state, name);
             vm_free(name);
+            if (block != NULL && block->branch.op == VM_BOP_FALL) {
+                block->branch.op = VM_BOP_JUMP;
+                block->branch.targets[0] = next;
+            }
+            block = next;
         } else {
             const char *n1 = *state->src;
             const char *name = vm_parse_word_until(state, '.');
@@ -458,7 +463,7 @@ fail:
     return true;
 }
 
-vm_block_t *vm_parse(const char *src) {
+vm_block_t *vm_parse_asm(const char *src) {
     vm_parser_t parse;
     parse.names = NULL;
     parse.blocks = NULL;

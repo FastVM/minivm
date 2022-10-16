@@ -715,5 +715,6 @@ struct vm_state_t {
 vm_state_t *vm_state_init(size_t nregs);
 void vm_state_deinit(vm_state_t *state);
 void vm_run(vm_state_t *state, vm_block_t *block);
+vm_opcode_t *vm_run_comp(vm_state_t *state, vm_block_t *block);
 
 #endif
