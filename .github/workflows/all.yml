@@ -68,19 +68,3 @@ jobs:
             bin/minivm-asm.exe
             bin/vm2js.exe
             bin/vm2rkt.exe
-  windows-minivm-clang:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-      - run: ./build.bat -Oz
-      - uses: actions/upload-artifact@v2
-        with:
-          name: minivm-windows-clang
-          path:  | 
-            bin/libminivm.lib
-            bin/minivm-asm.exe
-            bin/minivm-run.exe
-            bin/vm2js.exe
-            bin/vm2rkt.exe

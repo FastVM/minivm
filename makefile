@@ -9,7 +9,7 @@ HOST_CC ?= $(CC)
 PROG_SRCS := main/asm.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-VM_SRCS := vm/toir.c vm/ir.c vm/info.c vm/const.c vm/be/int3.c
+VM_SRCS := vm/toir.c vm/ir.c vm/info.c vm/be/int3.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS)
@@ -28,12 +28,14 @@ gcc-pgo-posix: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
 	./bin/minivm-asm bench/fib35.vasm || true
+	./bin/minivm-asm bench/fib40.vasm || true
 	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
 
 clang-pgo-posix: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
 	./bin/minivm-asm bench/fib35.vasm || true
+	./bin/minivm-asm bench/fib40.vasm || true
 	$(LLVM_PROFDATA) merge -o profdata.profdata profraw.profraw
 	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' ./bin/minivm-asm
 
@@ -41,6 +43,7 @@ clang-pgo-windows: .dummy
 	$(MAKE) clean
 	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' CFLAGS+=-D_CRT_SECURE_NO_WARNINGS ./bin/minivm-asm.exe
 	./bin/minivm-asm.exe bench/fib35.vasm || true
+	./bin/minivm-asm.exe bench/fib40.vasm || true
 	$(LLVM_PROFDATA) merge -o profdata.profdata profraw.profraw
 	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' CFLAGS+=-D_CRT_SECURE_NO_WARNINGS ./bin/minivm-asm.exe
 

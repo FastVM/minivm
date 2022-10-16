@@ -5,7 +5,6 @@
 #include <errno.h>
 #include <stdint.h>
 
-#include "const.h"
 #include "tag.h"
 
 struct vm_parser_t;
