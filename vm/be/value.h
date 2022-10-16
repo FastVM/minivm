@@ -2,6 +2,7 @@
 #define VM_HEADER_BE_VALUE
 
 #include <stdint.h>
+
 #include "../ir.h"
 
 union vm_value_t;
@@ -18,7 +19,7 @@ union vm_value_t {
     uint64_t u64;
     float f32;
     double f64;
-    vm_block_t *func;
+    vm_run_block_t *func;
 };
 
 #endif

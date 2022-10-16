@@ -102,6 +102,7 @@ struct vm_block_t {
     size_t nregs;
 
     void *cache;
+    void *rcache;
 
     bool isfunc : 1;
 };
@@ -118,6 +119,6 @@ void vm_print_instr(FILE *out, vm_instr_t val);
 void vm_print_block(FILE *out, vm_block_t *val);
 void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *val);
 
-void vm_info(size_t *nops, vm_block_t **blocks);
+void vm_info(size_t nops, vm_block_t **blocks);
 
 #endif

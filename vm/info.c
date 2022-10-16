@@ -7,12 +7,10 @@ enum {
     VM_INFO_REG_UNK,
 };
 
-void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
-    vm_block_t *blocks = *ptr_blocks;
-    size_t nblocks = *ptr_nops;
+void vm_info(size_t nblocks, vm_block_t **blocks) {
     uint8_t **all_regs = vm_malloc(sizeof(uint8_t *) * nblocks);
     for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = &blocks[i];
+        vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }
@@ -40,7 +38,7 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
         }
     }
     for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = &blocks[i];
+        vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }
@@ -85,7 +83,7 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
     while (redo) {
         redo = false;
         for (ptrdiff_t i = nblocks - 1; i >= 0; i--) {
-            vm_block_t *block = &blocks[i];
+            vm_block_t *block = blocks[i];
             if (block->id < 0) {
                 continue;
             }
@@ -103,12 +101,12 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
                     if (bi == block->nargs) {
                         while (ti < target->nargs) {
                             size_t newreg = target->args[ti++];
-                            if (newreg >= blocks[i].nregs) {
+                            if (newreg >= blocks[i]->nregs) {
                                 all_regs[i] = vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg + 1));
-                                for (size_t c = blocks[i].nregs; c < newreg + 1; c++) {
+                                for (size_t c = blocks[i]->nregs; c < newreg + 1; c++) {
                                     all_regs[i][c] = VM_INFO_REG_UNK;
                                 }
-                                blocks[i].nregs = newreg + 1;
+                                blocks[i]->nregs = newreg + 1;
                             }
                             if (all_regs[i][newreg] != VM_INFO_REG_DEF) {
                                 next[nargs++] = newreg;
@@ -144,16 +142,16 @@ void vm_info(size_t *ptr_nops, vm_block_t **ptr_blocks) {
         }
     }
     for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = &blocks[i];
+        vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }
         vm_free(all_regs[i]);
     }
     vm_free(all_regs);
-    vm_block_t *func = &blocks[0];
+    vm_block_t *func = blocks[0];
     for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = &blocks[i];
+        vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }

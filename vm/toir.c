@@ -1,5 +1,6 @@
 
 #include "toir.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
@@ -57,7 +58,7 @@ static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
         .cache = NULL,
     };
     state->blocks[where] = block;
-    block->id = (ptrdiff_t) where;
+    block->id = (ptrdiff_t)where;
     return state->blocks[where];
 }
 
@@ -152,7 +153,7 @@ static vm_block_t *vm_parse_arg_block(vm_parser_t *state) {
 
 static vm_arg_t vm_parse_arg(vm_parser_t *state) {
     vm_parse_strip(state);
-    vm_arg_t arg = (vm_arg_t) {.type = VM_ARG_UNK};
+    vm_arg_t arg = (vm_arg_t){.type = VM_ARG_UNK};
     if (**state->src == '%') {
         vm_skip(state);
         size_t n = 0;
@@ -212,7 +213,7 @@ static bool vm_parse_state(vm_parser_t *state) {
                 goto fail;
             }
             if (!strcmp(name, "blt") || !strcmp(name, "beq") || !strcmp(name, "bb") || !strcmp(name, "ret") || !strcmp(name, "jump") || !strcmp(name, "exit")) {
-                vm_branch_t branch = (vm_branch_t) {
+                vm_branch_t branch = (vm_branch_t){
                     .op = VM_BOP_FALL,
                     .tag = VM_TAG_UNK,
                 };
@@ -240,66 +241,66 @@ static bool vm_parse_state(vm_parser_t *state) {
                     branch.tag = vm_parse_tag(state);
                 }
                 switch (branch.op) {
-                case VM_BOP_JUMP: {
-                    branch.targets[0] = vm_parse_arg_block(state);
-                    if (branch.targets[0] == NULL) {
-                        goto fail;
+                    case VM_BOP_JUMP: {
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        break;
                     }
-                    break;
-                }
-                case VM_BOP_BB: {
-                    branch.args[0] = vm_parse_arg(state);
-                    branch.targets[0] = vm_parse_arg_block(state);
-                    if (branch.targets[0] == NULL) {
-                        goto fail;
+                    case VM_BOP_BB: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        branch.targets[1] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        break;
                     }
-                    branch.targets[1] = vm_parse_arg_block(state);
-                    if (branch.targets[0] == NULL) {
-                        goto fail;
+                    case VM_BOP_BLT: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.args[1] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        branch.targets[1] = vm_parse_arg_block(state);
+                        if (branch.targets[1] == NULL) {
+                            goto fail;
+                        }
+                        break;
                     }
-                    break;
-                }
-                case VM_BOP_BLT: {
-                    branch.args[0] = vm_parse_arg(state);
-                    branch.args[1] = vm_parse_arg(state);
-                    branch.targets[0] = vm_parse_arg_block(state);
-                    if (branch.targets[0] == NULL) {
-                        goto fail;
+                    case VM_BOP_BEQ: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.args[1] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        branch.targets[1] = vm_parse_arg_block(state);
+                        if (branch.targets[1] == NULL) {
+                            goto fail;
+                        }
+                        break;
                     }
-                    branch.targets[1] = vm_parse_arg_block(state);
-                    if (branch.targets[1] == NULL) {
-                        goto fail;
+                    case VM_BOP_RET: {
+                        branch.args[0] = vm_parse_arg(state);
+                        break;
                     }
-                    break;
-                }
-                case VM_BOP_BEQ: {
-                    branch.args[0] = vm_parse_arg(state);
-                    branch.args[1] = vm_parse_arg(state);
-                    branch.targets[0] = vm_parse_arg_block(state);
-                    if (branch.targets[0] == NULL) {
-                        goto fail;
+                    case VM_BOP_EXIT: {
+                        break;
                     }
-                    branch.targets[1] = vm_parse_arg_block(state);
-                    if (branch.targets[1] == NULL) {
-                        goto fail;
-                    }
-                    break;
-                }
-                case VM_BOP_RET: {
-                    branch.args[0] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_BOP_EXIT: {
-                    break;
-                }
                 }
                 block->branch = branch;
                 block = NULL;
             } else {
-                vm_instr_t instr = (vm_instr_t) {
+                vm_instr_t instr = (vm_instr_t){
                     .op = VM_IOP_NOP,
                     .tag = VM_TAG_UNK,
-                    .out = (vm_arg_t) {
+                    .out = (vm_arg_t){
                         .type = VM_ARG_NONE,
                     },
                 };
@@ -356,88 +357,88 @@ static bool vm_parse_state(vm_parser_t *state) {
                     instr.tag = vm_parse_tag(state);
                 }
                 switch (instr.op) {
-                case VM_IOP_MOVE: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_ADD: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_SUB: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_MUL: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_DIV: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_MOD: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_CALL: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    for (size_t i = 1; **state->src != '\n'; i++) {
-                        instr.args[i] = vm_parse_arg(state);
-                        vm_parse_strip(state);
+                    case VM_IOP_MOVE: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        break;
                     }
-                    break;
-                }
-                case VM_IOP_OUT: {
-                    instr.args[0] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_IN: {
-                    instr.out = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_BOR: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_BAND: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_BXOR: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_BSHL: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
-                case VM_IOP_BSHR: {
-                    instr.out = vm_parse_arg(state);
-                    instr.args[0] = vm_parse_arg(state);
-                    instr.args[1] = vm_parse_arg(state);
-                    break;
-                }
+                    case VM_IOP_ADD: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_SUB: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_MUL: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_DIV: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_MOD: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_CALL: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        for (size_t i = 1; **state->src != '\n'; i++) {
+                            instr.args[i] = vm_parse_arg(state);
+                            vm_parse_strip(state);
+                        }
+                        break;
+                    }
+                    case VM_IOP_OUT: {
+                        instr.args[0] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_IN: {
+                        instr.out = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_BOR: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_BAND: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_BXOR: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_BSHL: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_BSHR: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
                 }
                 size_t n = 0;
                 while (instr.args[n].type != VM_ARG_INIT) {
@@ -471,5 +472,6 @@ vm_block_t *vm_parse(const char *src) {
     if (bad) {
         return NULL;
     }
+    vm_info(parse.len, parse.blocks);
     return vm_parse_find(&parse, "");
 }

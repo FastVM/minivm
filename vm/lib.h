@@ -2,17 +2,16 @@
 #if !defined(VM_HEADER_LIB)
 #define VM_HEADER_LIB
 
+#include <ctype.h>
 #include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 #if defined(VM_XGC)
 

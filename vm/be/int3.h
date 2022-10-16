@@ -2,7 +2,6 @@
 #define VM_HEADER_IR_BE_INT3
 
 #include <stdint.h>
-
 #include "../ir.h"
 
 enum {
@@ -653,31 +652,56 @@ enum {
     VM_OPCODE_RET_F64_REG = 645,
     VM_OPCODE_RET_F64_CONST = 646,
     VM_OPCODE_EXIT_BREAK_VOID = 647,
-    VM_OPCODE_JUMP_FUNC_CONST = 648,
-    VM_OPCODE_CALL_FUNC_CONST = 649,
-    VM_OPCODE_CALL_FUNC_REG = 650,
-    VM_OPCODE_CALL_FUNC_CONST_REG = 651,
-    VM_OPCODE_CALL_FUNC_REG_REG = 652,
-    VM_OPCODE_CALL_FUNC_CONST_REG_REG = 653,
-    VM_OPCODE_CALL_FUNC_REG_REG_REG = 654,
-    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG = 655,
-    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG = 656,
-    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG = 657,
-    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG = 658,
-    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG = 659,
-    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG = 660,
-    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG = 661,
-    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG = 662,
-    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG = 663,
-    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG = 664,
-    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG_REG = 665,
-    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG = 666
+    VM_OPCODE_JUMP_PTR_CONST = 648,
+    VM_OPCODE_JUMP_FUNC_CONST = 649,
+    VM_OPCODE_CALL_PTR_CONST = 650,
+    VM_OPCODE_CALL_FUNC_CONST = 651,
+    VM_OPCODE_CALL_FUNC_REG = 652,
+    VM_OPCODE_CALL_PTR_CONST_REG = 653,
+    VM_OPCODE_CALL_FUNC_CONST_REG = 654,
+    VM_OPCODE_CALL_FUNC_REG_REG = 655,
+    VM_OPCODE_CALL_PTR_CONST_REG_REG = 656,
+    VM_OPCODE_CALL_FUNC_CONST_REG_REG = 657,
+    VM_OPCODE_CALL_FUNC_REG_REG_REG = 658,
+    VM_OPCODE_CALL_PTR_CONST_REG_REG_REG = 659,
+    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG = 660,
+    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG = 661,
+    VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG = 662,
+    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG = 663,
+    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG = 664,
+    VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG = 665,
+    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG = 666,
+    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG = 667,
+    VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG = 668,
+    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG = 669,
+    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG = 670,
+    VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG_REG = 671,
+    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG = 672,
+    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG = 673,
+    VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG_REG_REG = 674,
+    VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG_REG = 675,
+    VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG = 676
 };
 struct vm_state_t;
 typedef struct vm_state_t vm_state_t;
 
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
+
+typedef struct {
+    size_t aops;
+    size_t nops;
+    vm_opcode_t *ops;
+} vm_run_comp_t;
+
+typedef struct {
+    vm_block_t *block;
+    uint8_t *args;
+} vm_run_block_t;
+
+typedef struct {
+   vm_run_comp_t *comps;
+} vm_run_cache_t;
 
 union vm_opcode_t {
     size_t reg;
@@ -691,7 +715,7 @@ union vm_opcode_t {
     uint64_t u64;
     float f32;
     double f64;
-    vm_block_t *func;
+    vm_run_block_t *func;
     void *ptr;
 };
 
@@ -702,9 +726,10 @@ struct vm_state_t {
     void *locals;
     void **ptrs;
 };
-
 vm_state_t *vm_state_init(size_t nregs);
 void vm_state_deinit(vm_state_t *state);
+
+vm_opcode_t *vm_run_comp(vm_state_t *state, vm_run_block_t *block);
 void vm_run(vm_state_t *state, vm_block_t *block);
 
 #endif
