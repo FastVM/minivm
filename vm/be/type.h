@@ -2,6 +2,7 @@
 #define VM_HEADER_BE_TYPE
 
 #include "../ir.h"
+#include "../tag.h"
 #include "value.h"
 
 struct vm_rblock_t;

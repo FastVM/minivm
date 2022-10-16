@@ -1,5 +1,6 @@
-#include "../vm/be/int3.h"
 #include "../vm/asm.h"
+
+#include "../vm/be/int3.h"
 
 static char *vm_asm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");

@@ -1,4 +1,5 @@
 #include <stdint.h>
+
 #include "int3.h"
 
 vm_state_t *vm_state_init(size_t nregs) {
@@ -21,6 +22,7 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, uint8_t *regs) {
     rblock->regs = regs;
     return rblock;
 }
+
 vm_cache_t *vm_cache_new(void) {
     vm_cache_t *cache = vm_malloc(sizeof(vm_cache_t));
     cache->keys = NULL;
@@ -29,7 +31,36 @@ vm_cache_t *vm_cache_new(void) {
     cache->alloc = 0;
     return cache;
 }
+
+// static void vm_print_rblock(FILE *out, vm_rblock_t *rblock) {
+//     vm_block_t *block = rblock->block;
+//     fprintf(out, ".%zi(", block->id);
+//     for (size_t j = 0; j < block->nargs; j++) {
+//         if (j != 0) {
+//             fprintf(out, ", ");
+//         }
+//         fprintf(out, "r%zu : %s", block->args[j], vm_tag_to_str(rblock->regs[block->args[j]]));
+//     }
+//     fprintf(out, ")\n");
+//     for (size_t i = 0; i < block->len; i++) {
+//         if (block->instrs[i].op == VM_IOP_NOP) {
+//             continue;
+//         }
+//         fprintf(out, "    ");
+//         vm_print_instr(out, block->instrs[i]);
+//         fprintf(out, "\n");
+//     }
+//     if (block->branch.op != VM_BOP_FALL) {
+//         fprintf(out, "    ");
+//         vm_print_branch(out, block->branch);
+//         fprintf(out, "\n");
+//     } else {
+//         fprintf(out, "    <fall>\n");
+//     }
+// }
+
 vm_opcode_t *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
+    // vm_print_rblock(stderr, rblock);
     for (size_t i = 0; i < cache->len; i++) {
         if (vm_rblock_regs_match(rblock->regs, cache->keys[i])) {
             return cache->values[i];
@@ -37,6 +68,7 @@ vm_opcode_t *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     }
     return NULL;
 }
+
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_opcode_t *value) {
     if (cache->len + 1 >= cache->alloc) {
         cache->alloc = cache->len * 2 + 1;
@@ -47,9 +79,11 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_opcode_t *value) {
     cache->values[cache->len] = value;
     cache->len += 1;
 }
+
 uint8_t *vm_rblock_regs_empty(void) {
     return vm_alloc0(sizeof(uint8_t) * VM_NREGS);
 }
+
 uint8_t *vm_rblock_regs_dup(uint8_t *regs) {
     uint8_t *ret = vm_alloc0(sizeof(uint8_t) * VM_NREGS);
     for (size_t i = 0; i < VM_NREGS; i++) {
@@ -57,6 +91,7 @@ uint8_t *vm_rblock_regs_dup(uint8_t *regs) {
     }
     return ret;
 }
+
 bool vm_rblock_regs_match(uint8_t *a, uint8_t *b) {
     for (size_t i = 0; i < VM_NREGS; i++) {
         if (a[i] != b[i]) {

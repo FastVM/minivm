@@ -173,7 +173,7 @@ void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *blocks) {
             fprintf(out, ".%zu(", i);
         }
         for (size_t j = 0; j < block->nargs; j++) {
-            if (i != 0) {
+            if (j != 0) {
                 fprintf(out, ", ");
             }
             fprintf(out, "r%zu", block->args[j]);

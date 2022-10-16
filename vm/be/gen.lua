@@ -466,7 +466,10 @@ do
             lines[#lines + 1] = '        }'
             lines[#lines + 1] = '        default: goto err;'
         end
-        lines[#lines + 1] = '         }'
+        lines[#lines + 1] = '        }'
+        lines[#lines + 1] = '        if (instr.out.type == VM_ARG_REG) {'
+        lines[#lines + 1] = '            types[instr.out.reg] = instr.tag;'
+        lines[#lines + 1] = '        }'
         lines[#lines + 1] = '     }'
         lines[#lines + 1] = '     switch (block->branch.op) {'
         do

@@ -3517,7 +3517,10 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             }
         }
         default: goto err;
-         }
+        }
+        if (instr.out.type == VM_ARG_REG) {
+            types[instr.out.reg] = instr.tag;
+        }
      }
      switch (block->branch.op) {
         case VM_BOP_EXIT: {
