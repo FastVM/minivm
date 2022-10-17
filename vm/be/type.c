@@ -32,35 +32,37 @@ vm_cache_t *vm_cache_new(void) {
     return cache;
 }
 
-// static void vm_print_rblock(FILE *out, vm_rblock_t *rblock) {
-//     vm_block_t *block = rblock->block;
-//     fprintf(out, ".%zi(", block->id);
-//     for (size_t j = 0; j < block->nargs; j++) {
-//         if (j != 0) {
-//             fprintf(out, ", ");
-//         }
-//         fprintf(out, "r%zu : %s", block->args[j], vm_tag_to_str(rblock->regs[block->args[j]]));
-//     }
-//     fprintf(out, ")\n");
-//     for (size_t i = 0; i < block->len; i++) {
-//         if (block->instrs[i].op == VM_IOP_NOP) {
-//             continue;
-//         }
-//         fprintf(out, "    ");
-//         vm_print_instr(out, block->instrs[i]);
-//         fprintf(out, "\n");
-//     }
-//     if (block->branch.op != VM_BOP_FALL) {
-//         fprintf(out, "    ");
-//         vm_print_branch(out, block->branch);
-//         fprintf(out, "\n");
-//     } else {
-//         fprintf(out, "    <fall>\n");
-//     }
-// }
+static void vm_print_rblock(FILE *out, vm_rblock_t *rblock) {
+    vm_block_t *block = rblock->block;
+    fprintf(out, ".%zi(", block->id);
+    for (size_t j = 0; j < block->nargs; j++) {
+        if (j != 0) {
+            fprintf(out, ", ");
+        }
+        fprintf(out, "r%zu : %s", block->args[j], vm_tag_to_str(rblock->regs[block->args[j]]));
+    }
+    fprintf(out, ")\n");
+    for (size_t i = 0; i < block->len; i++) {
+        if (block->instrs[i].op == VM_IOP_NOP) {
+            continue;
+        }
+        fprintf(out, "    ");
+        vm_print_instr(out, block->instrs[i]);
+        fprintf(out, "\n");
+    }
+    if (block->branch.op != VM_BOP_FALL) {
+        fprintf(out, "    ");
+        vm_print_branch(out, block->branch);
+        fprintf(out, "\n");
+    } else {
+        fprintf(out, "    <fall>\n");
+    }
+}
 
 vm_opcode_t *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
-    // vm_print_rblock(stderr, rblock);
+#if defined(VM_PRINT_RBLOCKS)
+    vm_print_rblock(stderr, rblock);
+#endif
     for (size_t i = 0; i < cache->len; i++) {
         if (vm_rblock_regs_match(rblock->regs, cache->keys[i])) {
             return cache->values[i];
@@ -99,4 +101,48 @@ bool vm_rblock_regs_match(uint8_t *a, uint8_t *b) {
         }
     }
     return true;
+}
+
+vm_instr_t vm_rblock_type_specialize_instr(uint8_t *types, vm_instr_t instr) {
+    if (instr.tag == VM_TAG_UNK) {
+        for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
+            if (instr.args[i].type == VM_ARG_REG) {
+                instr.tag = types[instr.args[i].reg];
+                return instr;
+            }
+        }
+        for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
+            if (instr.args[i].type == VM_ARG_NUM) {
+                if (fmod(instr.args[i].num, 1) == 0) {
+                    instr.tag = VM_TAG_I64;
+                } else {
+                    instr.tag = VM_TAG_F64;
+                }
+                return instr;
+            }
+        }
+    }
+    return instr;
+}
+
+vm_branch_t vm_rblock_type_specialize_branch(uint8_t *types, vm_branch_t branch) {
+    if (branch.tag == VM_TAG_UNK) {
+        for (size_t i = 0; i < 2; i++) {
+            if (branch.args[i].type == VM_ARG_REG) {
+                branch.tag = types[branch.args[i].reg];
+                return branch;
+            }
+        }
+        for (size_t i = 0; i < 2; i++) {
+            if (branch.args[i].type == VM_ARG_NUM) {
+                if (fmod(branch.args[i].num, 1) == 0) {
+                    branch.tag = VM_TAG_I64;
+                } else {
+                    branch.tag = VM_TAG_F64;
+                }
+                return branch;
+            }
+        }
+    }
+    return branch;
 }

@@ -22,7 +22,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             aops = (nops + 32) * 2;
             ops = vm_realloc(ops, sizeof(vm_opcode_t) * aops);
         }
-        vm_instr_t instr = block->instrs[ninstr];
+        vm_instr_t instr = vm_rblock_type_specialize_instr(types, block->instrs[ninstr]);
         switch (instr.op) {
         case VM_IOP_MOVE: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -3522,306 +3522,307 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             types[instr.out.reg] = instr.tag;
         }
      }
-     switch (block->branch.op) {
+     vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);
+     switch (branch.op) {
         case VM_BOP_EXIT: {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_EXIT_BREAK_VOID];
             break;
         }
         case VM_BOP_JUMP: {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_JUMP_FUNC_CONST];
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
             break;
         }
         case VM_BOP_RET: {
-            if (block->branch.tag == VM_TAG_I8) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I8) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I8_CONST];
-                   ops[nops++].i8 = (int8_t) block->branch.args[0].num;
+                   ops[nops++].i8 = (int8_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I8_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_I16) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I16) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I16_CONST];
-                   ops[nops++].i16 = (int16_t) block->branch.args[0].num;
+                   ops[nops++].i16 = (int16_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I16_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_I32) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I32) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I32_CONST];
-                   ops[nops++].i32 = (int32_t) block->branch.args[0].num;
+                   ops[nops++].i32 = (int32_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I32_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_I64) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I64) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I64_CONST];
-                   ops[nops++].i64 = (int64_t) block->branch.args[0].num;
+                   ops[nops++].i64 = (int64_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_I64_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_U8) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U8) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U8_CONST];
-                   ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
+                   ops[nops++].u8 = (uint8_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U8_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_U16) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U16) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U16_CONST];
-                   ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
+                   ops[nops++].u16 = (uint16_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U16_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_U32) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U32) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U32_CONST];
-                   ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
+                   ops[nops++].u32 = (uint32_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U32_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_U64) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U64) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U64_CONST];
-                   ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
+                   ops[nops++].u64 = (uint64_t) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_U64_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_F32) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_F32) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_F32_CONST];
-                   ops[nops++].f32 = (float) block->branch.args[0].num;
+                   ops[nops++].f32 = (float) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_F32_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
-            if (block->branch.tag == VM_TAG_F64) {
-                if (block->branch.args[0].type != VM_ARG_REG) {
+            if (branch.tag == VM_TAG_F64) {
+                if (branch.args[0].type != VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_F64_CONST];
-                   ops[nops++].f64 = (double) block->branch.args[0].num;
+                   ops[nops++].f64 = (double) branch.args[0].num;
                    break;
                }
-                if (block->branch.args[0].type == VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG) {
                    ops[nops++].ptr = state->ptrs[VM_OPCODE_RET_F64_REG];
-                   ops[nops++].reg = block->branch.args[0].reg;
+                   ops[nops++].reg = branch.args[0].reg;
                    break;
                }
             }
             goto err;
         }
         case VM_BOP_BB: {
-                if (block->branch.tag == VM_TAG_I8) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_I8) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I8_CONST_FUNC_FUNC];
-                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i8 = (int8_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I8_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_I16) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_I16) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I16_CONST_FUNC_FUNC];
-                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i16 = (int16_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I16_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_I32) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_I32) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I32_CONST_FUNC_FUNC];
-                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i32 = (int32_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I32_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_I64) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_I64) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I64_CONST_FUNC_FUNC];
-                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i64 = (int64_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_I64_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_U8) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_U8) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U8_CONST_FUNC_FUNC];
-                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u8 = (uint8_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U8_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_U16) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_U16) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U16_CONST_FUNC_FUNC];
-                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u16 = (uint16_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U16_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_U32) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_U32) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U32_CONST_FUNC_FUNC];
-                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u32 = (uint32_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U32_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_U64) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_U64) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U64_CONST_FUNC_FUNC];
-                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u64 = (uint64_t) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_U64_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_F32) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_F32) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_F32_CONST_FUNC_FUNC];
-                    ops[nops++].f32 = (float) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f32 = (float) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_F32_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
                 }
-                if (block->branch.tag == VM_TAG_F64) {
-                    if (block->branch.args[0].type != VM_ARG_REG) {
+                if (branch.tag == VM_TAG_F64) {
+                    if (branch.args[0].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_F64_CONST_FUNC_FUNC];
-                    ops[nops++].f64 = (double) block->branch.args[0].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f64 = (double) branch.args[0].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
-                    if (block->branch.args[0].type == VM_ARG_REG) {
+                    if (branch.args[0].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BB_F64_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                     }
                     break;
@@ -3829,686 +3830,686 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
              goto err;
         }
         case VM_BOP_BLT: {
-            if (block->branch.tag == VM_TAG_I8) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I8) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i8 = (int8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i8 = (int8_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I8_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
-                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i8 = (int8_t) branch.args[0].num;
+                    ops[nops++].i8 = (int8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_I16) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I16) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i16 = (int16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i16 = (int16_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I16_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
-                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i16 = (int16_t) branch.args[0].num;
+                    ops[nops++].i16 = (int16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_I32) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I32) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i32 = (int32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i32 = (int32_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I32_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
-                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i32 = (int32_t) branch.args[0].num;
+                    ops[nops++].i32 = (int32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_I64) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I64) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i64 = (int64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i64 = (int64_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_I64_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
-                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i64 = (int64_t) branch.args[0].num;
+                    ops[nops++].i64 = (int64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U8) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U8) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u8 = (uint8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u8 = (uint8_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U8_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
-                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u8 = (uint8_t) branch.args[0].num;
+                    ops[nops++].u8 = (uint8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U16) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U16) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u16 = (uint16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u16 = (uint16_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U16_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
-                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u16 = (uint16_t) branch.args[0].num;
+                    ops[nops++].u16 = (uint16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U32) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U32) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u32 = (uint32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u32 = (uint32_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U32_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
-                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u32 = (uint32_t) branch.args[0].num;
+                    ops[nops++].u32 = (uint32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U64) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U64) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u64 = (uint64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u64 = (uint64_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_U64_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
-                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u64 = (uint64_t) branch.args[0].num;
+                    ops[nops++].u64 = (uint64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_F32) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_F32) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F32_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F32_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].f32 = (float) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].f32 = (float) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F32_CONST_REG_FUNC_FUNC];
-                    ops[nops++].f32 = (float) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f32 = (float) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F32_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].f32 = (float) block->branch.args[0].num;
-                    ops[nops++].f32 = (float) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f32 = (float) branch.args[0].num;
+                    ops[nops++].f32 = (float) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_F64) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_F64) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F64_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F64_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].f64 = (double) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].f64 = (double) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F64_CONST_REG_FUNC_FUNC];
-                    ops[nops++].f64 = (double) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f64 = (double) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BLT_F64_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].f64 = (double) block->branch.args[0].num;
-                    ops[nops++].f64 = (double) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f64 = (double) branch.args[0].num;
+                    ops[nops++].f64 = (double) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
              goto err;
         }
         case VM_BOP_BEQ: {
-            if (block->branch.tag == VM_TAG_I8) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I8) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i8 = (int8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i8 = (int8_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I8_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i8 = (int8_t) block->branch.args[0].num;
-                    ops[nops++].i8 = (int8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i8 = (int8_t) branch.args[0].num;
+                    ops[nops++].i8 = (int8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_I16) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I16) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i16 = (int16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i16 = (int16_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I16_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i16 = (int16_t) block->branch.args[0].num;
-                    ops[nops++].i16 = (int16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i16 = (int16_t) branch.args[0].num;
+                    ops[nops++].i16 = (int16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_I32) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I32) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i32 = (int32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i32 = (int32_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I32_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i32 = (int32_t) block->branch.args[0].num;
-                    ops[nops++].i32 = (int32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i32 = (int32_t) branch.args[0].num;
+                    ops[nops++].i32 = (int32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_I64) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_I64) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].i64 = (int64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_CONST_REG_FUNC_FUNC];
-                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i64 = (int64_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_I64_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].i64 = (int64_t) block->branch.args[0].num;
-                    ops[nops++].i64 = (int64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].i64 = (int64_t) branch.args[0].num;
+                    ops[nops++].i64 = (int64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U8) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U8) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u8 = (uint8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u8 = (uint8_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U8_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u8 = (uint8_t) block->branch.args[0].num;
-                    ops[nops++].u8 = (uint8_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u8 = (uint8_t) branch.args[0].num;
+                    ops[nops++].u8 = (uint8_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U16) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U16) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u16 = (uint16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u16 = (uint16_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U16_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u16 = (uint16_t) block->branch.args[0].num;
-                    ops[nops++].u16 = (uint16_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u16 = (uint16_t) branch.args[0].num;
+                    ops[nops++].u16 = (uint16_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U32) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U32) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u32 = (uint32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u32 = (uint32_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U32_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u32 = (uint32_t) block->branch.args[0].num;
-                    ops[nops++].u32 = (uint32_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u32 = (uint32_t) branch.args[0].num;
+                    ops[nops++].u32 = (uint32_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_U64) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_U64) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].u64 = (uint64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_CONST_REG_FUNC_FUNC];
-                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u64 = (uint64_t) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_U64_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].u64 = (uint64_t) block->branch.args[0].num;
-                    ops[nops++].u64 = (uint64_t) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].u64 = (uint64_t) branch.args[0].num;
+                    ops[nops++].u64 = (uint64_t) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_F32) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_F32) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F32_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F32_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].f32 = (float) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].f32 = (float) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F32_CONST_REG_FUNC_FUNC];
-                    ops[nops++].f32 = (float) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f32 = (float) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F32_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].f32 = (float) block->branch.args[0].num;
-                    ops[nops++].f32 = (float) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f32 = (float) branch.args[0].num;
+                    ops[nops++].f32 = (float) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
-            if (block->branch.tag == VM_TAG_F64) {
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+            if (branch.tag == VM_TAG_F64) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F64_REG_REG_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type == VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type == VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F64_REG_CONST_FUNC_FUNC];
-                    ops[nops++].reg = block->branch.args[0].reg;
-                    ops[nops++].f64 = (double) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].reg = branch.args[0].reg;
+                    ops[nops++].f64 = (double) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type == VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F64_CONST_REG_FUNC_FUNC];
-                    ops[nops++].f64 = (double) block->branch.args[0].num;
-                    ops[nops++].reg = block->branch.args[1].reg;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f64 = (double) branch.args[0].num;
+                    ops[nops++].reg = branch.args[1].reg;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
-                if (block->branch.args[0].type != VM_ARG_REG && block->branch.args[1].type != VM_ARG_REG) {
+                if (branch.args[0].type != VM_ARG_REG && branch.args[1].type != VM_ARG_REG) {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_BEQ_F64_CONST_CONST_FUNC_FUNC];
-                    ops[nops++].f64 = (double) block->branch.args[0].num;
-                    ops[nops++].f64 = (double) block->branch.args[1].num;
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[0], types);
-                    ops[nops++].func = vm_rblock_new(block->branch.targets[1], types);
+                    ops[nops++].f64 = (double) branch.args[0].num;
+                    ops[nops++].f64 = (double) branch.args[1].num;
+                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);
                     break;
                 }
             }
