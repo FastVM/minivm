@@ -689,7 +689,7 @@ typedef struct vm_state_t vm_state_t;
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
 
-#include "type.h"
+#include "./type.h"
 
 union vm_opcode_t {
     size_t reg;

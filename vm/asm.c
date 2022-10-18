@@ -1,11 +1,11 @@
 
-#include "asm.h"
+#include "./asm.h"
 
 #include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
 
-#include "tag.h"
+#include "./tag.h"
 
 struct vm_parser_t;
 typedef struct vm_parser_t vm_parser_t;
@@ -36,7 +36,9 @@ static void vm_skip(vm_parser_t *state) {
     } else {
         state->col += 1;
     }
-    *state->src += 1;
+    if (**state->src != '\0') {
+        *state->src += 1;
+    }
 }
 
 static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
@@ -73,7 +75,7 @@ static void vm_parse_stripln(vm_parser_t *state) {
     }
 }
 
-static const char *vm_parse_word_until(vm_parser_t *state, char stop) {
+static char *vm_parse_word_until(vm_parser_t *state, char stop) {
     vm_parse_strip(state);
     size_t maxlen = 8;
     char *name = vm_malloc(sizeof(char) * maxlen);
@@ -208,9 +210,7 @@ static bool vm_parse_state(vm_parser_t *state) {
             }
             block = next;
         } else {
-            const char *n1 = *state->src;
             const char *name = vm_parse_word_until(state, '.');
-            const char *n2 = *state->src;
             if (block == NULL) {
                 fprintf(stderr, "%s not within a block\n", name);
                 vm_free(name);

@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "int3.h"
+#include "./int3.h"
 
 vm_state_t *vm_state_init(size_t nregs) {
     vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
@@ -60,14 +60,14 @@ static void vm_print_rblock(FILE *out, vm_rblock_t *rblock) {
 }
 
 vm_opcode_t *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
-#if defined(VM_PRINT_RBLOCKS)
-    vm_print_rblock(stderr, rblock);
-#endif
     for (size_t i = 0; i < cache->len; i++) {
         if (vm_rblock_regs_match(rblock->regs, cache->keys[i])) {
             return cache->values[i];
         }
     }
+#if defined(VM_PRINT_RBLOCKS)
+    vm_print_rblock(stderr, rblock);
+#endif
     return NULL;
 }
 

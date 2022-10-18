@@ -55,6 +55,9 @@ clang-windows: .dummy
 gcc-windows: .dummy
 	$(MAKE) -B CC=$(GCC) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' bin/minivm-asm.exe
 
+msvc-windows: main/msvc.c $(VM_SRCS) 
+	cl main/msvc.c $(VM_SRCS) /Fe:bin/minivm-asm.exe /O2
+
 # binaries
 
 libs: bin/libminivm.a
@@ -84,7 +87,7 @@ gcc-pgo-clean: .dummy
 	rm -f $(PROG_SRCS:%.c=%.gcda) $(SRCS:%.c=%.gcda)
 
 objs-clean: .dummy
-	rm -f main/asm.o $(PROG_OBJS) $(OBJS) bin/minivm-asm libmimivm.a
+	rm -f main/asm.o $(PROG_OBJS) bin/minivm-asm libmimivm.a
 
 # intermediate files
 

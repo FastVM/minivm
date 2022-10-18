@@ -1,5 +1,5 @@
 
-#include "ir.h"
+#include "./ir.h"
 
 enum {
     VM_INFO_REG_DEF,
@@ -90,15 +90,15 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
             for (size_t t = 0; t < 2; t++) {
                 vm_block_t *target = block->branch.targets[t];
                 if (target == NULL) {
-                    continue;
+                    break;
                 }
                 size_t total = block->nargs + target->nargs;
                 size_t *next = vm_malloc(sizeof(size_t) * total);
                 size_t nargs = 0;
                 size_t bi = 0;
                 size_t ti = 0;
-                for (;;) {
-                    if (bi == block->nargs) {
+                while (true) {
+                    if (bi >= block->nargs) {
                         while (ti < target->nargs) {
                             size_t newreg = target->args[ti++];
                             if (newreg >= blocks[i]->nregs) {
@@ -113,7 +113,7 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
                             }
                         }
                         break;
-                    } else if (ti == target->nargs) {
+                    } else if (ti >= target->nargs) {
                         while (bi < block->nargs) {
                             next[nargs++] = block->args[bi++];
                         }

@@ -1,5 +1,5 @@
-#include "int3.h"
-#include "value.h"
+#include "./int3.h"
+#include "./value.h"
 #include "../tag.h"
 void vm_run(vm_state_t *state, vm_block_t *block) {
     void *ptrs[] = {
@@ -821,7 +821,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i8_reg_ptr_ptr: {
         int8_t a0 = locals[ip[0].reg].i8;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -830,7 +830,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i8_const_ptr_ptr: {
         int8_t a0 = ip[0].i8;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -1285,7 +1285,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i16_reg_ptr_ptr: {
         int16_t a0 = locals[ip[0].reg].i16;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -1294,7 +1294,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i16_const_ptr_ptr: {
         int16_t a0 = ip[0].i16;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -1749,7 +1749,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i32_reg_ptr_ptr: {
         int32_t a0 = locals[ip[0].reg].i32;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -1758,7 +1758,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i32_const_ptr_ptr: {
         int32_t a0 = ip[0].i32;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -2213,7 +2213,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i64_reg_ptr_ptr: {
         int64_t a0 = locals[ip[0].reg].i64;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -2222,7 +2222,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_i64_const_ptr_ptr: {
         int64_t a0 = ip[0].i64;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -2677,7 +2677,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u8_reg_ptr_ptr: {
         uint8_t a0 = locals[ip[0].reg].u8;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -2686,7 +2686,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u8_const_ptr_ptr: {
         uint8_t a0 = ip[0].u8;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -3141,7 +3141,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u16_reg_ptr_ptr: {
         uint16_t a0 = locals[ip[0].reg].u16;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -3150,7 +3150,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u16_const_ptr_ptr: {
         uint16_t a0 = ip[0].u16;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -3605,7 +3605,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u32_reg_ptr_ptr: {
         uint32_t a0 = locals[ip[0].reg].u32;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -3614,7 +3614,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u32_const_ptr_ptr: {
         uint32_t a0 = ip[0].u32;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -4069,7 +4069,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u64_reg_ptr_ptr: {
         uint64_t a0 = locals[ip[0].reg].u64;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -4078,7 +4078,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_u64_const_ptr_ptr: {
         uint64_t a0 = ip[0].u64;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -4533,7 +4533,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_f32_reg_ptr_ptr: {
         float a0 = locals[ip[0].reg].f32;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -4542,7 +4542,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_f32_const_ptr_ptr: {
         float a0 = ip[0].f32;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -4867,7 +4867,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_f64_reg_ptr_ptr: {
         double a0 = locals[ip[0].reg].f64;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -4876,7 +4876,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_bb_f64_const_ptr_ptr: {
         double a0 = ip[0].f64;
-        if (a0) {
+        if (a0 != 0) {
             ip = ip[1].ptr;
         } else {
             ip = ip[2].ptr;
@@ -5066,7 +5066,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         goto *(ip++)->ptr;
     }
     do_exit_break_void: {
-        return;
+        {return;}
         goto *(ip++)->ptr;
     }
     do_jump_ptr_const: {

@@ -1,5 +1,5 @@
-#include "int3.h"
-#include "value.h"
+#include "./int3.h"
+#include "./value.h"
 #include "../tag.h"
 vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
     if (rblock->block->cache == NULL) {
@@ -4521,5 +4521,5 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
      return ops;
 err:;
      fprintf(stderr, "BAD INSTR!\n");
-     __builtin_trap();
+     exit(1);
 }

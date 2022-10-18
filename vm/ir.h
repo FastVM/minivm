@@ -2,7 +2,7 @@
 #if !defined(VM_HEADER_IR)
 #define VM_HEADER_IR
 
-#include "lib.h"
+#include "./lib.h"
 
 struct vm_arg_t;
 struct vm_branch_t;

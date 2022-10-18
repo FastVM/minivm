@@ -3,7 +3,7 @@
 
 #include "../ir.h"
 #include "../tag.h"
-#include "value.h"
+#include "./value.h"
 
 struct vm_rblock_t;
 typedef struct vm_rblock_t vm_rblock_t;

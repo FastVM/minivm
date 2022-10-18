@@ -1,5 +1,39 @@
 -- part: config
 local VM_NREGS = 256
+local VM_GOTO = true
+
+local i = 1
+while i < #arg do
+    local val = arg[i]
+    if val == '--goto=true' then
+        VM_GOTO = true
+    elseif val == '--goto=false' then
+        VM_GOTO = false
+    elseif val == '--goto' then
+        i = i + 1
+        if arg[i] == 'true' then
+            VM_GOTO = true
+        elseif arg[i] == 'false' then
+            VM_GOTO = false
+        elseif arg[i] == nil then
+            error('--goto: expected true or false as an argument, not end of arguments')
+        else
+            error('--goto: bad argument ' .. arg[i])
+        end
+    elseif val == '--regs' then
+        i = i + 1
+        if arg[i] == 'nil' then
+            error('--regs: expected argument, not end of arguments')
+        elseif tonumber(arg[i]) == nil then
+            error('--regs: bad number' .. arg[i])
+        else
+            VM_NREGS = tonumber(arg[i])
+        end
+    else
+        error('unexpected arg: ' .. val)
+    end
+    i = i + 1
+end
 
 -- part: util
 local typenametab = {
@@ -189,7 +223,7 @@ typedef struct vm_state_t vm_state_t;
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
 
-#include "type.h"
+#include "./type.h"
 
 union vm_opcode_t {
     size_t reg;
@@ -231,8 +265,8 @@ end
 do
     local lines = {}
 
-    lines[#lines + 1] = '#include "int3.h"'
-    lines[#lines + 1] = '#include "value.h"'
+    lines[#lines + 1] = '#include "./int3.h"'
+    lines[#lines + 1] = '#include "./value.h"'
     lines[#lines + 1] = '#include "../tag.h"'
 
     local simplebinary = {
@@ -477,14 +511,22 @@ do
         do
             lines[#lines + 1] = '        case VM_BOP_EXIT: {'
             local name = string.upper(table.concat({prefix, 'exit', 'break', 'void'}, '_'))
-            lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+            if VM_GOTO then
+                lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+            else
+                lines[#lines + 1] = '                    ops[nops++].reg = ' .. name .. ';'
+            end
             lines[#lines + 1] = '            break;'
             lines[#lines + 1] = '        }'
         end
         do
             lines[#lines + 1] = '        case VM_BOP_JUMP: {'
             local name = string.upper(table.concat({prefix, 'jump', 'func', 'const'}, '_'))
-            lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+            if VM_GOTO then
+                lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+            else
+                lines[#lines + 1] = '                    ops[nops++].reg = ' .. name .. ';'
+            end
             lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);'
             lines[#lines + 1] = '            break;'
             lines[#lines + 1] = '        }'
@@ -580,7 +622,7 @@ do
         lines[#lines + 1] = '     return ops;'
         lines[#lines + 1] = 'err:;'
         lines[#lines + 1] = '     fprintf(stderr, "BAD INSTR!\\n");'
-        lines[#lines + 1] = '     __builtin_trap();'
+        lines[#lines + 1] = '     exit(1);'
         lines[#lines + 1] = '}'
     
         local incheadersrc = table.concat(lines, '\n')
@@ -590,13 +632,13 @@ do
 
     local lines = {}
 
-    lines[#lines + 1] = '#include "int3.h"'
-    lines[#lines + 1] = '#include "value.h"'
+    lines[#lines + 1] = '#include "./int3.h"'
+    lines[#lines + 1] = '#include "./value.h"'
     lines[#lines + 1] = '#include "../tag.h"'
 
     lines[#lines + 1] = 'void vm_run(vm_state_t *state, vm_block_t *block) {'
 
-    do
+    if VM_GOTO then
         local cases = {}
 
         lines[#lines + 1] = '    void *ptrs[] = {'
@@ -606,13 +648,29 @@ do
 
         lines[#lines + 1] = table.concat(cases, ',\n')
         lines[#lines + 1] = '    };'
-    end
 
-    lines[#lines + 1] = '    state->ptrs = ptrs;'
+        lines[#lines + 1] = '    state->ptrs = ptrs;'
+    else
+        local cases = {}
+
+        lines[#lines + 1] = '    size_t ptrs[] = {'
+        for key, instr in ipairs(instrs) do
+            cases[#cases + 1] = '        [' .. instr.name .. '] = ' .. instr.name
+        end
+
+        lines[#lines + 1] = table.concat(cases, ',\n')
+        lines[#lines + 1] = '    };'
+
+        lines[#lines + 1] = '    state->ptrs = (void*) ptrs;'
+    end
     lines[#lines + 1] = '    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty()));'
     lines[#lines + 1] = '    vm_value_t *restrict locals = state->locals;'
     lines[#lines + 1] = '    vm_opcode_t **restrict ips = state->ips;'
-    lines[#lines + 1] = '    goto *(ip++)->ptr;'
+    if VM_GOTO then
+        lines[#lines + 1] = '    goto *(ip++)->ptr;'
+    else
+        lines[#lines + 1] = '    redo:; switch ((ip++)->reg) {'
+    end
 
     do
         local cases = {}
@@ -620,8 +678,11 @@ do
         for key, instr in ipairs(instrs) do
             local case = {}
 
-            case[#case + 1] = '    ' .. instr.label .. ': {'
-
+            if VM_GOTO then
+                case[#case + 1] = '    ' .. instr.label .. ': {'
+            else
+                case[#case + 1] = '    case ' .. instr.name .. ': {'
+            end
             -- case[#case+1] = '        printf("' .. instr.name .. '\\n");'
             -- case[#case+1] = '        fflush(stderr);'
 
@@ -690,8 +751,12 @@ do
                 case[#case + 1] = '            ip = ip[0].ptr;'
             elseif instr.op == 'jump' and instr.type == 'func' then
                 case[#case + 1] = '        vm_opcode_t *head = ip-1;'
-                case[#case + 1] = '        head->ptr = &&' ..
+                if VM_GOTO then
+                    case[#case + 1] = '        head->ptr = &&' ..
                                       table.concat({'do', instr.op, 'ptr', 'const'}, '_') .. ';'
+                else
+                    case[#case + 1] = '        head->reg = ' .. string.upper(table.concat({prefix, instr.op, 'ptr', 'const'}, '_')) .. ';'
+                end
                 case[#case + 1] = '        ip[0].ptr = vm_run_comp(state, ip[0].func);'
                 case[#case + 1] = '        ip = head;'
             elseif instr.op == 'bb' and instr.args[2] == 'ptr' then
@@ -701,16 +766,20 @@ do
                 else
                     case[#case + 1] = '        ' .. tname .. ' a0 = ip[0].' .. instr.type .. ';'
                 end
-                case[#case + 1] = '        if (a0) {'
+                case[#case + 1] = '        if (a0 != 0) {'
                 case[#case + 1] = '            ip = ip[1].ptr;'
                 case[#case + 1] = '        } else {'
                 case[#case + 1] = '            ip = ip[2].ptr;'
                 case[#case + 1] = '        }'
             elseif instr.op == 'bb' and instr.args[2] == 'func' then
                 case[#case + 1] = '        vm_opcode_t *head = ip-1;'
-                case[#case + 1] = '        head->ptr = &&' ..
-                                      table.concat({'do', instr.op, instr.type, instr.args[1], 'ptr', 'ptr'}, '_') ..
-                                      ';'
+                if VM_GOTO then
+                    case[#case + 1] = '        head->ptr = &&' ..
+                    table.concat({'do', instr.op, instr.type, instr.args[1], 'ptr', 'ptr'}, '_') ..
+                    ';'
+                else
+                    case[#case + 1] = '        head->reg = ' .. string.upper(table.concat({prefix, instr.op, instr.type, instr.args[1], 'ptr', 'ptr'}, '_')).. ';'
+                end
                 case[#case + 1] = '        ip[1].ptr = vm_run_comp(state, ip[1].func);'
                 case[#case + 1] = '        ip = head;'
             elseif (instr.op == 'blt' or instr.op == 'beq') and instr.args[3] == 'ptr' then
@@ -732,9 +801,12 @@ do
                 case[#case + 1] = '        }'
             elseif (instr.op == 'blt' or instr.op == 'beq') and instr.args[3] == 'func' then
                 case[#case + 1] = '        vm_opcode_t *head = ip-1;'
-                case[#case + 1] = '        head->ptr = &&' ..
-                                      table.concat(
-                        {'do', instr.op, instr.type, instr.args[1], instr.args[2], 'ptr', 'ptr'}, '_') .. ';'
+                if VM_GOTO then
+                    case[#case + 1] = '        head->ptr = &&' ..
+                                        table.concat({'do', instr.op, instr.type, instr.args[1], instr.args[2], 'ptr', 'ptr'}, '_') .. ';'
+                else
+                    case[#case + 1] = '        head->reg = ' .. string.upper(table.concat({prefix, instr.op, instr.type, instr.args[1], instr.args[2], 'ptr', 'ptr'}, '_')) .. ';'
+                end
                 case[#case + 1] = '        ip[2].ptr = vm_run_comp(state, ip[2].func);'
                 case[#case + 1] = '        ip[3].ptr = vm_run_comp(state, ip[3].func);'
                 case[#case + 1] = '        ip = head;'
@@ -766,21 +838,33 @@ do
                 case[#case + 1] = '        ip = t0;'
             elseif instr.op == 'call' and instr.type == 'func' then
                 case[#case + 1] = '        vm_opcode_t *head = ip-1;'
-                local argvs = {'do', 'call', 'ptr'}
-                for argno = 1, #instr.args do
-                    argvs[#argvs + 1] = instr.args[argno]
+                if VM_GOTO then
+                    local argvs = {'do', 'call', 'ptr'}
+                    for argno = 1, #instr.args do
+                        argvs[#argvs + 1] = instr.args[argno]
+                    end
+                    case[#case + 1] = '        head->ptr = &&' .. table.concat(argvs, '_') .. ';'
+                else
+                    local argvs = {prefix, 'call', 'ptr'}
+                    for argno = 1, #instr.args do
+                        argvs[#argvs + 1] = instr.args[argno]
+                    end
+                    case[#case + 1] = '        head->reg = ' .. string.upper(table.concat(argvs, '_')) .. ';'
                 end
-                case[#case + 1] = '        head->ptr = &&' .. table.concat(argvs, '_') .. ';'
                 case[#case + 1] = '        ip[0].ptr = vm_run_comp(state, ip[0].func);'
                 case[#case + 1] = '        ip = head;'
             elseif instr.op == 'exit' then
-                case[#case + 1] = '        return;'
+                case[#case + 1] = '        {return;}'
             else
                 case[#case + 1] = '        fprintf(stderr, "unimplemend label: ' .. instr.name .. '\\n");'
-                case[#case + 1] = '        __builtin_trap();'
+                lines[#lines + 1] = '     exit(1);'
             end
 
-            case[#case + 1] = '        goto *(ip++)->ptr;'
+            if VM_GOTO then
+                case[#case + 1] = '        goto *(ip++)->ptr;'
+            else
+                case[#case + 1] = '        goto redo;'
+            end
             case[#case + 1] = '    }'
 
             cases[#cases + 1] = table.concat(case, '\n')
@@ -789,6 +873,9 @@ do
         lines[#lines + 1] = table.concat(cases, '\n')
     end
 
+    if not VM_GOTO then
+        lines[#lines + 1] = '    }'
+    end
     lines[#lines + 1] = '}'
 
     local incheadersrc = table.concat(lines, '\n')
