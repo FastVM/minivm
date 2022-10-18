@@ -56,7 +56,7 @@ gcc-windows: .dummy
 	$(MAKE) -B CC=$(GCC) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' bin/minivm-asm.exe
 
 msvc-windows: main/msvc.c $(VM_SRCS) 
-	cl main/msvc.c $(VM_SRCS) /Fe:bin/minivm-asm.exe /O2
+	cl main/msvc.c $(VM_SRCS) /Fe:bin/minivm-asm.exe
 
 # binaries
 

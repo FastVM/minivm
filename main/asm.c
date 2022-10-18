@@ -28,7 +28,6 @@ static char *vm_asm_io_read(const char *filename) {
 }
 
 int main(int argc, char **argv) {
-    const char *dump = NULL;
     const char *filename = NULL;
     size_t runs = 1;
     while (true) {
@@ -39,14 +38,6 @@ int main(int argc, char **argv) {
             } else {
                 break;
             }
-        }
-        if (!strcmp(argv[1], "-o") || !strcmp(argv[1], "--output")) {
-            argv += 1;
-            argc -= 1;
-            dump = argv[1];
-            argv += 1;
-            argc -= 1;
-            continue;
         }
         if (!strcmp(argv[1], "-n")) {
             argv += 1;

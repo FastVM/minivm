@@ -3521,9 +3521,9 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
         if (instr.out.type == VM_ARG_REG) {
             types[instr.out.reg] = instr.tag;
         }
-     }
-     vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);
-     switch (branch.op) {
+    }
+    vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);
+    switch (branch.op) {
         case VM_BOP_EXIT: {
                     ops[nops++].ptr = state->ptrs[VM_OPCODE_EXIT_BREAK_VOID];
             break;
@@ -4516,10 +4516,10 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
              goto err;
         }
         default: goto err;
-     }
-     vm_cache_set(rblock->block->cache, rnext, ops);
-     return ops;
+    }
+    vm_cache_set(rblock->block->cache, rnext, ops);
+    return ops;
 err:;
-     fprintf(stderr, "BAD INSTR!\n");
-     exit(1);
+    fprintf(stderr, "BAD INSTR!\n");
+    exit(1);
 }

@@ -36,6 +36,7 @@ while i < #arg do
 end
 
 -- part: util
+
 local typenametab = {
     i8 = 'int8_t',
     i16 = 'int16_t',
@@ -505,9 +506,9 @@ do
         lines[#lines + 1] = '        if (instr.out.type == VM_ARG_REG) {'
         lines[#lines + 1] = '            types[instr.out.reg] = instr.tag;'
         lines[#lines + 1] = '        }'
-        lines[#lines + 1] = '     }'
-        lines[#lines + 1] = '     vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);'
-        lines[#lines + 1] = '     switch (branch.op) {'
+        lines[#lines + 1] = '    }'
+        lines[#lines + 1] = '    vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);'
+        lines[#lines + 1] = '    switch (branch.op) {'
         do
             lines[#lines + 1] = '        case VM_BOP_EXIT: {'
             local name = string.upper(table.concat({prefix, 'exit', 'break', 'void'}, '_'))
@@ -617,12 +618,12 @@ do
         do
             lines[#lines + 1] = '        default: goto err;'
         end
-        lines[#lines + 1] = '     }'
-        lines[#lines + 1] = '     vm_cache_set(rblock->block->cache, rnext, ops);'
-        lines[#lines + 1] = '     return ops;'
+        lines[#lines + 1] = '    }'
+        lines[#lines + 1] = '    vm_cache_set(rblock->block->cache, rnext, ops);'
+        lines[#lines + 1] = '    return ops;'
         lines[#lines + 1] = 'err:;'
-        lines[#lines + 1] = '     fprintf(stderr, "BAD INSTR!\\n");'
-        lines[#lines + 1] = '     exit(1);'
+        lines[#lines + 1] = '    fprintf(stderr, "BAD INSTR!\\n");'
+        lines[#lines + 1] = '    exit(1);'
         lines[#lines + 1] = '}'
     
         local incheadersrc = table.concat(lines, '\n')
@@ -857,7 +858,7 @@ do
                 case[#case + 1] = '        {return;}'
             else
                 case[#case + 1] = '        fprintf(stderr, "unimplemend label: ' .. instr.name .. '\\n");'
-                lines[#lines + 1] = '     exit(1);'
+                lines[#lines + 1] = '        exit(1);'
             end
 
             if VM_GOTO then

@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - run: make CC=cc OPT='-O3 -fomit-frame-pointer' gcc-pgo-build
+      - run: make CC=cc OPT='-O3 -fomit-frame-pointer' 
       - uses: actions/upload-artifact@v2
         with:
           name: minivm-linux

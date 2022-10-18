@@ -682,7 +682,7 @@ enum {
     VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG_REG = 675,
     VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG = 676
 };
-#define VM_NREGS 256
+#define VM_NREGS 1024
 struct vm_state_t;
 typedef struct vm_state_t vm_state_t;
 

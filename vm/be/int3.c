@@ -5103,7 +5103,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5118,7 +5118,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
@@ -5126,8 +5126,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5142,8 +5142,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
@@ -5151,9 +5151,9 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5168,9 +5168,9 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
@@ -5178,10 +5178,10 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5196,10 +5196,10 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
@@ -5207,11 +5207,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5226,11 +5226,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
@@ -5238,12 +5238,12 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
+        locals[1030] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5258,12 +5258,12 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
+        locals[1030] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
@@ -5271,13 +5271,13 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
-        locals[263] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
+        locals[1030] = locals[(ip++)->reg];
+        locals[1031] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5292,13 +5292,13 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
-        locals[263] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
+        locals[1030] = locals[(ip++)->reg];
+        locals[1031] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
@@ -5306,14 +5306,14 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
-        locals[263] = locals[(ip++)->reg];
-        locals[264] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
+        locals[1030] = locals[(ip++)->reg];
+        locals[1031] = locals[(ip++)->reg];
+        locals[1032] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
@@ -5328,14 +5328,14 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
-        locals[263] = locals[(ip++)->reg];
-        locals[264] = locals[(ip++)->reg];
+        locals[1025] = locals[(ip++)->reg];
+        locals[1026] = locals[(ip++)->reg];
+        locals[1027] = locals[(ip++)->reg];
+        locals[1028] = locals[(ip++)->reg];
+        locals[1029] = locals[(ip++)->reg];
+        locals[1030] = locals[(ip++)->reg];
+        locals[1031] = locals[(ip++)->reg];
+        locals[1032] = locals[(ip++)->reg];
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = vm_run_comp(state, t0);
