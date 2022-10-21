@@ -713,7 +713,6 @@ struct vm_state_t {
     size_t nlocals;
     void *locals;
 
-    void **ptrs;
 };
 
 void vm_run(vm_state_t *state, vm_block_t *block);
@@ -721,5 +720,5 @@ void vm_run(vm_state_t *state, vm_block_t *block);
 
 #endif
 
-    #define VM_STATE_LOAD_PTR(state, num) ((state)->ptrs[num])
-    #define VM_OPCODE_PTR ptr
+    #define VM_STATE_LOAD_PTR(state, num) (num)
+    #define VM_OPCODE_PTR reg
