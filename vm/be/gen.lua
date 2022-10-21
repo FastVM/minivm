@@ -247,7 +247,11 @@ struct vm_state_t {
     size_t framesize;
     size_t nlocals;
     void *locals;
-    void **ptrs;
+]]
+if VM_GOTO then
+    lines[#lines + 1] = '    void *ptrs;'
+end
+lines[#lines + 1] = [[
 };
 
 void vm_run(vm_state_t *state, vm_block_t *block);
@@ -255,7 +259,15 @@ void vm_run(vm_state_t *state, vm_block_t *block);
 
 #endif
 ]]
-
+    
+if VM_GOTO then
+    lines[#lines + 1] = '    #define VM_STATE_LOAD_PTR(state, num) ((state)->ptrs[num])'
+    lines[#lines + 1] = '    #define VM_OPCODE_PTR ptr'
+else
+    lines[#lines + 1] = '    #define VM_STATE_LOAD_PTR(state, num) (num)'
+    lines[#lines + 1] = '    #define VM_OPCODE_PTR reg'
+end
+    
     local incheadersrc = table.concat(lines, '\n')
 
     dump('vm/be/int3.h', incheadersrc)
@@ -313,10 +325,7 @@ do
         local kinds = {{'reg', 'reg'}, {'reg', 'const'}, {'const', 'reg'}, {'const', 'const'}}
 
         lines[#lines + 1] = 'vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {'
-        lines[#lines + 1] = '    if (rblock->block->cache == NULL) {'
-        lines[#lines + 1] = '        rblock->block->cache = vm_cache_new();'
-        lines[#lines + 1] = '    }'
-        lines[#lines + 1] = '    vm_opcode_t *ret = vm_cache_get(rblock->block->cache, rblock);'
+        lines[#lines + 1] = '    vm_opcode_t *ret = vm_cache_get(&rblock->block->cache, rblock);'
         lines[#lines + 1] = '    if (ret != NULL) {'
         lines[#lines + 1] = '        return ret;'
         lines[#lines + 1] = '    }'
@@ -346,7 +355,7 @@ do
                 for _, a0type in ipairs({'reg', 'const'}) do
                     lines[#lines + 1] = '                if (instr.args[0].type ' .. map[a0type] .. ') {'
                     local name = string.upper(table.concat({prefix, 'move', tvalue, a0type}, '_'))
-                    lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                    lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if a0type == 'reg' then
                         lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
                     else
@@ -374,7 +383,7 @@ do
                     for _, a0type in ipairs({'reg', 'const'}) do
                         lines[#lines + 1] = '                if (instr.args[0].type ' .. map[a0type] .. ') {'
                         local name = string.upper(table.concat({prefix, 'bnot', tvalue, a0type}, '_'))
-                        lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                        lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                         if a0type == 'reg' then
                             lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
                         else
@@ -404,7 +413,7 @@ do
                         lines[#lines + 1] = '                if (instr.args[0].type ' .. map[pair[1]] .. ' && ' ..
                                                 'instr.args[1].type ' .. map[pair[2]] .. ') {'
                         local name = string.upper(table.concat({prefix, value, tvalue, pair[1], pair[2]}, '_'))
-                        lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                        lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                         if pair[1] == 'reg' then
                             lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
                         else
@@ -435,7 +444,7 @@ do
             for tkey, tvalue in ipairs(binarytypes) do
                 lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                 local name = string.upper(table.concat({prefix, 'in', tvalue, 'void'}, '_'))
-                lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                 lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
                 lines[#lines + 1] = '            }'
             end
@@ -453,7 +462,7 @@ do
                     name = string.upper(table.concat(name, '_'))
                     lines[#lines + 1] = '            if (instr.args[' .. tostring(nargs + 1) ..
                                             '].type == VM_ARG_NONE) {'
-                    lines[#lines + 1] = '                ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                    lines[#lines + 1] = '                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
                         lines[#lines + 1] = '                ops[nops++].reg = instr.args[0].reg;'
                     else
@@ -486,7 +495,7 @@ do
                 for _, val in ipairs({'const', 'reg'}) do
                     local name = string.upper(table.concat({prefix, 'out', tvalue, val}, '_'))
                     lines[#lines + 1] = '                if (instr.args[0].type ' .. map[val] .. ') {'
-                    lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                    lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
                         lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
                     else
@@ -513,7 +522,7 @@ do
             lines[#lines + 1] = '        case VM_BOP_EXIT: {'
             local name = string.upper(table.concat({prefix, 'exit', 'break', 'void'}, '_'))
             if VM_GOTO then
-                lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
             else
                 lines[#lines + 1] = '                    ops[nops++].reg = ' .. name .. ';'
             end
@@ -524,7 +533,7 @@ do
             lines[#lines + 1] = '        case VM_BOP_JUMP: {'
             local name = string.upper(table.concat({prefix, 'jump', 'func', 'const'}, '_'))
             if VM_GOTO then
-                lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
             else
                 lines[#lines + 1] = '                    ops[nops++].reg = ' .. name .. ';'
             end
@@ -539,7 +548,7 @@ do
                 for _, val in ipairs({'const', 'reg'}) do
                     lines[#lines + 1] = '                if (branch.args[0].type ' .. map[val] .. ') {'
                     local name = string.upper(table.concat({prefix, 'ret', tvalue, val}, '_'))
-                    lines[#lines + 1] = '                   ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                    lines[#lines + 1] = '                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
                         lines[#lines + 1] = '                   ops[nops++].reg = branch.args[0].reg;'
                     else
@@ -561,7 +570,7 @@ do
                 for _, val in ipairs({'const', 'reg'}) do
                     lines[#lines + 1] = '                    if (branch.args[0].type ' .. map[val] .. ') {'
                     local name = string.upper(table.concat({prefix, 'bb', tvalue, val, 'func', 'func'}, '_'))
-                    lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                    lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
                         lines[#lines + 1] = '                    ops[nops++].reg = branch.args[0].reg;'
                     else
@@ -591,7 +600,7 @@ do
                                 'branch.args[1].type ' .. map[pair[2]] .. ') {'
                         local name = string.upper(table.concat(
                             {prefix, value, tvalue, pair[1], pair[2], 'func', 'func'}, '_'))
-                        lines[#lines + 1] = '                    ops[nops++].ptr = state->ptrs[' .. name .. '];'
+                        lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                         if pair[1] == 'reg' then
                             lines[#lines + 1] = '                    ops[nops++].reg = branch.args[0].reg;'
                         else
@@ -619,7 +628,7 @@ do
             lines[#lines + 1] = '        default: goto err;'
         end
         lines[#lines + 1] = '    }'
-        lines[#lines + 1] = '    vm_cache_set(rblock->block->cache, rnext, ops);'
+        lines[#lines + 1] = '    vm_cache_set(&rblock->block->cache, rnext, ops);'
         lines[#lines + 1] = '    return ops;'
         lines[#lines + 1] = 'err:;'
         lines[#lines + 1] = '    fprintf(stderr, "BAD INSTR!\\n");'
@@ -651,18 +660,6 @@ do
         lines[#lines + 1] = '    };'
 
         lines[#lines + 1] = '    state->ptrs = ptrs;'
-    else
-        local cases = {}
-
-        lines[#lines + 1] = '    size_t ptrs[] = {'
-        for key, instr in ipairs(instrs) do
-            cases[#cases + 1] = '        [' .. instr.name .. '] = ' .. instr.name
-        end
-
-        lines[#lines + 1] = table.concat(cases, ',\n')
-        lines[#lines + 1] = '    };'
-
-        lines[#lines + 1] = '    state->ptrs = (void*) ptrs;'
     end
     lines[#lines + 1] = '    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty()));'
     lines[#lines + 1] = '    vm_value_t *restrict locals = state->locals;'

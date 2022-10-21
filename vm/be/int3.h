@@ -682,7 +682,7 @@ enum {
     VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG_REG = 675,
     VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG = 676
 };
-#define VM_NREGS 1024
+#define VM_NREGS 256
 struct vm_state_t;
 typedef struct vm_state_t vm_state_t;
 
@@ -712,10 +712,13 @@ struct vm_state_t {
     size_t framesize;
     size_t nlocals;
     void *locals;
-    void **ptrs;
+
 };
 
 void vm_run(vm_state_t *state, vm_block_t *block);
 
 
 #endif
+
+    #define VM_STATE_LOAD_PTR(state, num) (num)
+    #define VM_OPCODE_PTR reg

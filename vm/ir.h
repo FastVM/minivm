@@ -8,7 +8,11 @@ struct vm_arg_t;
 struct vm_branch_t;
 struct vm_instr_t;
 struct vm_block_t;
+struct vm_rblock_t;
+struct vm_cache_t;
 
+typedef struct vm_rblock_t vm_rblock_t;
+typedef struct vm_cache_t vm_cache_t;
 typedef struct vm_arg_t vm_arg_t;
 typedef struct vm_branch_t vm_branch_t;
 typedef struct vm_instr_t vm_instr_t;
@@ -61,6 +65,18 @@ enum {
     VM_IOP_MAX,
 };
 
+struct vm_rblock_t {
+    uint8_t *regs;
+    vm_block_t *block;
+};
+
+struct vm_cache_t {
+    uint8_t **keys;
+    void **values;
+    size_t len;
+    size_t alloc;
+};
+
 struct vm_arg_t {
     union {
         size_t reg;
@@ -101,7 +117,7 @@ struct vm_block_t {
 
     size_t nregs;
 
-    void *cache;
+    vm_cache_t cache;
 
     bool isfunc : 1;
 };

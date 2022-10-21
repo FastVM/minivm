@@ -23,15 +23,6 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, uint8_t *regs) {
     return rblock;
 }
 
-vm_cache_t *vm_cache_new(void) {
-    vm_cache_t *cache = vm_malloc(sizeof(vm_cache_t));
-    cache->keys = NULL;
-    cache->values = NULL;
-    cache->len = 0;
-    cache->alloc = 0;
-    return cache;
-}
-
 #if defined(VM_PRINT_RBLOCKS)
 static const char *vm_tag_to_str(uint8_t tag) {
     static const char *table[] = {

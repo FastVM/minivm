@@ -1,0 +1,40 @@
+@putn:
+    blt %1 1 [putn.ret] [putn.digit]
+@putn.digit:
+    div %0 %1 10
+    call %0 [putn] %0
+    mod %1 %1 10
+    add %1 %1 48
+    out %1
+@putn.ret:
+    ret 0
+
+@print:
+    bb %1 [print.nonzero] [print.zero]
+@print.zero:
+    out 48
+    out 10
+    ret 0
+@print.nonzero:
+    call %0 [putn] %1
+    out 10
+    ret 0
+
+@:
+    move.i8 %0 8
+    call %0 [print] %0
+    move.i16 %0 16
+    call %0 [print] %0
+    move.i32 %0 32
+    call %0 [print] %0
+    move.i64 %0 64
+    call %0 [print] %0
+    move.u8 %0 8
+    call %0 [print] %0
+    move.u16 %0 16
+    call %0 [print] %0
+    move.u32 %0 32
+    call %0 [print] %0
+    move.u64 %0 64
+    call %0 [print] %0
+    exit
