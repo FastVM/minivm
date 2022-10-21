@@ -261,10 +261,10 @@ void vm_run(vm_state_t *state, vm_block_t *block);
 ]]
     
 if VM_GOTO then
-    lines[#lines + 1] = '    #define VM_STATE_LOAD_PTR(state, num) ((state)->ptrs[num])'
+    lines[#lines + 1] = '    #define VM_STATE_LOAD_PTR(state, num) ((state)->ptrs[(num)])'
     lines[#lines + 1] = '    #define VM_OPCODE_PTR ptr'
 else
-    lines[#lines + 1] = '    #define VM_STATE_LOAD_PTR(state, num) (num)'
+    lines[#lines + 1] = '    #define VM_STATE_LOAD_PTR(state, num) ((void) (state), (num))'
     lines[#lines + 1] = '    #define VM_OPCODE_PTR reg'
 end
     

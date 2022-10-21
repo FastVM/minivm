@@ -3522,11 +3522,11 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
     vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);
     switch (branch.op) {
         case VM_BOP_EXIT: {
-                    ops[nops++].reg = VM_OPCODE_EXIT_BREAK_VOID;
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_EXIT_BREAK_VOID);
             break;
         }
         case VM_BOP_JUMP: {
-                    ops[nops++].reg = VM_OPCODE_JUMP_FUNC_CONST;
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_FUNC_CONST);
                     ops[nops++].func = vm_rblock_new(branch.targets[0], types);
             break;
         }
