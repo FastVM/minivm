@@ -249,7 +249,7 @@ struct vm_state_t {
     void *locals;
 ]]
 if VM_GOTO then
-    lines[#lines + 1] = '    void *ptrs;'
+    lines[#lines + 1] = '    void **ptrs;'
 end
 lines[#lines + 1] = [[
 };
