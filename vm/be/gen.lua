@@ -454,36 +454,42 @@ do
         do
             lines[#lines + 1] = '        case VM_IOP_CALL: {'
             for nargs = 0, 8 do
+                lines[#lines + 1] = '            if (instr.args[' .. tostring(nargs + 1) ..
+                    '].type == VM_ARG_NONE) {'
                 for _, val in ipairs({'const', 'reg'}) do
+                    if val == 'reg' then
+                        lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_REG) {'
+                    else
+                        lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_FUNC) {'
+                    end
                     local name = {prefix, 'call', 'func', val}
                     while #name - 4 < nargs do
                         name[#name + 1] = 'reg'
                     end
                     name = string.upper(table.concat(name, '_'))
-                    lines[#lines + 1] = '            if (instr.args[' .. tostring(nargs + 1) ..
-                                            '].type == VM_ARG_NONE) {'
-                    lines[#lines + 1] = '                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                    lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
-                        lines[#lines + 1] = '                ops[nops++].reg = instr.args[0].reg;'
+                        lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
                     else
-                        lines[#lines + 1] = '                uint8_t *args = vm_rblock_regs_empty();'
+                        lines[#lines + 1] = '                    uint8_t *args = vm_rblock_regs_empty();'
                         for argno = 1, nargs do
-                            lines[#lines + 1] = '                args[' .. tostring(argno) .. '] = types[instr.args[' .. tostring(argno) .. '].reg];'
+                            lines[#lines + 1] = '                    args[' .. tostring(argno) .. '] = types[instr.args[' .. tostring(argno) .. '].reg];'
                         end
-                        lines[#lines + 1] = '                ops[nops++].func = vm_rblock_new(instr.args[0].func, args);'
+                        lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(instr.args[0].func, args);'
                     end
                     for argno = 1, nargs do
-                        lines[#lines + 1] = '                ops[nops++].reg = instr.args[' .. tostring(argno) ..
+                        lines[#lines + 1] = '                    ops[nops++].reg = instr.args[' .. tostring(argno) ..
                                                 '].reg;'
                     end
-                    lines[#lines + 1] = '                if (instr.out.type == VM_ARG_NONE) {'
-                    lines[#lines + 1] = '                        ops[nops++].reg = VM_NREGS;'
-                    lines[#lines + 1] = '                } else {'
-                    lines[#lines + 1] = '                        ops[nops++].reg = instr.out.reg;'
+                    lines[#lines + 1] = '                    if (instr.out.type == VM_ARG_NONE) {'
+                    lines[#lines + 1] = '                            ops[nops++].reg = VM_NREGS;'
+                    lines[#lines + 1] = '                    } else {'
+                    lines[#lines + 1] = '                            ops[nops++].reg = instr.out.reg;'
+                    lines[#lines + 1] = '                    }'
                     lines[#lines + 1] = '                }'
-                    lines[#lines + 1] = '                break;'
-                    lines[#lines + 1] = '            }'
                 end
+                lines[#lines + 1] = '                break;'
+                lines[#lines + 1] = '            }'
             end
             lines[#lines + 1] = '            goto err;'
             lines[#lines + 1] = '        }'

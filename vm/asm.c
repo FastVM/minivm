@@ -154,8 +154,7 @@ static vm_block_t *vm_parse_arg_block(vm_parser_t *state) {
 
 static vm_arg_t vm_parse_arg(vm_parser_t *state) {
     vm_parse_strip(state);
-    vm_arg_t arg = (vm_arg_t){.type = VM_ARG_UNK};
-    if (**state->src == '%') {
+    if (**state->src == '%' || **state->src == '$') {
         vm_skip(state);
         size_t n = 0;
         while (isdigit(**state->src)) {
@@ -163,10 +162,11 @@ static vm_arg_t vm_parse_arg(vm_parser_t *state) {
             n += **state->src - '0';
             vm_skip(state);
         }
-        arg.reg = n;
-        arg.type = VM_ARG_REG;
-    }
-    if (isdigit(**state->src)) {
+        return (vm_arg_t){
+            .type = VM_ARG_REG,
+            .reg = n,
+        };
+    } else if (isdigit(**state->src)) {
         double n = 0;
         while (isdigit(**state->src)) {
             n *= 10;
@@ -184,14 +184,20 @@ static vm_arg_t vm_parse_arg(vm_parser_t *state) {
             }
             n /= div;
         }
-        arg.num = n;
-        arg.type = VM_ARG_NUM;
+        return (vm_arg_t){
+            .type = VM_ARG_NUM,
+            .num = n,
+        };
+    } else if (**state->src == '[') {
+        return (vm_arg_t){
+            .type = VM_ARG_FUNC,
+            .func = vm_parse_arg_block(state),
+        };
+    } else {
+        return (vm_arg_t){
+            .type = VM_ARG_UNK,
+        };
     }
-    if (**state->src == '[') {
-        arg.func = vm_parse_arg_block(state);
-        arg.type = VM_ARG_FUNC;
-    }
-    return arg;
 }
 
 static bool vm_parse_state(vm_parser_t *state) {
@@ -399,7 +405,7 @@ static bool vm_parse_state(vm_parser_t *state) {
                     case VM_IOP_CALL: {
                         instr.out = vm_parse_arg(state);
                         instr.args[0] = vm_parse_arg(state);
-                        for (size_t i = 1; **state->src != '\n'; i++) {
+                        for (size_t i = 1; **state->src != '\r' && **state->src != '\n'; i++) {
                             instr.args[i] = vm_parse_arg(state);
                             vm_parse_strip(state);
                         }

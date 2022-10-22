@@ -20,5 +20,4 @@ enum {
     VM_TAG_FN,
 };
 
-
 #endif

@@ -2,6 +2,7 @@
 #define VM_HEADER_BE_INT3
 
 #include <stdint.h>
+
 #include "../ir.h"
 
 enum {
@@ -718,8 +719,7 @@ struct vm_state_t {
 
 void vm_run(vm_state_t *state, vm_block_t *block);
 
-
 #endif
 
-    #define VM_STATE_LOAD_PTR(state, num) ((state)->ptrs[(num)])
-    #define VM_OPCODE_PTR ptr
+#define VM_STATE_LOAD_PTR(state, num) ((state)->ptrs[(num)])
+#define VM_OPCODE_PTR ptr
