@@ -13,11 +13,7 @@
 
 @:
     dlopen %1 "dll.dll"
-    call %0 [putn] %1
-    out 10
     dlsym %2 %1 "vm_new_u8" &ptr
-    call %0 [putn] %2
-    out 10
     call %3 %2
     call %0 [putn] %3
     out 10
