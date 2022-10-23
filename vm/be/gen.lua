@@ -48,7 +48,9 @@ local typenametab = {
     u64 = 'uint64_t',
     f32 = 'float',
     f64 = 'double',
-    func = 'vm_rblock_t *'
+    func = 'vm_rblock_t *',
+    lib = 'void *',
+    sym = 'void *'
 }
 
 local function typename(name)
@@ -193,6 +195,8 @@ push('dlsym', 'sym', {'reg', 'const'})
 push('exit', 'break', {})
 push('jump', 'ptr', {'const'})
 push('jump', 'func', {'const'})
+push('move', 'lib', {'reg'})
+push('move', 'sym', {'reg'})
 
 for i = 0, 8 do
     install_call(i)
@@ -356,8 +360,13 @@ do
         lines[#lines + 1] = '        switch (instr.op) {'
         lines[#lines + 1] = [[
         case VM_IOP_DLOPEN: {
-            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLOPEN_LIB_CONST);
-            ops[nops++].ptr = (void*) instr.args[0].str;
+            if (instr.args[0].type == VM_ARG_REG) {
+                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLOPEN_LIB_REG);
+                ops[nops++].reg = instr.args[0].reg;
+            } else {
+                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLOPEN_LIB_CONST);
+                ops[nops++].ptr = (void*) instr.args[0].str;
+            }
             ops[nops++].reg = instr.out.reg;
             break;
         }
@@ -373,7 +382,8 @@ do
                     ops[nops++].ptr = (void*) instr.args[1].str;
                 }
             } else {
-                goto err;
+                vm_print_instr(stderr, instr);
+                __builtin_trap();
             }
             ops[nops++].ptag = instr.args[2].tag;
             for (size_t i = 3; instr.args[i].type != VM_ARG_NONE; i++) {
@@ -389,6 +399,43 @@ do
             lines[#lines + 1] = '            if (instr.out.type == VM_ARG_NONE) {'
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
+            lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_NIL)) {'
+            lines[#lines + 1] = '                break;'
+            lines[#lines + 1] = '            }'
+            do
+                lines[#lines + 1] = '            if (instr.args[0].type == VM_ARG_STR) {'
+                lines[#lines + 1] = '                if (vm_tag_eq(VM_TAG_I32, VM_TAG_PTR)) {'
+                local name = string.upper(table.concat({prefix, 'move', 'u32', 'const'}, '_'))
+                lines[#lines + 1] = '                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                lines[#lines + 1] = '                   ops[nops++].u32 = (uint32_t) (size_t) instr.args[0].str;'
+                lines[#lines + 1] = '                   ops[nops++].reg = instr.out.reg;'
+                lines[#lines + 1] = '                } else {'
+                local name = string.upper(table.concat({prefix, 'move', 'u64', 'const'}, '_'))
+                lines[#lines + 1] = '                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                lines[#lines + 1] = '                   ops[nops++].u64 = (uint64_t) (size_t) instr.args[0].str;'
+                lines[#lines + 1] = '                   ops[nops++].reg = instr.out.reg;'
+                lines[#lines + 1] = '                }'
+                lines[#lines + 1] = '                break;'
+                lines[#lines + 1] = '            }'
+            end
+            do
+                local name = string.upper(table.concat({prefix, 'move', 'lib', 'reg'}, '_'))
+                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_LIB)) {'
+                lines[#lines + 1] = '                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                lines[#lines + 1] = '                ops[nops++].reg = instr.args[0].reg;'
+                lines[#lines + 1] = '                ops[nops++].reg = instr.out.reg;'
+                lines[#lines + 1] = '                break;'
+                lines[#lines + 1] = '            }'
+            end
+            do
+                local name = string.upper(table.concat({prefix, 'move', 'sym', 'reg'}, '_'))
+                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_SYM)) {'
+                lines[#lines + 1] = '                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                lines[#lines + 1] = '                ops[nops++].reg = instr.args[0].reg;'
+                lines[#lines + 1] = '                ops[nops++].reg = instr.out.reg;'
+                lines[#lines + 1] = '                break;'
+                lines[#lines + 1] = '            }'
+            end
             for tkey, tvalue in ipairs(binarytypes) do
                 lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 for _, a0type in ipairs({'reg', 'const'}) do
@@ -408,7 +455,7 @@ do
                 end
                 lines[#lines + 1] = '            }'
             end
-            lines[#lines + 1] = '            goto err;'
+            lines[#lines + 1] = '            __builtin_trap();'
             lines[#lines + 1] = '        }'
         end
         do
@@ -436,7 +483,7 @@ do
                     lines[#lines + 1] = '            }'
                 end
             end
-            lines[#lines + 1] = '            goto err;'
+            lines[#lines + 1] = '            __builtin_trap();'
             lines[#lines + 1] = '        }'
         end
         for key, value in ipairs(binaryint) do
@@ -472,7 +519,7 @@ do
                     lines[#lines + 1] = '            }'
                 end
             end
-            lines[#lines + 1] = '            goto err;'
+            lines[#lines + 1] = '            __builtin_trap();'
             lines[#lines + 1] = '        }'
         end
         do
@@ -549,7 +596,7 @@ do
                 lines[#lines + 1] = '                break;'
                 lines[#lines + 1] = '            }'
             end
-            lines[#lines + 1] = '            goto err;'
+            lines[#lines + 1] = '            __builtin_trap();'
             lines[#lines + 1] = '        }'
         end
         do
@@ -573,7 +620,7 @@ do
                 lines[#lines + 1] = '            }'
             end
             lines[#lines + 1] = '        }'
-            lines[#lines + 1] = '        default: goto err;'
+            lines[#lines + 1] = '        default: __builtin_trap();'
         end
         lines[#lines + 1] = '        }'
         lines[#lines + 1] = '        if (instr.out.type == VM_ARG_REG) {'
@@ -624,7 +671,7 @@ do
                 end
                 lines[#lines + 1] = '            }'
             end
-            lines[#lines + 1] = '            goto err;'
+            lines[#lines + 1] = '            __builtin_trap();'
             lines[#lines + 1] = '        }'
         end
         do
@@ -650,7 +697,7 @@ do
                 lines[#lines + 1] = '                    break;'
                 lines[#lines + 1] = '                }'
             end
-            lines[#lines + 1] = '             goto err;'
+            lines[#lines + 1] = '             __builtin_trap();'
             lines[#lines + 1] = '        }'
         end
         do
@@ -684,19 +731,16 @@ do
                     end
                     lines[#lines + 1] = '            }'
                 end
-                lines[#lines + 1] = '             goto err;'
+                lines[#lines + 1] = '             __builtin_trap();'
                 lines[#lines + 1] = '        }'
             end
         end
         do
-            lines[#lines + 1] = '        default: goto err;'
+            lines[#lines + 1] = '        default: __builtin_trap();'
         end
         lines[#lines + 1] = '    }'
         lines[#lines + 1] = '    vm_cache_set(&rblock->block->cache, rnext, ops);'
         lines[#lines + 1] = '    return ops;'
-        lines[#lines + 1] = 'err:;'
-        lines[#lines + 1] = '    fprintf(stderr, "BAD INSTR!\\n");'
-        lines[#lines + 1] = '    exit(1);'
         lines[#lines + 1] = '}'
     
         local incheadersrc = table.concat(lines, '\n')

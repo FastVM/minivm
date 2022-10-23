@@ -657,6 +657,8 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_EXIT_BREAK_VOID] = &&do_exit_break_void,
         [VM_OPCODE_JUMP_PTR_CONST] = &&do_jump_ptr_const,
         [VM_OPCODE_JUMP_FUNC_CONST] = &&do_jump_func_const,
+        [VM_OPCODE_MOVE_LIB_REG] = &&do_move_lib_reg,
+        [VM_OPCODE_MOVE_SYM_REG] = &&do_move_sym_reg,
         [VM_OPCODE_CALL_PTR_CONST] = &&do_call_ptr_const,
         [VM_OPCODE_CALL_FUNC_CONST] = &&do_call_func_const,
         [VM_OPCODE_CALL_SYM_REG] = &&do_call_sym_reg,
@@ -5130,6 +5132,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         head->ptr = &&do_jump_ptr_const;
         ip[0].ptr = vm_run_comp(state, ip[0].func);
         ip = head;
+        goto *(ip++)->ptr;
+    }
+    do_move_lib_reg: {
+        void * a0 = locals[(ip++)->reg].lib;
+        locals[(ip++)->reg].lib = a0;
+        goto *(ip++)->ptr;
+    }
+    do_move_sym_reg: {
+        void * a0 = locals[(ip++)->reg].sym;
+        locals[(ip++)->reg].sym = a0;
         goto *(ip++)->ptr;
     }
     do_call_ptr_const: {

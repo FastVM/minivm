@@ -23,8 +23,13 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
         vm_instr_t instr = vm_rblock_type_specialize_instr(types, block->instrs[ninstr]);
         switch (instr.op) {
         case VM_IOP_DLOPEN: {
-            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLOPEN_LIB_CONST);
-            ops[nops++].ptr = (void*) instr.args[0].str;
+            if (instr.args[0].type == VM_ARG_REG) {
+                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLOPEN_LIB_REG);
+                ops[nops++].reg = instr.args[0].reg;
+            } else {
+                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLOPEN_LIB_CONST);
+                ops[nops++].ptr = (void*) instr.args[0].str;
+            }
             ops[nops++].reg = instr.out.reg;
             break;
         }
@@ -40,7 +45,8 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].ptr = (void*) instr.args[1].str;
                 }
             } else {
-                goto err;
+                vm_print_instr(stderr, instr);
+                __builtin_trap();
             }
             ops[nops++].ptag = instr.args[2].tag;
             for (size_t i = 3; instr.args[i].type != VM_ARG_NONE; i++) {
@@ -53,6 +59,33 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
 
         case VM_IOP_MOVE: {
             if (instr.out.type == VM_ARG_NONE) {
+                break;
+            }
+            if (vm_tag_eq(instr.tag, VM_TAG_NIL)) {
+                break;
+            }
+            if (instr.args[0].type == VM_ARG_STR) {
+                if (vm_tag_eq(VM_TAG_I32, VM_TAG_PTR)) {
+                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_U32_CONST);
+                   ops[nops++].u32 = (uint32_t) (size_t) instr.args[0].str;
+                   ops[nops++].reg = instr.out.reg;
+                } else {
+                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_U64_CONST);
+                   ops[nops++].u64 = (uint64_t) (size_t) instr.args[0].str;
+                   ops[nops++].reg = instr.out.reg;
+                }
+                break;
+            }
+            if (vm_tag_eq(instr.tag, VM_TAG_LIB)) {
+                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_LIB_REG);
+                ops[nops++].reg = instr.args[0].reg;
+                ops[nops++].reg = instr.out.reg;
+                break;
+            }
+            if (vm_tag_eq(instr.tag, VM_TAG_SYM)) {
+                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_SYM_REG);
+                ops[nops++].reg = instr.args[0].reg;
+                ops[nops++].reg = instr.out.reg;
                 break;
             }
             if (vm_tag_eq(instr.tag, VM_TAG_I8)) {
@@ -195,7 +228,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_BNOT: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -313,7 +346,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_ADD: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -619,7 +652,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_SUB: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -925,7 +958,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_MUL: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -1231,7 +1264,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_DIV: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -1537,7 +1570,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_MOD: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -1843,7 +1876,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_BOR: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -2089,7 +2122,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_BXOR: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -2335,7 +2368,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_BAND: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -2581,7 +2614,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_BSHL: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -2827,7 +2860,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_BSHR: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -3073,7 +3106,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_IN: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -3545,7 +3578,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 break;
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_IOP_OUT: {
             if (vm_tag_eq(instr.tag, VM_TAG_I8)) {
@@ -3669,7 +3702,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
             }
         }
-        default: goto err;
+        default: __builtin_trap();
         }
         if (instr.out.type == VM_ARG_REG) {
             types[instr.out.reg] = instr.tag;
@@ -3807,7 +3840,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                    break;
                }
             }
-            goto err;
+            __builtin_trap();
         }
         case VM_BOP_BB: {
                 if (vm_tag_eq(branch.tag, VM_TAG_I8)) {
@@ -3980,7 +4013,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     }
                     break;
                 }
-             goto err;
+             __builtin_trap();
         }
         case VM_BOP_BLT: {
             if (vm_tag_eq(branch.tag, VM_TAG_I8)) {
@@ -4323,7 +4356,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-             goto err;
+             __builtin_trap();
         }
         case VM_BOP_BEQ: {
             if (vm_tag_eq(branch.tag, VM_TAG_I8)) {
@@ -4666,13 +4699,10 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
-             goto err;
+             __builtin_trap();
         }
-        default: goto err;
+        default: __builtin_trap();
     }
     vm_cache_set(&rblock->block->cache, rnext, ops);
     return ops;
-err:;
-    fprintf(stderr, "BAD INSTR!\n");
-    exit(1);
 }
