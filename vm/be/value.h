@@ -20,6 +20,9 @@ union vm_value_t {
     float f32;
     double f64;
     void *func;
+    void *lib;
+    void *sym;
+    const char *name;
 };
 
 #endif

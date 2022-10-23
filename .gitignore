@@ -3,6 +3,7 @@
 *.com
 *.core
 *.dbg
+*.dll
 *.dep
 *.exe
 *.gcda

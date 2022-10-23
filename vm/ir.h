@@ -30,7 +30,7 @@ enum {
     VM_ARG_REG,
     VM_ARG_NUM,
     VM_ARG_STR,
-    VM_ARG_EXTERN,
+    VM_ARG_TAG,
     VM_ARG_FUNC,
 };
 
@@ -62,6 +62,8 @@ enum {
     VM_IOP_BXOR,
     VM_IOP_BSHL,
     VM_IOP_BSHR,
+    VM_IOP_DLOPEN,
+    VM_IOP_DLSYM,
     VM_IOP_MAX,
 };
 
@@ -85,6 +87,7 @@ struct vm_arg_t {
         vm_block_t *func;
         vm_instr_t *instr;
         bool logic;
+        uint8_t tag;
     };
     uint8_t type;
 };
@@ -97,7 +100,7 @@ struct vm_branch_t {
 };
 
 struct vm_instr_t {
-    vm_arg_t args[11];
+    vm_arg_t args[17];
     vm_arg_t out;
     uint8_t op;
     uint8_t tag;

@@ -1,0 +1,21 @@
+
+@putn:
+    blt.i64 %1 1 [putn.ret] [putn.digit]
+@putn.digit:
+    div.i64 %0 %1 10
+    call %0 [putn] %0
+    mod.i64 %1 %1 10
+    add.i64 %1 %1 48
+    out.i64 %1
+    jump [putn.ret]
+@putn.ret:
+    ret.i64 0
+
+@:
+    dlopen %0 "libraylib.dll"
+    call %1 [putn] %0
+    out 10
+    dlsym %1 %0 "InitWindow" &void &i32 &i32 &ptr
+    call %1 [putn] %1
+    out 10
+    exit

@@ -16,7 +16,8 @@ enum {
     VM_TAG_U64,
     VM_TAG_F32,
     VM_TAG_F64,
-    VM_TAG_MEM,
+    VM_TAG_LIB,
+    VM_TAG_SYM,
     VM_TAG_FN,
 };
 

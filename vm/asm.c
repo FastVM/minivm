@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "./tag.h"
 
@@ -152,6 +153,59 @@ static vm_block_t *vm_parse_arg_block(vm_parser_t *state) {
     return block;
 }
 
+static vm_arg_t vm_parse_type_arg(vm_parser_t *state) {
+    vm_parse_strip(state);
+    if (**state->src == '&') {
+        const char *word = vm_parse_word_until(state, '&');
+        if (!strcmp(word, "void")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_NIL };
+        }
+        if (!strcmp(word, "bool")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_BOOL };
+        }
+        if (!strcmp(word, "i8")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I8 };
+        }
+        if (!strcmp(word, "i16")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I16 };
+        }
+        if (!strcmp(word, "i32")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I32 };
+        }
+        if (!strcmp(word, "i64")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I64 };
+        }
+        if (!strcmp(word, "u8")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U8 };
+        }
+        if (!strcmp(word, "u16")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U16 };
+        }
+        if (!strcmp(word, "u32")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U32 };
+        }
+        if (!strcmp(word, "u64")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U64 };
+        }
+        if (!strcmp(word, "f32")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_F32 };
+        }
+        if (!strcmp(word, "f64")) {
+            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_F64 };
+        }
+        if (!strcmp(word, "ptr") || !strcmp(word, "usize")) {
+            if (sizeof(void *) == 8) {
+                return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U64 };
+            } else if (sizeof(void *) == 4) {
+                return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U32 };
+            } else {
+                return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U64 };
+            }
+        }
+        vm_free(word);
+    }
+}
+
 static vm_arg_t vm_parse_arg(vm_parser_t *state) {
     vm_parse_strip(state);
     if (**state->src == '%' || **state->src == '$') {
@@ -165,6 +219,25 @@ static vm_arg_t vm_parse_arg(vm_parser_t *state) {
         return (vm_arg_t){
             .type = VM_ARG_REG,
             .reg = n,
+        };
+    } else if (**state->src == '"') {
+        size_t alloc = 8;
+        char *name = vm_malloc(sizeof(char) * alloc);
+        size_t len = 0;
+        vm_skip(state);
+        while (**state->src != '"') {
+            if (len + 2 > alloc) {
+                alloc = (len + 2) * 2;
+                name = vm_realloc(name, sizeof(char) * alloc);
+            }
+            name[len++] = **state->src;
+            vm_skip(state);
+        }
+        name[len] = '\0';
+        vm_skip(state);
+        return (vm_arg_t){
+            .type = VM_ARG_STR,
+            .str = name,
         };
     } else if (isdigit(**state->src)) {
         double n = 0;
@@ -356,6 +429,14 @@ static bool vm_parse_state(vm_parser_t *state) {
                 if (!strcmp(name, "bshr")) {
                     instr.op = VM_IOP_BSHR;
                 }
+                if (!strcmp(name, "dlopen")) {
+                    instr.op = VM_IOP_DLOPEN;
+                    instr.tag = VM_TAG_LIB;
+                }
+                if (!strcmp(name, "dlsym")) {
+                    instr.op = VM_IOP_DLSYM;
+                    instr.tag = VM_TAG_SYM;
+                }
                 if (instr.op == VM_IOP_NOP) {
                     fprintf(stderr, "unknown name: `%s`\n", name);
                     vm_free(name);
@@ -447,6 +528,21 @@ static bool vm_parse_state(vm_parser_t *state) {
                         instr.out = vm_parse_arg(state);
                         instr.args[0] = vm_parse_arg(state);
                         instr.args[1] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_DLOPEN: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_DLSYM: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        instr.args[1] = vm_parse_arg(state);
+                        for (size_t i = 2; **state->src != '\r' && **state->src != '\n'; i++) {
+                            instr.args[i] = vm_parse_type_arg(state);
+                            vm_parse_strip(state);
+                        }
                         break;
                     }
                 }

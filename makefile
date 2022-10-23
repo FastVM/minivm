@@ -9,7 +9,7 @@ HOST_CC ?= $(CC)
 PROG_SRCS := main/asm.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-VM_SRCS := vm/asm.c vm/ir.c vm/info.c vm/be/int3.c vm/be/comp.c vm/be/type.c
+VM_SRCS := vm/asm.c vm/cffi.c vm/ir.c vm/info.c vm/be/int3.c vm/be/comp.c vm/be/type.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS)
@@ -63,6 +63,10 @@ msvc-windows: main/msvc.c $(VM_SRCS)
 libs: bin/libminivm.a
 
 bins: bin/minivm-asm
+
+bin/libminivm.lib: $(OBJS)
+	@mkdir -p bin
+	lib /out:$(@) $(OBJS)
 
 bin/libminivm.a: $(OBJS)
 	@mkdir -p bin
