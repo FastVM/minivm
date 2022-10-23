@@ -5084,15 +5084,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_dlsym_sym_reg: {
         vm_value_t lib = locals[(ip++)->reg];
-        vm_value_t name = locals[(ip++)->reg];
-        uint8_t ret = (uint8_t) (ip++)->tag;
+        const char *name = (ip++)->ptr;
+        uint8_t ret = (uint8_t) (ip++)->u8;
         uint8_t args[16];
         size_t nargs = 0;
-        while (ip->tag != VM_TAG_UNK) {
-            args[nargs++] = (ip++)->tag;
+        while (ip->u8 != VM_TAG_UNK) {
+            args[nargs++] = (ip++)->u8;
         }
         ip++;
-        locals[(ip++)->reg].sym = vm_ffi_handle_get(lib.lib, name.name, ret, nargs, args);
+        vm_ffi_symbol_t *sym = vm_ffi_handle_get(lib.lib, name, ret, nargs, args);
+        locals[(ip++)->reg].sym = sym;
         goto *(ip++)->ptr;
     }
     do_exit_break_void: {

@@ -156,54 +156,56 @@ static vm_block_t *vm_parse_arg_block(vm_parser_t *state) {
 static vm_arg_t vm_parse_type_arg(vm_parser_t *state) {
     vm_parse_strip(state);
     if (**state->src == '&') {
+        vm_skip(state);
         const char *word = vm_parse_word_until(state, '&');
         if (!strcmp(word, "void")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_NIL };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_NIL };
         }
         if (!strcmp(word, "bool")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_BOOL };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_BOOL };
         }
         if (!strcmp(word, "i8")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I8 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I8 };
         }
         if (!strcmp(word, "i16")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I16 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I16 };
         }
         if (!strcmp(word, "i32")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I32 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I32 };
         }
         if (!strcmp(word, "i64")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_I64 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I64 };
         }
         if (!strcmp(word, "u8")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U8 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U8 };
         }
         if (!strcmp(word, "u16")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U16 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U16 };
         }
         if (!strcmp(word, "u32")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U32 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U32 };
         }
         if (!strcmp(word, "u64")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U64 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U64 };
         }
         if (!strcmp(word, "f32")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_F32 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_F32 };
         }
         if (!strcmp(word, "f64")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_F64 };
+            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_F64 };
         }
         if (!strcmp(word, "ptr") || !strcmp(word, "usize")) {
             if (sizeof(void *) == 8) {
-                return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U64 };
+                return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U64 };
             } else if (sizeof(void *) == 4) {
-                return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U32 };
+                return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U32 };
             } else {
-                return (vm_arg_t) { .type = VM_ARG_TAG, .type = VM_TAG_U64 };
+                return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U64 };
             }
         }
         vm_free(word);
     }
+    __builtin_unreachable();
 }
 
 static vm_arg_t vm_parse_arg(vm_parser_t *state) {
@@ -539,7 +541,9 @@ static bool vm_parse_state(vm_parser_t *state) {
                         instr.out = vm_parse_arg(state);
                         instr.args[0] = vm_parse_arg(state);
                         instr.args[1] = vm_parse_arg(state);
-                        for (size_t i = 2; **state->src != '\r' && **state->src != '\n'; i++) {
+                        instr.args[2] = vm_parse_type_arg(state);
+                        vm_parse_strip(state);
+                        for (size_t i = 3; **state->src != '\r' && **state->src != '\n'; i++) {
                             instr.args[i] = vm_parse_type_arg(state);
                             vm_parse_strip(state);
                         }

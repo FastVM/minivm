@@ -716,7 +716,6 @@ union vm_opcode_t {
     double f64;
     vm_rblock_t *func;
     void *ptr;
-    uint8_t tag;
 };
 
 struct vm_state_t {

@@ -245,7 +245,6 @@ union vm_opcode_t {
     double f64;
     vm_rblock_t *func;
     void *ptr;
-    uint8_t tag;
 };
 
 struct vm_state_t {
@@ -361,12 +360,13 @@ do
         }
         case VM_IOP_DLSYM: {
             ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLSYM_SYM_REG);
-            ops[nops++].ptr = (void*) instr.args[0].str;
-            ops[nops++].u8 = instr.args[1].tag;
-            for (size_t i = 2; instr.args[i].type != VM_ARG_NONE; i++) {
+            ops[nops++].reg = instr.args[0].reg;
+            ops[nops++].ptr = (void*) instr.args[1].str;
+            ops[nops++].u8 = instr.args[2].tag;
+            for (size_t i = 3; instr.args[i].type != VM_ARG_NONE; i++) {
                 ops[nops++].u8 = instr.args[i].tag;
             }
-            ops[nops++].u8 = VM_ARG_NONE;
+            ops[nops++].u8 = VM_TAG_UNK;
             ops[nops++].reg = instr.out.reg;
             break;
         }
@@ -482,11 +482,30 @@ do
             for nargs = 0, 8 do
                 lines[#lines + 1] = '            if (instr.args[' .. tostring(nargs + 1) ..
                     '].type == VM_ARG_NONE) {'
+                do
+                    lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_REG && types[instr.args[0].reg] == VM_TAG_SYM) {'
+                    local name = {prefix, 'call', 'sym', val}
+                    while #name - 4 < nargs do
+                        name[#name + 1] = 'reg'
+                    end
+                    name = string.upper(table.concat(name, '_'))
+                    lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                    lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                    for argno = 1, nargs do
+                        lines[#lines + 1] = '                    ops[nops++].reg = instr.args[' .. tostring(argno) .. '].reg;'
+                    end
+                    lines[#lines + 1] = '                    if (instr.out.type == VM_ARG_NONE) {'
+                    lines[#lines + 1] = '                            ops[nops++].reg = VM_NREGS;'
+                    lines[#lines + 1] = '                    } else {'
+                    lines[#lines + 1] = '                            ops[nops++].reg = instr.out.reg;'
+                    lines[#lines + 1] = '                    }'
+                    lines[#lines + 1] = '                }'
+                end
                 for _, val in ipairs({'const', 'reg'}) do
                     if val == 'reg' then
-                        lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_REG) {'
+                        lines[#lines + 1] = '                else if (instr.args[0].type == VM_ARG_REG) {'
                     else
-                        lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_FUNC) {'
+                        lines[#lines + 1] = '                else if (instr.args[0].type == VM_ARG_FUNC) {'
                     end
                     local name = {prefix, 'call', 'func', val}
                     while #name - 4 < nargs do
@@ -856,15 +875,16 @@ do
                 case[#case + 1] = '        locals[(ip++)->reg].lib = vm_ffi_handle_open(name);'
             elseif instr.op == 'dlsym' then
                 case[#case + 1] = '        vm_value_t lib = locals[(ip++)->reg];'
-                case[#case + 1] = '        vm_value_t name = locals[(ip++)->reg];'
-                case[#case + 1] = '        uint8_t ret = (uint8_t) (ip++)->tag;'
+                case[#case + 1] = '        const char *name = (ip++)->ptr;'
+                case[#case + 1] = '        uint8_t ret = (uint8_t) (ip++)->u8;'
                 case[#case + 1] = '        uint8_t args[16];'
                 case[#case + 1] = '        size_t nargs = 0;'
-                case[#case + 1] = '        while (ip->tag != VM_TAG_UNK) {'
-                case[#case + 1] = '            args[nargs++] = (ip++)->tag;'
+                case[#case + 1] = '        while (ip->u8 != VM_TAG_UNK) {'
+                case[#case + 1] = '            args[nargs++] = (ip++)->u8;'
                 case[#case + 1] = '        }'
                 case[#case + 1] = '        ip++;'
-                case[#case + 1] = '        locals[(ip++)->reg].sym = vm_ffi_handle_get(lib.lib, name.name, ret, nargs, args);'
+                case[#case + 1] = '        vm_ffi_symbol_t *sym = vm_ffi_handle_get(lib.lib, name, ret, nargs, args);'
+                case[#case + 1] = '        locals[(ip++)->reg].sym = sym;'
             elseif instr.op == 'call' and instr.type == 'sym' then
                 case[#case + 1] = '        vm_value_t func = locals[(ip++)->reg];'
                 case[#case + 1] = '        vm_value_t args[' .. tostring(#instr.args-1) .. '];'
