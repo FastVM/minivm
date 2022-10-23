@@ -186,8 +186,10 @@ install_basic_and_bitwise('u64')
 install_basic('f32')
 install_basic('f64')
 
+push('dlopen', 'lib', {'reg'})
 push('dlopen', 'lib', {'const'})
-push('dlsym', 'sym', {'reg'})
+push('dlsym', 'sym', {'reg', 'reg'})
+push('dlsym', 'sym', {'reg', 'const'})
 push('exit', 'break', {})
 push('jump', 'ptr', {'const'})
 push('jump', 'func', {'const'})
@@ -245,6 +247,7 @@ union vm_opcode_t {
     double f64;
     vm_rblock_t *func;
     void *ptr;
+    vm_tag_t *ptag;
 };
 
 struct vm_state_t {
@@ -336,7 +339,7 @@ do
         lines[#lines + 1] = '        return ret;'
         lines[#lines + 1] = '    }'
         lines[#lines + 1] = '    vm_block_t *block = rblock->block;'
-        lines[#lines + 1] = '    uint8_t *types = vm_rblock_regs_dup(rblock->regs);'
+        lines[#lines + 1] = '    vm_tag_t *types = vm_rblock_regs_dup(rblock->regs);'
         lines[#lines + 1] = '    vm_rblock_t *rnext = vm_rblock_new(rblock->block, rblock->regs);'
         lines[#lines + 1] = '    rnext->regs = types;'
         lines[#lines + 1] = '    rnext->block = rblock->block;'
@@ -359,14 +362,24 @@ do
             break;
         }
         case VM_IOP_DLSYM: {
-            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLSYM_SYM_REG);
-            ops[nops++].reg = instr.args[0].reg;
-            ops[nops++].ptr = (void*) instr.args[1].str;
-            ops[nops++].u8 = instr.args[2].tag;
-            for (size_t i = 3; instr.args[i].type != VM_ARG_NONE; i++) {
-                ops[nops++].u8 = instr.args[i].tag;
+            if (instr.args[0].type == VM_ARG_REG) {
+                if (instr.args[1].type == VM_ARG_REG) {
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLSYM_SYM_REG_REG);
+                    ops[nops++].reg = instr.args[0].reg;
+                    ops[nops++].reg = instr.args[1].reg;
+                } else {
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_DLSYM_SYM_REG_CONST);
+                    ops[nops++].reg = instr.args[0].reg;
+                    ops[nops++].ptr = (void*) instr.args[1].str;
+                }
+            } else {
+                goto err;
             }
-            ops[nops++].u8 = VM_TAG_UNK;
+            ops[nops++].ptag = instr.args[2].tag;
+            for (size_t i = 3; instr.args[i].type != VM_ARG_NONE; i++) {
+                ops[nops++].ptag = instr.args[i].tag;
+            }
+            ops[nops++].ptag = NULL;
             ops[nops++].reg = instr.out.reg;
             break;
         }
@@ -377,7 +390,7 @@ do
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 for _, a0type in ipairs({'reg', 'const'}) do
                     lines[#lines + 1] = '                if (instr.args[0].type ' .. map[a0type] .. ') {'
                     local name = string.upper(table.concat({prefix, 'move', tvalue, a0type}, '_'))
@@ -405,7 +418,7 @@ do
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
                 if isinttype[tvalue] then
-                    lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                    lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                     for _, a0type in ipairs({'reg', 'const'}) do
                         lines[#lines + 1] = '                if (instr.args[0].type ' .. map[a0type] .. ') {'
                         local name = string.upper(table.concat({prefix, 'bnot', tvalue, a0type}, '_'))
@@ -434,7 +447,7 @@ do
             for tkey, tvalue in ipairs(binarytypes) do
                 if isinttype[tvalue] or value == 'add' or value == 'sub' or value == 'mul' or value == 'div' or value ==
                     'mod' then
-                    lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                    lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                     for _, pair in ipairs(kinds) do
                         lines[#lines + 1] = '                if (instr.args[0].type ' .. map[pair[1]] .. ' && ' ..
                                                 'instr.args[1].type ' .. map[pair[2]] .. ') {'
@@ -468,7 +481,7 @@ do
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 local name = string.upper(table.concat({prefix, 'in', tvalue, 'void'}, '_'))
                 lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                 lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
@@ -483,7 +496,7 @@ do
                 lines[#lines + 1] = '            if (instr.args[' .. tostring(nargs + 1) ..
                     '].type == VM_ARG_NONE) {'
                 do
-                    lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_REG && types[instr.args[0].reg] == VM_TAG_SYM) {'
+                    lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_REG && types[instr.args[0].reg].type == VM_TAG_TYPE_SYM) {'
                     local name = {prefix, 'call', 'sym', val}
                     while #name - 4 < nargs do
                         name[#name + 1] = 'reg'
@@ -516,7 +529,7 @@ do
                     if val == 'reg' then
                         lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
                     else
-                        lines[#lines + 1] = '                    uint8_t *args = vm_rblock_regs_empty();'
+                        lines[#lines + 1] = '                    vm_tag_t *args = vm_rblock_regs_empty();'
                         for argno = 1, nargs do
                             lines[#lines + 1] = '                    args[' .. tostring(argno) .. '] = types[instr.args[' .. tostring(argno) .. '].reg];'
                         end
@@ -542,7 +555,7 @@ do
         do
             lines[#lines + 1] = '        case VM_IOP_OUT: {'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 for _, val in ipairs({'const', 'reg'}) do
                     local name = string.upper(table.concat({prefix, 'out', tvalue, val}, '_'))
                     lines[#lines + 1] = '                if (instr.args[0].type ' .. map[val] .. ') {'
@@ -595,7 +608,7 @@ do
         do
             lines[#lines + 1] = '        case VM_BOP_RET: {'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 for _, val in ipairs({'const', 'reg'}) do
                     lines[#lines + 1] = '                if (branch.args[0].type ' .. map[val] .. ') {'
                     local name = string.upper(table.concat({prefix, 'ret', tvalue, val}, '_'))
@@ -617,7 +630,7 @@ do
         do
             lines[#lines + 1] = '        case VM_BOP_BB: {'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '                if (branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                lines[#lines + 1] = '                if (vm_tag_eq(branch.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 for _, val in ipairs({'const', 'reg'}) do
                     lines[#lines + 1] = '                    if (branch.args[0].type ' .. map[val] .. ') {'
                     local name = string.upper(table.concat({prefix, 'bb', tvalue, val, 'func', 'func'}, '_'))
@@ -644,7 +657,7 @@ do
             for key, value in ipairs({'blt', 'beq'}) do
                 lines[#lines + 1] = '        case VM_BOP_' .. string.upper(value) .. ': {'
                 for tkey, tvalue in ipairs(binarytypes) do
-                    lines[#lines + 1] = '            if (branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
+                    lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                     for _, pair in ipairs(kinds) do
                         lines[#lines + 1] =
                             '                if (branch.args[0].type ' .. map[pair[1]] .. ' && ' ..
@@ -871,16 +884,24 @@ do
                 case[#case + 1] = '        ip = *(ips--);'
                 case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = (' .. tname .. ') a0;'
             elseif instr.op == 'dlopen' then
-                case[#case + 1] = '        const char *name = (ip++)->ptr;'
+                if instr.args[1] == 'reg' then
+                    case[#case + 1] = '        const char *name = locals[(ip++)->reg].name;'
+                else
+                    case[#case + 1] = '        const char *name = (ip++)->ptr;'
+                end
                 case[#case + 1] = '        locals[(ip++)->reg].lib = vm_ffi_handle_open(name);'
             elseif instr.op == 'dlsym' then
                 case[#case + 1] = '        vm_value_t lib = locals[(ip++)->reg];'
-                case[#case + 1] = '        const char *name = (ip++)->ptr;'
-                case[#case + 1] = '        uint8_t ret = (uint8_t) (ip++)->u8;'
-                case[#case + 1] = '        uint8_t args[16];'
+                if instr.args[2] == 'reg' then
+                    case[#case + 1] = '        const char *name = locals[(ip++)->reg].name;'
+                else
+                    case[#case + 1] = '        const char *name = (ip++)->ptr;'
+                end
+                case[#case + 1] = '        vm_tag_t ret = *(ip++)->ptag;'
+                case[#case + 1] = '        vm_tag_t args[16];'
                 case[#case + 1] = '        size_t nargs = 0;'
-                case[#case + 1] = '        while (ip->u8 != VM_TAG_UNK) {'
-                case[#case + 1] = '            args[nargs++] = (ip++)->u8;'
+                case[#case + 1] = '        while (ip->ptag != NULL) {'
+                case[#case + 1] = '            args[nargs++] = *(ip++)->ptag;'
                 case[#case + 1] = '        }'
                 case[#case + 1] = '        ip++;'
                 case[#case + 1] = '        vm_ffi_symbol_t *sym = vm_ffi_handle_get(lib.lib, name, ret, nargs, args);'

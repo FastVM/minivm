@@ -47,24 +47,33 @@ void vm_ffi_handle_close(vm_ffi_handle_t *handle) {
     vm_free(handle);
 }
 
-static ffi_type *vm_tag_to_ffi_type(uint8_t tag) {
-    ffi_type *tab[] = {
-        [VM_TAG_NIL] = &ffi_type_void,
-        [VM_TAG_I8] = &ffi_type_sint8,
-        [VM_TAG_I16] = &ffi_type_sint16,
-        [VM_TAG_I32] = &ffi_type_sint32,
-        [VM_TAG_I64] = &ffi_type_sint64,
-        [VM_TAG_U8] = &ffi_type_uint8,
-        [VM_TAG_U16] = &ffi_type_uint16,
-        [VM_TAG_U32] = &ffi_type_uint32,
-        [VM_TAG_U64] = &ffi_type_uint64,
-        [VM_TAG_F32] = &ffi_type_float,
-        [VM_TAG_F64] = &ffi_type_double,
-    };
-    return tab[tag];
+static ffi_type *vm_tag_to_ffi_type(vm_tag_t tag) {
+    if (tag.type == VM_TAG_TYPE_NIL) {
+        return &ffi_type_void;
+    }
+    if (tag.type == VM_TAG_TYPE_SINT) {
+        if (tag.size == sizeof(int8_t)) return &ffi_type_sint8;
+        if (tag.size == sizeof(int16_t)) return &ffi_type_sint16;
+        if (tag.size == sizeof(int32_t)) return &ffi_type_sint32;
+        if (tag.size == sizeof(int64_t)) return &ffi_type_sint64;
+        __builtin_trap();
+    }
+    if (tag.type == VM_TAG_TYPE_SINT) {
+        if (tag.size == sizeof(uint8_t)) return &ffi_type_uint8;
+        if (tag.size == sizeof(uint16_t)) return &ffi_type_uint16;
+        if (tag.size == sizeof(uint32_t)) return &ffi_type_uint32;
+        if (tag.size == sizeof(uint64_t)) return &ffi_type_uint64;
+        __builtin_trap();
+    }
+    if (tag.type == VM_TAG_TYPE_FLOAT) {
+        if (tag.size == sizeof(float)) return &ffi_type_float;
+        if (tag.size == sizeof(double)) return &ffi_type_double;
+        __builtin_trap();
+    }
+    __builtin_trap();
 }
 
-vm_ffi_symbol_t *vm_ffi_handle_get(vm_ffi_handle_t *handle, const char *str, uint8_t ret, size_t nargs, uint8_t *args) {
+vm_ffi_symbol_t *vm_ffi_handle_get(vm_ffi_handle_t *handle, const char *str, vm_tag_t ret, size_t nargs, vm_tag_t *args) {
 #if defined(_WIN32)
     void (*ptr)(void) = (void *)GetProcAddress(handle->win, str);
 #elif defined(_POSIX_VERSION)

@@ -650,8 +650,10 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_IN_F64_VOID] = &&do_in_f64_void,
         [VM_OPCODE_RET_F64_REG] = &&do_ret_f64_reg,
         [VM_OPCODE_RET_F64_CONST] = &&do_ret_f64_const,
+        [VM_OPCODE_DLOPEN_LIB_REG] = &&do_dlopen_lib_reg,
         [VM_OPCODE_DLOPEN_LIB_CONST] = &&do_dlopen_lib_const,
-        [VM_OPCODE_DLSYM_SYM_REG] = &&do_dlsym_sym_reg,
+        [VM_OPCODE_DLSYM_SYM_REG_REG] = &&do_dlsym_sym_reg_reg,
+        [VM_OPCODE_DLSYM_SYM_REG_CONST] = &&do_dlsym_sym_reg_const,
         [VM_OPCODE_EXIT_BREAK_VOID] = &&do_exit_break_void,
         [VM_OPCODE_JUMP_PTR_CONST] = &&do_jump_ptr_const,
         [VM_OPCODE_JUMP_FUNC_CONST] = &&do_jump_func_const,
@@ -5077,19 +5079,38 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[(ip++)->reg].f64 = (double) a0;
         goto *(ip++)->ptr;
     }
+    do_dlopen_lib_reg: {
+        const char *name = locals[(ip++)->reg].name;
+        locals[(ip++)->reg].lib = vm_ffi_handle_open(name);
+        goto *(ip++)->ptr;
+    }
     do_dlopen_lib_const: {
         const char *name = (ip++)->ptr;
         locals[(ip++)->reg].lib = vm_ffi_handle_open(name);
         goto *(ip++)->ptr;
     }
-    do_dlsym_sym_reg: {
+    do_dlsym_sym_reg_reg: {
+        vm_value_t lib = locals[(ip++)->reg];
+        const char *name = locals[(ip++)->reg].name;
+        vm_tag_t ret = *(ip++)->ptag;
+        vm_tag_t args[16];
+        size_t nargs = 0;
+        while (ip->ptag != NULL) {
+            args[nargs++] = *(ip++)->ptag;
+        }
+        ip++;
+        vm_ffi_symbol_t *sym = vm_ffi_handle_get(lib.lib, name, ret, nargs, args);
+        locals[(ip++)->reg].sym = sym;
+        goto *(ip++)->ptr;
+    }
+    do_dlsym_sym_reg_const: {
         vm_value_t lib = locals[(ip++)->reg];
         const char *name = (ip++)->ptr;
-        uint8_t ret = (uint8_t) (ip++)->u8;
-        uint8_t args[16];
+        vm_tag_t ret = *(ip++)->ptag;
+        vm_tag_t args[16];
         size_t nargs = 0;
-        while (ip->u8 != VM_TAG_UNK) {
-            args[nargs++] = (ip++)->u8;
+        while (ip->ptag != NULL) {
+            args[nargs++] = *(ip++)->ptag;
         }
         ip++;
         vm_ffi_symbol_t *sym = vm_ffi_handle_get(lib.lib, name, ret, nargs, args);

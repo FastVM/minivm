@@ -98,8 +98,8 @@ static char *vm_parse_word_until(vm_parser_t *state, char stop) {
     return name;
 }
 
-static uint8_t vm_parse_tag(vm_parser_t *state) {
-    uint8_t tag = VM_TAG_UNK;
+static vm_tag_t vm_parse_tag(vm_parser_t *state) {
+    vm_tag_t tag = VM_TAG_UNK;
     const char *tname = vm_parse_word_until(state, '\0');
     if (!strcmp(tname, "b")) {
         tag = VM_TAG_I64;
@@ -158,52 +158,55 @@ static vm_arg_t vm_parse_type_arg(vm_parser_t *state) {
     if (**state->src == '&') {
         vm_skip(state);
         const char *word = vm_parse_word_until(state, '&');
+        vm_tag_t *arg = vm_malloc(sizeof(vm_tag_t));
         if (!strcmp(word, "void")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_NIL };
+            *arg = VM_TAG_NIL;
         }
         if (!strcmp(word, "bool")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_BOOL };
+            *arg = VM_TAG_BOOL;
         }
         if (!strcmp(word, "i8")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I8 };
+            *arg = VM_TAG_I8;
         }
         if (!strcmp(word, "i16")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I16 };
+            *arg = VM_TAG_I16;
         }
         if (!strcmp(word, "i32")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I32 };
+            *arg = VM_TAG_I32;
         }
         if (!strcmp(word, "i64")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_I64 };
+            *arg = VM_TAG_I64;
         }
         if (!strcmp(word, "u8")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U8 };
+            *arg = VM_TAG_U8;
         }
         if (!strcmp(word, "u16")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U16 };
+            *arg = VM_TAG_U16;
         }
         if (!strcmp(word, "u32")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U32 };
+            *arg = VM_TAG_U32;
         }
         if (!strcmp(word, "u64")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U64 };
+            *arg = VM_TAG_U64;
         }
         if (!strcmp(word, "f32")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_F32 };
+            *arg = VM_TAG_F32;
         }
         if (!strcmp(word, "f64")) {
-            return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_F64 };
+            *arg = VM_TAG_F64;
         }
         if (!strcmp(word, "ptr") || !strcmp(word, "usize")) {
             if (sizeof(void *) == 8) {
-                return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U64 };
+                *arg = VM_TAG_U64;
             } else if (sizeof(void *) == 4) {
-                return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U32 };
-            } else {
-                return (vm_arg_t) { .type = VM_ARG_TAG, .tag = VM_TAG_U64 };
+                *arg = VM_TAG_U32;
             }
         }
         vm_free(word);
+        return (vm_arg_t) {
+            .type = VM_ARG_TAG,
+            .tag = arg,
+        };
     }
     __builtin_unreachable();
 }
@@ -542,6 +545,8 @@ static bool vm_parse_state(vm_parser_t *state) {
                         instr.args[0] = vm_parse_arg(state);
                         instr.args[1] = vm_parse_arg(state);
                         instr.args[2] = vm_parse_type_arg(state);
+                        instr.tag.data = vm_malloc(sizeof(vm_tag_t));
+                        instr.tag.data[0] = *instr.args[2].tag;
                         vm_parse_strip(state);
                         for (size_t i = 3; **state->src != '\r' && **state->src != '\n'; i++) {
                             instr.args[i] = vm_parse_type_arg(state);

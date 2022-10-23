@@ -3,6 +3,7 @@
 #define VM_HEADER_IR
 
 #include "./lib.h"
+#include "./tag.h"
 
 struct vm_arg_t;
 struct vm_branch_t;
@@ -68,12 +69,12 @@ enum {
 };
 
 struct vm_rblock_t {
-    uint8_t *regs;
+    vm_tag_t *regs;
     vm_block_t *block;
 };
 
 struct vm_cache_t {
-    uint8_t **keys;
+    vm_tag_t **keys;
     void **values;
     size_t len;
     size_t alloc;
@@ -87,7 +88,7 @@ struct vm_arg_t {
         vm_block_t *func;
         vm_instr_t *instr;
         bool logic;
-        uint8_t tag;
+        vm_tag_t *tag;
     };
     uint8_t type;
 };
@@ -96,14 +97,14 @@ struct vm_branch_t {
     vm_block_t *targets[2];
     vm_arg_t args[2];
     uint8_t op;
-    uint8_t tag;
+    vm_tag_t tag;
 };
 
 struct vm_instr_t {
     vm_arg_t args[17];
     vm_arg_t out;
     uint8_t op;
-    uint8_t tag;
+    vm_tag_t tag;
 };
 
 struct vm_block_t {

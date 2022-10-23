@@ -36,7 +36,7 @@ struct vm_ffi_symbol_t {
 vm_ffi_handle_t *vm_ffi_handle_open(const char *filename);
 void vm_ffi_handle_close(vm_ffi_handle_t *handle);
 
-vm_ffi_symbol_t *vm_ffi_handle_get(vm_ffi_handle_t *handle, const char *str, uint8_t ret, size_t nargs, uint8_t *args);
+vm_ffi_symbol_t *vm_ffi_handle_get(vm_ffi_handle_t *handle, const char *str, vm_tag_t ret, size_t nargs, vm_tag_t *args);
 vm_value_t vm_ffi_symbol_call(vm_ffi_symbol_t *sym, size_t nargs, vm_value_t *args);
 
 #endif
