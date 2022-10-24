@@ -91,7 +91,6 @@ vm_ffi_symbol_t *vm_ffi_handle_get(vm_ffi_handle_t *handle, const char *str, vm_
     ffi_type **atypes = vm_malloc(sizeof(ffi_type *) * nargs);
     for (size_t i = 0; i < nargs; i++) {
         atypes[i] = vm_tag_to_ffi_type(args[i]);
-        fprintf(stderr, "atypes[%i] = %p\n", i, atypes[i]);
     }
     ffi_cif *cif = vm_malloc(sizeof(ffi_cif));
     ffi_prep_cif(cif, FFI_DEFAULT_ABI, nargs, vm_tag_to_ffi_type(ret), atypes);

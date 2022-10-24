@@ -44,11 +44,15 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_opcode_t *value) {
 }
 
 vm_tag_t *vm_rblock_regs_empty(void) {
-    return vm_alloc0(sizeof(vm_tag_t) * VM_NREGS);
+    vm_tag_t *ret = vm_malloc(sizeof(vm_tag_t) * VM_NREGS);
+    for (size_t i = 0; i < VM_NREGS; i++) {
+        ret[i] = VM_TAG_UNK;
+    }
+    return ret;
 }
 
 vm_tag_t *vm_rblock_regs_dup(vm_tag_t *regs) {
-    vm_tag_t *ret = vm_alloc0(sizeof(vm_tag_t) * VM_NREGS);
+    vm_tag_t *ret = vm_malloc(sizeof(vm_tag_t) * VM_NREGS);
     for (size_t i = 0; i < VM_NREGS; i++) {
         ret[i] = regs[i];
     }
