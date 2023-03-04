@@ -63,8 +63,6 @@ enum {
     VM_IOP_BXOR,
     VM_IOP_BSHL,
     VM_IOP_BSHR,
-    VM_IOP_DLOPEN,
-    VM_IOP_DLSYM,
     VM_IOP_MAX,
 };
 

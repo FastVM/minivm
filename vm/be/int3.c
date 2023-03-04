@@ -1,7 +1,6 @@
 #include "./int3.h"
 #include "./value.h"
 #include "../tag.h"
-#include "../cffi.h"
 void vm_run(vm_state_t *state, vm_block_t *block) {
     void *ptrs[] = {
         [VM_OPCODE_ADD_I8_REG_REG] = &&do_add_i8_reg_reg,
@@ -650,50 +649,35 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_IN_F64_VOID] = &&do_in_f64_void,
         [VM_OPCODE_RET_F64_REG] = &&do_ret_f64_reg,
         [VM_OPCODE_RET_F64_CONST] = &&do_ret_f64_const,
-        [VM_OPCODE_DLOPEN_LIB_REG] = &&do_dlopen_lib_reg,
-        [VM_OPCODE_DLOPEN_LIB_CONST] = &&do_dlopen_lib_const,
-        [VM_OPCODE_DLSYM_SYM_REG_REG] = &&do_dlsym_sym_reg_reg,
-        [VM_OPCODE_DLSYM_SYM_REG_CONST] = &&do_dlsym_sym_reg_const,
         [VM_OPCODE_EXIT_BREAK_VOID] = &&do_exit_break_void,
         [VM_OPCODE_JUMP_PTR_CONST] = &&do_jump_ptr_const,
         [VM_OPCODE_JUMP_FUNC_CONST] = &&do_jump_func_const,
-        [VM_OPCODE_MOVE_LIB_REG] = &&do_move_lib_reg,
-        [VM_OPCODE_MOVE_SYM_REG] = &&do_move_sym_reg,
         [VM_OPCODE_CALL_PTR_CONST] = &&do_call_ptr_const,
         [VM_OPCODE_CALL_FUNC_CONST] = &&do_call_func_const,
-        [VM_OPCODE_CALL_SYM_REG] = &&do_call_sym_reg,
         [VM_OPCODE_CALL_FUNC_REG] = &&do_call_func_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG] = &&do_call_ptr_const_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG] = &&do_call_func_const_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG] = &&do_call_sym_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG] = &&do_call_func_reg_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG_REG] = &&do_call_ptr_const_reg_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG_REG] = &&do_call_func_const_reg_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG_REG] = &&do_call_sym_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG_REG] = &&do_call_func_reg_reg_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG] = &&do_call_func_const_reg_reg_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG_REG_REG] = &&do_call_sym_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG_REG_REG_REG] = &&do_call_sym_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG_REG_REG_REG_REG] = &&do_call_sym_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG_REG_REG_REG_REG_REG] = &&do_call_sym_reg_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_sym_reg_reg_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_SYM_REG_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_sym_reg_reg_reg_reg_reg_reg_reg_reg_reg,
         [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg_reg_reg_reg
     };
     state->ptrs = ptrs;
@@ -5081,44 +5065,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals[(ip++)->reg].f64 = (double) a0;
         goto *(ip++)->ptr;
     }
-    do_dlopen_lib_reg: {
-        const char *name = locals[(ip++)->reg].name;
-        locals[(ip++)->reg].lib = vm_ffi_handle_open(name);
-        goto *(ip++)->ptr;
-    }
-    do_dlopen_lib_const: {
-        const char *name = (ip++)->ptr;
-        locals[(ip++)->reg].lib = vm_ffi_handle_open(name);
-        goto *(ip++)->ptr;
-    }
-    do_dlsym_sym_reg_reg: {
-        vm_value_t lib = locals[(ip++)->reg];
-        const char *name = locals[(ip++)->reg].name;
-        vm_tag_t ret = *(ip++)->ptag;
-        vm_tag_t args[16];
-        size_t nargs = 0;
-        while (ip->ptag != NULL) {
-            args[nargs++] = *(ip++)->ptag;
-        }
-        ip++;
-        vm_ffi_symbol_t *sym = vm_ffi_handle_get(lib.lib, name, ret, nargs, args);
-        locals[(ip++)->reg].sym = sym;
-        goto *(ip++)->ptr;
-    }
-    do_dlsym_sym_reg_const: {
-        vm_value_t lib = locals[(ip++)->reg];
-        const char *name = (ip++)->ptr;
-        vm_tag_t ret = *(ip++)->ptag;
-        vm_tag_t args[16];
-        size_t nargs = 0;
-        while (ip->ptag != NULL) {
-            args[nargs++] = *(ip++)->ptag;
-        }
-        ip++;
-        vm_ffi_symbol_t *sym = vm_ffi_handle_get(lib.lib, name, ret, nargs, args);
-        locals[(ip++)->reg].sym = sym;
-        goto *(ip++)->ptr;
-    }
     do_exit_break_void: {
         {return;}
         goto *(ip++)->ptr;
@@ -5134,16 +5080,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = head;
         goto *(ip++)->ptr;
     }
-    do_move_lib_reg: {
-        void * a0 = locals[(ip++)->reg].lib;
-        locals[(ip++)->reg].lib = a0;
-        goto *(ip++)->ptr;
-    }
-    do_move_sym_reg: {
-        void * a0 = locals[(ip++)->reg].sym;
-        locals[(ip++)->reg].sym = a0;
-        goto *(ip++)->ptr;
-    }
     do_call_ptr_const: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals += VM_NREGS;
@@ -5156,12 +5092,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         head->ptr = &&do_call_ptr_const;
         ip[0].ptr = vm_run_comp(state, ip[0].func);
         ip = head;
-        goto *(ip++)->ptr;
-    }
-    do_call_sym_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[0];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 0, args);
         goto *(ip++)->ptr;
     }
     do_call_func_reg: {
@@ -5186,13 +5116,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = head;
         goto *(ip++)->ptr;
     }
-    do_call_sym_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[1];
-        args[0] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 1, args);
-        goto *(ip++)->ptr;
-    }
     do_call_func_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
@@ -5215,14 +5138,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         head->ptr = &&do_call_ptr_const_reg_reg;
         ip[0].ptr = vm_run_comp(state, ip[0].func);
         ip = head;
-        goto *(ip++)->ptr;
-    }
-    do_call_sym_reg_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[2];
-        args[0] = locals[(ip++)->reg];
-        args[1] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 2, args);
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg: {
@@ -5251,15 +5166,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = head;
         goto *(ip++)->ptr;
     }
-    do_call_sym_reg_reg_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[3];
-        args[0] = locals[(ip++)->reg];
-        args[1] = locals[(ip++)->reg];
-        args[2] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 3, args);
-        goto *(ip++)->ptr;
-    }
     do_call_func_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
@@ -5286,16 +5192,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         head->ptr = &&do_call_ptr_const_reg_reg_reg_reg;
         ip[0].ptr = vm_run_comp(state, ip[0].func);
         ip = head;
-        goto *(ip++)->ptr;
-    }
-    do_call_sym_reg_reg_reg_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[4];
-        args[0] = locals[(ip++)->reg];
-        args[1] = locals[(ip++)->reg];
-        args[2] = locals[(ip++)->reg];
-        args[3] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 4, args);
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg: {
@@ -5328,17 +5224,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = head;
         goto *(ip++)->ptr;
     }
-    do_call_sym_reg_reg_reg_reg_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[5];
-        args[0] = locals[(ip++)->reg];
-        args[1] = locals[(ip++)->reg];
-        args[2] = locals[(ip++)->reg];
-        args[3] = locals[(ip++)->reg];
-        args[4] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 5, args);
-        goto *(ip++)->ptr;
-    }
     do_call_func_reg_reg_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
@@ -5369,18 +5254,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         head->ptr = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg;
         ip[0].ptr = vm_run_comp(state, ip[0].func);
         ip = head;
-        goto *(ip++)->ptr;
-    }
-    do_call_sym_reg_reg_reg_reg_reg_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[6];
-        args[0] = locals[(ip++)->reg];
-        args[1] = locals[(ip++)->reg];
-        args[2] = locals[(ip++)->reg];
-        args[3] = locals[(ip++)->reg];
-        args[4] = locals[(ip++)->reg];
-        args[5] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 6, args);
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg: {
@@ -5417,19 +5290,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = head;
         goto *(ip++)->ptr;
     }
-    do_call_sym_reg_reg_reg_reg_reg_reg_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[7];
-        args[0] = locals[(ip++)->reg];
-        args[1] = locals[(ip++)->reg];
-        args[2] = locals[(ip++)->reg];
-        args[3] = locals[(ip++)->reg];
-        args[4] = locals[(ip++)->reg];
-        args[5] = locals[(ip++)->reg];
-        args[6] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 7, args);
-        goto *(ip++)->ptr;
-    }
     do_call_func_reg_reg_reg_reg_reg_reg_reg_reg: {
         vm_rblock_t *t0 = (ip++)->func;
         locals[257] = locals[(ip++)->reg];
@@ -5464,20 +5324,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         head->ptr = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg_reg;
         ip[0].ptr = vm_run_comp(state, ip[0].func);
         ip = head;
-        goto *(ip++)->ptr;
-    }
-    do_call_sym_reg_reg_reg_reg_reg_reg_reg_reg_reg: {
-        vm_value_t func = locals[(ip++)->reg];
-        vm_value_t args[8];
-        args[0] = locals[(ip++)->reg];
-        args[1] = locals[(ip++)->reg];
-        args[2] = locals[(ip++)->reg];
-        args[3] = locals[(ip++)->reg];
-        args[4] = locals[(ip++)->reg];
-        args[5] = locals[(ip++)->reg];
-        args[6] = locals[(ip++)->reg];
-        args[7] = locals[(ip++)->reg];
-        locals[(ip++)->reg] = vm_ffi_symbol_call(func.sym, 8, args);
         goto *(ip++)->ptr;
     }
     do_call_func_reg_reg_reg_reg_reg_reg_reg_reg_reg: {

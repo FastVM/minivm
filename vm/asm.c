@@ -434,14 +434,6 @@ static bool vm_parse_state(vm_parser_t *state) {
                 if (!strcmp(name, "bshr")) {
                     instr.op = VM_IOP_BSHR;
                 }
-                if (!strcmp(name, "dlopen")) {
-                    instr.op = VM_IOP_DLOPEN;
-                    instr.tag = VM_TAG_LIB;
-                }
-                if (!strcmp(name, "dlsym")) {
-                    instr.op = VM_IOP_DLSYM;
-                    instr.tag = VM_TAG_SYM;
-                }
                 if (instr.op == VM_IOP_NOP) {
                     fprintf(stderr, "unknown name: `%s`\n", name);
                     vm_free(name);
@@ -533,25 +525,6 @@ static bool vm_parse_state(vm_parser_t *state) {
                         instr.out = vm_parse_arg(state);
                         instr.args[0] = vm_parse_arg(state);
                         instr.args[1] = vm_parse_arg(state);
-                        break;
-                    }
-                    case VM_IOP_DLOPEN: {
-                        instr.out = vm_parse_arg(state);
-                        instr.args[0] = vm_parse_arg(state);
-                        break;
-                    }
-                    case VM_IOP_DLSYM: {
-                        instr.out = vm_parse_arg(state);
-                        instr.args[0] = vm_parse_arg(state);
-                        instr.args[1] = vm_parse_arg(state);
-                        instr.args[2] = vm_parse_type_arg(state);
-                        instr.tag.data = vm_malloc(sizeof(vm_tag_t));
-                        instr.tag.data[0] = *instr.args[2].tag;
-                        vm_parse_strip(state);
-                        for (size_t i = 3; **state->src != '\r' && **state->src != '\n'; i++) {
-                            instr.args[i] = vm_parse_type_arg(state);
-                            vm_parse_strip(state);
-                        }
                         break;
                     }
                 }
