@@ -50,6 +50,7 @@ enum {
 enum {
     VM_IOP_NOP,
     VM_IOP_MOVE,
+    VM_IOP_CAST,
     VM_IOP_ADD,
     VM_IOP_SUB,
     VM_IOP_MUL,
@@ -133,11 +134,18 @@ void vm_blocks_free(size_t nblocks, vm_block_t *blocks);
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
 
 void vm_print_arg(FILE *out, vm_arg_t val);
+void vm_print_tag(FILE *out, vm_tag_t tag);
 void vm_print_branch(FILE *out, vm_branch_t val);
 void vm_print_instr(FILE *out, vm_instr_t val);
 void vm_print_block(FILE *out, vm_block_t *val);
 void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *val);
 
 void vm_info(size_t nops, vm_block_t **blocks);
+
+vm_tag_t vm_instr_get_arg_type(vm_instr_t instr, size_t argno);
+uint64_t vm_instr_get_arg_num(vm_instr_t instr, size_t argno);
+const char *vm_instr_get_arg_str(vm_instr_t instr, size_t argno);
+vm_block_t *vm_instr_get_arg_func(vm_instr_t instr, size_t argno);
+size_t vm_instr_get_arg_reg(vm_instr_t instr, size_t argno);
 
 #endif

@@ -43,6 +43,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_I8_CONST_REG_PTR_PTR] = &&do_blt_i8_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I8_CONST_CONST_FUNC_FUNC] = &&do_blt_i8_const_const_func_func,
         [VM_OPCODE_BLT_I8_CONST_CONST_PTR_PTR] = &&do_blt_i8_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_I8_I8] = &&do_cast_i8_i8,
+        [VM_OPCODE_CAST_I8_I16] = &&do_cast_i8_i16,
+        [VM_OPCODE_CAST_I8_I32] = &&do_cast_i8_i32,
+        [VM_OPCODE_CAST_I8_I64] = &&do_cast_i8_i64,
+        [VM_OPCODE_CAST_I8_U8] = &&do_cast_i8_u8,
+        [VM_OPCODE_CAST_I8_U16] = &&do_cast_i8_u16,
+        [VM_OPCODE_CAST_I8_U32] = &&do_cast_i8_u32,
+        [VM_OPCODE_CAST_I8_U64] = &&do_cast_i8_u64,
+        [VM_OPCODE_CAST_I8_F32] = &&do_cast_i8_f32,
+        [VM_OPCODE_CAST_I8_F64] = &&do_cast_i8_f64,
         [VM_OPCODE_MOVE_I8_REG] = &&do_move_i8_reg,
         [VM_OPCODE_MOVE_I8_CONST] = &&do_move_i8_const,
         [VM_OPCODE_OUT_I8_REG] = &&do_out_i8_reg,
@@ -112,6 +122,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_I16_CONST_REG_PTR_PTR] = &&do_blt_i16_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I16_CONST_CONST_FUNC_FUNC] = &&do_blt_i16_const_const_func_func,
         [VM_OPCODE_BLT_I16_CONST_CONST_PTR_PTR] = &&do_blt_i16_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_I16_I8] = &&do_cast_i16_i8,
+        [VM_OPCODE_CAST_I16_I16] = &&do_cast_i16_i16,
+        [VM_OPCODE_CAST_I16_I32] = &&do_cast_i16_i32,
+        [VM_OPCODE_CAST_I16_I64] = &&do_cast_i16_i64,
+        [VM_OPCODE_CAST_I16_U8] = &&do_cast_i16_u8,
+        [VM_OPCODE_CAST_I16_U16] = &&do_cast_i16_u16,
+        [VM_OPCODE_CAST_I16_U32] = &&do_cast_i16_u32,
+        [VM_OPCODE_CAST_I16_U64] = &&do_cast_i16_u64,
+        [VM_OPCODE_CAST_I16_F32] = &&do_cast_i16_f32,
+        [VM_OPCODE_CAST_I16_F64] = &&do_cast_i16_f64,
         [VM_OPCODE_MOVE_I16_REG] = &&do_move_i16_reg,
         [VM_OPCODE_MOVE_I16_CONST] = &&do_move_i16_const,
         [VM_OPCODE_OUT_I16_REG] = &&do_out_i16_reg,
@@ -181,6 +201,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_I32_CONST_REG_PTR_PTR] = &&do_blt_i32_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I32_CONST_CONST_FUNC_FUNC] = &&do_blt_i32_const_const_func_func,
         [VM_OPCODE_BLT_I32_CONST_CONST_PTR_PTR] = &&do_blt_i32_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_I32_I8] = &&do_cast_i32_i8,
+        [VM_OPCODE_CAST_I32_I16] = &&do_cast_i32_i16,
+        [VM_OPCODE_CAST_I32_I32] = &&do_cast_i32_i32,
+        [VM_OPCODE_CAST_I32_I64] = &&do_cast_i32_i64,
+        [VM_OPCODE_CAST_I32_U8] = &&do_cast_i32_u8,
+        [VM_OPCODE_CAST_I32_U16] = &&do_cast_i32_u16,
+        [VM_OPCODE_CAST_I32_U32] = &&do_cast_i32_u32,
+        [VM_OPCODE_CAST_I32_U64] = &&do_cast_i32_u64,
+        [VM_OPCODE_CAST_I32_F32] = &&do_cast_i32_f32,
+        [VM_OPCODE_CAST_I32_F64] = &&do_cast_i32_f64,
         [VM_OPCODE_MOVE_I32_REG] = &&do_move_i32_reg,
         [VM_OPCODE_MOVE_I32_CONST] = &&do_move_i32_const,
         [VM_OPCODE_OUT_I32_REG] = &&do_out_i32_reg,
@@ -250,6 +280,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_I64_CONST_REG_PTR_PTR] = &&do_blt_i64_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_I64_CONST_CONST_FUNC_FUNC] = &&do_blt_i64_const_const_func_func,
         [VM_OPCODE_BLT_I64_CONST_CONST_PTR_PTR] = &&do_blt_i64_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_I64_I8] = &&do_cast_i64_i8,
+        [VM_OPCODE_CAST_I64_I16] = &&do_cast_i64_i16,
+        [VM_OPCODE_CAST_I64_I32] = &&do_cast_i64_i32,
+        [VM_OPCODE_CAST_I64_I64] = &&do_cast_i64_i64,
+        [VM_OPCODE_CAST_I64_U8] = &&do_cast_i64_u8,
+        [VM_OPCODE_CAST_I64_U16] = &&do_cast_i64_u16,
+        [VM_OPCODE_CAST_I64_U32] = &&do_cast_i64_u32,
+        [VM_OPCODE_CAST_I64_U64] = &&do_cast_i64_u64,
+        [VM_OPCODE_CAST_I64_F32] = &&do_cast_i64_f32,
+        [VM_OPCODE_CAST_I64_F64] = &&do_cast_i64_f64,
         [VM_OPCODE_MOVE_I64_REG] = &&do_move_i64_reg,
         [VM_OPCODE_MOVE_I64_CONST] = &&do_move_i64_const,
         [VM_OPCODE_OUT_I64_REG] = &&do_out_i64_reg,
@@ -319,6 +359,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_U8_CONST_REG_PTR_PTR] = &&do_blt_u8_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U8_CONST_CONST_FUNC_FUNC] = &&do_blt_u8_const_const_func_func,
         [VM_OPCODE_BLT_U8_CONST_CONST_PTR_PTR] = &&do_blt_u8_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_U8_I8] = &&do_cast_u8_i8,
+        [VM_OPCODE_CAST_U8_I16] = &&do_cast_u8_i16,
+        [VM_OPCODE_CAST_U8_I32] = &&do_cast_u8_i32,
+        [VM_OPCODE_CAST_U8_I64] = &&do_cast_u8_i64,
+        [VM_OPCODE_CAST_U8_U8] = &&do_cast_u8_u8,
+        [VM_OPCODE_CAST_U8_U16] = &&do_cast_u8_u16,
+        [VM_OPCODE_CAST_U8_U32] = &&do_cast_u8_u32,
+        [VM_OPCODE_CAST_U8_U64] = &&do_cast_u8_u64,
+        [VM_OPCODE_CAST_U8_F32] = &&do_cast_u8_f32,
+        [VM_OPCODE_CAST_U8_F64] = &&do_cast_u8_f64,
         [VM_OPCODE_MOVE_U8_REG] = &&do_move_u8_reg,
         [VM_OPCODE_MOVE_U8_CONST] = &&do_move_u8_const,
         [VM_OPCODE_OUT_U8_REG] = &&do_out_u8_reg,
@@ -388,6 +438,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_U16_CONST_REG_PTR_PTR] = &&do_blt_u16_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U16_CONST_CONST_FUNC_FUNC] = &&do_blt_u16_const_const_func_func,
         [VM_OPCODE_BLT_U16_CONST_CONST_PTR_PTR] = &&do_blt_u16_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_U16_I8] = &&do_cast_u16_i8,
+        [VM_OPCODE_CAST_U16_I16] = &&do_cast_u16_i16,
+        [VM_OPCODE_CAST_U16_I32] = &&do_cast_u16_i32,
+        [VM_OPCODE_CAST_U16_I64] = &&do_cast_u16_i64,
+        [VM_OPCODE_CAST_U16_U8] = &&do_cast_u16_u8,
+        [VM_OPCODE_CAST_U16_U16] = &&do_cast_u16_u16,
+        [VM_OPCODE_CAST_U16_U32] = &&do_cast_u16_u32,
+        [VM_OPCODE_CAST_U16_U64] = &&do_cast_u16_u64,
+        [VM_OPCODE_CAST_U16_F32] = &&do_cast_u16_f32,
+        [VM_OPCODE_CAST_U16_F64] = &&do_cast_u16_f64,
         [VM_OPCODE_MOVE_U16_REG] = &&do_move_u16_reg,
         [VM_OPCODE_MOVE_U16_CONST] = &&do_move_u16_const,
         [VM_OPCODE_OUT_U16_REG] = &&do_out_u16_reg,
@@ -457,6 +517,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_U32_CONST_REG_PTR_PTR] = &&do_blt_u32_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U32_CONST_CONST_FUNC_FUNC] = &&do_blt_u32_const_const_func_func,
         [VM_OPCODE_BLT_U32_CONST_CONST_PTR_PTR] = &&do_blt_u32_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_U32_I8] = &&do_cast_u32_i8,
+        [VM_OPCODE_CAST_U32_I16] = &&do_cast_u32_i16,
+        [VM_OPCODE_CAST_U32_I32] = &&do_cast_u32_i32,
+        [VM_OPCODE_CAST_U32_I64] = &&do_cast_u32_i64,
+        [VM_OPCODE_CAST_U32_U8] = &&do_cast_u32_u8,
+        [VM_OPCODE_CAST_U32_U16] = &&do_cast_u32_u16,
+        [VM_OPCODE_CAST_U32_U32] = &&do_cast_u32_u32,
+        [VM_OPCODE_CAST_U32_U64] = &&do_cast_u32_u64,
+        [VM_OPCODE_CAST_U32_F32] = &&do_cast_u32_f32,
+        [VM_OPCODE_CAST_U32_F64] = &&do_cast_u32_f64,
         [VM_OPCODE_MOVE_U32_REG] = &&do_move_u32_reg,
         [VM_OPCODE_MOVE_U32_CONST] = &&do_move_u32_const,
         [VM_OPCODE_OUT_U32_REG] = &&do_out_u32_reg,
@@ -526,6 +596,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_U64_CONST_REG_PTR_PTR] = &&do_blt_u64_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_U64_CONST_CONST_FUNC_FUNC] = &&do_blt_u64_const_const_func_func,
         [VM_OPCODE_BLT_U64_CONST_CONST_PTR_PTR] = &&do_blt_u64_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_U64_I8] = &&do_cast_u64_i8,
+        [VM_OPCODE_CAST_U64_I16] = &&do_cast_u64_i16,
+        [VM_OPCODE_CAST_U64_I32] = &&do_cast_u64_i32,
+        [VM_OPCODE_CAST_U64_I64] = &&do_cast_u64_i64,
+        [VM_OPCODE_CAST_U64_U8] = &&do_cast_u64_u8,
+        [VM_OPCODE_CAST_U64_U16] = &&do_cast_u64_u16,
+        [VM_OPCODE_CAST_U64_U32] = &&do_cast_u64_u32,
+        [VM_OPCODE_CAST_U64_U64] = &&do_cast_u64_u64,
+        [VM_OPCODE_CAST_U64_F32] = &&do_cast_u64_f32,
+        [VM_OPCODE_CAST_U64_F64] = &&do_cast_u64_f64,
         [VM_OPCODE_MOVE_U64_REG] = &&do_move_u64_reg,
         [VM_OPCODE_MOVE_U64_CONST] = &&do_move_u64_const,
         [VM_OPCODE_OUT_U64_REG] = &&do_out_u64_reg,
@@ -595,6 +675,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_F32_CONST_REG_PTR_PTR] = &&do_blt_f32_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_F32_CONST_CONST_FUNC_FUNC] = &&do_blt_f32_const_const_func_func,
         [VM_OPCODE_BLT_F32_CONST_CONST_PTR_PTR] = &&do_blt_f32_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_F32_I8] = &&do_cast_f32_i8,
+        [VM_OPCODE_CAST_F32_I16] = &&do_cast_f32_i16,
+        [VM_OPCODE_CAST_F32_I32] = &&do_cast_f32_i32,
+        [VM_OPCODE_CAST_F32_I64] = &&do_cast_f32_i64,
+        [VM_OPCODE_CAST_F32_U8] = &&do_cast_f32_u8,
+        [VM_OPCODE_CAST_F32_U16] = &&do_cast_f32_u16,
+        [VM_OPCODE_CAST_F32_U32] = &&do_cast_f32_u32,
+        [VM_OPCODE_CAST_F32_U64] = &&do_cast_f32_u64,
+        [VM_OPCODE_CAST_F32_F32] = &&do_cast_f32_f32,
+        [VM_OPCODE_CAST_F32_F64] = &&do_cast_f32_f64,
         [VM_OPCODE_MOVE_F32_REG] = &&do_move_f32_reg,
         [VM_OPCODE_MOVE_F32_CONST] = &&do_move_f32_const,
         [VM_OPCODE_OUT_F32_REG] = &&do_out_f32_reg,
@@ -642,6 +732,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_BLT_F64_CONST_REG_PTR_PTR] = &&do_blt_f64_const_reg_ptr_ptr,
         [VM_OPCODE_BLT_F64_CONST_CONST_FUNC_FUNC] = &&do_blt_f64_const_const_func_func,
         [VM_OPCODE_BLT_F64_CONST_CONST_PTR_PTR] = &&do_blt_f64_const_const_ptr_ptr,
+        [VM_OPCODE_CAST_F64_I8] = &&do_cast_f64_i8,
+        [VM_OPCODE_CAST_F64_I16] = &&do_cast_f64_i16,
+        [VM_OPCODE_CAST_F64_I32] = &&do_cast_f64_i32,
+        [VM_OPCODE_CAST_F64_I64] = &&do_cast_f64_i64,
+        [VM_OPCODE_CAST_F64_U8] = &&do_cast_f64_u8,
+        [VM_OPCODE_CAST_F64_U16] = &&do_cast_f64_u16,
+        [VM_OPCODE_CAST_F64_U32] = &&do_cast_f64_u32,
+        [VM_OPCODE_CAST_F64_U64] = &&do_cast_f64_u64,
+        [VM_OPCODE_CAST_F64_F32] = &&do_cast_f64_f32,
+        [VM_OPCODE_CAST_F64_F64] = &&do_cast_f64_f64,
         [VM_OPCODE_MOVE_F64_REG] = &&do_move_f64_reg,
         [VM_OPCODE_MOVE_F64_CONST] = &&do_move_f64_const,
         [VM_OPCODE_OUT_F64_REG] = &&do_out_f64_reg,
@@ -652,39 +752,39 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_EXIT_BREAK_VOID] = &&do_exit_break_void,
         [VM_OPCODE_JUMP_PTR_CONST] = &&do_jump_ptr_const,
         [VM_OPCODE_JUMP_FUNC_CONST] = &&do_jump_func_const,
-        [VM_OPCODE_CALL_PTR_CONST] = &&do_call_ptr_const,
-        [VM_OPCODE_CALL_FUNC_CONST] = &&do_call_func_const,
-        [VM_OPCODE_CALL_FUNC_REG] = &&do_call_func_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG] = &&do_call_ptr_const_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG] = &&do_call_func_const_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG] = &&do_call_func_reg_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG_REG] = &&do_call_ptr_const_reg_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG_REG] = &&do_call_func_const_reg_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG_REG] = &&do_call_func_reg_reg_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG] = &&do_call_func_const_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_PTR_CONST_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_CONST_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_const_reg_reg_reg_reg_reg_reg_reg_reg,
-        [VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_reg_reg_reg_reg_reg_reg_reg_reg_reg
+        [VM_OPCODE_CALL_FUNC_FUNC] = &&do_call_func_func,
+        [VM_OPCODE_CALL_FUNC_PTR] = &&do_call_func_ptr,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG] = &&do_call_func_func_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG] = &&do_call_func_ptr_reg,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG_REG] = &&do_call_func_func_reg_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG_REG] = &&do_call_func_ptr_reg_reg,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG] = &&do_call_func_func_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG] = &&do_call_func_ptr_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG] = &&do_call_func_func_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG] = &&do_call_func_ptr_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG] = &&do_call_func_func_reg_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG] = &&do_call_func_ptr_reg_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG] = &&do_call_func_func_reg_reg_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG_REG] = &&do_call_func_ptr_reg_reg_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_func_reg_reg_reg_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_ptr_reg_reg_reg_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_func_reg_reg_reg_reg_reg_reg_reg_reg,
+        [VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_ptr_reg_reg_reg_reg_reg_reg_reg_reg
     };
     state->ptrs = ptrs;
     vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty()));
     vm_value_t *restrict locals = state->locals;
     vm_opcode_t **restrict ips = state->ips;
     goto *(ip++)->ptr;
+        exit(1);
+        exit(1);
+        exit(1);
+        exit(1);
+        exit(1);
+        exit(1);
+        exit(1);
+        exit(1);
+        exit(1);
     do_add_i8_reg_reg: {
         int8_t a0 = locals[(ip++)->reg].i8;
         int8_t a1 = locals[(ip++)->reg].i8;
@@ -809,6 +909,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i8_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -816,6 +917,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i8_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -981,6 +1083,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_i8_i8: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_i16: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_i32: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_i64: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_u8: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_u16: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_u32: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_u64: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_f32: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i8_f64: {
+        int8_t a0 = (int8_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].i8 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_i8_reg: {
         int8_t a0 = locals[(ip++)->reg].i8;
         locals[(ip++)->reg].i8 = a0;
@@ -1015,7 +1167,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I8].size = (size_t) ops;
             ip = ops;
@@ -1032,7 +1183,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I8].size = (size_t) ops;
             ip = ops;
@@ -1293,6 +1443,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i16_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -1300,6 +1451,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i16_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -1465,6 +1617,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_i16_i8: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_i16: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_i32: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_i64: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_u8: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_u16: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_u32: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_u64: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_f32: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i16_f64: {
+        int16_t a0 = (int16_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].i16 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_i16_reg: {
         int16_t a0 = locals[(ip++)->reg].i16;
         locals[(ip++)->reg].i16 = a0;
@@ -1499,7 +1701,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I16].size = (size_t) ops;
             ip = ops;
@@ -1516,7 +1717,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I16].size = (size_t) ops;
             ip = ops;
@@ -1777,6 +1977,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i32_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -1784,6 +1985,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i32_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -1949,6 +2151,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_i32_i8: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_i16: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_i32: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_i64: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_u8: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_u16: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_u32: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_u64: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_f32: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i32_f64: {
+        int32_t a0 = (int32_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].i32 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_i32_reg: {
         int32_t a0 = locals[(ip++)->reg].i32;
         locals[(ip++)->reg].i32 = a0;
@@ -1983,7 +2235,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I32].size = (size_t) ops;
             ip = ops;
@@ -2000,7 +2251,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I32].size = (size_t) ops;
             ip = ops;
@@ -2261,6 +2511,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i64_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -2268,6 +2519,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_i64_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -2433,6 +2685,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_i64_i8: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_i16: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_i32: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_i64: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_u8: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_u16: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_u32: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_u64: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_f32: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_i64_f64: {
+        int64_t a0 = (int64_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].i64 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_i64_reg: {
         int64_t a0 = locals[(ip++)->reg].i64;
         locals[(ip++)->reg].i64 = a0;
@@ -2467,7 +2769,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I64].size = (size_t) ops;
             ip = ops;
@@ -2484,7 +2785,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_I64].size = (size_t) ops;
             ip = ops;
@@ -2745,6 +3045,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u8_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -2752,6 +3053,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u8_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -2917,6 +3219,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_u8_i8: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_i16: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_i32: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_i64: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_u8: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_u16: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_u32: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_u64: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_f32: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u8_f64: {
+        uint8_t a0 = (uint8_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].u8 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_u8_reg: {
         uint8_t a0 = locals[(ip++)->reg].u8;
         locals[(ip++)->reg].u8 = a0;
@@ -2951,7 +3303,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U8].size = (size_t) ops;
             ip = ops;
@@ -2968,7 +3319,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U8].size = (size_t) ops;
             ip = ops;
@@ -3229,6 +3579,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u16_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -3236,6 +3587,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u16_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -3401,6 +3753,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_u16_i8: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_i16: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_i32: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_i64: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_u8: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_u16: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_u32: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_u64: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_f32: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u16_f64: {
+        uint16_t a0 = (uint16_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].u16 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_u16_reg: {
         uint16_t a0 = locals[(ip++)->reg].u16;
         locals[(ip++)->reg].u16 = a0;
@@ -3435,7 +3837,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U16].size = (size_t) ops;
             ip = ops;
@@ -3452,7 +3853,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U16].size = (size_t) ops;
             ip = ops;
@@ -3713,6 +4113,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u32_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -3720,6 +4121,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u32_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -3885,6 +4287,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_u32_i8: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_i16: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_i32: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_i64: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_u8: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_u16: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_u32: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_u64: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_f32: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u32_f64: {
+        uint32_t a0 = (uint32_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].u32 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_u32_reg: {
         uint32_t a0 = locals[(ip++)->reg].u32;
         locals[(ip++)->reg].u32 = a0;
@@ -3919,7 +4371,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U32].size = (size_t) ops;
             ip = ops;
@@ -3936,7 +4387,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U32].size = (size_t) ops;
             ip = ops;
@@ -4197,6 +4647,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u64_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -4204,6 +4655,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_u64_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -4369,6 +4821,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_u64_i8: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_i16: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_i32: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_i64: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_u8: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_u16: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_u32: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_u64: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_f32: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_u64_f64: {
+        uint64_t a0 = (uint64_t) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].u64 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_u64_reg: {
         uint64_t a0 = locals[(ip++)->reg].u64;
         locals[(ip++)->reg].u64 = a0;
@@ -4403,7 +4905,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U64].size = (size_t) ops;
             ip = ops;
@@ -4420,7 +4921,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_U64].size = (size_t) ops;
             ip = ops;
@@ -4681,6 +5181,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_f32_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -4688,6 +5189,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_f32_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -4853,6 +5355,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_f32_i8: {
+        float a0 = (float) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_i16: {
+        float a0 = (float) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_i32: {
+        float a0 = (float) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_i64: {
+        float a0 = (float) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_u8: {
+        float a0 = (float) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_u16: {
+        float a0 = (float) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_u32: {
+        float a0 = (float) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_u64: {
+        float a0 = (float) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_f32: {
+        float a0 = (float) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f32_f64: {
+        float a0 = (float) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].f32 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_f32_reg: {
         float a0 = locals[(ip++)->reg].f32;
         locals[(ip++)->reg].f32 = a0;
@@ -4887,7 +5439,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_F32].size = (size_t) ops;
             ip = ops;
@@ -4904,7 +5455,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_F32].size = (size_t) ops;
             ip = ops;
@@ -5035,6 +5585,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_f64_reg_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -5042,6 +5593,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         vm_opcode_t *head = ip-1;
         head->ptr = &&do_bb_f64_const_ptr_ptr;
         ip[1].ptr = vm_run_comp(state, ip[1].func);
+        ip[2].ptr = vm_run_comp(state, ip[2].func);
         ip = head;
         goto *(ip++)->ptr;
     }
@@ -5207,6 +5759,56 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         }
         goto *(ip++)->ptr;
     }
+    do_cast_f64_i8: {
+        double a0 = (double) locals[(ip++)->reg].i8;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_i16: {
+        double a0 = (double) locals[(ip++)->reg].i16;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_i32: {
+        double a0 = (double) locals[(ip++)->reg].i32;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_i64: {
+        double a0 = (double) locals[(ip++)->reg].i64;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_u8: {
+        double a0 = (double) locals[(ip++)->reg].u8;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_u16: {
+        double a0 = (double) locals[(ip++)->reg].u16;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_u32: {
+        double a0 = (double) locals[(ip++)->reg].u32;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_u64: {
+        double a0 = (double) locals[(ip++)->reg].u64;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_f32: {
+        double a0 = (double) locals[(ip++)->reg].f32;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
+    do_cast_f64_f64: {
+        double a0 = (double) locals[(ip++)->reg].f64;
+        locals[(ip++)->reg].f64 = a0;
+        goto *(ip++)->ptr;
+    }
     do_move_f64_reg: {
         double a0 = locals[(ip++)->reg].f64;
         locals[(ip++)->reg].f64 = a0;
@@ -5241,7 +5843,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_F64].size = (size_t) ops;
             ip = ops;
@@ -5258,7 +5859,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
             ip = (vm_opcode_t *) addr;
         } else {
             addr -= 1;
-            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
             vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
             ip[VM_TAG_F64].size = (size_t) ops;
             ip = ops;
@@ -5280,28 +5880,22 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = head;
         goto *(ip++)->ptr;
     }
-    do_call_ptr_const: {
+    do_call_func_func: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC\n");
+        goto *(ip++)->ptr;
+    }
+    do_call_func_ptr: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg: {
+    do_call_func_ptr_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals += VM_NREGS;
@@ -5309,22 +5903,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg_reg: {
+    do_call_func_ptr_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
@@ -5333,23 +5916,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const_reg_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg_reg_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg_reg_reg: {
+    do_call_func_ptr_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
@@ -5359,24 +5930,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const_reg_reg_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg_reg_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg_reg_reg_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg_reg_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg_reg_reg_reg: {
+    do_call_func_ptr_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
@@ -5387,25 +5945,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const_reg_reg_reg_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg_reg_reg_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg_reg_reg_reg_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg_reg_reg_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg_reg_reg_reg_reg: {
+    do_call_func_ptr_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
@@ -5417,26 +5961,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const_reg_reg_reg_reg_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg_reg_reg_reg_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg_reg_reg_reg_reg_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg_reg_reg_reg_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg_reg_reg_reg_reg_reg: {
+    do_call_func_ptr_reg_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
@@ -5449,27 +5978,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const_reg_reg_reg_reg_reg_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg_reg_reg_reg_reg_reg_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg_reg_reg_reg_reg_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg: {
+    do_call_func_ptr_reg_reg_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
@@ -5483,28 +5996,11 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         ip = t0;
         goto *(ip++)->ptr;
     }
-    do_call_func_const_reg_reg_reg_reg_reg_reg_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
+    do_call_func_func_reg_reg_reg_reg_reg_reg_reg_reg: {
+        fprintf(stderr, "unimplemend label: VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG_REG_REG\n");
         goto *(ip++)->ptr;
     }
-    do_call_func_reg_reg_reg_reg_reg_reg_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
-        locals[263] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
-        goto *(ip++)->ptr;
-    }
-    do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg_reg: {
+    do_call_func_ptr_reg_reg_reg_reg_reg_reg_reg_reg: {
         vm_opcode_t *t0 = (ip++)->ptr;
         locals[257] = locals[(ip++)->reg];
         locals[258] = locals[(ip++)->reg];
@@ -5517,28 +6013,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals += VM_NREGS;
         *(++ips) = ip;
         ip = t0;
-        goto *(ip++)->ptr;
-    }
-    do_call_func_const_reg_reg_reg_reg_reg_reg_reg_reg: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_call_ptr_const_reg_reg_reg_reg_reg_reg_reg_reg;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
-        goto *(ip++)->ptr;
-    }
-    do_call_func_reg_reg_reg_reg_reg_reg_reg_reg_reg: {
-        vm_rblock_t *t0 = (ip++)->func;
-        locals[257] = locals[(ip++)->reg];
-        locals[258] = locals[(ip++)->reg];
-        locals[259] = locals[(ip++)->reg];
-        locals[260] = locals[(ip++)->reg];
-        locals[261] = locals[(ip++)->reg];
-        locals[262] = locals[(ip++)->reg];
-        locals[263] = locals[(ip++)->reg];
-        locals[264] = locals[(ip++)->reg];
-        locals += VM_NREGS;
-        *(++ips) = ip;
-        ip = vm_run_comp(state, t0);
         goto *(ip++)->ptr;
     }
 }

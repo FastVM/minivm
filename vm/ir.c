@@ -37,6 +37,62 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
         }
     }
 }
+void vm_print_tag(FILE *out, vm_tag_t tag) {
+    switch (tag) {
+        case VM_TAG_NIL: {
+            fprintf(out, "nil");
+            break;
+        }
+        case VM_TAG_BOOL: {
+            fprintf(out, "bool");
+            break;
+        }
+        case VM_TAG_I8: {
+            fprintf(out, "i8");
+            break;
+        }
+        case VM_TAG_I16: {
+            fprintf(out, "i16");
+            break;
+        }
+        case VM_TAG_I32: {
+            fprintf(out, "i32");
+            break;
+        }
+        case VM_TAG_I64: {
+            fprintf(out, "i64");
+            break;
+        }
+        case VM_TAG_U8: {
+            fprintf(out, "u8");
+            break;
+        }
+        case VM_TAG_U16: {
+            fprintf(out, "u16");
+            break;
+        }
+        case VM_TAG_U32: {
+            fprintf(out, "u32");
+            break;
+        }
+        case VM_TAG_U64: {
+            fprintf(out, "u64");
+            break;
+        }
+        case VM_TAG_F32: {
+            fprintf(out, "f32");
+            break;
+        }
+        case VM_TAG_F64: {
+            fprintf(out, "f64");
+            break;
+        }
+        case VM_TAG_PTR: {
+            fprintf(out, "func");
+            break;
+        }
+    }
+}
 void vm_print_branch(FILE *out, vm_branch_t val) {
     switch (val.op) {
         case VM_BOP_JUMP: {
@@ -67,6 +123,10 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             fprintf(out, "exit");
             break;
         }
+    }
+    if (val.tag != VM_TAG_INIT && val.tag != VM_TAG_UNK) {
+        fprintf(out, ".");
+        vm_print_tag(out, val.tag);
     }
     if (val.args[0].type != VM_ARG_NONE) {
         fprintf(out, " ");
@@ -113,6 +173,10 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "move");
             break;
         }
+        case VM_IOP_CAST: {
+            fprintf(out, "cast");
+            break;
+        }
         case VM_IOP_ADD: {
             fprintf(out, "add");
             break;
@@ -141,6 +205,10 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "out");
             break;
         }
+    }
+    if (val.tag != VM_TAG_INIT && val.tag != VM_TAG_UNK) {
+        fprintf(out, ".");
+        vm_print_tag(out, val.tag);
     }
     for (size_t i = 0; val.args[i].type != VM_ARG_NONE; i++) {
         fprintf(out, " ");
@@ -185,4 +253,20 @@ void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *blocks) {
         fprintf(out, ")\n");
         vm_print_block(out, block);
     }
+}
+
+vm_tag_t vm_instr_get_arg_type(vm_instr_t instr, size_t argno) {
+    return instr.args[argno].type;
+}
+uint64_t vm_instr_get_arg_num(vm_instr_t instr, size_t argno) {
+    return instr.args[argno].num;
+}
+const char *vm_instr_get_arg_str(vm_instr_t instr, size_t argno) {
+    return instr.args[argno].str;
+}
+vm_block_t *vm_instr_get_arg_func(vm_instr_t instr, size_t argno) {
+    return instr.args[argno].func;
+}
+size_t vm_instr_get_arg_reg(vm_instr_t instr, size_t argno) {
+    return instr.args[argno].reg;
 }

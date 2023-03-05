@@ -1,0 +1,9 @@
+@:
+    out 48
+    out 10
+    move.i16 %2 16
+    move.i32 %1 32
+    add %0 %1 %2
+    out %0
+    out 10
+    exit

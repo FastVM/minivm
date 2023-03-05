@@ -97,6 +97,25 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tag_t *types, vm_instr_t instr) {
     return instr;
 }
 
+bool vm_rblock_type_check_instr(vm_tag_t *types, vm_instr_t instr) {
+    if (instr.op != VM_IOP_CAST) {
+        for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
+            if (instr.args[i].type == VM_ARG_REG) {
+                if (!vm_tag_eq(types[instr.args[i].reg], instr.tag)) {
+                    vm_print_instr(stdout, instr);
+                    printf("\n^ TYPE ERROR ^\n");
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool vm_rblock_type_check_branch(vm_tag_t *types, vm_branch_t branch) {
+    return true;
+}
+
 vm_branch_t vm_rblock_type_specialize_branch(vm_tag_t *types, vm_branch_t branch) {
     if (vm_tag_eq(branch.tag, VM_TAG_UNK)) {
         for (size_t i = 0; i < 2; i++) {

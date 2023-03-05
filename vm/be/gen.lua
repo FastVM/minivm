@@ -2,6 +2,10 @@
 local VM_NREGS = 256
 local VM_GOTO = true
 
+local binaryint = {'add', 'sub', 'mul', 'div', 'mod', 'bor', 'bxor', 'band', 'bshl', 'bshr'}
+local binaryfloat = {'add', 'sub', 'mul', 'div', 'mod'}
+local binarytypes = {'i8', 'i16', 'i32', 'i64', 'u8', 'u16', 'u32', 'u64', 'f32', 'f64'}
+
 local i = 1
 while i < #arg do
     local val = arg[i]
@@ -132,6 +136,9 @@ local function install_basic_math(ctype)
 end
 
 local function install_basic_extra(ctype)
+    for k, v in ipairs(binarytypes) do
+        push('cast', ctype, {v})
+    end
     push('move', ctype, {'reg'})
     push('move', ctype, {'const'})
     push('out', ctype, {'reg'})
@@ -165,13 +172,10 @@ local function install_call(nargs)
         for i = 1, nargs do
             regs[#regs + 1] = 'reg'
         end
-        if type == 'const' then
-            push('call', 'ptr', regs)
-        end
         push('call', 'func', regs)
     end
-    install_call_with('const')
-    install_call_with('reg')
+    install_call_with('func')
+    install_call_with('ptr')
 end
 
 install_basic_and_bitwise('i8')
@@ -318,10 +322,6 @@ do
     }
 
     do
-        local binaryint = {'add', 'sub', 'mul', 'div', 'mod', 'bor', 'bxor', 'band', 'bshl', 'bshr'}
-        local binaryfloat = {'add', 'sub', 'mul', 'div', 'mod'}
-        local binarytypes = {'i8', 'i16', 'i32', 'i64', 'u8', 'u16', 'u32', 'u64', 'f32', 'f64'}
-
         local map = {
             reg = '== VM_ARG_REG',
             const = '!= VM_ARG_REG'
@@ -341,15 +341,30 @@ do
         lines[#lines + 1] = '    size_t aops = 64;'
         lines[#lines + 1] = '    vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * aops);'
         lines[#lines + 1] = '    size_t nops = 0;'
-        lines[#lines + 1] = '    fprintf(stderr, "start = %zu\\n", rnext->start);'
         lines[#lines + 1] = '    for (size_t ninstr = rnext->start; ninstr < block->len; ninstr++) {'
         lines[#lines + 1] = '        if (nops + 16 + VM_TAG_MAX >= aops) {'
         lines[#lines + 1] = '            aops = (nops + 16) * 2;'
         lines[#lines + 1] = '            ops = vm_realloc(ops, sizeof(vm_opcode_t) * aops);'
         lines[#lines + 1] = '        }'
         lines[#lines + 1] = '        vm_instr_t instr = vm_rblock_type_specialize_instr(types, block->instrs[ninstr]);'
-        lines[#lines + 1] = '        vm_print_instr(stderr, instr); fprintf(stderr, "\\n");'
+        lines[#lines + 1] = '        if (!vm_rblock_type_check_instr(types, instr)) goto fail_return;'
+        -- lines[#lines + 1] = '        vm_print_instr(stdout, instr);'
+        -- lines[#lines + 1] = '        fprintf(stdout, "\\n");'
         lines[#lines + 1] = '        switch (instr.op) {'
+        do
+            lines[#lines + 1] = '        case VM_IOP_CAST: {'
+            for k1, v1 in ipairs(binarytypes) do
+                for k2, v2 in ipairs(binarytypes) do
+                    local name = string.upper(table.concat({prefix, 'cast', v1, v2}, '_'))
+                    lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(v1) ..') && vm_tag_eq(vm_instr_get_arg_type(instr, 0), VM_TAG_' .. string.upper(v2) ..')) {'
+                    lines[#lines + 1] = '                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                    lines[#lines + 1] = '                ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
+                    lines[#lines + 1] = '                ops[nops++].reg = instr.out.reg;'
+                    lines[#lines + 1] = '            }'
+                end
+            end
+            lines[#lines + 1] = '        }'
+        end
         do
             lines[#lines + 1] = '        case VM_IOP_MOVE: {'
             lines[#lines + 1] = '            if (instr.out.type == VM_ARG_NONE) {'
@@ -359,16 +374,16 @@ do
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             do
-                lines[#lines + 1] = '            if (instr.args[0].type == VM_ARG_STR) {'
+                lines[#lines + 1] = '            if (vm_instr_get_arg_type(instr, 0) == VM_ARG_STR) {'
                 lines[#lines + 1] = '                if (vm_tag_eq(VM_TAG_I32, VM_TAG_PTR)) {'
                 local name = string.upper(table.concat({prefix, 'move', 'u32', 'const'}, '_'))
                 lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
-                lines[#lines + 1] = '                    ops[nops++].u32 = (uint32_t) (size_t) instr.args[0].str;'
+                lines[#lines + 1] = '                    ops[nops++].u32 = (uint32_t) (size_t) vm_instr_get_arg_str(instr, 0);'
                 lines[#lines + 1] = '                    ops[nops++].reg = instr.out.reg;'
                 lines[#lines + 1] = '                } else {'
                 local name = string.upper(table.concat({prefix, 'move', 'u64', 'const'}, '_'))
                 lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
-                lines[#lines + 1] = '                    ops[nops++].u64 = (uint64_t) (size_t) instr.args[0].str;'
+                lines[#lines + 1] = '                    ops[nops++].u64 = (uint64_t) (size_t) vm_instr_get_arg_str(instr, 0);'
                 lines[#lines + 1] = '                    ops[nops++].reg = instr.out.reg;'
                 lines[#lines + 1] = '                }'
                 lines[#lines + 1] = '                break;'
@@ -377,14 +392,14 @@ do
             for tkey, tvalue in ipairs(binarytypes) do
                 lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 for _, a0type in ipairs({'reg', 'const'}) do
-                    lines[#lines + 1] = '                if (instr.args[0].type ' .. map[a0type] .. ') {'
+                    lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[a0type] .. ') {'
                     local name = string.upper(table.concat({prefix, 'move', tvalue, a0type}, '_'))
                     lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if a0type == 'reg' then
-                        lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                        lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                     else
                         lines[#lines + 1] =
-                            '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') instr.args[0].num;'
+                            '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') vm_instr_get_arg_num(instr, 0);'
                     end
                     lines[#lines + 1] = '                    ops[nops++].reg = instr.out.reg;'
                     lines[#lines + 1] = '                    break;'
@@ -404,13 +419,13 @@ do
                 if isinttype[tvalue] then
                     lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                     for _, a0type in ipairs({'reg', 'const'}) do
-                        lines[#lines + 1] = '                if (instr.args[0].type ' .. map[a0type] .. ') {'
+                        lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[a0type] .. ') {'
                         local name = string.upper(table.concat({prefix, 'bnot', tvalue, a0type}, '_'))
                         lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                         if a0type == 'reg' then
-                            lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                            lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                         else
-                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') instr.args[0].num;'
+                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') vm_instr_get_arg_num(instr, 0);'
                         end
                         lines[#lines + 1] = '                    ops[nops++].reg = instr.out.reg;'
                         lines[#lines + 1] = '                    break;'
@@ -428,22 +443,21 @@ do
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
-                if isinttype[tvalue] or value == 'add' or value == 'sub' or value == 'mul' or value == 'div' or value ==
-                    'mod' then
+                if isinttype[tvalue] or value == 'add' or value == 'sub' or value == 'mul' or value == 'div' or value == 'mod' then
                     lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                     for _, pair in ipairs(kinds) do
-                        lines[#lines + 1] = '                if (instr.args[0].type ' .. map[pair[1]] .. ' && ' .. 'instr.args[1].type ' .. map[pair[2]] .. ') {'
+                        lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[pair[1]] .. ' && ' .. 'vm_instr_get_arg_type(instr, 1) ' .. map[pair[2]] .. ') {'
                         local name = string.upper(table.concat({prefix, value, tvalue, pair[1], pair[2]}, '_'))
                         lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                         if pair[1] == 'reg' then
-                            lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                            lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                         else
-                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') instr.args[0].num;'
+                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') vm_instr_get_arg_num(instr, 0);'
                         end
                         if pair[2] == 'reg' then
-                            lines[#lines + 1] = '                    ops[nops++].reg = instr.args[1].reg;'
+                            lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 1);'
                         else
-                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') instr.args[1].num;'
+                            lines[#lines + 1] = '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') vm_instr_get_arg_num(instr, 1);'
                         end
                         lines[#lines + 1] = '                    ops[nops++].reg = instr.out.reg;'
                         lines[#lines + 1] = '                    break;'
@@ -464,7 +478,7 @@ do
                 lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 local name = string.upper(table.concat({prefix, 'in', tvalue, 'void'}, '_'))
                 lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
-                lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                 lines[#lines + 1] = '            }'
             end
             lines[#lines + 1] = '            break;'
@@ -473,12 +487,12 @@ do
         do
             lines[#lines + 1] = '        case VM_IOP_CALL: {'
             for nargs = 0, 8 do
-                lines[#lines + 1] = '            if (instr.args[' .. tostring(nargs + 1) .. '].type == VM_ARG_NONE) {'
-                for _, val in ipairs({'const', 'reg'}) do
-                    if val == 'const' then
-                        lines[#lines + 1] = '                if (instr.args[0].type == VM_ARG_FUNC) {'
+                lines[#lines + 1] = '            if (vm_instr_get_arg_type(instr, ' .. tostring(nargs + 1) .. ') == VM_ARG_NONE) {'
+                for _, val in ipairs({'ptr', 'func'}) do
+                    if val == 'ptr' then
+                        lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {'
                     else
-                        lines[#lines + 1] = '                else if (instr.args[0].type == VM_ARG_REG) {'
+                        lines[#lines + 1] = '                else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {'
                     end
                     local name = {prefix, 'call', 'func', val}
                     for i=1, nargs do
@@ -487,16 +501,19 @@ do
                     name = string.upper(table.concat(name, '_'))
                     lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
-                        lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                        lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                     else
                         lines[#lines + 1] = '                    vm_tag_t *args = vm_rblock_regs_empty();'
                         for argno = 1, nargs do
-                            lines[#lines + 1] = '                    args[' .. tostring(argno) .. '] = types[instr.args[' .. tostring(argno) .. '].reg];'
+                            lines[#lines + 1] = '                    args[' .. tostring(argno) .. '] = types[vm_instr_get_arg_reg(instr, ' .. tostring(argno) .. ')];'
                         end
-                        lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(instr.args[0].func, args);'
+                        lines[#lines + 1] = '                    vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);'
+                        lines[#lines + 1] = '                    vm_opcode_t *opcodes = vm_run_comp(state, rblock);'
+                        lines[#lines + 1] = '                    if (opcodes == NULL) goto fail_return;'
+                        lines[#lines + 1] = '                    ops[nops++].ptr = opcodes;'
                     end
                     for argno = 1, nargs do
-                        lines[#lines + 1] = '                    ops[nops++].reg = instr.args[' .. tostring(argno) .. '].reg;'
+                        lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, ' .. tostring(argno) .. ');'
                     end
                     lines[#lines + 1] = '                    if (instr.out.type == VM_ARG_NONE) {'
                     lines[#lines + 1] = '                        ops[nops++].reg = VM_NREGS;'
@@ -526,13 +543,13 @@ do
                 lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
                 for _, val in ipairs({'const', 'reg'}) do
                     local name = string.upper(table.concat({prefix, 'out', tvalue, val}, '_'))
-                    lines[#lines + 1] = '                if (instr.args[0].type ' .. map[val] .. ') {'
+                    lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[val] .. ') {'
                     lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
-                        lines[#lines + 1] = '                    ops[nops++].reg = instr.args[0].reg;'
+                        lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                     else
                         lines[#lines + 1] =
-                            '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') instr.args[0].num;'
+                            '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') vm_instr_get_arg_num(instr, 0);'
                     end
                     lines[#lines + 1] = '                    break;'
                     lines[#lines + 1] = '                }'
@@ -548,6 +565,9 @@ do
         lines[#lines + 1] = '        }'
         lines[#lines + 1] = '    }'
         lines[#lines + 1] = '    vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);'
+        lines[#lines + 1] = '    if (!vm_rblock_type_check_branch(types, branch)) goto fail_return;'
+        -- lines[#lines + 1] = '    vm_print_branch(stdout, branch);'
+        -- lines[#lines + 1] = '    fprintf(stdout, "\\n");'
         lines[#lines + 1] = '    switch (branch.op) {'
         do
             lines[#lines + 1] = '        case VM_BOP_EXIT: {'
@@ -616,16 +636,16 @@ do
                 for _, val in ipairs({'const', 'reg'}) do
                     lines[#lines + 1] = '                    if (branch.args[0].type ' .. map[val] .. ') {'
                     local name = string.upper(table.concat({prefix, 'bb', tvalue, val, 'func', 'func'}, '_'))
-                    lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
+                    lines[#lines + 1] = '                        ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     if val == 'reg' then
-                        lines[#lines + 1] = '                    ops[nops++].reg = branch.args[0].reg;'
+                        lines[#lines + 1] = '                        ops[nops++].reg = branch.args[0].reg;'
                     else
                         lines[#lines + 1] =
-                            '                    ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') branch.args[0].num;'
+                            '                        ops[nops++].' .. tvalue .. ' = (' .. typename(tvalue) .. ') branch.args[0].num;'
                     end
-                    lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);'
-                    lines[#lines + 1] = '                    ops[nops++].func = vm_rblock_new(branch.targets[1], types);'
-                    lines[#lines + 1] = '                    break;'
+                    lines[#lines + 1] = '                        ops[nops++].func = vm_rblock_new(branch.targets[0], types);'
+                    lines[#lines + 1] = '                        ops[nops++].func = vm_rblock_new(branch.targets[1], types);'
+                    lines[#lines + 1] = '                        break;'
                     lines[#lines + 1] = '                    }'
                 end
                 lines[#lines + 1] = '                    break;'
@@ -673,6 +693,9 @@ do
         lines[#lines + 1] = 'early_return:;'
         lines[#lines + 1] = '    vm_cache_set(&rblock->block->cache, rnext, ops);'
         lines[#lines + 1] = '    return ops;'
+        lines[#lines + 1] = 'fail_return:;'
+        lines[#lines + 1] = '    vm_free(ops);'
+        lines[#lines + 1] = '    return NULL;'
         lines[#lines + 1] = '}'
     
         local incheadersrc = table.concat(lines, '\n')
@@ -757,6 +780,10 @@ do
                 else
                     case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = a0 % a1;'
                 end
+            elseif instr.op == 'cast' then
+                local tname = typename(instr.type)
+                case[#case + 1] = '        ' .. tname .. ' a0 = (' .. tname .. ') locals[(ip++)->reg].' .. instr.args[1] .. ';'
+                case[#case + 1] = '        locals[(ip++)->reg].' .. instr.type .. ' = a0;'
             elseif instr.op == 'move' then
                 local tname = typename(instr.type)
                 if instr.args[1] == 'reg' then
@@ -815,6 +842,7 @@ do
                     case[#case + 1] = '        head->reg = ' .. string.upper(table.concat({prefix, instr.op, instr.type, instr.args[1], 'ptr', 'ptr'}, '_')).. ';'
                 end
                 case[#case + 1] = '        ip[1].ptr = vm_run_comp(state, ip[1].func);'
+                case[#case + 1] = '        ip[2].ptr = vm_run_comp(state, ip[2].func);'
                 case[#case + 1] = '        ip = head;'
             elseif (instr.op == 'blt' or instr.op == 'beq') and instr.args[3] == 'ptr' then
                 local tname = typename(instr.type)
@@ -858,7 +886,6 @@ do
                 case[#case + 1] = '            ip = (vm_opcode_t *) addr;'
                 case[#case + 1] = '        } else {'
                 case[#case + 1] = '            addr -= 1;'
-                case[#case + 1] = '            fprintf(stderr, "my start = %zu\\n", ((vm_rblock_t *)addr)->start);'
                 case[#case + 1] = '            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);'
                 case[#case + 1] = '            ip[VM_TAG_'..string.upper(instr.type)..'].size = (size_t) ops;'
                 case[#case + 1] = '            ip = ops;'
@@ -871,31 +898,14 @@ do
                 case[#case + 1] = '        locals += VM_NREGS;'
                 case[#case + 1] = '        *(++ips) = ip;'
                 case[#case + 1] = '        ip = vm_run_comp(state, t0);'
-            elseif instr.op == 'call' and instr.type == 'ptr' then
+            elseif instr.op == 'call' and instr.args[1] == 'ptr' then
                 case[#case + 1] = '        vm_opcode_t *t0 = (ip++)->ptr;'
                 for argno = 1, #instr.args - 1 do
                     case[#case + 1] = '        locals[' .. tostring(argno + VM_NREGS) .. '] = locals[(ip++)->reg];'
                 end
                 case[#case + 1] = '        locals += VM_NREGS;'
                 case[#case + 1] = '        *(++ips) = ip;'
-                case[#case + 1] = '        ip = t0;'
-            elseif instr.op == 'call' and instr.type == 'func' then
-                case[#case + 1] = '        vm_opcode_t *head = ip-1;'
-                if VM_GOTO then
-                    local argvs = {'do', instr.op, 'ptr'}
-                    for argno = 1, #instr.args do
-                        argvs[#argvs + 1] = instr.args[argno]
-                    end
-                    case[#case + 1] = '        head->ptr = &&' .. table.concat(argvs, '_') .. ';'
-                else
-                    local argvs = {prefix, instr.op, 'ptr'}
-                    for argno = 1, #instr.args do
-                        argvs[#argvs + 1] = instr.args[argno]
-                    end
-                    case[#case + 1] = '        head->reg = ' .. string.upper(table.concat(argvs, '_')) .. ';'
-                end
-                case[#case + 1] = '        ip[0].ptr = vm_run_comp(state, ip[0].func);'
-                case[#case + 1] = '        ip = head;'
+                case[#case + 1] = '        ip = t0;'x
             elseif instr.op == 'exit' then
                 case[#case + 1] = '        {return;}'
             else

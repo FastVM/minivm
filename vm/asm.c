@@ -101,8 +101,11 @@ static char *vm_parse_word_until(vm_parser_t *state, char stop) {
 static vm_tag_t vm_parse_tag(vm_parser_t *state) {
     vm_tag_t tag = VM_TAG_UNK;
     const char *tname = vm_parse_word_until(state, '\0');
-    if (!strcmp(tname, "b")) {
-        tag = VM_TAG_I64;
+    if (!strcmp(tname, "nil")) {
+        tag = VM_TAG_NIL;
+    }
+    if (!strcmp(tname, "bool")) {
+        tag = VM_TAG_BOOL;
     }
     if (!strcmp(tname, "i8")) {
         tag = VM_TAG_I8;
@@ -410,6 +413,9 @@ static bool vm_parse_state(vm_parser_t *state) {
                 if (!strcmp(name, "move")) {
                     instr.op = VM_IOP_MOVE;
                 }
+                if (!strcmp(name, "cast")) {
+                    instr.op = VM_IOP_CAST;
+                }
                 if (!strcmp(name, "add")) {
                     instr.op = VM_IOP_ADD;
                 }
@@ -461,6 +467,11 @@ static bool vm_parse_state(vm_parser_t *state) {
                 }
                 switch (instr.op) {
                     case VM_IOP_MOVE: {
+                        instr.out = vm_parse_arg(state);
+                        instr.args[0] = vm_parse_arg(state);
+                        break;
+                    }
+                    case VM_IOP_CAST: {
                         instr.out = vm_parse_arg(state);
                         instr.args[0] = vm_parse_arg(state);
                         break;

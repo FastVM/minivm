@@ -21,20 +21,8 @@
     ret 0
 
 @:
-    move.i8 %0 8
+    move.i32 %0 8
+    cast.i16 %0 %0
     call %0 [print] %0
-    move.i16 %0 16
-    call %0 [print] %0
-    move.i32 %0 32
-    call %0 [print] %0
-    move.i64 %0 64
-    call %0 [print] %0
-    move.u8 %0 8
-    call %0 [print] %0
-    move.u16 %0 16
-    call %0 [print] %0
-    move.u32 %0 32
-    call %0 [print] %0
-    move.u64 %0 64
-    call %0 [print] %0
+    move %0 16
     exit
