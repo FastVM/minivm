@@ -706,6 +706,7 @@ union vm_opcode_t {
     vm_rblock_t *func;
     void *ptr;
     vm_tag_t *ptag;
+    size_t size;
 };
 
 struct vm_state_t {

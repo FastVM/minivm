@@ -20,12 +20,13 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tag_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     rblock->block = block;
     rblock->regs = regs;
+    rblock->start = 0;
     return rblock;
 }
 
 vm_opcode_t *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (size_t i = 0; i < cache->len; i++) {
-        if (vm_rblock_regs_match(rblock->regs, cache->keys[i])) {
+        if (rblock->start == cache->keys[i]->start && vm_rblock_regs_match(rblock->regs, cache->keys[i]->regs)) {
             return cache->values[i];
         }
     }
@@ -35,10 +36,10 @@ vm_opcode_t *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_opcode_t *value) {
     if (cache->len + 1 >= cache->alloc) {
         cache->alloc = cache->len * 2 + 1;
-        cache->keys = vm_realloc(cache->keys, sizeof(vm_tag_t *) * cache->alloc);
+        cache->keys = vm_realloc(cache->keys, sizeof(vm_rblock_t *) * cache->alloc);
         cache->values = vm_realloc(cache->values, sizeof(vm_opcode_t *) * cache->alloc);
     }
-    cache->keys[cache->len] = rblock->regs;
+    cache->keys[cache->len] = rblock;
     cache->values[cache->len] = value;
     cache->len += 1;
 }
@@ -73,14 +74,6 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tag_t *types, vm_instr_t instr) {
         if (instr.args[0].type == VM_ARG_STR) {
             instr.tag = VM_TAG_PTR;
             return instr;
-        }
-    }
-    if (instr.op == VM_IOP_CALL) {
-        if (instr.args[0].type == VM_ARG_REG) {
-            vm_tag_t tag = types[instr.args[0].reg];
-            if (tag.type == VM_TAG_TYPE_SYM) {
-                instr.tag = tag.data[0];
-            }
         }
     }
     if (vm_tag_eq(instr.tag, VM_TAG_UNK)) {

@@ -47,6 +47,10 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             fprintf(out, "bb");
             break;
         }
+        case VM_BOP_BTYPE: {
+            fprintf(out, "btype");
+            break;
+        }
         case VM_BOP_BLT: {
             fprintf(out, "blt");
             break;

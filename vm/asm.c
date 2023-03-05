@@ -300,13 +300,16 @@ static bool vm_parse_state(vm_parser_t *state) {
                 vm_free(name);
                 goto fail;
             }
-            if (!strcmp(name, "blt") || !strcmp(name, "beq") || !strcmp(name, "bb") || !strcmp(name, "ret") || !strcmp(name, "jump") || !strcmp(name, "exit")) {
+            if (!strcmp(name, "blt") || !strcmp(name, "beq") || !strcmp(name, "bb")  || !strcmp(name, "btype") || !strcmp(name, "ret") || !strcmp(name, "jump") || !strcmp(name, "exit")) {
                 vm_branch_t branch = (vm_branch_t){
                     .op = VM_BOP_FALL,
                     .tag = VM_TAG_UNK,
                 };
                 if (!strcmp(name, "bb")) {
                     branch.op = VM_BOP_BB;
+                }
+                if (!strcmp(name, "btype")) {
+                    branch.op = VM_BOP_BTYPE;
                 }
                 if (!strcmp(name, "blt")) {
                     branch.op = VM_BOP_BLT;
@@ -337,6 +340,18 @@ static bool vm_parse_state(vm_parser_t *state) {
                         break;
                     }
                     case VM_BOP_BB: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        branch.targets[1] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        break;
+                    }
+                    case VM_BOP_BTYPE: {
                         branch.args[0] = vm_parse_arg(state);
                         branch.targets[0] = vm_parse_arg_block(state);
                         if (branch.targets[0] == NULL) {

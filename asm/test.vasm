@@ -1,0 +1,17 @@
+@:
+    call %0 [entry]
+@entry:
+    move.i32 %0 10
+    call %0 [next] %0
+    call %0 [next] %0
+    exit
+@next:
+    btype.i32 %1 [i32.true] [i32.false]
+@i32.true:
+    out 49
+    out 10
+    ret.i16 0
+@i32.false:
+    out 48
+    out 10
+    ret.i32 0

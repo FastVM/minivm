@@ -43,6 +43,7 @@ enum {
     VM_BOP_BEQ,
     VM_BOP_RET,
     VM_BOP_EXIT,
+    VM_BOP_BTYPE,
     VM_BOP_MAX,
 };
 
@@ -69,10 +70,11 @@ enum {
 struct vm_rblock_t {
     vm_tag_t *regs;
     vm_block_t *block;
+    size_t start;
 };
 
 struct vm_cache_t {
-    vm_tag_t **keys;
+    vm_rblock_t **keys;
     void **values;
     size_t len;
     size_t alloc;

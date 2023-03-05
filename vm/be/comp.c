@@ -9,17 +9,18 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
     vm_block_t *block = rblock->block;
     vm_tag_t *types = vm_rblock_regs_dup(rblock->regs);
     vm_rblock_t *rnext = vm_rblock_new(rblock->block, rblock->regs);
-    rnext->regs = types;
-    rnext->block = rblock->block;
+    rnext->start = rblock->start;
     size_t aops = 64;
     vm_opcode_t *ops = vm_malloc(sizeof(vm_opcode_t) * aops);
     size_t nops = 0;
-    for (size_t ninstr = 0; ninstr < block->len; ninstr++) {
-        if (nops + 32 >= aops) {
-            aops = (nops + 32) * 2;
+    fprintf(stderr, "start = %zu\n", rnext->start);
+    for (size_t ninstr = rnext->start; ninstr < block->len; ninstr++) {
+        if (nops + 16 + VM_TAG_MAX >= aops) {
+            aops = (nops + 16) * 2;
             ops = vm_realloc(ops, sizeof(vm_opcode_t) * aops);
         }
         vm_instr_t instr = vm_rblock_type_specialize_instr(types, block->instrs[ninstr]);
+        vm_print_instr(stderr, instr); fprintf(stderr, "\n");
         switch (instr.op) {
         case VM_IOP_MOVE: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -30,13 +31,13 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             }
             if (instr.args[0].type == VM_ARG_STR) {
                 if (vm_tag_eq(VM_TAG_I32, VM_TAG_PTR)) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_U32_CONST);
-                   ops[nops++].u32 = (uint32_t) (size_t) instr.args[0].str;
-                   ops[nops++].reg = instr.out.reg;
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_U32_CONST);
+                    ops[nops++].u32 = (uint32_t) (size_t) instr.args[0].str;
+                    ops[nops++].reg = instr.out.reg;
                 } else {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_U64_CONST);
-                   ops[nops++].u64 = (uint64_t) (size_t) instr.args[0].str;
-                   ops[nops++].reg = instr.out.reg;
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_MOVE_U64_CONST);
+                    ops[nops++].u64 = (uint64_t) (size_t) instr.args[0].str;
+                    ops[nops++].reg = instr.out.reg;
                 }
                 break;
             }
@@ -3113,21 +3114,40 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     vm_tag_t *args = vm_rblock_regs_empty();
                     ops[nops++].func = vm_rblock_new(instr.args[0].func, args);
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG);
                     ops[nops++].reg = instr.args[0].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[2].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3137,22 +3157,41 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].func = vm_rblock_new(instr.args[0].func, args);
                     ops[nops++].reg = instr.args[1].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG);
                     ops[nops++].reg = instr.args[0].reg;
                     ops[nops++].reg = instr.args[1].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[3].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3164,10 +3203,20 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[1].reg;
                     ops[nops++].reg = instr.args[2].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG_REG);
@@ -3175,12 +3224,21 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[1].reg;
                     ops[nops++].reg = instr.args[2].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[4].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3194,10 +3252,20 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[2].reg;
                     ops[nops++].reg = instr.args[3].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG_REG_REG);
@@ -3206,12 +3274,21 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[2].reg;
                     ops[nops++].reg = instr.args[3].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[5].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3227,10 +3304,20 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[3].reg;
                     ops[nops++].reg = instr.args[4].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG);
@@ -3240,12 +3327,21 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[3].reg;
                     ops[nops++].reg = instr.args[4].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[6].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3263,10 +3359,20 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[4].reg;
                     ops[nops++].reg = instr.args[5].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG);
@@ -3277,12 +3383,21 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[4].reg;
                     ops[nops++].reg = instr.args[5].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[7].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3302,10 +3417,20 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[5].reg;
                     ops[nops++].reg = instr.args[6].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG);
@@ -3317,12 +3442,21 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[5].reg;
                     ops[nops++].reg = instr.args[6].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[8].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3344,10 +3478,20 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[6].reg;
                     ops[nops++].reg = instr.args[7].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG);
@@ -3360,12 +3504,21 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[6].reg;
                     ops[nops++].reg = instr.args[7].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             if (instr.args[9].type == VM_ARG_NONE) {
                 if (instr.args[0].type == VM_ARG_FUNC) {
@@ -3389,10 +3542,20 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[7].reg;
                     ops[nops++].reg = instr.args[8].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
                 else if (instr.args[0].type == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_REG_REG_REG_REG_REG_REG_REG_REG_REG);
@@ -3406,12 +3569,21 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     ops[nops++].reg = instr.args[7].reg;
                     ops[nops++].reg = instr.args[8].reg;
                     if (instr.out.type == VM_ARG_NONE) {
-                            ops[nops++].reg = VM_NREGS;
+                        ops[nops++].reg = VM_NREGS;
                     } else {
-                            ops[nops++].reg = instr.out.reg;
+                        ops[nops++].reg = instr.out.reg;
                     }
+                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
+                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        if (instr.out.type == VM_ARG_REG) {
+                            types_tag[instr.out.reg] = type;
+                        }
+                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
+                        rest_block->start = ninstr+1;
+                        ops[nops++].size = ((size_t) rest_block) + 1;
+                    }
+                    goto early_return;
                 }
-                break;
             }
             __builtin_trap();
         }
@@ -3550,130 +3722,139 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             break;
         }
         case VM_BOP_JUMP: {
-                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_FUNC_CONST);
-                    ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_FUNC_CONST);
+            ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+            break;
+        }
+        case VM_BOP_BTYPE: {
+            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_FUNC_CONST);
+            if (vm_tag_eq(branch.tag, types[branch.args[0].reg])) {
+                ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+            } else {
+                ops[nops++].func = vm_rblock_new(branch.targets[1], types);
+            }
             break;
         }
         case VM_BOP_RET: {
             if (vm_tag_eq(branch.tag, VM_TAG_I8)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I8_CONST);
-                   ops[nops++].i8 = (int8_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I8_CONST);
+                    ops[nops++].i8 = (int8_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I8_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I8_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_I16)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I16_CONST);
-                   ops[nops++].i16 = (int16_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I16_CONST);
+                    ops[nops++].i16 = (int16_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I16_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I16_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_I32)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I32_CONST);
-                   ops[nops++].i32 = (int32_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I32_CONST);
+                    ops[nops++].i32 = (int32_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I32_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I32_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_I64)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I64_CONST);
-                   ops[nops++].i64 = (int64_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I64_CONST);
+                    ops[nops++].i64 = (int64_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I64_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_I64_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_U8)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U8_CONST);
-                   ops[nops++].u8 = (uint8_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U8_CONST);
+                    ops[nops++].u8 = (uint8_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U8_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U8_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_U16)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U16_CONST);
-                   ops[nops++].u16 = (uint16_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U16_CONST);
+                    ops[nops++].u16 = (uint16_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U16_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U16_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_U32)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U32_CONST);
-                   ops[nops++].u32 = (uint32_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U32_CONST);
+                    ops[nops++].u32 = (uint32_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U32_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U32_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_U64)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U64_CONST);
-                   ops[nops++].u64 = (uint64_t) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U64_CONST);
+                    ops[nops++].u64 = (uint64_t) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U64_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_U64_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_F32)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F32_CONST);
-                   ops[nops++].f32 = (float) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F32_CONST);
+                    ops[nops++].f32 = (float) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F32_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F32_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             if (vm_tag_eq(branch.tag, VM_TAG_F64)) {
                 if (branch.args[0].type != VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F64_CONST);
-                   ops[nops++].f64 = (double) branch.args[0].num;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F64_CONST);
+                    ops[nops++].f64 = (double) branch.args[0].num;
+                    break;
+                }
                 if (branch.args[0].type == VM_ARG_REG) {
-                   ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F64_REG);
-                   ops[nops++].reg = branch.args[0].reg;
-                   break;
-               }
+                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_RET_F64_REG);
+                    ops[nops++].reg = branch.args[0].reg;
+                    break;
+                }
             }
             __builtin_trap();
         }
@@ -4538,6 +4719,7 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
         }
         default: __builtin_trap();
     }
+early_return:;
     vm_cache_set(&rblock->block->cache, rnext, ops);
     return ops;
 }

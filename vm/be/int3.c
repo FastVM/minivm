@@ -1010,6 +1010,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i8 = (int8_t) a0;
+        size_t addr = ip[VM_TAG_I8].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I8].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_i8_const: {
@@ -1017,6 +1027,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i8 = (int8_t) a0;
+        size_t addr = ip[VM_TAG_I8].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I8].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_i8_reg: {
@@ -1474,6 +1494,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i16 = (int16_t) a0;
+        size_t addr = ip[VM_TAG_I16].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I16].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_i16_const: {
@@ -1481,6 +1511,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i16 = (int16_t) a0;
+        size_t addr = ip[VM_TAG_I16].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I16].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_i16_reg: {
@@ -1938,6 +1978,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i32 = (int32_t) a0;
+        size_t addr = ip[VM_TAG_I32].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I32].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_i32_const: {
@@ -1945,6 +1995,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i32 = (int32_t) a0;
+        size_t addr = ip[VM_TAG_I32].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I32].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_i32_reg: {
@@ -2402,6 +2462,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i64 = (int64_t) a0;
+        size_t addr = ip[VM_TAG_I64].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I64].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_i64_const: {
@@ -2409,6 +2479,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].i64 = (int64_t) a0;
+        size_t addr = ip[VM_TAG_I64].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_I64].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_i64_reg: {
@@ -2866,6 +2946,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u8 = (uint8_t) a0;
+        size_t addr = ip[VM_TAG_U8].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U8].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_u8_const: {
@@ -2873,6 +2963,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u8 = (uint8_t) a0;
+        size_t addr = ip[VM_TAG_U8].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U8].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_u8_reg: {
@@ -3330,6 +3430,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u16 = (uint16_t) a0;
+        size_t addr = ip[VM_TAG_U16].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U16].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_u16_const: {
@@ -3337,6 +3447,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u16 = (uint16_t) a0;
+        size_t addr = ip[VM_TAG_U16].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U16].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_u16_reg: {
@@ -3794,6 +3914,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u32 = (uint32_t) a0;
+        size_t addr = ip[VM_TAG_U32].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U32].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_u32_const: {
@@ -3801,6 +3931,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u32 = (uint32_t) a0;
+        size_t addr = ip[VM_TAG_U32].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U32].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_u32_reg: {
@@ -4258,6 +4398,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u64 = (uint64_t) a0;
+        size_t addr = ip[VM_TAG_U64].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U64].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_u64_const: {
@@ -4265,6 +4415,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].u64 = (uint64_t) a0;
+        size_t addr = ip[VM_TAG_U64].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_U64].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_bnot_u64_reg: {
@@ -4722,6 +4882,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].f32 = (float) a0;
+        size_t addr = ip[VM_TAG_F32].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_F32].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_f32_const: {
@@ -4729,6 +4899,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].f32 = (float) a0;
+        size_t addr = ip[VM_TAG_F32].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_F32].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_add_f64_reg_reg: {
@@ -5056,6 +5236,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].f64 = (double) a0;
+        size_t addr = ip[VM_TAG_F64].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_F64].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_ret_f64_const: {
@@ -5063,6 +5253,16 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         locals -= VM_NREGS;
         ip = *(ips--);
         locals[(ip++)->reg].f64 = (double) a0;
+        size_t addr = ip[VM_TAG_F64].size;
+        if ((addr % 2) == 0) {
+            ip = (vm_opcode_t *) addr;
+        } else {
+            addr -= 1;
+            fprintf(stderr, "my start = %zu\n", ((vm_rblock_t *)addr)->start);
+            vm_opcode_t *ops = vm_run_comp(state, (vm_rblock_t *)addr);
+            ip[VM_TAG_F64].size = (size_t) ops;
+            ip = ops;
+        }
         goto *(ip++)->ptr;
     }
     do_exit_break_void: {
