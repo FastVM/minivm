@@ -229,7 +229,7 @@ typedef struct vm_state_t vm_state_t;
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
 
-#include "./type.h"
+#include "../type.h"
 
 union vm_opcode_t {
     size_t reg;
@@ -262,8 +262,10 @@ lines[#lines + 1] = [[
 };
 
 void vm_run(vm_state_t *state, vm_block_t *block);
+void *vm_run_comp(vm_state_t *state, vm_rblock_t *block);
 
-
+vm_state_t *vm_state_init(size_t nregs);
+void vm_state_deinit(vm_state_t *state);
 #endif
 ]]
     
@@ -277,7 +279,7 @@ end
     
     local incheadersrc = table.concat(lines, '\n')
 
-    dump('vm/be/int3.h', incheadersrc)
+    dump('vm/interp/int3.h', incheadersrc)
 end
 
 -- part: emit int3.c
@@ -288,6 +290,23 @@ do
     lines[#lines + 1] = '#include "./int3.h"'
     lines[#lines + 1] = '#include "./value.h"'
     lines[#lines + 1] = '#include "../tag.h"'
+    lines[#lines + 1] = [[
+        
+vm_state_t *vm_state_init(size_t nregs) {
+    vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
+    ret->nlocals = nregs;
+    ret->locals = vm_malloc(sizeof(vm_value_t) * (ret->nlocals));
+    ret->ips = vm_malloc(sizeof(void *) * (ret->nlocals / VM_NREGS));
+    return ret;
+}
+
+void vm_state_deinit(vm_state_t *state) {
+    vm_free(state->ips);
+    vm_free(state->locals);
+    vm_free(state);
+}
+
+    ]]
 
     local simplebinary = {
         add = '+',
@@ -327,7 +346,7 @@ do
 
         local kinds = {{'reg', 'reg'}, {'reg', 'const'}, {'const', 'reg'}, {'const', 'const'}}
 
-        lines[#lines + 1] = 'vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {'
+        lines[#lines + 1] = 'void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {'
         lines[#lines + 1] = '    vm_opcode_t *ret = vm_cache_get(&rblock->block->cache, rblock);'
         lines[#lines + 1] = '    if (ret != NULL) {'
         lines[#lines + 1] = '        return ret;'
@@ -697,7 +716,7 @@ do
     
         local incheadersrc = table.concat(lines, '\n')
 
-        dump('vm/be/comp.c', incheadersrc)
+        dump('vm/interp/comp.c', incheadersrc)
     end
 
     local lines = {}
@@ -930,5 +949,5 @@ do
 
     local incheadersrc = table.concat(lines, '\n')
 
-    dump('vm/be/int3.c', incheadersrc)
+    dump('vm/interp/int3.c', incheadersrc)
 end

@@ -1,0 +1,313 @@
+gcc -c -g2 main/asm.c -o main/asm.o 
+gcc -c -g2 vm/asm.c -o vm/asm.o 
+gcc -c -g2 vm/ir.c -o vm/ir.o 
+gcc -c -g2 vm/info.c -o vm/info.o 
+gcc -c -g2 vm/interp/int3.c -o vm/interp/int3.o 
+gcc -c -g2 vm/interp/comp.c -o vm/interp/comp.o 
+gcc -c -g2 vm/type.c -o vm/type.o 
+luajit dynasm/dynasm.lua -o vm/jit/jit.tmp.c -D X64 vm/jit/jit.dasc
+gcc -c -g2 vm/jit/jit.tmp.c -o vm/jit/jit.o 
+gcc -g2 main/asm.o vm/asm.o vm/ir.o vm/info.o vm/interp/int3.o vm/interp/comp.o vm/type.o vm/jit/jit.o -o bin/minivm-asm -lm 
+ar cr bin/libminivm.a vm/asm.o vm/ir.o vm/info.o vm/interp/int3.o vm/interp/comp.o vm/type.o vm/jit/jit.o
+5312142131215
+
+--- ./0x7f686d7e0000.bin ---
+00000000  488B442410        mov rax,[rsp+0x10]
+00000005  4881C400080000    add rsp,0x800
+0000000C  C3                ret
+
+
+
+--- ./0x7f686d7e1000.bin ---
+00000000  488B442410        mov rax,[rsp+0x10]
+00000005  B902000000        mov ecx,0x2
+0000000A  4829C8            sub rax,rcx
+0000000D  4889442408        mov [rsp+0x8],rax
+00000012  488B7C2408        mov rdi,[rsp+0x8]
+00000017  48B800307E6D687F  mov rax,0x7f686d7e3000
+         -0000
+00000021  FFD0              call rax
+00000023  4889442408        mov [rsp+0x8],rax
+00000028  488B442410        mov rax,[rsp+0x10]
+0000002D  B901000000        mov ecx,0x1
+00000032  4829C8            sub rax,rcx
+00000035  4889442410        mov [rsp+0x10],rax
+0000003A  488B7C2410        mov rdi,[rsp+0x10]
+0000003F  48B800207E6D687F  mov rax,0x7f686d7e2000
+         -0000
+00000049  FFD0              call rax
+0000004B  4889442410        mov [rsp+0x10],rax
+00000050  488B442408        mov rax,[rsp+0x8]
+00000055  488B4C2410        mov rcx,[rsp+0x10]
+0000005A  4801C8            add rax,rcx
+0000005D  4889442408        mov [rsp+0x8],rax
+00000062  488B442408        mov rax,[rsp+0x8]
+00000067  4881C400080000    add rsp,0x800
+0000006E  C3                ret
+
+
+
+--- ./0x7f686d7e2000.bin ---
+00000000  4881EC00080000    sub rsp,0x800
+00000007  48897C2410        mov [rsp+0x10],rdi
+0000000C  488B7C2410        mov rdi,[rsp+0x10]
+00000011  48B800C0AA6D687F  mov rax,0x7f686daac000
+         -0000
+0000001B  FFD0              call rax
+0000001D  4889442408        mov [rsp+0x8],rax
+00000022  488B442410        mov rax,[rsp+0x10]
+00000027  B902000000        mov ecx,0x2
+0000002C  4839C8            cmp rax,rcx
+0000002F  7241              jc 0x72
+00000031  48BB4009336D5555  mov rbx,0x55556d330940
+         -0000
+0000003B  488B03            mov rax,[rbx]
+0000003E  4885C0            test rax,rax
+00000041  752D              jnz 0x70
+00000043  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+0000004D  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000057  48BE2009336D5555  mov rsi,0x55556d330920
+         -0000
+00000061  FFD0              call rax
+00000063  48BB4009336D5555  mov rbx,0x55556d330940
+         -0000
+0000006D  488903            mov [rbx],rax
+00000070  FFE0              jmp rax
+00000072  48BB900B336D5555  mov rbx,0x55556d330b90
+         -0000
+0000007C  488B03            mov rax,[rbx]
+0000007F  4885C0            test rax,rax
+00000082  752D              jnz 0xb1
+00000084  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+0000008E  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000098  48BE700B336D5555  mov rsi,0x55556d330b70
+         -0000
+000000A2  FFD0              call rax
+000000A4  48BB900B336D5555  mov rbx,0x55556d330b90
+         -0000
+000000AE  488903            mov [rbx],rax
+000000B1  FFE0              jmp rax
+
+
+
+--- ./0x7f686d7e3000.bin ---
+00000000  4881EC00080000    sub rsp,0x800
+00000007  48897C2410        mov [rsp+0x10],rdi
+0000000C  488B7C2410        mov rdi,[rsp+0x10]
+00000011  48B800C0AA6D687F  mov rax,0x7f686daac000
+         -0000
+0000001B  FFD0              call rax
+0000001D  4889442408        mov [rsp+0x8],rax
+00000022  488B442410        mov rax,[rsp+0x10]
+00000027  B902000000        mov ecx,0x2
+0000002C  4839C8            cmp rax,rcx
+0000002F  7241              jc 0x72
+00000031  48BB1002336D5555  mov rbx,0x55556d330210
+         -0000
+0000003B  488B03            mov rax,[rbx]
+0000003E  4885C0            test rax,rax
+00000041  752D              jnz 0x70
+00000043  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+0000004D  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000057  48BEF001336D5555  mov rsi,0x55556d3301f0
+         -0000
+00000061  FFD0              call rax
+00000063  48BB1002336D5555  mov rbx,0x55556d330210
+         -0000
+0000006D  488903            mov [rbx],rax
+00000070  FFE0              jmp rax
+00000072  48BB6004336D5555  mov rbx,0x55556d330460
+         -0000
+0000007C  488B03            mov rax,[rbx]
+0000007F  4885C0            test rax,rax
+00000082  752D              jnz 0xb1
+00000084  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+0000008E  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000098  48BE4004336D5555  mov rsi,0x55556d330440
+         -0000
+000000A2  FFD0              call rax
+000000A4  48BB6004336D5555  mov rbx,0x55556d330460
+         -0000
+000000AE  488903            mov [rbx],rax
+000000B1  FFE0              jmp rax
+
+
+
+--- ./0x7f686daa7000.bin ---
+00000000  B800000000        mov eax,0x0
+00000005  4881C400080000    add rsp,0x800
+0000000C  C3                ret
+
+
+
+--- ./0x7f686daa8000.bin ---
+00000000  B800000000        mov eax,0x0
+00000005  4881C400080000    add rsp,0x800
+0000000C  C3                ret
+
+
+
+--- ./0x7f686daa9000.bin ---
+00000000  31D2              xor edx,edx
+00000002  488B442410        mov rax,[rsp+0x10]
+00000007  B90A000000        mov ecx,0xa
+0000000C  48F7F1            div rcx
+0000000F  4889442408        mov [rsp+0x8],rax
+00000014  488B7C2408        mov rdi,[rsp+0x8]
+00000019  48B800C0AA6D687F  mov rax,0x7f686daac000
+         -0000
+00000023  FFD0              call rax
+00000025  4889442408        mov [rsp+0x8],rax
+0000002A  31D2              xor edx,edx
+0000002C  488B442410        mov rax,[rsp+0x10]
+00000031  B90A000000        mov ecx,0xa
+00000036  48F7F1            div rcx
+00000039  4889542410        mov [rsp+0x10],rdx
+0000003E  488B442410        mov rax,[rsp+0x10]
+00000043  B930000000        mov ecx,0x30
+00000048  4801C8            add rax,rcx
+0000004B  4889442410        mov [rsp+0x10],rax
+00000050  488B7C2410        mov rdi,[rsp+0x10]
+00000055  48B852B8446B5555  mov rax,0x55556b44b852
+         -0000
+0000005F  FFD0              call rax
+00000061  48BBB0E2326D5555  mov rbx,0x55556d32e2b0
+         -0000
+0000006B  488B03            mov rax,[rbx]
+0000006E  4885C0            test rax,rax
+00000071  752D              jnz 0xa0
+00000073  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+0000007D  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000087  48BE90E2326D5555  mov rsi,0x55556d32e290
+         -0000
+00000091  FFD0              call rax
+00000093  48BBB0E2326D5555  mov rbx,0x55556d32e2b0
+         -0000
+0000009D  488903            mov [rbx],rax
+000000A0  FFE0              jmp rax
+
+
+
+--- ./0x7f686daaa000.bin ---
+00000000  4881EC00080000    sub rsp,0x800
+00000007  B805000000        mov eax,0x5
+0000000C  4889442408        mov [rsp+0x8],rax
+00000011  488B7C2408        mov rdi,[rsp+0x8]
+00000016  48B800B0AA6D687F  mov rax,0x7f686daab000
+         -0000
+00000020  FFD0              call rax
+00000022  4889442408        mov [rsp+0x8],rax
+00000027  488B7C2408        mov rdi,[rsp+0x8]
+0000002C  48B800C0AA6D687F  mov rax,0x7f686daac000
+         -0000
+00000036  FFD0              call rax
+00000038  4889442408        mov [rsp+0x8],rax
+0000003D  BF0A000000        mov edi,0xa
+00000042  48B852B8446B5555  mov rax,0x55556b44b852
+         -0000
+0000004C  FFD0              call rax
+0000004E  31FF              xor edi,edi
+00000050  48B89055826D687F  mov rax,0x7f686d825590
+         -0000
+0000005A  FFD0              call rax
+
+
+
+--- ./0x7f686daab000.bin ---
+00000000  4881EC00080000    sub rsp,0x800
+00000007  48897C2410        mov [rsp+0x10],rdi
+0000000C  488B7C2410        mov rdi,[rsp+0x10]
+00000011  48B800C0AA6D687F  mov rax,0x7f686daac000
+         -0000
+0000001B  FFD0              call rax
+0000001D  4889442408        mov [rsp+0x8],rax
+00000022  488B442410        mov rax,[rsp+0x10]
+00000027  B902000000        mov ecx,0x2
+0000002C  4839C8            cmp rax,rcx
+0000002F  7241              jc 0x72
+00000031  48BBF0D8326D5555  mov rbx,0x55556d32d8f0
+         -0000
+0000003B  488B03            mov rax,[rbx]
+0000003E  4885C0            test rax,rax
+00000041  752D              jnz 0x70
+00000043  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+0000004D  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000057  48BED0D8326D5555  mov rsi,0x55556d32d8d0
+         -0000
+00000061  FFD0              call rax
+00000063  48BBF0D8326D5555  mov rbx,0x55556d32d8f0
+         -0000
+0000006D  488903            mov [rbx],rax
+00000070  FFE0              jmp rax
+00000072  48BB40DB326D5555  mov rbx,0x55556d32db40
+         -0000
+0000007C  488B03            mov rax,[rbx]
+0000007F  4885C0            test rax,rax
+00000082  752D              jnz 0xb1
+00000084  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+0000008E  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000098  48BE20DB326D5555  mov rsi,0x55556d32db20
+         -0000
+000000A2  FFD0              call rax
+000000A4  48BB40DB326D5555  mov rbx,0x55556d32db40
+         -0000
+000000AE  488903            mov [rbx],rax
+000000B1  FFE0              jmp rax
+
+
+
+--- ./0x7f686daac000.bin ---
+00000000  4881EC00080000    sub rsp,0x800
+00000007  48897C2410        mov [rsp+0x10],rdi
+0000000C  488B442410        mov rax,[rsp+0x10]
+00000011  B901000000        mov ecx,0x1
+00000016  4839C8            cmp rax,rcx
+00000019  7241              jc 0x5c
+0000001B  48BB407D326D5555  mov rbx,0x55556d327d40
+         -0000
+00000025  488B03            mov rax,[rbx]
+00000028  4885C0            test rax,rax
+0000002B  752D              jnz 0x5a
+0000002D  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+00000037  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000041  48BE807D326D5555  mov rsi,0x55556d327d80
+         -0000
+0000004B  FFD0              call rax
+0000004D  48BB407D326D5555  mov rbx,0x55556d327d40
+         -0000
+00000057  488903            mov [rbx],rax
+0000005A  FFE0              jmp rax
+0000005C  48BB70D8326D5555  mov rbx,0x55556d32d870
+         -0000
+00000066  488B03            mov rax,[rbx]
+00000069  4885C0            test rax,rax
+0000006C  752D              jnz 0x9b
+0000006E  48B86BB9446B5555  mov rax,0x55556b44b96b
+         -0000
+00000078  48BF3CC7A72DFC7F  mov rdi,0x7ffc2da7c73c
+         -0000
+00000082  48BE50D8326D5555  mov rsi,0x55556d32d850
+         -0000
+0000008C  FFD0              call rax
+0000008E  48BB70D8326D5555  mov rbx,0x55556d32d870
+         -0000
+00000098  488903            mov [rbx],rax
+0000009B  FFE0              jmp rax
+
+

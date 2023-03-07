@@ -5,14 +5,18 @@ CLANG ?= clang
 OPT ?= -O2
 HOST_CC ?= $(CC)
 
+LUA ?= luajit
 
 PROG_SRCS := main/asm.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 
-VM_SRCS := vm/asm.c vm/ir.c vm/info.c vm/be/int3.c vm/be/comp.c vm/be/type.c
+JITC_SRCS := vm/jit/jit.dasc
+JITC_OBJS :=  $(JITC_SRCS:%.dasc=%.o)
+
+VM_SRCS := vm/asm.c vm/ir.c vm/info.c vm/interp/int3.c vm/interp/comp.c vm/type.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
-OBJS := $(VM_OBJS)
+OBJS := $(VM_OBJS) $(JITC_OBJS)
 
 default: all
 
@@ -91,9 +95,13 @@ gcc-pgo-clean: .dummy
 	rm -f $(PROG_SRCS:%.c=%.gcda) $(SRCS:%.c=%.gcda)
 
 objs-clean: .dummy
-	rm -f main/asm.o $(PROG_OBJS) bin/minivm-asm libmimivm.a
+	rm -f $(OBJS) $(PROG_OBJS) bin/minivm-asm libmimivm.a
 
 # intermediate files
+
+$(JITC_OBJS): $(@:%.o=%.tmp.c)
+	$(LUA) dynasm/dynasm.lua -o $(@:%.o=%.tmp.c) -D X64 $(@:%.o=%.dasc)
+	$(CC) -c $(OPT) $(@:%.o=%.tmp.c) -o $(@) $(CFLAGS)
 
 $(PROG_OBJS) $(VM_OBJS): $(@:%.o=%.c)
 	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)

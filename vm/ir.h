@@ -71,7 +71,9 @@ enum {
 struct vm_rblock_t {
     vm_tag_t *regs;
     vm_block_t *block;
-    size_t start;
+    uint32_t start: 30;
+    bool is_func: 1;
+    bool is_marked: 1;
 };
 
 struct vm_cache_t {

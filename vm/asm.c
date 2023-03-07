@@ -34,7 +34,7 @@ static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
     }
     size_t where = state->len++;
     if (where >= state->alloc) {
-        state->alloc = where * 4;
+        state->alloc = where * 4 + 4;
         state->names = vm_realloc(state->names, sizeof(const char *) * state->alloc);
         state->blocks = vm_realloc(state->blocks, sizeof(vm_block_t *) * state->alloc);
     }

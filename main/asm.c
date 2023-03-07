@@ -1,6 +1,6 @@
 #include "../vm/asm.h"
 
-#include "../vm/be/int3.h"
+#include "../vm/interp/int3.h"
 
 static char *vm_asm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
@@ -26,6 +26,8 @@ static char *vm_asm_io_read(const char *filename) {
     fclose(file);
     return ops;
 }
+
+void vm_jit_run(vm_block_t *block);
 
 int main(int argc, char **argv) {
     const char *filename = NULL;
@@ -70,6 +72,7 @@ int main(int argc, char **argv) {
     }
     for (size_t i = 0; i < runs; i++) {
         vm_block_t *block = vm_parse_asm(src);
+        vm_jit_run(block);
         // vm_print_block(stderr, block);
         vm_state_t *state = vm_state_init(1 << 16);
         vm_run(state, block);

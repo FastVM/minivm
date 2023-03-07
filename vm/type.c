@@ -1,43 +1,32 @@
-#include <stdint.h>
 
-#include "./int3.h"
-
-vm_state_t *vm_state_init(size_t nregs) {
-    vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
-    ret->nlocals = nregs;
-    ret->locals = vm_malloc(sizeof(vm_value_t) * (ret->nlocals));
-    ret->ips = vm_malloc(sizeof(vm_opcode_t *) * (ret->nlocals / VM_NREGS));
-    return ret;
-}
-
-void vm_state_deinit(vm_state_t *state) {
-    vm_free(state->ips);
-    vm_free(state->locals);
-    vm_free(state);
-}
+#include "./ir.h"
+#include "./interp/int3.h"
 
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tag_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     rblock->block = block;
     rblock->regs = regs;
     rblock->start = 0;
+    rblock->is_func = false;
+    rblock->is_marked = false;
     return rblock;
 }
 
-vm_opcode_t *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
+void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (size_t i = 0; i < cache->len; i++) {
-        if (rblock->start == cache->keys[i]->start && vm_rblock_regs_match(rblock->regs, cache->keys[i]->regs)) {
+        vm_rblock_t *found = cache->keys[i];
+        if (rblock->start == found->start && rblock->is_func == found->is_func && vm_rblock_regs_match(rblock->regs, found->regs)) {
             return cache->values[i];
         }
     }
     return NULL;
 }
 
-void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_opcode_t *value) {
+void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
     if (cache->len + 1 >= cache->alloc) {
         cache->alloc = cache->len * 2 + 1;
         cache->keys = vm_realloc(cache->keys, sizeof(vm_rblock_t *) * cache->alloc);
-        cache->values = vm_realloc(cache->values, sizeof(vm_opcode_t *) * cache->alloc);
+        cache->values = vm_realloc(cache->values, sizeof(void *) * cache->alloc);
     }
     cache->keys[cache->len] = rblock;
     cache->values[cache->len] = value;
@@ -103,7 +92,7 @@ bool vm_rblock_type_check_instr(vm_tag_t *types, vm_instr_t instr) {
             if (instr.args[i].type == VM_ARG_REG) {
                 if (!vm_tag_eq(types[instr.args[i].reg], instr.tag)) {
                     vm_print_instr(stdout, instr);
-                    printf("\n^ TYPE ERROR ^\n");
+                    printf("\n^ TYPE ERROR (arg r%zu of type #%zu) ^\n", instr.args[i].reg, (size_t)types[instr.args[i].reg]);
                     return false;
                 }
             }

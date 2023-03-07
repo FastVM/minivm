@@ -1,7 +1,23 @@
 #include "./int3.h"
 #include "./value.h"
 #include "../tag.h"
-vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
+        
+vm_state_t *vm_state_init(size_t nregs) {
+    vm_state_t *ret = vm_malloc(sizeof(vm_state_t));
+    ret->nlocals = nregs;
+    ret->locals = vm_malloc(sizeof(vm_value_t) * (ret->nlocals));
+    ret->ips = vm_malloc(sizeof(void *) * (ret->nlocals / VM_NREGS));
+    return ret;
+}
+
+void vm_state_deinit(vm_state_t *state) {
+    vm_free(state->ips);
+    vm_free(state->locals);
+    vm_free(state);
+}
+
+    
+void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
     vm_opcode_t *ret = vm_cache_get(&rblock->block->cache, rblock);
     if (ret != NULL) {
         return ret;

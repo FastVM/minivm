@@ -778,7 +778,7 @@ typedef struct vm_state_t vm_state_t;
 union vm_opcode_t;
 typedef union vm_opcode_t vm_opcode_t;
 
-#include "./type.h"
+#include "../type.h"
 
 union vm_opcode_t {
     size_t reg;
@@ -808,8 +808,10 @@ struct vm_state_t {
 };
 
 void vm_run(vm_state_t *state, vm_block_t *block);
+void *vm_run_comp(vm_state_t *state, vm_rblock_t *block);
 
-
+vm_state_t *vm_state_init(size_t nregs);
+void vm_state_deinit(vm_state_t *state);
 #endif
 
     #define VM_STATE_LOAD_PTR(state, num) ((state)->ptrs[(num)])

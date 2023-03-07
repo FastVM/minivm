@@ -1,18 +1,31 @@
 
+@fib:
+    blt.u64 %1 2 [fib.then] [fib.else]
+@fib.then:
+    ret.u64 %1
+@fib.else:
+    sub.u64 %0 %1 2
+    call %0 [fib] %0
+    sub.u64 %1 %1 1
+    call %1 [fib] %1
+    add.u64 %0 %0 %1
+    ret.u64 %0
 
 @putn:
-    jnz %1 [putn.nonzero]
-    ret 0
-@putn.nonzero:
-    div %0 %1 10
+    blt.u64 %1 1 [putn.ret] [putn.digit]
+@putn.digit:
+    div.u64 %0 %1 10
     call %0 [putn] %0
-    mod %1 %1 10
-    add %1 %1 48
-    out %1
-    ret 0
+    mod.u64 %1 %1 10
+    add.u64 %1 %1 48
+    out.u64 %1
+    jump [putn.ret]
+@putn.ret:
+    ret.u64 0
 
 @:
-    move %1 1234
+    move.u64 %1 5
+    call %1 [fib] %1
     call %0 [putn] %1
-    out 10
+    out.u64 10
     exit

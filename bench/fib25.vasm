@@ -1,5 +1,6 @@
 
 @fib:
+    call %0 [putn] %1
     blt.i64 %1 2 [fib.then] [fib.else]
 @fib.then:
     ret.i64 %1
