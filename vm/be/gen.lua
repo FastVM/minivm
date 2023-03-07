@@ -192,7 +192,6 @@ install_basic('f64')
 
 push('exit', 'break', {})
 push('jump', 'ptr', {'const'})
-push('jump', 'func', {'const'})
 
 for i = 0, 8 do
     install_call(i)
@@ -207,7 +206,6 @@ do
 #if !defined(VM_HEADER_BE_INT3)
 #define VM_HEADER_BE_INT3
 
-#include <stdint.h>
 #include "../ir.h"
 ]]
 
@@ -582,28 +580,27 @@ do
         end
         do
             lines[#lines + 1] = '        case VM_BOP_JUMP: {'
-            local name = string.upper(table.concat({prefix, 'jump', 'func', 'const'}, '_'))
+            local name = string.upper(table.concat({prefix, 'jump', 'ptr', 'const'}, '_'))
             if VM_GOTO then
                 lines[#lines + 1] = '            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
             else
                 lines[#lines + 1] = '            ops[nops++].reg = ' .. name .. ';'
             end
-            lines[#lines + 1] = '            ops[nops++].func = vm_rblock_new(branch.targets[0], types);'
-            lines[#lines + 1] = '            break;'
+            lines[#lines + 1] = '            ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));'
             lines[#lines + 1] = '        }'
         end
         do
             lines[#lines + 1] = '        case VM_BOP_BTYPE: {'
-            local name = string.upper(table.concat({prefix, 'jump', 'func', 'const'}, '_'))
+            local name = string.upper(table.concat({prefix, 'jump', 'ptr', 'const'}, '_'))
             if VM_GOTO then
                 lines[#lines + 1] = '            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
             else
                 lines[#lines + 1] = '            ops[nops++].reg = ' .. name .. ';'
             end
             lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, types[branch.args[0].reg])) {'
-            lines[#lines + 1] = '                ops[nops++].func = vm_rblock_new(branch.targets[0], types);'
+            lines[#lines + 1] = '                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));'
             lines[#lines + 1] = '            } else {'
-            lines[#lines + 1] = '                ops[nops++].func = vm_rblock_new(branch.targets[1], types);'
+            lines[#lines + 1] = '                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[1], types));'
             lines[#lines + 1] = '            }'
             lines[#lines + 1] = '            break;'
             lines[#lines + 1] = '        }'
@@ -905,7 +902,7 @@ do
                 end
                 case[#case + 1] = '        locals += VM_NREGS;'
                 case[#case + 1] = '        *(++ips) = ip;'
-                case[#case + 1] = '        ip = t0;'x
+                case[#case + 1] = '        ip = t0;'
             elseif instr.op == 'exit' then
                 case[#case + 1] = '        {return;}'
             else

@@ -1,0 +1,18 @@
+
+
+@putn:
+    jnz %1 [putn.nonzero]
+    ret 0
+@putn.nonzero:
+    div %0 %1 10
+    call %0 [putn] %0
+    mod %1 %1 10
+    add %1 %1 48
+    out %1
+    ret 0
+
+@:
+    move %1 1234
+    call %0 [putn] %1
+    out 10
+    exit

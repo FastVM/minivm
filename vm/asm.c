@@ -1,25 +1,7 @@
 
 #include "./asm.h"
 
-#include <ctype.h>
-#include <errno.h>
-#include <stdint.h>
-#include <stdlib.h>
-
 #include "./tag.h"
-
-struct vm_parser_t;
-typedef struct vm_parser_t vm_parser_t;
-
-struct vm_parser_t {
-    size_t len;
-    size_t alloc;
-    const char **names;
-    vm_block_t **blocks;
-    const char **src;
-    size_t line;
-    size_t col;
-};
 
 static char *vm_strdup(const char *str) {
     size_t len = strlen(str);
@@ -43,18 +25,24 @@ static void vm_skip(vm_parser_t *state) {
 }
 
 static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
-    for (size_t i = 0; i < state->len; i++) {
-        if (!strcmp(state->names[i], name)) {
-            return state->blocks[i];
+    if (name != NULL) {
+        for (size_t i = 0; i < state->len; i++) {
+            if (state->names[i] != NULL &&  !strcmp(state->names[i], name)) {
+                return state->blocks[i];
+            }
         }
     }
     size_t where = state->len++;
     if (where >= state->alloc) {
-        state->alloc = state->len * 4;
+        state->alloc = where * 4;
         state->names = vm_realloc(state->names, sizeof(const char *) * state->alloc);
         state->blocks = vm_realloc(state->blocks, sizeof(vm_block_t *) * state->alloc);
     }
-    state->names[where] = vm_strdup(name);
+    if (name != NULL) {
+        state->names[where] = vm_strdup(name);
+    } else {
+        state->names[where] = NULL;
+    }
     vm_block_t *block = vm_malloc(sizeof(vm_block_t));
     *block = (vm_block_t){
         .cache = NULL,
@@ -63,6 +51,7 @@ static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
     block->id = (ptrdiff_t)where;
     return state->blocks[where];
 }
+
 
 static void vm_parse_strip(vm_parser_t *state) {
     while (**state->src != '\0' && (**state->src == '\t' || **state->src == ' ')) {
@@ -143,17 +132,27 @@ static vm_tag_t vm_parse_tag(vm_parser_t *state) {
 
 static vm_block_t *vm_parse_arg_block(vm_parser_t *state) {
     vm_parse_strip(state);
-    if (**state->src != '[') {
+    if (**state->src == '{') {
+        vm_skip(state);
+        vm_block_t *block = vm_parse_find(state, NULL);
+        bool bad = vm_parse_state(state, block);
+        if (bad) {
+            return NULL;
+        }
+        vm_skip(state);
+        return block;
+    } else if (**state->src == '[') {
+        vm_skip(state);
+        const char *name = vm_parse_word_until(state, ']');
+        vm_block_t *block = vm_parse_find(state, name);
+        vm_free(name);
+        vm_parse_strip(state);
+        vm_skip(state);
+        return block;
+    } else{
         fprintf(stderr, "expecting block name argument's opening `[`\n");
         return NULL;
     }
-    vm_skip(state);
-    const char *name = vm_parse_word_until(state, ']');
-    vm_block_t *block = vm_parse_find(state, name);
-    vm_free(name);
-    vm_parse_strip(state);
-    vm_skip(state);
-    return block;
 }
 
 static vm_arg_t vm_parse_type_arg(vm_parser_t *state) {
@@ -274,6 +273,19 @@ static vm_arg_t vm_parse_arg(vm_parser_t *state) {
             .type = VM_ARG_FUNC,
             .func = vm_parse_arg_block(state),
         };
+    } else if (**state->src == '{') {
+        vm_block_t *block = vm_parse_find(state, NULL);
+        bool bad = vm_parse_state(state, block);
+        if (bad) {
+            return (vm_arg_t){
+                .type = VM_ARG_UNK,
+            };
+        }
+        vm_skip(state);
+        return (vm_arg_t) {
+            .type = VM_ARG_FUNC,
+            .func = block,
+        };
     } else {
         return (vm_arg_t){
             .type = VM_ARG_UNK,
@@ -281,10 +293,9 @@ static vm_arg_t vm_parse_arg(vm_parser_t *state) {
     }
 }
 
-static bool vm_parse_state(vm_parser_t *state) {
+bool vm_parse_state(vm_parser_t *state, vm_block_t *block) {
     vm_parse_stripln(state);
-    vm_block_t *block = NULL;
-    while (**state->src != '\0') {
+    while (**state->src != '\0' && **state->src != '}') {
         if (**state->src == '@') {
             vm_skip(state);
             const char *name = vm_parse_word_until(state, ':');
@@ -303,23 +314,11 @@ static bool vm_parse_state(vm_parser_t *state) {
                 vm_free(name);
                 goto fail;
             }
-            if (!strcmp(name, "blt") || !strcmp(name, "beq") || !strcmp(name, "bb")  || !strcmp(name, "btype") || !strcmp(name, "ret") || !strcmp(name, "jump") || !strcmp(name, "exit")) {
+            if (!strcmp(name, "ret") || !strcmp(name, "jump") || !strcmp(name, "exit")) {
                 vm_branch_t branch = (vm_branch_t){
                     .op = VM_BOP_FALL,
                     .tag = VM_TAG_UNK,
                 };
-                if (!strcmp(name, "bb")) {
-                    branch.op = VM_BOP_BB;
-                }
-                if (!strcmp(name, "btype")) {
-                    branch.op = VM_BOP_BTYPE;
-                }
-                if (!strcmp(name, "blt")) {
-                    branch.op = VM_BOP_BLT;
-                }
-                if (!strcmp(name, "beq")) {
-                    branch.op = VM_BOP_BEQ;
-                }
                 if (!strcmp(name, "jump")) {
                     branch.op = VM_BOP_JUMP;
                 }
@@ -342,56 +341,6 @@ static bool vm_parse_state(vm_parser_t *state) {
                         }
                         break;
                     }
-                    case VM_BOP_BB: {
-                        branch.args[0] = vm_parse_arg(state);
-                        branch.targets[0] = vm_parse_arg_block(state);
-                        if (branch.targets[0] == NULL) {
-                            goto fail;
-                        }
-                        branch.targets[1] = vm_parse_arg_block(state);
-                        if (branch.targets[0] == NULL) {
-                            goto fail;
-                        }
-                        break;
-                    }
-                    case VM_BOP_BTYPE: {
-                        branch.args[0] = vm_parse_arg(state);
-                        branch.targets[0] = vm_parse_arg_block(state);
-                        if (branch.targets[0] == NULL) {
-                            goto fail;
-                        }
-                        branch.targets[1] = vm_parse_arg_block(state);
-                        if (branch.targets[0] == NULL) {
-                            goto fail;
-                        }
-                        break;
-                    }
-                    case VM_BOP_BLT: {
-                        branch.args[0] = vm_parse_arg(state);
-                        branch.args[1] = vm_parse_arg(state);
-                        branch.targets[0] = vm_parse_arg_block(state);
-                        if (branch.targets[0] == NULL) {
-                            goto fail;
-                        }
-                        branch.targets[1] = vm_parse_arg_block(state);
-                        if (branch.targets[1] == NULL) {
-                            goto fail;
-                        }
-                        break;
-                    }
-                    case VM_BOP_BEQ: {
-                        branch.args[0] = vm_parse_arg(state);
-                        branch.args[1] = vm_parse_arg(state);
-                        branch.targets[0] = vm_parse_arg_block(state);
-                        if (branch.targets[0] == NULL) {
-                            goto fail;
-                        }
-                        branch.targets[1] = vm_parse_arg_block(state);
-                        if (branch.targets[1] == NULL) {
-                            goto fail;
-                        }
-                        break;
-                    }
                     case VM_BOP_RET: {
                         branch.args[0] = vm_parse_arg(state);
                         break;
@@ -402,6 +351,148 @@ static bool vm_parse_state(vm_parser_t *state) {
                 }
                 block->branch = branch;
                 block = NULL;
+            } else if ((name[0] == 'b' || name[0] == 'j') || 
+                !strcmp(&name[1], "b") || !strcmp(&name[1], "t") || !strcmp(&name[1], "nz")
+                 && !strcmp(&name[1], "b") || !strcmp(&name[1], "f") || !strcmp(&name[1], "z")
+                 && !strcmp(&name[1], "type")
+                 && !strcmp(&name[1], "eq")
+                 && !strcmp(&name[1], "ne") || !strcmp(&name[1], "neq")
+                 && !strcmp(&name[1], "lt")
+                 && !strcmp(&name[1], "gt")
+                 && !strcmp(&name[1], "le") || !strcmp(&name[1], "lte")
+                 && !strcmp(&name[1], "ge") || !strcmp(&name[1], "gte")) {
+                vm_branch_t branch = (vm_branch_t){
+                    .op = VM_BOP_FALL,
+                    .tag = VM_TAG_UNK,
+                };
+                char first = name[0];
+                bool invert_targets = false;
+                bool invert_args = false;
+                if (!strcmp(&name[1], "b") || !strcmp(&name[1], "t") || !strcmp(&name[1], "nz")) {
+                    branch.op = VM_BOP_BB;
+                }
+                if (!strcmp(&name[1], "b") || !strcmp(&name[1], "f") || !strcmp(&name[1], "z")) {
+                    branch.op = VM_BOP_BB;
+                    invert_targets = true;
+                }
+                if (!strcmp(&name[1], "type")) {
+                    branch.op = VM_BOP_BTYPE;
+                }
+                if (!strcmp(&name[1], "eq")) {
+                    branch.op = VM_BOP_BEQ;
+                }
+                if (!strcmp(&name[1], "ne") || !strcmp(&name[1], "neq")) {
+                    branch.op = VM_BOP_BEQ;
+                    invert_targets = true;
+                }
+                if (!strcmp(&name[1], "lt")) {
+                    branch.op = VM_BOP_BLT;
+                }
+                if (!strcmp(&name[1], "gt")) {
+                    branch.op = VM_BOP_BLT;
+                    invert_args = true;
+                }
+                if (!strcmp(&name[1], "le") || !strcmp(&name[1], "lte")) {
+                    branch.op = VM_BOP_BLT;
+                    invert_args = true;
+                    invert_targets = true;
+                }
+                if (!strcmp(&name[1], "ge") || !strcmp(&name[1], "gte")) {
+                    branch.op = VM_BOP_BLT;
+                    invert_targets = true;
+                }
+                vm_free(name);
+                if (**state->src == '.') {
+                    vm_skip(state);
+                    branch.tag = vm_parse_tag(state);
+                }
+                vm_block_t *next = NULL;
+                switch (branch.op) {
+                    case VM_BOP_BB: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        if (first == 'b') {
+                            branch.targets[1] = vm_parse_arg_block(state);
+                            if (branch.targets[0] == NULL) {
+                                goto fail;
+                            }
+                        } else {
+                            branch.targets[1] = vm_parse_find(state, NULL);
+                            next = branch.targets[1];
+                        }
+                        break;
+                    }
+                    case VM_BOP_BTYPE: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        if (first == 'b') {
+                            branch.targets[1] = vm_parse_arg_block(state);
+                            if (branch.targets[0] == NULL) {
+                                goto fail;
+                            }
+                        } else {
+                            branch.targets[1] = vm_parse_find(state, NULL);
+                            next = branch.targets[1];
+                        }
+                        break;
+                    }
+                    case VM_BOP_BLT: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.args[1] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        }
+                        if (first == 'b') {
+                            branch.targets[1] = vm_parse_arg_block(state);
+                            if (branch.targets[1] == NULL) {
+                                goto fail;
+                            }
+                        } else {
+                            branch.targets[1] = vm_parse_find(state, NULL);
+                            next = branch.targets[1];
+                        }
+                        break;
+                    }
+                    case VM_BOP_BEQ: {
+                        branch.args[0] = vm_parse_arg(state);
+                        branch.args[1] = vm_parse_arg(state);
+                        branch.targets[0] = vm_parse_arg_block(state);
+                        if (branch.targets[0] == NULL) {
+                            goto fail;
+                        if (first == 'b') {
+                        }
+                            branch.targets[1] = vm_parse_arg_block(state);
+                            if (branch.targets[1] == NULL) {
+                                goto fail;
+                            }
+                        } else {
+                            branch.targets[1] = vm_parse_find(state, NULL);
+                            next = branch.targets[1];
+                        }
+                        break;
+                    }
+                }
+                if (invert_args) {
+                    vm_arg_t arg0 = branch.args[0];
+                    vm_arg_t arg1 = branch.args[1];
+                    branch.args[0] = arg1;
+                    branch.args[1] = arg0;
+                }
+                if (invert_targets) {
+                    vm_block_t *block0 = branch.targets[0];
+                    vm_block_t *block1 = branch.targets[1];
+                    branch.targets[0] = block1;
+                    branch.targets[1] = block0;
+                }
+                block->branch = branch;
+                block = next;
             } else {
                 vm_instr_t instr = (vm_instr_t){
                     .op = VM_IOP_NOP,
@@ -582,7 +673,7 @@ vm_block_t *vm_parse_asm(const char *src) {
     parse.line = 1;
     parse.col = 1;
     parse.src = &src;
-    bool bad = vm_parse_state(&parse);
+    bool bad = vm_parse_state(&parse, NULL);
     if (bad) {
         return NULL;
     }

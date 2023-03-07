@@ -751,7 +751,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_RET_F64_CONST] = &&do_ret_f64_const,
         [VM_OPCODE_EXIT_BREAK_VOID] = &&do_exit_break_void,
         [VM_OPCODE_JUMP_PTR_CONST] = &&do_jump_ptr_const,
-        [VM_OPCODE_JUMP_FUNC_CONST] = &&do_jump_func_const,
         [VM_OPCODE_CALL_FUNC_FUNC] = &&do_call_func_func,
         [VM_OPCODE_CALL_FUNC_PTR] = &&do_call_func_ptr,
         [VM_OPCODE_CALL_FUNC_FUNC_REG] = &&do_call_func_func_reg,
@@ -5871,13 +5870,6 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
     }
     do_jump_ptr_const: {
             ip = ip[0].ptr;
-        goto *(ip++)->ptr;
-    }
-    do_jump_func_const: {
-        vm_opcode_t *head = ip-1;
-        head->ptr = &&do_jump_ptr_const;
-        ip[0].ptr = vm_run_comp(state, ip[0].func);
-        ip = head;
         goto *(ip++)->ptr;
     }
     do_call_func_func: {

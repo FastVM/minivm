@@ -4323,16 +4323,15 @@ vm_opcode_t *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             break;
         }
         case VM_BOP_JUMP: {
-            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_FUNC_CONST);
-            ops[nops++].func = vm_rblock_new(branch.targets[0], types);
-            break;
+            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_PTR_CONST);
+            ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));
         }
         case VM_BOP_BTYPE: {
-            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_FUNC_CONST);
+            ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_PTR_CONST);
             if (vm_tag_eq(branch.tag, types[branch.args[0].reg])) {
-                ops[nops++].func = vm_rblock_new(branch.targets[0], types);
+                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));
             } else {
-                ops[nops++].func = vm_rblock_new(branch.targets[1], types);
+                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[1], types));
             }
             break;
         }
