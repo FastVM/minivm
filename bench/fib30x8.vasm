@@ -63,8 +63,4 @@
     call %0 [pfib] %0
     move.u64 %0 30
     call %0 [pfib] %0
-    move.f32 %0 30
-    call %0 [pfib] %0
-    move.f64 %0 30
-    call %0 [pfib] %0
     exit 

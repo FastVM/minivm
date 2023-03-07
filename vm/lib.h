@@ -34,4 +34,9 @@ void vm_free(void *ptr);
 
 #endif
 
+#if defined(__TINYC__)
+#define __builtin_trap() exit(1)
+#define __builtin_unreachable() exit(1)
+#endif
+
 #endif

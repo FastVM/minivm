@@ -32,6 +32,7 @@ void vm_jit_run(vm_block_t *block);
 int main(int argc, char **argv) {
     const char *filename = NULL;
     size_t runs = 1;
+    bool jon = false;
     while (true) {
         if (argc < 2) {
             if (filename == NULL) {
@@ -55,8 +56,15 @@ int main(int argc, char **argv) {
             argc -= 1;
             runs = n;
             continue;
-        }
-        if (filename != NULL) {
+        } else if (!strcmp(argv[1], "-joff")) {
+            jon = false;
+            argv += 1;
+            argc -= 1;
+        } else if (!strcmp(argv[1], "-jon")) {
+            jon = true;
+            argv += 1;
+            argc -= 1;
+        } else if (filename != NULL) {
             fprintf(stderr, "cannot handle multiple files at cli\n");
             return 1;
         } else {
@@ -72,11 +80,15 @@ int main(int argc, char **argv) {
     }
     for (size_t i = 0; i < runs; i++) {
         vm_block_t *block = vm_parse_asm(src);
-        vm_jit_run(block);
-        // vm_print_block(stderr, block);
-        vm_state_t *state = vm_state_init(1 << 16);
-        vm_run(state, block);
-        vm_state_deinit(state);
+        if (block == NULL) {
+            break;
+        } else if (jon) {
+            vm_jit_run(block);
+        } else {
+            vm_state_t *state = vm_state_init(1 << 16);
+            vm_run(state, block);
+            vm_state_deinit(state);
+        }
     }
     vm_free((void *)src);
     return 0;

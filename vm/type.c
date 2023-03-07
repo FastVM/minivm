@@ -87,7 +87,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tag_t *types, vm_instr_t instr) {
 }
 
 bool vm_rblock_type_check_instr(vm_tag_t *types, vm_instr_t instr) {
-    if (instr.op != VM_IOP_CAST) {
+    if (instr.op != VM_IOP_CAST && instr.op != VM_IOP_CALL) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 if (!vm_tag_eq(types[instr.args[i].reg], instr.tag)) {

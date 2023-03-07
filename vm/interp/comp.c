@@ -4341,6 +4341,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
         case VM_BOP_JUMP: {
             ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_PTR_CONST);
             ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));
+            break;
         }
         case VM_BOP_BTYPE: {
             ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_PTR_CONST);

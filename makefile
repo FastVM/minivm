@@ -101,7 +101,7 @@ objs-clean: .dummy
 
 $(JITC_OBJS): $(@:%.o=%.tmp.c)
 	$(LUA) dynasm/dynasm.lua -o $(@:%.o=%.tmp.c) -D X64 $(@:%.o=%.dasc)
-	$(CC) -c $(OPT) $(@:%.o=%.tmp.c) -o $(@) $(CFLAGS)
+	$(CC) -mabi=sysv -c $(OPT) $(@:%.o=%.tmp.c) -o $(@) $(CFLAGS)
 
 $(PROG_OBJS) $(VM_OBJS): $(@:%.o=%.c)
 	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)

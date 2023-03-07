@@ -606,6 +606,7 @@ void vm_state_deinit(vm_state_t *state) {
                 lines[#lines + 1] = '            ops[nops++].reg = ' .. name .. ';'
             end
             lines[#lines + 1] = '            ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));'
+            lines[#lines + 1] = '            break;'
             lines[#lines + 1] = '        }'
         end
         do
