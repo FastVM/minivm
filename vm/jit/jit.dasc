@@ -3,7 +3,10 @@
 #include <stdlib.h>
 #include "../../dynasm/dasm_proto.h"
 #include "../../dynasm/dasm_x86.h"
-#if _WIN32
+
+#if defined(VM_MINGW)
+#include <windows.h>
+#elif defined(_WIN32)
 #include <Windows.h>
 #else
 #include <sys/mman.h>
@@ -18,10 +21,6 @@
 #define VM_NREGS 256
 
 typedef void func(void);
-
-typedef struct {
-    int x;
-} vm_state_t;
 
 |.arch x64
 
@@ -88,6 +87,84 @@ typedef struct {
 | pop rax
 |.endmacro
 
+|.macro invoke_code, func
+    || {
+    || void *ptr = (void*) (func);
+    | mov64 rax, ((uint64_t) (ptr))
+    | call rax
+    || }
+|.endmacro
+
+|.macro invoke, func
+|| {
+    || void *ptr = (void*) func;
+    || uint64_t parts = (uint64_t) ptr;
+    |.funcs
+    |->func:
+    |.dword  ((uint32_t) (parts))
+    |.dword  ((uint32_t) (parts >> 32))
+    |.code
+    | call qword [->func]
+|| }
+|.endmacro
+
+|.macro vmjump, arg1
+|| {
+    ||vm_rblock_t *block = arg1;
+    ||bool last_mark = block->is_marked;
+    ||block->is_marked = true;
+    ||block->is_func = false;
+    ||void **bit = vm_malloc(sizeof(void *));
+    ||*bit = NULL;
+    | mov64 rbx, ((uint64_t)bit)
+    | mov rax, [rbx]
+    | test rax, rax
+    | jnz >9
+    | mov64 Rq(rArg0), ((uint64_t) block)
+    | invoke vm_jit_rblock
+    | mov64 rbx, ((uint64_t)bit)
+    | mov [rbx], rax
+    |9:
+    | jmp rax
+    || block->is_marked = last_mark;
+|| }
+|.endmacro
+
+|.macro vmjump, arg1
+|| {
+    ||vm_rblock_t *block = arg1;
+    ||size_t num = nfuncs;
+    ||nfuncs += 2;
+    ||bool last_mark = block->is_marked;
+    ||block->is_marked = true;
+    ||block->is_func = false;
+    |.funcs
+    |=>(nfuncs):
+    |.dword ((uint32_t) ()) 
+    |.code
+    |
+    |=>(nfuncs+1):
+    ||block->is_marked = last_mark;
+|| }
+|.endmacro
+
+|.macro vmload64, arg1, arg2
+|| {
+    || vm_arg_t arg = arg2;
+    || if (arg.type == VM_ARG_REG) {
+        | mov Rq(arg1), [rsp + (8 * arg.reg + 8)]
+    || } else if (arg.type == VM_ARG_NUM) {
+        || int64_t n = (int64_t) arg.num;
+        || int32_t t = (int32_t) n;
+        || if (n == (int64_t) t) {
+            | mov Rd(arg1), n
+        || } else {
+            | mov64 Rq(arg1), n
+        || }
+    ||}
+|| }
+|.endmacro
+
 |.macro vmload8, arg1, arg2
 || {
     || vm_arg_t arg = arg2;
@@ -124,20 +201,12 @@ typedef struct {
 || }
 |.endmacro
 
-|.macro vmload64, arg1, arg2
+|.macro vmstore64, arg1, arg2
 || {
-    || vm_arg_t arg = arg2;
+    || vm_arg_t arg = arg1;
     || if (arg.type == VM_ARG_REG) {
-        | mov Rq(arg1), [rsp + (8 * arg.reg + 8)]
-    || } else if (arg.type == VM_ARG_NUM) {
-        || int64_t n = (int64_t) arg.num;
-        || int32_t t = (int32_t) n;
-        || if (n == (int64_t) t) {
-            | mov Rd(arg1), n
-        || } else {
-            | mov64 Rq(arg1), n
-        || }
-    ||}
+        | mov [rsp + (8 * arg.reg + 8)], Rq(arg2)
+    || }
 || }
 |.endmacro
 
@@ -168,36 +237,112 @@ typedef struct {
 || }
 |.endmacro
 
-|.macro vmstore64, arg1, arg2
+|.macro math, instr, size, ov, av1, av2
 || {
-    || vm_arg_t arg = arg1;
-    || if (arg.type == VM_ARG_REG) {
-        | mov [rsp + (8 * arg.reg + 8)], Rq(arg2)
+    || vm_arg_t out = ov;
+    || vm_arg_t arg1 = av1;
+    || vm_arg_t arg2 = av2;
+    || if (arg1.type == VM_ARG_REG && out.reg == arg1.reg) {
+        || if (arg2.type == VM_ARG_NUM) {
+            || switch (size) {
+            || case 8: { 
+                | instr byte [rsp + (8 * out.reg + 8)], ((int8_t) arg2.num)
+                || break;
+            || }
+            || case 16: {
+                | instr word [rsp + (8 * out.reg + 8)], ((int16_t) arg2.num)
+                || break;
+            || }
+            || case 32: {
+                | instr dword [rsp + (8 * out.reg + 8)], ((int32_t) arg2.num)
+                || break;
+            || }
+            || case 64: {
+                || int64_t n = (int64_t) arg2.num;
+                || int32_t t = (int32_t) n;
+                || if (n == (int64_t) t) {
+                    | instr qword [rsp + (8 * out.reg + 8)], t
+                || } else {
+                    | mov64 rax, n
+                    | instr qword [rsp + (8 * out.reg + 8)], rax
+                || }
+                || break;
+            || }
+            || }
+        || } else {
+            | vmload..size RAX, arg2
+            || switch (size) {
+            || case 8: { 
+                | instr byte [rsp + (8 * out.reg + 8)], al
+                || break;
+            || }
+            || case 16: {
+                | instr word [rsp + (8 * out.reg + 8)], ax
+                || break;
+            || }
+            || case 32: {
+                | instr dword [rsp + (8 * out.reg + 8)], eax
+                || break;
+            || }
+            || case 64: {
+                | instr qword [rsp + (8 * out.reg + 8)], rax
+                || break;
+            || }
+            || }
+        || }
+    || } else {
+        || if (arg2.type == VM_ARG_NUM) {
+            | vmload..size RAX, arg1
+            || switch (size) {
+            || case 8: { 
+                | instr al, ((int8_t) arg2.num)
+                || break;
+            || }
+            || case 16: {
+                | instr ax, ((int16_t) arg2.num)
+                || break;
+            || }
+            || case 32: {
+                | instr eax, ((int32_t) arg2.num)
+                || break;
+            || }
+            || case 64: {
+                || int64_t n = (int64_t) arg2.num;
+                || int32_t t = (int32_t) n;
+                || if (n == (int64_t) t) {
+                    | instr rax, t
+                || } else {
+                    | mov64 rcx, n
+                    | instr rax, rcx
+                || }
+                || break;
+            || }
+            || }
+            | vmstore..size out, RAX
+        || } else {
+            | vmload..size RAX, arg1
+            | vmload..size RCX, arg2
+            || switch (size) {
+            || case 8: {
+                | instr al, cl
+                || break;
+            || }
+            || case 16: {
+                | instr ax, cx
+                || break;
+            || }
+            || case 32: {
+                | instr eax, ecx
+                || break;
+            || }
+            || case 64: {
+                | instr rax, rcx
+                || break;
+            || }
+            || }
+            | vmstore..size out, RAX
+        || }
     || }
-|| }
-|.endmacro
-
-|.macro vmjump, arg1
-|| {
-    ||vm_rblock_t *block = arg1;
-    ||bool last_mark = block->is_marked;
-    ||block->is_marked = true;
-    ||block->is_func = false;
-    ||void **bit = vm_malloc(sizeof(void *));
-    ||*bit = NULL;
-    | mov64 rbx, ((uint64_t)bit)
-    | mov rax, [rbx]
-    | test rax, rax
-    | jnz >9
-    | mov64 rax, ((uint64_t) &vm_jit_rblock)
-    | mov64 Rq(rArg0), ((uint64_t) state) 
-    | mov64 Rq(rArg1), ((uint64_t) block)
-    | call rax
-    | mov64 rbx, ((uint64_t)bit)
-    | mov [rbx], rax
-    |9:
-    | jmp rax
-    || block->is_marked = last_mark;
 || }
 |.endmacro
 
@@ -225,7 +370,11 @@ static void* vm_jit_encode(dasm_State** d)
 #endif
     // char chrs[256];
     // sprintf(chrs, "%p.bin", buf);
-    // FILE *f = fopen(chrs, "wb");
+    // // static FILE *f = NULL;
+    // FILE *f = NULL;
+    // if (f == NULL) {
+    //     f = fopen(chrs, "wb");
+    // }
     // fwrite(buf, sz, 1, f);
     // fclose(f);
     return buf;
@@ -233,47 +382,100 @@ static void* vm_jit_encode(dasm_State** d)
 
 #define Dst (&d)
 
-void *vm_jit_rblock(vm_state_t *state, vm_rblock_t *rblock) {
-    bool first = state->x++ == 0;
+void *vm_jit_rblock(vm_rblock_t *rblock) {
     static uint8_t ccregs[] = { rArg0, rArg1, rArg2, rArg3, rArg4, rArg5, rArg6, rArg7, rArg8 };
     void *cached = vm_cache_get(&rblock->block->cache, rblock);
     if (cached != NULL) {
         return cached;
     }
     dasm_State* d;
-    |.section code
+    |.section code, funcs
     dasm_init(&d, DASM_MAXSECTION);
     |.globals lbl_
     void* labels[lbl__MAX];
     dasm_setupglobal(&d, labels, lbl__MAX);
     |.actionlist act
     dasm_setup(&d, act);
-    dasm_growpc(&d, 8);
+    dasm_growpc(&d, 16);
     |.code
     |->main:
-    if (rblock->is_func) {
-        | sub rsp, (8 * VM_NREGS)
-        for (size_t i = 1; i <= rblock->block->nargs; i++) {
-            | mov [rsp + (8 * i + 8)], Rq(ccregs[i-1])
-        }
-    }
+    size_t nfuncs = 0;
     vm_block_t *block = rblock->block;
     vm_tag_t *types = vm_rblock_regs_dup(rblock->regs);
     vm_rblock_t *rnext = vm_rblock_new(rblock->block, rblock->regs);
     rnext->start = rblock->start;
     rnext->is_func = rblock->is_func;
-    // vm_print_block(stdout, rblock->block);
+    if (rblock->is_func) {
+        | sub rsp, (8 * VM_NREGS + 8)
+    }
     for (size_t ninstr = rnext->start; ninstr < block->len; ninstr++) {
         vm_instr_t instr = vm_rblock_type_specialize_instr(types, block->instrs[ninstr]);
         if (!vm_rblock_type_check_instr(types, instr)) goto fail_return;
-        // vm_print_instr(stdout, instr); fprintf(stdout, "\n"); 
         switch (instr.op) {
         case VM_IOP_NOP: {
             break;
         }
         case VM_IOP_MOVE: {
-            | vmload64 RAX, instr.args[0]
-            | vmstore64 instr.out, RAX
+            if (instr.args[0].type == VM_ARG_NUM) {
+                int64_t n = instr.args[0].num;
+                switch (instr.tag) {
+                case VM_TAG_I8:
+                case VM_TAG_U8:{
+                    | mov byte [rsp + (8 * instr.out.reg + 8)], ((int8_t) n)
+                    break;
+                }
+                case VM_TAG_I16:
+                case VM_TAG_U16: {
+                    | mov word [rsp + (8 * instr.out.reg + 8)], ((int16_t) n)
+                    break;
+                }
+                case VM_TAG_I32:
+                case VM_TAG_U32: {
+                    | mov dword [rsp + (8 * instr.out.reg + 8)], ((int32_t) n)
+                    break;
+                }
+                case VM_TAG_I64:
+                case VM_TAG_U64: {
+                    int32_t t = (int64_t) n;
+                    if (n == (int64_t) t) {
+                        | mov qword [rsp + (8 * instr.out.reg + 8)], n
+                    } else {
+                        | mov64 rax, n
+                        | mov qword [rsp + (8 * instr.out.reg + 8)], rax
+                    }
+                    break;
+                }
+                }
+            } else if (instr.args[0].type == VM_ARG_REG) {
+                switch (instr.tag) {
+                case VM_TAG_I8:
+                case VM_TAG_U8:{
+                    | vmload8 RAX, instr.args[0]
+                    | vmstore8 instr.out, RAX
+                    break;
+                }
+                case VM_TAG_I16:
+                case VM_TAG_U16: {
+                    | vmload16 RAX, instr.args[0]
+                    | vmstore16 instr.out, RAX
+                    break;
+                }
+                case VM_TAG_I32:
+                case VM_TAG_U32: {
+                    | vmload32 RAX, instr.args[0]
+                    | vmstore32 instr.out, RAX
+                    break;
+                }
+                case VM_TAG_I64:
+                case VM_TAG_U64: {
+                    | vmload64 RAX, instr.args[0]
+                    | vmstore64 instr.out, RAX
+                    break;
+                }
+                }
+            }
+            // | vmload64 RAX, instr.args[0]
+            // | vmstore64 instr.out, RAX
             break;
         }
         case VM_IOP_CAST: {
@@ -530,12 +732,37 @@ void *vm_jit_rblock(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 vm_rblock_t *func = vm_rblock_new(instr.args[0].func, argtypes);
                 func->is_func = true;
-                for (size_t i = 1; instr.args[i].type != VM_ARG_NONE; i++) {
-                    | vmload64 ccregs[i-1], instr.args[i] 
+                for (int32_t i = 1; instr.args[i].type != VM_ARG_NONE; i++) {
+                    int32_t offset = 0 - 8 - (8 * VM_NREGS + 8) + (8 * i + 8);
+                    switch (types[instr.args[i].reg]) {
+                        case VM_TAG_I8:
+                        case VM_TAG_U8: {
+                            | vmload8 RAX, instr.args[i] 
+                            | mov byte [rsp + (offset)], al
+                            break;
+                        }
+                        case VM_TAG_I16:
+                        case VM_TAG_U16: {
+                            | vmload16 RAX, instr.args[i] 
+                            | mov word [rsp + (offset)], ax
+                            break;
+                        }
+                        case VM_TAG_I32:
+                        case VM_TAG_U32: {
+                            | vmload32 RAX, instr.args[i] 
+                            | mov dword [rsp + (offset)], eax
+                            break;
+                        }
+                        case VM_TAG_I64:
+                        case VM_TAG_U64: {
+                            | vmload64 RAX, instr.args[i] 
+                            | mov qword [rsp + (offset)], rax
+                            break;
+                        }
+                    }
                 }
-                void *code = vm_jit_rblock(state, func);
-                | mov64 rax, ((uint64_t) code)
-                | call rax
+                void *code = vm_jit_rblock(func);
+                | invoke_code code
                 | vmstore64 instr.out, RAX
             }
             break;
@@ -564,8 +791,7 @@ void *vm_jit_rblock(vm_state_t *state, vm_rblock_t *rblock) {
                 break;
             }
             }
-            | mov64 rax, ((uint64_t) &vm_jit_putchar)
-            | call rax
+            | invoke vm_jit_putchar
             break;
         }
         case VM_IOP_IN: {
@@ -600,13 +826,12 @@ void *vm_jit_rblock(vm_state_t *state, vm_rblock_t *rblock) {
     switch (branch.op) {
     case VM_BOP_EXIT: {
         | xor Rd(rArg0), Rd(rArg0)
-        | mov64 rax, ((uint64_t) &exit)
-        | call rax
+        | invoke exit
         break;
     }
     case VM_BOP_RET: {
         | vmload64 RAX, branch.args[0]
-        | add rsp, (8 * VM_NREGS)
+        | add rsp, (8 * VM_NREGS + 8)
         | ret
         break;
     }
@@ -750,8 +975,7 @@ fail_return:;
 void vm_jit_run(vm_block_t *block) {
     vm_rblock_t *rblock = vm_rblock_new(block, vm_rblock_regs_empty());
     rblock->is_func = true;
-    vm_state_t state = {0};
-    void(*fn)(void) = vm_jit_rblock(&state, rblock);
+    void(*fn)(void) = vm_jit_rblock(rblock);
     fn();
     exit(0);
 }

@@ -7,19 +7,19 @@ static char *vm_asm_io_read(const char *filename) {
     if (file == NULL) {
         return NULL;
     }
-    size_t nalloc = 16;
+    size_t nalloc = 512;
     char *ops = vm_malloc(sizeof(char) * nalloc);
     size_t nops = 0;
     size_t size;
     for (;;) {
-        size = fread(&ops[nops], sizeof(char), 1, file);
-        if (size == 0) {
-            break;
-        }
-        nops += 1;
-        if (nops + 4 >= nalloc) {
-            nalloc *= 4;
+        if (nops + 256 >= nalloc) {
+            nalloc *= 2;
             ops = vm_realloc(ops, sizeof(char) * nalloc);
+        }
+        size = fread(&ops[nops], 1, 256, file);
+        nops += size;
+        if (size < 256) {
+            break;
         }
     }
     ops[nops] = '\0';
@@ -60,10 +60,12 @@ int main(int argc, char **argv) {
             jon = false;
             argv += 1;
             argc -= 1;
+            continue;
         } else if (!strcmp(argv[1], "-jon")) {
             jon = true;
             argv += 1;
             argc -= 1;
+            continue;
         } else if (filename != NULL) {
             fprintf(stderr, "cannot handle multiple files at cli\n");
             return 1;
@@ -81,7 +83,8 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < runs; i++) {
         vm_block_t *block = vm_parse_asm(src);
         if (block == NULL) {
-            break;
+            fprintf(stderr, "could not parse file\n");
+            return 1;
         } else if (jon) {
             vm_jit_run(block);
         } else {

@@ -47,6 +47,6 @@
     ret 0
 
 @:
-    move.u64 %0 30
+    move.i32 %0 30
     call %0 [pfib] %0
-    exit 
+    exit

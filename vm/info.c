@@ -80,6 +80,8 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
         }
     }
     bool redo = true;
+    size_t alloc = 16;
+    size_t *next = vm_malloc(sizeof(size_t) * alloc);
     while (redo) {
         redo = false;
         for (ptrdiff_t i = nblocks - 1; i >= 0; i--) {
@@ -93,7 +95,10 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
                     break;
                 }
                 size_t total = block->nargs + target->nargs;
-                size_t *next = vm_malloc(sizeof(size_t) * total);
+                if (total >= alloc) {
+                    alloc = total * 2;
+                    next = vm_realloc(next, sizeof(size_t) * alloc);
+                }
                 size_t nargs = 0;
                 size_t bi = 0;
                 size_t ti = 0;
@@ -136,11 +141,11 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
                     block->nargs = nargs;
                     redo = true;
                 } else {
-                    vm_free(next);
                 }
             }
         }
     }
+    vm_free(next);
     for (size_t i = 0; i < nblocks; i++) {
         vm_block_t *block = blocks[i];
         if (block->id < 0) {

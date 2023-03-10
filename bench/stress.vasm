@@ -1,0 +1,84 @@
+
+@f7:
+    ret 1
+
+@f6:
+    move.u8 %0 8
+    call %0 [f7] %0 %1 %2 %3 %4 %5 %6
+    move.u16 %0 16
+    call %0 [f7] %0 %1 %2 %3 %4 %5 %6
+    move.u32 %0 32
+    call %0 [f7] %0 %1 %2 %3 %4 %5 %6
+    move.u64 %0 64
+    call %0 [f7] %0 %1 %2 %3 %4 %5 %6
+    ret 5
+
+@f5:
+    move.u8 %0 8
+    call %0 [f6] %0 %1 %2 %3 %4 %5
+    move.u16 %0 16
+    call %0 [f6] %0 %1 %2 %3 %4 %5
+    move.u32 %0 32
+    call %0 [f6] %0 %1 %2 %3 %4 %5
+    move.u64 %0 64
+    call %0 [f6] %0 %1 %2 %3 %4 %5
+    ret 24
+
+@f4:
+    move.u8 %0 8
+    call %0 [f5] %0 %1 %2 %3 %4
+    move.u16 %0 16
+    call %0 [f5] %0 %1 %2 %3 %4
+    move.u32 %0 32
+    call %0 [f5] %0 %1 %2 %3 %4
+    move.u64 %0 64
+    call %0 [f5] %0 %1 %2 %3 %4
+    ret 100
+
+@f3:
+    move.u8 %0 8
+    call %0 [f4] %0 %1 %2 %3
+    move.u16 %0 16
+    call %0 [f4] %0 %1 %2 %3
+    move.u32 %0 32
+    call %0 [f4] %0 %1 %2 %3
+    move.u64 %0 64
+    call %0 [f4] %0 %1 %2 %3
+    ret 404
+
+@f2:
+    move.u8 %0 8
+    call %0 [f3] %0 %1 %2
+    move.u16 %0 16
+    call %0 [f3] %0 %1 %2
+    move.u32 %0 32
+    call %0 [f3] %0 %1 %2
+    move.u64 %0 64
+    call %0 [f3] %0 %1 %2
+    ret 1620
+
+@f1:
+    move.u8 %0 8
+    call %0 [f2] %0 %1
+    move.u16 %0 16
+    call %0 [f2] %0 %1
+    move.u32 %0 32
+    call %0 [f2] %0 %1
+    move.u64 %0 64
+    call %0 [f2] %0 %1
+    ret 6484
+
+@main:
+    move.u8 %0 8
+    call %0 [f1] %0
+    move.u16 %0 16
+    call %0 [f1] %0
+    move.u32 %0 32
+    call %0 [f1] %0
+    move.u64 %0 64
+    call %0 [f1] %0
+    ret 25940
+
+@:
+    call %0 [main] %0
+    exit
