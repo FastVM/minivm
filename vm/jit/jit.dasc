@@ -1111,7 +1111,6 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock) {
     state->depth = 0;
     state->stack = vm_malloc(sizeof(vm_rblock_t *) * 16);
     size_t count = state->count++;
-    static uint8_t ccregs[] = { rArg0, rArg1, rArg2, rArg3, rArg4, rArg5, rArg6, rArg7, rArg8 };
     void *cached = vm_cache_get(&rblock->block->cache, rblock);
     if (cached != NULL) {
         return cached;
@@ -1134,7 +1133,6 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock) {
     if (rblock->isfunc) {
         | sub rsp, VM_PUSH(VM_NREGS)
     }
-    size_t nfuncs = 0;
     vm_tags_t *types = vm_rblock_regs_dup(rblock->regs, VM_NREGS);
     vm_rblock_t *rnext = vm_rblock_new(rblock->block, types);
     rnext->start = rblock->start;

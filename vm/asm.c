@@ -44,9 +44,7 @@ static vm_block_t *vm_parse_find(vm_parser_t *state, const char *name) {
         state->names[where] = NULL;
     }
     vm_block_t *block = vm_malloc(sizeof(vm_block_t));
-    *block = (vm_block_t){
-        .cache = NULL,
-    };
+    *block = (vm_block_t){0};
     state->blocks[where] = block;
     block->id = (ptrdiff_t)where;
     return state->blocks[where];
@@ -152,64 +150,6 @@ static vm_block_t *vm_parse_arg_block(vm_parser_t *state) {
         fprintf(stderr, "expecting block name argument's opening `[`\n");
         return NULL;
     }
-}
-
-static vm_arg_t vm_parse_type_arg(vm_parser_t *state) {
-    vm_parse_strip(state);
-    if (**state->src == '&') {
-        vm_skip(state);
-        const char *word = vm_parse_word_until(state, '&');
-        vm_tag_t *arg = vm_malloc(sizeof(vm_tag_t));
-        if (!strcmp(word, "void")) {
-            *arg = VM_TAG_NIL;
-        }
-        if (!strcmp(word, "bool")) {
-            *arg = VM_TAG_BOOL;
-        }
-        if (!strcmp(word, "i8")) {
-            *arg = VM_TAG_I8;
-        }
-        if (!strcmp(word, "i16")) {
-            *arg = VM_TAG_I16;
-        }
-        if (!strcmp(word, "i32")) {
-            *arg = VM_TAG_I32;
-        }
-        if (!strcmp(word, "i64")) {
-            *arg = VM_TAG_I64;
-        }
-        if (!strcmp(word, "u8")) {
-            *arg = VM_TAG_U8;
-        }
-        if (!strcmp(word, "u16")) {
-            *arg = VM_TAG_U16;
-        }
-        if (!strcmp(word, "u32")) {
-            *arg = VM_TAG_U32;
-        }
-        if (!strcmp(word, "u64")) {
-            *arg = VM_TAG_U64;
-        }
-        if (!strcmp(word, "f32")) {
-            *arg = VM_TAG_F32;
-        }
-        if (!strcmp(word, "f64")) {
-            *arg = VM_TAG_F64;
-        }
-        if (!strcmp(word, "ptr") || !strcmp(word, "usize")) {
-            if (sizeof(void *) == 8) {
-                *arg = VM_TAG_U64;
-            } else if (sizeof(void *) == 4) {
-                *arg = VM_TAG_U32;
-            }
-        }
-        vm_free(word);
-        return (vm_arg_t){
-            .type = VM_ARG_TAG,
-            .tag = arg,
-        };
-    }
-    __builtin_unreachable();
 }
 
 static vm_arg_t vm_parse_arg(vm_parser_t *state) {

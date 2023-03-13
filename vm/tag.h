@@ -31,8 +31,4 @@ struct vm_tags_t {
 
 typedef struct vm_tags_t vm_tags_t;
 
-static bool vm_tag_eq(vm_tag_t a, vm_tag_t b) {
-    return a == b;
-}
-
 #endif

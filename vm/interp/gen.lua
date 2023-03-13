@@ -373,7 +373,7 @@ void vm_state_deinit(vm_state_t *state) {
             for k1, v1 in ipairs(binarytypes) do
                 for k2, v2 in ipairs(binarytypes) do
                     local name = string.upper(table.concat({prefix, 'cast', v1, v2}, '_'))
-                    lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(v1) ..') && vm_tag_eq(vm_instr_get_arg_type(instr, 0), VM_TAG_' .. string.upper(v2) ..')) {'
+                    lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(v1) ..' && vm_instr_get_arg_type(instr, 0) == VM_TAG_' .. string.upper(v2) ..') {'
                     lines[#lines + 1] = '                ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                     lines[#lines + 1] = '                ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                     lines[#lines + 1] = '                ops[nops++].reg = instr.out.reg;'
@@ -387,12 +387,12 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '            if (instr.out.type == VM_ARG_NONE) {'
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
-            lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_NIL)) {'
+            lines[#lines + 1] = '            if (instr.tag == VM_TAG_NIL) {'
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             do
                 lines[#lines + 1] = '            if (vm_instr_get_arg_type(instr, 0) == VM_ARG_STR) {'
-                lines[#lines + 1] = '                if (vm_tag_eq(VM_TAG_I32, VM_TAG_PTR)) {'
+                lines[#lines + 1] = '                if (VM_TAG_I32 == VM_TAG_PTR) {'
                 local name = string.upper(table.concat({prefix, 'move', 'u32', 'const'}, '_'))
                 lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                 lines[#lines + 1] = '                    ops[nops++].u32 = (uint32_t) (size_t) vm_instr_get_arg_str(instr, 0);'
@@ -407,7 +407,7 @@ void vm_state_deinit(vm_state_t *state) {
                 lines[#lines + 1] = '            }'
             end
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                 for _, a0type in ipairs({'reg', 'const'}) do
                     lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[a0type] .. ') {'
                     local name = string.upper(table.concat({prefix, 'move', tvalue, a0type}, '_'))
@@ -434,7 +434,7 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
                 if isinttype[tvalue] then
-                    lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                    lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                     for _, a0type in ipairs({'reg', 'const'}) do
                         lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[a0type] .. ') {'
                         local name = string.upper(table.concat({prefix, 'bnot', tvalue, a0type}, '_'))
@@ -461,7 +461,7 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
                 if isinttype[tvalue] or value == 'add' or value == 'sub' or value == 'mul' or value == 'div' or value == 'mod' then
-                    lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                    lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                     for _, pair in ipairs(kinds) do
                         lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[pair[1]] .. ' && ' .. 'vm_instr_get_arg_type(instr, 1) ' .. map[pair[2]] .. ') {'
                         local name = string.upper(table.concat({prefix, value, tvalue, pair[1], pair[2]}, '_'))
@@ -492,7 +492,7 @@ void vm_state_deinit(vm_state_t *state) {
             lines[#lines + 1] = '                break;'
             lines[#lines + 1] = '            }'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                 local name = string.upper(table.concat({prefix, 'in', tvalue, 'void'}, '_'))
                 lines[#lines + 1] = '                    ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, ' .. name .. ');'
                 lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
@@ -557,7 +557,7 @@ void vm_state_deinit(vm_state_t *state) {
         do
             lines[#lines + 1] = '        case VM_IOP_OUT: {'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (vm_tag_eq(instr.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                lines[#lines + 1] = '            if (instr.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                 for _, val in ipairs({'const', 'reg'}) do
                     local name = string.upper(table.concat({prefix, 'out', tvalue, val}, '_'))
                     lines[#lines + 1] = '                if (vm_instr_get_arg_type(instr, 0) ' .. map[val] .. ') {'
@@ -617,7 +617,7 @@ void vm_state_deinit(vm_state_t *state) {
             else
                 lines[#lines + 1] = '            ops[nops++].reg = ' .. name .. ';'
             end
-            lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, types->tags[branch.args[0].reg])) {'
+            lines[#lines + 1] = '            if (branch.tag == types->tags[branch.args[0].reg]) {'
             lines[#lines + 1] = '                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));'
             lines[#lines + 1] = '            } else {'
             lines[#lines + 1] = '                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[1], types));'
@@ -628,7 +628,7 @@ void vm_state_deinit(vm_state_t *state) {
         do
             lines[#lines + 1] = '        case VM_BOP_RET: {'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                lines[#lines + 1] = '            if (branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                 for _, val in ipairs({'const', 'reg'}) do
                     lines[#lines + 1] = '                if (branch.args[0].type ' .. map[val] .. ') {'
                     local name = string.upper(table.concat({prefix, 'ret', tvalue, val}, '_'))
@@ -649,7 +649,7 @@ void vm_state_deinit(vm_state_t *state) {
         do
             lines[#lines + 1] = '        case VM_BOP_BB: {'
             for tkey, tvalue in ipairs(binarytypes) do
-                lines[#lines + 1] = '                if (vm_tag_eq(branch.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                lines[#lines + 1] = '                if (branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                 for _, val in ipairs({'const', 'reg'}) do
                     lines[#lines + 1] = '                    if (branch.args[0].type ' .. map[val] .. ') {'
                     local name = string.upper(table.concat({prefix, 'bb', tvalue, val, 'func', 'func'}, '_'))
@@ -675,7 +675,7 @@ void vm_state_deinit(vm_state_t *state) {
             for key, value in ipairs({'blt', 'beq'}) do
                 lines[#lines + 1] = '        case VM_BOP_' .. string.upper(value) .. ': {'
                 for tkey, tvalue in ipairs(binarytypes) do
-                    lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, VM_TAG_' .. string.upper(tvalue) .. ')) {'
+                    lines[#lines + 1] = '            if (branch.tag == VM_TAG_' .. string.upper(tvalue) .. ') {'
                     for _, pair in ipairs(kinds) do
                         lines[#lines + 1] =
                             '                if (branch.args[0].type ' .. map[pair[1]] .. ' && ' .. 'branch.args[1].type ' .. map[pair[2]] .. ') {'

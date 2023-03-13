@@ -60,7 +60,7 @@ bool vm_rblock_regs_match(vm_tags_t *a, vm_tags_t *b) {
         return false;
     }
     for (size_t i = 0; i < a->ntags && i < b->ntags; i++) {
-        if (!vm_tag_eq(a->tags[i], b->tags[i])) {
+        if (a->tags[i] != b->tags[i]) {
             return false;
         }
     }
@@ -74,7 +74,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             return instr;
         }
     }
-    if (vm_tag_eq(instr.tag, VM_TAG_UNK)) {
+    if (instr.tag != VM_TAG_UNK) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 instr.tag = types->tags[instr.args[i].reg];
@@ -99,7 +99,7 @@ bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
     if (instr.op != VM_IOP_CAST && instr.op != VM_IOP_CALL) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
-                if (!vm_tag_eq(types->tags[instr.args[i].reg], instr.tag)) {
+                if (types->tags[instr.args[i].reg] != instr.tag) {
                     vm_print_instr(stdout, instr);
                     printf("\n^ TYPE ERROR (arg r%zu of type #%zu) ^\n", instr.args[i].reg, (size_t)types->tags[instr.args[i].reg]);
                     return false;
@@ -111,11 +111,13 @@ bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
 }
 
 bool vm_rblock_type_check_branch(vm_tags_t *types, vm_branch_t branch) {
+    (void)types;
+    (void)branch;
     return true;
 }
 
 vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branch) {
-    if (vm_tag_eq(branch.tag, VM_TAG_UNK)) {
+    if (branch.tag != VM_TAG_UNK) {
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_REG) {
                 branch.tag = types->tags[branch.args[i].reg];
