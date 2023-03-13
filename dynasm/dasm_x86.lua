@@ -28,7 +28,7 @@ local _s = string
 local sub, format, byte, char = _s.sub, _s.format, _s.byte, _s.char
 local find, match, gmatch, gsub = _s.find, _s.match, _s.gmatch, _s.gsub
 local concat, sort, remove = table.concat, table.sort, table.remove
-local bit = bit or require("bit")
+local bit = bit or bit32 or require("bit")
 local band, bxor, shl, shr = bit.band, bit.bxor, bit.lshift, bit.rshift
 
 -- Inherited tables and callbacks.

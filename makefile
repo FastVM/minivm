@@ -5,7 +5,7 @@ CLANG ?= clang
 OPT ?= -O2
 HOST_CC ?= $(CC)
 
-LUA ?= luajit
+LUA ?= bin/minilua
 
 PROG_SRCS := main/asm.c
 PROG_OBJS := $(PROG_SRCS:%.c=%.o)
@@ -68,6 +68,11 @@ libs: bin/libminivm.a
 
 bins: bin/minivm-asm
 
+lua luajit lua5.4 lua5.3 lua5.2 lua5.1: .dummy
+
+bin/minilua: dynasm/onelua.c
+	$(CC) -o bin/minilua dynasm/onelua.c -lm 
+
 bin/libminivm.lib: $(OBJS)
 	@mkdir -p bin
 	lib /out:$(@) $(OBJS)
@@ -99,7 +104,7 @@ objs-clean: .dummy
 
 # intermediate files
 
-$(JITC_OBJS): $(@:%.o=%.tmp.c)
+$(JITC_OBJS): $(@:%.o=%.tmp.c) $(LUA)
 	$(LUA) dynasm/dynasm.lua -o $(@:%.o=%.tmp.c) -D X64 -L $(@:%.o=%.dasc)
 	$(CC) -mabi=sysv -c $(OPT) $(@:%.o=%.tmp.c) -o $(@) $(CFLAGS)
 
