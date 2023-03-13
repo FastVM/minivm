@@ -23,7 +23,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
         return ret;
     }
     vm_block_t *block = rblock->block;
-    vm_tag_t *types = vm_rblock_regs_dup(rblock->regs);
+    vm_tags_t *types = vm_rblock_regs_dup(rblock->regs, VM_NREGS);
     vm_rblock_t *rnext = vm_rblock_new(rblock->block, rblock->regs);
     rnext->start = rblock->start;
     size_t aops = 64;
@@ -3628,7 +3628,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 1) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR);
-                    vm_tag_t *args = vm_rblock_regs_empty();
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3639,9 +3639,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3651,7 +3651,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC);
-                    vm_tag_t *args = vm_rblock_regs_empty();
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3662,9 +3662,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3676,8 +3676,8 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 2) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3689,9 +3689,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3701,8 +3701,8 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3714,9 +3714,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3728,9 +3728,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 3) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3743,9 +3743,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3755,9 +3755,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3770,9 +3770,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3784,10 +3784,10 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 4) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3801,9 +3801,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3813,10 +3813,10 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3830,9 +3830,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3844,11 +3844,11 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 5) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3863,9 +3863,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3875,11 +3875,11 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3894,9 +3894,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3908,12 +3908,12 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 6) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3929,9 +3929,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3941,12 +3941,12 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3962,9 +3962,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -3976,13 +3976,13 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 7) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
-                    args[6] = types[vm_instr_get_arg_reg(instr, 6)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
+                    args->tags[6] = types->tags[vm_instr_get_arg_reg(instr, 6)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -3999,9 +3999,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -4011,13 +4011,13 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
-                    args[6] = types[vm_instr_get_arg_reg(instr, 6)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
+                    args->tags[6] = types->tags[vm_instr_get_arg_reg(instr, 6)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -4034,9 +4034,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -4048,14 +4048,14 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 8) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
-                    args[6] = types[vm_instr_get_arg_reg(instr, 6)];
-                    args[7] = types[vm_instr_get_arg_reg(instr, 7)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
+                    args->tags[6] = types->tags[vm_instr_get_arg_reg(instr, 6)];
+                    args->tags[7] = types->tags[vm_instr_get_arg_reg(instr, 7)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -4073,9 +4073,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -4085,14 +4085,14 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
-                    args[6] = types[vm_instr_get_arg_reg(instr, 6)];
-                    args[7] = types[vm_instr_get_arg_reg(instr, 7)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
+                    args->tags[6] = types->tags[vm_instr_get_arg_reg(instr, 6)];
+                    args->tags[7] = types->tags[vm_instr_get_arg_reg(instr, 7)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -4110,9 +4110,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -4124,15 +4124,15 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
             if (vm_instr_get_arg_type(instr, 9) == VM_ARG_NONE) {
                 if (vm_instr_get_arg_type(instr, 0) == VM_ARG_FUNC) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
-                    args[6] = types[vm_instr_get_arg_reg(instr, 6)];
-                    args[7] = types[vm_instr_get_arg_reg(instr, 7)];
-                    args[8] = types[vm_instr_get_arg_reg(instr, 8)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
+                    args->tags[6] = types->tags[vm_instr_get_arg_reg(instr, 6)];
+                    args->tags[7] = types->tags[vm_instr_get_arg_reg(instr, 7)];
+                    args->tags[8] = types->tags[vm_instr_get_arg_reg(instr, 8)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -4151,9 +4151,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -4163,15 +4163,15 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 }
                 else if (vm_instr_get_arg_type(instr, 0) == VM_ARG_REG) {
                     ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_CALL_FUNC_FUNC_REG_REG_REG_REG_REG_REG_REG_REG);
-                    vm_tag_t *args = vm_rblock_regs_empty();
-                    args[1] = types[vm_instr_get_arg_reg(instr, 1)];
-                    args[2] = types[vm_instr_get_arg_reg(instr, 2)];
-                    args[3] = types[vm_instr_get_arg_reg(instr, 3)];
-                    args[4] = types[vm_instr_get_arg_reg(instr, 4)];
-                    args[5] = types[vm_instr_get_arg_reg(instr, 5)];
-                    args[6] = types[vm_instr_get_arg_reg(instr, 6)];
-                    args[7] = types[vm_instr_get_arg_reg(instr, 7)];
-                    args[8] = types[vm_instr_get_arg_reg(instr, 8)];
+                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);
+                    args->tags[1] = types->tags[vm_instr_get_arg_reg(instr, 1)];
+                    args->tags[2] = types->tags[vm_instr_get_arg_reg(instr, 2)];
+                    args->tags[3] = types->tags[vm_instr_get_arg_reg(instr, 3)];
+                    args->tags[4] = types->tags[vm_instr_get_arg_reg(instr, 4)];
+                    args->tags[5] = types->tags[vm_instr_get_arg_reg(instr, 5)];
+                    args->tags[6] = types->tags[vm_instr_get_arg_reg(instr, 6)];
+                    args->tags[7] = types->tags[vm_instr_get_arg_reg(instr, 7)];
+                    args->tags[8] = types->tags[vm_instr_get_arg_reg(instr, 8)];
                     vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);
                     vm_opcode_t *opcodes = vm_run_comp(state, rblock);
                     if (opcodes == NULL) goto fail_return;
@@ -4190,9 +4190,9 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                         ops[nops++].reg = instr.out.reg;
                     }
                     for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {
-                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);
+                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);
                         if (instr.out.type == VM_ARG_REG) {
-                            types_tag[instr.out.reg] = type;
+                            types_tag->tags[instr.out.reg] = type;
                         }
                         vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);
                         rest_block->start = ninstr+1;
@@ -4328,7 +4328,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
         default: __builtin_trap();
         }
         if (instr.out.type == VM_ARG_REG) {
-            types[instr.out.reg] = instr.tag;
+            types->tags[instr.out.reg] = instr.tag;
         }
     }
     vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);
@@ -4345,7 +4345,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
         }
         case VM_BOP_BTYPE: {
             ops[nops++].VM_OPCODE_PTR = VM_STATE_LOAD_PTR(state, VM_OPCODE_JUMP_PTR_CONST);
-            if (vm_tag_eq(branch.tag, types[branch.args[0].reg])) {
+            if (vm_tag_eq(branch.tag, types->tags[branch.args[0].reg])) {
                 ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));
             } else {
                 ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[1], types));

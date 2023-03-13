@@ -1,8 +1,10 @@
 
 @f7:
+    out 97
     ret 1
 
 @f6:
+    out 98
     move.u8 %0 8
     call %0 [f7] %0 %1 %2 %3 %4 %5 %6
     move.u16 %0 16
@@ -14,6 +16,7 @@
     ret 5
 
 @f5:
+    out 99
     move.u8 %0 8
     call %0 [f6] %0 %1 %2 %3 %4 %5
     move.u16 %0 16
@@ -22,9 +25,10 @@
     call %0 [f6] %0 %1 %2 %3 %4 %5
     move.u64 %0 64
     call %0 [f6] %0 %1 %2 %3 %4 %5
-    ret 24
+    ret 21
 
 @f4:
+    out 100
     move.u8 %0 8
     call %0 [f5] %0 %1 %2 %3 %4
     move.u16 %0 16
@@ -33,9 +37,10 @@
     call %0 [f5] %0 %1 %2 %3 %4
     move.u64 %0 64
     call %0 [f5] %0 %1 %2 %3 %4
-    ret 100
+    ret 85
 
 @f3:
+    out 101
     move.u8 %0 8
     call %0 [f4] %0 %1 %2 %3
     move.u16 %0 16
@@ -44,9 +49,10 @@
     call %0 [f4] %0 %1 %2 %3
     move.u64 %0 64
     call %0 [f4] %0 %1 %2 %3
-    ret 404
+    ret 341
 
 @f2:
+    out 102
     move.u8 %0 8
     call %0 [f3] %0 %1 %2
     move.u16 %0 16
@@ -55,9 +61,10 @@
     call %0 [f3] %0 %1 %2
     move.u64 %0 64
     call %0 [f3] %0 %1 %2
-    ret 1620
+    ret 1365
 
 @f1:
+    out 103
     move.u8 %0 8
     call %0 [f2] %0 %1
     move.u16 %0 16
@@ -66,9 +73,10 @@
     call %0 [f2] %0 %1
     move.u64 %0 64
     call %0 [f2] %0 %1
-    ret 6484
+    ret 5461
 
 @main:
+    out 104
     move.u8 %0 8
     call %0 [f1] %0
     move.u16 %0 16
@@ -80,5 +88,5 @@
     ret 25940
 
 @:
-    call %0 [main] %0
+    call %0 [main]
     exit

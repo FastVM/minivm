@@ -352,7 +352,7 @@ void vm_state_deinit(vm_state_t *state) {
         lines[#lines + 1] = '        return ret;'
         lines[#lines + 1] = '    }'
         lines[#lines + 1] = '    vm_block_t *block = rblock->block;'
-        lines[#lines + 1] = '    vm_tag_t *types = vm_rblock_regs_dup(rblock->regs);'
+        lines[#lines + 1] = '    vm_tags_t *types = vm_rblock_regs_dup(rblock->regs, VM_NREGS);'
         lines[#lines + 1] = '    vm_rblock_t *rnext = vm_rblock_new(rblock->block, rblock->regs);'
         lines[#lines + 1] = '    rnext->start = rblock->start;'
         lines[#lines + 1] = '    size_t aops = 64;'
@@ -520,9 +520,9 @@ void vm_state_deinit(vm_state_t *state) {
                     if val == 'reg' then
                         lines[#lines + 1] = '                    ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);'
                     else
-                        lines[#lines + 1] = '                    vm_tag_t *args = vm_rblock_regs_empty();'
+                        lines[#lines + 1] = '                    vm_tags_t *args = vm_rblock_regs_empty(VM_NREGS);'
                         for argno = 1, nargs do
-                            lines[#lines + 1] = '                    args[' .. tostring(argno) .. '] = types[vm_instr_get_arg_reg(instr, ' .. tostring(argno) .. ')];'
+                            lines[#lines + 1] = '                    args->tags[' .. tostring(argno) .. '] = types->tags[vm_instr_get_arg_reg(instr, ' .. tostring(argno) .. ')];'
                         end
                         lines[#lines + 1] = '                    vm_rblock_t *rblock = vm_rblock_new(vm_instr_get_arg_func(instr, 0), args);'
                         lines[#lines + 1] = '                    vm_opcode_t *opcodes = vm_run_comp(state, rblock);'
@@ -538,9 +538,9 @@ void vm_state_deinit(vm_state_t *state) {
                     lines[#lines + 1] = '                        ops[nops++].reg = instr.out.reg;'
                     lines[#lines + 1] = '                    }'
                     lines[#lines + 1] = '                    for (vm_tag_t type = 0; type < VM_TAG_MAX; type++) {'
-                    lines[#lines + 1] = '                        vm_tag_t *types_tag = vm_rblock_regs_dup(types);'
+                    lines[#lines + 1] = '                        vm_tags_t *types_tag = vm_rblock_regs_dup(types, VM_NREGS);'
                     lines[#lines + 1] = '                        if (instr.out.type == VM_ARG_REG) {'
-                    lines[#lines + 1] = '                            types_tag[instr.out.reg] = type;'
+                    lines[#lines + 1] = '                            types_tag->tags[instr.out.reg] = type;'
                     lines[#lines + 1] = '                        }'
                     lines[#lines + 1] = '                        vm_rblock_t *rest_block = vm_rblock_new(rnext->block, types_tag);'
                     lines[#lines + 1] = '                        rest_block->start = ninstr+1;'
@@ -578,7 +578,7 @@ void vm_state_deinit(vm_state_t *state) {
         end
         lines[#lines + 1] = '        }'
         lines[#lines + 1] = '        if (instr.out.type == VM_ARG_REG) {'
-        lines[#lines + 1] = '            types[instr.out.reg] = instr.tag;'
+        lines[#lines + 1] = '            types->tags[instr.out.reg] = instr.tag;'
         lines[#lines + 1] = '        }'
         lines[#lines + 1] = '    }'
         lines[#lines + 1] = '    vm_branch_t branch = vm_rblock_type_specialize_branch(types, block->branch);'
@@ -617,7 +617,7 @@ void vm_state_deinit(vm_state_t *state) {
             else
                 lines[#lines + 1] = '            ops[nops++].reg = ' .. name .. ';'
             end
-            lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, types[branch.args[0].reg])) {'
+            lines[#lines + 1] = '            if (vm_tag_eq(branch.tag, types->tags[branch.args[0].reg])) {'
             lines[#lines + 1] = '                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[0], types));'
             lines[#lines + 1] = '            } else {'
             lines[#lines + 1] = '                ops[nops++].ptr = vm_run_comp(state, vm_rblock_new(branch.targets[1], types));'
@@ -741,7 +741,7 @@ void vm_state_deinit(vm_state_t *state) {
 
         lines[#lines + 1] = '    state->ptrs = ptrs;'
     end
-    lines[#lines + 1] = '    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty()));'
+    lines[#lines + 1] = '    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty(VM_NREGS)));'
     lines[#lines + 1] = '    vm_value_t *restrict locals = state->locals;'
     lines[#lines + 1] = '    vm_opcode_t **restrict ips = state->ips;'
     if VM_GOTO then

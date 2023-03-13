@@ -27,6 +27,8 @@ typedef struct {
 typedef struct {
     void *exitptr;
     size_t count;
+    size_t depth;
+    vm_rblock_t **stack;
     vm_jit_func_buf_t funcbuf;
     vm_jit_map_buf_t mapbuf;
     bool opt_defer_call: 1;

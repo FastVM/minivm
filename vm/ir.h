@@ -69,11 +69,10 @@ enum {
 };
 
 struct vm_rblock_t {
-    vm_tag_t *regs;
+    vm_tags_t *regs;
     vm_block_t *block;
-    uint32_t start: 30;
-    bool is_func: 1;
-    bool is_marked: 1;
+    size_t start;
+    vm_rblock_t *targets[2];
 };
 
 struct vm_cache_t {
@@ -127,6 +126,7 @@ struct vm_block_t {
     vm_cache_t cache;
 
     bool isfunc : 1;
+    bool mark: 1;
 };
 
 void vm_instr_free(vm_instr_t *instr);

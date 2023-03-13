@@ -24,6 +24,13 @@ enum {
     VM_TAG_MAX,
 };
 
+struct vm_tags_t {
+    size_t ntags;
+    vm_tag_t tags[0];
+};
+
+typedef struct vm_tags_t vm_tags_t;
+
 static bool vm_tag_eq(vm_tag_t a, vm_tag_t b) {
     return a == b;
 }

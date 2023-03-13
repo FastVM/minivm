@@ -2,20 +2,18 @@
 #include "./ir.h"
 #include "./interp/int3.h"
 
-vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tag_t *regs) {
+vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     rblock->block = block;
     rblock->regs = regs;
     rblock->start = 0;
-    rblock->is_func = false;
-    rblock->is_marked = false;
     return rblock;
 }
 
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (size_t i = 0; i < cache->len; i++) {
         vm_rblock_t *found = cache->keys[i];
-        if (rblock->start == found->start && rblock->is_func == found->is_func && vm_rblock_regs_match(rblock->regs, found->regs)) {
+        if (rblock->start == found->start && rblock->block->isfunc == found->block->isfunc && vm_rblock_regs_match(rblock->regs, found->regs)) {
             return cache->values[i];
         }
     }
@@ -24,7 +22,7 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
     if (cache->len + 1 >= cache->alloc) {
-        cache->alloc = cache->len * 2 + 1;
+        cache->alloc = (cache->len + 1) * 2;
         cache->keys = vm_realloc(cache->keys, sizeof(vm_rblock_t *) * cache->alloc);
         cache->values = vm_realloc(cache->values, sizeof(void *) * cache->alloc);
     }
@@ -33,32 +31,40 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
     cache->len += 1;
 }
 
-vm_tag_t *vm_rblock_regs_empty(void) {
-    vm_tag_t *ret = vm_malloc(sizeof(vm_tag_t) * VM_NREGS);
-    for (size_t i = 0; i < VM_NREGS; i++) {
-        ret[i] = VM_TAG_UNK;
+vm_tags_t *vm_rblock_regs_empty(size_t ntags) {
+    vm_tags_t *ret = vm_malloc(sizeof(vm_tags_t) + sizeof(vm_tag_t) * ntags);
+    ret->ntags = ntags;
+    for (size_t i = 0; i < ntags; i++) {
+        ret->tags[i] = VM_TAG_UNK;
     }
     return ret;
 }
 
-vm_tag_t *vm_rblock_regs_dup(vm_tag_t *regs) {
-    vm_tag_t *ret = vm_malloc(sizeof(vm_tag_t) * VM_NREGS);
-    for (size_t i = 0; i < VM_NREGS; i++) {
-        ret[i] = regs[i];
+vm_tags_t *vm_rblock_regs_dup(vm_tags_t *regs, size_t ntags) {
+    vm_tags_t *ret = vm_malloc(sizeof(vm_tags_t) + sizeof(vm_tag_t) * ntags);
+    ret->ntags = ntags;
+    for (size_t i = 0; i < ret->ntags && i < regs->ntags; i++) {
+        ret->tags[i] = regs->tags[i];
+    }
+    for (size_t i = regs->ntags; i < ret->ntags; i++) {
+        ret->tags[i] = VM_TAG_UNK;
     }
     return ret;
 }
 
-bool vm_rblock_regs_match(vm_tag_t *a, vm_tag_t *b) {
-    for (size_t i = 0; i < VM_NREGS; i++) {
-        if (!vm_tag_eq(a[i], b[i])) {
+bool vm_rblock_regs_match(vm_tags_t *a, vm_tags_t *b) {
+    if (a->ntags != b->ntags) {
+        return false;
+    }
+    for (size_t i = 0; i < a->ntags && i < b->ntags; i++) {
+        if (!vm_tag_eq(a->tags[i], b->tags[i])) {
             return false;
         }
     }
     return true;
 }
 
-vm_instr_t vm_rblock_type_specialize_instr(vm_tag_t *types, vm_instr_t instr) {
+vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
     if (instr.op == VM_IOP_MOVE) {
         if (instr.args[0].type == VM_ARG_STR) {
             instr.tag = VM_TAG_PTR;
@@ -68,7 +74,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tag_t *types, vm_instr_t instr) {
     if (vm_tag_eq(instr.tag, VM_TAG_UNK)) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
-                instr.tag = types[instr.args[i].reg];
+                instr.tag = types->tags[instr.args[i].reg];
                 return instr;
             }
         }
@@ -86,13 +92,13 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tag_t *types, vm_instr_t instr) {
     return instr;
 }
 
-bool vm_rblock_type_check_instr(vm_tag_t *types, vm_instr_t instr) {
+bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
     if (instr.op != VM_IOP_CAST && instr.op != VM_IOP_CALL) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
-                if (!vm_tag_eq(types[instr.args[i].reg], instr.tag)) {
+                if (!vm_tag_eq(types->tags[instr.args[i].reg], instr.tag)) {
                     vm_print_instr(stdout, instr);
-                    printf("\n^ TYPE ERROR (arg r%zu of type #%zu) ^\n", instr.args[i].reg, (size_t)types[instr.args[i].reg]);
+                    printf("\n^ TYPE ERROR (arg r%zu of type #%zu) ^\n", instr.args[i].reg, (size_t)types->tags[instr.args[i].reg]);
                     return false;
                 }
             }
@@ -101,15 +107,15 @@ bool vm_rblock_type_check_instr(vm_tag_t *types, vm_instr_t instr) {
     return true;
 }
 
-bool vm_rblock_type_check_branch(vm_tag_t *types, vm_branch_t branch) {
+bool vm_rblock_type_check_branch(vm_tags_t *types, vm_branch_t branch) {
     return true;
 }
 
-vm_branch_t vm_rblock_type_specialize_branch(vm_tag_t *types, vm_branch_t branch) {
+vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branch) {
     if (vm_tag_eq(branch.tag, VM_TAG_UNK)) {
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_REG) {
-                branch.tag = types[branch.args[i].reg];
+                branch.tag = types->tags[branch.args[i].reg];
                 return branch;
             }
         }

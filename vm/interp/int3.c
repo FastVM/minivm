@@ -771,7 +771,7 @@ void vm_run(vm_state_t *state, vm_block_t *block) {
         [VM_OPCODE_CALL_FUNC_PTR_REG_REG_REG_REG_REG_REG_REG_REG] = &&do_call_func_ptr_reg_reg_reg_reg_reg_reg_reg_reg
     };
     state->ptrs = ptrs;
-    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty()));
+    vm_opcode_t *restrict ip = vm_run_comp(state, vm_rblock_new(block, vm_rblock_regs_empty(VM_NREGS)));
     vm_value_t *restrict locals = state->locals;
     vm_opcode_t **restrict ips = state->ips;
     goto *(ip++)->ptr;

@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #if defined(VM_XGC)
 
@@ -29,9 +28,9 @@ void vm_free(void *ptr);
 
 #else
 
-#define vm_malloc(size) (malloc(size))
-#define vm_realloc(ptr, size) (realloc(ptr, size))
-#define vm_free(ptr) (free((void *)ptr))
+#define vm_malloc(size_) (malloc((size_)))
+#define vm_realloc(ptr_, size_) (realloc((ptr_), (size_)))
+#define vm_free(ptr_) (free((void *)(ptr_)))
 
 #endif
 

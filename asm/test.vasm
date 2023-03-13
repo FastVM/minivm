@@ -1,52 +1,13 @@
-
-@fib:
-    blt %1 2 [fib.then] [fib.else]
-@fib.then:
-    ret %1
-@fib.else:
-    sub %0 %1 2
-    call %0 [fib] %0
-    sub %1 %1 1
-    call %1 [fib] %1
-    add %0 %0 %1
-    ret %0
-
-@putnz:
-    blt %1 1 [putnz.ret] [putnz.digit]
-@putnz.digit:
-    div %0 %1 10
-    call %0 [putnz] %0
-    mod %1 %1 10
-    add %1 %1 48
+@zero:
     out %1
-    ret 0
-@putnz.ret: 
-    ret 0
-
-@putn:
-    bb %1 [putn.zero] [putn.nonzero]
-@putn.zero:
-    out 48
-    ret 0
-@putn.nonzero:
-    blt %1 0 [putn.neg] [putn.pos]
-@putn.neg:
-    sub %0 %1 %1
-    sub %1 %0 %1
-    out 45
-    call %0 [putnz] %1
-    ret 0
-@putn.pos:
-    call %0 [putnz] %1
-    ret 0
-
-@pfib:
-    call %0 [fib] %1
-    call %0 [putn] %0
-    out 10
+    out %2
+    out %3
     ret 0
 
 @:
-    move.i32 %0 30
-    call %0 [pfib] %0
+    move.i32 %1 49
+    move.i32 %2 50
+    move.i32 %3 51
+    call %0 [zero] %1 %2 %3
+    out.i32 10
     exit

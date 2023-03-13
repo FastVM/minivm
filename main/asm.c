@@ -1,6 +1,7 @@
 #include "../vm/asm.h"
 
 #include "../vm/interp/int3.h"
+#include "../vm/jit/jit.h"
 
 static char *vm_asm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
@@ -13,7 +14,7 @@ static char *vm_asm_io_read(const char *filename) {
     size_t size;
     for (;;) {
         if (nops + 256 >= nalloc) {
-            nalloc *= 2;
+            nalloc = (nops + 256) * 2;
             ops = vm_realloc(ops, sizeof(char) * nalloc);
         }
         size = fread(&ops[nops], 1, 256, file);
@@ -27,12 +28,11 @@ static char *vm_asm_io_read(const char *filename) {
     return ops;
 }
 
-void vm_jit_run(vm_block_t *block);
-
 int main(int argc, char **argv) {
     const char *filename = NULL;
     size_t runs = 1;
     bool jon = false;
+    bool opt_defer_call = false;
     while (true) {
         if (argc < 2) {
             if (filename == NULL) {
@@ -61,6 +61,21 @@ int main(int argc, char **argv) {
             argv += 1;
             argc -= 1;
             continue;
+        } else if (!strcmp(argv[1], "--defer-calls=true")) {
+            opt_defer_call = true;
+            argv += 1;
+            argc -= 1;
+            continue;
+        } else if (!strcmp(argv[1], "--defer-calls=false")) {
+            opt_defer_call = false;
+            argv += 1;
+            argc -= 1;
+        } else if (!strcmp(argv[1], "--defer-calls")) {
+            continue;
+            opt_defer_call = !opt_defer_call;
+            argv += 1;
+            argc -= 1;
+            continue;
         } else if (!strcmp(argv[1], "-jon")) {
             jon = true;
             argv += 1;
@@ -80,19 +95,27 @@ int main(int argc, char **argv) {
         fprintf(stderr, "could not read file\n");
         return 1;
     }
+    vm_jit_state_t *jstate = NULL;
+    if (jon) {
+        jstate = vm_jit_state_new();
+        jstate->opt_defer_call = opt_defer_call;
+    }
+    vm_block_t *block = vm_parse_asm(src);
+    vm_free((void *)src);
     for (size_t i = 0; i < runs; i++) {
-        vm_block_t *block = vm_parse_asm(src);
         if (block == NULL) {
             fprintf(stderr, "could not parse file\n");
             return 1;
         } else if (jon) {
-            vm_jit_run(block);
+            vm_jit_run(jstate, block);
         } else {
-            vm_state_t *state = vm_state_init(1 << 16);
+            vm_state_t *state = (void*) vm_state_init(1 << 16);
             vm_run(state, block);
-            vm_state_deinit(state);
+            vm_state_deinit( state);
         }
     }
-    vm_free((void *)src);
+    if (jon) {
+        vm_jit_state_free(jstate);
+    }
     return 0;
 }
