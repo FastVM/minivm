@@ -78,37 +78,43 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock);
 || }
 |.endmacro
 
+|.if 0
 |.macro vmjump, arg1
 | vmjump_defer arg1
 || {
     ||vm_rblock_t *rblock = arg1;
     ||bool todo = true;
-    // ||for (size_t i = 0; i < state->depth; i++) {
-    //     ||vm_rblock_t *found = state->stack[i];
-    //     ||if (rblock->block == found->block && rblock->start == found->start) {
-    //         || todo = false;
-    //         || for (size_t j = 0; j < rblock->block->nargs; j++) {
-    //             ||size_t regno = rblock->block->args[j];
-    //             ||if (rblock->regs->tags[regno] != found->regs->tags[regno]) {
-    //                 ||todo = true;
-    //                 ||break;
-    //             ||}
-    //         || }   
-    //         || if (!todo) {
-    //             |jmp =>i
-    //             ||break;
-    //         ||}
-    //     ||}
-    // ||}
-    // ||if (todo) {
-    //     ||if (state->depth < 16) {
-    //         || vm_jit_rblock_single(state, Dst, rblock);
-    //     ||} else {
-            |vmjump_defer rblock
-    //     ||}
-    // ||}
+    ||for (size_t i = 0; i < state->depth; i++) {
+        ||vm_rblock_t *found = state->stack[i];
+        ||if (rblock->block == found->block && rblock->start == found->start) {
+            || todo = false;
+            || for (size_t j = 0; j < rblock->block->nargs; j++) {
+                ||size_t regno = rblock->block->args[j];
+                ||if (rblock->regs->tags[regno] != found->regs->tags[regno]) {
+                    ||todo = true;
+                    ||break;
+                ||}
+            || }   
+            || if (!todo) {
+                |jmp =>i
+                ||break;
+            ||}
+        ||}
+    ||}
+    ||if (todo) {
+        ||if (state->depth < 16) {
+            || vm_jit_rblock_single(state, Dst, rblock);
+        ||} else {
+            | vmjump_defer rblock
+        ||}
+    ||}
 || }
 |.endmacro
+|.else
+|.macro vmjump, arg1
+| vmjump_defer arg1
+|.endmacro
+|.endif
 
 |.macro invoke_code, func
     || {
@@ -485,14 +491,8 @@ static void* vm_jit_encode(vm_jit_state_t *state, dasm_State** d)
 #define VM_PUSH(n) (8 * (n | 1))
 
 static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rblock_t *rnext) {
-    // if (state->depth < 4) {
-    //     size_t label = state->depth++;
-    //     |=>label:
-    //     state->stack[label] = rnext;
-    // } else {
-    //     | vmjump_defer rnext
-    //     return;
-    // }
+    |=>state->depth:
+    state->stack[state->depth++] = rnext;
     for (size_t ninstr = rnext->start; ninstr < rnext->block->len; ninstr++) {
         vm_instr_t instr = vm_rblock_type_specialize_instr(rnext->regs, rnext->block->instrs[ninstr]);
         if (!vm_rblock_type_check_instr(rnext->regs, instr)) __builtin_trap();
@@ -816,6 +816,7 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
                     argtypes->tags[i] = rnext->regs->tags[instr.args[i].reg];
                 }
                 vm_rblock_t *func = vm_rblock_new(instr.args[0].func, argtypes);
+                func->isfunc = true;
                 for (int32_t i = 1; instr.args[i].type != VM_ARG_NONE; i++) {
                     int32_t offset = VM_PUSH(VM_NREGS) + 8 - (8 * i + 8);
                     switch (rnext->regs->tags[instr.args[i].reg]) {
@@ -929,7 +930,7 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
         }
         if (rnext->targets[1] == NULL) {
-            rnext->targets[1] = vm_rblock_new(branch.targets[0], rnext->regs);
+            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
         }
         break;
     }
@@ -938,7 +939,7 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
         }
         if (rnext->targets[1] == NULL) {
-            rnext->targets[1] = vm_rblock_new(branch.targets[0], rnext->regs);
+            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
         }
         break;
     }
@@ -947,7 +948,7 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
         }
         if (rnext->targets[1] == NULL) {
-            rnext->targets[1] = vm_rblock_new(branch.targets[0], rnext->regs);
+            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
         }
         break;
     }
@@ -1099,7 +1100,7 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
         break;
     }
     }
-    state->depth -= 1;
+    // state->depth -= 1;
 }
 
 #define Dst (&d)
@@ -1127,10 +1128,14 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock) {
     |.code
     |->main:
     if (count == 0) {
+        | push r12
+        | push r13
+        | push r14
+        | push r15
         | mov64 rax, ((uint64_t) &state->exitptr)
         | mov [rax], rsp
     }
-    if (rblock->block->isfunc) {
+    if (rblock->isfunc) {
         | sub rsp, VM_PUSH(VM_NREGS)
     }
     size_t nfuncs = 0;
@@ -1165,7 +1170,7 @@ void vm_jit_state_free(vm_jit_state_t *state) {
 void vm_jit_run(void *state_ptr, vm_block_t *block) {
     vm_jit_state_t *state = state_ptr;
     vm_rblock_t *rblock = vm_rblock_new(block, vm_rblock_regs_empty(block->nregs));
-    rblock->block->isfunc = true;
+    rblock->isfunc = true;
     size_t(*fn)(void) = vm_jit_rblock(state, rblock);
     fn();
     state->count = 0;

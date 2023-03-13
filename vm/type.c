@@ -7,6 +7,9 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     rblock->block = block;
     rblock->regs = regs;
     rblock->start = 0;
+    rblock->targets[0] = NULL;
+    rblock->targets[1] = NULL;
+    rblock->isfunc = rblock->block->isfunc;
     return rblock;
 }
 

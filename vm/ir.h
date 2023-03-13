@@ -69,10 +69,11 @@ enum {
 };
 
 struct vm_rblock_t {
+    vm_rblock_t *targets[2];
     vm_tags_t *regs;
     vm_block_t *block;
-    size_t start;
-    vm_rblock_t *targets[2];
+    uint32_t start: 31;
+    bool isfunc: 1;
 };
 
 struct vm_cache_t {
