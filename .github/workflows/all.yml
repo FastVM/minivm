@@ -4,11 +4,11 @@ jobs:
   linux-minivm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
       - run: make CC=cc OPT='-O3 -fomit-frame-pointer' 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: minivm-linux
           path:  | 
@@ -20,11 +20,11 @@ jobs:
   linux-minivm-warnings:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
       - run: make CC=cc OPT='-g3' CFLAGS='-Wall -Wextra -Werror'
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: minivm-linux-debug
           path:  | 
@@ -36,11 +36,11 @@ jobs:
   macos-minivm:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
       - run: make CC=cc OPT='-O3 -fomit-frame-pointer' bin/minivm-asm
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: minivm-mac
           path: | 
@@ -52,14 +52,14 @@ jobs:
   windows-minivm-gcc:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
-      - uses: egor-tensin/setup-mingw@v2
+      - uses: egor-tensin/setup-mingw@v3
         with:
           platform: x64
       - run: make CC=cc OPT='-O3 -fomit-frame-pointer' bin/minivm-asm
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: minivm-windows
           path:  | 
