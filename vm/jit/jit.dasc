@@ -1128,10 +1128,6 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock) {
     |.code
     |->main:
     if (count == 0) {
-        | push r12
-        | push r13
-        | push r14
-        | push r15
         | mov64 rax, ((uint64_t) &state->exitptr)
         | mov [rax], rsp
     }
