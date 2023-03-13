@@ -71,6 +71,7 @@ bins: bin/minivm-asm
 lua luajit lua5.4 lua5.3 lua5.2 lua5.1: .dummy
 
 bin/minilua: dynasm/onelua.c
+	@mkdir -p bin
 	$(CC) -o bin/minilua dynasm/onelua.c -lm 
 
 bin/libminivm.lib: $(OBJS)
