@@ -538,6 +538,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                 ops[nops++].reg = vm_instr_get_arg_reg(instr, 0);
                 ops[nops++].reg = instr.out.reg;
             }
+        break;
         }
         case VM_IOP_MOVE: {
             if (instr.out.type == VM_ARG_NONE) {
@@ -4324,6 +4325,7 @@ void *vm_run_comp(vm_state_t *state, vm_rblock_t *rblock) {
                     break;
                 }
             }
+             break;
         }
         default: __builtin_trap();
         }

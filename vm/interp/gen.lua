@@ -380,6 +380,7 @@ void vm_state_deinit(vm_state_t *state) {
                     lines[#lines + 1] = '            }'
                 end
             end
+            lines[#lines + 1] = '        break;'
             lines[#lines + 1] = '        }'
         end
         do
@@ -573,6 +574,7 @@ void vm_state_deinit(vm_state_t *state) {
                 end
                 lines[#lines + 1] = '            }'
             end
+            lines[#lines + 1] = '             break;'
             lines[#lines + 1] = '        }'
             lines[#lines + 1] = '        default: __builtin_trap();'
         end
