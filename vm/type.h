@@ -1,8 +1,8 @@
 #if !defined(VM_HEADER_BE_TYPE)
 #define VM_HEADER_BE_TYPE
 
-#include "./ir.h"
-#include "./tag.h"
+#include "ir.h"
+#include "tag.h"
 
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs);
 void vm_cache_new(vm_cache_t *cache);

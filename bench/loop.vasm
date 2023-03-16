@@ -1,0 +1,19 @@
+@:
+    move %1 0
+    move %2 1000
+    move %3 10
+    mul %3 %3 %2
+    mul %3 %3 %2
+    mul %3 %3 %2
+    call %0 [main] %1 %3
+    exit
+
+@main:
+    jump [redo]
+@redo:
+    blt %1 %2 [lt] [ge]
+@lt:
+    add %1 %1 1
+    blt %1 %2 [lt] [ge]
+@ge:
+    ret %1

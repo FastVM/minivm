@@ -2,8 +2,8 @@
 #if !defined(VM_HEADER_IR)
 #define VM_HEADER_IR
 
-#include "./lib.h"
-#include "./tag.h"
+#include "lib.h"
+#include "tag.h"
 
 struct vm_arg_t;
 struct vm_branch_t;
@@ -20,12 +20,11 @@ typedef struct vm_instr_t vm_instr_t;
 typedef struct vm_block_t vm_block_t;
 
 enum {
-    // internal error if found
-    VM_ARG_INIT,
-    // we dont know
-    VM_ARG_UNK,
     // there are no more args
     VM_ARG_NONE,
+    // we dont know
+    VM_ARG_UNK,
+    // normal args
     VM_ARG_NIL,
     VM_ARG_BOOL,
     VM_ARG_REG,
@@ -69,11 +68,11 @@ enum {
 };
 
 struct vm_rblock_t {
-    vm_rblock_t *targets[2];
     vm_tags_t *regs;
     vm_block_t *block;
-    uint32_t start: 31;
+    uint32_t start: 30;
     bool isfunc: 1;
+    bool mark: 1;
 };
 
 struct vm_cache_t {

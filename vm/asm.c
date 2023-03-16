@@ -1,7 +1,7 @@
 
-#include "./asm.h"
+#include "asm.h"
 
-#include "./tag.h"
+#include "tag.h"
 
 static char *vm_strdup(const char *str) {
     size_t len = strlen(str);
@@ -579,7 +579,7 @@ bool vm_parse_state(vm_parser_t *state, vm_block_t *block) {
                     }
                 }
                 size_t n = 0;
-                while (instr.args[n].type != VM_ARG_INIT) {
+                while (instr.args[n].type != VM_ARG_NONE) {
                     if (instr.args[n].type == VM_ARG_UNK) {
                         goto fail;
                     }

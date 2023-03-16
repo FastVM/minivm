@@ -6,7 +6,6 @@
 typedef uint8_t vm_tag_t;
 
 enum {
-    VM_TAG_INIT,
     VM_TAG_UNK,
     VM_TAG_NIL,
     VM_TAG_BOOL,

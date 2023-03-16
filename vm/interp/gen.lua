@@ -287,8 +287,8 @@ end
 do
     local lines = {}
 
-    lines[#lines + 1] = '#include "./int3.h"'
-    lines[#lines + 1] = '#include "./value.h"'
+    lines[#lines + 1] = '#include "int3.h"'
+    lines[#lines + 1] = '#include "value.h"'
     lines[#lines + 1] = '#include "../tag.h"'
     lines[#lines + 1] = [[
         
@@ -724,8 +724,8 @@ void vm_state_deinit(vm_state_t *state) {
 
     local lines = {}
 
-    lines[#lines + 1] = '#include "./int3.h"'
-    lines[#lines + 1] = '#include "./value.h"'
+    lines[#lines + 1] = '#include "int3.h"'
+    lines[#lines + 1] = '#include "value.h"'
     lines[#lines + 1] = '#include "../tag.h"'
 
     lines[#lines + 1] = 'void vm_run(vm_state_t *state, vm_block_t *block) {'

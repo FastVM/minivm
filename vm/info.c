@@ -1,5 +1,5 @@
 
-#include "./ir.h"
+#include "ir.h"
 
 enum {
     VM_INFO_REG_DEF,

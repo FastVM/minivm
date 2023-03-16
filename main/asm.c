@@ -3,6 +3,8 @@
 #include "../vm/interp/int3.h"
 #include "../vm/jit/jit.h"
 
+vm_block_t *vm_paka_parse(const char *src);
+
 static char *vm_asm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
     if (file == NULL) {
@@ -32,7 +34,7 @@ int main(int argc, char **argv) {
     const char *filename = NULL;
     size_t runs = 1;
     bool jon = false;
-    bool opt_defer_call = false;
+    const char *lang = "paka";
     while (true) {
         if (argc < 2) {
             if (filename == NULL) {
@@ -61,23 +63,18 @@ int main(int argc, char **argv) {
             argv += 1;
             argc -= 1;
             continue;
-        } else if (!strcmp(argv[1], "--defer-calls=true")) {
-            opt_defer_call = true;
-            argv += 1;
-            argc -= 1;
-            continue;
-        } else if (!strcmp(argv[1], "--defer-calls=false")) {
-            opt_defer_call = false;
-            argv += 1;
-            argc -= 1;
-        } else if (!strcmp(argv[1], "--defer-calls")) {
-            continue;
-            opt_defer_call = !opt_defer_call;
-            argv += 1;
-            argc -= 1;
-            continue;
         } else if (!strcmp(argv[1], "-jon")) {
             jon = true;
+            argv += 1;
+            argc -= 1;
+            continue;
+        } else if (!strcmp(argv[1], "-tasm")) {
+            lang = "asm";
+            argv += 1;
+            argc -= 1;
+            continue;
+        } else if (!strcmp(argv[1], "-tpaka")) {
+            lang = "paka";
             argv += 1;
             argc -= 1;
             continue;
@@ -95,13 +92,20 @@ int main(int argc, char **argv) {
         fprintf(stderr, "could not read file\n");
         return 1;
     }
+    vm_block_t *block = NULL;
+    if (!strcmp(lang, "paka")) {
+        block = vm_paka_parse(src);
+    } else {
+        block = vm_parse_asm(src);
+    }
+    vm_free((void *)src);
+    if (block == NULL) {
+        return 1;
+    }
     vm_jit_state_t *jstate = NULL;
     if (jon) {
         jstate = vm_jit_state_new();
-        jstate->opt_defer_call = opt_defer_call;
     }
-    vm_block_t *block = vm_parse_asm(src);
-    vm_free((void *)src);
     for (size_t i = 0; i < runs; i++) {
         if (block == NULL) {
             fprintf(stderr, "could not parse file\n");

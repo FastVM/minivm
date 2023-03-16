@@ -2,7 +2,7 @@
 #if !defined(VM_HEADER_ASM)
 #define VM_HEADER_ASM
 
-#include "./ir.h"
+#include "ir.h"
 
 struct vm_parser_t;
 typedef struct vm_parser_t vm_parser_t;

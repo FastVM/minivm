@@ -1,5 +1,5 @@
-#include "./int3.h"
-#include "./value.h"
+#include "int3.h"
+#include "value.h"
 #include "../tag.h"
 void vm_run(vm_state_t *state, vm_block_t *block) {
     void *ptrs[] = {

@@ -13,7 +13,7 @@ PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 JITC_SRCS := vm/jit/jit.dasc
 JITC_OBJS :=  $(JITC_SRCS:%.dasc=%.o)
 
-VM_SRCS := vm/asm.c vm/ir.c vm/info.c vm/interp/int3.c vm/interp/comp.c vm/type.c
+VM_SRCS := vm/asm.c vm/ir.c vm/info.c vm/interp/int3.c vm/interp/comp.c vm/type.c vm/asm/x64.c vm/lang/paka.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS) $(JITC_OBJS)
@@ -106,7 +106,7 @@ objs-clean: .dummy
 # intermediate files
 
 $(JITC_OBJS): $(@:%.o=%.tmp.c) $(LUA)
-	$(LUA) dynasm/dynasm.lua -o $(@:%.o=%.tmp.c) -D X64 -L $(@:%.o=%.dasc)
+	$(LUA) dynasm/dynasm.lua -o $(@:%.o=%.tmp.c) -D X64 -M -L $(@:%.o=%.dasc)
 	$(CC) -mabi=sysv -c $(OPT) $(@:%.o=%.tmp.c) -o $(@) $(CFLAGS)
 
 $(PROG_OBJS) $(VM_OBJS): $(@:%.o=%.c)

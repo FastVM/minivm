@@ -1,5 +1,5 @@
 
-#include "./ir.h"
+#include "ir.h"
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
@@ -124,7 +124,7 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             break;
         }
     }
-    if (val.tag != VM_TAG_INIT && val.tag != VM_TAG_UNK) {
+    if (val.tag != VM_TAG_UNK) {
         fprintf(out, ".");
         vm_print_tag(out, val.tag);
     }
@@ -206,7 +206,7 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             break;
         }
     }
-    if (val.tag != VM_TAG_INIT && val.tag != VM_TAG_UNK) {
+    if (val.tag != VM_TAG_UNK) {
         fprintf(out, ".");
         vm_print_tag(out, val.tag);
     }

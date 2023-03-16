@@ -1,5 +1,5 @@
-#include "./int3.h"
-#include "./value.h"
+#include "int3.h"
+#include "value.h"
 #include "../tag.h"
         
 vm_state_t *vm_state_init(size_t nregs) {

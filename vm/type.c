@@ -1,24 +1,29 @@
 
-#include "./ir.h"
-#include "./interp/int3.h"
+#include "ir.h"
+#include "interp/int3.h"
 
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     rblock->block = block;
     rblock->regs = regs;
     rblock->start = 0;
-    rblock->targets[0] = NULL;
-    rblock->targets[1] = NULL;
     rblock->isfunc = rblock->block->isfunc;
     return rblock;
 }
 
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
-    for (size_t i = 0; i < cache->len; i++) {
+    for (ptrdiff_t i = cache->len-1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
-        if (rblock->start == found->start && rblock->block->isfunc == found->block->isfunc && vm_rblock_regs_match(rblock->regs, found->regs)) {
+        if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
+            for (size_t j = 0; j < found->block->nargs; j++) {
+                size_t argno = found->block->args[j];
+                if (rblock->regs->tags[argno] != found->regs->tags[argno]) {
+                    goto next;
+                }
+            }
             return cache->values[i];
         }
+    next:;
     }
     return NULL;
 }
@@ -74,7 +79,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             return instr;
         }
     }
-    if (instr.tag != VM_TAG_UNK) {
+    if (instr.tag == VM_TAG_UNK) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 instr.tag = types->tags[instr.args[i].reg];
@@ -117,7 +122,7 @@ bool vm_rblock_type_check_branch(vm_tags_t *types, vm_branch_t branch) {
 }
 
 vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branch) {
-    if (branch.tag != VM_TAG_UNK) {
+    if (branch.tag == VM_TAG_UNK) {
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_REG) {
                 branch.tag = types->tags[branch.args[i].reg];
