@@ -8,9 +8,11 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     rblock->regs = regs;
     rblock->start = 0;
     rblock->isfunc = rblock->block->isfunc;
+    rblock->comps = 0;
+    rblock->targets[0] = NULL;
+    rblock->targets[1] = NULL;
     return rblock;
 }
-
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (ptrdiff_t i = cache->len-1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
@@ -29,6 +31,27 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 }
 
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
+    for (ptrdiff_t i = cache->len-1; i >= 0; i--) {
+        vm_rblock_t *found = cache->keys[i];
+        if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
+            for (size_t j = 0; j < found->block->nargs; j++) {
+                size_t argno = found->block->args[j];
+                if (rblock->regs->tags[argno] != found->regs->tags[argno]) {
+                    goto next;
+                }
+            }
+            cache->values[i] = value;
+            return;
+        }
+    next:;
+    }
+    // vm_rblock_t **ret = vm_cache_get_ref(cache, rblock);
+    // if (ret != NULL) {
+    //     if ((*ret)->comps > rblock->comps) {
+    //         *ret = value; 
+    //     }
+    //     return;
+    // }
     if (cache->len + 1 >= cache->alloc) {
         cache->alloc = (cache->len + 1) * 2;
         cache->keys = vm_realloc(cache->keys, sizeof(vm_rblock_t *) * cache->alloc);

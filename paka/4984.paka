@@ -1,5 +1,5 @@
-out 52
-out 57
-out 56
-out 52
-out 10
+(asm out #\4)
+(asm out #\9)
+(asm out #\8)
+(asm lt 1 2 (asm out #\4) (asm out #\5))
+(asm out #\newline)

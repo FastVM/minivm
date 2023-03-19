@@ -70,6 +70,8 @@ enum {
 struct vm_rblock_t {
     vm_tags_t *regs;
     vm_block_t *block;
+    vm_rblock_t *targets[2];
+    uint32_t comps: 32;
     uint32_t start: 30;
     bool isfunc: 1;
     bool mark: 1;

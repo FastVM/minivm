@@ -10,6 +10,18 @@ typedef struct vm_paka_parser_t vm_paka_parser_t;
 struct vm_paka_comp_t;
 typedef struct vm_paka_comp_t vm_paka_comp_t;
 
+struct vm_paka_name_map_t;
+typedef struct vm_paka_name_map_t vm_paka_name_map_t;
+
+struct vm_paka_name_t;
+typedef struct vm_paka_name_t vm_paka_name_t;
+
+typedef uint8_t vm_paka_name_type_t;
+enum vm_paka_name_type_enum_t {
+    VM_PAKA_NAME_REG,
+    VM_PAKA_NAME_CAPTURE,
+};
+
 struct vm_paka_parser_t {
     const char *src;
     size_t index;
@@ -18,9 +30,23 @@ struct vm_paka_parser_t {
 };
 
 struct vm_paka_comp_t {
-    size_t nregs;
     vm_block_t *write;
     vm_block_t *jump;
+    uint8_t *regs;
+    vm_paka_name_map_t *names;
+};
+
+struct vm_paka_name_map_t {
+    const char **keys;
+    vm_paka_name_t *values;
+    size_t len;
+    size_t alloc;
+    vm_paka_name_map_t *next;
+};
+
+struct vm_paka_name_t {
+    size_t data;
+    vm_paka_name_type_t type;
 };
 
 // char test funcs
@@ -40,7 +66,7 @@ void vm_paka_parser_strip_spaces(vm_paka_parser_t *parser);
 size_t vm_paka_parser_ident_len(vm_paka_parser_t *parser);
 bool vm_paka_parser_match_keyword(vm_paka_parser_t *parser, const char *keyword);
 // grammar parts
-size_t vm_paka_parser_expr_base(vm_paka_parser_t *src, vm_paka_comp_t *comp);
+vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *src, vm_paka_comp_t *comp);
 void vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
 // string parsers
 vm_block_t *vm_paka_parse(const char *src);

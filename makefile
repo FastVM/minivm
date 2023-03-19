@@ -13,7 +13,7 @@ PROG_OBJS := $(PROG_SRCS:%.c=%.o)
 JITC_SRCS := vm/jit/jit.dasc
 JITC_OBJS :=  $(JITC_SRCS:%.dasc=%.o)
 
-VM_SRCS := vm/asm.c vm/ir.c vm/info.c vm/interp/int3.c vm/interp/comp.c vm/type.c vm/asm/x64.c vm/lang/paka.c
+VM_SRCS := vm/asm.c vm/ir.c vm/info.c vm/interp/int3.c vm/interp/comp.c vm/type.c vm/jit/x64.c vm/lang/paka.c
 VM_OBJS := $(VM_SRCS:%.c=%.o)
 
 OBJS := $(VM_OBJS) $(JITC_OBJS)

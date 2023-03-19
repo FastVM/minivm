@@ -68,19 +68,30 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock, bool isfu
 || }
 |.endmacro
 
+|.macro invoke_code, func
+    || {
+    || void *ptr = (void*) (func);
+    | mov32q64 RAX, ((uint64_t) (ptr))
+    | call rax
+    || }
+|.endmacro
+
 |.macro vmjump, arg1
 || {
     ||vm_rblock_t *block = arg1;
     ||block->isfunc = false;
     ||void *got = vm_cache_get(&block->block->cache, block);
     ||if (got != NULL) {
+        ||rnext->comps += block->comps;
         | mov32q64 RAX, ((uint64_t) (got))
         | jmp rax
     ||} else if (!block->block->mark) {
         ||got = vm_jit_rblock(state, block, false);
+        ||rnext->comps += block->comps;
         | mov32q64 RAX, ((uint64_t) (got))
         | jmp rax
     ||} else {
+        ||rnext->comps += 1;
         ||void **bit = vm_malloc(sizeof(void *));
         ||*bit = NULL;
         | mov32q64 RCX, ((uint64_t) (bit))
@@ -99,25 +110,20 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock, bool isfu
 || }
 |.endmacro
 
-|.macro invoke_code, func
-    || {
-    || void *ptr = (void*) (func);
-    | mov32q64 RAX, ((uint64_t) (ptr))
-    | call rax
-    || }
-|.endmacro
-
 |.macro vmfrax, arg1
 || {
     ||vm_rblock_t *block = arg1;
     ||block->isfunc = true;
     ||void *got = vm_cache_get(&block->block->cache, block);
     ||if (got != NULL) {
+        ||rnext->comps += block->comps;
         | mov32q64 RAX, ((uint64_t) (got))
     ||} else if (!block->block->mark) {
         ||got = vm_jit_rblock(state, block, true);
+        ||rnext->comps += block->comps;
         | mov32q64 RAX, ((uint64_t) (got))
     ||} else {
+        ||rnext->comps += 1;
         ||void **bit = vm_malloc(sizeof(void *));
         ||*bit = NULL;
         | mov32q64 RCX, ((uint64_t) (bit))
@@ -287,7 +293,6 @@ static void* vm_jit_encode(vm_jit_state_t *state, dasm_State** d)
             break;
         }
     }
-    // printf("%p / %zu", map, state->mapbuf.len);
     void *buf = NULL;
     if (map == NULL) {
         size_t blocks = 1;
@@ -323,15 +328,6 @@ static void* vm_jit_encode(vm_jit_state_t *state, dasm_State** d)
     DWORD dwOld;
     VirtualProtect(buf, size, PAGE_EXECUTE_READ, &dwOld);
 #endif
-    // char chrs[256];
-    // sprintf(chrs, "%p.bin", buf);
-    // // static FILE *f = NULL;
-    // FILE *f = NULL;
-    // if (f == NULL) {
-    //     f = fopen(chrs, "wb");
-    // }
-    // fwrite(buf, size, 1, f);
-    // fclose(f);
     return buf;
 }
 
@@ -765,12 +761,15 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             switch (instr.tag) {
             case VM_TAG_I8:
             case VM_TAG_U8: {
-                | xor ax, ax
-                | vmload8 RAX, instr.args[0]
-                | vmload8 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I8) {
+                    | vmload8 RAX, instr.args[0]
+                    | vmload8 RCX, instr.args[1]
+                    | cbw
                     | idiv cl
                 } else {
+                    | xor ax, ax
+                    | vmload8 RAX, instr.args[0]
+                    | vmload8 RCX, instr.args[1]
                     | div cl
                 }
                 | vmstore8 instr.out, RAX
@@ -778,12 +777,15 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             }
             case VM_TAG_I16:
             case VM_TAG_U16: {
-                | xor dx, dx
-                | vmload16 RAX, instr.args[0]
-                | vmload16 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I16) {
+                    | vmload16 RAX, instr.args[0]
+                    | vmload16 RCX, instr.args[1]
+                    | cwd
                     | idiv cx
                 } else {
+                    | xor dx, dx
+                    | vmload16 RAX, instr.args[0]
+                    | vmload16 RCX, instr.args[1]
                     | div cx
                 }
                 | vmstore16 instr.out, RAX
@@ -791,12 +793,15 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             }
             case VM_TAG_I32:
             case VM_TAG_U32: {
-                | xor edx, edx
-                | vmload32 RAX, instr.args[0]
-                | vmload32 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I32) {
+                    | vmload32 RAX, instr.args[0]
+                    | vmload32 RCX, instr.args[1]
+                    | cdq
                     | idiv ecx
                 } else {
+                    | xor edx, edx
+                    | vmload32 RAX, instr.args[0]
+                    | vmload32 RCX, instr.args[1]
                     | div ecx
                 }
                 | vmstore32 instr.out, RAX
@@ -804,12 +809,15 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             }
             case VM_TAG_I64:
             case VM_TAG_U64: {
-                | xor edx, edx
-                | vmload64 RAX, instr.args[0]
-                | vmload64 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I64) {
+                    | vmload64 RAX, instr.args[0]
+                    | vmload64 RCX, instr.args[1]
+                    | cqo
                     | idiv rcx
                 } else {
+                    | xor edx, edx
+                    | vmload64 RAX, instr.args[0]
+                    | vmload64 RCX, instr.args[1]
                     | div rcx
                 }
                 | vmstore64 instr.out, RAX
@@ -825,26 +833,32 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             switch (instr.tag) {
             case VM_TAG_I8:
             case VM_TAG_U8: {
-                | xor ax, ax
-                | vmload8 RAX, instr.args[0]
-                | vmload8 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I8) {
+                    | vmload8 RAX, instr.args[0]
+                    | vmload8 RCX, instr.args[1]
+                    | cbw
                     | idiv cl
                 } else {
+                    | xor ax, ax
+                    | vmload8 RAX, instr.args[0]
+                    | vmload8 RCX, instr.args[1]
                     | div cl
                 }
-                | mov dl, ah
-                | vmstore8 instr.out, RDX
+                | shr ax, 8
+                | vmstore8 instr.out, RAX
                 break;
             }
             case VM_TAG_I16:
             case VM_TAG_U16: {
-                | xor dx, dx
-                | vmload16 RAX, instr.args[0]
-                | vmload16 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I16) {
+                    | vmload16 RAX, instr.args[0]
+                    | vmload16 RCX, instr.args[1]
+                    | cwd
                     | idiv cx
                 } else {
+                    | xor dx, dx
+                    | vmload16 RAX, instr.args[0]
+                    | vmload16 RCX, instr.args[1]
                     | div cx
                 }
                 | vmstore16 instr.out, RDX
@@ -852,12 +866,15 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             }
             case VM_TAG_I32:
             case VM_TAG_U32: {
-                | xor edx, edx
-                | vmload32 RAX, instr.args[0]
-                | vmload32 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I32) {
+                    | vmload32 RAX, instr.args[0]
+                    | vmload32 RCX, instr.args[1]
+                    | cdq
                     | idiv ecx
                 } else {
+                    | xor edx, edx
+                    | vmload32 RAX, instr.args[0]
+                    | vmload32 RCX, instr.args[1]
                     | div ecx
                 }
                 | vmstore32 instr.out, RDX
@@ -865,12 +882,15 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             }
             case VM_TAG_I64:
             case VM_TAG_U64: {
-                | xor edx, edx
-                | vmload64 RAX, instr.args[0]
-                | vmload64 RCX, instr.args[1]
                 if (instr.tag == VM_TAG_I64) {
+                    | vmload64 RAX, instr.args[0]
+                    | vmload64 RCX, instr.args[1]
+                    | cqo
                     | idiv rcx
                 } else {
+                    | xor edx, edx
+                    | vmload64 RAX, instr.args[0]
+                    | vmload64 RCX, instr.args[1]
                     | div rcx
                 }
                 | vmstore64 instr.out, RDX
@@ -981,47 +1001,47 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
     }
     vm_branch_t branch = vm_rblock_type_specialize_branch(rnext->regs, rnext->block->branch);
     if (!vm_rblock_type_check_branch(rnext->regs, branch)) __builtin_trap();
-    // switch (branch.op) {
-    // case VM_BOP_EXIT: {
-    //     break;
-    // }
-    // case VM_BOP_RET: {
-    //     break;
-    // }
-    // case VM_BOP_JUMP: {
-    //     if (rnext->targets[0] == NULL) {
-    //         rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-    //     }
-    //     break;
-    // }
-    // case VM_BOP_BB: {
-    //     if (rnext->targets[0] == NULL) {
-    //         rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-    //     }
-    //     if (rnext->targets[1] == NULL) {
-    //         rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
-    //     }
-    //     break;
-    // }
-    // case VM_BOP_BEQ: {
-    //     if (rnext->targets[0] == NULL) {
-    //         rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-    //     }
-    //     if (rnext->targets[1] == NULL) {
-    //         rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
-    //     }
-    //     break;
-    // }
-    // case VM_BOP_BLT: {
-    //     if (rnext->targets[0] == NULL) {
-    //         rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-    //     }
-    //     if (rnext->targets[1] == NULL) {
-    //         rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
-    //     }
-    //     break;
-    // }
-    // }
+     switch (branch.op) {
+    case VM_BOP_EXIT: {
+        break;
+    }
+    case VM_BOP_RET: {
+        break;
+    }
+    case VM_BOP_JUMP: {
+        if (rnext->targets[0] == NULL) {
+            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
+        }
+        break;
+    }
+    case VM_BOP_BB: {
+        if (rnext->targets[0] == NULL) {
+            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
+        }
+        if (rnext->targets[1] == NULL) {
+            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
+        }
+        break;
+    }
+    case VM_BOP_BEQ: {
+        if (rnext->targets[0] == NULL) {
+            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
+        }
+        if (rnext->targets[1] == NULL) {
+            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
+        }
+        break;
+    }
+    case VM_BOP_BLT: {
+        if (rnext->targets[0] == NULL) {
+            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
+        }
+        if (rnext->targets[1] == NULL) {
+            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
+        }
+        break;
+    }
+    }
     switch (branch.op) {
     case VM_BOP_EXIT: {
         | mov64 rax, ((uint64_t) &state->exitptr)
@@ -1059,7 +1079,7 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
         break;
     }
     case VM_BOP_JUMP: {
-        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
+        | vmjump rnext->targets[0]
         break;
     }
     case VM_BOP_BB: {
@@ -1090,9 +1110,9 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
         }
         }
         | jnz >1
-        | vmjump vm_rblock_new(branch.targets[1], rnext->regs)
+        | vmjump rnext->targets[1]
         |1:
-        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
+        | vmjump rnext->targets[0]
         break;
     }
     case VM_BOP_BEQ: {
@@ -1119,9 +1139,9 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
         }
         }
         | je >1
-        | vmjump vm_rblock_new(branch.targets[1], rnext->regs)
+        | vmjump rnext->targets[1]
         |1:
-        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
+        | vmjump rnext->targets[0]
         break;
     }
     case VM_BOP_BLT: {
@@ -1163,9 +1183,9 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             break;
         }
         }
-        | vmjump vm_rblock_new(branch.targets[1], rnext->regs)
+        | vmjump rnext->targets[1]
         |1:
-        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
+        | vmjump rnext->targets[0]
         break;
     }
     }
@@ -1245,15 +1265,19 @@ static void *vm_jit_rblock(vm_jit_state_t *state, vm_rblock_t *rblock, bool isfu
             }
         }
     }
-    vm_tags_t *types = vm_rblock_regs_dup(rblock->regs, VM_NREGS);
-    vm_rblock_t *rnext = vm_rblock_new(rblock->block, types);
-    rnext->start = rblock->start;
-    rnext->isfunc = isfunc;
-    vm_jit_rblock_single(state, &d, rnext);
+    vm_tags_t *tags_save = rblock->regs;
+    rblock->regs = vm_rblock_regs_dup(rblock->regs, VM_NREGS);
+    // vm_rblock_t *rnext = vm_rblock_new(rblock->block, types);
+    // rnext->start = rblock->start;
+    // rnext->isfunc = isfunc;
+    vm_jit_rblock_single(state, &d, rblock);
     vm_jit_encode(state, &d);
     dasm_free(&d);
     void *fn = labels[lbl_main];
-    vm_cache_set(&rblock->block->cache, rnext, fn);
+    // if (rnext->comps == 0) {
+    vm_cache_set(&rblock->block->cache, rblock, fn);
+    // }
+    rblock->regs = tags_save;
     rblock->block->mark = last_mark;
     return fn;
 }
