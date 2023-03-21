@@ -69,10 +69,13 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
             }
         }
         block->nargs = 0;
-        block->args = vm_malloc(sizeof(size_t) * nargs);
+        block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
         for (size_t reg = 0; reg < block->nregs; reg++) {
             if (regs[reg] == VM_INFO_REG_ARG) {
-                block->args[block->nargs++] = reg;
+                block->args[block->nargs++] = (vm_arg_t) {
+                    .type = VM_ARG_REG,
+                    .reg = reg,
+                };
                 if (reg >= block->nregs) {
                     block->nregs = reg + 1;
                 }
@@ -81,7 +84,7 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
     }
     bool redo = true;
     size_t alloc = 16;
-    size_t *next = vm_malloc(sizeof(size_t) * alloc);
+    vm_arg_t *next = vm_malloc(sizeof(vm_arg_t) * alloc);
     while (redo) {
         redo = false;
         for (ptrdiff_t i = nblocks - 1; i >= 0; i--) {
@@ -97,7 +100,7 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
                 size_t total = block->nargs + target->nargs;
                 if (total >= alloc) {
                     alloc = total * 2;
-                    next = vm_realloc(next, sizeof(size_t) * alloc);
+                    next = vm_realloc(next, sizeof(vm_arg_t) * alloc);
                 }
                 size_t nargs = 0;
                 size_t bi = 0;
@@ -105,15 +108,15 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
                 while (true) {
                     if (bi >= block->nargs) {
                         while (ti < target->nargs) {
-                            size_t newreg = target->args[ti++];
-                            if (newreg >= blocks[i]->nregs) {
-                                all_regs[i] = vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg + 1));
-                                for (size_t c = blocks[i]->nregs; c < newreg + 1; c++) {
+                            vm_arg_t newreg = target->args[ti++];
+                            if (newreg.reg >= blocks[i]->nregs) {
+                                all_regs[i] = vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg.reg + 1));
+                                for (size_t c = blocks[i]->nregs; c < newreg.reg + 1; c++) {
                                     all_regs[i][c] = VM_INFO_REG_UNK;
                                 }
-                                blocks[i]->nregs = newreg + 1;
+                                blocks[i]->nregs = newreg.reg + 1;
                             }
-                            if (all_regs[i][newreg] != VM_INFO_REG_DEF) {
+                            if (all_regs[i][newreg.reg] != VM_INFO_REG_DEF) {
                                 next[nargs++] = newreg;
                             }
                         }
@@ -123,15 +126,15 @@ void vm_info(size_t nblocks, vm_block_t **blocks) {
                             next[nargs++] = block->args[bi++];
                         }
                         break;
-                    } else if (block->args[bi] == target->args[ti]) {
+                    } else if (block->args[bi].reg == target->args[ti].reg) {
                         next[nargs++] = block->args[bi++];
                         ti += 1;
-                    } else if (block->args[bi] > target->args[ti]) {
-                        size_t newreg = target->args[ti++];
-                        if (all_regs[i][newreg] != VM_INFO_REG_DEF) {
+                    } else if (block->args[bi].reg > target->args[ti].reg) {
+                        vm_arg_t newreg = target->args[ti++];
+                        if (all_regs[i][newreg.reg] != VM_INFO_REG_DEF) {
                             next[nargs++] = newreg;
                         }
-                    } else if (block->args[bi] < target->args[ti]) {
+                    } else if (block->args[bi].reg < target->args[ti].reg) {
                         next[nargs++] = block->args[bi++];
                     }
                 }

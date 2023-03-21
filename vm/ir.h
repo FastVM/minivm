@@ -86,7 +86,10 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        size_t reg;
+        struct {
+            uint64_t reg: 60;
+            uint8_t native: 4;
+        };
         double num;
         const char *str;
         vm_block_t *func;
@@ -120,7 +123,7 @@ struct vm_block_t {
 
     vm_branch_t branch;
 
-    size_t *args;
+    vm_arg_t *args;
     size_t nargs;
 
     size_t nregs;

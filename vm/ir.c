@@ -143,7 +143,7 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             if (i != 0) {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", val.targets[0]->args[i]);
+            fprintf(out, "r%zu", val.targets[0]->args[i].reg);
         }
         fprintf(out, ")");
     }
@@ -154,7 +154,7 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             if (i != 0) {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", val.targets[1]->args[i]);
+            fprintf(out, "r%zu", val.targets[1]->args[i].reg);
         }
         fprintf(out, ")");
     }
@@ -248,7 +248,7 @@ void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *blocks) {
             if (j != 0) {
                 fprintf(out, ", ");
             }
-            fprintf(out, "r%zu", block->args[j]);
+            fprintf(out, "r%zu", block->args[j].reg);
         }
         fprintf(out, ")\n");
         vm_print_block(out, block);

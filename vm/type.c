@@ -18,8 +18,8 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
             for (size_t j = 0; j < found->block->nargs; j++) {
-                size_t argno = found->block->args[j];
-                if (rblock->regs->tags[argno] != found->regs->tags[argno]) {
+                vm_arg_t argno = found->block->args[j];
+                if (rblock->regs->tags[argno.reg] != found->regs->tags[argno.reg]) {
                     goto next;
                 }
             }
@@ -35,8 +35,8 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
             for (size_t j = 0; j < found->block->nargs; j++) {
-                size_t argno = found->block->args[j];
-                if (rblock->regs->tags[argno] != found->regs->tags[argno]) {
+                vm_arg_t argno = found->block->args[j];
+                if (rblock->regs->tags[argno.reg] != found->regs->tags[argno.reg]) {
                     goto next;
                 }
             }

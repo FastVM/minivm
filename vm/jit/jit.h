@@ -29,6 +29,7 @@ typedef struct {
     size_t count;
     vm_jit_func_buf_t funcbuf;
     vm_jit_map_buf_t mapbuf;
+    size_t push;
 } vm_jit_state_t;
 
 
