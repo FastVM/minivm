@@ -9,8 +9,6 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     rblock->start = 0;
     rblock->isfunc = rblock->block->isfunc;
     rblock->comps = 0;
-    rblock->targets[0] = NULL;
-    rblock->targets[1] = NULL;
     return rblock;
 }
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {

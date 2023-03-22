@@ -1002,47 +1002,6 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
     }
     vm_branch_t branch = vm_rblock_type_specialize_branch(rnext->regs, rnext->block->branch);
     if (!vm_rblock_type_check_branch(rnext->regs, branch)) __builtin_trap();
-     switch (branch.op) {
-    case VM_BOP_EXIT: {
-        break;
-    }
-    case VM_BOP_RET: {
-        break;
-    }
-    case VM_BOP_JUMP: {
-        if (rnext->targets[0] == NULL) {
-            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-        }
-        break;
-    }
-    case VM_BOP_BB: {
-        if (rnext->targets[0] == NULL) {
-            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-        }
-        if (rnext->targets[1] == NULL) {
-            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
-        }
-        break;
-    }
-    case VM_BOP_BEQ: {
-        if (rnext->targets[0] == NULL) {
-            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-        }
-        if (rnext->targets[1] == NULL) {
-            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
-        }
-        break;
-    }
-    case VM_BOP_BLT: {
-        if (rnext->targets[0] == NULL) {
-            rnext->targets[0] = vm_rblock_new(branch.targets[0], rnext->regs);
-        }
-        if (rnext->targets[1] == NULL) {
-            rnext->targets[1] = vm_rblock_new(branch.targets[1], rnext->regs);
-        }
-        break;
-    }
-    }
     switch (branch.op) {
     case VM_BOP_EXIT: {
         | mov64 rax, ((uint64_t) &state->exitptr)
@@ -1078,7 +1037,7 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
         break;
     }
     case VM_BOP_JUMP: {
-        | vmjump rnext->targets[0]
+        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
         break;
     }
     case VM_BOP_BB: {
@@ -1109,9 +1068,9 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
         }
         }
         | jnz >1
-        | vmjump rnext->targets[1]
+        | vmjump vm_rblock_new(branch.targets[1], rnext->regs)
         |1:
-        | vmjump rnext->targets[0]
+        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
         break;
     }
     case VM_BOP_BEQ: {
@@ -1138,9 +1097,9 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
         }
         }
         | je >1
-        | vmjump rnext->targets[1]
+        | vmjump vm_rblock_new(branch.targets[1], rnext->regs)
         |1:
-        | vmjump rnext->targets[0]
+        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
         break;
     }
     case VM_BOP_BLT: {
@@ -1182,9 +1141,9 @@ static void vm_jit_rblock_single(vm_jit_state_t *state, dasm_State **Dst, vm_rbl
             break;
         }
         }
-        | vmjump rnext->targets[1]
+        | vmjump vm_rblock_new(branch.targets[1], rnext->regs)
         |1:
-        | vmjump rnext->targets[0]
+        | vmjump vm_rblock_new(branch.targets[0], rnext->regs)
         break;
     }
     }

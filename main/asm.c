@@ -30,6 +30,8 @@ static char *vm_asm_io_read(const char *filename) {
     return ops;
 }
 
+void vm_x64_run(vm_block_t *block);
+
 int main(int argc, char **argv) {
     const char *filename = NULL;
     size_t runs = 1;
@@ -111,6 +113,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "could not parse file\n");
             return 1;
         } else if (jon) {
+            vm_x64_run(block);
             vm_jit_run(jstate, block);
         } else {
             vm_state_t *state = (void*) vm_state_init(1 << 16);

@@ -32,7 +32,6 @@ typedef struct {
     size_t push;
 } vm_jit_state_t;
 
-
 vm_jit_state_t *vm_jit_state_new(void);
 void vm_jit_state_free(vm_jit_state_t *state);
 void vm_jit_run(void *state_ptr, vm_block_t *block);

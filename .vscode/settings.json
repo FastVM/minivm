@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.dasc": "c",
+        "lib.h": "c"
+    }
+}
