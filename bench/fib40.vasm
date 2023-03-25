@@ -19,7 +19,7 @@
     mod.i64 %1 %1 10
     add.i64 %1 %1 48
     out.i64 %1
-    jump [putn.ret]
+    ret.i64 0
 @putn.ret:
     ret.i64 0
 

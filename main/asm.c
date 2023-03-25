@@ -104,25 +104,17 @@ int main(int argc, char **argv) {
     if (block == NULL) {
         return 1;
     }
-    vm_jit_state_t *jstate = NULL;
-    if (jon) {
-        jstate = vm_jit_state_new();
-    }
     for (size_t i = 0; i < runs; i++) {
         if (block == NULL) {
             fprintf(stderr, "could not parse file\n");
             return 1;
         } else if (jon) {
             vm_x64_run(block);
-            vm_jit_run(jstate, block);
         } else {
             vm_state_t *state = (void*) vm_state_init(1 << 16);
             vm_run(state, block);
             vm_state_deinit( state);
         }
-    }
-    if (jon) {
-        vm_jit_state_free(jstate);
     }
     return 0;
 }

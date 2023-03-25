@@ -129,6 +129,7 @@ struct vm_block_t {
     size_t nregs;
 
     vm_cache_t cache;
+    void *impl;
 
     bool isfunc : 1;
     bool mark: 1;
