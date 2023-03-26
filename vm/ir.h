@@ -32,6 +32,8 @@ enum {
     VM_ARG_STR,
     VM_ARG_TAG,
     VM_ARG_FUNC,
+    // for the x64 jit
+    VM_ARG_X64,
 };
 
 enum {
@@ -86,16 +88,18 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        struct {
-            uint64_t reg: 60;
-            uint8_t native: 4;
-        };
+        uint64_t reg;
         double num;
         const char *str;
         vm_block_t *func;
         vm_instr_t *instr;
         bool logic;
         vm_tag_t *tag;
+        struct {
+            uint16_t save;
+            uint8_t x64;
+            uint8_t x64from;
+        };
     };
     uint8_t type;
 };

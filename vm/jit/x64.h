@@ -17,6 +17,9 @@ typedef struct vm_x64_map_buf_t vm_x64_map_buf_t;
 struct vm_x64_state_t;
 typedef struct vm_x64_state_t vm_x64_state_t;
 
+struct vm_x64_link_t;
+typedef struct vm_x64_link_t vm_x64_link_t;
+
 struct vm_x64_cache_t;
 typedef struct vm_x64_cache_t vm_x64_cache_t;
 
@@ -44,10 +47,16 @@ struct vm_x64_state_t {
     vm_x64_func_buf_t funcbuf;
     vm_x64_map_buf_t mapbuf;
     size_t push;
+    vm_x64_link_t *links;
+};
+
+struct vm_x64_link_t {
+    size_t label;
+    void **out;
+    vm_x64_link_t *next;
 };
 
 struct vm_x64_cache_t {
-    uint16_t args[256];
     vm_block_t *block;
 };
 
