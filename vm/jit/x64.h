@@ -54,6 +54,8 @@ struct vm_x64_link_t {
     size_t label;
     void **out;
     vm_x64_link_t *next;
+    vm_block_t *block;
+    size_t nregs;
 };
 
 struct vm_x64_cache_t {
