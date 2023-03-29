@@ -1,7 +1,5 @@
 #include "../vm/asm.h"
 
-#include "../vm/interp/int3.h"
-
 vm_block_t *vm_paka_parse(const char *src);
 
 static char *vm_asm_io_read(const char *filename) {
@@ -34,7 +32,6 @@ void vm_x64_run(vm_block_t *block);
 int main(int argc, char **argv) {
     const char *filename = NULL;
     size_t runs = 1;
-    bool jon = true;
     const char *lang = "asm";
     while (true) {
         if (argc < 2) {
@@ -58,16 +55,6 @@ int main(int argc, char **argv) {
             argv += 1;
             argc -= 1;
             runs = n;
-            continue;
-        } else if (!strcmp(argv[1], "-joff")) {
-            jon = false;
-            argv += 1;
-            argc -= 1;
-            continue;
-        } else if (!strcmp(argv[1], "-jon")) {
-            jon = true;
-            argv += 1;
-            argc -= 1;
             continue;
         } else if (!strcmp(argv[1], "-tasm")) {
             lang = "asm";
@@ -99,21 +86,16 @@ int main(int argc, char **argv) {
     } else {
         block = vm_parse_asm(src);
     }
+    if (block == NULL) {
+        fprintf(stderr, "could not parse file\n");
+        return 1;
+    }
     vm_free((void *)src);
     if (block == NULL) {
         return 1;
     }
     for (size_t i = 0; i < runs; i++) {
-        if (block == NULL) {
-            fprintf(stderr, "could not parse file\n");
-            return 1;
-        } else if (jon) {
-            vm_x64_run(block);
-        } else {
-            vm_state_t *state = (void*) vm_state_init(1 << 16);
-            vm_run(state, block);
-            vm_state_deinit( state);
-        }
+        vm_x64_run(block);
     }
     return 0;
 }
