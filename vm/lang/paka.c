@@ -87,6 +87,26 @@ bool vm_paka_parser_match_keyword(vm_paka_parser_t *parser, const char *keyword)
     return true;
 }
 
+vm_block_t *vm_paka_blocks_new(vm_paka_blocks_t *blocks) {
+    if (blocks->alloc <= blocks->len + 1) {
+        blocks->alloc = (blocks->len + 1) * 2;
+        blocks->blocks = vm_realloc(blocks->blocks, sizeof(vm_block_t *) * blocks->alloc);
+    }
+    vm_block_t *block = vm_malloc(sizeof(vm_block_t));
+    *block = (vm_block_t) {0};
+    blocks->blocks[blocks->len++] = block;
+    return block;
+}
+
+uint8_t vm_paka_find_reg(size_t *regs) {
+    for (size_t i = 0; i < 256; i++) {
+        if (regs[i] == 0) {
+            return (uint8_t) i;
+        }
+    }
+    __builtin_trap();
+}
+
 vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
     vm_paka_parser_strip_spaces(parser);
     // if (vm_paka_parser_match_keyword(parser, "out")) {
@@ -105,43 +125,50 @@ vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *parser, vm_paka_comp_t *comp
     //         .type = VM_ARG_NIL,
     //     };
     // }
-    char first = vm_paka_parser_peek(parser);
-    if (vm_paka_parser_match(parser, "'")) {
-        char value = vm_paka_parser_read(parser);
-        if (value == '\\') {
-            if (vm_paka_parser_match(parser, "t")) {
+    if (vm_paka_parser_match(parser, "#")) {
+        if (vm_paka_parser_match(parser, "\\")) {
+            if (vm_paka_parser_match(parser, "tab")) {
                 return (vm_arg_t) {
                     .type = VM_ARG_NUM,
                     .num = '\t',
                 };
-            } else if (vm_paka_parser_match(parser, "r")) {
+            } else if (vm_paka_parser_match(parser, "return")) {
                 return (vm_arg_t) {
                     .type = VM_ARG_NUM,
                     .num = '\t',
                 };
-            } else if (vm_paka_parser_match(parser, "n")) {
+            } else if (vm_paka_parser_match(parser, "newline")) {
                 return (vm_arg_t) {
                     .type = VM_ARG_NUM,
                     .num = '\n',
                 };
-            } else if (vm_paka_parser_match(parser, "e")) {
+            } else if (vm_paka_parser_match(parser, "escape") || vm_paka_parser_match(parser, "esc")) {
                 return (vm_arg_t) {
                     .type = VM_ARG_NUM,
                     .num = 27,
                 };
             } else {
-                goto err; 
+                return (vm_arg_t) {
+                    .type = VM_ARG_NUM,
+                    .num = (double) vm_paka_parser_read(parser),
+                };
             }
         }
-        if (vm_paka_parser_match(parser, "'")) {
-            return (vm_arg_t) {
-                .type = VM_ARG_NUM,
-                .num = (double) vm_paka_parser_read(parser),
+        if (vm_paka_parser_match_keyword(parser, "out")) {
+            vm_arg_t arg = vm_paka_parser_expr_base(parser, comp);
+            if (arg.type == VM_ARG_UNK) {
+                goto err;
+            }
+            vm_instr_t instr = (vm_instr_t) {
+                .op = VM_IOP_OUT,
+                .args[0] = arg,
             };
+            vm_block_realloc(comp->write, instr);
+            return arg;
         }
         goto err; 
     }
-    if ('0' <= first && first <= '9') {
+    if ('0' <= vm_paka_parser_peek(parser) && vm_paka_parser_peek(parser) <= '9') {
         size_t n = 0;
         while (true) {
             char cur = vm_paka_parser_peek(parser);
@@ -157,7 +184,7 @@ vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *parser, vm_paka_comp_t *comp
             };
         }
     }
-    if (first == '(') {
+    if (vm_paka_parser_match_keyword(parser, "local")) {
         vm_paka_parser_skip(parser);
         vm_paka_parser_strip_spaces(parser);
         size_t len = vm_paka_parser_ident_len(parser);
@@ -167,87 +194,63 @@ vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *parser, vm_paka_comp_t *comp
         }
         buf[len] = '\0';
         vm_paka_parser_strip_spaces(parser);
-        if (!strcmp(buf, "asm")) {
-            vm_free(buf);
-            len = vm_paka_parser_ident_len(parser);
-            buf = vm_malloc(sizeof(char) * (len + 1));
-            for (size_t i = 0; i < len; i++) {
-                buf[i] = vm_paka_parser_read(parser);
-            }
-            buf[len] = '\0';
-            if (!strcmp(buf, "lt")) {
-                vm_paka_comp_t save = *comp;
-                vm_block_t *ift = vm_malloc(sizeof(vm_block_t));
-                vm_block_t *iff = vm_malloc(sizeof(vm_block_t));
-                vm_block_t *after = vm_malloc(sizeof(vm_block_t));
-                *ift = (vm_block_t) {0};
-                *iff = (vm_block_t) {0};
-                *after = (vm_block_t) {0};
-                comp->write->branch = (vm_branch_t) {
-                    .op = VM_BOP_BLT,
-                    .args[0] = vm_paka_parser_expr_base(parser, comp),
-                    .args[1] = vm_paka_parser_expr_base(parser, comp),
-                    .targets[0] = ift,
-                    .targets[1] = iff,
-                };
-                comp->write = ift;
-                vm_paka_parser_expr_base(parser, comp);
-                ift->branch = (vm_branch_t) {
-                    .op = VM_BOP_JUMP,
-                    .targets[0] = after,
-                };
-                comp->write = iff;
-                vm_paka_parser_expr_base(parser, comp);
-                iff->branch = (vm_branch_t) {
-                    .op = VM_BOP_JUMP,
-                    .targets[0] = after,
-                };
-                *comp = save;
-                comp->write = after;
+        size_t index = comp->names->len++;
+        if (comp->names->len + 1 >= comp->names->alloc) {
+            comp->names->alloc = comp->names->len * 2 + 1;
+            comp->names->keys = vm_realloc(comp->names->keys, sizeof(const char *) * comp->names->alloc);
+            comp->names->values = vm_realloc(comp->names->values, sizeof(uint8_t) * comp->names->alloc);
+        }
+        comp->names->keys[index] = buf;
+        uint8_t reg = vm_paka_find_reg(comp->regs);
+        comp->names->values[index] = reg;
+        if (vm_paka_parser_match(parser, "=")) {
+            vm_arg_t arg = vm_paka_parser_expr_base(parser, comp);
+            if (arg.type == VM_ARG_UNK) {
+                goto err;
             }
             vm_instr_t instr = (vm_instr_t) {
-                .op = VM_IOP_NOP,
+                .op = VM_IOP_MOVE,
+                .out = (vm_arg_t) {
+                    .type = VM_ARG_REG,
+                    .reg = reg,
+                },
+                .args[0] = arg,
             };
-            if (!strcmp(buf, "move")) {
-                instr.op = VM_IOP_MOVE;
-            }
-            if (!strcmp(buf, "cast")) {
-                instr.op = VM_IOP_CAST;
-            }
-            if (!strcmp(buf, "add")) {
-                instr.op = VM_IOP_ADD;
-            }
-            if (!strcmp(buf, "sub")) {
-                instr.op = VM_IOP_SUB;
-            }
-            if (!strcmp(buf, "mul")) {
-                instr.op = VM_IOP_MUL;
-            }
-            if (!strcmp(buf, "div")) {
-                instr.op = VM_IOP_DIV;
-            }
-            if (!strcmp(buf, "mod")) {
-                instr.op = VM_IOP_MOD;
-            }
-            if (!strcmp(buf, "call")) {
-                instr.op = VM_IOP_CALL;
-            }
-            if (!strcmp(buf, "out")) {
-                instr.op = VM_IOP_OUT;
-            }
-            vm_free(buf);
-            size_t i = 0;
-            vm_paka_parser_strip_spaces(parser);
-            while (!vm_paka_parser_match(parser, ")") && vm_paka_parser_peek(parser) != '\0') {
-                instr.args[i++] = vm_paka_parser_expr_base(parser, comp);
-                vm_paka_parser_strip_spaces(parser);
-            }
             vm_block_realloc(comp->write, instr);
-            return instr.out;
         }
-        goto err; 
+        return (vm_arg_t) { .type = VM_ARG_NONE };
     }
-    if (vm_paka_parser_is_ident0_char(first)) {
+    if (vm_paka_parser_match_keyword(parser, "if")) {
+        vm_paka_parser_strip_spaces(parser);
+        vm_arg_t arg = vm_paka_parser_expr_base(parser, comp);
+        if (arg.type == VM_ARG_UNK) {
+            goto err;
+        }
+        vm_paka_parser_strip_spaces(parser);
+        if (!vm_paka_parser_match_keyword(parser, "then")) {
+            goto err;
+        }
+        vm_paka_parser_strip_spaces(parser);
+        while (vm_paka_parser_match_keyword(parser, "elseif")) {
+            vm_paka_parser_strip_spaces(parser);
+            vm_arg_t arg = vm_paka_parser_expr_base(parser, comp);
+            if (arg.type == VM_ARG_UNK) {
+                goto err;
+            }
+            vm_paka_parser_strip_spaces(parser);
+            if (!vm_paka_parser_match_keyword(parser, "then")) {
+                goto err;
+            }
+            vm_paka_parser_strip_spaces(parser);
+        }
+        if (vm_paka_parser_match_keyword(parser, "else")) {
+            vm_paka_parser_strip_spaces(parser);
+        }
+        if (!vm_paka_parser_match_keyword(parser, "end")) {
+            goto err;
+        }
+    }
+    if (vm_paka_parser_is_ident0_char(vm_paka_parser_peek(parser))) {
         size_t len = vm_paka_parser_ident_len(parser);
         if (len == 0) {
             goto err; 
@@ -257,7 +260,15 @@ vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *parser, vm_paka_comp_t *comp
             buf[i] = vm_paka_parser_read(parser);
         }
         buf[len] = '\0';
-        printf("%s\n", buf);
+        for (size_t i = 0; i < comp->names->len; i++) {
+            if (!strcmp(buf, comp->names->keys[i])) {
+                return (vm_arg_t) {
+                    .type = VM_ARG_REG,
+                    .reg = comp->names->values[i],
+                };
+            }
+        }
+        fprintf(stderr, "unknown name: %s\n", buf);
     }
 err:;
     return (vm_arg_t) {
@@ -266,6 +277,10 @@ err:;
 }
 
 void vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
+    vm_paka_name_map_t names = (vm_paka_name_map_t) {
+        .next = comp->names,
+    };
+    comp->names = &names;
     vm_arg_t arg = (vm_arg_t) {
         .type = VM_ARG_NIL,
     };
@@ -278,16 +293,15 @@ void vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
     if (comp->jump != NULL) {
         comp->write->branch = (vm_branch_t) {
             .op = VM_BOP_JUMP,
-            .args[0].type = VM_ARG_NONE,
             .targets[0] = comp->jump,
         };
     } else {
         comp->write->branch = (vm_branch_t) {
             .op = VM_BOP_RET,
             .args[0] = arg,
-            .args[1].type = VM_ARG_NONE,
         };
     }
+    comp->names = names.next;
 }
 
 vm_block_t *vm_paka_parse(const char *src) {
@@ -297,15 +311,14 @@ vm_block_t *vm_paka_parse(const char *src) {
         .line = 1,
         .col = 1,
     };
-    vm_block_t *block = vm_malloc(sizeof(vm_block_t));
-    *block = (vm_block_t) {0};
-    vm_block_t *next = vm_malloc(sizeof(vm_block_t));
-    *next = (vm_block_t) {0};
+    vm_paka_blocks_t blocks = (vm_paka_blocks_t) {0};
+    vm_block_t *block = vm_paka_blocks_new(&blocks);
+    vm_block_t *next = vm_paka_blocks_new(&blocks);
     next->branch = (vm_branch_t) {
         .op = VM_BOP_EXIT,
     };
     size_t nregs = 256;
-    uint8_t *regs = vm_malloc(sizeof(uint8_t) * nregs);
+    size_t *regs = vm_malloc(sizeof(size_t) * nregs);
     for (size_t i = 0; i < 256; i++) {
         regs[i] = 0;
     }
@@ -313,11 +326,13 @@ vm_block_t *vm_paka_parse(const char *src) {
         .write = block,
         .jump = next,
         .regs = regs,
+        .blocks = &blocks,
     };
     vm_paka_parser_block(&parser, &comp);
     if (vm_paka_parser_peek(&parser) != '\0') {
         fprintf(stderr, "error(2) at line %zu, col %zu\n", parser.line, parser.col);
         return NULL;
     }
-    return comp.write;
+    vm_info(blocks.len, blocks.blocks);
+    return block;
 }

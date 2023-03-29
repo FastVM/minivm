@@ -1,8 +1,6 @@
 #if !defined(VM_HEADER_BE_VALUE)
 #define VM_HEADER_BE_VALUE
 
-#include <stdint.h>
-
 #include "../ir.h"
 
 union vm_value_t;

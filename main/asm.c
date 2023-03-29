@@ -1,7 +1,6 @@
 #include "../vm/asm.h"
 
 #include "../vm/interp/int3.h"
-#include "../vm/jit/jit.h"
 
 vm_block_t *vm_paka_parse(const char *src);
 
@@ -35,8 +34,8 @@ void vm_x64_run(vm_block_t *block);
 int main(int argc, char **argv) {
     const char *filename = NULL;
     size_t runs = 1;
-    bool jon = false;
-    const char *lang = "paka";
+    bool jon = true;
+    const char *lang = "asm";
     while (true) {
         if (argc < 2) {
             if (filename == NULL) {

@@ -2,6 +2,7 @@
 #if !defined(VM_HEADER_LIB)
 #define VM_HEADER_LIB
 
+#if !defined(VM_COSMO)
 #include <ctype.h>
 #include <limits.h>
 #include <math.h>
@@ -13,6 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#else
+#include "../bin/cosmopolitan.h"
+#endif
 
 #if defined(VM_XGC)
 

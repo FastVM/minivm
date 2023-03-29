@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "../../dynasm/dasm_proto.h"
 #include "../../dynasm/dasm_x86.h"
 
@@ -317,6 +315,9 @@ void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block, int8_t *vm
         }
         instr.out.save = save;
         switch (instr.op) {
+        case VM_IOP_NOP: {
+            break;
+        }
         case VM_IOP_MOVE: {
             if (instr.args[0].type == VM_ARG_REG) {
                 instr.args[0] = (vm_arg_t) {
@@ -431,6 +432,9 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
     for (size_t instr_num = 0; instr_num < block->len; instr_num++) {
         vm_instr_t instr = block->instrs[instr_num];
         switch (instr.op) {
+        case VM_IOP_NOP: {
+            break;
+        }
         case VM_IOP_MOVE: {
             if (instr.out.type == VM_ARG_X64) {
                 if (instr.args[0].type == VM_ARG_X64) {
@@ -747,12 +751,44 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     __builtin_trap();
                 }
             } else if (block->branch.args[0].type == VM_ARG_NUM) {
-                __builtin_trap();
+                if (block->branch.args[1].type == VM_ARG_X64) {
+                    | cmp Rq(block->branch.args[1].x64), ((int32_t) (block->branch.args[0].num))
+                    | jg =>t
+                } else if (block->branch.args[1].type == VM_ARG_NUM) {
+                    if (block->branch.args[0].num < block->branch.args[1].num) {
+                        | jmp =>t
+                    }
+                } else {
+                    __builtin_trap();
+                }
             } else {
                 __builtin_trap();
             }
         } else {
-            __builtin_trap();
+            if (block->branch.args[0].type == VM_ARG_X64) {
+                if (block->branch.args[1].type == VM_ARG_X64) {
+                    | cmp Rq(block->branch.args[0].x64), Rq(block->branch.args[1].x64)
+                    | je =>t
+                } else if (block->branch.args[1].type == VM_ARG_NUM) {
+                    | cmp Rq(block->branch.args[0].x64), ((int32_t) (block->branch.args[1].num))
+                    | je =>t
+                } else {
+                    __builtin_trap();
+                }
+            } else if (block->branch.args[0].type == VM_ARG_NUM) {
+                if (block->branch.args[1].type == VM_ARG_X64) {
+                    | cmp Rq(block->branch.args[1].x64), ((int32_t) (block->branch.args[0].num))
+                    | je =>t
+                } else if (block->branch.args[1].type == VM_ARG_NUM) {
+                    if (block->branch.args[0].num == block->branch.args[1].num) {
+                        | jmp =>t
+                    }
+                } else {
+                    __builtin_trap();
+                }
+            } else {
+                __builtin_trap();
+            }
         }
         for (size_t i = 0; i < block->branch.targets[1]->nargs; i++) {
             vm_arg_t arg = block->branch.targets[1]->args[i];
