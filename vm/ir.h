@@ -45,7 +45,6 @@ enum {
     VM_BOP_RET,
     VM_BOP_EXIT,
     VM_BOP_BTYPE,
-    VM_BOP_MAX,
 };
 
 enum {
@@ -66,7 +65,8 @@ enum {
     VM_IOP_BXOR,
     VM_IOP_BSHL,
     VM_IOP_BSHR,
-    VM_IOP_MAX,
+    // for the x64 jit
+    VM_IOP_ARGS,
 };
 
 struct vm_rblock_t {

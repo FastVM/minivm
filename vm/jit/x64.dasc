@@ -206,19 +206,11 @@ int8_t vm_x64_reg_alloc(int8_t *vmregs, int16_t *cpuregs, size_t vmreg) {
     return cpureg;
 }
 
-void vm_x64_tie_reg(dasm_State **Dst, int8_t *vmregs, int16_t *cpuregs, int8_t vmreg, int16_t cpureg) {
-    if (cpuregs[cpureg] >= 0) {
-        int8_t next = vm_x64_reg_alloc(vmregs, cpuregs, vmreg);
-        if (cpureg != next) {
-            | mov Rq(cpureg), Rq(next)
-        }
-    } else {
-        cpuregs[cpureg] = vmreg;
-        vmregs[vmreg] = cpureg;
-    }
-}
-
 void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block, int8_t *vmregs, int16_t *cpuregs) {
+    if (block->id == -2) {
+        return;
+    }
+    block->id = -2;
     switch (block->branch.op) {
     case VM_BOP_EXIT: {
         break;
@@ -230,22 +222,7 @@ void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block, int8_t *vm
     case VM_BOP_BEQ:
     case VM_BOP_BLT: {
         vm_x64_reg_alloc_block(state, block->branch.targets[0], vmregs, cpuregs);
-        int8_t vmregsf[256];
-        for (size_t i = 0; i < 256; i++) {
-            vmregsf[i] = -1;
-        }
-        int16_t cpuregsf[16];
-        for (size_t i = 0; i < 16; i++) {
-            cpuregsf[i] = -1;
-        }
-        vm_x64_reg_alloc_block(state, block->branch.targets[1], vmregsf, cpuregsf);
-        for (size_t i = 0; i < 256; i++) {
-            if (vmregs[i] != vmregsf[i] && vmregsf[i] >= 0) {
-                if (vmregs[i] < 0) {
-                    vmregs[i] = vmregsf[i];
-                }
-            }
-        }
+        vm_x64_reg_alloc_block(state, block->branch.targets[1], vmregs, cpuregs);
         if (block->branch.args[0].type == VM_ARG_REG) {
             block->branch.args[0] = (vm_arg_t) {
                 .type = VM_ARG_X64,
@@ -255,17 +232,7 @@ void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block, int8_t *vm
         if (block->branch.args[1].type == VM_ARG_REG) {
             block->branch.args[1] = (vm_arg_t) {
                 .type = VM_ARG_X64,
-                .x64 = vm_x64_reg_alloc(vmregs, cpuregs, block->branch.args[0].reg),
-            };
-        }
-        for (size_t i = 0; i < block->branch.targets[1]->nargs; i++) {
-            if (block->branch.targets[1]->args[i].type != VM_ARG_REG) {
-                __builtin_trap();
-            }
-            block->branch.targets[1]->args[i] = (vm_arg_t) {
-                .type = VM_ARG_X64,
-                .x64 = vmregsf[block->branch.targets[1]->args[i].reg],
-                .x64from = vmregs[block->branch.targets[1]->args[i].reg],
+                .x64 = vm_x64_reg_alloc(vmregs, cpuregs, block->branch.args[1].reg),
             };
         }
         break;
@@ -427,8 +394,12 @@ void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block, int8_t *vm
 }
 
 void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Dst) {
-    // block->id = state->count++;
-    // |=>block->id:
+    if (block->id >= 0) {
+        | jmp =>block->id
+        return;
+    }
+    block->id = state->count++;
+    |=>block->id:
     for (size_t instr_num = 0; instr_num < block->len; instr_num++) {
         vm_instr_t instr = block->instrs[instr_num];
         switch (instr.op) {
@@ -788,12 +759,6 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 }
             } else {
                 __builtin_trap();
-            }
-        }
-        for (size_t i = 0; i < block->branch.targets[1]->nargs; i++) {
-            vm_arg_t arg = block->branch.targets[1]->args[i];
-            if (arg.x64from != arg.x64) {
-                | mov Rq(arg.x64), Rq(arg.x64from)
             }
         }
         vm_x64_block_comp(state, block->branch.targets[1], Dst);
