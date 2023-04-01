@@ -14,9 +14,10 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (ptrdiff_t i = cache->len-1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
-            for (size_t j = 0; j < found->block->nargs; j++) {
-                vm_arg_t argno = found->block->args[j];
-                if (rblock->regs->tags[argno.reg] != found->regs->tags[argno.reg]) {
+            for (size_t j = 0; j < rblock->block->nargs; j++) {
+                vm_arg_t arg = rblock->block->args[j];
+                if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
+                    printf("%zu != %zu\n", (size_t) rblock->regs->tags[arg.reg], (size_t) found->regs->tags[arg.reg]);
                     goto next;
                 }
             }
@@ -31,9 +32,9 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
     for (ptrdiff_t i = cache->len-1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
-            for (size_t j = 0; j < found->block->nargs; j++) {
-                vm_arg_t argno = found->block->args[j];
-                if (rblock->regs->tags[argno.reg] != found->regs->tags[argno.reg]) {
+            for (size_t j = 0; j < rblock->block->nargs; j++) {
+                vm_arg_t arg = rblock->block->args[j];
+                if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
                     goto next;
                 }
             }

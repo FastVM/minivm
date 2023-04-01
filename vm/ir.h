@@ -58,6 +58,7 @@ enum {
     VM_IOP_MOD,
     VM_IOP_CALL,
     VM_IOP_OUT,
+    VM_IOP_PRINT,
     VM_IOP_IN,
     VM_IOP_BNOT,
     VM_IOP_BOR,
@@ -97,8 +98,8 @@ struct vm_arg_t {
         vm_tag_t *tag;
         struct {
             uint16_t save;
+            int16_t vmreg;
             uint8_t x64;
-            uint8_t x64from;
         };
     };
     uint8_t type;
@@ -107,6 +108,7 @@ struct vm_arg_t {
 struct vm_branch_t {
     vm_block_t *targets[2];
     vm_arg_t args[2];
+    int8_t *pass[2];
     uint8_t op;
     vm_tag_t tag;
 };
@@ -121,19 +123,20 @@ struct vm_instr_t {
 struct vm_block_t {
     ptrdiff_t id;
 
+    size_t alloc;
     vm_instr_t *instrs;
     size_t len;
-    size_t alloc;
 
     vm_branch_t branch;
 
-    vm_arg_t *args;
     size_t nargs;
-
+    vm_arg_t *args;
+    
     size_t nregs;
 
     vm_cache_t cache;
     void *impl;
+    void *pass;
 
     bool isfunc : 1;
     bool mark: 1;
@@ -159,5 +162,7 @@ uint64_t vm_instr_get_arg_num(vm_instr_t instr, size_t argno);
 const char *vm_instr_get_arg_str(vm_instr_t instr, size_t argno);
 vm_block_t *vm_instr_get_arg_func(vm_instr_t instr, size_t argno);
 size_t vm_instr_get_arg_reg(vm_instr_t instr, size_t argno);
+
+void vm_block_info(size_t nblocks, vm_block_t **blocks);
 
 #endif

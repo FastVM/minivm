@@ -1,4 +1,4 @@
-#include "../vm/asm.h"
+#include "../vm/ir.h"
 
 vm_block_t *vm_paka_parse(const char *src);
 
@@ -32,7 +32,6 @@ void vm_x64_run(vm_block_t *block);
 int main(int argc, char **argv) {
     const char *filename = NULL;
     size_t runs = 1;
-    const char *lang = "asm";
     while (true) {
         if (argc < 2) {
             if (filename == NULL) {
@@ -56,16 +55,6 @@ int main(int argc, char **argv) {
             argc -= 1;
             runs = n;
             continue;
-        } else if (!strcmp(argv[1], "-tasm")) {
-            lang = "asm";
-            argv += 1;
-            argc -= 1;
-            continue;
-        } else if (!strcmp(argv[1], "-tpaka")) {
-            lang = "paka";
-            argv += 1;
-            argc -= 1;
-            continue;
         } else if (filename != NULL) {
             fprintf(stderr, "cannot handle multiple files at cli\n");
             return 1;
@@ -80,12 +69,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "could not read file\n");
         return 1;
     }
-    vm_block_t *block = NULL;
-    if (!strcmp(lang, "paka")) {
-        block = vm_paka_parse(src);
-    } else {
-        block = vm_parse_asm(src);
-    }
+    vm_block_t *block = vm_paka_parse(src);
     if (block == NULL) {
         fprintf(stderr, "could not parse file\n");
         return 1;
