@@ -1,5 +1,7 @@
 bin
+build
 *.gcda
 *.o
+*.profdata
+*.profraw
 *.tmp.c
-*.bin

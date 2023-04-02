@@ -11,13 +11,13 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     return rblock;
 }
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
-    for (ptrdiff_t i = cache->len-1; i >= 0; i--) {
+    for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
                 vm_arg_t arg = rblock->block->args[j];
                 if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
-                    printf("%zu != %zu\n", (size_t) rblock->regs->tags[arg.reg], (size_t) found->regs->tags[arg.reg]);
+                    printf("%zu != %zu\n", (size_t)rblock->regs->tags[arg.reg], (size_t)found->regs->tags[arg.reg]);
                     goto next;
                 }
             }
@@ -29,7 +29,7 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 }
 
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
-    for (ptrdiff_t i = cache->len-1; i >= 0; i--) {
+    for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
@@ -46,7 +46,7 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
     // vm_rblock_t **ret = vm_cache_get_ref(cache, rblock);
     // if (ret != NULL) {
     //     if ((*ret)->comps > rblock->comps) {
-    //         *ret = value; 
+    //         *ret = value;
     //     }
     //     return;
     // }
@@ -96,7 +96,7 @@ bool vm_rblock_regs_match(vm_tags_t *a, vm_tags_t *b) {
 vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
     if (instr.op == VM_IOP_MOVE) {
         if (instr.args[0].type == VM_ARG_STR) {
-            instr.tag = VM_TAG_PTR;
+            instr.tag = VM_TAG_STR;
             return instr;
         }
     }

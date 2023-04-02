@@ -4,6 +4,7 @@
 
 #if !defined(VM_COSMO)
 #include <ctype.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
@@ -13,7 +14,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 #else
 #include "../bin/cosmopolitan.h"
 #endif

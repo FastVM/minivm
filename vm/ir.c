@@ -36,7 +36,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_X64: {
-            fprintf(out, "Rv(%zu)", (size_t) val.x64);
+            fprintf(out, "Rv(%zu)", (size_t)val.x64);
             break;
         }
     }
@@ -51,48 +51,24 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
             fprintf(out, "bool");
             break;
         }
-        case VM_TAG_I8: {
-            fprintf(out, "i8");
-            break;
-        }
-        case VM_TAG_I16: {
-            fprintf(out, "i16");
-            break;
-        }
-        case VM_TAG_I32: {
-            fprintf(out, "i32");
-            break;
-        }
         case VM_TAG_I64: {
             fprintf(out, "i64");
-            break;
-        }
-        case VM_TAG_U8: {
-            fprintf(out, "u8");
-            break;
-        }
-        case VM_TAG_U16: {
-            fprintf(out, "u16");
-            break;
-        }
-        case VM_TAG_U32: {
-            fprintf(out, "u32");
-            break;
-        }
-        case VM_TAG_U64: {
-            fprintf(out, "u64");
-            break;
-        }
-        case VM_TAG_F32: {
-            fprintf(out, "f32");
             break;
         }
         case VM_TAG_F64: {
             fprintf(out, "f64");
             break;
         }
-        case VM_TAG_PTR: {
+        case VM_TAG_STR: {
+            fprintf(out, "str");
+            break;
+        }
+        case VM_TAG_FUNC: {
             fprintf(out, "func");
+            break;
+        }
+        case VM_TAG_TABLE: {
+            fprintf(out, "table");
             break;
         }
     }
@@ -346,7 +322,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
         block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
         for (size_t reg = 0; reg < block->nregs; reg++) {
             if (regs[reg] == VM_INFO_REG_ARG) {
-                block->args[block->nargs++] = (vm_arg_t) {
+                block->args[block->nargs++] = (vm_arg_t){
                     .type = VM_ARG_REG,
                     .reg = reg,
                 };

@@ -1,8 +1,8 @@
 #if !defined(VM_HEADER_BE_X64)
 #define VM_HEADER_BE_X64
 
-#include "../lib.h"
 #include "../ir.h"
+#include "../lib.h"
 #include "../type.h"
 
 struct vm_x64_func_buf_t;

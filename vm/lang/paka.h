@@ -1,8 +1,8 @@
 #if !defined(VM_HEADER_LANG_PAKA)
 #define VM_HEADER_LANG_PAKA
 
-#include "../lib.h"
 #include "../ir.h"
+#include "../lib.h"
 
 struct vm_paka_parser_t;
 typedef struct vm_paka_parser_t vm_paka_parser_t;
@@ -58,7 +58,7 @@ char vm_paka_parser_read(vm_paka_parser_t *parser);
 size_t vm_paka_parser_tell(vm_paka_parser_t *parser);
 // if it matches, advance
 bool vm_paka_parser_match(vm_paka_parser_t *parser, const char *str);
-bool vm_paka_parser_match_if(vm_paka_parser_t *parser, bool(*fn)(char));
+bool vm_paka_parser_match_if(vm_paka_parser_t *parser, bool (*fn)(char));
 // cleaners
 void vm_paka_parser_strip_spaces(vm_paka_parser_t *parser);
 // words and keywords

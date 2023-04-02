@@ -74,10 +74,10 @@ struct vm_rblock_t {
     vm_tags_t *regs;
     vm_block_t *block;
     void *cache;
-    uint32_t comps: 32;
-    uint32_t start: 30;
-    bool isfunc: 1;
-    bool mark: 1;
+    uint32_t comps : 32;
+    uint32_t start : 30;
+    bool isfunc : 1;
+    bool mark : 1;
 };
 
 struct vm_cache_t {
@@ -131,7 +131,7 @@ struct vm_block_t {
 
     size_t nargs;
     vm_arg_t *args;
-    
+
     size_t nregs;
 
     vm_cache_t cache;
@@ -139,7 +139,7 @@ struct vm_block_t {
     void *pass;
 
     bool isfunc : 1;
-    bool mark: 1;
+    bool mark : 1;
 };
 
 void vm_instr_free(vm_instr_t *instr);

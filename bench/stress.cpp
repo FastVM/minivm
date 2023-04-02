@@ -23,7 +23,8 @@ auto f6(R1 r1, R2 r2, R3 r3, R4 r4, R5 r5, R6 r6) -> int {
 }
 
 template<class R1, class R2, class R3, class R4, class R5>
-auto f5(R1 r1, R2 r2, R3 r3, R4 r4, R5 r5) -> int {
+auto f5(R1 r1, R2 r2,
+ R3 r3, R4 r4, R5 r5) -> int {
     putchar(99);
     f6<u8, R1, R2, R3, R4, R5>(8, r1, r2, r3, r4, r5);
     f6<u16, R1, R2, R3, R4, R5>(16, r1, r2, r3, r4, r5);
