@@ -34,6 +34,10 @@ struct vm_paka_comp_t {
     size_t *regs;
     vm_paka_name_map_t *names;
     vm_paka_blocks_t *blocks;
+    size_t nfuncs;
+    const char **func_names;
+    vm_block_t **func_blocks;
+    size_t funcs_alloc;
 };
 
 struct vm_paka_name_map_t {
