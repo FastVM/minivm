@@ -1,0 +1,87 @@
+
+    0x55555555acf0 <+0>:   push   rbp
+    0x55555555acf1 <+1>:   mov    rbp, rsp
+    0x55555555acf4 <+4>:   sub    rsp, 0x50
+    0x55555555acf8 <+8>:   mov    qword ptr [rbp - 0x8], rsi
+    0x55555555acfc <+12>:  mov    qword ptr [rbp - 0x10], rdx
+    0x55555555ad00 <+16>:  mov    qword ptr [rbp - 0x18], rdi
+    0x55555555ad04 <+20>:  mov    dword ptr [rbp - 0x1c], ecx
+    0x55555555ad07 <+23>:  mov    dword ptr [rbp - 0x20], r8d
+    0x55555555ad0b <+27>:  mov    dword ptr [rbp - 0x24], 0x0
+    0x55555555ad12 <+34>:  mov    eax, dword ptr [rbp - 0x24]
+    0x55555555ad15 <+37>:  imul   rax, rax, 0x18
+    0x55555555ad19 <+41>:  mov    rcx, qword ptr [rbp - 0x18]
+    0x55555555ad1d <+45>:  mov    ecx, dword ptr [rcx + 0x8]
+    0x55555555ad20 <+48>:  cmp    rax, rcx
+    0x55555555ad23 <+51>:  jae    0x55555555ad88            ; <+152> at obj.c:20:22
+    0x55555555ad29 <+57>:  mov    rax, qword ptr [rbp - 0x18]
+    0x55555555ad2d <+61>:  mov    rax, qword ptr [rax]
+    0x55555555ad30 <+64>:  mov    ecx, dword ptr [rbp - 0x24]
+    0x55555555ad33 <+67>:  imul   rcx, rcx, 0x18
+    0x55555555ad37 <+71>:  add    rax, rcx
+    0x55555555ad3a <+74>:  mov    qword ptr [rbp - 0x30], rax
+    0x55555555ad3e <+78>:  mov    rax, qword ptr [rbp - 0x30]
+->  0x55555555ad42 <+82>:  mov    rax, qword ptr [rax]
+    0x55555555ad45 <+85>:  cmp    rax, qword ptr [rbp - 0x8]
+    0x55555555ad49 <+89>:  jne    0x55555555ad7a            ; <+138> at obj.c:18:14
+    0x55555555ad4f <+95>:  mov    rax, qword ptr [rbp - 0x30]
+    0x55555555ad53 <+99>:  mov    eax, dword ptr [rax + 0x10]
+    0x55555555ad56 <+102>: cmp    eax, dword ptr [rbp - 0x1c]
+    0x55555555ad59 <+105>: jne    0x55555555ad7a            ; <+138> at obj.c:18:14
+    0x55555555ad5f <+111>: mov    rax, qword ptr [rbp - 0x30]
+    0x55555555ad63 <+115>: mov    rcx, qword ptr [rbp - 0x10]
+    0x55555555ad67 <+119>: mov    qword ptr [rax + 0x8], rcx
+    0x55555555ad6b <+123>: mov    ecx, dword ptr [rbp - 0x20]
+    0x55555555ad6e <+126>: mov    rax, qword ptr [rbp - 0x30]
+    0x55555555ad72 <+130>: mov    dword ptr [rax + 0x14], ecx
+    0x55555555ad75 <+133>: jmp    0x55555555ae20            ; <+304> at obj.c:31:1
+    0x55555555ad7a <+138>: mov    eax, dword ptr [rbp - 0x24]
+    0x55555555ad7d <+141>: add    eax, 0x1
+    0x55555555ad80 <+144>: mov    dword ptr [rbp - 0x24], eax
+    0x55555555ad83 <+147>: jmp    0x55555555ad12            ; <+34> at obj.c:11:12
+    0x55555555ad88 <+152>: mov    eax, dword ptr [rbp - 0x24]
+    0x55555555ad8b <+155>: add    eax, 0x1
+    0x55555555ad8e <+158>: imul   ecx, eax, 0x18
+    0x55555555ad91 <+161>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555ad95 <+165>: mov    dword ptr [rax + 0x8], ecx
+    0x55555555ad98 <+168>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555ad9c <+172>: mov    eax, dword ptr [rax + 0x8]
+    0x55555555ad9f <+175>: mov    rcx, qword ptr [rbp - 0x18]
+    0x55555555ada3 <+179>: cmp    eax, dword ptr [rcx + 0xc]
+    0x55555555ada6 <+182>: jb     0x55555555addc            ; <+236> at obj.c:25:5
+    0x55555555adac <+188>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555adb0 <+192>: mov    ecx, dword ptr [rax + 0x8]
+    0x55555555adb3 <+195>: shl    ecx, 0x1
+    0x55555555adb6 <+198>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555adba <+202>: mov    dword ptr [rax + 0xc], ecx
+    0x55555555adbd <+205>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555adc1 <+209>: mov    rdi, qword ptr [rax]
+    0x55555555adc4 <+212>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555adc8 <+216>: mov    eax, dword ptr [rax + 0xc]
+    0x55555555adcb <+219>: mov    esi, eax
+    0x55555555adcd <+221>: call   0x5555555550e0            ; symbol stub for: realloc
+    0x55555555add2 <+226>: mov    rcx, rax
+    0x55555555add5 <+229>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555add9 <+233>: mov    qword ptr [rax], rcx
+    0x55555555addc <+236>: mov    rax, qword ptr [rbp - 0x18]
+    0x55555555ade0 <+240>: mov    rax, qword ptr [rax]
+    0x55555555ade3 <+243>: mov    ecx, dword ptr [rbp - 0x24]
+    0x55555555ade6 <+246>: imul   rcx, rcx, 0x18
+    0x55555555adea <+250>: add    rax, rcx
+    0x55555555aded <+253>: mov    rcx, qword ptr [rbp - 0x8]
+    0x55555555adf1 <+257>: mov    qword ptr [rbp - 0x48], rcx
+    0x55555555adf5 <+261>: mov    rcx, qword ptr [rbp - 0x10]
+    0x55555555adf9 <+265>: mov    qword ptr [rbp - 0x40], rcx
+    0x55555555adfd <+269>: mov    ecx, dword ptr [rbp - 0x1c]
+    0x55555555ae00 <+272>: mov    dword ptr [rbp - 0x38], ecx
+    0x55555555ae03 <+275>: mov    ecx, dword ptr [rbp - 0x20]
+    0x55555555ae06 <+278>: mov    dword ptr [rbp - 0x34], ecx
+    0x55555555ae09 <+281>: mov    rcx, qword ptr [rbp - 0x48]
+    0x55555555ae0d <+285>: mov    qword ptr [rax], rcx
+    0x55555555ae10 <+288>: mov    rcx, qword ptr [rbp - 0x40]
+    0x55555555ae14 <+292>: mov    qword ptr [rax + 0x8], rcx
+    0x55555555ae18 <+296>: mov    rcx, qword ptr [rbp - 0x38]
+    0x55555555ae1c <+300>: mov    qword ptr [rax + 0x10], rcx
+    0x55555555ae20 <+304>: add    rsp, 0x50
+    0x55555555ae24 <+308>: pop    rbp
+    0x55555555ae25 <+309>: ret

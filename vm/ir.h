@@ -71,9 +71,8 @@ struct vm_rblock_t {
     vm_block_t *block;
     void *cache;
     uint32_t comps : 32;
-    uint32_t start : 30;
+    uint32_t start : 31;
     bool isfunc : 1;
-    bool mark : 1;
 };
 
 struct vm_cache_t {
@@ -102,10 +101,13 @@ struct vm_arg_t {
 };
 
 struct vm_branch_t {
-    vm_block_t *targets[VM_TAG_MAX];
+    union {
+        vm_block_t *targets[VM_TAG_MAX];
+        vm_rblock_t *rtargets[VM_TAG_MAX];
+    };
+    int8_t *pass[2];
     vm_arg_t args[2];
     vm_arg_t out;
-    int8_t *pass[2];
     uint8_t op;
     vm_tag_t tag;
 };
@@ -135,6 +137,7 @@ struct vm_block_t {
     void *impl;
     void *pass;
 
+    int32_t label: 30;
     bool isfunc : 1;
     bool mark : 1;
 };

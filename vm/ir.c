@@ -28,7 +28,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_REG: {
-            fprintf(out, "r%zu", val.reg);
+            fprintf(out, "%%%zu", val.reg);
             break;
         }
         case VM_ARG_FUNC: {
@@ -36,7 +36,13 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_X64: {
-            fprintf(out, "Rv(%zu)", (size_t)val.x64);
+            const char *names[16] = {
+                "rax", "rcx", "rdx", "rbx",
+                "rsp", "rbp", "rsi", "rdi",
+                "r8",  "r9",  "r10", "r11",
+                "r12", "r13", "r14", "r15",
+            };
+            fprintf(out, "%s%%%zu", names[val.x64], (size_t) val.vmreg);
             break;
         }
     }
@@ -74,6 +80,10 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
     }
 }
 void vm_print_branch(FILE *out, vm_branch_t val) {
+    if (val.out.type != VM_ARG_NONE) {
+        vm_print_arg(out, val.out);
+        fprintf(out, " <- ");
+    }
     switch (val.op) {
         case VM_BOP_JUMP: {
             fprintf(out, "jump");
@@ -120,7 +130,7 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
         fprintf(out, " ");
         vm_print_arg(out, val.args[1]);
     }
-    if (val.targets[0]) {
+    if (val.op == VM_BOP_GET) {
         fprintf(out, " .%zi", (size_t)val.targets[0]->id);
         fprintf(out, "(");
         for (size_t i = 0; i < val.targets[0]->nargs; i++) {
@@ -130,17 +140,29 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             vm_print_arg(out, val.targets[0]->args[i]);
         }
         fprintf(out, ")");
-    }
-    if (val.targets[1]) {
-        fprintf(out, " .%zi", (size_t)val.targets[1]->id);
-        fprintf(out, "(");
-        for (size_t i = 0; i < val.targets[1]->nargs; i++) {
-            if (i != 0) {
-                fprintf(out, ", ");
+    } else {
+        if (val.targets[0]) {
+            fprintf(out, " .%zi", (size_t)val.targets[0]->id);
+            fprintf(out, "(");
+            for (size_t i = 0; i < val.targets[0]->nargs; i++) {
+                if (i != 0) {
+                    fprintf(out, ", ");
+                }
+                vm_print_arg(out, val.targets[0]->args[i]);
             }
-            vm_print_arg(out, val.targets[1]->args[i]);
+            fprintf(out, ")");
         }
-        fprintf(out, ")");
+        if (val.targets[1]) {
+            fprintf(out, " .%zi", (size_t)val.targets[1]->id);
+            fprintf(out, "(");
+            for (size_t i = 0; i < val.targets[1]->nargs; i++) {
+                if (i != 0) {
+                    fprintf(out, ", ");
+                }
+                vm_print_arg(out, val.targets[1]->args[i]);
+            }
+            fprintf(out, ")");
+        }
     }
 }
 void vm_print_instr(FILE *out, vm_instr_t val) {
@@ -285,6 +307,9 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 }
             }
         }
+        if (block->branch.out.type == VM_ARG_REG && block->branch.out.reg >= nregs) {
+            nregs = block->branch.out.reg + 1;
+        }
         for (size_t j = 0; j < 2; j++) {
             if (block->branch.args[j].type != VM_ARG_NONE && block->branch.args[j].type == VM_ARG_REG &&
                 block->branch.args[j].reg >= nregs) {
@@ -325,6 +350,9 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 regs[block->branch.args[j].reg] = VM_INFO_REG_ARG;
                 nargs += 1;
             }
+        }
+        if (block->branch.out.type == VM_ARG_REG && regs[block->branch.out.reg] == VM_INFO_REG_UNK) {
+            regs[block->branch.out.reg] = VM_INFO_REG_DEF;
         }
         block->nargs = 0;
         block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
