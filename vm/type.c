@@ -10,6 +10,7 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     rblock->comps = 0;
     return rblock;
 }
+
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
@@ -17,7 +18,6 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
                 vm_arg_t arg = rblock->block->args[j];
                 if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
-                    printf("%zu != %zu\n", (size_t)rblock->regs->tags[arg.reg], (size_t)found->regs->tags[arg.reg]);
                     goto next;
                 }
             }
@@ -100,6 +100,10 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             return instr;
         }
     }
+    if (instr.op == VM_IOP_NEW) {
+        instr.tag = VM_TAG_TABLE;
+        return instr;
+    }
     if (instr.tag == VM_TAG_UNK) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
@@ -122,7 +126,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
 }
 
 bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
-    if (instr.op != VM_IOP_CAST && instr.op != VM_IOP_CALL) {
+    if (instr.op != VM_IOP_CALL) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 if (types->tags[instr.args[i].reg] != instr.tag) {

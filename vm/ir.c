@@ -103,6 +103,10 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             fprintf(out, "exit");
             break;
         }
+        case VM_BOP_GET: {
+            fprintf(out, "get");
+            break;
+        }
     }
     if (val.tag != VM_TAG_UNK) {
         fprintf(out, ".");
@@ -153,10 +157,6 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "move");
             break;
         }
-        case VM_IOP_CAST: {
-            fprintf(out, "cast");
-            break;
-        }
         case VM_IOP_ADD: {
             fprintf(out, "add");
             break;
@@ -187,6 +187,14 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
         }
         case VM_IOP_PRINT: {
             fprintf(out, "print");
+            break;
+        }
+        case VM_IOP_SET: {
+            fprintf(out, "set");
+            break;
+        }
+        case VM_IOP_NEW: {
+            fprintf(out, "new");
             break;
         }
     }

@@ -45,29 +45,25 @@ enum {
     VM_BOP_RET,
     VM_BOP_EXIT,
     VM_BOP_BTYPE,
+    VM_BOP_GET,
 };
 
 enum {
     VM_IOP_NOP,
     VM_IOP_MOVE,
-    VM_IOP_CAST,
     VM_IOP_ADD,
     VM_IOP_SUB,
     VM_IOP_MUL,
     VM_IOP_DIV,
     VM_IOP_MOD,
+    // funcs
     VM_IOP_CALL,
+    // io
     VM_IOP_OUT,
     VM_IOP_PRINT,
-    VM_IOP_IN,
-    VM_IOP_BNOT,
-    VM_IOP_BOR,
-    VM_IOP_BAND,
-    VM_IOP_BXOR,
-    VM_IOP_BSHL,
-    VM_IOP_BSHR,
-    // for the x64 jit
-    VM_IOP_ARGS,
+    // tables
+    VM_IOP_SET,
+    VM_IOP_NEW,
 };
 
 struct vm_rblock_t {
@@ -95,7 +91,7 @@ struct vm_arg_t {
         vm_block_t *func;
         vm_instr_t *instr;
         bool logic;
-        vm_tag_t *tag;
+        vm_tag_t tag;
         struct {
             uint16_t save;
             int16_t vmreg;
@@ -106,8 +102,9 @@ struct vm_arg_t {
 };
 
 struct vm_branch_t {
-    vm_block_t *targets[2];
+    vm_block_t *targets[VM_TAG_MAX];
     vm_arg_t args[2];
+    vm_arg_t out;
     int8_t *pass[2];
     uint8_t op;
     vm_tag_t tag;

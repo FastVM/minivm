@@ -70,6 +70,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *src, vm_paka_comp_t *comp)
 vm_arg_t vm_paka_parser_expr_mul(vm_paka_parser_t *src, vm_paka_comp_t *comp);
 vm_arg_t vm_paka_parser_expr_add(vm_paka_parser_t *src, vm_paka_comp_t *comp);
 vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *src, vm_paka_comp_t *comp);
+vm_arg_t vm_paka_parser_postfix(vm_paka_parser_t *parser, vm_paka_comp_t *comp, vm_arg_t arg);
 int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
 // string parsers
 vm_block_t *vm_paka_parse(const char *src);

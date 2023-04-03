@@ -54,8 +54,10 @@ struct vm_x64_link_t {
     size_t label;
     void **out;
     vm_x64_link_t *next;
-    vm_block_t *block;
-    size_t nregs;
+    void *block;
+    uint16_t save;
+    bool isfunc;
+    bool isr;
 };
 
 struct vm_x64_cache_t {
@@ -64,6 +66,7 @@ struct vm_x64_cache_t {
 
 vm_x64_cache_t *vm_x64_cache_new(void);
 vm_block_t *vm_x64_rblock_version(vm_rblock_t *rblock);
+void *vm_x64_rfunc_comp(vm_x64_state_t *state, vm_rblock_t *block);
 void *vm_x64_func_comp(vm_x64_state_t *state, vm_block_t *block);
 void *vm_x64_full_comp(vm_x64_state_t *state, vm_block_t *block);
 void vm_x64_run(vm_block_t *block);

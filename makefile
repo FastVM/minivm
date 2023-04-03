@@ -18,7 +18,7 @@ PROG_OBJS := $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 JITC_SRCS := vm/jit/x64.dasc
 JITC_OBJS :=  $(JITC_SRCS:%.dasc=$(OBJ_DIR)/%.o)
 
-VM_SRCS := vm/ir.c vm/type.c vm/lang/paka.c
+VM_SRCS := vm/ir.c vm/type.c vm/lang/paka.c vm/obj.c
 VM_OBJS := $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS := $(VM_OBJS) $(JITC_OBJS)
