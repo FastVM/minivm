@@ -19,6 +19,7 @@ union vm_value_t {
     double f64;
     const char *str;
     vm_table_t *table;
+    void *all;
 };
 
 struct vm_pair_t {
@@ -35,5 +36,6 @@ struct vm_table_t {
 };
 
 vm_table_t *vm_table_new(void);
+void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uint32_t key_tag, uint32_t val_tag);
 
 #endif

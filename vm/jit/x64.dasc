@@ -84,13 +84,13 @@ void* vm_x64_encode(vm_x64_state_t *state, dasm_State** d)
     for (vm_x64_link_t *link = state->links; link != NULL; link = link->next) {
         *link->out = (void *) ((size_t) buf + dasm_getpclabel(d, link->label));
     }
-    static FILE *f = NULL;
-    // FILE *f = NULL;
-    if (f == NULL) {
-        f = fopen("out.bin", "wb");
-    }
-    fwrite(buf, size, 1, f);
-    // fclose(f);
+    // static FILE *f = NULL;
+    // // FILE *f = NULL;
+    // if (f == NULL) {
+    //     f = fopen("out.bin", "wb");
+    // }
+    // fwrite(buf, size, 1, f);
+    // // fclose(f);
     return buf;
 }
 
@@ -249,13 +249,6 @@ void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
         break;
     }
     case VM_BOP_GET: {
-        uint16_t save = 0;
-        for (size_t i = 0; i < 16; i++) {
-            if (cpuregs[i] >= 0) {
-                save |= (1 << i);
-            }
-        }
-        block->branch.out.save = save;
         static int8_t argregs[] = {7, 6, 2, 3, 8, 9};
         for (size_t i = 0; i < 2; i++) {
             if (block->branch.args[i].type == VM_ARG_REG) {
@@ -299,6 +292,26 @@ void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
                 __builtin_trap();
             }
             block->branch.pass[0][i] = val;
+        }
+        uint16_t save = 0;
+        for (size_t i = 0; i < 16; i++) {
+            if (cpuregs[i] >= 0) {
+                save |= (1 << i);
+            }
+        }
+        size_t reg = block->branch.out.reg;
+        if (vmregs[reg] >= 0) {
+            block->branch.out = (vm_arg_t) {
+                .type = VM_ARG_X64,
+                .vmreg = reg,
+                .x64 = vmregs[reg],
+            };
+            vmregs[reg] = -1;
+            cpuregs[block->branch.out.x64] = -1;
+        } else {
+            block->branch.out = (vm_arg_t) {
+                .type = VM_ARG_NONE,
+            };
         }
         break;
     }
@@ -947,6 +960,9 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 save |= (1 << arg.x64);
             }
         }
+        if (block->branch.out.type == VM_ARG_X64) {
+            save |= (1 << block->branch.out.x64);
+        }
         void **ptrs = vm_x64_mmap(state, sizeof(void *) * VM_TAG_MAX);
         for (size_t i = 1; i < VM_TAG_MAX; i++) {
             vm_x64_link_t *link = vm_malloc(sizeof(vm_x64_link_t));
@@ -954,6 +970,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             link->out = &ptrs[i];
             *link->out = NULL;
             link->next = state->links;
+            block->branch.targets[i]->pass = block->branch.pass[0];
             link->block = block->branch.targets[i];
             link->save = save;
             state->links = link;
@@ -979,16 +996,26 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
         | mov eax, [rdi+0x08]
         |1:
         | test eax, eax
-        | jz >2
+        | jz >3
         | sub eax, 24
         | mov edx, [rcx+eax+0x10]
         | cmp edx, ((int32_t) block->branch.tag)
         | jne <1
         | cmp rsi, [rcx+eax]
         | jne <1
-        | shl edx, 3
-        | jmp qword [edx+((int32_t) (size_t) (ptrs))]
-        |2:
+        for (size_t i = 1; i < VM_TAG_MAX; i++) {
+            | cmp edx, i
+            | jne >2
+            if (block->branch.out.type == VM_ARG_X64) {
+                | mov Rq(block->branch.out.x64), [rcx+eax+0x08]
+            } else {
+                __builtin_trap();
+            }
+            vm_x64_comp_unsave(Dst, block->branch.out.save);
+            | jmp qword [((int32_t) (size_t) (ptrs + i))]
+            |2:
+        }
+        |3:
         vm_x64_comp_unsave(Dst, block->branch.out.save);
         | jmp qword [((int32_t) (size_t) (ptrs+VM_TAG_NIL))]
         break;
@@ -1098,37 +1125,47 @@ void *vm_x64_func_comp(vm_x64_state_t *state, vm_block_t *block) {
     dasm_setup(Dst, act);
     dasm_growpc(Dst, 128);
     |.code
-    static int8_t vm_sysv_argregs[] = {7, 6, 2, 1, 8, 9};
     |->main:
     if (state->exitptr == NULL) {
         | mov64 rax, ((uint64_t) (&state->exitptr))
         | mov [rax], rsp
     }
     if (block->isfunc) {
+        static int8_t vm_sysv_argregs[] = {7, 6, 2, 1, 8, 9};
         vm_x64_reg_alloc_block(state, block);
         | sub rsp, state->push
+        vm_x64_block_comp(state, block, Dst, vm_sysv_argregs);
+    } else {
+        vm_x64_block_comp(state, block, Dst, block->pass);
     }
-    vm_x64_block_comp(state, block, Dst, vm_sysv_argregs);
-    static int8_t argregs[] = {7, 6, 2, 3, 8, 9};
     for (vm_x64_link_t *link = state->links; link != NULL; link = link->next) {
         |=>link->label:
-        | sub rsp, (16 * 8 + 8)
+        size_t push = 8 * 8;
+        vm_block_t *lblock = link->block;
+        if (lblock->isfunc) {
+            push += 8;
+        }
+        | sub rsp, push
+        size_t off1 = 8;
         for (size_t i = 0; i < 16; i++) {
             if (link->save & (1 << i)) {
-                | mov [rsp+(i*8)], Rq(i)
+                | mov [rsp+(off1)], Rq(i)
+                off1 += 8;
             }
         }
         | mov64 rdi, ((uint64_t) (state))
-        | mov64 rsi, ((uint64_t) (link->block))
+        | mov64 rsi, ((uint64_t) (lblock))
         | mov64 rax, ((uint64_t) (vm_x64_func_comp))
         | call rax
+        size_t off2 = 8;
         for (size_t i = 0; i < 16; i++) {
             if (link->save & (1 << i)) {
-                | mov Rq(i), [rsp+(i*8)]
+                | mov Rq(i), [rsp+(off2)]
+                off2 += 8;
             }
         }
         | mov [((int32_t) (size_t) (link->out))], rax
-        | add rsp, (16 * 8 + 8)
+        | add rsp, push
         | jmp rax
     }
     vm_x64_encode(state, Dst);
