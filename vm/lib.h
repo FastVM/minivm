@@ -18,30 +18,19 @@
 #include "../bin/cosmopolitan.h"
 #endif
 
-#if defined(VM_XGC)
-
-void *vm_malloc(size_t size);
-void *vm_realloc(void *ptr, size_t size);
-void vm_free(void *ptr);
-
-#elif defined(VM_MIMALLOC)
-
-#include <mimalloc.h>
-#define vm_malloc(size) (mi_malloc(size))
-#define vm_realloc(ptr, size) (mi_realloc(ptr, size))
-#define vm_free(ptr) (mi_free((void *)ptr))
-
-#else
-
-#define vm_malloc(size_) (malloc((size_)))
-#define vm_realloc(ptr_, size_) (realloc((ptr_), (size_)))
-#define vm_free(ptr_) (free((void *)(ptr_)))
-
-#endif
-
 #if defined(__TINYC__)
 #define __builtin_trap() exit(1)
 #define __builtin_unreachable() exit(1)
 #endif
+
+void GC_init(void);
+void *GC_malloc(size_t size);
+void *GC_realloc(void *ptr, size_t size);
+void GC_free(void *ptr);
+
+#define vm_init_mem() (GC_init())
+#define vm_malloc(x) (GC_malloc((x)))
+#define vm_realloc(x,y) (GC_realloc((x),(y)))
+#define vm_free(x) (GC_free((x)))
 
 #endif

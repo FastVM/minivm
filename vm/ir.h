@@ -64,6 +64,7 @@ enum {
     // tables
     VM_IOP_SET,
     VM_IOP_NEW,
+    VM_IOP_LEN,
 };
 
 struct vm_rblock_t {
@@ -137,7 +138,7 @@ struct vm_block_t {
     void *impl;
     void *pass;
 
-    int32_t label: 30;
+    int32_t label : 30;
     bool isfunc : 1;
     bool mark : 1;
 };

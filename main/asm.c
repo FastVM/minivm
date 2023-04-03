@@ -30,6 +30,7 @@ static char *vm_asm_io_read(const char *filename) {
 void vm_x64_run(vm_block_t *block);
 
 int main(int argc, char **argv) {
+    vm_init_mem();
     const char *filename = NULL;
     size_t runs = 1;
     while (true) {

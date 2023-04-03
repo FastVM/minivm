@@ -37,12 +37,24 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
         }
         case VM_ARG_X64: {
             const char *names[16] = {
-                "rax", "rcx", "rdx", "rbx",
-                "rsp", "rbp", "rsi", "rdi",
-                "r8",  "r9",  "r10", "r11",
-                "r12", "r13", "r14", "r15",
+                "rax",
+                "rcx",
+                "rdx",
+                "rbx",
+                "rsp",
+                "rbp",
+                "rsi",
+                "rdi",
+                "r8",
+                "r9",
+                "r10",
+                "r11",
+                "r12",
+                "r13",
+                "r14",
+                "r15",
             };
-            fprintf(out, "%s%%%zu", names[val.x64], (size_t) val.vmreg);
+            fprintf(out, "%s%%%zu", names[val.x64], (size_t)val.vmreg);
             break;
         }
     }
@@ -217,6 +229,10 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
         }
         case VM_IOP_NEW: {
             fprintf(out, "new");
+            break;
+        }
+        case VM_IOP_LEN: {
+            fprintf(out, "len");
             break;
         }
     }

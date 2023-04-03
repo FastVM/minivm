@@ -19,7 +19,7 @@ static void vm_putchar(int c) {
     printf("%c", c);
 }
 
-static void vm_print_nil(vm_table_t *t) {
+static void vm_print_nil(void) {
     printf("nil");
 }
 
@@ -419,6 +419,7 @@ void vm_x64_reg_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
         case VM_IOP_NOP: {
             break;
         }
+        case VM_IOP_LEN:
         case VM_IOP_MOVE: {
             if (instr.args[0].type == VM_ARG_REG) {
                 instr.args[0] = (vm_arg_t) {
@@ -700,7 +701,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                         if (instr.out.x64 == instr.args[0].x64) {
                             | add Rq(instr.out.x64), Rq(instr.args[1].x64)
                         } else {
-                            | lea Rq(instr.out.x64), [Rq(instr.args[0].x64)+((int32_t) (instr.args[1].num))]
+                            | lea Rq(instr.out.x64), [Rq(instr.args[0].x64)+Rq(instr.args[1].x64)]
                         }
                     } else if (instr.args[1].type == VM_ARG_NUM) {
                         if (instr.out.x64 == instr.args[0].x64) {
@@ -736,12 +737,17 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 if (instr.args[0].type == VM_ARG_X64) {
                     if (instr.args[1].type == VM_ARG_X64) {
                         if (instr.out.x64 == instr.args[0].x64) {
-                            | sub Rq(instr.out.x64), ((int32_t) (instr.args[1].x64))
+                            | sub Rq(instr.out.x64), Rq(instr.args[1].x64)
                         } else {
-                            | lea Rq(instr.out.x64), [Rq(instr.args[0].x64)-((int32_t) (instr.args[1].x64))]
+                            | mov Rq(instr.out.x64), Rq(instr.args[0].x64)
+                            | sub Rq(instr.out.x64), Rq(instr.args[1].x64)
                         }
                     } else if (instr.args[1].type == VM_ARG_NUM) {
-                        | lea Rq(instr.out.x64), [Rq(instr.args[0].x64)-((int32_t) (instr.args[1].num))]
+                        if (instr.out.x64 == instr.args[0].x64) {
+                            | sub Rq(instr.out.x64), ((int32_t) (instr.args[1].num))
+                        } else {
+                            | lea Rq(instr.out.x64), [Rq(instr.args[0].x64)-((int32_t) (instr.args[1].num))]
+                        }
                     } else {
                         __builtin_trap();
                     }
@@ -781,7 +787,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                         | mov rax, Rq(instr.args[0].x64)
                     }
                     if (instr.args[1].type == VM_ARG_X64) {
-                        | mul Rq(instr.args[1].x64)
+                        | imul Rq(instr.args[1].x64)
                         if (instr.out.x64 != out) {
                             | mov Rq(instr.out.x64), Rq(out)
                         }
@@ -800,7 +806,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                             __builtin_trap();
                         }
                         | mov Rd(r), ((int32_t) (instr.args[1].num))
-                        | mul Rq(r)
+                        | imul Rq(r)
                         if (instr.out.x64 != out) {
                             | mov Rq(instr.out.x64), Rq(out)
                         }
@@ -845,7 +851,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     }
                     | xor edx, edx
                     if (instr.args[1].type == VM_ARG_X64) {
-                        | div Rq(instr.args[1].x64)
+                        | idiv Rq(instr.args[1].x64)
                         if (instr.out.x64 != out) {
                             | mov Rq(instr.out.x64), Rq(out)
                         }
@@ -864,7 +870,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                             __builtin_trap();
                         }
                         | mov Rd(r), ((int32_t) (instr.args[1].num))
-                        | div Rq(r)
+                        | idiv Rq(r)
                         if (instr.out.x64 != out) {
                             | mov Rq(instr.out.x64), Rq(out)
                         }
@@ -983,6 +989,16 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             }
             break;
         }
+        case VM_IOP_LEN: {
+            vm_x64_comp_save(Dst, instr.out.save);
+            | mov64 rax, ((uint64_t) (&vm_table_len))
+            | call rax 
+            if (instr.out.x64 != 0) {
+                | mov Rq(instr.out.x64), rax
+            }
+            vm_x64_comp_unsave(Dst, instr.out.save);
+            break;
+        }
         case VM_IOP_SET: {
             vm_x64_comp_save(Dst, instr.out.save);
             if (instr.args[0].type == VM_ARG_X64) {
@@ -994,6 +1010,9 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             }
             if (instr.args[1].type == VM_ARG_X64) {
                 if (instr.args[1].x64 != 6) {
+                    if (instr.args[1].x64 == 7) {
+                        __builtin_trap();
+                    }
                     | mov rsi, Rq(instr.args[1].x64)
                 }
             } else if (instr.args[1].type == VM_ARG_NUM) {
@@ -1003,6 +1022,9 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             }
             if (instr.args[2].type == VM_ARG_X64) {
                 if (instr.args[2].x64 != 2) {
+                    if (instr.args[2].x64 == 7 || instr.args[2].x64 == 6) {
+                        __builtin_trap();
+                    }
                     | mov rdx, Rq(instr.args[2].x64)
                 }
             } else if (instr.args[2].type == VM_ARG_NUM) {
@@ -1128,7 +1150,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             } else if (block->branch.args[0].type == VM_ARG_NUM) {
                 if (block->branch.args[1].type == VM_ARG_X64) {
                     | cmp Rq(block->branch.args[1].x64), ((int32_t) (block->branch.args[0].num))
-                    | jnl =>t
+                    | jg =>t
                 } else if (block->branch.args[1].type == VM_ARG_NUM) {
                     if (block->branch.args[0].num < block->branch.args[1].num) {
                         | jmp =>t
@@ -1238,7 +1260,7 @@ void *vm_x64_func_comp(vm_x64_state_t *state, vm_block_t *block) {
     for (vm_x64_link_t *link = state->links; link != NULL; link = link->next) {
         |=>link->label:
         if (link->isfunc) {
-            size_t push = 8 * 8;
+            size_t push = 8 * 8 + 8;
             | sub rsp, push
             size_t off1 = 8;
             for (size_t i = 0; i < 16; i++) {
