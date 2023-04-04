@@ -9,7 +9,8 @@ local function fib(n)
 end
 
 local function tfib(t, n)
-    return tonumber(ffi.cast(t, fib(n)))
+    return tonumber(ffi.cast(t, fib(ffi.cast(t, n))))
+    -- return tonumber(fib(n))
 end
 
 print(tfib('int8_t', 35))

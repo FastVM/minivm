@@ -31,7 +31,7 @@ local function pow2(n)
     end
 end
 
-local maxdepth = 16
+local maxdepth = 12
 
 print(item_check(tree_new(0, maxdepth+1)))
 

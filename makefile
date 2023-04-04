@@ -117,8 +117,6 @@ $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 clean: .dummy
 	rm -rf $(BIN_DIR) $(OBJ_DIR) $(TMP_DIR)
 
-
-
 # dummy
 
 .dummy:

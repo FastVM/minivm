@@ -233,9 +233,10 @@ static const bool vm_x64_is_clobbered[16] = {
 
 int8_t vm_x64_find_reg(int16_t *cpuregs) {
     for (size_t i = 0; i < 16; i++) {
-        if (vm_x64_is_clobbered[15-i]) {
-            if (cpuregs[15-i] < 0) {
-                return 15-i;
+        size_t r = 15-i;
+        if (r != 4) {
+            if (cpuregs[r] < 0) {
+                return r;
             }
         }
     }
@@ -794,10 +795,10 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     } else if (instr.args[1].type == VM_ARG_NUM) {
                         size_t r = 16;
                         for (size_t reg = 0; reg < 16; reg++) {
-                            if (reg == 0 || reg == 2) {
+                            if (reg == 0 || reg == 2 || reg == 4) {
                                 continue;
                             }
-                            if (!(instr.out.save & (1 << reg)) && vm_x64_is_clobbered[reg]) {
+                            if (!(instr.out.save & (1 << reg))) {
                                 r = reg;
                                 break;
                             }
@@ -858,10 +859,10 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     } else if (instr.args[1].type == VM_ARG_NUM) {
                         size_t r = 16;
                         for (size_t reg = 0; reg < 16; reg++) {
-                            if (reg == 0 || reg == 2) {
+                            if (reg == 0 || reg == 2 || reg == 4) {
                                 continue;
                             }
-                            if (!(instr.out.save & (1 << reg)) && vm_x64_is_clobbered[reg]) {
+                            if (!(instr.out.save & (1 << reg))) {
                                 r = reg;
                                 break;
                             }
@@ -1209,6 +1210,13 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
     case VM_BOP_EXIT: {
         | mov64 rax, ((uint64_t) (&state->exitptr))
         | mov rsp, [rax]
+        for (size_t i = 0; i < 16; i++) {
+            size_t r = 15-i;
+            if (vm_x64_is_clobbered[r] && r != 4) {
+                | mov Rq(r), [rsp + (i*8)]
+            }
+        }
+        | add rsp, 16*8
         | ret
         break;
     }
@@ -1246,6 +1254,12 @@ void *vm_x64_func_comp(vm_x64_state_t *state, vm_block_t *block) {
     |.code
     |->main:
     if (state->exitptr == NULL) {
+        | sub rsp, 16*8
+        for (size_t i = 0; i < 16; i++) {
+            if (vm_x64_is_clobbered[i] && i != 4) {
+                | mov [rsp + (i*8)], Rq(i)
+            }
+        }
         | mov64 rax, ((uint64_t) (&state->exitptr))
         | mov [rax], rsp
     }

@@ -38,7 +38,7 @@ local function Main(N)
         local iterations = 2 ^ (maxdepth - depth + mindepth)
         local check = 0
         for i=1,iterations do
-        check = check + ItemCheck(BottomUpTree(1, depth)) + ItemCheck(BottomUpTree(-1, depth))
+        check = check + ItemCheck(BottomUpTree(0, depth)) + ItemCheck(BottomUpTree(0, depth))
         end
         print(check)
     end
