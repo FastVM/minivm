@@ -74,8 +74,6 @@ struct vm_rblock_t {
     vm_tags_t *regs;
     vm_block_t *block;
     void *cache;
-    uint32_t comps : 32;
-    uint32_t start : 31;
 };
 
 struct vm_cache_t {
@@ -109,7 +107,6 @@ struct vm_arg_t {
                 uint8_t r64;
                 uint8_t f64;
             };
-            uint8_t pad1_;
         };
     };
     uint8_t type;
@@ -151,6 +148,7 @@ struct vm_block_t {
     vm_cache_t cache;
     void *pass;
 
+    uint32_t epoch: 32;
     int32_t label : 30;
     bool isfunc : 1;
     bool mark : 1;

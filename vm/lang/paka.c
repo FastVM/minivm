@@ -671,7 +671,6 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
     if (vm_paka_parser_match_keyword(parser, "while")) {
         vm_block_t *check = vm_paka_blocks_new(comp->blocks);
         vm_block_t *body = vm_paka_blocks_new(comp->blocks);
-        vm_block_t *recheck = vm_paka_blocks_new(comp->blocks);
         vm_block_t *after = vm_paka_blocks_new(comp->blocks);
         comp->write->branch = (vm_branch_t){
             .op = VM_BOP_JUMP,
@@ -688,10 +687,9 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         }
         comp->write = body;
         vm_paka_parser_block(parser, comp);
-        *recheck = *check;
         comp->write->branch = (vm_branch_t){
             .op = VM_BOP_JUMP,
-            .targets[0] = recheck,
+            .targets[0] = check,
         };
         comp->write = after;
         return (vm_arg_t){
@@ -1036,8 +1034,8 @@ vm_block_t *vm_paka_parse(const char *src) {
         .op = VM_BOP_EXIT,
     };
     vm_block_info(blocks.len, blocks.blocks);
-    for (size_t i = 0; i < blocks.len; i++) {
-        vm_print_block(stderr, blocks.blocks[i]);
-    }
+    // for (size_t i = 0; i < blocks.len; i++) {
+    //     vm_print_block(stderr, blocks.blocks[i]);
+    // }
     return block;
 }

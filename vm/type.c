@@ -5,15 +5,14 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     rblock->block = block;
     rblock->regs = regs;
-    rblock->start = 0;
-    rblock->comps = 0;
+    rblock->cache = NULL;
     return rblock;
 }
 
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
-        if (rblock->start == found->start && rblock->block->isfunc == found->block->isfunc &&
+        if (rblock->block->isfunc == found->block->isfunc &&
             rblock->block == found->block) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
                 vm_arg_t arg = rblock->block->args[j];
@@ -31,7 +30,7 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
     for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
-        if (rblock->start == found->start && rblock->block->isfunc == found->block->isfunc &&
+        if (rblock->block->isfunc == found->block->isfunc &&
             rblock->block == found->block) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
                 vm_arg_t arg = rblock->block->args[j];
@@ -44,13 +43,6 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
         }
     next:;
     }
-    // vm_rblock_t **ret = vm_cache_get_ref(cache, rblock);
-    // if (ret != NULL) {
-    //     if ((*ret)->comps > rblock->comps) {
-    //         *ret = value;
-    //     }
-    //     return;
-    // }
     if (cache->len + 1 >= cache->alloc) {
         cache->alloc = (cache->len + 1) * 2;
         cache->keys = vm_realloc(cache->keys, sizeof(vm_rblock_t *) * cache->alloc);
@@ -123,12 +115,12 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         }
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_NUM) {
-                // if (fmod(instr.args[i].num, 1) == 0) {
-                //     instr.tag = VM_TAG_I64;
-                // } else {
-                //     instr.tag = VM_TAG_F64;
-                // }
                 instr.tag = VM_TAG_F64;
+#if defined(VM_INTS)
+                if (fmod(instr.args[i].num, 1) == 0) {
+                    instr.tag = VM_TAG_I64;
+                }
+#endif
                 return instr;
             }
         }
@@ -172,12 +164,12 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types,
         }
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_NUM) {
-                // if (fmod(branch.args[i].num, 1) == 0) {
-                //     branch.tag = VM_TAG_I64;
-                // } else {
-                //     branch.tag = VM_TAG_F64;
-                // }
                 branch.tag = VM_TAG_F64;
+#if defined(VM_INTS)
+                if (fmod(branch.args[i].num, 1) == 0) {
+                    branch.tag = VM_TAG_I64;
+                }
+#endif
                 return branch;
             }
         }

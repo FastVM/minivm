@@ -36,7 +36,7 @@ static void vm_print_i64(ptrdiff_t n) {
 }
 
 static void vm_print_f64(double n) {
-    printf("%f", n);
+    printf("%g", n);
 }
 
 void *vm_x64_mmap(vm_x64_state_t *state, size_t size, size_t align) {
@@ -119,10 +119,12 @@ vm_x64_cache_t *vm_x64_cache_new(void) {
 }
 
 vm_block_t *vm_x64_rblock_version(vm_rblock_t *rblock) {
-    if (rblock->cache != NULL) {
-        return rblock->cache;
+    void *cache = vm_cache_get(&rblock->block->cache, rblock);
+    if (cache != NULL) {
+        return cache;
     }
     vm_block_t *ret = vm_malloc(sizeof(vm_block_t));
+    vm_cache_set(&rblock->block->cache, rblock, ret);
     vm_tags_t *regs = vm_rblock_regs_dup(rblock->regs, 256);
     *ret = *rblock->block;
     ret->label = -1;
@@ -132,7 +134,7 @@ vm_block_t *vm_x64_rblock_version(vm_rblock_t *rblock) {
     for (size_t i = 0; i < ret->nargs; i++) {
         ret->args[i] = rblock->block->args[i];
     }
-    for (size_t ninstr = rblock->start; ninstr < rblock->block->len; ninstr++) {
+    for (size_t ninstr = 0; ninstr < rblock->block->len; ninstr++) {
         vm_instr_t instr = vm_rblock_type_specialize_instr(regs, rblock->block->instrs[ninstr]);
         if (!vm_rblock_type_check_instr(regs, instr)) return NULL;
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
@@ -334,7 +336,13 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
         for (size_t i = 0; i < block->branch.targets[0]->nargs; i++) {
             vm_arg_t arg = block->branch.targets[0]->args[i];
             int8_t val = -1;
-            if (arg.type == VM_ARG_CPU_GP) {
+            if (arg.type == VM_ARG_REG) {
+                if (arg.reg_tag == VM_TAG_F64) {
+                    val = vm_x64_alloc_f64(regs, arg.reg);
+                } else {
+                    val = vm_x64_alloc_r64(regs, arg.reg);
+                }
+            } else if (arg.type == VM_ARG_CPU_GP) {
                 val = vm_x64_alloc_r64(regs, arg.vmreg);
             } else if (arg.type == VM_ARG_CPU_FP) {
                 val = vm_x64_alloc_f64(regs, arg.vmreg);
@@ -379,7 +387,13 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
         for (size_t i = 0; i < block->branch.targets[0]->nargs; i++) {
             vm_arg_t arg = block->branch.targets[0]->args[i];
             int8_t val = -1;
-            if (arg.type == VM_ARG_CPU_GP) {
+            if (arg.type == VM_ARG_REG) {
+                if (arg.reg_tag == VM_TAG_F64) {
+                    val = vm_x64_alloc_f64(regs, arg.reg);
+                } else {
+                    val = vm_x64_alloc_r64(regs, arg.reg);
+                }
+            } else if (arg.type == VM_ARG_CPU_GP) {
                 val = vm_x64_alloc_r64(regs, arg.vmreg);
             } else if (arg.type == VM_ARG_CPU_FP) {
                 val = vm_x64_alloc_f64(regs, arg.vmreg);
@@ -398,7 +412,13 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
             for (size_t i = 0; i < block->branch.targets[bn]->nargs; i++) {
                 vm_arg_t arg = block->branch.targets[bn]->args[i];
                 int8_t val = -1;
-                if (arg.type == VM_ARG_CPU_GP) {
+                if (arg.type == VM_ARG_REG) {
+                    if (arg.reg_tag == VM_TAG_F64) {
+                    val = vm_x64_alloc_f64(regs, arg.reg);
+                } else {
+                    val = vm_x64_alloc_r64(regs, arg.reg);
+                    }
+                } else if (arg.type == VM_ARG_CPU_GP) {
                     val = vm_x64_alloc_r64(regs, arg.vmreg);
                 } else if (arg.type == VM_ARG_CPU_FP) {
                     val = vm_x64_alloc_f64(regs, arg.vmreg);
@@ -910,7 +930,20 @@ int8_t vm_x64_reg_in_save_not(vm_x64_reg_save_t save, uint16_t not) {
     __builtin_trap();
 }
 
+int8_t vm_x64_xmm_in_save_not(vm_x64_reg_save_t save, uint16_t not) {
+    for (size_t i = 0; i < 16; i++) {
+        if (!(save.xmm & (1 << i)) && !(not & (1 << i))) {
+            return i;
+        }
+    }
+    __builtin_trap();
+}
+
 void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Dst, int8_t *pass) {
+    if (state->count + 4 >= state->pc_alloc) {
+        state->pc_alloc = (state->count + 4) * 2;
+        dasm_growpc(Dst, state->pc_alloc);
+    }
     {
         size_t count = 0;
         int8_t from[16];
@@ -995,10 +1028,11 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             }
         }
     }
-    if (block->label >= 0) {
+    if (block->epoch == state->epoch) {
         | jmp =>block->label
         return;
     }
+    block->epoch = state->epoch;
     block->label = state->count++;
     |=>block->label:
     for (size_t instr_num = 0; instr_num < block->len; instr_num++) {
@@ -1078,7 +1112,12 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                             | vaddsd xmm(instr.out.f64), xmm(instr.args[0].f64), xmm(instr.args[1].f64) 
                         }
                     } else if (instr.args[1].type == VM_ARG_NUM) {
-                        __builtin_trap();
+                        double *ptr = vm_x64_mmap_f64(state, instr.args[1].num);
+                        if (instr.out.f64 == instr.args[0].f64) {
+                            | addsd xmm(instr.out.f64), qword [((int32_t) (size_t) ptr)]
+                        } else {
+                            | vaddsd xmm(instr.out.f64), xmm(instr.args[0].f64), qword [((int32_t) (size_t) ptr)]
+                        }
                     } else {
                         __builtin_trap();
                     }
@@ -1322,22 +1361,18 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 } else if (instr.op == VM_IOP_MOD) {
                     if (instr.args[0].type == VM_ARG_CPU_FP) {
                         if (instr.args[1].type == VM_ARG_CPU_FP) {
-                            vm_x64_comp_save(Dst, instr.out.save);
-                            | movsd xmm0, xmm(instr.args[0].f64)
-                            | movsd xmm1, xmm(instr.args[1].f64)
-                            | mov64 rax, ((size_t) (&fmod)) 
-                            | call rax
-                            | movsd xmm(instr.out.f64), xmm0
-                            vm_x64_comp_unsave(Dst, instr.out.save);
+                            int8_t tmp0 = vm_x64_xmm_in_save_not(instr.out.save, (1 << instr.args[0].f64) | (1 << instr.args[1].f64));
+                            | vdivsd xmm(tmp0), xmm(instr.args[0].f64), xmm(instr.args[1].f64)
+                            | roundsd xmm(tmp0), xmm(tmp0), 9
+                            | mulsd xmm(tmp0), xmm(instr.args[1].f64)
+                            | vsubsd xmm(instr.out.f64), xmm(instr.args[0].f64), xmm(tmp0)
                         } else if (instr.args[1].type == VM_ARG_NUM) {
+                            int8_t tmp0 = vm_x64_xmm_in_save_not(instr.out.save, (1 << instr.args[0].f64));
                             double *ptr = vm_x64_mmap_f64(state, instr.args[1].num);
-                            vm_x64_comp_save(Dst, instr.out.save);
-                            | movsd xmm0, xmm(instr.args[0].f64)
-                            | movsd xmm1, qword [((int32_t) (size_t) ptr)]
-                            | mov64 rax, ((size_t) (&fmod)) 
-                            | call rax
-                            | movsd xmm(instr.out.f64), xmm0
-                            vm_x64_comp_unsave(Dst, instr.out.save);
+                            | vdivsd xmm(tmp0), xmm(instr.args[0].f64), qword [((int32_t) (size_t) ptr)]
+                            | roundsd xmm(tmp0), xmm(tmp0), 9
+                            | mulsd xmm(tmp0), qword [((int32_t) (size_t) ptr)]
+                            | vsubsd xmm(instr.out.f64), xmm(instr.args[0].f64), xmm(tmp0)
                         } else {
                             __builtin_trap();
                         }
@@ -1634,7 +1669,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 if (block->branch.args[1].type == VM_ARG_CPU_GP) {
                     | cmp Rq(block->branch.args[1].r64), ((int32_t) (block->branch.args[0].num))
                     | ja =>t
-                } else if (block->branch.args[1].type == VM_ARG_CPU_GP) {
+                } else if (block->branch.args[1].type == VM_ARG_CPU_FP) {
                     double *val = vm_x64_mmap_f64(state, block->branch.args[0].num);
                     | comisd xmm(block->branch.args[1].r64), qword [((int32_t) (size_t) val)]
                     | ja =>t
@@ -1674,7 +1709,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 if (block->branch.args[1].type == VM_ARG_CPU_GP) {
                     | cmp Rq(block->branch.args[1].r64), ((int32_t) (block->branch.args[0].num))
                     | je =>t
-                } else if (block->branch.args[1].type == VM_ARG_CPU_GP) {
+                } else if (block->branch.args[1].type == VM_ARG_CPU_FP) {
                     double *val = vm_x64_mmap_f64(state, block->branch.args[0].num);
                     | comisd xmm(block->branch.args[1].r64), qword [((int32_t) (size_t) val)]
                     | je =>t
@@ -1704,7 +1739,8 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 | movsd xmm0, xmm(block->branch.args[0].f64)
             }
         } else if (block->branch.args[0].type == VM_ARG_NUM) {
-            | mov eax, ((int32_t) (block->branch.args[0].num))
+            double *ptr = vm_x64_mmap_f64(state, block->branch.args[0].num);
+            | movsd xmm0, qword [((int32_t) (size_t) ptr)]
         } else {
             __builtin_trap();
         }
@@ -1733,20 +1769,19 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
 }
 
 void *vm_x64_func_comp(vm_x64_state_t *state, vm_rblock_t *rblock) {
-    if (rblock->cache == NULL) {
-        rblock->cache = vm_malloc(sizeof(vm_cache_t));
-    }
-    void *cache = vm_cache_get(&rblock->block->cache, rblock);
-    if (cache != NULL) {
-        return cache;
+    if (rblock->cache != NULL) {
+        return rblock->cache;
     }
     vm_block_t *block = vm_x64_rblock_version(rblock);
     size_t old_count = state->count;
     size_t old_push = state->push;
+    size_t old_pc_alloc = state->pc_alloc;
     vm_x64_link_t *old_links = state->links;
+    state->pc_alloc = 0;
     state->links = NULL;
     state->count = 0;
     state->push = 16 * 8 + 8;
+    state->epoch += 1;
     dasm_State* d = NULL;
     dasm_State** Dst = &d;
     dasm_init(Dst, DASM_MAXSECTION);
@@ -1755,9 +1790,9 @@ void *vm_x64_func_comp(vm_x64_state_t *state, vm_rblock_t *rblock) {
     dasm_setupglobal(Dst, labels, lbl__MAX);
     |.actionlist act
     dasm_setup(Dst, act);
-    dasm_growpc(Dst, 128);
     |.code
     |->main:
+    dasm_growpc(Dst, state->pc_alloc);
     if (state->exitptr == NULL) {
         | sub rsp, 8*8+16
         size_t n = 0;
@@ -1811,11 +1846,11 @@ void *vm_x64_func_comp(vm_x64_state_t *state, vm_rblock_t *rblock) {
     }
     vm_x64_encode(state, Dst);
     void *fn = labels[lbl_main];
-    vm_cache_set(&rblock->block->cache, rblock, fn);
+    rblock->cache = fn;
+    state->pc_alloc = old_pc_alloc;
     state->count = old_count;
     state->push = old_push;
     state->links = old_links;
-    // printf("fn = %p\n", fn);
     return fn;
 }
 

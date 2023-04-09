@@ -10,13 +10,13 @@ local function isprime(num)
 end
 
 local function primes(upto)
-    local count = 2
-    local val = 5
+    local count = 1
+    local val = 3
     while val < upto do
         count = count + isprime(val)
         val = val + 2
     end
-    print(count)
+    return count
 end
 
-primes(1000000)
+print(primes(10000000))

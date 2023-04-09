@@ -52,8 +52,10 @@ struct vm_x64_state_t {
     vm_x64_func_buf_t funcbuf;
     vm_x64_map_buf_t mapbuf;
     vm_x64_link_t *links;
+    uint32_t pc_alloc;
     uint32_t count;
     uint32_t push;
+    uint32_t epoch;
 };
 
 struct vm_x64_link_t {
@@ -62,6 +64,7 @@ struct vm_x64_link_t {
     vm_rblock_t *block;
     vm_x64_reg_save_t save;
     uint32_t label;
+    uint32_t epoch;
 };
 
 struct vm_x64_cache_t {
