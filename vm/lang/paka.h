@@ -63,14 +63,18 @@ bool vm_paka_parser_match_if(vm_paka_parser_t *parser, bool (*fn)(char));
 void vm_paka_parser_strip_spaces(vm_paka_parser_t *parser);
 // words and keywords
 size_t vm_paka_parser_ident_len(vm_paka_parser_t *parser);
-bool vm_paka_parser_match_keyword(vm_paka_parser_t *parser, const char *keyword);
+bool vm_paka_parser_match_keyword(vm_paka_parser_t *parser,
+                                  const char *keyword);
 // grammar parts
-bool vm_paka_parser_branch(vm_paka_parser_t *parser, vm_paka_comp_t *comp, vm_block_t *iftrue, vm_block_t *iffalse);
-vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *src, vm_paka_comp_t *comp);
+bool vm_paka_parser_branch(vm_paka_parser_t *parser, vm_paka_comp_t *comp,
+                           vm_block_t *iftrue, vm_block_t *iffalse);
+vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *src,
+                                    vm_paka_comp_t *comp);
 vm_arg_t vm_paka_parser_expr_mul(vm_paka_parser_t *src, vm_paka_comp_t *comp);
 vm_arg_t vm_paka_parser_expr_add(vm_paka_parser_t *src, vm_paka_comp_t *comp);
 vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *src, vm_paka_comp_t *comp);
-vm_arg_t vm_paka_parser_postfix(vm_paka_parser_t *parser, vm_paka_comp_t *comp, vm_arg_t arg);
+vm_arg_t vm_paka_parser_postfix(vm_paka_parser_t *parser, vm_paka_comp_t *comp,
+                                vm_arg_t arg);
 int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
 // string parsers
 vm_block_t *vm_paka_parse(const char *src);

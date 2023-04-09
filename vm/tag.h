@@ -14,6 +14,7 @@ enum {
     VM_TAG_STR,
     VM_TAG_FUNC,
     VM_TAG_TABLE,
+    VM_TAG_FFI,
     VM_TAG_MAX,
 };
 

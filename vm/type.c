@@ -6,7 +6,6 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     rblock->block = block;
     rblock->regs = regs;
     rblock->start = 0;
-    rblock->isfunc = rblock->block->isfunc;
     rblock->comps = 0;
     return rblock;
 }
@@ -14,7 +13,8 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
-        if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
+        if (rblock->start == found->start && rblock->block->isfunc == found->block->isfunc &&
+            rblock->block == found->block) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
                 vm_arg_t arg = rblock->block->args[j];
                 if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
@@ -31,7 +31,8 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
     for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
-        if (rblock->start == found->start && rblock->isfunc == found->isfunc && rblock->block == found->block) {
+        if (rblock->start == found->start && rblock->block->isfunc == found->block->isfunc &&
+            rblock->block == found->block) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
                 vm_arg_t arg = rblock->block->args[j];
                 if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
@@ -100,6 +101,15 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             return instr;
         }
     }
+    if (instr.op == VM_IOP_CALL) {
+        if (instr.args[0].type == VM_ARG_FFI) {
+            instr.tag = VM_TAG_FFI;
+            return instr;
+        } else {
+            instr.tag = VM_TAG_F64;
+            return instr;
+        }
+    }
     if (instr.op == VM_IOP_NEW) {
         instr.tag = VM_TAG_TABLE;
         return instr;
@@ -113,11 +123,12 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         }
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_NUM) {
-                if (fmod(instr.args[i].num, 1) == 0) {
-                    instr.tag = VM_TAG_I64;
-                } else {
-                    instr.tag = VM_TAG_F64;
-                }
+                // if (fmod(instr.args[i].num, 1) == 0) {
+                //     instr.tag = VM_TAG_I64;
+                // } else {
+                //     instr.tag = VM_TAG_F64;
+                // }
+                instr.tag = VM_TAG_F64;
                 return instr;
             }
         }
@@ -133,7 +144,9 @@ bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
             if (instr.args[i].type == VM_ARG_REG) {
                 if (types->tags[instr.args[i].reg] != instr.tag) {
                     vm_print_instr(stdout, instr);
-                    printf("\n^ TYPE ERROR (arg %%%zu of type #%zu) ^\n", instr.args[i].reg, (size_t)types->tags[instr.args[i].reg]);
+                    printf("\n^ TYPE ERROR (arg %%%zu of type #%zu) ^\n",
+                           (size_t)instr.args[i].reg,
+                           (size_t)types->tags[instr.args[i].reg]);
                     return false;
                 }
             }
@@ -148,7 +161,8 @@ bool vm_rblock_type_check_branch(vm_tags_t *types, vm_branch_t branch) {
     return true;
 }
 
-vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branch) {
+vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types,
+                                             vm_branch_t branch) {
     if (branch.tag == VM_TAG_UNK) {
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_REG) {
@@ -158,11 +172,12 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branc
         }
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_NUM) {
-                if (fmod(branch.args[i].num, 1) == 0) {
-                    branch.tag = VM_TAG_I64;
-                } else {
-                    branch.tag = VM_TAG_F64;
-                }
+                // if (fmod(branch.args[i].num, 1) == 0) {
+                //     branch.tag = VM_TAG_I64;
+                // } else {
+                //     branch.tag = VM_TAG_F64;
+                // }
+                branch.tag = VM_TAG_F64;
                 return branch;
             }
         }

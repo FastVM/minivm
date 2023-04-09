@@ -31,9 +31,12 @@ enum {
     VM_ARG_NUM,
     VM_ARG_STR,
     VM_ARG_TAG,
+    VM_ARG_FFI,
     VM_ARG_FUNC,
     // for the x64 jit
-    VM_ARG_X64,
+    VM_ARG_RFUNC,
+    VM_ARG_CPU_GP,
+    VM_ARG_CPU_FP,
 };
 
 enum {
@@ -73,7 +76,6 @@ struct vm_rblock_t {
     void *cache;
     uint32_t comps : 32;
     uint32_t start : 31;
-    bool isfunc : 1;
 };
 
 struct vm_cache_t {
@@ -85,17 +87,29 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        uint64_t reg;
+        struct {
+            uint32_t reg;
+            vm_tag_t reg_tag;
+        };
         double num;
         const char *str;
+        void *ffi;
         vm_block_t *func;
+        vm_rblock_t *rfunc;
         vm_instr_t *instr;
         bool logic;
         vm_tag_t tag;
         struct {
-            uint16_t save;
+            struct vm_x64_reg_save_t {
+                uint16_t r64;
+                uint16_t xmm;
+            } save;
             int16_t vmreg;
-            uint8_t x64;
+            union {
+                uint8_t r64;
+                uint8_t f64;
+            };
+            uint8_t pad1_;
         };
     };
     uint8_t type;
@@ -135,7 +149,6 @@ struct vm_block_t {
     size_t nregs;
 
     vm_cache_t cache;
-    void *impl;
     void *pass;
 
     int32_t label : 30;

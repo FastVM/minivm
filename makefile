@@ -29,10 +29,6 @@ default: all
 
 all: bins libs
 
-format: .dummy
-	find . -name '*.c' | xargs -I FILENAME clang-format -style=file -i FILENAME
-	find . -name '*.h' | xargs -I FILENAME clang-format -style=file -i FILENAME
-
 # profile guided optimization
 
 gcc-pgo-posix: .dummy
@@ -98,7 +94,7 @@ $(BIN_DIR)/minivm.exe: $(OBJ_DIR)/main/asm.o $(OBJS)
 
 $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm -ldl $(LDFLAGS)
 
 # intermediate files
 

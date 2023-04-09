@@ -4,7 +4,8 @@
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
         block->alloc = (block->len + 4) * 4;
-        block->instrs = vm_realloc(block->instrs, sizeof(vm_instr_t) * block->alloc);
+        block->instrs =
+            vm_realloc(block->instrs, sizeof(vm_instr_t) * block->alloc);
     }
     block->instrs[block->len++] = instr;
 }
@@ -28,14 +29,22 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_REG: {
-            fprintf(out, "%%%zu", val.reg);
+            fprintf(out, "%%%zu", (size_t)val.reg);
+            break;
+        }
+        case VM_ARG_FFI: {
+            fprintf(out, "<ffi.func>");
             break;
         }
         case VM_ARG_FUNC: {
             fprintf(out, ".%zi", val.func->id);
             break;
         }
-        case VM_ARG_X64: {
+        case VM_ARG_RFUNC: {
+            fprintf(out, ".%zi", val.rfunc->block->id);
+            break;
+        }
+        case VM_ARG_CPU_GP: {
             const char *names[16] = {
                 "rax",
                 "rcx",
@@ -54,13 +63,21 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
                 "r14",
                 "r15",
             };
-            fprintf(out, "%s%%%zu", names[val.x64], (size_t)val.vmreg);
+            fprintf(out, "%s%%%zu", names[val.r64], (size_t)val.vmreg);
+            break;
+        }
+        case VM_ARG_CPU_FP: {
+            fprintf(out, "xmm%zu%%%zu", (size_t)val.f64, (size_t)val.vmreg);
             break;
         }
     }
 }
 void vm_print_tag(FILE *out, vm_tag_t tag) {
     switch (tag) {
+        case VM_TAG_UNK: {
+            fprintf(out, "unk");
+            break;
+        }
         case VM_TAG_NIL: {
             fprintf(out, "nil");
             break;
@@ -87,6 +104,10 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
         }
         case VM_TAG_TABLE: {
             fprintf(out, "table");
+            break;
+        }
+        case VM_TAG_FFI: {
+            fprintf(out, "ffi");
             break;
         }
     }
@@ -323,11 +344,13 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 }
             }
         }
-        if (block->branch.out.type == VM_ARG_REG && block->branch.out.reg >= nregs) {
+        if (block->branch.out.type == VM_ARG_REG &&
+            block->branch.out.reg >= nregs) {
             nregs = block->branch.out.reg + 1;
         }
         for (size_t j = 0; j < 2; j++) {
-            if (block->branch.args[j].type != VM_ARG_NONE && block->branch.args[j].type == VM_ARG_REG &&
+            if (block->branch.args[j].type != VM_ARG_NONE &&
+                block->branch.args[j].type == VM_ARG_REG &&
                 block->branch.args[j].reg >= nregs) {
                 nregs = block->branch.args[j].reg + 1;
             }
@@ -356,18 +379,21 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                     nargs += 1;
                 }
             }
-            if (instr->out.type == VM_ARG_REG && regs[instr->out.reg] == VM_INFO_REG_UNK) {
+            if (instr->out.type == VM_ARG_REG &&
+                regs[instr->out.reg] == VM_INFO_REG_UNK) {
                 regs[instr->out.reg] = VM_INFO_REG_DEF;
             }
         }
         for (size_t j = 0; j < 2; j++) {
-            if (block->branch.args[j].type != VM_ARG_NONE && block->branch.args[j].type == VM_ARG_REG &&
+            if (block->branch.args[j].type != VM_ARG_NONE &&
+                block->branch.args[j].type == VM_ARG_REG &&
                 regs[block->branch.args[j].reg] == VM_INFO_REG_UNK) {
                 regs[block->branch.args[j].reg] = VM_INFO_REG_ARG;
                 nargs += 1;
             }
         }
-        if (block->branch.out.type == VM_ARG_REG && regs[block->branch.out.reg] == VM_INFO_REG_UNK) {
+        if (block->branch.out.type == VM_ARG_REG &&
+            regs[block->branch.out.reg] == VM_INFO_REG_UNK) {
             regs[block->branch.out.reg] = VM_INFO_REG_DEF;
         }
         block->nargs = 0;
@@ -412,7 +438,8 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                         while (ti < target->nargs) {
                             vm_arg_t newreg = target->args[ti++];
                             if (newreg.reg >= blocks[i]->nregs) {
-                                all_regs[i] = vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg.reg + 1));
+                                all_regs[i] =
+                                    vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg.reg + 1));
                                 for (size_t c = blocks[i]->nregs; c < newreg.reg + 1; c++) {
                                     all_regs[i][c] = VM_INFO_REG_UNK;
                                 }

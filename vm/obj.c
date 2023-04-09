@@ -6,7 +6,8 @@ vm_table_t *vm_table_new(void) {
     return ret;
 }
 
-void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uint32_t key_tag, uint32_t val_tag) {
+void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val,
+                  uint32_t key_tag, uint32_t val_tag) {
     uint32_t head = 0;
     while (head * sizeof(vm_pair_t) < table->nbytes) {
         vm_pair_t *pair = &table->pairs[head];
