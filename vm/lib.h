@@ -8,8 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(__TINYC__)
 #define __builtin_trap() exit(1)
@@ -17,7 +17,9 @@
 #endif
 
 #if 0
-#define __builtin_trap() printf("file %s, line %zu\n", __FILE__, (size_t) __LINE__); exit(1);
+#define __builtin_trap()                                       \
+    printf("file %s, line %zu\n", __FILE__, (size_t)__LINE__); \
+    exit(1);
 #endif
 
 void GC_init(void);

@@ -853,14 +853,13 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             if (!strcmp(buf, comp->func_names[i])) {
                 vm_paka_parser_strip_spaces(parser);
                 vm_block_t *block = comp->func_blocks[i];
-                vm_branch_t *branch = (vm_instr_t){
-                    .op = VM_IOP_CALL,
+                vm_branch_t branch = (vm_branch_t){
+                    .op = VM_BOP_CALL,
                     .args[0] =
                         (vm_arg_t){
                             .type = VM_ARG_FUNC,
                             .func = block,
                         },
-                    .targets[0] = then,
                 };
                 size_t head = 1;
                 if (!vm_paka_parser_match(parser, "(")) {
@@ -873,7 +872,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                         goto err;
                     }
                     if (arg.type == VM_ARG_REG) {
-                        instr.args[head++] = arg;
+                        branch.args[head++] = arg;
                     } else {
                         vm_arg_t real = (vm_arg_t){
                             .type = VM_ARG_REG,
@@ -884,21 +883,22 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                                                           .out = real,
                                                           .args[0] = arg,
                                                       });
-                        instr.args[head++] = real;
+                        branch.args[head++] = real;
                     }
                     vm_paka_parser_strip_spaces(parser);
                 } while (vm_paka_parser_match(parser, ","));
                 if (!vm_paka_parser_match(parser, ")")) {
                     goto err;
                 }
-                instr.out = (vm_arg_t){
+                branch.out = (vm_arg_t){
                     .type = VM_ARG_REG,
                     .reg = vm_paka_find_reg(comp->regs),
                 };
+                vm_block_t *then = vm_paka_blocks_new(comp->blocks);
+                branch.targets[0] = then;
                 comp->write->branch = branch;
-                comp->write = then,
-                vm_block_realloc(comp->write, instr);
-                return vm_paka_parser_postfix(parser, comp, instr.out);
+                comp->write = then;
+                return vm_paka_parser_postfix(parser, comp, branch.out);
             }
         }
         if (!strcmp(buf, "else") || !strcmp(buf, "elseif") || !strcmp(buf, "end")) {

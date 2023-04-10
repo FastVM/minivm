@@ -43,25 +43,25 @@ int64_t vm_table_len(vm_table_t *table) {
     while (head * sizeof(vm_pair_t) < table->nbytes) {
         vm_pair_t *pair = &table->pairs[head];
         switch (pair->key_tag) {
-        case VM_TAG_I64: {
-            if (pair->key_val.i64 == check) {
-                check += 1;
-                head = 0;
-                goto next;
+            case VM_TAG_I64: {
+                if (pair->key_val.i64 == check) {
+                    check += 1;
+                    head = 0;
+                    goto next;
+                }
+                break;
             }
-            break;
-        }       
-        case VM_TAG_F64: {
-            if (pair->key_val.f64 == (double) check) {
-                check += 1;
-                head = 0;
-                goto next;
+            case VM_TAG_F64: {
+                if (pair->key_val.f64 == (double)check) {
+                    check += 1;
+                    head = 0;
+                    goto next;
+                }
+                break;
             }
-            break;
-        }
-        default: {
-            break;
-        }         
+            default: {
+                break;
+            }
         }
         head += 1;
     next:;

@@ -35,6 +35,7 @@ enum {
     VM_ARG_FUNC,
     // for the x64 jit
     VM_ARG_RFUNC,
+    VM_ARG_CPU0,
     VM_ARG_CPU_GP,
     VM_ARG_CPU_FP,
 };
@@ -123,7 +124,7 @@ struct vm_branch_t {
 };
 
 struct vm_instr_t {
-    vm_arg_t args[4];
+    vm_arg_t args[5];
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;
@@ -146,7 +147,7 @@ struct vm_block_t {
     vm_cache_t cache;
     void *pass;
 
-    uint32_t epoch: 32;
+    uint32_t epoch : 32;
     int32_t label : 30;
     bool isfunc : 1;
     bool mark : 1;

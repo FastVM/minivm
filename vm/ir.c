@@ -49,6 +49,10 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             fprintf(out, ".%zi", val.rfunc->block->id);
             break;
         }
+        case VM_ARG_CPU0: {
+            fprintf(out, "(rax|xmm0)%%%zu", (size_t)val.vmreg);
+            break;
+        }
         case VM_ARG_CPU_GP: {
             const char *names[16] = {
                 "rax",
@@ -172,7 +176,7 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
         fprintf(out, " ");
         vm_print_arg(out, val.args[1]);
     }
-    if (val.op == VM_BOP_GET) {
+    if (val.op == VM_BOP_GET || val.op == VM_BOP_CALL) {
         fprintf(out, " .%zi", (size_t)val.targets[0]->id);
         fprintf(out, "(");
         for (size_t i = 0; i < val.targets[0]->nargs; i++) {
