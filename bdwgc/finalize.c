@@ -18,7 +18,8 @@
 #include "private/gc_pmark.h"
 
 #ifndef GC_NO_FINALIZATION
-#include "gc/javaxfc.h" /* to get GC_finalize_all() as extern "C" */
+
+GC_API void GC_CALL GC_finalize_all(void);
 
 /* Type of mark procedure used for marking from finalizable object.     */
 /* This procedure normally does not mark the object, only its           */

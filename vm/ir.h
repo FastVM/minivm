@@ -116,14 +116,14 @@ struct vm_branch_t {
         vm_rblock_t *rtargets[VM_TAG_MAX];
     };
     int8_t *pass[2];
-    vm_arg_t args[2];
+    vm_arg_t args[8];
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;
 };
 
 struct vm_instr_t {
-    vm_arg_t args[17];
+    vm_arg_t args[4];
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;

@@ -1037,8 +1037,8 @@ vm_block_t *vm_paka_parse(const char *src) {
         .op = VM_BOP_EXIT,
     };
     vm_block_info(blocks.len, blocks.blocks);
-    for (size_t i = 0; i < blocks.len; i++) {
-        vm_print_block(stderr, blocks.blocks[i]);
-    }
+    // for (size_t i = 0; i < blocks.len; i++) {
+    //     vm_print_block(stderr, blocks.blocks[i]);
+    // }
     return block;
 }

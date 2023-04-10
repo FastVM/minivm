@@ -29,7 +29,12 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_REG: {
-            fprintf(out, "%%%zu", (size_t)val.reg);
+            if (val.reg_tag == VM_TAG_UNK) {
+                fprintf(out, "%%%zu", (size_t)val.reg);
+            } else {
+                fprintf(out, "%%%zu:", (size_t)val.reg);
+                vm_print_tag(out, val.reg_tag);
+            }
             break;
         }
         case VM_ARG_FFI: {

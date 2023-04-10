@@ -93,7 +93,7 @@ $(BIN_DIR)/minivm.exe: $(OBJ_DIR)/main/asm.o $(OBJS)
 
 $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm -ldl $(LDFLAGS)
+	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 # intermediate files
 
@@ -105,7 +105,7 @@ $(JITC_OBJS): $(@:$(OBJ_DIR)/%.o=%.dasc) $(LUA)
 
 $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
+	$(CC) -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 
 # cleanup
 
