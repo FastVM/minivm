@@ -705,6 +705,9 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         };
         comp->write = body;
         int res = vm_paka_parser_block(parser, comp);
+        if (res != VM_PAKA_END) {
+            goto err;
+        }
         comp->write->branch = (vm_branch_t){
             .op = VM_BOP_JUMP,
             .targets[0] = after,
@@ -1034,8 +1037,8 @@ vm_block_t *vm_paka_parse(const char *src) {
         .op = VM_BOP_EXIT,
     };
     vm_block_info(blocks.len, blocks.blocks);
-    // for (size_t i = 0; i < blocks.len; i++) {
-    //     vm_print_block(stderr, blocks.blocks[i]);
-    // }
+    for (size_t i = 0; i < blocks.len; i++) {
+        vm_print_block(stderr, blocks.blocks[i]);
+    }
     return block;
 }

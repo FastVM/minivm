@@ -55,7 +55,6 @@ pgo-runs:
 	$(BIN_DIR)/minivm bench/fib40.lua
 	$(BIN_DIR)/minivm bench/primecount.lua
 	$(BIN_DIR)/minivm bench/tak.lua
-	$(BIN_DIR)/minivm bench/tree16raw.lua
 
 # windows
 

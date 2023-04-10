@@ -1,6 +1,7 @@
 
 local function tree_new(item, depth)
     if depth > 0 then
+        print("depth =", depth)
         local ret = {}
         rawset(ret, 1, item)
         local i = item + item
@@ -9,6 +10,7 @@ local function tree_new(item, depth)
         rawset(ret, 3, tree_new(i, depth))
         return ret
     else
+        print("end")
         local ret = {}
         rawset(ret, 1, item)
         return ret

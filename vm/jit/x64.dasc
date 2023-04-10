@@ -213,12 +213,8 @@ vm_block_t *vm_x64_rblock_version(vm_rblock_t *rblock) {
             branch.targets[1] = vm_x64_rblock_version(vm_rblock_new(branch.targets[1], vm_rblock_regs_dup(regs, 256)));
             break;
         }
+        case VM_BOP_BEQ:
         case VM_BOP_BLT: {
-            branch.targets[0] = vm_x64_rblock_version(vm_rblock_new(branch.targets[0], vm_rblock_regs_dup(regs, 256)));
-            branch.targets[1] = vm_x64_rblock_version(vm_rblock_new(branch.targets[1], vm_rblock_regs_dup(regs, 256)));
-            break;
-        }
-        case VM_BOP_BEQ: {
             branch.targets[0] = vm_x64_rblock_version(vm_rblock_new(branch.targets[0], vm_rblock_regs_dup(regs, 256)));
             branch.targets[1] = vm_x64_rblock_version(vm_rblock_new(branch.targets[1], vm_rblock_regs_dup(regs, 256)));
             break;
@@ -332,6 +328,9 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
         break;
     }
     case VM_BOP_GET: {
+        size_t reg = block->branch.out.reg;
+        int8_t fp = vm_x64_alloc_f64(regs, reg);
+        int8_t gp = vm_x64_alloc_r64(regs, reg);
         block->branch.pass[0] = vm_malloc(sizeof(int8_t) * block->branch.targets[0]->nargs);
         for (size_t i = 0; i < block->branch.targets[0]->nargs; i++) {
             vm_arg_t arg = block->branch.targets[0]->args[i];
@@ -351,15 +350,16 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
             }
             block->branch.pass[0][i] = val;
         }
-        size_t reg = block->branch.out.reg;
         if (regs->vm[reg] >= 0) {
             block->branch.out = (vm_arg_t) {
                 .type = VM_ARG_CPU_GP,
                 .vmreg = reg,
-                .r64 = regs->vm[reg],
+                .r64 = gp,
+                .f64 = fp,
             };
             regs->vm[reg] = -1;
             regs->r64[block->branch.out.r64] = -1;
+            regs->xmm[block->branch.out.f64] = -1;
         } else {
             __builtin_trap();
         }
@@ -448,7 +448,7 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
                 block->branch.args[1] = (vm_arg_t) {
                     .type = VM_ARG_CPU_FP,
                     .vmreg = block->branch.args[1].reg,
-                    .r64 = vm_x64_alloc_f64(regs, block->branch.args[1].reg),
+                    .f64 = vm_x64_alloc_f64(regs, block->branch.args[1].reg),
                 };
             } else {
                 block->branch.args[1] = (vm_arg_t) {
@@ -491,7 +491,7 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
                 size_t vmreg = block->branch.args[0].reg;
                 if (regs->vm[vmreg] >= 0) {
                     block->branch.args[0] = (vm_arg_t) {
-                        .type = VM_ARG_CPU_FP,
+                        .type = VM_ARG_CPU_GP,
                         .vmreg = vmreg,
                         .r64 = regs->vm[vmreg],
                     };
@@ -499,13 +499,13 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
                     regs->r64[cpureg] = vmreg;
                     regs->vm[vmreg] = cpureg;
                     block->branch.args[0] = (vm_arg_t) {
-                        .type = VM_ARG_CPU_FP,
+                        .type = VM_ARG_CPU_GP,
                         .vmreg = vmreg,
                         .r64 = cpureg,
                     };
                 } else {
                     block->branch.args[0] = (vm_arg_t) {
-                        .type = VM_ARG_CPU_FP,
+                        .type = VM_ARG_CPU_GP,
                         .vmreg = vmreg,
                         .r64 = vm_x64_alloc_r64(regs, vmreg),
                     };
@@ -612,6 +612,63 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
                             .vmreg = vmreg,
                             .r64 = vm_x64_alloc_r64(regs, vmreg),
                         };
+                    }
+                }
+            }
+        } else if (instr.op == VM_IOP_SET) {
+            static int8_t argregs[] = {7, 6, 2, 1, 8, 9};
+            size_t gp = 0;
+            size_t fp = 0;
+            for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
+                if (instr.args[i].type == VM_ARG_REG) {
+                    if (instr.args[i].reg_tag == VM_TAG_F64) {
+                        size_t cpureg = fp++;
+                        size_t vmreg = instr.args[i].reg;
+                        if (regs->vm[vmreg] >= 0) {
+                            instr.args[i] = (vm_arg_t) {
+                                .type = VM_ARG_CPU_FP,
+                                .vmreg = vmreg,
+                                .f64 = regs->vm[vmreg],
+                            };
+                        } else if (regs->xmm[cpureg] < 0) {
+                            regs->xmm[cpureg] = vmreg;
+                            regs->vm[vmreg] = cpureg;
+                            instr.args[i] = (vm_arg_t) {
+                                .type = VM_ARG_CPU_FP,
+                                .vmreg = vmreg,
+                                .f64 = cpureg,
+                            };
+                        } else {
+                            instr.args[i] = (vm_arg_t) {
+                                .type = VM_ARG_CPU_FP,
+                                .vmreg = vmreg,
+                                .f64 = vm_x64_alloc_f64(regs, vmreg),
+                            };
+                        }
+                    } else {
+                        size_t cpureg = argregs[gp++];
+                        size_t vmreg = instr.args[i].reg;
+                        if (regs->vm[vmreg] >= 0) {
+                            instr.args[i] = (vm_arg_t) {
+                                .type = VM_ARG_CPU_GP,
+                                .vmreg = vmreg,
+                                .r64 = regs->vm[vmreg],
+                            };
+                        } else if (regs->r64[cpureg] < 0) {
+                            regs->r64[cpureg] = vmreg;
+                            regs->vm[vmreg] = cpureg;
+                            instr.args[i] = (vm_arg_t) {
+                                .type = VM_ARG_CPU_GP,
+                                .vmreg = vmreg,
+                                .r64 = cpureg,
+                            };
+                        } else {
+                            instr.args[i] = (vm_arg_t) {
+                                .type = VM_ARG_CPU_GP,
+                                .vmreg = vmreg,
+                                .r64 = vm_x64_alloc_r64(regs, vmreg),
+                            };
+                        }
                     }
                 }
             }
@@ -751,37 +808,6 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_SET: {
-                static int8_t argregs[] = {7, 6, 2, 1, 8, 9};
-                for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
-                    if (instr.args[i].type == VM_ARG_REG) {
-                        size_t cpureg = argregs[i];
-                        size_t vmreg = instr.args[i].reg;
-                        if (regs->vm[vmreg] >= 0) {
-                            instr.args[i] = (vm_arg_t) {
-                                .type = VM_ARG_CPU_GP,
-                                .vmreg = vmreg,
-                                .r64 = regs->vm[vmreg],
-                            };
-                        } else if (regs->r64[cpureg] < 0) {
-                            regs->r64[cpureg] = vmreg;
-                            regs->vm[vmreg] = cpureg;
-                            instr.args[i] = (vm_arg_t) {
-                                .type = VM_ARG_CPU_GP,
-                                .vmreg = vmreg,
-                                .r64 = cpureg,
-                            };
-                        } else {
-                            instr.args[i] = (vm_arg_t) {
-                                .type = VM_ARG_CPU_GP,
-                                .vmreg = vmreg,
-                                .r64 = vm_x64_alloc_r64(regs, vmreg),
-                            };
-                        }
-                    }
-                }
-                break;            
-            }
             case VM_IOP_MUL:
             case VM_IOP_DIV:
             case VM_IOP_MOD: {
@@ -857,13 +883,13 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
                     block->args[i] = (vm_arg_t) {
                         .type = VM_ARG_CPU_FP,
                         .vmreg = reg,
-                        .r64 = regs->vm[reg],
+                        .f64 = regs->vm[reg],
                     };
                 } else {
                     block->args[i] = (vm_arg_t) {
                         .type = VM_ARG_CPU_FP,
                         .vmreg = reg,
-                        .r64 = vm_x64_alloc_f64(regs, reg),
+                        .f64 = vm_x64_alloc_f64(regs, reg),
                     };
                 }
             } else {
@@ -1261,7 +1287,12 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                             | vmulsd xmm(instr.out.f64), xmm(instr.args[0].f64), xmm(instr.args[1].f64) 
                         }
                     } else if (instr.args[1].type == VM_ARG_NUM) {
-                        __builtin_trap();
+                        double *num = vm_x64_mmap_f64(state, instr.args[1].num);
+                        if (instr.out.f64 == instr.args[0].f64) {
+                            | mulsd xmm(instr.out.f64), qword [((int32_t) (size_t) num)]
+                        } else {
+                            | vmulsd xmm(instr.out.f64), xmm(instr.args[0].f64), qword [((int32_t) (size_t) num)]
+                        }
                     } else {
                         __builtin_trap();
                     }
@@ -1436,7 +1467,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     | mov Rq(instr.out.r64), rax
                 }
             } else if (instr.out.type == VM_ARG_CPU_FP) {
-                if (instr.out.r64 != 0) {
+                if (instr.out.f64 != 0) {
                     | movsd xmm(instr.out.f64), xmm0
                 }
             } else if (instr.out.type != VM_ARG_NONE) {
@@ -1530,49 +1561,49 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             } else {
                 __builtin_trap();
             }
+            bool pop_rsi = false;
             if (instr.args[1].type == VM_ARG_CPU_GP) {
                 if (instr.args[1].r64 != 6) {
                     if (instr.args[1].r64 == 7) {
-                        __builtin_trap();
+                        pop_rsi = true;
+                        | mov [rsp+0x08], Rq(instr.args[1].r64)
+                    } else {
+                        | mov rsi, Rq(instr.args[1].r64)
                     }
-                    | mov rsi, Rq(instr.args[1].r64)
                 }
+            } else if (instr.args[1].type == VM_ARG_CPU_FP) {
+                | vmovd rsi, xmm(instr.args[0].f64)
             } else if (instr.args[1].type == VM_ARG_NUM) {
                 | mov esi, ((int32_t) (instr.args[1].num))
             } else {
                 __builtin_trap();
             }
+            bool pop_rdx = false;
             if (instr.args[2].type == VM_ARG_CPU_GP) {
                 if (instr.args[2].r64 != 2) {
                     if (instr.args[2].r64 == 7 || instr.args[2].r64 == 6) {
-                        __builtin_trap();
+                        | mov [rsp+0x16], Rq(instr.args[2].r64)
+                    } else {
+                        | mov rdx, Rq(instr.args[2].r64)
                     }
-                    | mov rdx, Rq(instr.args[2].r64)
                 }
+            } else if (instr.args[2].type == VM_ARG_CPU_FP) {
+                | vmovd rdx, xmm(instr.args[0].f64)
             } else if (instr.args[2].type == VM_ARG_NUM) {
                 | mov edx, ((int32_t) (instr.args[2].num))
             } else {
                 __builtin_trap();
             }
-            // | mov rcx, [rdi]
-            // | mov eax, [rdi+0x08]
-            // |1:
-            // | test eax, eax
-            // | jz >3
-            // | sub eax, 24
-            // | cmp dword [rcx+rax+0x10], (instr.args[3].tag)
-            // | jne <1
-            // | cmp rsi, [rcx+rax]
-            // | jne <1
-            // | mov [rcx+rax+0x08], rdx
-            // | mov dword [rcx+rax+0x14], (instr.args[4].tag)
-            // | jmp >4
-            // |3:
             | mov ecx, (instr.args[3].tag)
             | mov r8d, (instr.args[4].tag)
+            if (pop_rdx) {
+                | mov rdx, [rsp+0x16]
+            }
+            if (pop_rsi) {
+                | mov rsi, [rsp+0x08]
+            }
             | mov64 rax, ((uint64_t) (&vm_table_set)) 
             | call rax
-            |4:
             vm_x64_comp_unsave(Dst, instr.out.save);
             break;
         }
@@ -1628,6 +1659,8 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
         | jne <1
         | cmp rsi, [rcx+rax]
         | jne <1
+        | cmp rdx, VM_TAG_F64
+        | je >3
         | mov Rq(block->branch.out.r64), [rcx+rax+0x8]
         int8_t reg = vm_x64_reg_in_save_not(block->branch.out.save, 1 << block->branch.out.r64);
         if (reg != 2) {
@@ -1638,6 +1671,10 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
         |2:
         vm_x64_comp_unsave(Dst, block->branch.out.save);
         | jmp qword [((int32_t) (size_t) (ptrs+VM_TAG_NIL))]
+        |3:
+        | movsd xmm(block->branch.out.f64), qword [rcx+rax+0x8]
+        vm_x64_comp_unsave(Dst, block->branch.out.save);
+        | jmp qword [((int32_t) (size_t) (ptrs+VM_TAG_F64))]
         break;
     }
     case VM_BOP_BEQ:
@@ -1656,11 +1693,11 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 }
             } else if (block->branch.args[0].type == VM_ARG_CPU_FP) {
                 if (block->branch.args[1].type == VM_ARG_CPU_FP) {
-                    | comisd xmm(block->branch.args[0].r64), xmm(block->branch.args[1].r64)
+                    | comisd xmm(block->branch.args[0].f64), xmm(block->branch.args[1].f64)
                     | jb =>t
                 } else if (block->branch.args[1].type == VM_ARG_NUM) {
                     double *val = vm_x64_mmap_f64(state, block->branch.args[1].num);
-                    | comisd xmm(block->branch.args[0].r64), qword [((int32_t) (size_t) val)]
+                    | comisd xmm(block->branch.args[0].f64), qword [((int32_t) (size_t) val)]
                     | jb =>t
                 } else {
                     __builtin_trap();
@@ -1671,7 +1708,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     | ja =>t
                 } else if (block->branch.args[1].type == VM_ARG_CPU_FP) {
                     double *val = vm_x64_mmap_f64(state, block->branch.args[0].num);
-                    | comisd xmm(block->branch.args[1].r64), qword [((int32_t) (size_t) val)]
+                    | comisd xmm(block->branch.args[1].f64), qword [((int32_t) (size_t) val)]
                     | ja =>t
                 } else if (block->branch.args[1].type == VM_ARG_NUM) {
                     if (block->branch.args[0].num < block->branch.args[1].num) {
@@ -1696,11 +1733,11 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 }
             } else if (block->branch.args[0].type == VM_ARG_CPU_FP) {
                 if (block->branch.args[1].type == VM_ARG_CPU_FP) {
-                    | comisd xmm(block->branch.args[0].r64), xmm(block->branch.args[1].r64)
+                    | comisd xmm(block->branch.args[0].f64), xmm(block->branch.args[1].f64)
                     | je =>t
                 } else if (block->branch.args[1].type == VM_ARG_NUM) {
                     double *val = vm_x64_mmap_f64(state, block->branch.args[1].num);
-                    | comisd xmm(block->branch.args[0].r64), qword [((int32_t) (size_t) val)]
+                    | comisd xmm(block->branch.args[0].f64), qword [((int32_t) (size_t) val)]
                     | je =>t
                 } else {
                     __builtin_trap();
@@ -1711,7 +1748,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     | je =>t
                 } else if (block->branch.args[1].type == VM_ARG_CPU_FP) {
                     double *val = vm_x64_mmap_f64(state, block->branch.args[0].num);
-                    | comisd xmm(block->branch.args[1].r64), qword [((int32_t) (size_t) val)]
+                    | comisd xmm(block->branch.args[1].f64), qword [((int32_t) (size_t) val)]
                     | je =>t
                 } else if (block->branch.args[1].type == VM_ARG_NUM) {
                     if (block->branch.args[0].num == block->branch.args[1].num) {
@@ -1777,7 +1814,7 @@ void *vm_x64_func_comp(vm_x64_state_t *state, vm_rblock_t *rblock) {
     size_t old_push = state->push;
     size_t old_pc_alloc = state->pc_alloc;
     vm_x64_link_t *old_links = state->links;
-    state->pc_alloc = 0;
+    state->pc_alloc = 4;
     state->links = NULL;
     state->count = 0;
     state->push = 16 * 8 + 8;

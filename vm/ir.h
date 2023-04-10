@@ -103,10 +103,8 @@ struct vm_arg_t {
                 uint16_t xmm;
             } save;
             int16_t vmreg;
-            union {
-                uint8_t r64;
-                uint8_t f64;
-            };
+            uint8_t r64;
+            uint8_t f64;
         };
     };
     uint8_t type;
