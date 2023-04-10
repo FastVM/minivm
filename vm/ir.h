@@ -49,6 +49,7 @@ enum {
     VM_BOP_EXIT,
     VM_BOP_BTYPE,
     VM_BOP_GET,
+    VM_BOP_CALL,
 };
 
 enum {
@@ -60,7 +61,6 @@ enum {
     VM_IOP_DIV,
     VM_IOP_MOD,
     // funcs
-    VM_IOP_CALL,
     // io
     VM_IOP_OUT,
     VM_IOP_PRINT,

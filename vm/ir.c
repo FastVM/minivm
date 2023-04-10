@@ -155,6 +155,10 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             fprintf(out, "get");
             break;
         }
+        case VM_BOP_CALL: {
+            fprintf(out, "call");
+            break;
+        }
     }
     if (val.tag != VM_TAG_UNK) {
         fprintf(out, ".");
@@ -235,10 +239,6 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
         }
         case VM_IOP_MOD: {
             fprintf(out, "mod");
-            break;
-        }
-        case VM_IOP_CALL: {
-            fprintf(out, "call");
             break;
         }
         case VM_IOP_OUT: {
