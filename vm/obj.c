@@ -21,13 +21,9 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val,
     table->nbytes = (head + 1) * sizeof(vm_pair_t);
     if (table->nbytes >= (UINT32_C(1) << table->alloc)) {
         while (table->nbytes >= (UINT32_C(1) << table->alloc)) {
-            table->alloc += 1;
+            table->alloc += 2;
         }
-        if (table->pairs == NULL) {
-            table->pairs = vm_malloc(UINT32_C(1) << table->alloc);
-        } else {
-            table->pairs = vm_realloc(table->pairs, UINT32_C(1) << table->alloc);
-        }
+        table->pairs = vm_realloc(table->pairs, UINT32_C(1) << table->alloc);
     }
     table->pairs[head] = (vm_pair_t){
         .key_val = key_val,
@@ -37,7 +33,11 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val,
     };
 }
 
-int64_t vm_table_len(vm_table_t *table) {
+void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair) {
+    vm_table_set(table, pair->key_val, pair->val_val, pair->key_tag, pair->val_tag);   
+}
+
+double vm_table_len(vm_table_t *table) {
     int64_t check = 1;
     uint32_t head = 0;
     while (head * sizeof(vm_pair_t) < table->nbytes) {
@@ -66,5 +66,5 @@ int64_t vm_table_len(vm_table_t *table) {
         head += 1;
     next:;
     }
-    return check - 1;
+    return (double) (check - 1);
 }

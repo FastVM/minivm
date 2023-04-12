@@ -124,7 +124,7 @@ struct vm_branch_t {
 };
 
 struct vm_instr_t {
-    vm_arg_t args[5];
+    vm_arg_t args[6];
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;

@@ -97,6 +97,10 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         instr.tag = VM_TAG_TABLE;
         return instr;
     }
+    if (instr.op == VM_IOP_LEN) {
+        instr.tag = VM_TAG_F64;
+        return instr;
+    }
     if (instr.tag == VM_TAG_UNK) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
@@ -121,6 +125,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
 
 bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
     if (instr.op == VM_IOP_SET) {
+    } else if (instr.op == VM_IOP_LEN) {
     } else {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
@@ -146,14 +151,12 @@ bool vm_rblock_type_check_branch(vm_tags_t *types, vm_branch_t branch) {
 vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types,
                                              vm_branch_t branch) {
     if (branch.op == VM_BOP_GET) {
-        branch.tag = VM_TAG_TABLE;
         return branch;
     } else if (branch.op == VM_BOP_CALL) {
         if (branch.args[0].type == VM_ARG_FFI) {
             branch.tag = VM_TAG_FFI;
             return branch;
         } else {
-            branch.tag = VM_TAG_F64;
             return branch;
         }
     } else if (branch.tag == VM_TAG_UNK) {

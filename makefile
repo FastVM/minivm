@@ -53,6 +53,7 @@ clang-pgo-windows: .dummy
 
 pgo-runs:
 	$(BIN_DIR)/minivm bench/fib40.lua
+	$(BIN_DIR)/minivm bench/tree16raw.lua
 	$(BIN_DIR)/minivm bench/primecount.lua
 	$(BIN_DIR)/minivm bench/tak.lua
 
@@ -63,9 +64,6 @@ clang-windows: .dummy
 
 gcc-windows: .dummy
 	$(MAKE) -B CC=$(GCC) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' $(BIN_DIR)/minivm.exe
-
-msvc-windows: main/msvc.c $(VM_SRCS) 
-	cl main/msvc.c $(VM_SRCS) /Fe:$(BIN_DIR)/minivm.exe
 
 # binaries
 

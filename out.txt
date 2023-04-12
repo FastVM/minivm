@@ -1,0 +1,43 @@
+.0():
+    xmm0%1 <- move.f64 0.000000
+    xmm1%2 <- move.f64 0.000000
+    (rax|xmm0)%3 <- call .1(xmm0%1, xmm1%2) then .21(%3)
+.1(xmm7%1, xmm6%2):
+    blt.f64 0.000000 xmm6%2 .2(xmm7%1, xmm6%2) .3(xmm1%1)
+.3(xmm1%1):
+    r15%11 <- new.table
+    rax%10 <- move.table r15%11
+    set.table rax%10 1.000000 xmm1%1  
+    ret.table rax%10
+.2(xmm7%1, xmm6%2):
+    r15%3 <- new.table
+    r15%0 <- move.table r15%3
+    set.table r15%0 1.000000 xmm7%1  
+    xmm7%5 <- add.f64 xmm7%1 xmm7%1
+    xmm7%4 <- move.f64 xmm7%5
+    xmm6%6 <- sub.f64 xmm6%2 1.000000
+    xmm1%2 <- move.f64 xmm6%6
+    xmm0%7 <- sub.f64 xmm7%4 1.000000
+    (rax|xmm0)%8 <- call .1(xmm0%7, xmm1%2) then .4(%0:table, %4:f64, %8)
+.21(r15%3):
+    rdi%0 <- move.table r15%3
+    xmm0%4 <- len.f64 rdi%0
+    print.f64 xmm0%4
+    out.f64 10.000000
+    (rax|xmm0)%5 <- call .9(rdi%0) then .22(%5)
+.9(r15%1):
+    xmm0%0 <- len.f64 r15%1
+    print.f64 xmm0%0
+    out.f64 10.000000
+    xmm7%2 <- len.f64 r15%1
+    beq.f64 xmm7%2 3.000000 .10(r15%1) .11(r15%1)
+.11(r15%1):
+    (rax|xmm0)%10 <- get.f64 r15%1 1.000000 then .19(%10)
+.10(r15%1):
+    (rax|xmm0)%3 <- get.f64 r15%1 1.000000 then .12(%1:table, %3)
+.19(rax%10):
+    ret.nil rax%10
+.22(rdi%5):
+    print.nil rdi%5
+    out.f64 10.000000
+    exit

@@ -168,16 +168,25 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
         fprintf(out, ".");
         vm_print_tag(out, val.tag);
     }
-    if (val.args[0].type != VM_ARG_NONE) {
+    if (val.op == VM_BOP_CALL) {
         fprintf(out, " ");
         vm_print_arg(out, val.args[0]);
-    }
-    if (val.args[1].type != VM_ARG_NONE) {
-        fprintf(out, " ");
-        vm_print_arg(out, val.args[1]);
+        fprintf(out, "(");
+        for (size_t i = 1; val.args[i].type != VM_ARG_NONE; i++) {
+            if (i != 1) {
+                fprintf(out, ", ");
+            } 
+            vm_print_arg(out, val.args[i]);
+        }
+        fprintf(out, ")");
+    } else {
+        for (size_t i = 0; val.args[i].type != VM_ARG_NONE; i++) {
+            fprintf(out, " ");
+            vm_print_arg(out, val.args[i]);
+        }
     }
     if (val.op == VM_BOP_GET || val.op == VM_BOP_CALL) {
-        fprintf(out, " .%zi", (size_t)val.targets[0]->id);
+        fprintf(out, " then .%zi", (size_t)val.targets[0]->id);
         fprintf(out, "(");
         for (size_t i = 0; i < val.targets[0]->nargs; i++) {
             if (i != 0) {
@@ -357,10 +366,8 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             block->branch.out.reg >= nregs) {
             nregs = block->branch.out.reg + 1;
         }
-        for (size_t j = 0; j < 2; j++) {
-            if (block->branch.args[j].type != VM_ARG_NONE &&
-                block->branch.args[j].type == VM_ARG_REG &&
-                block->branch.args[j].reg >= nregs) {
+        for (size_t j = 0; block->branch.args[j].type != VM_ARG_NONE; j++) {
+            if (block->branch.args[j].type == VM_ARG_REG && block->branch.args[j].reg >= nregs) {
                 nregs = block->branch.args[j].reg + 1;
             }
         }
@@ -393,9 +400,8 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 regs[instr->out.reg] = VM_INFO_REG_DEF;
             }
         }
-        for (size_t j = 0; j < 2; j++) {
-            if (block->branch.args[j].type != VM_ARG_NONE &&
-                block->branch.args[j].type == VM_ARG_REG &&
+        for (size_t j = 0; block->branch.args[j].type != VM_ARG_NONE; j++) {
+            if (block->branch.args[j].type == VM_ARG_REG &&
                 regs[block->branch.args[j].reg] == VM_INFO_REG_UNK) {
                 regs[block->branch.args[j].reg] = VM_INFO_REG_ARG;
                 nargs += 1;
