@@ -60,8 +60,16 @@ bool vm_paka_parser_match_if(vm_paka_parser_t *parser, bool (*fn)(char)) {
     return true;
 }
 
+bool vm_paka_parser_match_comment(vm_paka_parser_t *parser) {
+    if (vm_paka_parser_match(parser, "--")) {
+        while (vm_paka_parser_read(parser) != '\n') {}
+        return true;
+    }
+    return false;
+}
+
 void vm_paka_parser_strip_spaces(vm_paka_parser_t *parser) {
-    while (vm_paka_parser_match_if(parser, vm_paka_parser_is_space_char)) {
+    while (vm_paka_parser_match_if(parser, vm_paka_parser_is_space_char) || vm_paka_parser_match_comment(parser)) {
     }
 }
 

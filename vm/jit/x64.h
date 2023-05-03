@@ -63,8 +63,9 @@ struct vm_x64_link_t {
     vm_x64_link_t *next;
     vm_rblock_t *block;
     vm_x64_reg_save_t save;
-    uint32_t label;
-    uint32_t epoch;
+    uint32_t label: 32;
+    uint32_t epoch: 31;
+    bool iscall: 1;
 };
 
 struct vm_x64_cache_t {

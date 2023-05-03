@@ -27,8 +27,9 @@ local type = type
 local sub, byte, format = string.sub, string.byte, string.format
 local match, gmatch, gsub = string.match, string.gmatch, string.gsub
 local lower, rep = string.lower, string.rep
-local bit = require("bit")
-local tohex = bit.tohex
+local tohex = function(x)
+    return format("%x", x)
+end
 
 -- Map for 1st opcode byte in 32 bit mode. Ugly? Well ... read on.
 local map_opc1_32 = {

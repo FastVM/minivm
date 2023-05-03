@@ -5,3 +5,5 @@ build
 *.profdata
 *.profraw
 *.tmp.c
+*.bin
+*.core
