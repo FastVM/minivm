@@ -30,7 +30,7 @@ MiniVM has gone through many stages.
 - Pauseless GC based on Ring Buffers
     - Loading a value, but pauses were gone
 - Removal of arrays, in favor of the Cons Cell
-- Floatng point operations
+- Floating point operations
 - Assembler added
 
 ## Benchmarks
