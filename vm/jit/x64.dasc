@@ -106,15 +106,6 @@ void* vm_x64_encode(vm_x64_state_t *state, dasm_State** d)
     for (vm_x64_link_t *link = state->links; link != NULL; link = link->next) {
         *link->out = (void *) ((size_t) buf + dasm_getpclabel(d, link->label));
     }
-    // static FILE *f = NULL;
-    // FILE *f = NULL;
-    // if (f == NULL) {
-    //     char buf[256];
-    //     sprintf(buf, "out%zu.bin", (size_t) state->epoch);
-    //     f = fopen(buf, "wb");
-    // }
-    // fwrite(buf, dasm_getpclabel(d, 0), 1, f);
-    // fclose(f);
     return buf;
 }
 
@@ -998,7 +989,7 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
 }
 
 |.arch x64
-|.section code, data
+|.section code
 
 void vm_x64_comp_save(dasm_State **Dst, vm_x64_reg_save_t save) {
     size_t count = 0;
@@ -1647,9 +1638,10 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
     }
     case VM_BOP_CALL: {
         void **next_ptrs = vm_x64_mmap(state, sizeof(void *) * VM_TAG_MAX, 8);
+        size_t labels[VM_TAG_MAX];
         for (size_t i = 1; i < VM_TAG_MAX; i++) {
             vm_x64_link_t *link = vm_malloc(sizeof(vm_x64_link_t));
-            link->label = state->count++;
+            labels[i] = link->label = state->count++;
             link->out = &next_ptrs[i];
             link->next = state->links;
             block->branch.rtargets[i]->block->pass = block->branch.pass[0];
@@ -1706,15 +1698,19 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             | jmp qword [((int32_t) (size_t) (link->out))]
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
                 vm_x64_link_t *link = vm_malloc(sizeof(vm_x64_link_t));
-                link->label = state->count++;
                 link->out = &jbufs[i];
                 link->next = state->links;
                 link->block = NULL;
                 link->save = block->branch.out.save;
+                if (block->branch.out.save.r64 != 0 || block->branch.out.save.xmm != 0) {
+                    link->label = state->count++;
+                    |=>link->label:
+                    vm_x64_comp_unsave(Dst, block->branch.out.save);
+                    | jmp qword [((int32_t) (size_t) (next_ptrs+i))]
+                } else {
+                    link->label = labels[i];
+                }
                 state->links = link;
-                |=>link->label:
-                vm_x64_comp_unsave(Dst, block->branch.out.save);
-                | jmp qword [((int32_t) (size_t) (next_ptrs+i))]
             }
         }
         break;

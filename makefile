@@ -25,9 +25,17 @@ VM_OBJS := $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS := $(VM_OBJS) $(JITC_OBJS)
 
+CFLAGS += $(FLAGS)
+LDFLAGS += $(FLAGS)
+
+RUNNER ?= $(BIN_DIR)/minivm
+
 default: all
 
 all: bins libs
+
+test: $(RUNNER)
+	@find bench -name '*.lua' | sort | xargs -I{} ./test.sh $(RUNNER) {}
 
 # profile guided optimization
 
