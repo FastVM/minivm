@@ -5,81 +5,118 @@ CLANG ?= clang
 OPT ?= -O2
 HOST_CC ?= $(CC)
 
+BUILD_DIR ?= build
+OBJ_DIR ?= $(BUILD_DIR)/obj
+TMP_DIR ?= $(BUILD_DIR)/tmp
+BIN_DIR ?= $(BUILD_DIR)/bin
 
-PROG_SRCS := main/asm.c main/run.c main/js.c
-PROG_OBJS := $(PROG_SRCS:%.c=%.o)
+LUA ?= $(BIN_DIR)/minilua
 
-VM_SRCS := vm/asm.c vm/gc.c vm/ir/build.c vm/ir/toir.c vm/ir/info.c vm/ir/const.c vm/ir/be/int3.c vm/ir/be/js.c vm/ir/be/spall.c
-VM_OBJS := $(VM_SRCS:%.c=%.o)
+PROG_SRCS := main/asm.c
+PROG_OBJS := $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-OBJS := $(VM_OBJS)
+JITC_SRCS := vm/jit/x64.dasc
+JITC_OBJS :=  $(JITC_SRCS:%.dasc=$(OBJ_DIR)/%.o)
+
+GC_SRCS := bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
+
+VM_SRCS := vm/ir.c vm/type.c vm/lang/paka.c vm/obj.c $(GC_SRCS)
+VM_OBJS := $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+OBJS := $(VM_OBJS) $(JITC_OBJS)
+
+CFLAGS += $(FLAGS)
+LDFLAGS += $(FLAGS)
+
+RUNNER ?= $(BIN_DIR)/minivm
 
 default: all
 
 all: bins libs
 
-format: .dummy
-	find . -name '*.c' | xargs -I FILENAME clang-format -style=file -i FILENAME
-	find . -name '*.h' | xargs -I FILENAME clang-format -style=file -i FILENAME
+test: $(RUNNER)
+	@find bench -name '*.lua' | sort | xargs -I{} ./test.sh $(RUNNER) {}
 
 # profile guided optimization
 
-gcc-pgo-build: .dummy
+gcc-pgo-posix: .dummy
 	$(MAKE) clean
-	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm bench/fib40.vasm || true
-	./bin/minivm-asm bench/memfib35.vasm || true
-	./bin/minivm-asm bench/primecount.vasm || true
-	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' all
+	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-generate -fomit-frame-pointer -fno-stack-protector' $(BIN_DIR)/minivm
+	$(MAKE) pgo-runs
+	$(MAKE) -B CC='$(GCC)' OPT='$(OPT) -fprofile-use -fomit-frame-pointer -fno-stack-protector' $(BIN_DIR)/minivm
 
-clang-pgo-build: .dummy
+clang-pgo-posix: .dummy
 	$(MAKE) clean
-	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' bins
-	./bin/minivm-asm bench/fib40.vasm || true
-	./bin/minivm-asm bench/memfib35.vasm || true
-	./bin/minivm-asm bench/primecount.vasm || true
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' $(BIN_DIR)/minivm
+	$(MAKE) pgo-runs
 	$(LLVM_PROFDATA) merge -o profdata.profdata profraw.profraw
-	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' all
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' $(BIN_DIR)/minivm
+
+clang-pgo-windows: .dummy
+	$(MAKE) clean
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-instr-generate=profraw.profraw -fomit-frame-pointer -fno-stack-protector' CFLAGS+=-D_CRT_SECURE_NO_WARNINGS $(BIN_DIR)/minivm.exe
+	$(MAKE) pgo-runs
+	$(LLVM_PROFDATA) merge -o profdata.profdata profraw.profraw
+	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' CFLAGS+=-D_CRT_SECURE_NO_WARNINGS $(BIN_DIR)/minivm.exe
+
+pgo-runs:
+	$(BIN_DIR)/minivm bench/fib40.lua
+	$(BIN_DIR)/minivm bench/tree16raw.lua
+	$(BIN_DIR)/minivm bench/primecount.lua
+	$(BIN_DIR)/minivm bench/tak.lua
+
+# windows
+
+clang-windows: .dummy
+	$(MAKE) -B CC=$(CLANG) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' $(BIN_DIR)/minivm.exe
+
+gcc-windows: .dummy
+	$(MAKE) -B CC=$(GCC) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' $(BIN_DIR)/minivm.exe
 
 # binaries
 
-libs: bin/libminivm.a
+libs: $(BIN_DIR)/libminivm.a
 
-bins: bin/minivm-run bin/minivm-asm bin/vm2js
+bins: $(BIN_DIR)/minivm
 
-bin/libminivm.a: $(OBJS)
-	@mkdir -p bin
-	ar cr $(@) $(OBJS)
+lua luajit lua5.4 lua5.3 lua5.2 lua5.1: .dummy
 
-bin/vm2js: main/js.o $(OBJS)
-	@mkdir -p bin
-	$(CC) $(OPT) main/js.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+$(BIN_DIR)/minilua: dynasm/onelua.c 
+	@mkdir -p $$(dirname $(@))
+	$(CC) -o $(BIN_DIR)/minilua dynasm/onelua.c -lm 
 
-bin/minivm-run: main/run.o $(OBJS)
-	@mkdir -p bin
-	$(CC) $(OPT) main/run.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+$(BIN_DIR)/libminivm.lib: $(OBJS)
+	@mkdir -p $$(dirname $(@))
+	lib /out:$(@) $(OBJS)
 
-bin/minivm-asm: main/asm.o $(OBJS)
-	@mkdir -p bin
-	$(CC) $(OPT) main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+$(BIN_DIR)/libminivm.a: $(OBJS)
+	@mkdir -p $$(dirname $(@))
+	$(AR) cr $(@) $(OBJS)
 
-# clean
+$(BIN_DIR)/minivm.exe: $(OBJ_DIR)/main/asm.o $(OBJS)
+	@mkdir -p $$(dirname $(@))
+	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
 
-clean: gcc-pgo-clean clang-pgo-clean objs-clean
-
-clang-pgo-clean: .dummy
-	rm -f *.profdata *.profraw
-
-gcc-pgo-clean: .dummy
-	rm -f $(PROG_SRCS:%.c=%.gcda) $(SRCS:%.c=%.gcda)
-
-objs-clean: .dummy
-	rm -f main/asm.o $(PROG_OBJS) $(OBJS) bin/minivm-asm libmimivm.a
+$(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
+	@mkdir -p $$(dirname $(@))
+	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 # intermediate files
 
-$(PROG_OBJS) $(VM_OBJS): $(@:%.o=%.c)
-	$(CC) -c $(OPT) $(@:%.o=%.c) -o $(@) $(CFLAGS)
+$(JITC_OBJS): $(@:$(OBJ_DIR)/%.o=%.dasc) $(LUA)
+	@mkdir -p $$(dirname $(@:$(OBJ_DIR)/%.o=%.tmp.c))
+	$(LUA) dynasm/dynasm.lua -o $(@:$(OBJ_DIR)/%.o=%.tmp.c) -D X64 -M -L $(@:$(OBJ_DIR)/%.o=%.dasc)
+	@mkdir -p $$(dirname $(@))
+	$(CC) -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.tmp.c) -o $(@) $(CFLAGS)
+
+$(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
+	@mkdir -p $$(dirname $(@))
+	$(CC) -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
+
+# cleanup
+
+clean: .dummy
+	rm -rf $(BIN_DIR) $(OBJ_DIR) $(TMP_DIR)
 
 # dummy
 

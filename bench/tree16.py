@@ -28,7 +28,7 @@ def main(n):
         iterations = 2 ** (maxdepth - depth + mindepth)
         check = 0
         for _ in range(iterations):
-            check += item_check(bottom_up_tree(1, depth)) + item_check(bottom_up_tree(-1, depth))
+            check += item_check(bottom_up_tree(0, depth)) + item_check(bottom_up_tree(, depth))
         print(check)
     
     print(item_check(long_lived_tree))
