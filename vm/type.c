@@ -87,6 +87,10 @@ bool vm_rblock_regs_match(vm_tags_t *a, vm_tags_t *b) {
 }
 
 vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
+    if (instr.op == VM_IOP_STD) {
+        instr.tag = VM_TAG_TABLE;
+        return instr;
+    }
     if (instr.op == VM_IOP_MOVE) {
         if (instr.args[0].type == VM_ARG_STR) {
             instr.tag = VM_TAG_STR;

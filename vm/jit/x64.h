@@ -4,6 +4,7 @@
 #include "../ir.h"
 #include "../lib.h"
 #include "../type.h"
+#include "../obj.h"
 
 struct vm_x64_func_buf_t;
 typedef struct vm_x64_func_buf_t vm_x64_func_buf_t;
@@ -52,6 +53,7 @@ struct vm_x64_state_t {
     vm_x64_func_buf_t funcbuf;
     vm_x64_map_buf_t mapbuf;
     vm_x64_link_t *links;
+    vm_table_t *std;
     uint32_t pc_alloc;
     uint32_t count;
     uint32_t push;

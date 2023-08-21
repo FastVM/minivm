@@ -11,10 +11,17 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val,
     uint32_t head = 0;
     while (head * sizeof(vm_pair_t) < table->nbytes) {
         vm_pair_t *pair = &table->pairs[head];
-        if (pair->key_val.all == key_val.all && pair->key_tag == key_tag) {
-            pair->val_val = val_val;
-            pair->val_tag = val_tag;
-            return;
+        if (pair->key_tag == key_tag) {
+            if (pair->key_val.all == key_val.all) {
+                pair->val_val = pair->val_val;
+                pair->val_tag = pair->val_tag;
+                return;
+            }
+            if (key_tag == VM_TAG_STR && !strcmp(pair->key_val.str, key_val.str)) {
+                pair->val_val = pair->val_val;
+                pair->val_tag = pair->val_tag;
+                return;
+            }
         }
         head += 1;
     }
@@ -43,10 +50,17 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
     uint32_t head = 0;
     while (head * sizeof(vm_pair_t) < table->nbytes) {
         vm_pair_t *pair = &table->pairs[head];
-        if (pair->key_val.all == key_val.all && pair->key_tag == key_tag) {
-            out->val_val = pair->val_val;
-            out->val_tag = pair->val_tag;
-            return;
+        if (pair->key_tag == key_tag) {
+            if (pair->key_val.all == key_val.all) {
+                out->val_val = pair->val_val;
+                out->val_tag = pair->val_tag;
+                return;
+            }
+            if (key_tag == VM_TAG_STR && !strcmp(pair->key_val.str, key_val.str)) {
+                out->val_val = pair->val_val;
+                out->val_tag = pair->val_tag;
+                return;
+            }
         }
         head += 1;
     }

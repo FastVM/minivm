@@ -20,7 +20,7 @@ JITC_OBJS :=  $(JITC_SRCS:%.dasc=$(OBJ_DIR)/%.o)
 
 GC_SRCS := bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
 
-VM_SRCS := vm/ir.c vm/type.c vm/lang/paka.c vm/obj.c $(GC_SRCS)
+VM_SRCS := vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c $(GC_SRCS)
 VM_OBJS := $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS := $(VM_OBJS) $(JITC_OBJS)

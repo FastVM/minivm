@@ -69,6 +69,7 @@ enum {
     VM_IOP_SET,
     VM_IOP_NEW,
     VM_IOP_LEN,
+    VM_IOP_STD,
 };
 
 struct vm_rblock_t {
@@ -103,9 +104,10 @@ struct vm_arg_t {
                 uint16_t r64;
                 uint16_t xmm;
             } save;
-            int16_t vmreg;
-            uint8_t r64;
-            uint8_t f64;
+            uint16_t vmreg: 16;
+            uint8_t vmreg_tag: 8; 
+            uint8_t r64: 4;
+            uint8_t f64: 4;
         };
     };
     uint8_t type;
@@ -117,7 +119,7 @@ struct vm_branch_t {
         vm_rblock_t *rtargets[VM_TAG_MAX];
     };
     int8_t *pass[2];
-    vm_arg_t args[8];
+    vm_arg_t args[16];
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;

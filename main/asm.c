@@ -32,7 +32,6 @@ void vm_x64_run(vm_block_t *block);
 int main(int argc, char **argv) {
     vm_init_mem();
     const char *filename = NULL;
-    size_t runs = 1;
     while (true) {
         if (argc < 2) {
             if (filename == NULL) {
@@ -42,21 +41,7 @@ int main(int argc, char **argv) {
                 break;
             }
         }
-        if (!strcmp(argv[1], "-n")) {
-            argv += 1;
-            argc -= 1;
-            size_t n = 0;
-            char *ptr = argv[1];
-            while (*ptr != '\0') {
-                n *= 10;
-                n += (size_t)(*ptr - '0');
-                ptr += 1;
-            }
-            argv += 1;
-            argc -= 1;
-            runs = n;
-            continue;
-        } else if (filename != NULL) {
+        if (filename != NULL) {
             fprintf(stderr, "cannot handle multiple files at cli\n");
             return 1;
         } else {
@@ -79,8 +64,6 @@ int main(int argc, char **argv) {
     if (block == NULL) {
         return 1;
     }
-    for (size_t i = 0; i < runs; i++) {
-        vm_x64_run(block);
-    }
+    vm_x64_run(block);
     return 0;
 }
