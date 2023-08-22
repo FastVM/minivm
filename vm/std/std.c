@@ -1,57 +1,8 @@
 
 #include "./std.h"
+#include "./util.h"
 
-bool vm_std_parse_args(vm_std_value_t *args, const char *fmt, ...) {
-    size_t head = 0;
-    va_list ap;
-    va_start(ap, fmt);
-    while (*fmt != '\0') {
-        switch (*fmt++) {
-        case 's': {
-            if (args[head].tag != VM_TAG_STR) {
-                return false;
-            }
-            *va_arg(ap, const char **) = args[head++].value.str;
-            break;
-        }
-        case 'i': {
-            if (args[head].tag != VM_TAG_I64) {
-                return false;
-            }
-            *va_arg(ap, ptrdiff_t *) = args[head++].value.i64;
-            break;
-        }
-        case 'f': {
-            if (args[head].tag != VM_TAG_F64) {
-                return false;
-            }
-            *va_arg(ap, double *) = args[head++].value.f64;
-            break;
-        }
-        case 't': {
-            if (args[head].tag != VM_TAG_TABLE) {
-                return false;
-            }
-            *va_arg(ap, vm_table_t **) = args[head++].value.table;
-            break;
-        }
-        case 'a': {
-            if (args[head].tag != VM_TAG_TABLE) {
-                return false;
-            }
-            *va_arg(ap, void **) = args[head++].value.all;
-            break;
-        }
-        default: {
-            return false;
-        }
-        }
-    }
-    va_end(ap);
-    return true;
-}
-
-vm_std_value_t vm_std_new_write(vm_std_value_t *args) {
+vm_std_value_t VM_STD_EXPORT vm_std_io_putchar(vm_std_value_t *args) {
     double num = 0;
     if (vm_std_parse_args(args, "f", &num)) {
         printf("%c", (int) num);
@@ -66,10 +17,31 @@ vm_std_value_t vm_std_new_write(vm_std_value_t *args) {
             .tag = VM_TAG_NIL,
         };
     }
-    printf("%zu\n", (size_t) args[0].tag);
-    return (vm_std_value_t) {
-        .tag = VM_TAG_NIL,
-    };
+    fprintf(stderr, "std.io.putchar: expected an int or float");
+    exit(1);
+}
+
+vm_std_value_t vm_std_extern(vm_std_value_t *args) {
+    const char *str;
+    if (vm_std_parse_args(args, "s", &str)) {
+        static void *handle = NULL;
+        if (handle == NULL) {
+            handle = dlopen(NULL, RTLD_LAZY);
+        }
+        void *sym = dlsym(handle, str);
+        if (sym == NULL) {
+            fprintf(stderr, "error: std.extern: unknown symbol: %s", str);
+            exit(1);
+        }
+        return (vm_std_value_t) {
+            .value = (vm_value_t) {
+                .all = sym,
+            },
+            .tag = VM_TAG_FFI,
+        };
+    }
+    fprintf(stderr, "error: std.extern: expected a string");
+    exit(1);
 }
 
 vm_table_t *vm_std_new(void) {
@@ -77,10 +49,10 @@ vm_table_t *vm_std_new(void) {
     vm_table_set(
         ret,
         (vm_value_t) {
-            .str = "write",
+            .str = "extern",
         },
         (vm_value_t) {
-            .all = &vm_std_new_write,
+            .all = &vm_std_extern,
         },
         VM_TAG_STR,
         VM_TAG_FFI

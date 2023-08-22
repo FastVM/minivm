@@ -99,7 +99,7 @@ $(BIN_DIR)/minivm.exe: $(OBJ_DIR)/main/asm.o $(OBJS)
 
 $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+	$(CC) -Wl,--export-dynamic $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 # intermediate files
 

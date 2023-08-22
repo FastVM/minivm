@@ -1,7 +1,12 @@
-local s = std
 
-s["write"](52)
-s["write"](57)
-s["write"](56)
-s["write"](52)
-s["write"](10)
+local function decl(name, sym)
+    rawset(std, name, std.extern(sym))
+end
+
+local function main()
+    decl("putchar", "vm_std_io_putchar")
+end
+
+main()
+
+std.putchar(10)

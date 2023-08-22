@@ -430,37 +430,42 @@ redo:;
         arg = out;
         goto redo;
     }
-    // if (vm_paka_parser_match(parser, ".")) {
-    //     vm_block_t *next = vm_paka_blocks_new(comp->blocks);
-    //     vm_arg_t out = (vm_arg_t) {
-    //         .type = VM_ARG_REG,
-    //         .reg = vm_paka_find_reg(comp->regs),
-    //     };
-    //     size_t len = vm_paka_parser_ident_len(parser);
-    //     if (len == 0) {
-    //         return (vm_arg_t){
-    //             .type = VM_ARG_UNK,
-    //         };
-    //     }
-    //     char *buf = vm_malloc(sizeof(char) * (len + 1));
-    //     for (size_t i = 0; i < len; i++) {
-    //         buf[i] = vm_paka_parser_read(parser);
-    //     }
-    //     buf[len] = '\0';
-    //     comp->write->branch = (vm_branch_t){
-    //         .op = VM_BOP_GET,
-    //         .out = out,
-    //         .args[0] = arg,
-    //         .args[1] = (vm_arg_t) {
-    //             .type = VM_ARG_STR,
-    //             .str = buf,
-    //         },
-    //         .targets[0] = next,
-    //     };
-    //     comp->write = next;
-    //     arg = out;
-    //     goto redo;
-    // }
+    if (vm_paka_parser_match(parser, ".")) {
+        vm_block_t *next = vm_paka_blocks_new(comp->blocks);
+        vm_arg_t out = (vm_arg_t) {
+            .type = VM_ARG_REG,
+            .reg = vm_paka_find_reg(comp->regs),
+        };
+        size_t len = vm_paka_parser_ident_len(parser);
+        if (len == 0) {
+            return (vm_arg_t){
+                .type = VM_ARG_UNK,
+            };
+        }
+        char *buf = vm_malloc(sizeof(char) * (len + 1));
+        for (size_t i = 0; i < len; i++) {
+            buf[i] = vm_paka_parser_read(parser);
+        }
+        buf[len] = '\0';
+        vm_block_realloc(comp->write, (vm_instr_t) {
+            .op = VM_IOP_MOVE,
+            .out = out,
+            .args[0] = (vm_arg_t) {
+                .type = VM_ARG_STR,
+                .str = buf,
+            },
+        });
+        comp->write->branch = (vm_branch_t){
+            .op = VM_BOP_GET,
+            .out = out,
+            .args[0] = arg,
+            .args[1] = out,
+            .targets[0] = next,
+        };
+        comp->write = next;
+        arg = out;
+        goto redo;
+    }
     if (vm_paka_parser_match(parser, "[")) {
         vm_block_t *next = vm_paka_blocks_new(comp->blocks);
         vm_arg_t out = (vm_arg_t) {
@@ -635,7 +640,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                 .op = VM_BOP_RET,
                 .args[0] =
                     (vm_arg_t){
-                        .type = VM_ARG_NUM,
+                        .type = VM_ARG_NIL,
                         .num = 0,
                     },
             };
@@ -791,9 +796,9 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                                               .op = VM_IOP_STD,
                                               .out = reg,
                                           });
-            return reg;
+            return vm_paka_parser_postfix(parser, comp, reg);
         }
-        if (!strcmp(buf, "__builtin_new")) {
+        if (!strcmp(buf, "new")) {
             vm_paka_parser_strip_spaces(parser);
             if (!vm_paka_parser_match(parser, "(")) {
                 goto err;
@@ -974,30 +979,32 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                 if (!vm_paka_parser_match(parser, "(")) {
                     goto err;
                 }
-                do {
-                    vm_paka_parser_strip_spaces(parser);
-                    vm_arg_t arg = vm_paka_parser_expr_base(parser, comp);
-                    if (arg.type == VM_ARG_UNK) {
+                if (!vm_paka_parser_match(parser, ")")) {
+                    do {
+                        vm_paka_parser_strip_spaces(parser);
+                        vm_arg_t arg = vm_paka_parser_expr_base(parser, comp);
+                        if (arg.type == VM_ARG_UNK) {
+                            goto err;
+                        }
+                        if (arg.type == VM_ARG_REG) {
+                            branch.args[head++] = arg;
+                        } else {
+                            vm_arg_t real = (vm_arg_t){
+                                .type = VM_ARG_REG,
+                                .reg = vm_paka_find_reg(comp->regs),
+                            };
+                            vm_block_realloc(comp->write, (vm_instr_t){
+                                                            .op = VM_IOP_MOVE,
+                                                            .out = real,
+                                                            .args[0] = arg,
+                                                        });
+                            branch.args[head++] = real;
+                        }
+                        vm_paka_parser_strip_spaces(parser);
+                    } while (vm_paka_parser_match(parser, ","));
+                    if (!vm_paka_parser_match(parser, ")")) {
                         goto err;
                     }
-                    if (arg.type == VM_ARG_REG) {
-                        branch.args[head++] = arg;
-                    } else {
-                        vm_arg_t real = (vm_arg_t){
-                            .type = VM_ARG_REG,
-                            .reg = vm_paka_find_reg(comp->regs),
-                        };
-                        vm_block_realloc(comp->write, (vm_instr_t){
-                                                          .op = VM_IOP_MOVE,
-                                                          .out = real,
-                                                          .args[0] = arg,
-                                                      });
-                        branch.args[head++] = real;
-                    }
-                    vm_paka_parser_strip_spaces(parser);
-                } while (vm_paka_parser_match(parser, ","));
-                if (!vm_paka_parser_match(parser, ")")) {
-                    goto err;
                 }
                 branch.out = (vm_arg_t){
                     .type = VM_ARG_REG,

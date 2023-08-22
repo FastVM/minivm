@@ -270,6 +270,10 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "new");
             break;
         }
+        case VM_IOP_STD: {
+            fprintf(out, "std");
+            break;
+        }
         case VM_IOP_LEN: {
             fprintf(out, "len");
             break;
