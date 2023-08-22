@@ -75,11 +75,19 @@ void *vm_x64_mmap(vm_x64_state_t *state, size_t size, size_t align) {
             map = &state->mapbuf.mmaps[next_index - 1];
             map->alloc = minsize;
             state->mapbuf.len = next_index;
-            map->mem = mmap(0, map->alloc, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+            #ifdef __APPLE__
+                map->mem = mmap(0, map->alloc, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT | MAP_JIT, -1, 0);
+            #else
+                map->mem = mmap(0, map->alloc, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+            #endif
             map->used = size;
             buf = map->mem;
         } else {
-            buf = mmap(0, map->alloc, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+            #ifdef __APPLE__
+                buf = mmap(0, map->alloc, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT | MAP_JIT, -1, 0);
+            #else
+                buf = mmap(0, map->alloc, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+            #endif
         }
     } else {
         if (map->used % align != 0) {

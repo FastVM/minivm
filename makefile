@@ -30,6 +30,15 @@ LDFLAGS += $(FLAGS)
 
 RUNNER ?= $(BIN_DIR)/minivm
 
+UNAME_S := $(shell uname -s)
+
+LDFLAGS_Darwin := -Wl,-pagezero_size,0x4000
+LDFLAGS_Linux :=  -Wl,--export-dynamic
+
+LDFLAGS := $(LDFLAGS_$(UNAME_S)) $(LDFLAGS)
+
+$(info LDFLAGS_$(UNAME_S))
+
 default: all
 
 all: bins libs
@@ -99,7 +108,7 @@ $(BIN_DIR)/minivm.exe: $(OBJ_DIR)/main/asm.o $(OBJS)
 
 $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -Wl,--export-dynamic $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
 # intermediate files
 
