@@ -12,11 +12,8 @@ jobs:
         with:
           name: minivm-linux
           path:  | 
-            bin/minivm-asm
-            bin/minivm-run
-            bin/libminivm.a
-            bin/vm2js
-            bin/vm2rkt
+            build/bin/minivm
+            build/bin/libminivm.a
   linux-minivm-warnings:
     runs-on: ubuntu-latest
     steps:
@@ -28,43 +25,18 @@ jobs:
         with:
           name: minivm-linux-debug
           path:  | 
-            bin/minivm-asm
-            bin/minivm-run
-            bin/libminivm.a
-            bin/vm2js
-            bin/vm2rkt
+            build/bin/minivm
+            build/bin/libminivm.a
   macos-minivm:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - run: make CC=cc OPT='-O3 -fomit-frame-pointer' bin/minivm-asm
+      - run: make CC=cc OPT='-O3 -fomit-frame-pointer'
       - uses: actions/upload-artifact@v3
         with:
           name: minivm-mac
           path: | 
-            bin/minivm-asm
-            bin/minivm-run
-            bin/libminivm.a
-            bin/vm2js
-            bin/vm2rkt
-  windows-minivm-gcc:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-      - run: make CC=cc OPT='-O3 -fomit-frame-pointer' bin/minivm-asm
-      - uses: actions/upload-artifact@v3
-        with:
-          name: minivm-windows
-          path:  | 
-            bin/libminivm.a
-            bin/minivm-run.exe
-            bin/minivm-asm.exe
-            bin/vm2js.exe
-            bin/vm2rkt.exe
+            build/bin/minivm
+            build/bin/libminivm.a
