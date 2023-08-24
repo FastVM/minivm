@@ -12,18 +12,20 @@ BIN_DIR ?= $(BUILD_DIR)/bin
 
 LUA ?= $(BIN_DIR)/minilua
 
-PROG_SRCS := main/asm.c
-PROG_OBJS := $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
+PROG_SRCS = main/asm.c
+PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-JITC_SRCS := vm/jit/x64.dasc
-JITC_OBJS :=  $(JITC_SRCS:%.dasc=$(OBJ_DIR)/%.o)
+JITC_SRCS = vm/jit/x64.dasc
+JITC_OBJS =  $(JITC_SRCS:%.dasc=$(OBJ_DIR)/%.o)
 
-GC_SRCS := bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
+GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
+GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-VM_SRCS := vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c $(GC_SRCS)
-VM_OBJS := $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
+STD_SRCS := $(shell find vm/std/libs -name '*.c')
+VM_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c $(STD_SRCS)
+VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-OBJS := $(VM_OBJS) $(JITC_OBJS)
+OBJS = $(VM_OBJS) $(GC_OBJS) $(JITC_OBJS)
 
 CFLAGS += $(FLAGS)
 LDFLAGS += $(FLAGS)
@@ -32,12 +34,10 @@ RUNNER ?= $(BIN_DIR)/minivm
 
 UNAME_S := $(shell uname -s)
 
-LDFLAGS_Darwin := -Wl,-pagezero_size,0x4000
-LDFLAGS_Linux :=  -Wl,--export-dynamic
+LDFLAGS_Darwin = -w -Wl,-pagezero_size,0x4000
+LDFLAGS_Linux =  -Wl,--export-dynamic
 
 LDFLAGS := $(LDFLAGS_$(UNAME_S)) $(LDFLAGS)
-
-$(info LDFLAGS_$(UNAME_S))
 
 default: all
 
@@ -94,19 +94,19 @@ $(BIN_DIR)/minilua: dynasm/onelua.c
 	@mkdir -p $$(dirname $(@))
 	$(CC) -o $(BIN_DIR)/minilua dynasm/onelua.c -lm 
 
-$(BIN_DIR)/libminivm.lib: $(OBJS)
+libminivm.lib $(BIN_DIR)/libminivm.lib: $(OBJS)
 	@mkdir -p $$(dirname $(@))
 	lib /out:$(@) $(OBJS)
 
-$(BIN_DIR)/libminivm.a: $(OBJS)
+libminivm.a $(BIN_DIR)/libminivm.a: $(OBJS)
 	@mkdir -p $$(dirname $(@))
 	$(AR) cr $(@) $(OBJS)
 
-$(BIN_DIR)/minivm.exe: $(OBJ_DIR)/main/asm.o $(OBJS)
+minivm.exe $(BIN_DIR)/minivm.exe: $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
 	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
 
-$(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
+minivm $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
 	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
 
@@ -121,6 +121,10 @@ $(JITC_OBJS): $(@:$(OBJ_DIR)/%.o=%.dasc) $(LUA)
 $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
+
+$(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
+	@mkdir -p $$(dirname $(@))
+	$(CC) -mabi=sysv -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 
 # cleanup
 

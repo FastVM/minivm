@@ -12,8 +12,8 @@ enum {
     VM_TAG_I64,
     VM_TAG_F64,
     VM_TAG_STR,
-    VM_TAG_FUNC,
-    VM_TAG_TABLE,
+    VM_TAG_FUN,
+    VM_TAG_TAB,
     VM_TAG_FFI,
     VM_TAG_MAX,
 };

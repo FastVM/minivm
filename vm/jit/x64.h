@@ -3,8 +3,8 @@
 
 #include "../ir.h"
 #include "../lib.h"
-#include "../type.h"
 #include "../obj.h"
+#include "../type.h"
 
 struct vm_x64_func_buf_t;
 typedef struct vm_x64_func_buf_t vm_x64_func_buf_t;
@@ -65,9 +65,9 @@ struct vm_x64_link_t {
     vm_x64_link_t *next;
     vm_rblock_t *block;
     vm_x64_reg_save_t save;
-    uint32_t label: 32;
-    uint32_t epoch: 31;
-    bool iscall: 1;
+    uint32_t label : 32;
+    uint32_t epoch : 31;
+    bool iscall : 1;
 };
 
 struct vm_x64_cache_t {

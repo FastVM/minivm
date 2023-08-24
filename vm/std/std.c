@@ -1,25 +1,7 @@
 
 #include "./std.h"
-#include "./util.h"
 
-vm_std_value_t VM_STD_EXPORT vm_std_io_putchar(vm_std_value_t *args) {
-    double num = 0;
-    if (vm_std_parse_args(args, "f", &num)) {
-        printf("%c", (int) num);
-        return (vm_std_value_t) {
-            .tag = VM_TAG_NIL,
-        };
-    }
-    ptrdiff_t inum = 0;
-    if (vm_std_parse_args(args, "i", &inum)) {
-        printf("%c", (int) inum);
-        return (vm_std_value_t) {
-            .tag = VM_TAG_NIL,
-        };
-    }
-    fprintf(stderr, "std.io.putchar: expected an int or float");
-    exit(1);
-}
+#include "./util.h"
 
 vm_std_value_t vm_std_extern(vm_std_value_t *args) {
     const char *str;
@@ -33,8 +15,8 @@ vm_std_value_t vm_std_extern(vm_std_value_t *args) {
             fprintf(stderr, "error: std.extern: unknown symbol: %s", str);
             exit(1);
         }
-        return (vm_std_value_t) {
-            .value = (vm_value_t) {
+        return (vm_std_value_t){
+            .value = (vm_value_t){
                 .all = sym,
             },
             .tag = VM_TAG_FFI,
@@ -48,14 +30,13 @@ vm_table_t *vm_std_new(void) {
     vm_table_t *ret = vm_table_new();
     vm_table_set(
         ret,
-        (vm_value_t) {
+        (vm_value_t){
             .str = "extern",
         },
-        (vm_value_t) {
+        (vm_value_t){
             .all = &vm_std_extern,
         },
         VM_TAG_STR,
-        VM_TAG_FFI
-    );
+        VM_TAG_FFI);
     return ret;
 }

@@ -107,12 +107,12 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
             fprintf(out, "str");
             break;
         }
-        case VM_TAG_FUNC: {
-            fprintf(out, "func");
+        case VM_TAG_FUN: {
+            fprintf(out, "fun");
             break;
         }
-        case VM_TAG_TABLE: {
-            fprintf(out, "table");
+        case VM_TAG_TAB: {
+            fprintf(out, "tab");
             break;
         }
         case VM_TAG_FFI: {
@@ -175,7 +175,7 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
         for (size_t i = 1; val.args[i].type != VM_ARG_NONE; i++) {
             if (i != 1) {
                 fprintf(out, ", ");
-            } 
+            }
             vm_print_arg(out, val.args[i]);
         }
         fprintf(out, ")");
@@ -272,6 +272,10 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
         }
         case VM_IOP_STD: {
             fprintf(out, "std");
+            break;
+        }
+        case VM_IOP_TYPE: {
+            fprintf(out, "type");
             break;
         }
         case VM_IOP_LEN: {

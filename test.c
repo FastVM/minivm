@@ -1,9 +1,9 @@
 
+#include <libkern/OSCacheControl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <pthread.h>
-#include <libkern/OSCacheControl.h>
 
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
@@ -17,7 +17,7 @@ uint32_t* c_get_memory(uint32_t size) {
     uint32_t* addr = 0;
 
     addr = (uint32_t*)mmap(0, size, prot, flags, -1, 0);
-    if (addr == MAP_FAILED){
+    if (addr == MAP_FAILED) {
         printf("failure detected\n");
         exit(-1);
     }

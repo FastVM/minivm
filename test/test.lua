@@ -1,12 +1,5 @@
 
-local function decl(name, sym)
-    rawset(std, name, std.extern(sym))
-end
-
-local function main()
-    decl("putchar", "vm_std_io_putchar")
-end
-
-main()
-
-std.putchar(10)
+std.io = {}
+std.io.putchar = std.extern("vm_std_io_putchar")
+std.io.debug = std.extern("vm_std_io_debug")
+std.io.debug(std)

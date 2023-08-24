@@ -55,13 +55,14 @@ enum {
 
 enum {
     VM_IOP_NOP,
+    // util
     VM_IOP_MOVE,
+    // math
     VM_IOP_ADD,
     VM_IOP_SUB,
     VM_IOP_MUL,
     VM_IOP_DIV,
     VM_IOP_MOD,
-    // funcs
     // io
     VM_IOP_OUT,
     VM_IOP_PRINT,
@@ -69,7 +70,10 @@ enum {
     VM_IOP_SET,
     VM_IOP_NEW,
     VM_IOP_LEN,
+    // objects
     VM_IOP_STD,
+    // intro
+    VM_IOP_TYPE,
 };
 
 struct vm_rblock_t {
@@ -104,10 +108,10 @@ struct vm_arg_t {
                 uint16_t r64;
                 uint16_t xmm;
             } save;
-            uint16_t vmreg: 16;
-            uint8_t vmreg_tag: 8; 
-            uint8_t r64: 4;
-            uint8_t f64: 4;
+            uint16_t vmreg : 16;
+            uint8_t vmreg_tag : 8;
+            uint8_t r64 : 4;
+            uint8_t f64 : 4;
         };
     };
     uint8_t type;

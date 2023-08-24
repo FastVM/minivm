@@ -25,7 +25,7 @@ static void vm_print_nil(void) {
 }
 
 static void vm_print_ffi(void) {
-    printf("<function>");
+    printf("<fun>");
 }
 
 static void vm_print_str(const char *s) {
@@ -33,7 +33,7 @@ static void vm_print_str(const char *s) {
 }
 
 static void vm_print_table(vm_table_t *t) {
-    printf("table: %p", t);
+    printf("<tab: %p>", t);
 }
 
 static void vm_print_i64(ptrdiff_t n) {
@@ -116,11 +116,13 @@ void* vm_x64_encode(vm_x64_state_t *state, dasm_State** d)
     void *buf = vm_x64_mmap(state, size, 8);
 #endif
     dasm_encode(d, buf);
-    static FILE *out = NULL;
-    if (out == NULL) {
-        out = fopen("out.bin", "wb");
-    }
-    (void)fwrite(buf, 1, size, out);
+    // static int n = 0;
+    // n++;
+    // char cbuf[32];
+    // sprintf(cbuf, "out%i.bin", n);
+    // FILE *out = fopen(cbuf, "wb");
+    // fwrite(buf, 1, size, out);
+    // fclose(out);
     for (vm_x64_link_t *link = state->links; link != NULL; link = link->next) {
         *link->out = (void *) ((size_t) buf + dasm_getpclabel(d, link->label));
     }
@@ -293,7 +295,6 @@ vm_block_t *vm_x64_rblock_version(vm_rblock_t *rblock) {
             ret->args[i].reg_tag = regs->tags[ret->args[i].reg];
         }
     }
-    // vm_print_block(stdout, rblock->block);
     return ret;
 }
 
@@ -513,7 +514,7 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
         regs->vm[reg] = -1;
         vm_x64_calc_save(&block->branch.out.save, regs);
         if (block->branch.args[0].type == VM_ARG_REG) {
-            if (block->branch.args[0].reg_tag != VM_TAG_TABLE) {
+            if (block->branch.args[0].reg_tag != VM_TAG_TAB) {
                 __builtin_trap();
             }
             block->branch.args[0] = (vm_arg_t) {
@@ -780,6 +781,7 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
             switch (instr.op) {
             case VM_IOP_NEW:
             case VM_IOP_STD:
+            case VM_IOP_TYPE:
             case VM_IOP_NOP: {
                 break;
             }
@@ -891,6 +893,7 @@ void vm_x64_alloc_block(vm_x64_state_t *state, vm_block_t *block) {
             switch (instr.op) {
             case VM_IOP_NEW:
             case VM_IOP_STD:
+            case VM_IOP_TYPE:
             case VM_IOP_NOP: {
                 break;
             }
@@ -1637,7 +1640,7 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 | mov64 rax, ((uint64_t) &vm_print_f64)
             } else if (instr.tag == VM_TAG_STR) {
                 | mov64 rax, ((uint64_t) &vm_print_str)
-            } else if (instr.tag == VM_TAG_TABLE) {
+            } else if (instr.tag == VM_TAG_TAB) {
                 | mov64 rax, ((uint64_t) &vm_print_table)
             } else if (instr.tag == VM_TAG_NIL) {
                 | mov64 rax, ((uint64_t) &vm_print_nil)
