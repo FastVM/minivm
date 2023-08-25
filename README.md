@@ -14,7 +14,6 @@ Some reasons to use MiniVM are:
     - 34KiB when building with `make -B OPT='-O2 -fno-ssa-phiopt -s -fuse-ld=lld -Wl,--gc-sections' CC=gcc-11`
     - Single binary to assemble and run.
 - MiniVM is portable
-    - uses about 10 libc functions in total
     - MiniVM can compile with `gcc`, `clang`, `tcc` and many more
 
 ## History
