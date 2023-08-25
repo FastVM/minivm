@@ -116,7 +116,7 @@ $(JITC_OBJS): $(@:$(OBJ_DIR)/%.o=%.dasc) $(LUA)
 	@mkdir -p $$(dirname $(@:$(OBJ_DIR)/%.o=%.tmp.c))
 	$(LUA) dynasm/dynasm.lua -o $(@:$(OBJ_DIR)/%.o=%.tmp.c) -D X64 -M -L $(@:$(OBJ_DIR)/%.o=%.dasc)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.tmp.c) -o $(@) $(CFLAGS)
+	$(CC) -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.tmp.c) -o $(@) $(CFLAGS) -Wno-strict-aliasing
 
 $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
