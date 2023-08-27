@@ -11,3 +11,4 @@ libminivm.lib
 *.tmp.c
 *.bin
 *.core
+.minivm-history

@@ -37,7 +37,7 @@ UNAME_S := $(shell uname -s)
 LDFLAGS_Darwin = -w -Wl,-pagezero_size,0x4000
 LDFLAGS_Linux =  -Wl,--export-dynamic
 
-LDFLAGS := $(LDFLAGS_$(UNAME_S)) $(LDFLAGS)
+LDFLAGS := $(LDFLAGS_$(UNAME_S)) -lreadline $(LDFLAGS)
 
 default: all
 
@@ -116,7 +116,7 @@ $(JITC_OBJS): $(@:$(OBJ_DIR)/%.o=%.dasc) $(LUA)
 	@mkdir -p $$(dirname $(@:$(OBJ_DIR)/%.o=%.tmp.c))
 	$(LUA) dynasm/dynasm.lua -o $(@:$(OBJ_DIR)/%.o=%.tmp.c) -D X64 -M -L $(@:$(OBJ_DIR)/%.o=%.dasc)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.tmp.c) -o $(@) $(CFLAGS) -Wno-strict-aliasing
+	$(CC) -w -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.tmp.c) -o $(@) $(CFLAGS) -Wno-strict-aliasing
 
 $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
@@ -124,7 +124,7 @@ $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 
 $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -mabi=sysv -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
+	$(CC) -w -mabi=sysv -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 
 # cleanup
 

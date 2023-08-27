@@ -1,7 +1,8 @@
 
+#include "./io.h"
 #include "../util.h"
 
-vm_std_value_t VM_STD_EXPORT vm_std_io_putchar(vm_std_value_t *args) {
+vm_std_value_t vm_std_io_putchar(vm_std_value_t *args) {
     double num = 0;
     if (vm_std_parse_args(args, "f", &num)) {
         printf("%c", (int)num);
@@ -20,13 +21,30 @@ vm_std_value_t VM_STD_EXPORT vm_std_io_putchar(vm_std_value_t *args) {
     exit(1);
 }
 
-struct vm_debug_t;
-typedef struct vm_debug_t vm_debug_t;
-
-struct vm_debug_t {
-    vm_debug_t *next;
-    vm_std_value_t value;
-};
+char *vm_io_read(const char *filename) {
+    void *file = fopen(filename, "rb");
+    if (file == NULL) {
+        return NULL;
+    }
+    size_t nalloc = 512;
+    char *ops = vm_malloc(sizeof(char) * nalloc);
+    size_t nops = 0;
+    size_t size;
+    for (;;) {
+        if (nops + 256 >= nalloc) {
+            nalloc = (nops + 256) * 2;
+            ops = vm_realloc(ops, sizeof(char) * nalloc);
+        }
+        size = fread(&ops[nops], 1, 256, file);
+        nops += size;
+        if (size < 256) {
+            break;
+        }
+    }
+    ops[nops] = '\0';
+    fclose(file);
+    return ops;
+}
 
 static void vm_indent(FILE *out, size_t indent, const char *prefix) {
     while (indent-- > 0) {
@@ -35,7 +53,7 @@ static void vm_indent(FILE *out, size_t indent, const char *prefix) {
     fprintf(out, "%s", prefix);
 }
 
-static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t value, vm_debug_t *link) {
+void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
         if (value.tag == link->value.tag) {
@@ -48,7 +66,7 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
         up += 1;
         link = link->next;
     }
-    vm_debug_t next = (vm_debug_t){
+    vm_io_debug_t next = (vm_io_debug_t){
         .next = link,
         .value = value,
     };
@@ -99,7 +117,7 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
-                        vm_debug(out, indent + 1, "nil = ", val, &next);
+                        vm_io_debug(out, indent + 1, "nil = ", val, &next);
                         break;
                     }
                     case VM_TAG_BOOL: {
@@ -108,9 +126,9 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
                             .value = p.val_val,
                         };
                         if (value.value.b) {
-                            vm_debug(out, indent + 1, "true = ", val, &next);
+                            vm_io_debug(out, indent + 1, "true = ", val, &next);
                         } else {
-                            vm_debug(out, indent + 1, "false = ", val, &next);
+                            vm_io_debug(out, indent + 1, "false = ", val, &next);
                         }
                         break;
                     }
@@ -121,7 +139,7 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
                         };
                         char buf[64];
                         snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
-                        vm_debug(out, indent + 1, buf, val, &next);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }
                     case VM_TAG_F64: {
@@ -131,7 +149,7 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
                         };
                         char buf[64];
                         snprintf(buf, 63, "%f = ", p.key_val.f64);
-                        vm_debug(out, indent + 1, buf, val, &next);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }
                     case VM_TAG_STR: {
@@ -141,7 +159,7 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
                         };
                         char buf[64];
                         snprintf(buf, 63, "%s = ", p.key_val.str);
-                        vm_debug(out, indent + 1, buf, val, &next);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }
                     default: {
@@ -151,12 +169,12 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
                             .tag = p.key_tag,
                             .value = p.key_val,
                         };
-                        vm_debug(out, indent + 2, "key = ", key, &next);
+                        vm_io_debug(out, indent + 2, "key = ", key, &next);
                         vm_std_value_t val = (vm_std_value_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
-                        vm_debug(out, indent + 2, "val = ", val, &next);
+                        vm_io_debug(out, indent + 2, "val = ", val, &next);
                         vm_indent(out, indent + 1, "");
                         fprintf(out, "}\n");
                     }
@@ -172,15 +190,16 @@ static void vm_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_
             break;
         }
         default: {
+            __builtin_trap();
             fprintf(out, "<T%zu: %p>\n", (size_t)value.tag, value.value.all);
             break;
         }
     }
 }
 
-vm_std_value_t VM_STD_EXPORT vm_std_io_debug(vm_std_value_t *args) {
+vm_std_value_t vm_std_io_debug(vm_std_value_t *args) {
     while (args->tag != 0) {
-        vm_debug(stdout, 0, "", *args++, NULL);
+        vm_io_debug(stdout, 0, "", *args++, NULL);
     }
     return (vm_std_value_t){
         .tag = VM_TAG_NIL,

@@ -83,6 +83,6 @@ struct vm_x64_regs_t {
 vm_x64_cache_t *vm_x64_cache_new(void);
 vm_block_t *vm_x64_rblock_version(vm_rblock_t *rblock);
 void *vm_x64_full_comp(vm_x64_state_t *state, vm_block_t *block);
-void vm_x64_run(vm_block_t *block);
+vm_std_value_t vm_x64_run(vm_block_t *block, vm_table_t *std, vm_std_value_t *args);
 
 #endif

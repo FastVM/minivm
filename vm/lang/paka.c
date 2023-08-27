@@ -853,7 +853,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             buf[i] = vm_paka_parser_read(parser);
         }
         buf[len] = '\0';
-        if (!strcmp(buf, "std")) {
+        if (!strcmp(buf, "env")) {
             vm_arg_t reg = (vm_arg_t){
                 .type = VM_ARG_REG,
                 .reg = vm_paka_find_reg(comp->regs),
@@ -1097,7 +1097,12 @@ err:;
     };
 }
 
-int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
+typedef struct {
+    int ret;
+    vm_arg_t arg;
+} vm_paka_parser_block_full_t;
+
+vm_paka_parser_block_full_t vm_paka_parser_block_full(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
     vm_paka_name_map_t names = (vm_paka_name_map_t){
         .next = comp->names,
     };
@@ -1129,7 +1134,14 @@ int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
     }
     vm_paka_parser_strip_spaces(parser);
     comp->names = names.next;
-    return ret;
+    return (vm_paka_parser_block_full_t) {
+        .ret = ret,
+        .arg = arg,
+    };
+}
+
+int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
+    return vm_paka_parser_block_full(parser, comp).ret;
 }
 
 vm_block_t *vm_paka_parse(const char *src) {
@@ -1150,13 +1162,23 @@ vm_block_t *vm_paka_parse(const char *src) {
         .regs = regs,
         .blocks = &blocks,
     };
-    vm_paka_parser_block(&parser, &comp);
+    vm_paka_parser_block_full_t full = vm_paka_parser_block_full(&parser, &comp);
     if (vm_paka_parser_peek(&parser) != '\0') {
         fprintf(stderr, "error(2) at line %zu, col %zu\n", parser.line, parser.col);
         return NULL;
     }
+    vm_arg_t arg = (vm_arg_t) {
+        .type = VM_ARG_REG,
+        .reg = vm_paka_find_reg(comp.regs),
+    };
+    vm_block_realloc(comp.write, (vm_instr_t) {
+        .op = VM_IOP_MOVE,
+        .out = arg,
+        .args[0] = full.arg,
+    });
     comp.write->branch = (vm_branch_t){
         .op = VM_BOP_EXIT,
+        .args[0] = arg,
     };
     vm_block_info(blocks.len, blocks.blocks);
     // for (size_t i = 0; i < blocks.len; i++) {

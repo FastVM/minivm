@@ -1,7 +1,10 @@
 
 #include "./std.h"
-
 #include "./util.h"
+
+#include "./libs/io.h"
+#include "./libs/os.h"
+#include "./libs/type.h"
 
 vm_std_value_t vm_std_extern(vm_std_value_t *args) {
     const char *str;
@@ -27,16 +30,19 @@ vm_std_value_t vm_std_extern(vm_std_value_t *args) {
 }
 
 vm_table_t *vm_std_new(void) {
-    vm_table_t *ret = vm_table_new();
-    vm_table_set(
-        ret,
-        (vm_value_t){
-            .str = "extern",
-        },
-        (vm_value_t){
-            .all = &vm_std_extern,
-        },
-        VM_TAG_STR,
-        VM_TAG_FFI);
-    return ret;
+    vm_table_t *std = vm_table_new();
+    
+    vm_table_t *io = vm_table_new();
+    VM_STD_SET_FFI(io, "debug", &vm_std_io_debug);
+    VM_STD_SET_FFI(io, "putchar", &vm_std_io_putchar);
+    VM_STD_SET_TAB(std, "io", io);
+    
+    vm_table_t *os = vm_table_new();
+    VM_STD_SET_FFI(os, "system", &vm_std_os_system);
+    VM_STD_SET_FFI(os, "import", &vm_std_os_import);
+    VM_STD_SET_TAB(std, "os", os);
+
+    VM_STD_SET_FFI(std, "eval", &vm_std_os_eval);
+
+    return std;
 }

@@ -25,6 +25,9 @@
 #define DASM_FDEF extern
 #endif
 
+void *dasm_mem_realloc(void *ptr, size_t size);
+void dasm_mem_free(void *ptr);
+
 #ifndef DASM_M_GROW
 #define DASM_M_GROW(ctx, t, p, sz, need)    \
     do {                                    \
@@ -32,7 +35,7 @@
         if (_sz < _need) {                  \
             if (_sz < 16) _sz = 16;         \
             while (_sz < _need) _sz += _sz; \
-            (p) = (t *)realloc((p), _sz);   \
+            (p) = (t *)dasm_mem_realloc((p), _sz);   \
             if ((p) == NULL) exit(1);       \
             (sz) = _sz;                     \
         }                                   \
@@ -40,7 +43,7 @@
 #endif
 
 #ifndef DASM_M_FREE
-#define DASM_M_FREE(ctx, p, sz) free(p)
+#define DASM_M_FREE(ctx, p, sz) dasm_mem_free(p)
 #endif
 
 /* Internal DynASM encoder state. */
