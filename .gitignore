@@ -12,3 +12,4 @@ libminivm.lib
 *.bin
 *.core
 .minivm-history
+out.*
