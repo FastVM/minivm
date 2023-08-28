@@ -403,6 +403,7 @@ redo:;
         };
         size_t index = 1;
         do {
+            vm_paka_parser_strip_spaces(parser);
             vm_arg_t arg = (vm_arg_t){
                 .type = VM_ARG_REG,
                 .reg = vm_paka_find_reg(comp->regs),
@@ -414,6 +415,7 @@ redo:;
             vm_block_realloc(comp->write, instr);
             branch.args[index] = arg;
             index += 1;
+            vm_paka_parser_strip_spaces(parser);
         } while (vm_paka_parser_match(parser, ","));
         comp->write->branch = branch;
         comp->write = next;
@@ -1144,7 +1146,12 @@ int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
     return vm_paka_parser_block_full(parser, comp).ret;
 }
 
-vm_block_t *vm_paka_parse(const char *src) {
+typedef struct {
+    vm_paka_blocks_t blocks;
+    vm_block_t *block;
+}  vm_paka_parse_result_t;
+
+static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
     vm_paka_parser_t parser = (vm_paka_parser_t){
         .src = src,
         .index = 0,
@@ -1165,24 +1172,37 @@ vm_block_t *vm_paka_parse(const char *src) {
     vm_paka_parser_block_full_t full = vm_paka_parser_block_full(&parser, &comp);
     if (vm_paka_parser_peek(&parser) != '\0') {
         fprintf(stderr, "error(2) at line %zu, col %zu\n", parser.line, parser.col);
-        return NULL;
+        return (vm_paka_parse_result_t) {0};
     }
-    vm_arg_t arg = (vm_arg_t) {
-        .type = VM_ARG_REG,
-        .reg = vm_paka_find_reg(comp.regs),
-    };
-    vm_block_realloc(comp.write, (vm_instr_t) {
-        .op = VM_IOP_MOVE,
-        .out = arg,
-        .args[0] = full.arg,
-    });
+    // vm_print_arg(stdout, full.arg);
+    // printf("\n\n");
+    if (full.arg.type != VM_ARG_NONE && full.arg.type != VM_ARG_UNK && full.arg.type != VM_ARG_REG) {
+        vm_arg_t arg = (vm_arg_t) {
+            .type = VM_ARG_REG,
+            .reg = vm_paka_find_reg(comp.regs),
+        };
+        vm_block_realloc(comp.write, (vm_instr_t) {
+            .op = VM_IOP_MOVE,
+            .out = arg,
+            .args[0] = full.arg,
+        });
+        full.arg = arg;
+    }
     comp.write->branch = (vm_branch_t){
         .op = VM_BOP_EXIT,
-        .args[0] = arg,
+        .args[0] = full.arg,
     };
     vm_block_info(blocks.len, blocks.blocks);
-    // for (size_t i = 0; i < blocks.len; i++) {
-    //     vm_print_block(stderr, blocks.blocks[i]);
-    // }
-    return block;
+    return (vm_paka_parse_result_t) {
+        .block = block,
+        .blocks = blocks,
+    };
+}
+
+vm_block_t *vm_paka_parse(const char *src) {
+    return vm_paka_parse_internal(src).block;
+}
+
+vm_paka_blocks_t vm_paka_parse_blocks(const char *src) {
+    return vm_paka_parse_internal(src).blocks;
 }

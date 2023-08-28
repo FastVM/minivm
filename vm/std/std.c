@@ -5,6 +5,7 @@
 #include "./libs/io.h"
 #include "./libs/os.h"
 #include "./libs/type.h"
+#include "./libs/dot.h"
 
 vm_std_value_t vm_std_extern(vm_std_value_t *args) {
     const char *str;
@@ -41,6 +42,11 @@ vm_table_t *vm_std_new(void) {
     VM_STD_SET_FFI(os, "system", &vm_std_os_system);
     VM_STD_SET_FFI(os, "import", &vm_std_os_import);
     VM_STD_SET_TAB(std, "os", os);
+
+    vm_table_t *dot = vm_table_new();
+    VM_STD_SET_TAB(std, "dot", dot);
+    VM_STD_SET_FFI(dot, "parse", &vm_std_dot_parse);
+    VM_STD_SET_FFI(dot, "file", &vm_std_dot_file);
 
     VM_STD_SET_FFI(std, "eval", &vm_std_os_eval);
 

@@ -122,6 +122,10 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             instr.tag = VM_TAG_STR;
             return instr;
         }
+        if (instr.args[0].type == VM_ARG_FUNC) {
+            instr.tag = VM_TAG_FUN;
+            return instr;
+        }
     }
     if (instr.op == VM_IOP_NEW) {
         instr.tag = VM_TAG_TAB;

@@ -1,5 +1,5 @@
-local upto = 1000000
-local count = 1
+local upto = 100
+env.io.debug(2)
 local val = 3
 while val < upto do
     local check = 3
@@ -10,7 +10,8 @@ while val < upto do
         end
         check = check + 2
     end
-    count = count + add
+    if add == 1 then
+        env.io.debug(val)
+    end
     val = val + 2
 end
-print(count)

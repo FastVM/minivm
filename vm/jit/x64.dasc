@@ -1183,9 +1183,12 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                     }
                 } else if (instr.args[0].type == VM_ARG_STR) {
                     | mov64 Rq(instr.out.r64), ((size_t) (instr.args[0].str))
+                } else if (instr.args[0].type == VM_ARG_FUNC) {
+                    | mov64 Rq(instr.out.r64), ((size_t) (instr.args[0].func))
                 } else if (instr.args[0].type == VM_ARG_NUM) {
                     | mov Rq(instr.out.r64), ((int32_t) (instr.args[0].num))
                 } else if (instr.args[0].type == VM_ARG_NIL) {
+                } else if (instr.args[0].type == VM_ARG_UNK) {
                 } else {
                     vm_print_instr(stdout, instr);
                     printf("\n");
@@ -1795,6 +1798,78 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
                 vm_x64_comp_unsave(Dst, block->branch.out.save);
                 | jmp qword [((int32_t) (size_t) (ptrs+VM_TAG_F64))]
                 break;
+            } else if (block->branch.args[0].reg_tag == VM_TAG_FUN) {
+                void **next_ptrs = vm_x64_mmap(state, sizeof(void *) * VM_TAG_MAX, 8);
+                size_t labels[VM_TAG_MAX];
+                for (size_t i = 1; i < VM_TAG_MAX; i++) {
+                    vm_x64_link_t *link = vm_malloc(sizeof(vm_x64_link_t));
+                    labels[i] = link->label = state->count++;
+                    link->out = &next_ptrs[i];
+                    link->next = state->links;
+                    block->branch.rtargets[i]->block->pass = block->branch.pass[0];
+                    link->block = block->branch.rtargets[i];
+                    link->block->block->isfunc = false;
+                    link->save = block->branch.out.save;
+                    if (i == VM_TAG_F64) {
+                        link->save.xmm |= 1;
+                    } else {
+                        link->save.r64 |= 1;
+                    }
+                    state->links = link;
+                }
+                vm_x64_comp_save(Dst, block->branch.out.save);
+                static int8_t argregs[] = {7, 6, 2, 1, 8, 9};
+                uint16_t save_gp = 0;
+                uint16_t save_fp = 0;
+                size_t gp = 0;
+                size_t fp = 0;
+                for (size_t i = 1; block->branch.args[i].type != VM_ARG_NONE; i++) {
+                    if (block->branch.args[i].type == VM_ARG_CPU_GP) {
+                        size_t n = argregs[gp++];
+                        save_gp |= (1 << n);
+                        if (block->branch.args[i].r64 != n) {
+                            | mov Rq(n), Rq(block->branch.args[i].r64)
+                        }
+                    } else if (block->branch.args[i].type == VM_ARG_CPU_FP) {
+                        size_t n = fp++;
+                        save_fp |= (1 << n);
+                        if (block->branch.args[i].f64 != n) {
+                            | movsd xmm(n), xmm(block->branch.args[i].f64)
+                        }
+                    } else {
+                        __builtin_trap();
+                    }
+                }
+                void **jbufs = vm_x64_mmap(state, sizeof(void *) * VM_TAG_MAX, 8);
+                vm_x64_link_t *link = vm_malloc(sizeof(vm_x64_link_t));
+                link->label = state->count++;
+                link->out = (void **) vm_x64_mmap(state, sizeof(void *), 8);
+                *link->out = NULL;
+                link->next = state->links;
+                link->block = block->branch.args[0].rfunc;
+                link->block->block->isfunc = true;
+                link->save = block->branch.out.save;
+                link->save.r64 |= save_gp;
+                link->save.xmm |= save_fp;
+                state->links = link;
+                | push ((int32_t) (size_t) (jbufs))
+                | jmp qword [((int32_t) (size_t) (link->out))]
+                for (size_t i = 1; i < VM_TAG_MAX; i++) {
+                    vm_x64_link_t *link = vm_malloc(sizeof(vm_x64_link_t));
+                    link->out = &jbufs[i];
+                    link->next = state->links;
+                    link->block = NULL;
+                    link->save = block->branch.out.save;
+                    if (block->branch.out.save.r64 != 0 || block->branch.out.save.xmm != 0) {
+                        link->label = state->count++;
+                        |=>link->label:
+                        vm_x64_comp_unsave(Dst, block->branch.out.save);
+                        | jmp qword [((int32_t) (size_t) (next_ptrs+i))]
+                    } else {
+                        link->label = labels[i];
+                    }
+                    state->links = link;
+                }
             } else {
                 vm_print_branch(stdout, block->branch);
                 printf("\n");

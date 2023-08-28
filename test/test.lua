@@ -1,2 +1,2 @@
 
-env.io.debug(env.eval)
+env.dot.file("input.dot", "test/drawme.lua")

@@ -78,5 +78,6 @@ vm_arg_t vm_paka_parser_postfix(vm_paka_parser_t *parser, vm_paka_comp_t *comp,
 int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
 // string parsers
 vm_block_t *vm_paka_parse(const char *src);
+vm_paka_blocks_t vm_paka_parse_blocks(const char *src);
 
 #endif

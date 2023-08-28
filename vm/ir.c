@@ -292,6 +292,7 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
         vm_print_arg(out, val.args[i]);
     }
 }
+
 void vm_print_block(FILE *out, vm_block_t *val) {
     fprintf(out, ".%zi(", val->id);
     for (size_t i = 0; i < val->nargs; i++) {
