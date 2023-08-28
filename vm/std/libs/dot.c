@@ -7,13 +7,17 @@
 #include "../../lang/paka.h"
 
 typedef struct {
-    size_t len;
+    size_t nblocks;
     vm_block_t **blocks;
-    size_t alloc;
-    vm_block_t *retto;
+    size_t blocks_alloc;
+    size_t func_depth;
+    size_t nfuncs;
+    size_t *funcs;
+    size_t funcs_alloc;
 } vm_dot_list_t;
 
 void vm_dot_draw_tag(FILE *out, vm_dot_list_t *list, vm_tag_t tag) {
+    (void) list;
     switch (tag) {
         case VM_TAG_UNK: {
             fprintf(out, "unk");
@@ -301,28 +305,52 @@ void vm_dot_draw_block_body(FILE *out, vm_dot_list_t *list, vm_block_t *val) {
 }
 
 void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block) {
-    for (size_t i = 0; i < list->len; i++) {
+    for (size_t i = 0; i < list->nblocks; i++) {
         if (list->blocks[i] == block) {
             return;
         }
     }
-    if (list->len + 2 >= list->alloc) {
-        list->alloc = (list->len + 2) * 2;
-        list->blocks = vm_realloc(list->blocks, sizeof(vm_block_t *) * list->alloc);
+    if (list->nblocks + 2 >= list->blocks_alloc) {
+        list->blocks_alloc = (list->nblocks + 2) * 2;
+        list->blocks = vm_realloc(list->blocks, sizeof(vm_block_t *) * list->blocks_alloc);
     }
-    list->blocks[list->len] = block;
-    fprintf(out, "block%zu [shape=record] [label=\"block%zu\\n\\n", block->id, block->id);
+    const char *fillcolor = list->func_depth % 2 == 0 ? "F4FFFF" : "F4FFF4";
+    list->blocks[list->nblocks] = block;
+    fprintf(out, "block%zu [shape=record] [label=\"{block%zu\\n|", block->id, block->id);
     vm_dot_draw_block_body(out, list, block);
-    fprintf(out, "\"];\n  ");
-    list->len++;
+    fprintf(out, "}\"] [fillcolor=\"#%s\"] [style=\"filled\"];\n  ", fillcolor);
+    list->nblocks++;
     if (block->branch.op == VM_BOP_CALL) {
         if (block->branch.args[0].type == VM_ARG_FUNC) {
-            vm_dot_draw_block(out, list, block->branch.args[0].func);
+            vm_block_t *func = block->branch.args[0].func;
+            size_t funcnum = list->nfuncs;
+            for (size_t i = 0; i < list->nfuncs; i++) {
+                if (list->funcs[i] == (size_t) func->id) {
+                    goto call_found_func_already;
+                }
+            }
+            fprintf(out, "subgraph clusterblock%zu {\n  ", funcnum);
+            if (list->func_depth % 2 == 0) {
+                fprintf(out, "bgcolor=\"#FFFFF4\"");
+            } else {
+                fprintf(out, "bgcolor=\"#FFFFFF\"");
+            }
+            fprintf(out, "label=\"func%zu\"\n  ", funcnum);
+            if (list->nfuncs + 2 >= list->funcs_alloc) {
+                list->funcs_alloc = (list->nfuncs + 2) * 2;
+                list->funcs = vm_realloc(list->funcs, sizeof(size_t) * list->funcs_alloc);
+            }
+            list->funcs[list->nfuncs++] = func->id;
+            list->func_depth += 1;
+            vm_dot_draw_block(out, list, func);
+            list->func_depth -= 1;
+            fprintf(out, "}\n  ");
+        call_found_func_already:;
+            fprintf(out, "block%zu -> block%zu;\n  ", block->id, func->id);
         }
-        fprintf(out, "block%zu -> block%zu;\n  ", block->id, block->branch.args[0].func->id);
     }
     if (block->branch.op == VM_BOP_RET) {
-        fprintf(out, "RETURN%zu [label=\"RETURN\"];\n  ", block->id);
+        fprintf(out, "RETURN%zu [label=\"RETURN\"][fillcolor=\"#%s\"] [style=\"filled\"];\n  ", block->id, fillcolor);
         fprintf(out, "block%zu -> RETURN%zu;\n  ", block->id, block->id);
     } else if (block->branch.op == VM_BOP_EXIT) {
         fprintf(out, "block%zu -> EXIT;\n  ", block->id);
@@ -338,12 +366,16 @@ void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block) {
 
 void vm_dot_block(FILE *file, vm_block_t *block) {
     vm_dot_list_t dot_list = (vm_dot_list_t) {
-        .len = 0,
+        .nblocks = 0,
         .blocks = NULL,
-        .alloc = 0,
-        .retto = NULL,
+        .blocks_alloc = 0,
+        .nfuncs = 0,
+        .funcs = NULL,
+        .funcs_alloc = 0,
     };
-    fprintf(file, "digraph {\n  ");
+    fprintf(file, "digraph IR {\n  ");
+    fprintf(file, "bgcolor=\"#FFFFFF\"");
+    fprintf(file, "rankdir=\"TB\"\n  ");
     fprintf(file, "START -> block%zu;\n  ", block->id);
     vm_dot_draw_block(file, &dot_list, block);
     fprintf(file, "START;\n  EXIT;\n}");

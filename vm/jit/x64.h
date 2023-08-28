@@ -4,7 +4,6 @@
 #include "../ir.h"
 #include "../lib.h"
 #include "../obj.h"
-#include "../type.h"
 
 struct vm_x64_func_buf_t;
 typedef struct vm_x64_func_buf_t vm_x64_func_buf_t;

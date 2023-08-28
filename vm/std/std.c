@@ -4,7 +4,6 @@
 
 #include "./libs/io.h"
 #include "./libs/os.h"
-#include "./libs/type.h"
 #include "./libs/dot.h"
 
 vm_std_value_t vm_std_extern(vm_std_value_t *args) {

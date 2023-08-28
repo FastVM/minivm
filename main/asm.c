@@ -15,7 +15,7 @@ void vm_asm_repl(void) {
     read_history(".minivm-history");
     while (true) {
         char in_n[32];
-        int in_len = snprintf(in_n, 31, "(%d)> ", count);
+        snprintf(in_n, 31, "(%d)> ", count);
         char *buf = readline(in_n);
         if (buf == NULL) {
             return;
@@ -45,7 +45,7 @@ void vm_asm_repl(void) {
             .key_tag = VM_TAG_STR,
         };
         vm_table_get_pair(std, &pair);
-        for (size_t i = 0; i < out_len - 2; i++) {
+        for (int i = 0; i < out_len - 2; i++) {
             printf(" ");
         }
         printf("^ ");
