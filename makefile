@@ -4,11 +4,13 @@ LLVM_PROFDATA ?= llvm-profdata
 CLANG ?= clang
 OPT ?= -O2
 HOST_CC ?= $(CC)
+DOT ?= dot
 
 BUILD_DIR ?= build
 OBJ_DIR ?= $(BUILD_DIR)/obj
 TMP_DIR ?= $(BUILD_DIR)/tmp
 BIN_DIR ?= $(BUILD_DIR)/bin
+RES_DIR ?= $(BUILD_DIR)/res
 
 LUA ?= $(BIN_DIR)/minilua
 
@@ -39,12 +41,25 @@ LDFLAGS_Linux =  -Wl,--export-dynamic
 
 LDFLAGS := $(LDFLAGS_$(UNAME_S)) -lreadline $(LDFLAGS)
 
+LUA_FILES := $(shell find . -name '*.lua')
+LUA_DOTS := $(LUA_FILES:./%.lua=$(RES_DIR)/%.dot)
+LUA_PNGS := $(LUA_DOTS:%.dot=%.png)
+
 default: all
 
 all: bins libs
 
 test: $(RUNNER)
 	@find bench -name '*.lua' | sort | xargs -I{} ./test.sh $(RUNNER) {}
+
+flow: $(LUA_PNGS)
+	@find $(RES_DIR) -size 0 -delete
+	@find $(RES_DIR) -name '*.png' -exec echo FLOW: {} +
+# graph gen
+
+$(LUA_PNGS): $(RUNNER)
+	@mkdir -p $(dir $(@))
+	@: sh -c "$(RUNNER) dot $(@:$(RES_DIR)/%.png=%.lua) | $(DOT) -Tpng > $(@)"
 
 # profile guided optimization
 
@@ -69,10 +84,10 @@ clang-pgo-windows: .dummy
 	$(MAKE) -B CC='$(CLANG)' OPT='$(OPT) -fprofile-use=profdata.profdata -fomit-frame-pointer -fno-stack-protector' CFLAGS+=-D_CRT_SECURE_NO_WARNINGS $(BIN_DIR)/minivm.exe
 
 pgo-runs:
-	$(BIN_DIR)/minivm bench/fib40.lua
-	$(BIN_DIR)/minivm bench/tree16raw.lua
-	$(BIN_DIR)/minivm bench/primecount.lua
-	$(BIN_DIR)/minivm bench/tak.lua
+	$(BIN_DIR)/minivm run bench/fib40.lua
+	$(BIN_DIR)/minivm run bench/tree16raw.lua
+	$(BIN_DIR)/minivm run bench/primecount.lua
+	$(BIN_DIR)/minivm run bench/tak.lua
 
 # windows
 
@@ -130,6 +145,7 @@ $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 
 clean: .dummy
 	rm -rf $(BIN_DIR) $(OBJ_DIR) $(TMP_DIR)
+	find . -name '*.lua' | xargs -I{} rm -f {}.png
 
 # dummy
 

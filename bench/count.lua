@@ -1,8 +1,8 @@
-local c = 48
-while c < 58 do
-    local n = 48
+local c = 0
+while c < 10 do
+    local n = 0
     while n < c do
-        #out n
+        print(n)
         n = n + 1
     end
     c = c + 2

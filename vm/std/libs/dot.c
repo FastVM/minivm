@@ -74,7 +74,15 @@ void vm_dot_draw_arg(FILE *out, vm_dot_list_t *list, vm_arg_t val) {
             break;
         }
         case VM_ARG_STR: {
-            fprintf(out, "\\\"%s\\\"", val.str);
+            fprintf(out, "\\\"");
+            for (const char *buf = val.str; *buf != '\0'; buf++) {
+                if (*buf == '"') {
+                    fprintf(out, "\\\"");
+                } else {
+                    fputc(*buf, out);
+                }
+            }
+            fprintf(out, "\\\"");
             break;
         }
         case VM_ARG_REG: {
@@ -350,7 +358,7 @@ void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block) {
         }
     }
     if (block->branch.op == VM_BOP_RET) {
-        fprintf(out, "RETURN%zu [label=\"RETURN\"][fillcolor=\"#%s\"] [style=\"filled\"];\n  ", block->id, fillcolor);
+        fprintf(out, "RETURN%zu [label=\"RETURN\"] [fillcolor=\"#%s\"] [style=\"filled\"];\n  ", block->id, fillcolor);
         fprintf(out, "block%zu -> RETURN%zu;\n  ", block->id, block->id);
     } else if (block->branch.op == VM_BOP_EXIT) {
         fprintf(out, "block%zu -> EXIT;\n  ", block->id);
@@ -378,7 +386,7 @@ void vm_dot_block(FILE *file, vm_block_t *block) {
     fprintf(file, "rankdir=\"TB\"\n  ");
     fprintf(file, "START -> block%zu;\n  ", block->id);
     vm_dot_draw_block(file, &dot_list, block);
-    fprintf(file, "START;\n  EXIT;\n}");
+    fprintf(file, "START [fillcolor=\"#F4FFFF\"] [style=\"filled\"];\n  EXIT [fillcolor=\"#F4FFFF\"] [style=\"filled\"];\n}");
 }
 
 vm_std_value_t vm_std_dot_parse(vm_std_value_t *args) {
