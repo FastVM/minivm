@@ -24,7 +24,8 @@ GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS := $(shell find vm/std/libs -name '*.c')
-VM_SRCS = vm/ir.c vm/opt/jump.c vm/opt/info.c vm/opt/opt.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c $(STD_SRCS)
+OPT_SRCS := $(shell find vm/opt -name '*.c')
+VM_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c $(STD_SRCS) $(OPT_SRCS)
 VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS = $(VM_OBJS) $(GC_OBJS) $(JITC_OBJS)

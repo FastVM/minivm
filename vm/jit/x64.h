@@ -57,6 +57,12 @@ struct vm_x64_state_t {
     uint32_t count;
     uint32_t push;
     uint32_t epoch;
+    struct {
+        size_t len;
+        double *keys;
+        double **vals;
+        size_t alloc;
+    } f64s;
 };
 
 struct vm_x64_link_t {

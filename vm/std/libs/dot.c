@@ -80,7 +80,7 @@ static void vm_dot_draw_arg(FILE *out, vm_dot_list_t *list, vm_arg_t val) {
                 if (*buf == '"') {
                     fprintf(out, "\\\"");
                 } else {
-                    fputc(*buf, out);
+                    fprintf(out, "%c", *buf);
                 }
             }
             fprintf(out, "\\\"");
@@ -216,12 +216,36 @@ static void vm_dot_draw_branch(FILE *out, vm_dot_list_t *list, vm_branch_t val) 
     }
     if (val.op == VM_BOP_GET || val.op == VM_BOP_CALL) {
         fprintf(out, " then block%zi", (size_t)val.targets[0]->id);
+        fprintf(out, "(");
+        for (size_t i = 0; i < val.targets[0]->nargs; i++) {
+            if (i != 0) {
+                fprintf(out, ", ");
+            }
+            vm_dot_draw_arg(out, list, val.targets[0]->args[i]);
+        }
+        fprintf(out, ")");
     } else {
         if (val.targets[0] && n >= 1) {
             fprintf(out, " block%zi", (size_t)val.targets[0]->id);
+            fprintf(out, "(");
+            for (size_t i = 0; i < val.targets[0]->nargs; i++) {
+                if (i != 0) {
+                    fprintf(out, ", ");
+                }
+                vm_dot_draw_arg(out, list, val.targets[0]->args[i]);
+            }
+            fprintf(out, ")");
         }
         if (val.targets[1] && n >= 2) {
             fprintf(out, " block%zi", (size_t)val.targets[1]->id);
+            fprintf(out, "(");
+            for (size_t i = 0; i < val.targets[1]->nargs; i++) {
+                if (i != 0) {
+                    fprintf(out, ", ");
+                }
+                vm_dot_draw_arg(out, list, val.targets[1]->args[i]);
+            }
+            fprintf(out, ")");
         }
     }
 }
@@ -325,7 +349,16 @@ static void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block)
     }
     const char *fillcolor = list->func_depth % 2 == 0 ? "F4FFFF" : "F4FFF4";
     list->blocks[list->nblocks] = block;
-    fprintf(out, "block%zu [shape=record] [label=\"{block%zu\\n|", block->id, block->id);
+    fprintf(out, "block%zu [shape=record] [label=\"{block%zu", block->id, block->id);
+    fprintf(out, "(");
+    for (size_t i = 0; i < block->nargs; i++) {
+        if (i != 0) {
+            fprintf(out, ", ");
+        }
+        vm_dot_draw_arg(out, list, block->args[i]);
+    }
+    fprintf(out, ")");
+    fprintf(out, "\\n|");
     vm_dot_draw_block_body(out, list, block);
     fprintf(out, "}\"] [fillcolor=\"#%s\"] [style=\"filled\"];\n  ", fillcolor);
     list->nblocks++;

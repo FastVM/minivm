@@ -30,6 +30,8 @@ void vm_opt_do_passes(const char *passes, vm_block_t *block);
 #define vm_opt_pass(block, ...) (vm_opt_pass_by((block), (vm_opt_pass_t) { __VA_ARGS__ }))
 
 void vm_opt_jump(vm_block_t *block);
+void vm_opt_inline(vm_block_t *block);
+void vm_opt_unused(vm_block_t *block);
 void vm_opt_info(vm_block_t *block);
 
 #endif

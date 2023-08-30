@@ -30,10 +30,10 @@ enum {
     VM_ARG_REG,
     VM_ARG_NUM,
     VM_ARG_STR,
-    VM_ARG_TAG,
     VM_ARG_FFI,
     VM_ARG_FUNC,
     // for the x64 jit
+    VM_ARG_TAG,
     VM_ARG_RFUNC,
     VM_ARG_CPU0,
     VM_ARG_CPU_GP,

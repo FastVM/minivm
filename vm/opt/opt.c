@@ -42,11 +42,13 @@ void vm_opt_pass_by(vm_block_t *block, vm_opt_pass_t pass) {
 
 void vm_opt_do_pass(const char *pass, vm_block_t *block) {
     if (!strcmp(pass, "3")) {
-        vm_opt_do_pass("2", block);
+        vm_opt_jump(block);
+        vm_opt_inline(block);
+        vm_opt_unused(block);
     } else if (!strcmp(pass, "2")) {
-        vm_opt_do_pass("1", block);
+        vm_opt_jump(block);
+        vm_opt_inline(block);
     } else if (!strcmp(pass, "1")) {
-        vm_opt_do_pass("0", block);
         vm_opt_jump(block);
     } else if (!strcmp(pass, "0")) {
     }

@@ -117,13 +117,13 @@ void* vm_x64_encode(vm_x64_state_t *state, dasm_State** d)
     void *buf = vm_x64_mmap(state, size, 8);
 #endif
     dasm_encode(d, buf);
-    // static int n = 0;
-    // n++;
-    // char cbuf[32];
-    // sprintf(cbuf, "out%i.bin", n);
-    // FILE *out = fopen(cbuf, "wb");
-    // fwrite(buf, 1, size, out);
-    // fclose(out);
+    static int n = 0;
+    n++;
+    char cbuf[32];
+    sprintf(cbuf, "out%i.bin", n);
+    FILE *out = fopen(cbuf, "wb");
+    fwrite(buf, 1, size, out);
+    fclose(out);
     for (vm_x64_link_t *link = state->links; link != NULL; link = link->next) {
         *link->out = (void *) ((size_t) buf + dasm_getpclabel(d, link->label));
     }
@@ -1064,6 +1064,25 @@ int8_t vm_x64_find_f64_not(vm_x64_reg_save_t save, uint16_t not) {
         }
     }
     __builtin_trap();
+}
+
+ptrdiff_t vm_x64_block_comp_label_opt(vm_x64_state_t *state, vm_block_t *block, int8_t *pass) {
+    for (size_t i = 0; i < block->nargs; i++) {
+        vm_arg_t arg = block->args[i];
+        if (arg.type == VM_ARG_CPU_GP) {
+            if (arg.r64 != pass[i]) {
+                return -1;
+            }
+        } else if (arg.type == VM_ARG_CPU_FP) {
+            if (arg.f64 != pass[i]) {
+                return -1;
+            }
+        }
+    }
+    if (block->epoch != state->epoch) {
+        return -1;
+    }
+    return block->label;
 }
 
 void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Dst, int8_t *pass) {
@@ -2039,7 +2058,12 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
     }
     case VM_BOP_BEQ:
     case VM_BOP_BLT: {
-        size_t t = state->count++;
+        ptrdiff_t t = vm_x64_block_comp_label_opt(state, block->branch.targets[0], pass);
+        bool notlabel = true;
+        if (t < 0) {
+            t = state->count++;
+            notlabel = false;
+        }
         if (block->branch.op == VM_BOP_BLT) {
             if (block->branch.args[0].type == VM_ARG_CPU_GP) {
                 if (block->branch.args[1].type == VM_ARG_CPU_GP) {
@@ -2122,8 +2146,10 @@ void vm_x64_block_comp(vm_x64_state_t *state, vm_block_t *block, dasm_State **Ds
             }
         }
         vm_x64_block_comp(state, block->branch.targets[1], Dst, block->branch.pass[1]);
-        |=>t:
-        vm_x64_block_comp(state, block->branch.targets[0], Dst, block->branch.pass[0]);
+        if (!notlabel) {
+            |=>t:
+            vm_x64_block_comp(state, block->branch.targets[0], Dst, block->branch.pass[0]);
+        }
         break;
     }
     case VM_BOP_EXIT: {
