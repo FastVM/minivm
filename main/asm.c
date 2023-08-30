@@ -4,12 +4,15 @@
 #include "../vm/std/libs/dot.h"
 #include "../vm/lang/paka.h"
 #include "../vm/jit/x64.h"
+#include "../vm/opt/opt.h"
 
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <time.h>
 
-void vm_asm_repl(void) {
+#define VM_DEFAULT_OPT "0"
+
+static void vm_asm_repl(void) {
     int count = 1;
     vm_table_t *std = vm_std_new();
     read_history(".minivm-history");
@@ -36,7 +39,7 @@ void vm_asm_repl(void) {
         got = vm_x64_run(block, std, main_args);
         struct timespec ts2;
         clock_gettime(CLOCK_REALTIME, &ts2);
-        size_t time = ts2.tv_nsec - ts1.tv_nsec;
+        size_t time = (size_t) ts2.tv_nsec - (size_t) ts1.tv_nsec;
         char out_n[32];
         int out_len = snprintf(out_n, 31, "#%i = ", count);
         vm_io_debug(stdout, 0, out_n, got, NULL);
@@ -72,16 +75,22 @@ int main(int argc, char **argv) {
     if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;
+        const char *opt = VM_DEFAULT_OPT;
         while (argv[1] != NULL) {
             const char *filename = argv[1];
-            char *src = vm_io_read(filename);
-            if (src == NULL) {
-                fprintf(stderr, "error: could not read file\n");
-                return 1;
-            }
-            vm_paka_blocks_t blocks = vm_paka_parse_blocks(src);
-            for (size_t i = 0; i < blocks.len; i++) {
-                vm_print_block(stdout, blocks.blocks[i]);
+            if (filename[0] == '-' && filename[1] == 'O') {
+                opt = &filename[2];
+            } else {
+                char *src = vm_io_read(filename);
+                if (src == NULL) {
+                    fprintf(stderr, "error: could not read file\n");
+                    return 1;
+                }
+                vm_paka_blocks_t blocks = vm_paka_parse_blocks(src);
+                vm_opt_do_passes(opt, blocks.blocks[0]);
+                for (size_t i = 0; i < blocks.len; i++) {
+                    vm_print_block(stdout, blocks.blocks[i]);
+                }
             }
             argv += 1;
             argc -= 1;
@@ -89,15 +98,21 @@ int main(int argc, char **argv) {
     } else if (!strcmp(argv[1], "dot")) {
         argv += 1;
         argc -= 1;
+        const char *opt = VM_DEFAULT_OPT;
         while (argv[1] != NULL) {
             const char *filename = argv[1];
-            char *src = vm_io_read(filename);
-            if (src == NULL) {
-                fprintf(stderr, "error: could not read file\n");
-                return 1;
+            if (filename[0] == '-' && filename[1] == 'O') {
+                opt = &filename[2];
+            } else {
+                char *src = vm_io_read(filename);
+                if (src == NULL) {
+                    fprintf(stderr, "error: could not read file\n");
+                    return 1;
+                }
+                vm_block_t *block = vm_paka_parse(src);
+                vm_opt_do_passes(opt, block);
+                vm_dot_block(stdout, block);
             }
-            vm_block_t *block = vm_paka_parse(src);
-            vm_dot_block(stdout, block);
             argv += 1;
             argc -= 1;
         }
@@ -107,6 +122,7 @@ int main(int argc, char **argv) {
         argv += 1;
         argc -= 1;
         const char *filename = NULL;
+        const char *opt = VM_DEFAULT_OPT;
         while (true) {
             if (argc < 2) {
                 if (filename == NULL) {
@@ -119,11 +135,13 @@ int main(int argc, char **argv) {
             if (filename != NULL) {
                 fprintf(stderr, "error: cannot handle multiple files at cli\n");
                 return 1;
+            } else if (argv[1][0] == '-' && argv[1][1] == 'O') {
+                opt = &argv[1][2];
             } else {
                 filename = argv[1];
-                argv += 1;
-                argc -= 1;
             }
+            argv += 1;
+            argc -= 1;
         }
         char *src = vm_io_read(filename);
         if (src == NULL) {
@@ -136,6 +154,7 @@ int main(int argc, char **argv) {
             return 1;
         }
         vm_free((void *)src);
+        vm_opt_do_passes(opt, block);
         vm_std_value_t main_args[1];
         main_args[0].tag = VM_TAG_UNK;
         vm_x64_run(block, vm_std_new(), main_args);

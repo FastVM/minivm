@@ -24,7 +24,7 @@ GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS := $(shell find vm/std/libs -name '*.c')
-VM_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c $(STD_SRCS)
+VM_SRCS = vm/ir.c vm/opt/jump.c vm/opt/info.c vm/opt/opt.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c $(STD_SRCS)
 VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS = $(VM_OBJS) $(GC_OBJS) $(JITC_OBJS)
@@ -42,8 +42,7 @@ LDFLAGS_Linux =  -Wl,--export-dynamic
 LDFLAGS := $(LDFLAGS_$(UNAME_S)) -lreadline $(LDFLAGS)
 
 LUA_FILES := $(shell find . -name '*.lua')
-LUA_DOTS := $(LUA_FILES:./%.lua=$(RES_DIR)/%.dot)
-LUA_PNGS := $(LUA_DOTS:%.dot=%.png)
+LUA_PNGS := $(LUA_FILES:./%.lua=$(RES_DIR)/%.png)
 
 default: all
 
@@ -54,12 +53,13 @@ test: $(RUNNER)
 
 flow: $(LUA_PNGS)
 	@find $(RES_DIR) -size 0 -delete
-	@find $(RES_DIR) -name '*.png' -exec echo FLOW: {} +
+
 # graph gen
 
 $(LUA_PNGS): $(RUNNER)
 	@mkdir -p $(dir $(@))
-	@: sh -c "$(RUNNER) dot $(@:$(RES_DIR)/%.png=%.lua) | $(DOT) -Tpng > $(@)"
+	sh -c "$(RUNNER) dot -O0 $(@:$(RES_DIR)/%.png=%.lua) | $(DOT) -Tpng > $(@)" || true
+	sh -c "$(RUNNER) dot -O3 $(@:$(RES_DIR)/%.png=%.lua) | $(DOT) -Tpng > $(@:%.png=%.opt.png)" || true
 
 # profile guided optimization
 

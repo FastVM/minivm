@@ -1,5 +1,6 @@
 
 #include "ir.h"
+#include "type.h"
 
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
@@ -10,7 +11,7 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
 }
 
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
-    for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
+    for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->block->isfunc == found->block->isfunc &&
             rblock->block == found->block) {
@@ -28,7 +29,7 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 }
 
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
-    for (ptrdiff_t i = cache->len - 1; i >= 0; i--) {
+    for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->block->isfunc == found->block->isfunc &&
             rblock->block == found->block) {
@@ -54,8 +55,9 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
 }
 
 vm_tags_t *vm_rblock_regs_empty(size_t ntags) {
-    vm_tags_t *ret = vm_malloc(sizeof(vm_tags_t) + sizeof(vm_tag_t) * ntags);
+    vm_tags_t *ret = vm_malloc(sizeof(vm_tags_t));
     ret->ntags = ntags;
+    ret->tags = vm_malloc(sizeof(vm_tag_t) * ntags);
     for (size_t i = 0; i < ntags; i++) {
         ret->tags[i] = VM_TAG_UNK;
     }
@@ -63,8 +65,9 @@ vm_tags_t *vm_rblock_regs_empty(size_t ntags) {
 }
 
 vm_tags_t *vm_rblock_regs_dup(vm_tags_t *regs, size_t ntags) {
-    vm_tags_t *ret = vm_malloc(sizeof(vm_tags_t) + sizeof(vm_tag_t) * ntags);
+    vm_tags_t *ret = vm_malloc(sizeof(vm_tags_t));
     ret->ntags = ntags;
+    ret->tags = vm_malloc(sizeof(vm_tag_t) * ntags);
     for (size_t i = 0; i < ret->ntags && i < regs->ntags; i++) {
         ret->tags[i] = regs->tags[i];
     }

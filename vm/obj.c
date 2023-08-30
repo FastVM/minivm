@@ -6,7 +6,7 @@ vm_table_t *vm_table_new(void) {
     return ret;
 }
 
-vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag) {
+static vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag) {
     uint32_t head = 0;
     while (head * sizeof(vm_pair_t) < table->nbytes) {
         vm_pair_t *pair = &table->pairs[head];
@@ -76,7 +76,7 @@ void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair) {
 
 void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
     vm_value_t key_val = out->key_val;
-    vm_tag_t key_tag = out->key_tag;
+    vm_tag_t key_tag = (vm_tag_t) out->key_tag;
     vm_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
     if (pair != NULL) {
         out->val_val = pair->val_val;

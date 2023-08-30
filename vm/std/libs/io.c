@@ -190,9 +190,8 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
             break;
         }
         default: {
-            __builtin_trap();
             fprintf(out, "<T%zu: %p>\n", (size_t)value.tag, value.value.all);
-            break;
+            __builtin_trap();
         }
     }
 }

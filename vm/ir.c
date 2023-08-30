@@ -329,22 +329,6 @@ void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *blocks) {
     }
 }
 
-vm_tag_t vm_instr_get_arg_type(vm_instr_t instr, size_t argno) {
-    return instr.args[argno].type;
-}
-uint64_t vm_instr_get_arg_num(vm_instr_t instr, size_t argno) {
-    return instr.args[argno].num;
-}
-const char *vm_instr_get_arg_str(vm_instr_t instr, size_t argno) {
-    return instr.args[argno].str;
-}
-vm_block_t *vm_instr_get_arg_func(vm_instr_t instr, size_t argno) {
-    return instr.args[argno].func;
-}
-size_t vm_instr_get_arg_reg(vm_instr_t instr, size_t argno) {
-    return instr.args[argno].reg;
-}
-
 enum {
     VM_INFO_REG_UNK,
     VM_INFO_REG_DEF,
@@ -426,7 +410,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             if (regs[reg] == VM_INFO_REG_ARG) {
                 block->args[block->nargs++] = (vm_arg_t){
                     .type = VM_ARG_REG,
-                    .reg = reg,
+                    .reg = (uint32_t) reg,
                 };
                 if (reg >= block->nregs) {
                     block->nregs = reg + 1;
@@ -439,7 +423,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
     vm_arg_t *next = vm_malloc(sizeof(vm_arg_t) * alloc);
     while (redo) {
         redo = false;
-        for (ptrdiff_t i = nblocks - 1; i >= 0; i--) {
+        for (ptrdiff_t i = (ptrdiff_t) nblocks - 1; i >= 0; i--) {
             vm_block_t *block = blocks[i];
             if (block->id < 0) {
                 continue;

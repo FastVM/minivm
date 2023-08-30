@@ -1,7 +1,8 @@
 
 #include "./os.h"
-#include "../util.h"
 #include "./io.h"
+#include "../util.h"
+#include "./dot.h"
 #include "../../ir.h"
 #include "../../jit/x64.h"
 #include "../../lang/paka.h"
@@ -12,11 +13,11 @@ typedef struct {
     size_t blocks_alloc;
     size_t func_depth;
     size_t nfuncs;
-    size_t *funcs;
+    ptrdiff_t *funcs;
     size_t funcs_alloc;
 } vm_dot_list_t;
 
-void vm_dot_draw_tag(FILE *out, vm_dot_list_t *list, vm_tag_t tag) {
+static void vm_dot_draw_tag(FILE *out, vm_dot_list_t *list, vm_tag_t tag) {
     (void) list;
     switch (tag) {
         case VM_TAG_UNK: {
@@ -59,7 +60,7 @@ void vm_dot_draw_tag(FILE *out, vm_dot_list_t *list, vm_tag_t tag) {
 }
 
 
-void vm_dot_draw_arg(FILE *out, vm_dot_list_t *list, vm_arg_t val) {
+static void vm_dot_draw_arg(FILE *out, vm_dot_list_t *list, vm_arg_t val) {
     switch (val.type) {
         case VM_ARG_NIL: {
             fprintf(out, "nil");
@@ -139,7 +140,7 @@ void vm_dot_draw_arg(FILE *out, vm_dot_list_t *list, vm_arg_t val) {
     }
 }
 
-void vm_dot_draw_branch(FILE *out, vm_dot_list_t *list, vm_branch_t val) {
+static void vm_dot_draw_branch(FILE *out, vm_dot_list_t *list, vm_branch_t val) {
     if (val.out.type != VM_ARG_NONE) {
         vm_dot_draw_arg(out, list, val.out);
         fprintf(out, " = ");
@@ -225,7 +226,7 @@ void vm_dot_draw_branch(FILE *out, vm_dot_list_t *list, vm_branch_t val) {
     }
 }
 
-void vm_dot_draw_instr(FILE *out, vm_dot_list_t *list, vm_instr_t val) {
+static void vm_dot_draw_instr(FILE *out, vm_dot_list_t *list, vm_instr_t val) {
     if (val.op == VM_IOP_NOP) {
         fprintf(out, "nop");
         return;
@@ -298,7 +299,7 @@ void vm_dot_draw_instr(FILE *out, vm_dot_list_t *list, vm_instr_t val) {
     }
 }
 
-void vm_dot_draw_block_body(FILE *out, vm_dot_list_t *list, vm_block_t *val) {
+static void vm_dot_draw_block_body(FILE *out, vm_dot_list_t *list, vm_block_t *val) {
     for (size_t i = 0; i < val->len; i++) {
         if (val->instrs[i].op == VM_IOP_NOP) {
             continue;
@@ -312,7 +313,7 @@ void vm_dot_draw_block_body(FILE *out, vm_dot_list_t *list, vm_block_t *val) {
     }
 }
 
-void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block) {
+static void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block) {
     for (size_t i = 0; i < list->nblocks; i++) {
         if (list->blocks[i] == block) {
             return;
@@ -333,7 +334,7 @@ void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block) {
             vm_block_t *func = block->branch.args[0].func;
             size_t funcnum = list->nfuncs;
             for (size_t i = 0; i < list->nfuncs; i++) {
-                if (list->funcs[i] == (size_t) func->id) {
+                if (list->funcs[i] == func->id) {
                     goto call_found_func_already;
                 }
             }
@@ -346,7 +347,7 @@ void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block) {
             fprintf(out, "label=\"func%zu\"\n  ", funcnum);
             if (list->nfuncs + 2 >= list->funcs_alloc) {
                 list->funcs_alloc = (list->nfuncs + 2) * 2;
-                list->funcs = vm_realloc(list->funcs, sizeof(size_t) * list->funcs_alloc);
+                list->funcs = vm_realloc(list->funcs, sizeof(ptrdiff_t) * list->funcs_alloc);
             }
             list->funcs[list->nfuncs++] = func->id;
             list->func_depth += 1;

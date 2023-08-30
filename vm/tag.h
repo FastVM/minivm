@@ -20,7 +20,7 @@ enum {
 
 struct vm_tags_t {
     size_t ntags;
-    vm_tag_t tags[0];
+    vm_tag_t *tags;
 };
 
 typedef struct vm_tags_t vm_tags_t;
