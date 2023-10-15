@@ -3,7 +3,7 @@
 #include "../util.h"
 #include "./io.h"
 #include "../../ir.h"
-#include "../../jit/x64.h"
+#include "../../jit/tb.h"
 #include "../../lang/paka.h"
 
 vm_std_value_t vm_std_os_system(vm_std_value_t *args) {

@@ -35,6 +35,8 @@ RUNNER ?= $(BIN_DIR)/minivm
 
 UNAME_S := $(shell uname -s)
 
+$(info $(UNAME_S))
+
 LDFLAGS_Darwin = -w -Wl,-pagezero_size,0x4000
 LDFLAGS_Linux =  -Wl,--export-dynamic
 

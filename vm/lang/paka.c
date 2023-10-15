@@ -1119,7 +1119,7 @@ static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
         full.arg = arg;
     }
     comp.write->branch = (vm_branch_t){
-        .op = VM_BOP_EXIT,
+        .op = VM_BOP_RET,
         .args[0] = full.arg,
     };
     vm_block_info(blocks.len, blocks.blocks);

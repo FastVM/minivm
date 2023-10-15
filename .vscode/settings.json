@@ -27,6 +27,7 @@
         "xlocbuf": "c",
         "std.h": "c",
         "xiosbase": "c",
-        "xlocale": "c"
+        "xlocale": "c",
+        "paka.h": "c"
     }
 }

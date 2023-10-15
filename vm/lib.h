@@ -52,3 +52,5 @@ void GC_free(void *ptr);
 #define vm_free(x) (free((x)))
 #endif
 #endif
+
+#define VM_CDECL __attribute__((cdecl))

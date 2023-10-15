@@ -151,10 +151,6 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
             fprintf(out, "ret");
             break;
         }
-        case VM_BOP_EXIT: {
-            fprintf(out, "exit");
-            break;
-        }
         case VM_BOP_GET: {
             fprintf(out, "get");
             break;

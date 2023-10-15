@@ -4,7 +4,7 @@
 #include "../util.h"
 #include "./dot.h"
 #include "../../ir.h"
-#include "../../jit/x64.h"
+#include "../../jit/tb.h"
 #include "../../lang/paka.h"
 
 typedef struct {
@@ -174,11 +174,6 @@ static void vm_dot_draw_branch(FILE *out, vm_dot_list_t *list, vm_branch_t val) 
         }
         case VM_BOP_RET: {
             fprintf(out, "ret");
-            n = 0;
-            break;
-        }
-        case VM_BOP_EXIT: {
-            fprintf(out, "exit");
             n = 0;
             break;
         }
@@ -386,8 +381,6 @@ static void vm_dot_draw_block(FILE *out, vm_dot_list_t *list, vm_block_t *block)
     if (block->branch.op == VM_BOP_RET) {
         fprintf(out, "RETURN%zu [label=\"RETURN\"] [fillcolor=\"#%s\"] [style=\"filled\"];\n  ", block->id, fillcolor);
         fprintf(out, "block%zu -> RETURN%zu;\n  ", block->id, block->id);
-    } else if (block->branch.op == VM_BOP_EXIT) {
-        fprintf(out, "block%zu -> EXIT;\n  ", block->id);
     } else {
         for (size_t i = 0; i < 2; i++) {
             if (block->branch.targets[i] != NULL) {

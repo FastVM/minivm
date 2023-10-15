@@ -3,7 +3,7 @@
 #include "../vm/std/libs/io.h"
 #include "../vm/std/libs/dot.h"
 #include "../vm/lang/paka.h"
-#include "../vm/jit/x64.h"
+#include "../vm/jit/tb.h"
 #include "../vm/opt/opt.h"
 
 #include <time.h>
@@ -73,8 +73,11 @@ enum {
     VM_DUMP_DOT,
 };
 
+void GC_disable(void);
+
 int main(int argc, char **argv) {
     vm_init_mem();
+    GC_disable();
     if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;
