@@ -121,6 +121,19 @@ int main(int argc, char **argv) {
         }
     } else if (!strcmp(argv[1], "repl")) {
         vm_asm_repl();
+    } else if (!strcmp(argv[1], "print")) {
+        for (int i = 2; i < argc; i++) {
+            vm_block_t *block = vm_paka_parse(argv[i]);
+            if (block == NULL) {
+                fprintf(stderr, "error: could not parse file\n");
+                return 1;
+            }
+            vm_std_value_t main_args[1];
+            main_args[0].tag = VM_TAG_UNK;
+            vm_std_value_t res = vm_x64_run(block, vm_std_new(), main_args);
+            fprintf(stdout, "\n--- result #%i ---\n", i - 2);
+            vm_io_debug(stdout, 0, "", res, NULL);
+        }
     } else if (!strcmp(argv[1], "run")) {
         argv += 1;
         argc -= 1;

@@ -22,6 +22,11 @@
         "gc.h": "c",
         "tb.h": "c",
         "obj.h": "c",
-        "type.h": "c"
+        "type.h": "c",
+        "iosfwd": "c",
+        "xlocbuf": "c",
+        "std.h": "c",
+        "xiosbase": "c",
+        "xlocale": "c"
     }
 }
