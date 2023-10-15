@@ -6,8 +6,6 @@
 #include "../vm/jit/x64.h"
 #include "../vm/opt/opt.h"
 
-#include <readline/readline.h>
-#include <readline/history.h>
 #include <time.h>
 
 #define VM_DEFAULT_OPT "0"
@@ -15,17 +13,22 @@
 static void vm_asm_repl(void) {
     int count = 1;
     vm_table_t *std = vm_std_new();
-    read_history(".minivm-history");
+    // read_history(".minivm-history");
     while (true) {
         char in_n[32];
         snprintf(in_n, 31, "(%d)> ", count);
-        char *buf = readline(in_n);
+        // char *buf = readline(in_n);
+        char *buf = NULL;
+        size_t len = 0;
+        if (getline(&buf, &len, stdin) == -1) {
+            return;
+        }
         if (buf == NULL) {
             return;
         }
-        add_history(buf);
-        remove(".minivm-history");
-        write_history(".minivm-history");
+        // add_history(buf);
+        // remove(".minivm-history");
+        // write_history(".minivm-history");
         struct timespec ts1;
         clock_gettime(CLOCK_REALTIME, &ts1);
         vm_block_t *block = vm_paka_parse(buf);

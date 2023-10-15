@@ -15,6 +15,10 @@
  * modified is included with the above copyright notice.
  */
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "private/gc_priv.h"
 
 /*
@@ -33,6 +37,10 @@
 /* Some externally visible but unadvertised variables to allow access to */
 /* free lists from inlined allocators without including gc_priv.h        */
 /* or introducing dependencies on internal data structure layouts.       */
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "private/gc_alloc_ptrs.h"
 void **const GC_objfreelist_ptr = GC_objfreelist;
 void **const GC_aobjfreelist_ptr = GC_aobjfreelist;

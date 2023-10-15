@@ -38,7 +38,7 @@ UNAME_S := $(shell uname -s)
 LDFLAGS_Darwin = -w -Wl,-pagezero_size,0x4000
 LDFLAGS_Linux =  -Wl,--export-dynamic
 
-LDFLAGS := $(LDFLAGS_$(UNAME_S)) -lreadline $(LDFLAGS)
+LDFLAGS := $(LDFLAGS_$(UNAME_S)) $(LDFLAGS)
 
 default: all
 

@@ -13,6 +13,10 @@
  * modified is included with the above copyright notice.
  */
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "private/gc_priv.h"
 
 #if !defined(PLATFORM_MACH_DEP) && !defined(SN_TARGET_PSP2)

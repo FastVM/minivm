@@ -15,6 +15,10 @@
  *
  */
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "private/gc_pmark.h"
 
 /* Make arguments appear live to compiler.  Put here to minimize the    */

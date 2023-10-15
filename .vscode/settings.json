@@ -1,0 +1,24 @@
+{
+    "files.associations": {
+        "*.dasc": "c",
+        "time.h": "c",
+        "array": "cpp",
+        "format": "cpp",
+        "initializer_list": "cpp",
+        "list": "cpp",
+        "type_traits": "cpp",
+        "vector": "cpp",
+        "xhash": "cpp",
+        "xstring": "cpp",
+        "xtree": "cpp",
+        "xutility": "cpp",
+        "algorithm": "cpp",
+        "iterator": "cpp",
+        "xmemory": "cpp",
+        "charconv": "cpp",
+        "gc_priv.h": "c",
+        "windows.h": "c",
+        "winapifamily.h": "c",
+        "gc.h": "c"
+    }
+}

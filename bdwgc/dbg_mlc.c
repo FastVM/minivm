@@ -16,6 +16,10 @@
  * modified is included with the above copyright notice.
  */
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "private/dbg_mlc.h"
 
 #ifndef MSWINCE
@@ -695,6 +699,10 @@ GC_debug_malloc_atomic_uncollectable(size_t lb, GC_EXTRA_PARAMS) {
 #endif
 
 #ifdef LINT2
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "private/gc_alloc_ptrs.h"
 #endif
 

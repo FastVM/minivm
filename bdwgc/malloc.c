@@ -16,6 +16,10 @@
 
 #include <string.h>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include "private/gc_priv.h"
 
 /* Allocate reclaim list for the kind.  Returns TRUE on success.        */

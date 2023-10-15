@@ -1,0 +1,10 @@
+////////////////////////////////////////////////////////////////////////////////
+// Cuik repository common utilities
+////////////////////////////////////////////////////////////////////////////////
+
+This is used by all kinds of components within the project, almost everything
+will be including it. It has nice macros and includes.
+
+TODO:
+
+  * move everything to using the iterator macros
