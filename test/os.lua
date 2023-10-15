@@ -1,2 +1,0 @@
-
-env.os.system("ls")

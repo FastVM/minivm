@@ -63,9 +63,6 @@ enum {
     VM_IOP_MUL,
     VM_IOP_DIV,
     VM_IOP_MOD,
-    // io
-    VM_IOP_OUT,
-    VM_IOP_PRINT,
     // tables
     VM_IOP_SET,
     VM_IOP_NEW,
@@ -91,10 +88,6 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        struct {
-            uint32_t reg;
-            vm_tag_t reg_tag;
-        };
         double num;
         const char *str;
         void *ffi;
@@ -108,8 +101,8 @@ struct vm_arg_t {
                 uint16_t r64;
                 uint16_t xmm;
             } save;
-            uint16_t vmreg : 16;
-            uint8_t vmreg_tag : 8;
+            uint16_t reg : 16;
+            uint8_t reg_tag : 8;
             uint8_t r64 : 4;
             uint8_t f64 : 4;
         };

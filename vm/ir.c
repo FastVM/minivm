@@ -50,7 +50,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_CPU0: {
-            fprintf(out, "(rax|xmm0)%%%zu", (size_t)val.vmreg);
+            fprintf(out, "(rax|xmm0)%%%zu", (size_t)val.reg);
             break;
         }
         case VM_ARG_CPU_GP: {
@@ -72,11 +72,11 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
                 "r14",
                 "r15",
             };
-            fprintf(out, "%s%%%zu", names[val.r64], (size_t)val.vmreg);
+            fprintf(out, "%s%%%zu", names[val.r64], (size_t)val.reg);
             break;
         }
         case VM_ARG_CPU_FP: {
-            fprintf(out, "xmm%zu%%%zu", (size_t)val.f64, (size_t)val.vmreg);
+            fprintf(out, "xmm%zu%%%zu", (size_t)val.f64, (size_t)val.reg);
             break;
         }
     }
@@ -252,14 +252,6 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
         }
         case VM_IOP_MOD: {
             fprintf(out, "mod");
-            break;
-        }
-        case VM_IOP_OUT: {
-            fprintf(out, "out");
-            break;
-        }
-        case VM_IOP_PRINT: {
-            fprintf(out, "print");
             break;
         }
         case VM_IOP_SET: {
