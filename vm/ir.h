@@ -152,10 +152,6 @@ struct vm_block_t {
     bool mark : 1;
 };
 
-void vm_instr_free(vm_instr_t *instr);
-void vm_block_free(vm_block_t *block);
-void vm_blocks_free(size_t nblocks, vm_block_t *blocks);
-
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
 
 void vm_print_arg(FILE *out, vm_arg_t val);

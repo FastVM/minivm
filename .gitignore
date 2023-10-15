@@ -13,3 +13,5 @@ libminivm.lib
 *.core
 .minivm-history
 out.*
+*.rdbg
+*.stackdump

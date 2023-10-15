@@ -19,6 +19,9 @@
         "gc_priv.h": "c",
         "windows.h": "c",
         "winapifamily.h": "c",
-        "gc.h": "c"
+        "gc.h": "c",
+        "tb.h": "c",
+        "obj.h": "c",
+        "type.h": "c"
     }
 }
