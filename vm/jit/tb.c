@@ -267,7 +267,7 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Module *module, TB_Function* f
     TB_MultiOutput multi = tb_inst_call(
         fun,
         comp_proto,
-        tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t) &vm_tb_func_comp),
+        tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t) &vm_tb_rfunc_comp),
         2,
         comp_params
     );
@@ -619,6 +619,7 @@ void *vm_tb_func_comp(vm_tb_state_t *state, vm_block_t *block) {
     vm_tb_func_body_once(state, module, fun, args, block);
 
     TB_Passes *passes = tb_pass_enter(fun, tb_function_get_arena(fun));
+    tb_pass_optimize(passes);
     fprintf(stdout, "\n--- tb ---\n");
     tb_pass_print(passes);
 

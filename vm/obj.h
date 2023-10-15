@@ -23,7 +23,6 @@ union vm_value_t {
 };
 
 struct vm_pair_t {
-    uint8_t buf[256];
     vm_value_t key_val;
     vm_value_t val_val;
     uint32_t key_tag;
