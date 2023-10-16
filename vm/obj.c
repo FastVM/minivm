@@ -1,4 +1,7 @@
-#include "obj.h"
+#include "./obj.h"
+#include "./ir.h"
+
+#include "./std/libs/io.h"
 
 vm_table_t *vm_table_new(void) {
     vm_table_t *ret = vm_malloc(sizeof(vm_table_t));
@@ -74,20 +77,32 @@ void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair) {
     vm_table_set(table, pair->key_val, pair->val_val, pair->key_tag, pair->val_tag);
 }
 
-void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
+vm_pair_t *vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
     vm_value_t key_val = out->key_val;
-    printf("GET PAIR: %s\n", out->key_val.str);
+    printf("get key.val = %s\n", out->key_val.str);
+    printf("get key.type = ");
+    vm_print_tag(stdout, out->key_tag);
+    printf("\n");
+    printf("TABLE PTR: %p\n", table);
+    vm_io_debug(stdout, 0, "TABLE: ", (vm_std_value_t) {
+        .tag = VM_TAG_TAB,
+        .value.table = table,
+    }, NULL);
+    // asm("int3");
     vm_tag_t key_tag = (vm_tag_t) out->key_tag;
     vm_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
     if (pair != NULL) {
         out->val_val = pair->val_val;
         out->val_tag = pair->val_tag;
-        printf("FOUND\n");
-        return;
+        vm_io_debug(stdout, 0, "FOUND: ", (vm_std_value_t) {
+            .tag = pair->val_tag,
+            .value = pair->val_val,
+        }, NULL);
+        return out;
     }
     out->val_tag = VM_TAG_NIL;
     printf("NOT FOUND\n");
-    return;
+    return out;
 }
 
 double vm_table_len(vm_table_t *table) {

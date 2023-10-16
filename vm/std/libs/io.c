@@ -108,7 +108,12 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
         case VM_TAG_TAB: {
             vm_table_t *tab = value.value.table;
             vm_indent(out, indent, prefix);
-            fprintf(out, "table {\n");
+            if (tab == NULL) {
+                fprintf(out, "table(NULL)\n");
+                // asm("int3");
+                break;
+            }
+            fprintf(out, "table(%p) {\n", tab);
             for (size_t i = 0; i * sizeof(vm_pair_t) < tab->nbytes; i++) {
                 vm_pair_t p = tab->pairs[i];
                 switch (p.key_tag) {

@@ -17,3 +17,5 @@ out.*
 *.stackdump
 *.exe
 cuik
+*.out
+*.err

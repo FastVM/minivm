@@ -28,6 +28,11 @@
         "std.h": "c",
         "xiosbase": "c",
         "xlocale": "c",
-        "paka.h": "c"
+        "paka.h": "c",
+        "lib.h": "c",
+        "io.h": "c",
+        "*.txt": "c",
+        "chrono": "c",
+        "system_error": "c"
     }
 }

@@ -34,13 +34,17 @@ LDFLAGS += $(FLAGS)
 RUNNER ?= $(BIN_DIR)/minivm
 
 UNAME_S := $(shell uname -s)
+UNAME_O := $(shell uname -o)
 
-$(info $(UNAME_S))
+LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000
+LDFLAGS_S_Linux = -Wl,--export-dynamic
+LDFLAGS_O_Cygwin = -lSynchronization
 
-LDFLAGS_Darwin = -w -Wl,-pagezero_size,0x4000
-LDFLAGS_Linux =  -Wl,--export-dynamic
+LDFLAGS := $(LDFLAGS_S_$(UNAME_S)) $(LDFLAGS_O_$(UNAME_O)) $(LDFLAGS)
 
-LDFLAGS := $(LDFLAGS_$(UNAME_S)) $(LDFLAGS)
+CFLAGS_O_Cygwin = -D_WIN32
+
+CFLAGS := $(CFLAGS_O_$(UNAME_O)) $(CFLAGS)
 
 default: all
 
@@ -72,7 +76,7 @@ minivm $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
 
 $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) -I tb/include -I common -DCUIK_USE_TB -DLOG_SUPPRESS
+	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I tb/include -I common -DCUIK_USE_TB -DLOG_SUPPRESS
 
 $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
