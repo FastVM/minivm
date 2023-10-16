@@ -1,2 +1,2 @@
 
-env.io.debug(10)
+env.io.debug("Hello, World")

@@ -1,7 +1,6 @@
 #include "../vm/ir.h"
 #include "../vm/std/std.h"
 #include "../vm/std/libs/io.h"
-#include "../vm/std/libs/dot.h"
 #include "../vm/lang/paka.h"
 #include "../vm/jit/tb.h"
 #include "../vm/opt/opt.h"
@@ -68,11 +67,6 @@ static void vm_asm_repl(void) {
     }
 }
 
-enum {
-    VM_DUMP_IR,
-    VM_DUMP_DOT,
-};
-
 void GC_disable(void);
 
 int main(int argc, char **argv) {
@@ -97,27 +91,6 @@ int main(int argc, char **argv) {
                 for (size_t i = 0; i < blocks.len; i++) {
                     vm_print_block(stdout, blocks.blocks[i]);
                 }
-            }
-            argv += 1;
-            argc -= 1;
-        }
-    } else if (!strcmp(argv[1], "dot")) {
-        argv += 1;
-        argc -= 1;
-        const char *opt = VM_DEFAULT_OPT;
-        while (argv[1] != NULL) {
-            const char *filename = argv[1];
-            if (filename[0] == '-' && filename[1] == 'O') {
-                opt = &filename[2];
-            } else {
-                char *src = vm_io_read(filename);
-                if (src == NULL) {
-                    fprintf(stderr, "error: could not read file\n");
-                    return 1;
-                }
-                vm_block_t *block = vm_paka_parse(src);
-                vm_opt_do_passes(opt, block);
-                vm_dot_block(stdout, block);
             }
             argv += 1;
             argc -= 1;

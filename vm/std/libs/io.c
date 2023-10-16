@@ -2,20 +2,22 @@
 #include "./io.h"
 #include "../util.h"
 
-vm_std_value_t vm_std_io_putchar(vm_std_value_t *args) {
+void vm_std_io_putchar(vm_std_value_t *args) {
     double num = 0;
     if (vm_std_parse_args(args, "f", &num)) {
         printf("%c", (int)num);
-        return (vm_std_value_t){
+        *args = (vm_std_value_t){
             .tag = VM_TAG_NIL,
         };
+        return;
     }
     ptrdiff_t inum = 0;
     if (vm_std_parse_args(args, "i", &inum)) {
         printf("%c", (int)inum);
-        return (vm_std_value_t){
+        *args = (vm_std_value_t){
             .tag = VM_TAG_NIL,
         };
+        return;
     }
     fprintf(stderr, "std.io.putchar: expected an int or float");
     exit(1);
@@ -201,11 +203,11 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
     }
 }
 
-vm_std_value_t vm_std_io_debug(vm_std_value_t *args) {
+void vm_std_io_debug(vm_std_value_t *args) {
     while (args->tag != 0) {
         vm_io_debug(stdout, 0, "", *args++, NULL);
     }
-    return (vm_std_value_t){
+    *args = (vm_std_value_t){
         .tag = VM_TAG_NIL,
     };
 }
