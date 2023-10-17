@@ -73,9 +73,9 @@ enum {
 };
 
 struct vm_rblock_t {
+    void *cache;
     vm_tags_t *regs;
     vm_block_t *block;
-    void *cache;
 };
 
 struct vm_cache_t {

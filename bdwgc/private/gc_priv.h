@@ -1258,13 +1258,7 @@ struct hblk {
 /* tables scanned, so we put them here.                                 */
 /* MAX_ROOT_SETS is the maximum number of ranges that can be    */
 /* registered as static roots.                                  */
-#ifdef LARGE_CONFIG
 #define MAX_ROOT_SETS 8192
-#elif !defined(SMALL_CONFIG)
-#define MAX_ROOT_SETS 2048
-#else
-#define MAX_ROOT_SETS 512
-#endif
 
 #define MAX_EXCLUSIONS (MAX_ROOT_SETS / 4)
 /* Maximum number of segments that can be excluded from root sets.      */

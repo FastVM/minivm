@@ -61,7 +61,7 @@ void* cuik__valloc(size_t size) {
     void *ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     #endif
 
-    GC_add_roots(ret, (char *) ret + size);
+    // GC_add_roots(ret, (char *) ret + size);
 
     return ret;
 }
