@@ -33,6 +33,7 @@
         "io.h": "c",
         "*.txt": "c",
         "chrono": "c",
-        "system_error": "c"
+        "system_error": "c",
+        "reg_alloc.h": "c"
     }
 }

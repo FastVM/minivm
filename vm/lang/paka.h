@@ -16,6 +16,9 @@ typedef struct vm_paka_comp_t vm_paka_comp_t;
 struct vm_paka_name_map_t;
 typedef struct vm_paka_name_map_t vm_paka_name_map_t;
 
+struct vm_paka_parser_block_full_t;
+typedef struct vm_paka_parser_block_full_t vm_paka_parser_block_full_t;
+
 struct vm_paka_parser_t {
     const char *src;
     size_t index;
@@ -48,6 +51,11 @@ struct vm_paka_name_map_t {
     size_t alloc;
 };
 
+struct vm_paka_parser_block_full_t {
+    int ret;
+    vm_arg_t arg;
+};
+
 // char test funcs
 bool vm_paka_parser_is_ident0_char(char c);
 bool vm_paka_parser_is_ident1_char(char c);
@@ -76,6 +84,7 @@ vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *src, vm_paka_comp_t *comp);
 vm_arg_t vm_paka_parser_postfix(vm_paka_parser_t *parser, vm_paka_comp_t *comp,
                                 vm_arg_t arg);
 int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
+vm_paka_parser_block_full_t vm_paka_parser_block_full(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
 // string parsers
 vm_block_t *vm_paka_parse(const char *src);
 vm_paka_blocks_t vm_paka_parse_blocks(const char *src);
