@@ -215,7 +215,7 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
         }
         case VM_ARG_REG: {
             if (regs[arg.reg] == NULL) {
-                fprintf(stderr, "use of uninitialized value: r%zu\n", arg.reg);
+                fprintf(stderr, "use of uninitialized value: r%zu\n", (size_t) arg.reg);
                 __builtin_trap();
             }
             return regs[arg.reg];
@@ -226,7 +226,7 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
         default: {
             vm_print_arg(stderr, arg);
             fprintf(stderr, "\n ^ unhandled arg (type#%zu)\n", (size_t)arg.type);
-            asm("int3");
+            __builtin_trap();
         }
     }
 }
@@ -323,6 +323,9 @@ TB_Node *vm_tb_func_body_call(vm_tb_state_t *state, TB_Function *fun, TB_Node **
     comp_params[0] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)state);
     comp_params[1] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)rblock);
 
+    // vm_tb_rfunc_comp(state, rblock);
+
+    // printf("%p\n", rblock->cache);
 
     TB_Node *func = NULL;
     if (rblock->cache != NULL) {
@@ -810,7 +813,7 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
     // }
     TB_Module *module = state->module;
     TB_Function *fun = tb_function_create(state->module, -1, "block", TB_LINKAGE_PRIVATE);
-
+    
     TB_PrototypeParam *proto_args = vm_malloc(sizeof(TB_PrototypeParam) * (block->nargs + 1));
 
     proto_args[0] = (TB_PrototypeParam){TB_TYPE_PTR};

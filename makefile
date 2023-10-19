@@ -1,10 +1,5 @@
 
-GCC ?= gcc
-LLVM_PROFDATA ?= llvm-profdata
-CLANG ?= clang
 OPT ?= -O2
-HOST_CC ?= $(CC)
-DOT ?= dot
 
 BUILD_DIR ?= build
 OBJ_DIR ?= $(BUILD_DIR)/obj
@@ -20,13 +15,14 @@ GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS := $(shell find vm/std/libs -name '*.c')
 OPT_SRCS := $(shell find vm/opt -name '*.c')
-VM_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c $(STD_SRCS)  $(OPT_SRCS)
-VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
+ALL_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c $(STD_SRCS)  $(OPT_SRCS)  $(EXTRA_SRCS)
+ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
+# TB_SRCS := common/common.c common/perf.c tb/src/libtb.c tb/src/x64/x64.c c11threads/threads_msvc.c
 TB_SRCS := common/common.c common/perf.c tb/src/libtb.c tb/src/x64/x64.c
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-OBJS = $(VM_OBJS) $(GC_OBJS) $(TB_OBJS)
+OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS)
 
 CFLAGS += $(FLAGS)
 LDFLAGS += $(FLAGS)
@@ -36,8 +32,8 @@ RUNNER ?= $(BIN_DIR)/minivm
 UNAME_S := $(shell uname -s)
 UNAME_O := $(shell uname -o)
 
-LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000
-LDFLAGS_S_Linux = -Wl,--export-dynamic
+LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000 -lm
+LDFLAGS_S_Linux = -Wl,--export-dynamic -lm
 LDFLAGS_O_Cygwin = -lSynchronization
 
 LDFLAGS := $(LDFLAGS_S_$(UNAME_S)) $(LDFLAGS_O_$(UNAME_O)) $(LDFLAGS)
@@ -49,14 +45,6 @@ CFLAGS := $(CFLAGS_O_$(UNAME_O)) $(CFLAGS)
 default: all
 
 all: bins libs
-
-# windows
-
-clang-windows: .dummy
-	$(MAKE) -B CC=$(CLANG) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' $(BIN_DIR)/minivm.exe
-
-gcc-windows: .dummy
-	$(MAKE) -B CC=$(GCC) OPT='$(OPT)' LDFLAGS='$(LDFLAGS)' CFLAGS='$(CFLAGS) -D_CRT_SECURE_NO_WARNINGS' $(BIN_DIR)/minivm.exe
 
 # binaries
 
@@ -70,7 +58,7 @@ libminivm.a $(BIN_DIR)/libminivm.a: $(OBJS)
 
 minivm $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
 
 # intermediate files
 
@@ -78,7 +66,7 @@ $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I tb/include -I common -DCUIK_USE_TB -DLOG_SUPPRESS
 
-$(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
+$(PROG_OBJS) $(ALL_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 

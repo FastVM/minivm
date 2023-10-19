@@ -5,67 +5,7 @@
 #include "../vm/jit/tb.h"
 #include "../vm/opt/opt.h"
 
-#include <time.h>
-
 #define VM_DEFAULT_OPT "0"
-
-static void vm_asm_repl(void) {
-    int count = 1;
-    vm_table_t *std = vm_std_new();
-    // read_history(".minivm-history");
-    while (true) {
-        char in_n[32];
-        snprintf(in_n, 31, "(%d)> ", count);
-        // char *buf = readline(in_n);
-        char *buf = NULL;
-        size_t len = 0;
-        if (getline(&buf, &len, stdin) == -1) {
-            return;
-        }
-        if (buf == NULL) {
-            return;
-        }
-        // add_history(buf);
-        // remove(".minivm-history");
-        // write_history(".minivm-history");
-        struct timespec ts1;
-        clock_gettime(CLOCK_REALTIME, &ts1);
-        vm_block_t *block = vm_paka_parse(buf);
-        if (block == NULL) {
-            printf("error: could not parse file\n");
-            continue;
-        }
-        vm_std_value_t main_args[1];
-        main_args[0].tag = VM_TAG_UNK;
-        vm_std_value_t got;
-        got = vm_x64_run(block, std, main_args);
-        struct timespec ts2;
-        clock_gettime(CLOCK_REALTIME, &ts2);
-        size_t time = (size_t) ts2.tv_nsec - (size_t) ts1.tv_nsec;
-        char out_n[32];
-        int out_len = snprintf(out_n, 31, "#%i = ", count);
-        vm_io_debug(stdout, 0, out_n, got, NULL);
-        vm_pair_t pair = (vm_pair_t) {
-            .key_val.str = "time",
-            .key_tag = VM_TAG_STR,
-        };
-        vm_table_get_pair(std, &pair);
-        for (int i = 0; i < out_len - 2; i++) {
-            printf(" ");
-        }
-        printf("^ ");
-        if (time < 1000) {
-            printf("took %zuns\n", time % 1000);
-        } else if (time < 1000 * 1000) {
-            printf("took %zuus %zuns\n", time / 1000 % 1000, time % 1000);
-        } else if (time < 1000 * 1000 * 1000) {
-            printf("took %zums %zuus %zuns\n", time / 1000 / 1000 % 1000, time / 1000 % 1000, time % 1000);
-        } else {
-            printf("took %zus %zums %zuus %zuns\n", time / 1000 / 1000 / 1000, time / 1000 / 1000 % 1000, time / 1000 % 1000, time % 1000);
-        }
-        count += 1;
-    }
-}
 
 void GC_disable(void);
 
@@ -95,8 +35,6 @@ int main(int argc, char **argv) {
             argv += 1;
             argc -= 1;
         }
-    } else if (!strcmp(argv[1], "repl")) {
-        vm_asm_repl();
     } else if (!strcmp(argv[1], "print")) {
         for (int i = 2; i < argc; i++) {
             vm_block_t *block = vm_paka_parse(argv[i]);

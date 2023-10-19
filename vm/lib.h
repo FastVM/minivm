@@ -13,7 +13,6 @@
 #define __section(x) __attribute__((__section__(x)))
 #endif
 
-#include <dlfcn.h>
 #include <inttypes.h>
 #include <math.h>
 #include <stdarg.h>

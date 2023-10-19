@@ -52,7 +52,9 @@
 
 #ifndef _MSC_VER
 #include <signal.h>
+#if defined(__debugbreak)
 #define __debugbreak() raise(5 /* SIGTRAP */)
+#endif
 #endif
 
 #ifdef NDEBUG

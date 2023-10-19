@@ -19,3 +19,8 @@ out.*
 cuik
 *.out
 *.err
+.vscode
+*.obj
+*.lib
+*.dll
+.vscode

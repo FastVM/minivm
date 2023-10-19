@@ -25,7 +25,7 @@
 #include "log.h"
 #include <threads.h>
 
-#ifndef _WIN32
+#if defined(_POSIX_C_SOURCE)
 #include <unistd.h>
 #endif
 

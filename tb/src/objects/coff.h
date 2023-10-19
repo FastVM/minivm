@@ -3,12 +3,12 @@
 #include "../tb_internal.h"
 #include <sys/stat.h>
 
-// #ifdef _WIN32
-// #define fileno _fileno
-// #define fstat  _fstat
-// #define stat   _stat
-// #define strdup _strdup
-// #endif
+#if defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define fileno _fileno
+#define fstat  _fstat
+#define stat   _stat
+#define strdup _strdup
+#endif
 
 /*#if TB_HOST_ARCH == TB_HOST_X86_64
 #include <emmintrin.h>

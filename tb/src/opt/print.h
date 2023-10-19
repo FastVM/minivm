@@ -242,7 +242,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
 
                     printf("  ");
 
-                    size_t first = projs[0] == NULL ? 4 : projs[0]->dt.type == TB_CONTROL ? 1 : 0;
+                    size_t first = projs[0]->dt.type == TB_CONTROL ? 1 : 0;
                     FOREACH_N(i, first, 4) {
                         if (projs[i] == NULL) break;
                         if (i > first) printf(", ");
