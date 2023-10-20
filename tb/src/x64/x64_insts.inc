@@ -72,6 +72,10 @@ X(CMOVGE,     "cmovge",       BINOP_EXT,  0x4D)
 X(CMOVLE,     "cmovle",       BINOP_EXT,  0x4E)
 X(CMOVG,      "cmovg",        BINOP_EXT,  0x4F)
 
+// bitmagic
+X(BSF,        "bsf",          BINOP_EXT, 0xBC)
+X(BSR,        "bsr",          BINOP_EXT, 0xBD)
+
 // binary ops but they have an implicit CL on the righthand side
 X(SHL,       "shl",         BINOP_CL,   0xD2, 0xC0, 0x04)
 X(SHR,       "shr",         BINOP_CL,   0xD2, 0xC0, 0x05)

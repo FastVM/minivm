@@ -28,7 +28,6 @@ typedef struct {
     uint8_t* data;
 
     NL_Map(TB_Node*, uint32_t) labels;
-    uint32_t return_label;
 } TB_CGEmitter;
 
 // Helper macros
@@ -37,13 +36,19 @@ typedef struct {
 #define EMIT2(e, b) do { uint16_t _b = (b); memcpy(tb_cgemit_reserve(e, 2), &_b, 2); (e)->count += 2; } while (0)
 #define EMIT4(e, b) do { uint32_t _b = (b); memcpy(tb_cgemit_reserve(e, 4), &_b, 4); (e)->count += 4; } while (0)
 #define EMIT8(e, b) do { uint64_t _b = (b); memcpy(tb_cgemit_reserve(e, 8), &_b, 8); (e)->count += 8; } while (0)
-#define RELOC4(e, p, b) do {  void *_ptr = &(e)->data[p];           \
-                              uint32_t _b = (b), _temp;             \
-                              memcpy(&_temp, _ptr, 4);              \
-                              _temp += _b;                          \
-                              memcpy(_ptr, &_temp, 4); } while (0)
 #define PATCH4(e, p, b) do { uint32_t _b = (b); memcpy(&(e)->data[p], &_b, 4); } while (0)
 #define GET_CODE_POS(e) ((e)->count)
+#define RELOC4(e, p, b) tb_reloc4(e, p, b)
+
+static void tb_reloc4(TB_CGEmitter* restrict e, uint32_t p, uint32_t b) {
+    void* ptr = &e->data[p];
+
+    // i love UBsan...
+    uint32_t tmp;
+    memcpy(&tmp, ptr, 4);
+    tmp += b;
+    memcpy(ptr, &tmp, 4);
+}
 
 static void tb_asm_print(TB_CGEmitter* restrict e, const char* fmt, ...) {
     // let's hope the optimizer can hoist this early-out outside of the call

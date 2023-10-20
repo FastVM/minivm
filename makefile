@@ -15,7 +15,7 @@ GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS := $(shell find vm/std/libs -name '*.c')
 OPT_SRCS := $(shell find vm/opt -name '*.c')
-ALL_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c $(STD_SRCS)  $(OPT_SRCS)  $(EXTRA_SRCS)
+ALL_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c $(STD_SRCS)  $(OPT_SRCS) $(EXTRA_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 # TB_SRCS := common/common.c common/perf.c tb/src/libtb.c tb/src/x64/x64.c c11threads/threads_msvc.c

@@ -2,12 +2,10 @@
 typedef struct {
     TB_Passes* opt;
     TB_Function* f;
-    size_t block_count;
+    TB_CFG cfg;
 } PrinterCtx;
 
 static void print_type(TB_DataType dt) {
-    assert(dt.width < 8 && "Vector width too big!");
-
     switch (dt.type) {
         case TB_INT: {
             if (dt.data == 0) printf("void");
@@ -53,13 +51,13 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
         if (def) {
             printf("(");
             TB_Node** params = ctx->f->params;
-            FOREACH_N(i, 1, 1 + ctx->f->param_count) {
+            FOREACH_N(i, 1, 3 + ctx->f->param_count) {
                 if (i > 1) printf(", ");
 
                 if (params[i] == NULL) {
                     printf("_");
                 } else {
-                    printf("v%zu: ", params[i]->gvn);
+                    printf("v%u: ", params[i]->gvn);
                     print_type(params[i]->dt);
                 }
             }
@@ -70,7 +68,7 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
         if (r->tag != NULL) {
             printf(".%s", r->tag);
         } else {
-            ptrdiff_t i = try_find_traversal_index(n);
+            ptrdiff_t i = try_find_traversal_index(&ctx->cfg, n);
             if (i >= 0) {
                 printf(".bb%zu", i);
             } else {
@@ -89,6 +87,17 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
             printf("%s", sym->name);
         } else {
             printf("sym%p", sym);
+        }
+    } else if (n->type == TB_PROJ && n->dt.type == TB_CONTROL) {
+        if (n->inputs[0]->type == TB_START) {
+            print_ref_to_node(ctx, n->inputs[0], def);
+        } else {
+            ptrdiff_t i = try_find_traversal_index(&ctx->cfg, n);
+            if (i >= 0) {
+                printf(".bb%zu", i);
+            } else {
+                printf("*DEAD*");
+            }
         }
     } else if (n->type == TB_ZERO_EXT) {
         printf("(zxt.");
@@ -111,7 +120,7 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
             printf("%#0"PRIx64, num->value);
         }
     } else {
-        printf("v%llu", (long long unsigned) n->gvn);
+        printf("v%u", n->gvn);
     }
 }
 
@@ -129,40 +138,39 @@ static void print_location(TB_Function* f, TB_Node* n) {
     }
 }
 
-static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
-    assert(bb->type == TB_START || bb->type == TB_REGION);
-    print_ref_to_node(ctx, bb, true);
+static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
+    print_ref_to_node(ctx, bb_start, true);
     printf(":");
 
     // print predecessors
-    if (bb->input_count > 0) {
+    if (!(bb_start->type == TB_PROJ && bb_start->inputs[0]->type == TB_START) && bb_start->input_count > 0) {
         printf(" # preds: ");
-        FOREACH_N(j, 0, bb->input_count) {
-            print_ref_to_node(ctx, tb_get_parent_region(bb->inputs[j]), false);
+        FOREACH_N(j, 0, bb_start->input_count) {
+            print_ref_to_node(ctx, get_pred(bb_start, j), false);
             printf(" ");
         }
     }
 
-    if (ctx->opt->error_n == bb) {
+    if (ctx->opt->error_n == bb_start) {
         printf("\x1b[31m  <-- ERROR\x1b[0m");
     }
     printf("\n");
 
-    TB_Node* end = TB_NODE_GET_EXTRA_T(bb, TB_NodeRegion)->end;
+    TB_BasicBlock* bb = nl_map_get_checked(ctx->opt->scheduled, bb_start);
     Worklist* ws = &ctx->opt->worklist;
 
-    sched_walk(ctx->opt, ws, NULL, bb, end);
-    assert(ws->items[ctx->block_count] == bb);
+    sched_walk(ctx->opt, ws, NULL, bb, bb->end, true);
 
     TB_Node* prev_effect = NULL;
-    FOREACH_N(i, ctx->block_count + 1, dyn_array_length(ws->items)) {
+    FOREACH_N(i, ctx->cfg.block_count, dyn_array_length(ws->items)) {
         TB_Node* n = ws->items[i];
 
         // skip these
         if (n->type == TB_INTEGER_CONST || n->type == TB_FLOAT32_CONST ||
             n->type == TB_FLOAT64_CONST || n->type == TB_SYMBOL ||
             n->type == TB_SIGN_EXT || n->type == TB_ZERO_EXT ||
-            n->type == TB_PROJ) {
+            n->type == TB_PROJ || n->type == TB_START ||
+            n->type == TB_REGION || n->type == TB_NULL) {
             continue;
         }
 
@@ -176,9 +184,20 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
 
             case TB_BRANCH: {
                 TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
+                TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
+                TB_Node** restrict succ = tb_arena_alloc(tmp_arena, br->succ_count * sizeof(TB_Node**));
+
+                // fill successors
+                for (User* u = n->users; u; u = u->next) {
+                    if (u->n->type == TB_PROJ) {
+                        int index = TB_NODE_GET_EXTRA_T(u->n, TB_NodeProj)->index;
+                        succ[index] = cfg_next_bb_after_cproj(u->n);
+                    }
+                }
+
                 if (br->succ_count == 1) {
                     printf("  goto ");
-                    print_ref_to_node(ctx, br->succ[0], false);
+                    print_ref_to_node(ctx, succ[0], false);
                 } else if (br->succ_count == 2) {
                     printf("  if ");
                     FOREACH_N(i, 1, n->input_count) {
@@ -190,9 +209,9 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
                     } else {
                         printf(" != %"PRId64" then ", br->keys[0]);
                     }
-                    print_ref_to_node(ctx, br->succ[0], false);
+                    print_ref_to_node(ctx, succ[0], false);
                     printf(" else ");
-                    print_ref_to_node(ctx, br->succ[1], false);
+                    print_ref_to_node(ctx, succ[1], false);
                 } else {
                     printf("  br ");
                     FOREACH_N(i, 1, n->input_count) {
@@ -205,11 +224,12 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
                         if (i != 0) printf("    %"PRId64": ", br->keys[i - 1]);
                         else printf("    default: ");
 
-                        print_ref_to_node(ctx, br->succ[i], false);
+                        print_ref_to_node(ctx, succ[i], false);
                         printf("\n");
                     }
                     printf("  }");
                 }
+                tb_arena_restore(tmp_arena, sp);
                 break;
             }
 
@@ -233,7 +253,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
                     TB_Node* projs[4];
                     for (size_t i = 0; i < 4; i++) projs[i] = NULL;
 
-                    for (User* use = find_users(ctx->opt, n); use; use = use->next) {
+                    for (User* use = n->users; use; use = use->next) {
                         if (use->n->type == TB_PROJ) {
                             int index = TB_NODE_GET_EXTRA_T(use->n, TB_NodeProj)->index;
                             projs[index] = use->n;
@@ -246,7 +266,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
                     FOREACH_N(i, first, 4) {
                         if (projs[i] == NULL) break;
                         if (i > first) printf(", ");
-                        printf("v%zu", projs[i]->gvn);
+                        printf("v%u", projs[i]->gvn);
                     }
                     printf(" = %s.(", tb_node_get_name(n));
                     FOREACH_N(i, first, 4) {
@@ -260,7 +280,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
                     if (n->dt.type == TB_INT && n->dt.data == 0) {
                         printf("  %s.", tb_node_get_name(n));
                     } else {
-                        printf("  v%zu = %s.", n->gvn, tb_node_get_name(n));
+                        printf("  v%u = %s.", n->gvn, tb_node_get_name(n));
                     }
 
                     TB_DataType dt = n->dt;
@@ -394,37 +414,34 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb) {
         printf("\n");
     }
 
-    dyn_array_set_length(ws->items, ctx->block_count);
+    dyn_array_set_length(ws->items, ctx->cfg.block_count);
+
+    if (bb->end->type != TB_END &&
+        bb->end->type != TB_TRAP &&
+        bb->end->type != TB_BRANCH &&
+        bb->end->type != TB_UNREACHABLE) {
+        printf("  goto ");
+        print_ref_to_node(ctx, cfg_next_control(bb->end), false);
+        printf("\n");
+    }
 }
 
 bool tb_pass_print(TB_Passes* opt) {
     TB_Function* f = opt->f;
-
-    // schedule nodes
-    tb_pass_schedule(opt);
-
-    PrinterCtx ctx = { opt, f };
     worklist_clear(&opt->worklist);
 
-    ctx.block_count = tb_push_postorder(f, &opt->worklist);
-    TB_Node* stop_bb = get_block_begin(f->stop_node);
+    PrinterCtx ctx = { opt, f };
+    ctx.cfg = tb_compute_rpo(f, opt);
 
+    // schedule nodes
+    tb_pass_schedule(opt, ctx.cfg);
     worklist_clear_visited(&opt->worklist);
 
-    bool has_stop = false;
-    FOREACH_REVERSE_N(i, 0, ctx.block_count) {
-        TB_Node* bb = opt->worklist.items[i];
-        if (bb != stop_bb) {
-            print_bb(&ctx, bb);
-        } else {
-            has_stop = true;
-        }
+    FOREACH_N(i, 0, ctx.cfg.block_count) {
+        print_bb(&ctx, opt->worklist.items[i]);
     }
 
-    if (has_stop) {
-        print_bb(&ctx, stop_bb);
-    }
-
+    tb_free_cfg(&ctx.cfg);
     ctx.opt->error_n = NULL;
     return false;
 }

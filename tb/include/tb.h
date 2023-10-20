@@ -4,9 +4,13 @@
 //   SSA  - single static assignment
 //   GVN  - global value numbering
 //   CSE  - common subexpression elimination
+//   CFG  - control flow graph
 //   DSE  - dead store elimination
 //   GCM  - global code motion
 //   SROA - scalar replacement of aggregates
+//   SCCP - sparse conditional constant propagation
+//   RPO  - reverse postorder
+//   BB   - basic block
 #ifndef TB_CORE_H
 #define TB_CORE_H
 
@@ -21,7 +25,7 @@
 
 // https://semver.org/
 #define TB_VERSION_MAJOR 0
-#define TB_VERSION_MINOR 2
+#define TB_VERSION_MINOR 3
 #define TB_VERSION_PATCH 0
 
 #ifndef TB_API
@@ -154,14 +158,14 @@ typedef enum TB_DataTypeEnum {
     TB_FLOAT,
     // Pointers
     TB_PTR,
-    // Tuples, these cannot be used in memory ops, just accessed via projections
-    TB_TUPLE,
     // represents control flow for REGION, BRANCH
     TB_CONTROL,
     // represents memory (and I/O)
     TB_MEMORY,
     // continuation (usually just return addresses :p)
     TB_CONT,
+    // Tuples, these cannot be used in memory ops, just accessed via projections
+    TB_TUPLE,
 } TB_DataTypeEnum;
 
 typedef enum TB_FloatFormat {
@@ -171,15 +175,13 @@ typedef enum TB_FloatFormat {
 
 typedef union TB_DataType {
     struct {
-        uint8_t type;
-        // Only integers and floats can be wide.
-        uint8_t width;
+        uint16_t type : 4;
         // for integers it's the bitwidth
-        uint16_t data;
+        uint16_t data : 12;
     };
-    uint32_t raw;
+    uint16_t raw;
 } TB_DataType;
-static_assert(sizeof(TB_DataType) == 4, "im expecting this to be a uint32_t");
+static_assert(sizeof(TB_DataType) == 2, "im expecting this to be a uint16_t");
 
 // classify data types
 #define TB_IS_VOID_TYPE(x)     ((x).type == TB_INT && (x).data == 0)
@@ -259,7 +261,11 @@ typedef enum TB_NodeTypeEnum {
     //   trap will not be continuable but will stop execution.
     TB_TRAP,        // (Control) -> (Control)
     //   unreachable means it won't trap or be continuable.
-    TB_UNREACHABLE, // (Control) -> (Control)
+    TB_UNREACHABLE, // (Control) -> ()
+    //   this is generated when a path becomes disconnected
+    //   from the main IR, it'll be reduced by the monotonic
+    //   rewrites.
+    TB_DEAD,        // () -> (Control)
 
     ////////////////////////////////
     // CONTROL + MEMORY
@@ -278,31 +284,31 @@ typedef enum TB_NodeTypeEnum {
     ////////////////////////////////
     //   MERGEMEM will join multiple non-aliasing memory effects, because
     //   they don't alias there's no ordering guarentee.
-    TB_MERGEMEM,// (Memory...) -> Memory
+    TB_MERGEMEM,    // (Memory...) -> Memory
     //   LOAD and STORE are standard memory accesses, they can be folded away.
-    TB_LOAD,    // (Memory, Ptr)       -> Data
-    TB_STORE,   // (Memory, Ptr, Data) -> Memory
+    TB_LOAD,        // (Control?, Memory, Ptr)       -> Data
+    TB_STORE,       // (Control, Memory, Ptr, Data) -> Memory
     //   bulk memory ops.
-    TB_MEMCPY,  // (Memory, Ptr, Ptr, Size)  -> Memory
-    TB_MEMSET,  // (Memory, Ptr, Int8, Size) -> Memory
+    TB_MEMCPY,      // (Control, Memory, Ptr, Ptr, Size)  -> Memory
+    TB_MEMSET,      // (Control, Memory, Ptr, Int8, Size) -> Memory
     //   these memory accesses represent "volatile" which means
     //   they may produce side effects and thus cannot be eliminated.
-    TB_READ,    // (Memory, Ptr)       -> (Memory, Data)
-    TB_WRITE,   // (Memory, Ptr, Data) -> (Memory, Data)
+    TB_READ,        // (Control, Memory, Ptr)       -> (Memory, Data)
+    TB_WRITE,       // (Control, Memory, Ptr, Data) -> (Memory, Data)
     //   atomics have multiple observers (if not they wouldn't need to
     //   be atomic) and thus produce side effects everywhere just like
     //   volatiles except they have synchronization guarentees. the atomic
     //   data ops will return the value before the operation is performed.
     //   Atomic CAS return the old value and a boolean for success (true if
     //   the value was changed)
-    TB_ATOMIC_LOAD, // (Memory, Ptr)        -> (Memory, Data)
-    TB_ATOMIC_XCHG, // (Memory, Ptr, Data)  -> (Memory, Data)
-    TB_ATOMIC_ADD,  // (Memory, Ptr, Data)  -> (Memory, Data)
-    TB_ATOMIC_SUB,  // (Memory, Ptr, Data)  -> (Memory, Data)
-    TB_ATOMIC_AND,  // (Memory, Ptr, Data)  -> (Memory, Data)
-    TB_ATOMIC_XOR,  // (Memory, Ptr, Data)  -> (Memory, Data)
-    TB_ATOMIC_OR,   // (Memory, Ptr, Data)  -> (Memory, Data)
-    TB_ATOMIC_CAS,  // (Memory, Data, Data) -> (Memory, Data, Bool)
+    TB_ATOMIC_LOAD, // (Control, Memory, Ptr)        -> (Memory, Data)
+    TB_ATOMIC_XCHG, // (Control, Memory, Ptr, Data)  -> (Memory, Data)
+    TB_ATOMIC_ADD,  // (Control, Memory, Ptr, Data)  -> (Memory, Data)
+    TB_ATOMIC_SUB,  // (Control, Memory, Ptr, Data)  -> (Memory, Data)
+    TB_ATOMIC_AND,  // (Control, Memory, Ptr, Data)  -> (Memory, Data)
+    TB_ATOMIC_XOR,  // (Control, Memory, Ptr, Data)  -> (Memory, Data)
+    TB_ATOMIC_OR,   // (Control, Memory, Ptr, Data)  -> (Memory, Data)
+    TB_ATOMIC_CAS,  // (Control, Memory, Data, Data) -> (Memory, Data, Bool)
 
     ////////////////////////////////
     // POINTERS
@@ -496,11 +502,11 @@ struct User {
 
 struct TB_Node {
     TB_NodeType type;
-    uint16_t input_count; // number of node inputs.
+    uint16_t input_count;
     TB_DataType dt;
 
     // makes it easier to track in graph walks
-    size_t gvn;
+    uint32_t gvn;
 
     // only value while inside of a TB_Passes,
     // these are unordered and usually just
@@ -522,8 +528,6 @@ struct TB_Node {
 // this represents switch (many targets), if (one target) and goto (only default) logic.
 typedef struct { // TB_BRANCH
     size_t succ_count;
-    TB_Node** succ;
-
     int64_t keys[];
 } TB_NodeBranch;
 
@@ -603,14 +607,7 @@ typedef struct {
 } TB_NodeSafepoint;
 
 typedef struct {
-    TB_Node* end;
     const char* tag;
-
-    // position in a postorder walk
-    int postorder_id;
-    // immediate dominator (can be approximate)
-    int dom_depth;
-    TB_Node* dom;
 
     // used for IR building only, stale after that.
     TB_Node *mem_in, *mem_out;
@@ -666,37 +663,37 @@ typedef enum {
 
 #define TB_TYPE_TUPLE   TB_DataType{ { TB_TUPLE } }
 #define TB_TYPE_CONTROL TB_DataType{ { TB_CONTROL } }
-#define TB_TYPE_VOID    TB_DataType{ { TB_INT,   0, 0 } }
-#define TB_TYPE_I8      TB_DataType{ { TB_INT,   0, 8 } }
-#define TB_TYPE_I16     TB_DataType{ { TB_INT,   0, 16 } }
-#define TB_TYPE_I32     TB_DataType{ { TB_INT,   0, 32 } }
-#define TB_TYPE_I64     TB_DataType{ { TB_INT,   0, 64 } }
-#define TB_TYPE_F32     TB_DataType{ { TB_FLOAT, 0, TB_FLT_32 } }
-#define TB_TYPE_F64     TB_DataType{ { TB_FLOAT, 0, TB_FLT_64 } }
-#define TB_TYPE_BOOL    TB_DataType{ { TB_INT,   0, 1 } }
-#define TB_TYPE_PTR     TB_DataType{ { TB_PTR,   0, 0 } }
-#define TB_TYPE_MEMORY  TB_DataType{ { TB_MEMORY,0, 0 } }
-#define TB_TYPE_CONT    TB_DataType{ { TB_CONT,  0, 0 } }
-#define TB_TYPE_INTN(N) TB_DataType{ { TB_INT,   0, (N) } }
-#define TB_TYPE_PTRN(N) TB_DataType{ { TB_PTR,   0, (N) } }
+#define TB_TYPE_VOID    TB_DataType{ { TB_INT,   0 } }
+#define TB_TYPE_I8      TB_DataType{ { TB_INT,   8 } }
+#define TB_TYPE_I16     TB_DataType{ { TB_INT,   16 } }
+#define TB_TYPE_I32     TB_DataType{ { TB_INT,   32 } }
+#define TB_TYPE_I64     TB_DataType{ { TB_INT,   64 } }
+#define TB_TYPE_F32     TB_DataType{ { TB_FLOAT, TB_FLT_32 } }
+#define TB_TYPE_F64     TB_DataType{ { TB_FLOAT, TB_FLT_64 } }
+#define TB_TYPE_BOOL    TB_DataType{ { TB_INT,   1 } }
+#define TB_TYPE_PTR     TB_DataType{ { TB_PTR,   0 } }
+#define TB_TYPE_MEMORY  TB_DataType{ { TB_MEMORY,0 } }
+#define TB_TYPE_CONT    TB_DataType{ { TB_CONT,  0 } }
+#define TB_TYPE_INTN(N) TB_DataType{ { TB_INT,   (N) } }
+#define TB_TYPE_PTRN(N) TB_DataType{ { TB_PTR,   (N) } }
 
 #else
 
 #define TB_TYPE_TUPLE   (TB_DataType){ { TB_TUPLE } }
 #define TB_TYPE_CONTROL (TB_DataType){ { TB_CONTROL } }
-#define TB_TYPE_VOID    (TB_DataType){ { TB_INT,   0, 0 } }
-#define TB_TYPE_I8      (TB_DataType){ { TB_INT,   0, 8 } }
-#define TB_TYPE_I16     (TB_DataType){ { TB_INT,   0, 16 } }
-#define TB_TYPE_I32     (TB_DataType){ { TB_INT,   0, 32 } }
-#define TB_TYPE_I64     (TB_DataType){ { TB_INT,   0, 64 } }
-#define TB_TYPE_F32     (TB_DataType){ { TB_FLOAT, 0, TB_FLT_32 } }
-#define TB_TYPE_F64     (TB_DataType){ { TB_FLOAT, 0, TB_FLT_64 } }
-#define TB_TYPE_BOOL    (TB_DataType){ { TB_INT,   0, 1 } }
-#define TB_TYPE_PTR     (TB_DataType){ { TB_PTR,   0, 0 } }
-#define TB_TYPE_CONT    (TB_DataType){ { TB_CONT,  0, 0 } }
-#define TB_TYPE_MEMORY  (TB_DataType){ { TB_MEMORY,0, 0 } }
-#define TB_TYPE_INTN(N) (TB_DataType){ { TB_INT,   0, (N) } }
-#define TB_TYPE_PTRN(N) (TB_DataType){ { TB_PTR,   0, (N) } }
+#define TB_TYPE_VOID    (TB_DataType){ { TB_INT,   0 } }
+#define TB_TYPE_I8      (TB_DataType){ { TB_INT,   8 } }
+#define TB_TYPE_I16     (TB_DataType){ { TB_INT,   16 } }
+#define TB_TYPE_I32     (TB_DataType){ { TB_INT,   32 } }
+#define TB_TYPE_I64     (TB_DataType){ { TB_INT,   64 } }
+#define TB_TYPE_F32     (TB_DataType){ { TB_FLOAT, TB_FLT_32 } }
+#define TB_TYPE_F64     (TB_DataType){ { TB_FLOAT, TB_FLT_64 } }
+#define TB_TYPE_BOOL    (TB_DataType){ { TB_INT,   1 } }
+#define TB_TYPE_PTR     (TB_DataType){ { TB_PTR,   0 } }
+#define TB_TYPE_CONT    (TB_DataType){ { TB_CONT,  0 } }
+#define TB_TYPE_MEMORY  (TB_DataType){ { TB_MEMORY,0 } }
+#define TB_TYPE_INTN(N) (TB_DataType){ { TB_INT,   (N) } }
+#define TB_TYPE_PTRN(N) (TB_DataType){ { TB_PTR,   (N) } }
 
 #endif
 
@@ -1020,8 +1017,6 @@ TB_API const char* tb_symbol_get_name(TB_Symbol* s);
 TB_API void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, TB_FunctionPrototype* p, TB_Arena* arena);
 TB_API TB_FunctionPrototype* tb_function_get_prototype(TB_Function* f);
 
-TB_API void tb_function_print(TB_Function* f, TB_PrintCallback callback, void* user_data);
-
 TB_API void tb_inst_set_control(TB_Function* f, TB_Node* control);
 TB_API TB_Node* tb_inst_get_control(TB_Function* f);
 
@@ -1224,11 +1219,11 @@ TB_API bool tb_pass_mem2reg(TB_Passes* opt);
 // this just runs the optimizer in the default configuration
 TB_API void tb_pass_optimize(TB_Passes* opt);
 
-TB_API void tb_pass_schedule(TB_Passes* opt);
-
 // analysis
 //   print: prints IR in a flattened text form.
 TB_API bool tb_pass_print(TB_Passes* opt);
+//   print-dot: prints IR as DOT
+TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* user_data);
 
 // codegen
 TB_API TB_FunctionOutput* tb_pass_codegen(TB_Passes* opt, bool emit_asm);
@@ -1240,8 +1235,6 @@ TB_API void tb_pass_mark_users(TB_Passes* opt, TB_Node* n);
 ////////////////////////////////
 // IR access
 ////////////////////////////////
-TB_API bool tb_is_dominated_by(TB_Node* expected_dom, TB_Node* bb);
-
 TB_API const char* tb_node_get_name(TB_Node* n);
 
 TB_API TB_Node* tb_get_parent_region(TB_Node* n);

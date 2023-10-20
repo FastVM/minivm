@@ -1,6 +1,5 @@
 // This is gonna get complicated but we can push through :p
 
-
 ////////////////////////////////
 // x86-64
 ////////////////////////////////
@@ -93,7 +92,7 @@ static TB_DataType debug_type_to_tb(TB_DebugType* t) {
         case TB_DEBUG_TYPE_ARRAY:    return TB_TYPE_PTR;
         case TB_DEBUG_TYPE_POINTER:  return TB_TYPE_PTR;
 
-        case TB_DEBUG_TYPE_FLOAT: return (TB_DataType){ { TB_FLOAT, 0, t->float_fmt } };
+        case TB_DEBUG_TYPE_FLOAT: return (TB_DataType){ { TB_FLOAT, t->float_fmt } };
 
         default: tb_assert(0, "todo"); return TB_TYPE_VOID;
     }
@@ -109,7 +108,7 @@ static TB_DataType reg_class_to_tb(TB_ABI abi, RegClass rg, TB_DebugType* type) 
 
         case RG_SSE: {
             assert(type->tag == TB_DEBUG_TYPE_FLOAT);
-            return (TB_DataType){ { TB_FLOAT, 0, type->float_fmt } };
+            return (TB_DataType){ { TB_FLOAT, type->float_fmt } };
         }
 
         default: tb_assert(0, "todo"); return TB_TYPE_VOID;

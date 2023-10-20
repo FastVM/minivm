@@ -9,13 +9,19 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "../bdwgc/private/gc/gc.h"
+#if defined(TB_USE_MIMALLOC) || defined(CUIK_USE_MIMALLOC)
+#include <mimalloc.h>
 
-#define cuik_malloc(size)        GC_malloc(size)
-#define cuik_calloc(count, size) GC_malloc((count) * (size))
-#define cuik_free(ptr)           GC_free(ptr)
-#define cuik_realloc(ptr, size)  GC_realloc(ptr, size)
-#define cuik_strdup(x)           GC_strdup(x)
+#define NL_MALLOC(s)     mi_malloc(s)
+#define NL_CALLOC(c, s)  mi_calloc(c, s)
+#define NL_REALLOC(p, s) mi_realloc(p, s)
+#define NL_FREE(p)       mi_free(p)
+#else
+#define NL_MALLOC(s)     malloc(s)
+#define NL_CALLOC(c, s)  calloc(c, s)
+#define NL_REALLOC(p, s) realloc(p, s)
+#define NL_FREE(p)       free(p)
+#endif
 
 #define NL_Map(K, V) struct { K k; V v; }*
 #define NL_Strmap(T) struct { NL_Slice k; T v; }*
@@ -134,7 +140,7 @@ inline static uint32_t nl_map__raw_hash(size_t len, const void *key) {
 }
 
 void nl_map__free(NL_MapHeader* restrict table) {
-    cuik_free(table);
+    NL_FREE(table);
 }
 
 NL_MapHeader* nl_map__alloc(size_t cap, size_t entry_size) {
@@ -150,7 +156,7 @@ NL_MapHeader* nl_map__alloc(size_t cap, size_t entry_size) {
 
     cap = (cap == 1 ? 1 : 1 << exp);
 
-    NL_MapHeader* table = cuik_calloc(1, sizeof(NL_MapHeader) + (cap * entry_size));
+    NL_MapHeader* table = NL_CALLOC(1, sizeof(NL_MapHeader) + (cap * entry_size));
     table->exp = exp;
     table->count = 0;
     return table;

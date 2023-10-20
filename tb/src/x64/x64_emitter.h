@@ -124,11 +124,8 @@ static void inst1(TB_CGEmitter* restrict e, InstType type, const Val* r, TB_X86_
         EMIT1(e, inst->op);
         EMIT4(e, 0);
 
-        if (r->target != NULL) {
-            tb_emit_rel32(e, &nl_map_get_checked(e->labels, r->target), GET_CODE_POS(e) - 4);
-        } else {
-            tb_emit_rel32(e, &e->return_label, GET_CODE_POS(e) - 4);
-        }
+        assert(r->target != NULL);
+        tb_emit_rel32(e, &nl_map_get_checked(e->labels, r->target), GET_CODE_POS(e) - 4);
     } else {
         tb_unreachable();
     }
@@ -142,7 +139,7 @@ static void inst2(TB_CGEmitter* restrict e, InstType type, const Val* a, const V
     if (type == MOVABS) {
         assert(a->type == VAL_GPR && b->type == VAL_ABS);
 
-        EMIT1(e, rex(true, a->reg, 0, 0));
+        EMIT1(e, rex(true, 0, a->reg, 0));
         EMIT1(e, inst->op + (a->reg & 0b111));
         EMIT8(e, b->abs);
         return;

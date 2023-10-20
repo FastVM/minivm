@@ -295,6 +295,9 @@ struct TB_Function {
     // IR allocation
     TB_Arena* arena;
 
+    // used for CFG walk in TB_Passes
+    DynArray(TB_Node*) terminators;
+
     // IR building
     TB_Node* active_control_node;
     TB_Attrib exit_attrib;
@@ -357,6 +360,7 @@ struct TB_ThreadInfo {
 
     TB_Arena perm_arena;
     TB_Arena tmp_arena;
+    TB_Arena type_arena;
 
     // live symbols (globals, functions and externals)
     //   we'll be iterating these during object/executable
@@ -369,6 +373,11 @@ struct TB_ThreadInfo {
 
     TB_CodeRegion* code; // compiled output
 };
+
+typedef struct {
+    size_t count;
+    TB_External** data;
+} ExportList;
 
 struct TB_Module {
     bool is_jit;
@@ -390,6 +399,7 @@ struct TB_Module {
     TB_Arch target_arch;
     TB_System target_system;
     TB_FeatureSet features;
+    ExportList exports;
 
     // This is a hack for windows since they've got this idea
     // of a _tls_index
@@ -567,11 +577,6 @@ inline static bool tb_is_power_of_two(uint64_t x) {
 TB_Node* tb_alloc_node(TB_Function* f, int type, TB_DataType dt, int input_count, size_t extra);
 TB_Node* tb__make_proj(TB_Function* f, TB_DataType dt, TB_Node* src, int index);
 
-typedef struct {
-    size_t count;
-    TB_External** data;
-} ExportList;
-
 ExportList tb_module_layout_sections(TB_Module* m);
 
 ////////////////////////////////
@@ -607,6 +612,10 @@ static bool is_same_location(TB_Attrib* a, TB_Attrib* b) {
 
 static TB_Arena* get_temporary_arena(TB_Module* m) {
     return &tb_thread_info(m)->tmp_arena;
+}
+
+static TB_Arena* get_type_arena(TB_Module* m) {
+    return &tb_thread_info(m)->type_arena;
 }
 
 static TB_Arena* get_permanent_arena(TB_Module* m) {

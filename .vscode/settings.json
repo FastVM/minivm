@@ -12,6 +12,7 @@
         "xtree": "c",
         "xutility": "c",
         "tb_internal.h": "c",
-        "gc.h": "c"
+        "gc.h": "c",
+        "windows.h": "c"
     }
 }

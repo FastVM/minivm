@@ -1,0 +1,58 @@
+# Sea of Nodes (SoN)
+
+  https://www.oracle.com/technetwork/java/javase/tech/c2-ir95-150110.pdf)
+
+  SoN is an SSA where ordering is relaxed in the form of explicit dependencies
+  as opposed to local ordering inside basic blocks, for instance pure operations
+  like addition will not have an exact placement only the constraint that it must
+  be resolved after it's inputs. This makes it easier to perform local optimizations
+  without a care for scheduling, this is especially helpful because of how many
+  optimizations we've moved to peepholes.
+
+  note: edges going down from A to B means B is dependent on A.
+
+                       Reassociation
+
+                x+2+4
+
+               x   2                  2   4
+                \ /                    \ /
+                 +   4       =>     x   +
+                  \ /                \ /
+                   +                  +
+
+                            GVN
+
+              A*B + A*B
+
+                A   B                A   B
+                |\ /|                 \ /
+                | X |                  *
+                |/ \|        =>       / \
+                *   *                 \ /
+                 \ /                   +
+                  +
+                       Load elimination
+
+              *x = 16
+              return *x
+
+                   x_
+                   | \
+                   |  \
+                   |   \                  x
+                   |    |                 |
+          memory   | 16 |    =>  memory   |   16
+                \  | |  |              \  |  / |
+                 Store  |               Store  |
+                   |    |                     /
+                   |   /                     /
+                   |  /                     /
+                   | /                     /
+                 Load                     |
+                   |                      |
+                   V                      V
+
+  note: we're not showing the control edge memory operations have for simplicit but
+  both of these are sharing a control edge. Stores produce more memory but don't produce
+  more control flow and Loads use memory but don't produce more (these are both non-volatile)

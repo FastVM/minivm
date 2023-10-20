@@ -1,14 +1,6 @@
 // https://github.com/dotnet/runtime/blob/main/docs/design/specs/PE-COFF.md
 #pragma once
 #include "../tb_internal.h"
-#include <sys/stat.h>
-
-#if defined(_WIN32) && !defined(_POSIX_C_SOURCE)
-#define fileno _fileno
-#define fstat  _fstat
-#define stat   _stat
-#define strdup _strdup
-#endif
 
 /*#if TB_HOST_ARCH == TB_HOST_X86_64
 #include <emmintrin.h>

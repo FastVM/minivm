@@ -167,7 +167,7 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
 
         // immediates might use RX for an extended opcode
         if (uses_imm) {
-            __debugbreak();
+            tb_todo();
         } else {
             int8_t real_rx = ((rex & 4 ? 8 : 0) | rx);
             if (rex == 0 && inst->data_type == TB_X86_TYPE_BYTE && real_rx >= 4) {

@@ -6,20 +6,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <Windows.h>
-#endif
-
-#include "../bdwgc/private/gc/gc.h"
-
 // Cuik currently uses mimalloc so we wrap those calls here
-#define cuik_malloc(size)        GC_malloc(size)
-#define cuik_calloc(count, size) GC_malloc((count) * (size))
-#define cuik_free(ptr)           GC_free(ptr)
-#define cuik_realloc(ptr, size)  GC_realloc(ptr, size)
-#define cuik_strdup(x)           GC_strdup(x)
+#ifdef CUIK_USE_MIMALLOC
+#include <mimalloc.h>
+
+#define cuik_malloc(size)        mi_malloc(size)
+#define cuik_calloc(count, size) mi_calloc(count, size)
+#define cuik_free(ptr)           mi_free(ptr)
+#define cuik_realloc(ptr, size)  mi_realloc(ptr, size)
+#define cuik_strdup(x)           mi_strdup(x)
+#else
+#define cuik_malloc(size)        malloc(size)
+#define cuik_calloc(count, size) calloc(count, size)
+#define cuik_free(size)          free(size)
+#define cuik_realloc(ptr, size)  realloc(ptr, size)
+
+#ifdef _WIN32
+#define cuik_strdup(x)           _strdup(x)
+#else
+#define cuik_strdup(x)           strdup(x)
+#endif
+#endif
 
 #if defined(__amd64) || defined(__amd64__) || defined(_M_AMD64) || defined(__x86_64__) || defined(__x86_64)
 #define CUIK__IS_X64 1
@@ -49,13 +56,6 @@
 
 #define LIKELY(x)      __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)    __builtin_expect(!!(x), 0)
-
-#ifndef _MSC_VER
-#include <signal.h>
-#if defined(__debugbreak)
-#define __debugbreak() raise(5 /* SIGTRAP */)
-#endif
-#endif
 
 #ifdef NDEBUG
 #define TODO() __builtin_unreachable()

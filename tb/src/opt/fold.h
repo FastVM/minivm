@@ -49,26 +49,16 @@ static bool get_int_const(TB_Node* n, uint64_t* imm) {
 ////////////////////////////////
 // Integer idealizations
 ////////////////////////////////
-static TB_Node* ideal_truncate(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
+static TB_Node* ideal_bitcast(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     TB_Node* src = n->inputs[1];
-    if (src->type != TB_INTEGER_CONST || n->dt.type != TB_INT) {
-        return NULL;
+
+    // int -> smaller int means truncate
+    if (src->dt.type == TB_INT && n->dt.type == TB_INT && src->dt.data > n->dt.data) {
+        n->type = TB_TRUNCATE;
+        return n;
     }
 
-    TB_NodeInt* src_i = TB_NODE_GET_EXTRA(src);
-
-    uint64_t mask = n->dt.data == 64 ? UINT64_MAX : (1ull << n->dt.data) - 1;
-    return make_int_node(f, opt, n->dt, src_i->value & mask);
-}
-
-static TB_Node* ideal_int2ptr(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
-    TB_Node* src = n->inputs[1];
-    if (src->type != TB_INTEGER_CONST) {
-        return NULL;
-    }
-
-    TB_NodeInt* src_i = TB_NODE_GET_EXTRA(src);
-    return make_int_node(f, opt, n->dt, src_i->value);
+    return NULL;
 }
 
 // cmp.slt(a, 0) => is_sign(a)
@@ -97,6 +87,279 @@ static bool inverted_cmp(TB_Node* n, TB_Node* n2) {
         case TB_CMP_SLT: return n2->type == TB_CMP_SLE && n2->inputs[2] == n->inputs[1] && n2->inputs[1] == n->inputs[2];
         case TB_CMP_ULT: return n2->type == TB_CMP_ULE && n2->inputs[2] == n->inputs[1] && n2->inputs[1] == n->inputs[2];
         default: return false;
+    }
+}
+
+static Lattice* dataflow_sext(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+    int old_bits = n->inputs[1]->dt.data;
+
+    int64_t min = tb__sxt(a->_int.min, old_bits, n->dt.data);
+    int64_t max = tb__sxt(a->_int.max, old_bits, n->dt.data);
+    uint64_t zeros = a->_int.known_zeros;
+    uint64_t ones  = a->_int.known_ones;
+
+    // if we know the sign bit then we can know what the extended bits look like
+    uint64_t mask = tb__mask(n->dt.data) & ~tb__mask(old_bits);
+    if (zeros >> (old_bits - 1)) {
+        zeros |= mask;
+    } else if (ones >> (old_bits - 1)) {
+        ones |= mask;
+    }
+
+    return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
+}
+
+static Lattice* dataflow_zext(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+    uint64_t mask = tb__mask(n->dt.data) & ~tb__mask(n->inputs[1]->dt.data);
+
+    int64_t min = a->_int.min;
+    int64_t max = a->_int.max;
+    uint64_t zeros = a->_int.known_zeros | mask; // we know the top bits must be zero
+    uint64_t ones  = a->_int.known_ones;
+
+    return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
+}
+
+static Lattice* dataflow_trunc(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+
+    int64_t mask = tb__mask(n->dt.data);
+    int64_t min = a->_int.min & mask;
+    int64_t max = a->_int.max & mask;
+    if (min > max) {
+        min = lattice_int_min(n->dt.data);
+        max = lattice_int_max(n->dt.data);
+    }
+
+    uint64_t zeros = a->_int.known_zeros | ~mask;
+    uint64_t ones  = a->_int.known_ones  & mask;
+    return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
+}
+
+static int64_t wrapped_int_add(int64_t x, int64_t y) { return (uint64_t)x + (uint64_t)y; }
+static int64_t wrapped_int_sub(int64_t x, int64_t y) { return (uint64_t)x - (uint64_t)y; }
+static int64_t wrapped_int_mul(int64_t x, int64_t y) { return (uint64_t)x * (uint64_t)y; }
+static bool wrapped_int_lt(int64_t x, int64_t y, int bits) { return (int64_t)tb__sxt(x, bits, 64) < (int64_t)tb__sxt(y, bits, 64); }
+
+static bool sub_overflow(uint64_t x, uint64_t y, uint64_t xy, int bits) {
+    uint64_t v = (x ^ y) & (xy ^ x);
+    // check the sign bit
+    return (v >> (bits - 1)) & 1;
+}
+
+static Lattice* dataflow_arith(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+    Lattice* b = lattice_universe_get(uni, n->inputs[2]);
+    assert(a->tag == LATTICE_INT && b->tag == LATTICE_INT);
+
+    int64_t mask = tb__mask(n->dt.data);
+    int64_t min, max;
+    switch (n->type) {
+        case TB_ADD:
+        min = wrapped_int_add(a->_int.min, b->_int.min);
+        max = wrapped_int_add(a->_int.max, b->_int.max);
+        break;
+
+        case TB_SUB:
+        min = wrapped_int_sub(a->_int.min, b->_int.min);
+        max = wrapped_int_sub(a->_int.max, b->_int.max);
+        break;
+
+        case TB_MUL:
+        min = wrapped_int_mul(a->_int.min, b->_int.min);
+        max = wrapped_int_mul(a->_int.max, b->_int.max);
+        break;
+    }
+
+    // truncate to the size of the raw DataType
+    min &= mask, max &= mask;
+
+    if (!lattice_is_const_int(a) || !lattice_is_const_int(b)) {
+        // if we overflow, default to the full range
+        if (n->type == TB_SUB) {
+            // subtraction does overflow check different from add or mul
+            if (sub_overflow(a->_int.min, b->_int.min, min, n->dt.data) ||
+                sub_overflow(a->_int.max, b->_int.max, max, n->dt.data)
+            ) {
+                min = lattice_int_min(n->dt.data);
+                max = lattice_int_max(n->dt.data);
+            }
+        } else {
+            if (((a->_int.min & b->_int.min) < 0 && min >= 0) ||
+                (~(a->_int.max | b->_int.max) < 0 && max < 0) ||
+                wrapped_int_lt(max, min, n->dt.data)
+            ) {
+                min = lattice_int_min(n->dt.data);
+                max = lattice_int_max(n->dt.data);
+            }
+        }
+    }
+
+    return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max } });
+}
+
+static Lattice* dataflow_int2ptr(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+    assert(a->tag == LATTICE_INT);
+
+    if (a->_int.min == a->_int.max) {
+        // int2ptr with a constant leads to fun cool stuff (usually we get constant
+        // zeros)
+        LatticeTrifecta t = a->_int.min ? LATTICE_KNOWN_NOT_NULL : LATTICE_KNOWN_NULL;
+        return lattice_intern(uni, (Lattice){ LATTICE_POINTER, ._ptr = { t } });
+    }
+
+    return NULL;
+}
+
+static Lattice* dataflow_unary(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+    if (a->tag == LATTICE_INT) {
+        uint64_t mask = tb__mask(n->dt.data);
+        uint64_t min = ~a->_int.min & mask;
+        uint64_t max = ~a->_int.max & mask;
+
+        if ((int64_t)min > (int64_t)max) {
+            SWAP(int64_t, min, max);
+        }
+
+        uint64_t zeros = 0, ones = 0;
+        if (n->type == TB_NEG) {
+            // -x => ~x + 1
+            //   because of this addition we can technically
+            //   overflow... umm? glhf?
+            uint64_t min_inc = (min+1) & mask;
+            uint64_t max_inc = (max+1) & mask;
+
+            if (min_inc < min || max_inc < min) {
+                min = lattice_int_min(n->dt.data);
+                max = lattice_int_min(n->dt.data);
+            } else {
+                min = min_inc;
+                max = max_inc;
+            }
+        } else {
+            zeros = ~a->_int.known_zeros;
+            ones  = ~a->_int.known_ones;
+        }
+
+        return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
+    } else {
+        return NULL;
+    }
+}
+
+static Lattice* dataflow_bits(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+    Lattice* b = lattice_universe_get(uni, n->inputs[2]);
+
+    uint64_t zeros, ones;
+    switch (n->type) {
+        case TB_AND:
+        // 0 if either is zero, 1 if both are 1
+        zeros = a->_int.known_zeros | b->_int.known_zeros;
+        ones  = a->_int.known_ones  & b->_int.known_ones;
+        break;
+
+        case TB_OR:
+        // 0 if both are 0, 1 if either is 1
+        zeros = a->_int.known_zeros & b->_int.known_zeros;
+        ones  = a->_int.known_ones  | b->_int.known_ones;
+        break;
+
+        case TB_XOR:
+        // 0 if both bits are 0 or 1
+        // 1 if both bits aren't the same
+        zeros = (a->_int.known_zeros & b->_int.known_zeros) | (a->_int.known_ones & b->_int.known_ones);
+        ones  = (a->_int.known_zeros & b->_int.known_ones)  | (a->_int.known_ones & b->_int.known_zeros);
+        break;
+
+        default: tb_todo();
+    }
+
+    uint64_t mask = tb__mask(n->dt.data);
+    zeros &= mask, ones &= mask;
+
+    // we can deduce a min and max by assuming the unknown bits are either zeros or ones
+    int64_t min = ones, max = ~zeros;
+    if (wrapped_int_lt(max, min, n->dt.data)) {
+        min = lattice_int_min(n->dt.data);
+        max = lattice_int_max(n->dt.data);
+    }
+    min &= mask, max &= mask;
+
+    return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
+}
+
+static Lattice* dataflow_shift(TB_Passes* restrict opt, LatticeUniverse* uni, TB_Node* n) {
+    Lattice* a = lattice_universe_get(uni, n->inputs[1]);
+    Lattice* b = lattice_universe_get(uni, n->inputs[2]);
+
+    uint64_t bits = n->dt.data;
+    uint64_t mask = tb__mask(n->dt.data);
+
+    // shift that's in-bounds can tell us quite a few nice details
+    if (b->_int.max <= bits) {
+        uint64_t min, max, zeros, ones = 0;
+        switch (n->type) {
+            case TB_SHL:
+            min = a->_int.min << b->_int.min;
+            max = a->_int.max << b->_int.max;
+            min &= mask, max &= mask;
+
+            if (((a->_int.min & b->_int.min) < 0 && min >= 0) ||
+                (~(a->_int.max | b->_int.max) < 0 && max < 0) ||
+                wrapped_int_lt(max, min, n->dt.data)
+            ) {
+                min = lattice_int_min(n->dt.data);
+                max = lattice_int_max(n->dt.data);
+            }
+
+            // we at least shifted this many bits therefore we
+            // at least have this many zeros at the bottom
+            zeros = (1ull << b->_int.min) - 1ull;
+            // if we know how many bits we shifted then we know where
+            // our known ones ones went
+            if (b->_int.min == b->_int.max) {
+                ones <<= b->_int.min;
+            }
+            break;
+
+            case TB_SHR:
+            // perform shift logic as unsigned
+            min = a->_int.min;
+            max = a->_int.max;
+            if (min > max) {
+                min = 0, max = mask;
+            }
+
+            // the largest value is caused by the lowest shift amount
+            min >>= b->_int.max;
+            max >>= b->_int.min;
+
+            // convert range back into signed
+            if (wrapped_int_lt(max, min, n->dt.data)) {
+                min = lattice_int_min(n->dt.data);
+                max = lattice_int_max(n->dt.data);
+            }
+
+            // TODO(NeGate): we can technically guarentee the top bits are zero
+            zeros = 0;
+            // if we know how many bits we shifted then we know where
+            // our known ones ones went
+            if (b->_int.min == b->_int.max) {
+                ones >>= b->_int.min;
+            }
+            break;
+
+            default: tb_todo();
+        }
+
+        return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
+    } else {
+        return NULL;
     }
 }
 
@@ -214,21 +477,18 @@ static TB_Node* identity_extension(TB_Passes* restrict opt, TB_Function* f, TB_N
     }
 }
 
-static TB_Node* ideal_int_unary(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
-    assert(n->type == TB_NOT || n->type == TB_NEG);
-    TB_Node* src = n->inputs[1];
-    if (src->type == TB_INTEGER_CONST) {
-        assert(src->dt.type == TB_INT && src->dt.data > 0);
-        uint64_t src_i = ~TB_NODE_GET_EXTRA_T(src, TB_NodeInt)->value;
+static int node_pos(TB_Node* n) {
+    switch (n->type) {
+        case TB_PHI:
+        return 1;
 
-        if (n->type == TB_NEG) {
-            // -x => ~x + 1
-            src_i += 1;
-        }
+        case TB_INTEGER_CONST:
+        case TB_FLOAT32_CONST:
+        case TB_FLOAT64_CONST:
+        return 2;
 
-        return make_int_node(f, opt, n->dt, src_i);
-    } else {
-        return NULL;
+        default:
+        return 3;
     }
 }
 
@@ -236,8 +496,7 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
     TB_NodeTypeEnum type = n->type;
     if (is_commutative(type)) {
         // if it's commutative: we wanna have a canonical form.
-        // lower types to the right (constants are basically the lowest things)
-        if (n->inputs[1]->type < n->inputs[2]->type) {
+        if (node_pos(n->inputs[1]) > node_pos(n->inputs[2])) {
             TB_Node* tmp = n->inputs[1];
             set_input(opt, n, n->inputs[2], 1);
             set_input(opt, n, tmp, 2);
@@ -319,41 +578,7 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
         }
     }
 
-    if (a->type != TB_INTEGER_CONST || b->type != TB_INTEGER_CONST) {
-        return NULL;
-    }
-
-    // fully fold
-    uint64_t ai = TB_NODE_GET_EXTRA_T(a, TB_NodeInt)->value;
-    uint64_t bi = TB_NODE_GET_EXTRA_T(b, TB_NodeInt)->value;
-    if (type >= TB_CMP_EQ && type <= TB_CMP_ULE) {
-        bool result = false;
-        switch (type) {
-            case TB_CMP_EQ:  result = ai == bi; break;
-            case TB_CMP_NE:  result = ai != bi; break;
-            case TB_CMP_ULT: result = ai <  bi; break;
-            case TB_CMP_ULE: result = ai <= bi; break;
-            default: tb_unreachable();
-        }
-
-        return make_int_node(f, opt, n->dt, result);
-    } else if (type >= TB_AND && type <= TB_MUL) {
-        uint64_t dst;
-        switch (type) {
-            case TB_AND: dst = ai & bi; break;
-            case TB_OR:  dst = ai | bi; break;
-            case TB_XOR: dst = ai ^ bi; break;
-            case TB_ADD: dst = ai + bi; break;
-            case TB_SUB: dst = ai - bi; break;
-            case TB_MUL: dst = ai * bi; break;
-            default: tb_unreachable();
-        }
-
-        // truncate
-        return make_int_node(f, opt, n->dt, dst & tb__mask(n->dt.data));
-    } else {
-        return NULL;
-    }
+    return NULL;
 }
 
 static TB_Node* ideal_int_div(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
@@ -468,7 +693,7 @@ static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_N
 
         case TB_UDIV:
         case TB_SDIV:
-        return tb_inst_poison(f);
+        return make_poison(f, opt, n->dt);
 
         // (cmp.ne a 0) => a
         case TB_CMP_NE: {

@@ -25,7 +25,13 @@
 #include "log.h"
 #include <threads.h>
 
-#if defined(_POSIX_C_SOURCE)
+#ifdef _WIN32
+#ifdef _POSIX_C_SOURCE
+__declspec(dllimport) unsigned int GetCurrentThreadId(void);
+#else
+__declspec(dllimport) unsigned long GetCurrentThreadId(void);
+#endif
+#else
 #include <unistd.h>
 #endif
 

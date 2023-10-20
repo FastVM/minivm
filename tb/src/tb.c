@@ -350,10 +350,9 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
     f->node_count = 0;
     f->start_node = tb_alloc_node(f, TB_START, TB_TYPE_TUPLE, 0, extra_size);
 
+    f->terminators = dyn_array_create(TB_Node*, 4);
+
     TB_NodeRegion* start = TB_NODE_GET_EXTRA(f->start_node);
-    start->dom_depth = 0;
-    start->dom = f->start_node;
-    start->tag = f->super.name;
 
     f->param_count = param_count;
     f->params = tb_arena_alloc(f->arena, (3+param_count) * sizeof(TB_Node*));

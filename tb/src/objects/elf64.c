@@ -22,7 +22,7 @@ static int put_symbol(TB_Emitter* stab, uint32_t name, uint8_t sym_info, uint16_
         .size  = size
     };
     tb_outs(stab, sizeof(sym), (uint8_t*)&sym);
-    return stab->count / sizeof(TB_Elf64_Sym);
+    return (stab->count / sizeof(TB_Elf64_Sym)) - 1;
 }
 
 static void put_section_symbols(DynArray(TB_ModuleSection) sections, TB_Emitter* strtbl, TB_Emitter* stab, int t) {
@@ -39,8 +39,12 @@ static void put_section_symbols(DynArray(TB_ModuleSection) sections, TB_Emitter*
             out_f->parent->super.symbol_id = put_symbol(stab, name, TB_ELF64_ST_INFO(t, TB_ELF64_STT_FUNC), sec_num, out_f->code_pos, out_f->code_size);
         }
 
+        int acceptable = t == TB_ELF64_STB_GLOBAL ? TB_LINKAGE_PUBLIC : TB_LINKAGE_PRIVATE;
         dyn_array_for(i, globals) {
             TB_Global* g = globals[i];
+            if (g->linkage != acceptable) {
+                continue;
+            }
 
             uint32_t name = 0;
             if (g->super.name) {
@@ -143,8 +147,8 @@ TB_ExportBuffer tb_elf64obj_write_output(TB_Module* m, const IDebugFormat* dbg) 
 
     assert(dbg_section_count == 0);
 
-    put_section_symbols(sections, &strtbl, &local_symtab, TB_ELF64_STB_GLOBAL);
-    put_section_symbols(sections, &strtbl, &global_symtab, TB_ELF64_STB_LOCAL);
+    put_section_symbols(sections, &strtbl, &local_symtab, TB_ELF64_STB_LOCAL);
+    put_section_symbols(sections, &strtbl, &global_symtab, TB_ELF64_STB_GLOBAL);
 
     FOREACH_N(i, 0, exports.count) {
         TB_External* ext = exports.data[i];
@@ -207,7 +211,7 @@ TB_ExportBuffer tb_elf64obj_write_output(TB_Module* m, const IDebugFormat* dbg) 
         dyn_array_for(j, funcs) {
             TB_FunctionOutput* func_out = funcs[j];
 
-            size_t source_offset = func_out->prologue_length + func_out->code_pos;
+            size_t source_offset = func_out->code_pos;
             for (TB_SymbolPatch* p = func_out->last_patch; p; p = p->prev) {
                 if (p->internal) continue;
 

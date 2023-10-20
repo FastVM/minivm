@@ -4,12 +4,13 @@
 // murmur3 32-bit without UB unaligned accesses
 // https://github.com/demetri/scribbles/blob/master/hashing/ub_aware_hash_functions.c
 static uint32_t tb__murmur3_32(const void* key, size_t len) {
+    const uint32_t* key32 = key;
     uint32_t h = 0;
 
     // main body, work on 32-bit blocks at a time
     for (size_t i=0;i<len/4;i++) {
         uint32_t k;
-        memcpy(&k, (uint32_t*) key + i, sizeof(k));
+        memcpy(&k, &key32[i], sizeof(k));
 
         k *= 0xcc9e2d51;
         k = ((k << 15) | (k >> 17))*0x1b873593;

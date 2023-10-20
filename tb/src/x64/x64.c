@@ -47,12 +47,19 @@ static size_t emit_epilogue(Ctx* restrict ctx, TB_Node* stop);
 // initialize register allocator state
 static void init_regalloc(Ctx* restrict ctx) {
     // Generate intervals for physical registers
-    FOREACH_N(i, 0, 16) {
-        dyn_array_put(ctx->intervals, (LiveInterval){ .reg_class = REG_CLASS_GPR, .dt = TB_X86_TYPE_QWORD, .reg = i, .assigned = i, .hint = -1, .start = INT_MAX, .split_kid = -1 });
-    }
+    FOREACH_N(i, 0, 32) {
+        DynArray(LiveRange) ranges = dyn_array_create(LiveRange, 8);
+        dyn_array_put(ranges, (LiveRange){ INT_MAX, INT_MAX });
 
-    FOREACH_N(i, 0, 16) {
-        dyn_array_put(ctx->intervals, (LiveInterval){ .reg_class = REG_CLASS_XMM, .dt = TB_X86_TYPE_XMMWORD, .reg = i, .assigned = i, .hint = -1, .start = INT_MAX, .split_kid = -1 });
+        bool is_gpr = i < 16;
+        int reg = i % 16;
+
+        dyn_array_put(ctx->intervals, (LiveInterval){
+                .reg_class = is_gpr ? REG_CLASS_GPR : REG_CLASS_XMM,
+                .dt = is_gpr ? TB_X86_TYPE_QWORD : TB_X86_TYPE_XMMWORD,
+                .reg = reg, .assigned = reg, .hint = -1, .split_kid = -1,
+                .ranges = ranges
+            });
     }
 }
 
@@ -100,17 +107,7 @@ static TB_X86_DataType legalize_int2(TB_DataType dt) {
 
 static TB_X86_DataType legalize_float(TB_DataType dt) {
     assert(dt.type == TB_FLOAT);
-    TB_X86_DataType t = (dt.data == TB_FLT_64 ? TB_X86_TYPE_SSE_SD : TB_X86_TYPE_SSE_SS);
-
-    if (dt.data == TB_FLT_64) {
-        assert(dt.width == 0 || dt.width == 1);
-    } else if (dt.data == TB_FLT_32) {
-        assert(dt.width == 0 || dt.width == 2);
-    } else {
-        tb_unreachable();
-    }
-
-    return t + (dt.width ? 2 : 0);
+    return (dt.data == TB_FLT_64 ? TB_X86_TYPE_SSE_SD : TB_X86_TYPE_SSE_SS);
 }
 
 static TB_X86_DataType legalize(TB_DataType dt) {
@@ -137,7 +134,7 @@ static bool is_terminator(int t) {
 static bool try_for_imm32(Ctx* restrict ctx, TB_Node* n, int32_t* out_x) {
     if (n->type == TB_INTEGER_CONST) {
         TB_NodeInt* i = TB_NODE_GET_EXTRA(n);
-        if (fits_into_int32(i->value)) {
+        if (i->value == (int32_t)i->value) {
             *out_x = i->value;
             return true;
         }
@@ -362,7 +359,6 @@ static Cond isel_cmp(Ctx* restrict ctx, TB_Node* n) {
 
     if (n->type >= TB_CMP_EQ && n->type <= TB_CMP_FLE) {
         TB_DataType cmp_dt = TB_NODE_GET_EXTRA_T(n, TB_NodeCompare)->cmp_dt;
-        assert(cmp_dt.width == 0 && "TODO: Implement vector compares");
 
         Cond cc = -1;
         use(ctx, n);
@@ -424,7 +420,7 @@ static Cond isel_cmp(Ctx* restrict ctx, TB_Node* n) {
 }
 
 static bool should_rematerialize(TB_Node* n) {
-    if (n->type == TB_INT2PTR && n->inputs[0]->type == TB_INTEGER_CONST) {
+    if ((n->type == TB_INT2FLOAT || n->type == TB_INT2PTR) && n->inputs[1]->type == TB_INTEGER_CONST) {
         return true;
     }
 
@@ -439,6 +435,13 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
     switch (type) {
         case TB_PHI: break;
         case TB_REGION: break;
+
+        case TB_POISON: {
+            Inst* inst = alloc_inst(INST_INLINE, TB_TYPE_VOID, 1, 0, 0);
+            inst->operands[0] = dst;
+            append_inst(ctx, inst);
+            break;
+        }
 
         case TB_START: {
             TB_NodeRegion* start = TB_NODE_GET_EXTRA(n);
@@ -570,13 +573,16 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
                 x &= (1ull << bits_in_type) - 1;
             }
 
-            if (!fits_into_int32(x)) {
+            if (x == 0) {
+                SUBMIT(inst_op_zero(n->dt, dst));
+            } else if (x == (int32_t) x) {
+                SUBMIT(inst_op_imm(MOV, n->dt, dst, x));
+            } else if ((x >> 32ull) == UINT32_MAX) {
+                // mov but zero ext
+                SUBMIT(inst_op_imm(MOV, TB_TYPE_I32, dst, x));
+            } else {
                 // movabs reg, imm64
                 SUBMIT(inst_op_abs(MOVABS, n->dt, dst, x));
-            } else if (x == 0) {
-                SUBMIT(inst_op_zero(n->dt, dst));
-            } else {
-                SUBMIT(inst_op_imm(MOV, n->dt, dst, x));
             }
             break;
         }
@@ -604,7 +610,16 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             hint_reg(ctx, dst, lhs);
 
             int32_t x;
-            if (try_for_imm32(ctx, n->inputs[2], &x)) {
+            if (n->inputs[2]->type == TB_LOAD && on_last_use(ctx, n->inputs[2])) {
+                use(ctx, n->inputs[2]);
+
+                SUBMIT(inst_move(n->dt, dst, lhs));
+
+                Inst* inst = isel_addr2(ctx, n->inputs[2]->inputs[2], dst, -1, dst);
+                inst->type = op;
+                inst->dt = legalize(n->dt);
+                SUBMIT(inst);
+            } else if (try_for_imm32(ctx, n->inputs[2], &x)) {
                 use(ctx, n->inputs[2]);
 
                 SUBMIT(inst_move(n->dt, dst, lhs));
@@ -663,6 +678,38 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             }
             SUBMIT(inst_move(dt, lo, RAX));
             SUBMIT(inst_move(dt, hi, RDX));
+            break;
+        }
+
+        // bit magic
+        case TB_CTZ:
+        case TB_CLZ: {
+            int op = type == TB_CLZ ? BSR : BSF;
+            int lhs = input_reg(ctx, n->inputs[1]);
+            hint_reg(ctx, dst, lhs);
+
+            // we only wanna deal with 32 or 64 ops for
+            // this (16 is annoying and 8 is unavailable)
+            TB_DataType dt = n->dt;
+            if (dt.data < 64) {
+                // make sure the bits are zero'd above
+                if (dt.data < 32) {
+                    assert(type == TB_CLZ && "clz is different, and im stupid");
+                    SUBMIT(inst_op_zero(TB_TYPE_I32, dst));
+                }
+
+                dt.data = 32;
+            }
+
+            Inst* inst = inst_op_rr(op, dt, dst, lhs);
+            if (type == TB_CLZ) {
+                // the difference between bsf and tzcnt
+                inst->flags |= INST_REP;
+            }
+            SUBMIT(inst);
+
+            // flip bits to make CLZ instead of bitscanreverse
+            SUBMIT(inst_op_rri(XOR, dt, dst, dst, 63));
             break;
         }
 
@@ -753,7 +800,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
         }
 
         case TB_FLOAT32_CONST: {
-            assert(n->dt.type == TB_FLOAT && n->dt.width == 0);
+            assert(n->dt.type == TB_FLOAT);
             uint32_t imm = (Cvt_F32U32) { .f = TB_NODE_GET_EXTRA_T(n, TB_NodeFloat32)->value }.i;
 
             if (imm == 0) {
@@ -765,7 +812,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             break;
         }
         case TB_FLOAT64_CONST: {
-            assert(n->dt.type == TB_FLOAT && n->dt.width == 0);
+            assert(n->dt.type == TB_FLOAT);
             uint64_t imm = (Cvt_F64U64){ .f = TB_NODE_GET_EXTRA_T(n, TB_NodeFloat64)->value }.i;
 
             if (imm == 0) {
@@ -819,7 +866,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             hint_reg(ctx, dst, lhs);
             SUBMIT(inst_move(n->dt, dst, lhs));
 
-            if (n->inputs[2]->type == TB_LOAD) {
+            if (n->inputs[2]->type == TB_LOAD && on_last_use(ctx, n->inputs[2])) {
                 use(ctx, n->inputs[2]);
 
                 Inst* inst = isel_addr2(ctx, n->inputs[2]->inputs[2], dst, -1, dst);
@@ -989,7 +1036,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
                 TB_Node* param = n->inputs[i];
                 TB_DataType param_dt = param->dt;
 
-                bool use_xmm = TB_IS_FLOAT_TYPE(param_dt) || param_dt.width;
+                bool use_xmm = TB_IS_FLOAT_TYPE(param_dt);
                 int reg = use_xmm ? xmms_used : gprs_used;
                 if (is_sysv) {
                     if (use_xmm) {
@@ -1031,7 +1078,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             FOREACH_N(i, 0, in_count) {
                 TB_DataType dt = n->inputs[3 + i]->dt;
 
-                bool use_xmm = TB_IS_FLOAT_TYPE(dt) || dt.width;
+                bool use_xmm = TB_IS_FLOAT_TYPE(dt);
                 SUBMIT(inst_move(dt, ins[i], param_srcs[i]));
 
                 // in win64, float params past the vararg cutoff are
@@ -1066,7 +1113,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
                 }
             }
 
-            bool use_xmm_ret = TB_IS_FLOAT_TYPE(ret_dt) || ret_dt.width;
+            bool use_xmm_ret = TB_IS_FLOAT_TYPE(ret_dt);
             if (ret_node != NULL) {
                 if (use_xmm_ret) {
                     caller_saved_xmms &= ~(1ull << XMM0);
@@ -1140,7 +1187,20 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
         case TB_BRANCH: {
             TB_Node* bb = tb_get_parent_region(n);
             TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
-            TB_Node** succ = br->succ;
+
+            // the arena on the function should also be available at this time, we're
+            // in the TB_Passes
+            TB_Arena* arena = ctx->f->arena;
+            TB_ArenaSavepoint sp = tb_arena_save(arena);
+            TB_Node** restrict succ = tb_arena_alloc(arena, br->succ_count * sizeof(TB_Node**));
+
+            // fill successors
+            for (User* u = n->users; u; u = u->next) {
+                if (u->n->type == TB_PROJ) {
+                    int index = TB_NODE_GET_EXTRA_T(u->n, TB_NodeProj)->index;
+                    succ[index] = cfg_get_fallthru(u->n);
+                }
+            }
 
             SUBMIT(alloc_inst(INST_TERMINATOR, TB_TYPE_VOID, 0, 0, 0));
             if (br->succ_count == 1) {
@@ -1212,6 +1272,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
                 }
                 SUBMIT(inst_jmp(succ[0]));
             }
+            tb_arena_restore(arena, sp);
             break;
         }
 
@@ -1233,7 +1294,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
         }
         case TB_LOAD:
         case TB_ATOMIC_LOAD: {
-            int mov_op = (TB_IS_FLOAT_TYPE(n->dt) || n->dt.width) ? FP_MOV : MOV;
+            int mov_op = TB_IS_FLOAT_TYPE(n->dt) ? FP_MOV : MOV;
             TB_Node* addr = n->inputs[2];
 
             Inst* ld_inst = isel_addr2(ctx, addr, dst, -1, -1);
@@ -1284,7 +1345,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
 
                 src = src->inputs[2];
             } else {
-                store_op = (TB_IS_FLOAT_TYPE(store_dt) || store_dt.width) ? FP_MOV : MOV;
+                store_op = TB_IS_FLOAT_TYPE(store_dt) ? FP_MOV : MOV;
             }
 
             int32_t imm;
@@ -1512,8 +1573,9 @@ static void print_operand(TB_CGEmitter* restrict e, Val* v, TB_X86_DataType dt) 
                 EMITA(e, ".ret");
             } else {
                 TB_Node* n = v->target;
-                assert(n->type == TB_START || n->type == TB_REGION);
-                EMITA(e, "L%d", TB_NODE_GET_EXTRA_T(n, TB_NodeRegion)->postorder_id);
+
+                int id = nl_map_get_checked(muh_______cfg->node_to_block, n).id;
+                EMITA(e, ".bb%d", id);
             }
             break;
         }
@@ -1605,7 +1667,7 @@ static int resolve_interval(Ctx* restrict ctx, Inst* inst, int i, Val* val) {
     return 1;
 }
 
-static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out) {
+static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out, int end) {
     TB_CGEmitter* e = &ctx->emit;
 
     // resolve stack usage
@@ -1627,10 +1689,11 @@ static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out) {
     Inst* prev_line = NULL;
     for (Inst* restrict inst = ctx->first; inst; inst = inst->next) {
         size_t in_base = inst->out_count;
-        InstCategory cat = inst->type >= (sizeof inst_table / sizeof *inst_table) ? INST_BINOP : inst_table[inst->type].cat;
+        size_t inst_table_size = sizeof(inst_table) / sizeof(*inst_table);
+        InstCategory cat = inst->type >= inst_table_size ? INST_BINOP : inst_table[inst->type].cat;
 
         if (0) {
-            EMITA(e, "  \x1b[32m# %s t=%d { outs:", inst->type < sizeof inst_table / sizeof *inst_table ? inst_table[inst->type].mnemonic : "???", inst->time);
+            EMITA(e, "  \x1b[32m# %s t=%d { outs:", inst->type < inst_table_size ? inst_table[inst->type].mnemonic : "???", inst->time);
             FOREACH_N(i, 0, inst->out_count) {
                 EMITA(e, " v%d", inst->operands[i]);
             }
@@ -1648,22 +1711,22 @@ static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out) {
             uint32_t pos = GET_CODE_POS(&ctx->emit);
             tb_resolve_rel32(&ctx->emit, &nl_map_get_checked(ctx->emit.labels, bb), pos);
 
-            if (bb != ctx->f->start_node) {
-                assert(bb->type == TB_REGION);
-                EMITA(e, "L%d:\n", TB_NODE_GET_EXTRA_T(bb, TB_NodeRegion)->postorder_id);
+            int id = nl_map_get_checked(ctx->cfg.node_to_block, bb).id;
+            if (id > 0) {
+                EMITA(e, ".bb%d:\n", id);
             }
         } else if (inst->type == INST_INLINE) {
-            TB_NodeMachineOp* mach = TB_NODE_GET_EXTRA(inst->n);
+            if (inst->n) {
+                TB_NodeMachineOp* mach = TB_NODE_GET_EXTRA(inst->n);
 
-            EMITA(&ctx->emit, "  INLINE MACHINE CODE:");
-            FOREACH_N(i, 0, mach->length) {
-                EMITA(&ctx->emit, " %#02x", mach->data[i]);
+                EMITA(&ctx->emit, "  INLINE MACHINE CODE:");
+                FOREACH_N(i, 0, mach->length) {
+                    EMITA(&ctx->emit, " %#02x", mach->data[i]);
+                }
+                EMITA(&ctx->emit, "\n");
             }
-            EMITA(&ctx->emit, "\n");
         } else if (inst->type == INST_EPILOGUE) {
-            // return label goes here
-            EMITA(&ctx->emit, ".ret:\n");
-            tb_resolve_rel32(&ctx->emit, &ctx->emit.return_label, GET_CODE_POS(&ctx->emit));
+            // just a marker for regalloc
         } else if (inst->type == INST_LINE) {
             TB_Function* f = ctx->f;
             TB_Attrib* loc = inst->a;
@@ -1732,6 +1795,11 @@ static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out) {
             if (inst->flags & INST_LOCK) {
                 EMITA(e, "  LOCK");
                 EMIT1(e, 0xF0);
+            }
+
+            if (inst->flags & INST_REP) {
+                EMITA(e, "  REP");
+                EMIT1(e, 0xF3);
             }
 
             // resolve output
@@ -1809,7 +1877,9 @@ static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out) {
         }
     }
 
-    emit_epilogue(ctx, ctx->f->stop_node);
+    if (end >= 0) {
+        emit_epilogue(ctx, ctx->f->stop_node);
+    }
 
     // pad to 16bytes
     static const uint8_t nops[8][8] = {

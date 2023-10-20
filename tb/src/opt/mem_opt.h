@@ -6,6 +6,16 @@ typedef struct {
     int64_t offset;
 } KnownPointer;
 
+static bool is_local_ptr(TB_Node* n) {
+    // skip past ptr arith
+    retry: {
+        if (n->type == TB_MEMBER_ACCESS) goto retry;
+        if (n->type == TB_ARRAY_ACCESS) goto retry;
+    }
+
+    return n->type == TB_LOCAL;
+}
+
 static KnownPointer known_pointer(TB_Node* n) {
     if (n->type == TB_MEMBER_ACCESS) {
         return (KnownPointer){ n->inputs[1], TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset };
@@ -71,61 +81,50 @@ static TB_Node* ideal_load(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     TB_Node* mem = n->inputs[1];
     TB_Node* addr = n->inputs[2];
     if (n->inputs[0] != NULL) {
-        TB_Node* base = addr;
-        while (base->type == TB_MEMBER_ACCESS || base->type == TB_ARRAY_ACCESS) {
-            base = base->inputs[1];
-        }
-
-        // loads based on LOCALs don't need control-dependence, it's actually kinda annoying
-        if (base->type == TB_LOCAL) {
+        // we've dependent on code which must always be run (START.mem)
+        if (n->inputs[0]->type == TB_PROJ && n->inputs[0]->inputs[0]->type == TB_START) {
             set_input(p, n, NULL, 0);
             return n;
-        }
-    }
+        } else {
+            TB_Node* base = addr;
+            while (base->type == TB_MEMBER_ACCESS || base->type == TB_ARRAY_ACCESS) {
+                base = base->inputs[1];
+            }
 
-    // if LOAD has already been safely accessed we can relax our control dependency
-    if (n->inputs[0] != NULL && n->inputs[0]->type == TB_REGION && n->inputs[0]->input_count == 1) {
-        TB_Node* parent_bb = get_block_begin(n->inputs[0]->inputs[0]);
-
-        for (User* u = find_users(p, parent_bb); u; u = u->next) {
-            TB_Node* use = u->n;
-            if (use != n && use->type == TB_LOAD && use->inputs[2] == addr) {
-                tb_pass_mark_users(p, get_block_begin(n->inputs[0]));
-
-                set_input(p, n, use->inputs[0], 0);
+            // loads based on LOCALs don't need control-dependence, it's actually kinda annoying
+            if (base->type == TB_LOCAL) {
+                set_input(p, n, NULL, 0);
                 return n;
             }
         }
     }
 
+    // if LOAD has already been safely accessed we can relax our control dependency
+    if (n->inputs[0] != NULL) {
+        TB_Node* parent_bb = get_block_begin(n->inputs[0]);
+        for (User* u = addr->users; u; u = u->next) {
+            TB_Node* use = u->n;
+            if (use != n && use->type == TB_LOAD && u->slot == 2) {
+                // if the other load has no control deps we don't need any
+                // either... if they're the same type (really it just needs
+                // to read the same bytes or less)
+                if (use->dt.raw == n->dt.raw) {
+                    set_input(p, n, NULL, 0);
+                    return n;
+                }
+
+                // if we're dominated by some previous load then we can inherit
+                // it's control dep.
+                TB_Node* bb = get_block_begin(use->inputs[0]);
+                if (lattice_dommy(&p->universe, bb, parent_bb)) {
+                    set_input(p, n, use->inputs[0], 0);
+                    return n;
+                }
+            }
+        }
+    }
+
     return NULL;
-
-    // loads based on PHIs may be reduced into data PHIs
-    /*if (n->inputs[1]->type == TB_PHI) {
-        return data_phi_from_memory_phi(p, f, n->dt, n->inputs[1], addr, NULL);
-    }*/
-
-    // if a load is control dependent on a store and it doesn't alias we can move the
-    // dependency up a bit.
-    /*if (n->inputs[1]->type != TB_STORE) return NULL;
-
-    KnownPointer ld_ptr = known_pointer(n->inputs[2]);
-    KnownPointer st_ptr = known_pointer(n->inputs[1]->inputs[2]);
-    if (ld_ptr.base != st_ptr.base) return NULL;
-
-    // it's probably not the fastest way to grab this value ngl...
-    ICodeGen* cg = tb__find_code_generator(f->super.module);
-    ld_ptr.offset *= cg->minimum_addressable_size;
-    st_ptr.offset *= cg->minimum_addressable_size;
-
-    size_t loaded_end = ld_ptr.offset + bits_in_data_type(cg->pointer_size, n->dt);
-    size_t stored_end = st_ptr.offset + bits_in_data_type(cg->pointer_size, n->inputs[0]->inputs[2]->dt);
-
-    // both bases match so if the effective ranges don't intersect, they don't alias.
-    if (ld_ptr.offset <= stored_end && st_ptr.offset <= loaded_end) return NULL;
-
-    set_input(p, n, n->inputs[1]->inputs[1], 1);
-    return n;*/
 }
 
 static TB_Node* identity_load(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
@@ -160,6 +159,12 @@ static TB_Node* ideal_store(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
 }
 
 static TB_Node* ideal_end(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    // remove dead local store
+    if (n->inputs[1]->type == TB_STORE && is_local_ptr(n->inputs[1]->inputs[2])) {
+        set_input(p, n, n->inputs[1]->inputs[1], 1);
+        return n;
+    }
+
     return NULL;
 }
 

@@ -1,6 +1,9 @@
 #include "tb_internal.h"
 #include "host.h"
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 enum {
     ALLOC_GRANULARITY = 16,
 

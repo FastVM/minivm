@@ -33,32 +33,7 @@
 #include "linker/elf.c"
 
 // Platform layer
-#if defined(_POSIX_C_SOURCE) && !defined(_WIN32)
-void* tb_platform_valloc(size_t size) {
-    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-}
-
-void* tb_platform_valloc_guard(size_t size) {
-    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-}
-
-void tb_platform_vfree(void* ptr, size_t size) {
-    munmap(ptr, size);
-}
-
-bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {
-    uint32_t protect;
-    switch (prot) {
-        case TB_PAGE_RO:  protect = PROT_READ; break;
-        case TB_PAGE_RW:  protect = PROT_READ | PROT_WRITE; break;
-        case TB_PAGE_RX:  protect = PROT_READ | PROT_EXEC; break;
-        case TB_PAGE_RXW: protect = PROT_READ | PROT_WRITE | PROT_EXEC; break;
-        default: return false;
-    }
-
-    return mprotect(ptr, size, protect) == 0;
-}
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #pragma comment(lib, "onecore.lib")
 
 void* tb_platform_valloc(size_t size) {
@@ -135,4 +110,29 @@ void* tb_jit_create_stack(size_t* out_size) {
     return VirtualAlloc2(GetCurrentProcess(), NULL, size, MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE, &param, 1);
 }
 #endif /* NTDDI_VERSION >= NTDDI_WIN10_RS4 */
+#elif defined(_POSIX_C_SOURCE)
+void* tb_platform_valloc(size_t size) {
+    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+}
+
+void* tb_platform_valloc_guard(size_t size) {
+    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+}
+
+void tb_platform_vfree(void* ptr, size_t size) {
+    munmap(ptr, size);
+}
+
+bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {
+    uint32_t protect;
+    switch (prot) {
+        case TB_PAGE_RO:  protect = PROT_READ; break;
+        case TB_PAGE_RW:  protect = PROT_READ | PROT_WRITE; break;
+        case TB_PAGE_RX:  protect = PROT_READ | PROT_EXEC; break;
+        case TB_PAGE_RXW: protect = PROT_READ | PROT_WRITE | PROT_EXEC; break;
+        default: return false;
+    }
+
+    return mprotect(ptr, size, protect) == 0;
+}
 #endif

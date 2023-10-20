@@ -53,17 +53,13 @@ void* cuik__valloc(size_t size) {
     // round size to page size
     size = (size + cuik__page_mask) & ~cuik__page_mask;
 
-    void *ret = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     #else
     cuik__page_size = 4096;
     cuik__page_mask = 4095;
 
-    void *ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     #endif
-
-    // GC_add_roots(ret, (char *) ret + size);
-
-    return ret;
 }
 
 void cuik__vfree(void* ptr, size_t size) {

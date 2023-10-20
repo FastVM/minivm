@@ -296,7 +296,7 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
         func,
         rblock->block->nargs + 1,
         call_args);
-
+    
     tb_inst_ret(fun, 0, NULL);
 
     tb_inst_set_control(fun, ctrl);
@@ -305,19 +305,6 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
 }
 
 TB_Node *vm_tb_func_body_call(vm_tb_state_t *state, TB_Function *fun, TB_Node **args, vm_rblock_t *rblock) {
-    TB_Module *module = state->module;
-    
-    TB_PrototypeParam comp_args[2] = {
-        {TB_TYPE_PTR},
-        {TB_TYPE_PTR},
-    };
-
-    TB_PrototypeParam comp_ret[1] = {
-        {TB_TYPE_PTR},
-    };
-
-    TB_FunctionPrototype *comp_proto = tb_prototype_create(state->module, VM_TB_CC, 2, comp_args, 1, comp_ret, false);
-
     TB_Node *comp_params[2];
 
     comp_params[0] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)state);
@@ -681,7 +668,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             
             TB_SwitchEntry keys[VM_TAG_MAX - 1];
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                keys[i - 1].key = i;
                 // vm_block_t *next_block = vm_tb_rblock_version(branch.rtargets[i]);
                 TB_Node **next_args = vm_malloc(sizeof(TB_Node *) * branch.targets[0]->nargs);
                 for (size_t j = 0; j < branch.targets[0]->nargs; j++) {
@@ -700,6 +686,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         next_args[j] = vm_tb_func_read_arg(fun, regs, next_arg);
                     }
                 }
+                keys[i - 1].key = i;
                 keys[i - 1].value = vm_tb_func_body(state, fun, next_args, branch.rtargets[i]);
             }
             
@@ -862,7 +849,7 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
     fprintf(stdout, "\n--- tb ---\n");
     tb_pass_print(passes);
 #endif
-    tb_pass_mem2reg(passes);
+    // tb_pass_mem2reg(passes);
     tb_pass_optimize(passes);
 #if defined(VM_DUMP_TB_OPT)
     fprintf(stdout, "\n--- opt tb ---\n");
