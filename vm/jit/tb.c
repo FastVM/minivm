@@ -822,6 +822,7 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
 
     for (size_t i = 0; i < block->nargs; i++) {
         args[i] = tb_inst_param(fun, i + 1);
+        // vm_tb_func_print_value(state->module, fun, rblock->regs->tags[block->args[i].reg], args[i]);
     }
 
     TB_Node **regs = vm_malloc(sizeof(TB_Node *) * block->nregs);

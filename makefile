@@ -13,8 +13,8 @@ PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-STD_SRCS := $(shell find vm/std/libs -name '*.c')
-OPT_SRCS := $(shell find vm/opt -name '*.c')
+STD_SRCS := vm/std/libs/io.c vm/std/std.c
+OPT_SRCS := vm/opt/info.c vm/opt/inline.c vm/opt/jump.c vm/opt/opt.c vm/opt/unused.c
 ALL_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c $(STD_SRCS)  $(OPT_SRCS) $(EXTRA_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
