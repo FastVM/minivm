@@ -164,9 +164,6 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
     TB_BasicBlock* bb_info = &nl_map_get_checked(c->cfg.node_to_block, bb);
     TB_Node* end = bb_info->end;
 
-    tb_pass_mark(p, bb);
-    tb_pass_mark_users(p, bb);
-
     DO_IF(TB_OPTDEBUG_MEM2REG)(
         printf("  FORST %u: ", bb->gvn),
         print_node_sexpr(bb, 0),
@@ -235,7 +232,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
             if (kill) {
                 TB_Node* into = n->inputs[1];
                 tb_pass_mark(c->p, into);
-                tb_pass_mark(c->p, n);
+                tb_pass_mark_users(c->p, into);
                 set_input(p, n, NULL, 1);
                 subsume_node(p, c->f, n, into);
             }
@@ -363,6 +360,7 @@ bool tb_pass_mem2reg(TB_Passes* p) {
     c.cfg = tb_compute_rpo(f, p);
     c.blocks = &p->worklist.items[0];
 
+    worklist_clear_visited(&p->worklist);
     tb_compute_dominators(f, p, c.cfg);
 
     TB_DominanceFrontiers* df = tb_get_dominance_frontiers(f, p, c.cfg, c.blocks);
@@ -374,6 +372,10 @@ bool tb_pass_mem2reg(TB_Passes* p) {
     FOREACH_N(i, 0, c.cfg.block_count) {
         TB_Node* bb = c.blocks[i];
         TB_BasicBlock* bb_info = &nl_map_get_checked(c.cfg.node_to_block, bb);
+
+        // mark into worklist
+        worklist_test_n_set(&p->worklist, bb);
+        tb_pass_mark_users(p, bb);
 
         if (i == 0) {
             // start block can use the input memory as the earliest point

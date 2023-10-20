@@ -72,6 +72,7 @@ static size_t extra_bytes(TB_Node* n) {
         case TB_SELECT:
         case TB_MERGEMEM:
         case TB_DEAD:
+        case TB_NULL:
         return 0;
 
         case TB_START:

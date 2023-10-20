@@ -252,7 +252,7 @@ static bool lattice_dommy(LatticeUniverse* uni, TB_Node* expected_dom, TB_Node* 
         assert(l->tag == LATTICE_CONTROL);
 
         TB_Node* new_bb = l->_ctrl.idom;
-        if (bb == new_bb) {
+        if (new_bb == NULL) {
             return false;
         }
         bb = new_bb;
@@ -627,10 +627,6 @@ static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
         case TB_CMP_ULE:
         return identity_int_binop(p, f, n);
 
-        case TB_SIGN_EXT:
-        case TB_ZERO_EXT:
-        return identity_extension(p, f, n);
-
         case TB_MEMBER_ACCESS:
         if (TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset == 0) {
             return n->inputs[1];
@@ -650,12 +646,6 @@ static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
             }
 
             assert(same);
-            if (same->dt.type == TB_MEMORY) {
-                TB_NodeRegion* r = TB_NODE_GET_EXTRA(n->inputs[0]);
-                if (r->mem_in == n)  r->mem_in = NULL;
-                if (r->mem_out == n) r->mem_out = NULL;
-            }
-
             tb_pass_mark_users(p, n->inputs[0]);
             return same;
         } else {
@@ -712,8 +702,9 @@ static Lattice* dataflow(TB_Passes* restrict p, LatticeUniverse* uni, TB_Node* n
         // meet all inputs
         case TB_PHI: {
             Lattice* l = lattice_universe_get(uni, n->inputs[1]);
+            TB_DataType dt = n->dt;
             FOREACH_N(i, 2, n->input_count) {
-                l = lattice_meet(uni, l, lattice_universe_get(uni, n->inputs[i]));
+                l = lattice_meet(uni, l, lattice_universe_get(uni, n->inputs[i]), dt);
             }
             return l;
         }
@@ -771,21 +762,20 @@ static void validate_node_users(TB_Node* n) {
 
 static void print_lattice(Lattice* l, TB_DataType dt) {
     switch (l->tag) {
-        case LATTICE_INT:
-        assert(dt.type == TB_INT);
-        printf("[%"PRId64, tb__sxt(l->_int.min, dt.data, 64));
-        // printf("[%#"PRIx64, l->_int.min);
-        if (l->_int.min != l->_int.max) {
-            // printf(" - %#"PRIx64, l->_int.max);
-            printf(" - %"PRId64, tb__sxt(l->_int.max, dt.data, 64));
-        }
+        case LATTICE_INT: {
+            assert(dt.type == TB_INT);
+            printf("[%"PRId64, tb__sxt(l->_int.min, dt.data, 64));
+            if (l->_int.min != l->_int.max) {
+                printf(",%"PRId64, tb__sxt(l->_int.max, dt.data, 64));
+            }
 
-        uint64_t known = l->_int.known_zeros | l->_int.known_ones;
-        if (known && known != UINT64_MAX) {
-            printf("; zeros=%#"PRIx64", ones=%#"PRIx64, l->_int.known_zeros, l->_int.known_ones);
+            uint64_t known = l->_int.known_zeros | l->_int.known_ones;
+            if (known && known != UINT64_MAX) {
+                printf("; zeros=%#"PRIx64", ones=%#"PRIx64, l->_int.known_zeros, l->_int.known_ones);
+            }
+            printf("]");
+            break;
         }
-        printf("]");
-        break;
 
         case LATTICE_POINTER: {
             static const char* tri[] = { "unknown", "null", "~null" };
@@ -802,6 +792,7 @@ static bool peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Peeph
     // must've dead sometime between getting scheduled and getting
     // here.
     if (n->type != TB_END && n->users == NULL) {
+        tb_pass_kill_node(p, n);
         return false;
     }
 

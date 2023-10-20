@@ -2,7 +2,7 @@
 #include "tb_internal.h"
 
 #define TB_OPTDEBUG_STATS   0
-#define TB_OPTDEBUG_PEEP    0
+#define TB_OPTDEBUG_PEEP    1
 #define TB_OPTDEBUG_LOOP    0
 #define TB_OPTDEBUG_SROA    0
 #define TB_OPTDEBUG_GCM     0
@@ -261,7 +261,7 @@ static TB_Node* get_pred(TB_Node* n, int i) {
         TB_Node* parent = n->inputs[0];
 
         // start or cprojs with multiple users (it's a BB) will just exit
-        if (parent->type == TB_START || (parent->type == TB_REGION && n->users->next == NULL)) {
+        if (parent->type == TB_START || n->users->next != NULL) {
             return n;
         }
         n = parent;
@@ -270,7 +270,26 @@ static TB_Node* get_pred(TB_Node* n, int i) {
     while (!cfg_is_bb_entry(n)) {
         n = n->inputs[0];
     }
+
     return n;
+}
+
+static TB_Node* next_control(TB_Node* n) {
+    // unless it's a branch (aka a terminator), it'll have one successor
+    TB_Node* next = NULL;
+    for (User* u = n->users; u; u = u->next) {
+        TB_Node* succ = u->n;
+
+        // we can't treat regions in the chain
+        if (succ->type == TB_REGION) break;
+
+        // we've found the next step in control flow
+        if (cfg_is_control(succ)) {
+            return succ;
+        }
+    }
+
+    return NULL;
 }
 
 static TB_Node* get_block_begin(TB_Node* n) {

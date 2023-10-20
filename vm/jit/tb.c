@@ -305,11 +305,6 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
 }
 
 TB_Node *vm_tb_func_body_call(vm_tb_state_t *state, TB_Function *fun, TB_Node **args, vm_rblock_t *rblock) {
-    TB_Node *comp_params[2];
-
-    comp_params[0] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)state);
-    comp_params[1] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)rblock);
-
     // vm_tb_rfunc_comp(state, rblock);
 
     // printf("%p\n", rblock->cache);
@@ -585,7 +580,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             TB_SwitchEntry keys[VM_TAG_MAX - 1];
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                keys[i - 1].key = i;
                 // vm_block_t *next_block = vm_tb_rblock_version(branch.rtargets[i]);
                 TB_Node **next_args = vm_malloc(sizeof(TB_Node *) * branch.targets[0]->nargs);
                 for (size_t j = 0; j < branch.targets[0]->nargs; j++) {
@@ -601,6 +595,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         next_args[j] = vm_tb_func_read_arg(fun, regs, next_arg);
                     }
                 }
+                keys[i - 1].key = i;
                 keys[i - 1].value = vm_tb_func_body(state, fun, next_args, branch.rtargets[i]);
             }
             tb_inst_branch(

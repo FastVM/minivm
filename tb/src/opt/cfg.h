@@ -10,7 +10,7 @@ TB_CFG tb_compute_rpo(TB_Function* f, TB_Passes* p) {
     return tb_compute_rpo2(f, &p->worklist, &p->stack);
 }
 
-static TB_Node* next_control(Worklist* ws, TB_Node* n) {
+static TB_Node* mark_next_control(Worklist* ws, TB_Node* n) {
     // unless it's a branch (aka a terminator), it'll have one successor
     TB_Node* next = NULL;
     for (User* u = n->users; u; u = u->next) {
@@ -61,7 +61,7 @@ TB_CFG tb_compute_rpo2(TB_Function* f, Worklist* ws, DynArray(TB_Node*)* tmp_sta
             TB_Node* entry = n;
             TB_BasicBlock bb = { .id = cfg.block_count++ };
             while (!cfg_is_terminator(n)) {
-                TB_Node* next = next_control(ws, n);
+                TB_Node* next = mark_next_control(ws, n);
                 if (next == NULL) {
                     break;
                 }

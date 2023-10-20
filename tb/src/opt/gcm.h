@@ -143,14 +143,7 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg) {
             worklist_clear_visited(ws);
             FOREACH_N(i, 0, cfg.block_count) {
                 TB_BasicBlock* best = &nl_map_get_checked(cfg.node_to_block, ws->items[i]);
-                if (i == 0) {
-                    worklist_test_n_set(ws, p->f->start_node);
-                    nl_map_put(p->scheduled, p->f->start_node, best);
-                }
-
                 best->items = nl_hashset_alloc(32);
-                nl_map_put(p->scheduled, ws->items[i], best);
-                worklist_test_n_set(ws, ws->items[i]);
             }
         }
 
@@ -166,12 +159,8 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg) {
                     nl_map_put(p->scheduled, start, bb);
                 }
 
-                // schedule top of BB
-                nl_hashset_put2(&bb->items, bb_node, node_hash, node_compare);
-                nl_map_put(p->scheduled, bb_node, bb);
-
                 TB_Node* n = bb->end;
-                while (n != bb_node) {
+                for (;;) {
                     DO_IF(TB_OPTDEBUG_GCM)(printf("%s: v%u pinned to .bb%d\n", p->f->super.name, n->gvn, bb->id));
                     nl_hashset_put2(&bb->items, n, node_hash, node_compare);
                     nl_map_put(p->scheduled, n, bb);
@@ -179,12 +168,16 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg) {
                     // mark projections into the same block
                     for (User* use = n->users; use; use = use->next) {
                         TB_Node* proj = use->n;
-                        if (proj->type == TB_PROJ) {
-                            nl_hashset_put2(&bb->items, proj, node_hash, node_compare);
-                            nl_map_put(p->scheduled, proj, bb);
+                        if (use->slot == 0 && (proj->type == TB_PROJ || proj->type == TB_PHI)) {
+                            if (nl_map_get(p->scheduled, proj) < 0) {
+                                DO_IF(TB_OPTDEBUG_GCM)(printf("%s: proj v%u pinned to .bb%d\n", p->f->super.name, proj->gvn, bb->id));
+                                nl_hashset_put2(&bb->items, proj, node_hash, node_compare);
+                                nl_map_put(p->scheduled, proj, bb);
+                            }
                         }
                     }
 
+                    if (n == bb_node) break;
                     n = n->inputs[0];
                 }
             }

@@ -1,18 +1,4 @@
 
-#define MASK_UPTO(pos) (~UINT64_C(0) >> (64 - pos))
-#define BEXTR(src,pos) (((src) >> (pos)) & 1)
-uint64_t tb__sxt(uint64_t src, uint64_t src_bits, uint64_t dst_bits) {
-    uint64_t sign_bit = BEXTR(src, src_bits-1);
-    uint64_t mask = MASK_UPTO(dst_bits) & ~MASK_UPTO(src_bits);
-
-    uint64_t dst = src & ~mask;
-    return dst | (sign_bit ? mask : 0);
-}
-
-uint64_t tb__mask(uint64_t bits) {
-    return ~UINT64_C(0) >> (64 - bits);
-}
-
 static bool is_associative(TB_NodeTypeEnum type) {
     switch (type) {
         case TB_ADD: case TB_MUL:
@@ -137,11 +123,6 @@ static Lattice* dataflow_trunc(TB_Passes* restrict opt, LatticeUniverse* uni, TB
     uint64_t ones  = a->_int.known_ones  & mask;
     return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
-
-static int64_t wrapped_int_add(int64_t x, int64_t y) { return (uint64_t)x + (uint64_t)y; }
-static int64_t wrapped_int_sub(int64_t x, int64_t y) { return (uint64_t)x - (uint64_t)y; }
-static int64_t wrapped_int_mul(int64_t x, int64_t y) { return (uint64_t)x * (uint64_t)y; }
-static bool wrapped_int_lt(int64_t x, int64_t y, int bits) { return (int64_t)tb__sxt(x, bits, 64) < (int64_t)tb__sxt(y, bits, 64); }
 
 static bool sub_overflow(uint64_t x, uint64_t y, uint64_t xy, int bits) {
     uint64_t v = (x ^ y) & (xy ^ x);
@@ -453,28 +434,6 @@ static TB_Node* ideal_extension(TB_Passes* restrict opt, TB_Function* f, TB_Node
     }
 
     return NULL;
-}
-
-static TB_Node* identity_extension(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
-    TB_Node* src = n->inputs[1];
-    if (src->type == TB_INTEGER_CONST) {
-        uint64_t src_i = TB_NODE_GET_EXTRA_T(src, TB_NodeInt)->value;
-
-        size_t src_bits = src->dt.data;
-        size_t dst_bits = n->dt.data;
-
-        uint64_t mask = ~UINT64_C(0) >> (64 - src_bits);
-        uint64_t val;
-        if (n->type == TB_SIGN_EXT) {
-            val = tb__sxt(src_i, src_bits, dst_bits);
-        } else {
-            val = src_i & mask;
-        }
-
-        return make_int_node(f, opt, n->dt, val);
-    } else {
-        return n;
-    }
 }
 
 static int node_pos(TB_Node* n) {

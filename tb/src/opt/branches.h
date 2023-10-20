@@ -1,3 +1,4 @@
+enum { MAX_DOM_WALK = 10 };
 
 static TB_Node* ideal_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     TB_NodeRegion* r = TB_NODE_GET_EXTRA(n);
@@ -82,7 +83,8 @@ static TB_Node* ideal_phi(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
         //
         TB_Node* left = region->inputs[0];
         TB_Node* right = region->inputs[1];
-        if (left->inputs[0]->type == TB_BRANCH && left->inputs[0] == right->inputs[0]) {
+        if (left->type == TB_PROJ && right->type == TB_PROJ &&
+            left->inputs[0]->type == TB_BRANCH && left->inputs[0] == right->inputs[0]) {
             TB_Node* branch = left->inputs[0];
             TB_NodeBranch* header_br = TB_NODE_GET_EXTRA(branch);
 
@@ -270,13 +272,11 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
     if (n->input_count == 2) {
         Lattice* key = lattice_universe_get(&opt->universe, n->inputs[1]);
 
-        // we can walk the dominator tree to see if the condition is already
-        // been checked.
-
+        ptrdiff_t taken = -1;
         if (key->tag == LATTICE_INT && key->_int.min == key->_int.max) {
             int64_t key_const = key->_int.max;
+            taken = 0;
 
-            size_t taken = 0;
             FOREACH_N(i, 0, br->succ_count - 1) {
                 int64_t case_key = br->keys[i];
                 if (key_const == case_key) {
@@ -284,7 +284,41 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
                     break;
                 }
             }
+        } else if (br->succ_count == 2) {
+            // TODO(NeGate): extend this to JOIN redundant checks to ideally
+            // narrow on more complex checks.
+            int64_t* primary_keys = br->keys;
 
+            // check for redundant conditions in the doms.
+            TB_Node* initial_bb = get_block_begin(n->inputs[0]);
+            for (User* u = n->inputs[1]->users; u; u = u->next) {
+                if (u->n->type != TB_BRANCH || u->slot != 1 || u->n == n) {
+                    continue;
+                }
+
+                TB_Node* end = u->n;
+                int64_t* keys = TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->keys;
+                if (TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->succ_count != 2 && keys[0] != primary_keys[0]) {
+                    continue;
+                }
+
+                for (User* succ_user = end->users; succ_user; succ_user = succ_user->next) {
+                    assert(succ_user->n->type == TB_PROJ);
+                    int index = TB_NODE_GET_EXTRA_T(succ_user->n, TB_NodeProj)->index;
+                    TB_Node* succ = cfg_next_bb_after_cproj(succ_user->n);
+
+                    // we must be dominating for this to work
+                    if (!lattice_dommy(&opt->universe, succ, initial_bb)) {
+                        continue;
+                    }
+
+                    taken = index;
+                    goto match;
+                }
+            }
+        }
+
+        if (taken >= 0) match: {
             TB_Node* dead = make_dead_node(f, opt);
 
             // convert dead projections into DEAD and convert live projection into index 0
@@ -300,23 +334,8 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
                         // if we folded away from a region, then we should subsume
                         // the degen phis.
                         assert(proj->users->next == NULL);
-                        TB_Node* succ = proj->users->n;
-                        if (succ->type == TB_REGION) {
-                            int phi_i = proj->users->slot;
-
-                            User* u = succ->users;
-                            while (u != NULL) {
-                                User* next = u->next;
-                                if (u->n->type == TB_PHI) {
-                                    tb_pass_mark_users(opt, u->n);
-                                    subsume_node(opt, f, u->n, u->n->inputs[phi_i + 1]);
-                                }
-                                u = next;
-                            }
-                        }
-
                         tb_pass_kill_node(opt, proj);
-                        set_input(opt, succ, n->inputs[0], 0);
+                        set_input(opt, proj->users->n, n->inputs[0], proj->users->slot);
                     }
                 }
             }
