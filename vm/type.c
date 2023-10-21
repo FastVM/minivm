@@ -167,10 +167,10 @@ bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 if (types->tags[instr.args[i].reg] != instr.tag) {
-                    vm_print_instr(stdout, instr);
-                    printf("\n^ TYPE ERROR (arg %%%zu of type #%zu) ^\n",
-                           (size_t)instr.args[i].reg,
-                           (size_t)types->tags[instr.args[i].reg]);
+                    // vm_print_instr(stdout, instr);
+                    // printf("\n^ TYPE ERROR (arg %%%zu of type #%zu) ^\n",
+                    //        (size_t)instr.args[i].reg,
+                    //        (size_t)types->tags[instr.args[i].reg]);
                     return false;
                 }
             }

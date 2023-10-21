@@ -1,6 +1,8 @@
 
 OPT ?= -O2
 
+EXE ?= .exe
+
 BUILD_DIR ?= build
 OBJ_DIR ?= $(BUILD_DIR)/obj
 TMP_DIR ?= $(BUILD_DIR)/tmp
@@ -13,9 +15,10 @@ PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-STD_SRCS := vm/std/libs/io.c vm/std/std.c
+STD_SRCS := vm/std/libs/io.c
 OPT_SRCS := vm/opt/info.c vm/opt/inline.c vm/opt/jump.c vm/opt/opt.c vm/opt/unused.c
-ALL_SRCS = vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c $(STD_SRCS)  $(OPT_SRCS) $(EXTRA_SRCS)
+VM_SRCS := vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c vm/check.c
+ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(OPT_SRCS) $(EXTRA_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 # TB_SRCS := common/common.c common/perf.c tb/src/libtb.c tb/src/x64/x64.c c11threads/threads_msvc.c
@@ -44,19 +47,21 @@ CFLAGS := $(CFLAGS_O_$(UNAME_O)) $(CFLAGS)
 
 default: all
 
-all: bins libs
+all: bins
+
+# windows
+
+clang-windows: .dummy
+	$(MAKE) -Bj CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Ic11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="c11threads/threads_msvc.c"
+
+gcc-windows: .dummy
+	$(MAKE) -Bj CC=gcc EXE=.exe OPT="$(OPT)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
 # binaries
 
-libs: $(BIN_DIR)/libminivm.a
+bins: $(BIN_DIR)/minivm$(EXE)
 
-bins: $(BIN_DIR)/minivm
-
-libminivm.a $(BIN_DIR)/libminivm.a: $(OBJS)
-	@mkdir -p $$(dirname $(@))
-	$(AR) cr $(@) $(OBJS)
-
-minivm $(BIN_DIR)/minivm: $(OBJ_DIR)/main/asm.o $(OBJS)
+minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/asm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
 	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
 

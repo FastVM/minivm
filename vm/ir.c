@@ -42,43 +42,17 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_FUNC: {
-            fprintf(out, ".%zi", val.func->id);
+            if (val.func == NULL) {
+                fprintf(out, "<null.fun>");
+            } else {
+                fprintf(out, ".%zi", val.func->id);
+            }
             break;
         }
         case VM_ARG_RFUNC: {
-            fprintf(out, ".%zi", val.rfunc->block->id);
+            fprintf(out, "rfunc(.%zi)", val.rfunc->block->id);
             break;
-        }
-        case VM_ARG_CPU0: {
-            fprintf(out, "(rax|xmm0)%%%zu", (size_t)val.reg);
-            break;
-        }
-        case VM_ARG_CPU_GP: {
-            const char *names[16] = {
-                "rax",
-                "rcx",
-                "rdx",
-                "rbx",
-                "rsp",
-                "rbp",
-                "rsi",
-                "rdi",
-                "r8",
-                "r9",
-                "r10",
-                "r11",
-                "r12",
-                "r13",
-                "r14",
-                "r15",
-            };
-            fprintf(out, "%s%%%zu", names[val.r64], (size_t)val.reg);
-            break;
-        }
-        case VM_ARG_CPU_FP: {
-            fprintf(out, "xmm%zu%%%zu", (size_t)val.f64, (size_t)val.reg);
-            break;
-        }
+        };
     }
 }
 void vm_print_tag(FILE *out, vm_tag_t tag) {

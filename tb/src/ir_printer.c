@@ -106,6 +106,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_CALL: return "call";
         case TB_SYSCALL: return "syscall";
         case TB_BRANCH: return "branch";
+        case TB_TAILCALL: return "tailcall";
 
         default: tb_todo();return "(unknown)";
     }

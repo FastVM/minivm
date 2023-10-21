@@ -160,7 +160,7 @@ static int range_intersect(LiveRange* a, LiveRange* b) {
 }
 
 static int interval_intersect(LiveInterval* a, LiveInterval* b) {
-    dyn_array_for(i, a->ranges) {
+    FOREACH_N(i, 1, a->active_range+1) {
         int t = range_intersect(&a->ranges[i], &b->ranges[b->active_range]);
         if (t >= 0) {
             return t;
@@ -719,11 +719,6 @@ static int linear_scan(Ctx* restrict ctx, TB_Function* f, int stack_usage, int e
         while (dyn_array_length(ra.unhandled)) {
             RegIndex ri = dyn_array_pop(ra.unhandled);
             LiveInterval* interval = &ra.intervals[ri];
-
-            // unused interval, skip
-            if (interval->reg >= 0) {
-                continue;
-            }
 
             int time = interval->ranges[interval->active_range].start;
             assert(time != INT_MAX);

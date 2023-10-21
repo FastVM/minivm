@@ -881,7 +881,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     DO_IF(TB_OPTDEBUG_PEEP)(log_debug("%s: starting codegen with %d nodes", f->super.name, f->node_count));
 
     #if 0
-    if (!strcmp(f->super.name, "stbi__parse_png_file")) {
+    if (!strcmp(f->super.name, "block")) {
         reg_alloc_log = true;
         tb_pass_print(p);
     } else {

@@ -274,6 +274,8 @@ typedef enum TB_NodeTypeEnum {
     //   target pointer (or syscall number) and the rest are just data args.
     TB_CALL,           // (Control, Memory, Data, Data...) -> (Control, Memory, Data)
     TB_SYSCALL,        // (Control, Memory, Data, Data...) -> (Control, Memory, Data)
+    //   performs call while recycling the stack frame somewhat
+    TB_TAILCALL,       // (Control, Memory, RPC, Data, Data...) -> ()
     //   safepoint polls are the same except they only trigger if the poll site
     //   says to (platform specific but almost always just the page being made
     //   unmapped/guard), 3rd argument is the poll site.
@@ -1163,6 +1165,7 @@ TB_API TB_Node* tb_inst_x86_rsqrt(TB_Function* f, TB_Node* a);
 // Control flow
 TB_API TB_Node* tb_inst_syscall(TB_Function* f, TB_DataType dt, TB_Node* syscall_num, size_t param_count, TB_Node** params);
 TB_API TB_MultiOutput tb_inst_call(TB_Function* f, TB_FunctionPrototype* proto, TB_Node* target, size_t param_count, TB_Node** params);
+TB_API void tb_inst_tailcall(TB_Function* f, TB_FunctionPrototype* proto, TB_Node* target, size_t param_count, TB_Node** params);
 
 // Managed
 TB_API TB_Node* tb_inst_safepoint(TB_Function* f, TB_Node* poke_site, size_t param_count, TB_Node** params);

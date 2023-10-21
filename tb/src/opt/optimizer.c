@@ -662,7 +662,11 @@ static Lattice* dataflow(TB_Passes* restrict p, LatticeUniverse* uni, TB_Node* n
     switch (n->type) {
         case TB_INTEGER_CONST: {
             TB_NodeInt* num = TB_NODE_GET_EXTRA(n);
-            return lattice_intern(&p->universe, (Lattice){ LATTICE_INT, ._int = { num->value, num->value, ~num->value, num->value } });
+            if (n->dt.type == TB_PTR) {
+                return lattice_intern(&p->universe, (Lattice){ LATTICE_POINTER, ._ptr = { num->value ? LATTICE_KNOWN_NOT_NULL : LATTICE_KNOWN_NULL } });
+            } else {
+                return lattice_intern(&p->universe, (Lattice){ LATTICE_INT, ._int = { num->value, num->value, ~num->value, num->value } });
+            }
         }
 
         case TB_LOCAL:

@@ -994,6 +994,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             break;
         }
 
+        case TB_TAILCALL:
         case TB_SYSCALL:
         case TB_CALL: {
             bool is_sysv = (ctx->target_abi == TB_ABI_SYSTEMV);
@@ -1093,7 +1094,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             // compute the target (unless it's a symbol) before the
             // registers all need to be forcibly shuffled
             TB_Node* target = n->inputs[2];
-            bool static_call = n->type == TB_CALL && target->type == TB_SYMBOL;
+            bool static_call = n->type != TB_SYSCALL && target->type == TB_SYMBOL;
 
             int target_val = RSP; // placeholder really
             if (!static_call) {
@@ -1125,7 +1126,12 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
             // all these registers need to be spilled and reloaded if they're used across
             // the function call boundary... you might see why inlining could be nice to implement
             size_t clobber_count = tb_popcount(caller_saved_gprs) + tb_popcount(caller_saved_xmms);
-            Inst* call_inst = alloc_inst(n->type == TB_SYSCALL ? SYSCALL : CALL, ret_dt, 1, 1 + in_count, clobber_count);
+
+            int op = SYSCALL;
+            if (n->type == TB_CALL) op = CALL;
+            if (n->type == TB_TAILCALL) op = JMP;
+
+            Inst* call_inst = alloc_inst(op, ret_dt, 1, 1 + in_count, clobber_count);
 
             // mark clobber list
             {

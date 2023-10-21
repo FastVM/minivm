@@ -35,9 +35,6 @@ enum {
     // for the x64 jit
     VM_ARG_TAG,
     VM_ARG_RFUNC,
-    VM_ARG_CPU0,
-    VM_ARG_CPU_GP,
-    VM_ARG_CPU_FP,
 };
 
 enum {
@@ -145,10 +142,11 @@ struct vm_block_t {
     vm_cache_t cache;
     void *pass;
 
-    uint32_t epoch : 32;
-    int32_t label : 30;
+    int64_t label : 60;
     bool isfunc : 1;
     bool mark : 1;
+    bool checked : 1;
+    bool check : 1;
 };
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);

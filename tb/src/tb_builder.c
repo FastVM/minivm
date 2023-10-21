@@ -466,6 +466,21 @@ TB_MultiOutput tb_inst_call(TB_Function* f, TB_FunctionPrototype* proto, TB_Node
     }
 }
 
+void tb_inst_tailcall(TB_Function* f, TB_FunctionPrototype* proto, TB_Node* target, size_t param_count, TB_Node** params) {
+    size_t proj_count = 2 + (proto->return_count > 1 ? proto->return_count : 1);
+
+    TB_Node* n = tb_alloc_node(f, TB_CALL, TB_TYPE_TUPLE, 3 + param_count, sizeof(TB_NodeCall) + (sizeof(TB_Node*)*proj_count));
+    n->inputs[0] = f->active_control_node;
+    n->inputs[2] = target;
+    memcpy(n->inputs + 3, params, param_count * sizeof(TB_Node*));
+
+    TB_NodeCall* c = TB_NODE_GET_EXTRA(n);
+    c->proto = proto;
+
+    dyn_array_put(f->terminators, n);
+    f->active_control_node = NULL;
+}
+
 TB_Node* tb_inst_not(TB_Function* f, TB_Node* src) {
     TB_Node* n = tb_alloc_node(f, TB_NOT, src->dt, 2, 0);
     n->inputs[1] = src;

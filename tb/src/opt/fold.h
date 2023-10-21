@@ -114,7 +114,7 @@ static Lattice* dataflow_trunc(TB_Passes* restrict opt, LatticeUniverse* uni, TB
     int64_t mask = tb__mask(n->dt.data);
     int64_t min = a->_int.min & mask;
     int64_t max = a->_int.max & mask;
-    if (min > max) {
+    if (wrapped_int_lt(max, min, n->dt.data)) {
         min = lattice_int_min(n->dt.data);
         max = lattice_int_max(n->dt.data);
     }
@@ -202,7 +202,7 @@ static Lattice* dataflow_unary(TB_Passes* restrict opt, LatticeUniverse* uni, TB
         uint64_t min = ~a->_int.min & mask;
         uint64_t max = ~a->_int.max & mask;
 
-        if ((int64_t)min > (int64_t)max) {
+        if (wrapped_int_lt(max, min, n->dt.data)) {
             SWAP(int64_t, min, max);
         }
 

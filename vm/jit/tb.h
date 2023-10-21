@@ -18,12 +18,20 @@ typedef struct vm_tb_cache_t vm_tb_cache_t;
 struct vm_tb_state_t {
     vm_table_t *std;
     void *module;
+
+    // externals
+    void *state_self;
+    void *vm_tb_rfunc_comp;
+    void *vm_table_get_pair;
+    void *vm_tb_print;
 };
 
 struct vm_tb_cache_t {
     vm_block_t *block;
 };
 
+void GC_add_roots(void *low, void *high);
+vm_block_t *vm_tb_rblock_version(vm_rblock_t *rblock);
 void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock);
 vm_std_value_t vm_x64_run(vm_block_t *block, vm_table_t *std, vm_std_value_t *args);
 
