@@ -22,7 +22,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_NUM: {
-            fprintf(out, "%lf", val.num);
+            fprintf(out, "%lf", val.num.f64);
             break;
         }
         case VM_ARG_STR: {

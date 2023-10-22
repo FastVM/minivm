@@ -32,7 +32,7 @@ enum {
     VM_ARG_STR,
     VM_ARG_FFI,
     VM_ARG_FUNC,
-    // for the x64 jit
+    // for backend use
     VM_ARG_TAG,
     VM_ARG_RFUNC,
 };
@@ -84,7 +84,9 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        double num;
+        struct {
+            double f64;
+        } num;
         const char *str;
         void *ffi;
         vm_block_t *func;
@@ -93,14 +95,8 @@ struct vm_arg_t {
         bool logic;
         vm_tag_t tag;
         struct {
-            struct vm_x64_reg_save_t {
-                uint16_t r64;
-                uint16_t xmm;
-            } save;
-            uint16_t reg : 16;
-            uint8_t reg_tag : 8;
-            uint8_t r64 : 4;
-            uint8_t f64 : 4;
+            uint16_t reg;
+            uint8_t reg_tag;
         };
     };
     uint8_t type;

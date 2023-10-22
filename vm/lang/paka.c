@@ -601,7 +601,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             }
             return (vm_arg_t){
                 .type = VM_ARG_NUM,
-                .num = n,
+                .num.f64 = n,
             };
         }
     }
@@ -690,7 +690,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             .args[0] =
                 (vm_arg_t){
                     .type = VM_ARG_NIL,
-                    .num = 0,
+                    .num.f64 = 0,
                 },
         };
         comp->names = last_names;

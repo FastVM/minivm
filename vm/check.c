@@ -2,7 +2,7 @@
 #include "check.h"
 #include <stdio.h>
 
-vm_block_t *vm_tb_rblock_version(vm_rblock_t *rblock);
+vm_block_t *vm_rblock_version(vm_rblock_t *rblock);
 
 static bool vm_check_arg_f64(vm_arg_t arg) {
     if (arg.type == VM_ARG_NUM) {
@@ -59,7 +59,7 @@ bool vm_check_branch(vm_branch_t branch) {
         if (branch.args[0].type == VM_ARG_RFUNC) {
             if (branch.args[0].rfunc != NULL) {
                 for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                    vm_block_t *next = vm_tb_rblock_version(branch.rtargets[i]);
+                    vm_block_t *next = vm_rblock_version(branch.rtargets[i]);
                     if (vm_check_block(next)) {
                         return true;
                     }
@@ -78,7 +78,7 @@ bool vm_check_branch(vm_branch_t branch) {
         if (branch.args[0].type == VM_ARG_REG) {
             if (branch.args[0].reg_tag == VM_TAG_TAB) {
                 for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                    vm_block_t *next = vm_tb_rblock_version(branch.rtargets[i]);
+                    vm_block_t *next = vm_rblock_version(branch.rtargets[i]);
                     if (vm_check_block(next)) {
                         return true;
                     }

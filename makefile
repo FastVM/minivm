@@ -9,16 +9,15 @@ TMP_DIR ?= $(BUILD_DIR)/tmp
 BIN_DIR ?= $(BUILD_DIR)/bin
 RES_DIR ?= $(BUILD_DIR)/res
 
-PROG_SRCS = main/asm.c
+PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-STD_SRCS := vm/std/libs/io.c
-OPT_SRCS := vm/opt/info.c vm/opt/inline.c vm/opt/jump.c vm/opt/opt.c vm/opt/unused.c
-VM_SRCS := vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/be/tb.c vm/check.c
-ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(OPT_SRCS) $(EXTRA_SRCS)
+STD_SRCS := vm/std/libs/io.c vm/std/std.c
+VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c
+ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 # TB_SRCS := common/common.c common/perf.c tb/src/libtb.c tb/src/x64/x64.c c11threads/threads_msvc.c
@@ -37,7 +36,7 @@ UNAME_O := $(shell uname -o)
 
 LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000 -lm
 LDFLAGS_S_Linux = -Wl,--export-dynamic -lm
-LDFLAGS_O_Cygwin = -lSynchronization
+LDFLAGS_O_Cygwin =
 
 LDFLAGS := $(LDFLAGS_S_$(UNAME_S)) $(LDFLAGS_O_$(UNAME_O)) $(LDFLAGS)
 
@@ -53,19 +52,19 @@ all: bins
 
 clang-windows: .dummy
 	rm -rf build
-	$(MAKE) -Bj CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Ic11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="c11threads/threads_msvc.c"
+	$(MAKE) -Bj$(J) CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Ic11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="c11threads/threads_msvc.c"
 
 gcc-windows: .dummy
 	rm -rf build
-	$(MAKE) -Bj CC=gcc EXE=.exe OPT="$(OPT)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
+	$(MAKE) -Bj$(J) CC=gcc EXE=.exe OPT="$(OPT)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS) -lSynchronization"
 
 # binaries
 
 bins: $(BIN_DIR)/minivm$(EXE)
 
-minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/asm.o $(OBJS)
+minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/asm.o $(OBJS) -o $(@) $(LDFLAGS)
+	$(CC) $(OPT) $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) $(LDFLAGS)
 
 # intermediate files
 

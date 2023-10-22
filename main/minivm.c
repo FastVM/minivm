@@ -3,34 +3,25 @@
 #include "../vm/std/libs/io.h"
 #include "../vm/lang/paka.h"
 #include "../vm/be/tb.h"
-#include "../vm/opt/opt.h"
-
-#define VM_DEFAULT_OPT "0"
 
 void GC_disable();
 
 int main(int argc, char **argv) {
     vm_init_mem();
-    GC_disable();
+    // GC_disable();
     if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;
-        const char *opt = VM_DEFAULT_OPT;
         while (argv[1] != NULL) {
             const char *filename = argv[1];
-            if (filename[0] == '-' && filename[1] == 'O') {
-                opt = &filename[2];
-            } else {
-                char *src = vm_io_read(filename);
-                if (src == NULL) {
-                    fprintf(stderr, "error: could not read file\n");
-                    return 1;
-                }
-                vm_paka_blocks_t blocks = vm_paka_parse_blocks(src);
-                vm_opt_do_passes(opt, blocks.blocks[0]);
-                for (size_t i = 0; i < blocks.len; i++) {
-                    vm_print_block(stdout, blocks.blocks[i]);
-                }
+            char *src = vm_io_read(filename);
+            if (src == NULL) {
+                fprintf(stderr, "error: could not read file\n");
+                return 1;
+            }
+            vm_paka_blocks_t blocks = vm_paka_parse_blocks(src);
+            for (size_t i = 0; i < blocks.len; i++) {
+                vm_print_block(stdout, blocks.blocks[i]);
             }
             argv += 1;
             argc -= 1;
@@ -52,7 +43,6 @@ int main(int argc, char **argv) {
         argv += 1;
         argc -= 1;
         const char *filename = NULL;
-        const char *opt = VM_DEFAULT_OPT;
         while (true) {
             if (argc < 2) {
                 if (filename == NULL) {
@@ -65,8 +55,6 @@ int main(int argc, char **argv) {
             if (filename != NULL) {
                 fprintf(stderr, "error: cannot handle multiple files at cli\n");
                 return 1;
-            } else if (argv[1][0] == '-' && argv[1][1] == 'O') {
-                opt = &argv[1][2];
             } else {
                 filename = argv[1];
             }
@@ -84,7 +72,6 @@ int main(int argc, char **argv) {
             return 1;
         }
         vm_free((void *)src);
-        vm_opt_do_passes(opt, block);
         vm_std_value_t main_args[1];
         main_args[0].tag = VM_TAG_UNK;
         vm_x64_run(block, vm_std_new(), main_args);

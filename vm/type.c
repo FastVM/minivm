@@ -117,7 +117,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             .tag = VM_TAG_F64,
             .args[0] = (vm_arg_t){
                 .type = VM_ARG_NUM,
-                .num = tag,
+                .num.f64 = tag,
             }};
     }
     if (instr.op == VM_IOP_MOVE) {
@@ -148,11 +148,6 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_NUM) {
                 instr.tag = VM_TAG_F64;
-#if defined(VM_INTS)
-                if (fmod(instr.args[i].num, 1) == 0) {
-                    instr.tag = VM_TAG_I64;
-                }
-#endif
                 return instr;
             }
         }
@@ -206,11 +201,6 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types,
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_NUM) {
                 branch.tag = VM_TAG_F64;
-#if defined(VM_INTS)
-                if (fmod(branch.args[i].num, 1) == 0) {
-                    branch.tag = VM_TAG_I64;
-                }
-#endif
                 return branch;
             }
         }
