@@ -17,7 +17,7 @@ GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS := vm/std/libs/io.c
 OPT_SRCS := vm/opt/info.c vm/opt/inline.c vm/opt/jump.c vm/opt/opt.c vm/opt/unused.c
-VM_SRCS := vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/jit/tb.c vm/check.c
+VM_SRCS := vm/ir.c vm/std/std.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/be/tb.c vm/check.c
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(OPT_SRCS) $(EXTRA_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
@@ -52,9 +52,11 @@ all: bins
 # windows
 
 clang-windows: .dummy
+	rm -rf build
 	$(MAKE) -Bj CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Ic11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="c11threads/threads_msvc.c"
 
 gcc-windows: .dummy
+	rm -rf build
 	$(MAKE) -Bj CC=gcc EXE=.exe OPT="$(OPT)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
 # binaries

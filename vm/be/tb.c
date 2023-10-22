@@ -8,7 +8,9 @@
 #define VM_TB_CC TB_CDECL
 // #define VM_TB_CC TB_STDCALL
 
-void *vm_tb_func_print_value(vm_tb_state_t *mod, TB_Function *fun, vm_tag_t tag, TB_Node *value);
+void vm_tb_func_print_value(vm_tb_state_t *mod, TB_Function *fun, vm_tag_t tag, TB_Node *value);
+TB_Node *vm_tb_func_body_call(vm_tb_state_t *state, TB_Function *fun, TB_Node **args, vm_rblock_t *rblock);
+TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **regs, vm_block_t *block);
 
 vm_tb_cache_t *vm_tb_cache_new(void) {
     vm_tb_cache_t *cache = vm_malloc(sizeof(vm_tb_cache_t));
@@ -239,10 +241,26 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
 
 
 TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args, vm_rblock_t *rblock) {
-    if (!vm_check_block(vm_tb_rblock_version(rblock))) {
+    vm_block_t *block = vm_tb_rblock_version(rblock);
+
+    // printf("\n-- vmir test ---\n");
+    // vm_print_block(stdout, block);
+
+    if (!vm_check_block(block)) {
         return NULL;
     }
 
+#if 0
+    TB_Node **regs = vm_malloc(sizeof(TB_Node *) * block->nregs);
+
+    memset(regs, 0, sizeof(TB_Node *) * block->nregs);
+
+    for (size_t i = 0; i < block->nargs; i++) {
+        regs[block->args[i].reg] = args[i];
+    }
+
+    return vm_tb_func_body_once(state, fun, regs, block);
+#else
     TB_Module *module = state->module;
     
     TB_Node *ctrl = tb_inst_get_control(fun);
@@ -315,6 +333,7 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
     tb_inst_set_control(fun, ctrl);
 
     return ret;
+#endif
 }
 
 TB_Node *vm_tb_func_body_call(vm_tb_state_t *state, TB_Function *fun, TB_Node **args, vm_rblock_t *rblock) {
@@ -407,6 +426,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 #if defined(VM_DUMP_IR)
     fprintf(stdout, "\n--- vmir ---\n");
     vm_print_block(stdout, block);
+    fflush(stdout);
 #endif
 
     for (size_t n = 0; n < block->len; n++) {
@@ -430,6 +450,9 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     vm_tb_func_read_arg(fun, regs, instr.args[0]),
                     vm_tb_func_read_arg(fun, regs, instr.args[1])
                 );
+                break;
+            }
+            case VM_IOP_NOP: {
                 break;
             }
             case VM_IOP_STD: {
@@ -614,6 +637,9 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         next_args[j] = vm_tb_func_read_arg(fun, regs, next_arg);
                     }
                 }
+                // printf("tag => ");
+                // vm_print_tag(stdout, i);
+                // printf("\n");
                 TB_Node *value = vm_tb_func_body(state, fun, next_args, branch.rtargets[i]);
                 if (value != NULL) {
                     keys[write].key = i;
@@ -710,6 +736,9 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         next_args[j] = vm_tb_func_read_arg(fun, regs, next_arg);
                     }
                 }
+                // printf("tag => ");
+                // vm_print_tag(stdout, i);
+                // printf("\n");
                 TB_Node *value = vm_tb_func_body(state, fun, next_args, branch.rtargets[i]);
                 if (value != NULL) {
                     keys[write].key = i;
@@ -782,7 +811,7 @@ void vm_tb_print(uint32_t tag, void *value) {
     vm_io_debug(stdout, 0, "debug: ", val, NULL);
 }
 
-void *vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag, TB_Node *value) {
+void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag, TB_Node *value) {
     TB_PrototypeParam proot_args[2] = {
         {TB_TYPE_I32},
         {TB_TYPE_PTR},
@@ -900,7 +929,7 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
 
     tb_pass_exit(passes);
 
-    TB_JIT *jit = tb_jit_begin(state->module, 1 << 20);
+    TB_JIT *jit = tb_jit_begin(state->module, 1 << 24);
     void *ret = tb_jit_place_function(jit, fun);
     // printf("RET: %p\n", ret);
 

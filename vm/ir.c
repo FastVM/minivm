@@ -1,5 +1,6 @@
 
 #include "ir.h"
+#include <stdio.h>
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
@@ -92,6 +93,9 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
         case VM_TAG_FFI: {
             fprintf(out, "ffi");
             break;
+        }
+        default: {
+            fprintf(out, "<tag: invalid>");
         }
     }
 }
@@ -256,6 +260,9 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
 }
 
 void vm_print_block(FILE *out, vm_block_t *val) {
+    if (val == NULL) {
+        printf("<block: null>\n");
+    }
     fprintf(out, ".%zi(", val->id);
     for (size_t i = 0; i < val->nargs; i++) {
         if (i != 0) {

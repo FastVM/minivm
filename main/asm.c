@@ -2,13 +2,16 @@
 #include "../vm/std/std.h"
 #include "../vm/std/libs/io.h"
 #include "../vm/lang/paka.h"
-#include "../vm/jit/tb.h"
+#include "../vm/be/tb.h"
 #include "../vm/opt/opt.h"
 
 #define VM_DEFAULT_OPT "0"
 
+void GC_disable();
+
 int main(int argc, char **argv) {
     vm_init_mem();
+    GC_disable();
     if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;
