@@ -265,7 +265,7 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             break;
         }
         default: {
-            printf(out, "<instr: %zu>", val.op);
+            fprintf(out, "<instr: %zu>", (size_t) val.op);
             break;
         }
     }

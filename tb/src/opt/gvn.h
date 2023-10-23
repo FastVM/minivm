@@ -73,6 +73,7 @@ static size_t extra_bytes(TB_Node* n) {
         case TB_MERGEMEM:
         case TB_DEAD:
         case TB_NULL:
+        case TB_UNREACHABLE:
         return 0;
 
         case TB_START:
@@ -231,6 +232,7 @@ bool gvn_compare(void* a, void* b) {
         case TB_CLZ:
         case TB_CTZ:
         case TB_MERGEMEM:
+        case TB_UNREACHABLE:
         return true;
 
         default: return false;

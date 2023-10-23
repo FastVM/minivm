@@ -8,7 +8,7 @@ void GC_disable();
 
 int main(int argc, char **argv) {
     vm_init_mem();
-    // GC_disable();
+    GC_disable();
     if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;

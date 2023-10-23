@@ -97,7 +97,7 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
                     print_type2(u->n->dt);
                 }
             }
-            printf(")");
+            printf(") // v%u", n->gvn);
         }
     } else if (n->type == TB_FLOAT32_CONST) {
         TB_NodeFloat32* f = TB_NODE_GET_EXTRA(n);
@@ -118,7 +118,10 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
         } else {
             ptrdiff_t i = try_find_traversal_index(&ctx->cfg, n);
             if (i >= 0) {
-                printf(".bb%zu%s", i, def?"()":"");
+                printf(".bb%zu", i);
+                if (def) {
+                    printf("() // v%u", n->gvn);
+                }
             } else {
                 printf("*DEAD*");
             }
@@ -492,20 +495,37 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
 
 bool tb_pass_print(TB_Passes* opt) {
     TB_Function* f = opt->f;
-    worklist_clear(&opt->worklist);
+
+    Worklist old = opt->worklist;
+    Worklist tmp_ws = { 0 };
+    worklist_alloc(&tmp_ws, f->node_count);
 
     PrinterCtx ctx = { opt, f };
+    opt->worklist = tmp_ws;
     ctx.cfg = tb_compute_rpo(f, opt);
 
     // schedule nodes
     tb_pass_schedule(opt, ctx.cfg);
     worklist_clear_visited(&opt->worklist);
 
+    TB_Node* end_bb = NULL;
     FOREACH_N(i, 0, ctx.cfg.block_count) {
+        TB_Node* end = nl_map_get_checked(ctx.cfg.node_to_block, opt->worklist.items[i]).end;
+        if (end == f->stop_node) {
+            end_bb = opt->worklist.items[i];
+            continue;
+        }
+
         print_bb(&ctx, opt->worklist.items[i]);
     }
 
+    if (end_bb != NULL) {
+        print_bb(&ctx, end_bb);
+    }
+
+    worklist_free(&tmp_ws);
     tb_free_cfg(&ctx.cfg);
-    ctx.opt->error_n = NULL;
+    opt->worklist = old;
+    opt->error_n = NULL;
     return false;
 }

@@ -52,4 +52,8 @@ void GC_free(void *ptr);
 #endif
 #endif
 
+#if defined(_WIN32)
 #define VM_CDECL __attribute__((cdecl))
+#else
+#define VM_CDECL
+#endif

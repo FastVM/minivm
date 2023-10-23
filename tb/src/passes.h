@@ -257,6 +257,16 @@ static User* cfg_next_user(TB_Node* n) {
     return NULL;
 }
 
+static bool cfg_is_unreachable(TB_Node* n) {
+    for (User* u = n->users; u; u = u->next) {
+        if (u->n->type == TB_UNREACHABLE) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static TB_Node* cfg_next_control(TB_Node* n) {
     for (User* u = n->users; u; u = u->next) {
         if (cfg_is_control(u->n)) {

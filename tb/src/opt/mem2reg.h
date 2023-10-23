@@ -83,9 +83,7 @@ static void add_phi_operand(Mem2Reg_Ctx* restrict c, TB_Function* f, TB_Node* ph
 
     // the slot to fill is based on the predecessor list of the region
     FOREACH_N(i, 0, phi_region->input_count) {
-        TB_Node* pred = phi_region->inputs[i];
-        while (pred->type != TB_REGION && pred->type != TB_START) pred = pred->inputs[0];
-
+        TB_Node* pred = get_pred(phi_region, i);
         if (pred == bb) {
             set_input(c->p, phi_node, node, i+1);
             break;
@@ -417,6 +415,8 @@ bool tb_pass_mem2reg(TB_Passes* p) {
 
     // for each global name we'll insert phi nodes
     TB_Node** phi_p = tb_tls_push(tls, c.cfg.block_count * sizeof(TB_Node*));
+
+    // tb_pass_print_dot(p, tb_default_print_callback, stdout);
 
     NL_HashSet ever_worked = nl_hashset_alloc(c.cfg.block_count);
     NL_HashSet has_already = nl_hashset_alloc(c.cfg.block_count);

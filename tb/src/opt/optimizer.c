@@ -793,15 +793,16 @@ static void print_lattice(Lattice* l, TB_DataType dt) {
 }
 
 static bool peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_PeepholeFlags flags) {
+    DO_IF(TB_OPTDEBUG_STATS)(p->stats.peeps++);
+    DO_IF(TB_OPTDEBUG_PEEP)(printf("peep t=%d? ", p->stats.time++), print_node_sexpr(n, 0));
+
     // must've dead sometime between getting scheduled and getting
     // here.
-    if (n->type != TB_END && n->users == NULL) {
+    if (n->type != TB_END && n->type != TB_UNREACHABLE && n->users == NULL) {
+        DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[196mKILL\x1b[0m"));
         tb_pass_kill_node(p, n);
         return false;
     }
-
-    DO_IF(TB_OPTDEBUG_STATS)(p->stats.peeps++);
-    DO_IF(TB_OPTDEBUG_PEEP)(printf("peep t=%d? ", p->stats.time++), print_node_sexpr(n, 0));
 
     // idealize node (in a loop of course)
     TB_Node* k = idealize(p, f, n, flags);

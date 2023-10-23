@@ -12,6 +12,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
     switch (n->type) {
         case TB_NULL: return "BAD";
         case TB_DEAD: return "dead";
+        case TB_UNREACHABLE: return "unreachable";
 
         case TB_START:  return "start";
         case TB_END:    return "end";

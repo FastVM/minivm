@@ -1012,7 +1012,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
             dyn_array_for(i, ctx.jump_table_patches) {
                 uint32_t target = nl_map_get_checked(ctx.emit.labels, ctx.jump_table_patches[i].target);
                 assert((target & 0x80000000) && "target label wasn't resolved... what?");
-                *ctx.jump_table_patches[i].pos = target;
+                *ctx.jump_table_patches[i].pos = target & ~0x80000000;
             }
         }
     }
@@ -1020,6 +1020,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     tb_free_cfg(&ctx.cfg);
     nl_map_free(ctx.emit.labels);
     nl_map_free(ctx.machine_bbs);
+    dyn_array_destroy(ctx.jump_table_patches);
     dyn_array_destroy(ctx.intervals);
     dyn_array_destroy(ctx.phi_vals);
 

@@ -1252,7 +1252,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
                 int64_t min = last, max = last;
 
                 bool use_jump_table = true;
-                FOREACH_N(i, 2, br->succ_count) {
+                FOREACH_N(i, 1, br->succ_count) {
                     int64_t key = br->keys[i - 1];
                     min = (min > key) ? key : min;
                     max = (max > key) ? max : key;
@@ -1270,13 +1270,13 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
 
                     // make a jump table with 4 byte relative pointers for each target
                     TB_Function* f = ctx->f;
-                    TB_Global* jump_table = tb_global_create(f->super.module, 0, NULL, NULL, TB_LINKAGE_PRIVATE);
+                    TB_Global* jump_table = tb_global_create(f->super.module, -1, "jumptbl", NULL, TB_LINKAGE_PRIVATE);
                     tb_global_set_storage(f->super.module, tb_module_get_rdata(f->super.module), jump_table, range*4, 4, 1);
 
                     // generate patches for later
                     uint32_t* jump_entries = tb_global_add_region(f->super.module, jump_table, 0, range*4);
 
-                    Set entries_set = set_create(range);
+                    Set entries_set = set_create_in_arena(arena, range);
                     FOREACH_N(i, 1, br->succ_count) {
                         uint64_t key_idx = br->keys[i - 1] - min;
 
@@ -1299,21 +1299,26 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
 
                     // Simple range check:
                     //   if ((key - min) >= (max - min)) goto default
-                    int tmp = DEF(n, dt);
-                    SUBMIT(inst_move(dt, tmp, min));
-                    if (succ[0]->type != TB_UNREACHABLE) {
-                        SUBMIT(inst_op_rri(SUB, dt, tmp, tmp, min));
+                    int tmp = DEF(NULL, dt);
+                    hint_reg(ctx, tmp, key);
+                    SUBMIT(inst_move(dt, tmp, key));
+                    if (!cfg_is_unreachable(succ[0])) {
+                        if (min != 0) {
+                            SUBMIT(inst_op_rri(SUB, dt, tmp, tmp, min));
+                        }
                         SUBMIT(inst_op_ri(CMP, dt, tmp, range));
                         SUBMIT(inst_jcc(succ[0], NB));
                     }
                     //   lea target, [rip + f]
-                    int target = DEF(n, TB_TYPE_I64);
+                    int target = DEF(NULL, TB_TYPE_I64);
                     SUBMIT(inst_op_global(LEA, TB_TYPE_I64, target, (TB_Symbol*) f));
                     //   lea table, [rip + JUMP_TABLE]
-                    int table = DEF(n, TB_TYPE_I64);
+                    int table = DEF(NULL, TB_TYPE_I64);
                     SUBMIT(inst_op_global(LEA, TB_TYPE_I64, table, (TB_Symbol*) jump_table));
-                    //   add target, [table + key*4]
-                    SUBMIT(inst_op_rrm(ADD, TB_TYPE_I64, target, target, table, key, SCALE_X4, 0));
+                    //   movsxd table, [table + key*4]
+                    SUBMIT(inst_op_rm(MOVSXD, TB_TYPE_I64, table, table, tmp, SCALE_X4, 0));
+                    //   add target, table
+                    SUBMIT(inst_op_rrr(ADD, TB_TYPE_I64, target, target, table));
                     //   jmp target
                     SUBMIT(inst_jmp_reg(target));
                 } else {
@@ -1826,7 +1831,7 @@ static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out, i
                 target = val_global(inst->s);
             } else {
                 assert(inst->in_count == 1);
-                target = val_gpr(inst->operands[0]);
+                resolve_interval(ctx, inst, in_base, &target);
             }
 
             inst1_print(e, inst->type, &target, inst->dt);
