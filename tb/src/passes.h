@@ -176,6 +176,10 @@ static bool cfg_is_terminator(TB_Node* n) {
     return n->type == TB_BRANCH || n->type == TB_UNREACHABLE || n->type == TB_TRAP || n->type == TB_END;
 }
 
+static bool ctrl_out_as_cproj_but_not_branch(TB_Node* n) {
+    return n->type == TB_CALL || n->type == TB_SYSCALL || n->type == TB_READ || n->type == TB_WRITE;
+}
+
 // includes tuples which have control flow
 static bool cfg_is_control(TB_Node* n) {
     // easy case
@@ -201,7 +205,7 @@ static bool cfg_is_bb_entry(TB_Node* n) {
 }
 
 static TB_Node* cfg_get_fallthru(TB_Node* n) {
-    if (n->type == TB_PROJ && n->dt.type == TB_CONTROL) {
+    if (n->type == TB_PROJ && n->dt.type == TB_CONTROL && n->inputs[0]->type != TB_START) {
         // if it's single user and that user is the terminator we can skip it in the fallthrough logic
         return n->users->next == NULL && n->users->n->type == TB_REGION ? n->users->n : n;
     } else {
@@ -243,6 +247,16 @@ static TB_Node* cfg_next_region_control(TB_Node* n) {
     return n;
 }
 
+static User* cfg_next_user(TB_Node* n) {
+    for (User* u = n->users; u; u = u->next) {
+        if (cfg_is_control(u->n)) {
+            return u;
+        }
+    }
+
+    return NULL;
+}
+
 static TB_Node* cfg_next_control(TB_Node* n) {
     for (User* u = n->users; u; u = u->next) {
         if (cfg_is_control(u->n)) {
@@ -261,7 +275,7 @@ static TB_Node* get_pred(TB_Node* n, int i) {
         TB_Node* parent = n->inputs[0];
 
         // start or cprojs with multiple users (it's a BB) will just exit
-        if (parent->type == TB_START || n->users->next != NULL) {
+        if (parent->type == TB_START || (!ctrl_out_as_cproj_but_not_branch(parent) && n->users->next != NULL)) {
             return n;
         }
         n = parent;

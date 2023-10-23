@@ -24,7 +24,6 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
     }
     for (size_t ninstr = 0; ninstr < rblock->block->len; ninstr++) {
         vm_instr_t instr = vm_rblock_type_specialize_instr(regs, rblock->block->instrs[ninstr]);
-        if (!vm_rblock_type_check_instr(regs, instr)) return NULL;
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 instr.args[i].reg_tag = regs->tags[instr.args[i].reg];
@@ -60,7 +59,6 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
         }
     }
     vm_branch_t branch = vm_rblock_type_specialize_branch(regs, rblock->block->branch);
-    if (!vm_rblock_type_check_branch(regs, branch)) return NULL;
     for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
         if (branch.args[i].type == VM_ARG_REG) {
             branch.args[i].reg_tag = regs->tags[branch.args[i].reg];

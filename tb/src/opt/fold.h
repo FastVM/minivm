@@ -583,7 +583,7 @@ static TB_Node* ideal_int_div(TB_Passes* restrict opt, TB_Function* f, TB_Node* 
     assert(sh == sh2);
     #endif
 
-    // 128bit division here can overflow so we need to handle that case
+    // 128bit division here can't overflow
     uint64_t a = tb_div128(1ull << sh, y - 1, y);
 
     // now we can take a and sh and do:

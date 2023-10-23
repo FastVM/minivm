@@ -1,6 +1,6 @@
 
 #include "ir.h"
-#include <stdio.h>
+#include "std/libs/io.h"
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
@@ -22,7 +22,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_NUM: {
-            fprintf(out, "%lf", val.num.f64);
+            vm_io_print_num(stdout, val.num);
             break;
         }
         case VM_ARG_STR: {
@@ -70,8 +70,24 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
             fprintf(out, "bool");
             break;
         }
+        case VM_TAG_I8: {
+            fprintf(out, "i8");
+            break;
+        }
+        case VM_TAG_I16: {
+            fprintf(out, "i16");
+            break;
+        }
+        case VM_TAG_I32: {
+            fprintf(out, "i32");
+            break;
+        }
         case VM_TAG_I64: {
             fprintf(out, "i64");
+            break;
+        }
+        case VM_TAG_F32: {
+            fprintf(out, "f32");
             break;
         }
         case VM_TAG_F64: {
@@ -246,6 +262,10 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
         }
         case VM_IOP_LEN: {
             fprintf(out, "len");
+            break;
+        }
+        default: {
+            printf(out, "<instr: %zu>", val.op);
             break;
         }
     }

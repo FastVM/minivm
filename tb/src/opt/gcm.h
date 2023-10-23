@@ -98,7 +98,8 @@ static void schedule_late(TB_Passes* p, TB_Node* n) {
                 }
                 assert(j >= 0);
 
-                use_block = nl_map_get_checked(p->scheduled, use_node->inputs[j - 1]);
+                ptrdiff_t search = nl_map_get(p->scheduled, use_node->inputs[j - 1]);
+                if (search >= 0) use_block = p->scheduled[search].v;
             }
 
             lca = find_lca(p, lca, use_block);
@@ -192,7 +193,7 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg) {
 
         // move nodes closer to their usage site
         CUIK_TIMED_BLOCK("late schedule") {
-            FOREACH_REVERSE_N(i, cfg.block_count, dyn_array_length(ws->items)) {
+            FOREACH_N(i, cfg.block_count, dyn_array_length(ws->items)) {
                 schedule_late(p, ws->items[i]);
             }
 

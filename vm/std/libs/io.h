@@ -11,6 +11,7 @@ struct vm_io_debug_t {
     vm_std_value_t value;
 };
 
+void vm_io_print_num(FILE *out, vm_std_value_t value);
 void vm_std_io_putchar(vm_std_value_t *args);
 void vm_std_io_debug(vm_std_value_t *args);
 void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link);

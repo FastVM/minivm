@@ -66,6 +66,11 @@ typedef struct LiveInterval LiveInterval;
 typedef NL_Map(TB_Node*, MachineBB) MachineBBs;
 
 typedef struct {
+    uint32_t* pos;
+    TB_Node* target;
+} JumpTablePatch;
+
+typedef struct {
     TB_CGEmitter emit;
 
     TB_Module* module;
@@ -86,6 +91,7 @@ typedef struct {
     ValueDesc* values; // the indices match the GVN.
 
     DynArray(PhiVal) phi_vals;
+    DynArray(JumpTablePatch) jump_table_patches;
 
     // Regalloc
     DynArray(LiveInterval) intervals;
@@ -881,7 +887,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     DO_IF(TB_OPTDEBUG_PEEP)(log_debug("%s: starting codegen with %d nodes", f->super.name, f->node_count));
 
     #if 0
-    if (!strcmp(f->super.name, "block")) {
+    if (!strcmp(f->super.name, "load_jpeg_image")) {
         reg_alloc_log = true;
         tb_pass_print(p);
     } else {
@@ -908,7 +914,6 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     }
 
     worklist_clear(&p->worklist);
-    ctx.worklist = p->worklist;
     ctx.values = tb_arena_alloc(tmp_arena, f->node_count * sizeof(ValueDesc));
 
     // We need to generate a CFG
@@ -917,13 +922,14 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
 
     // And perform global scheduling
     tb_pass_schedule(p, ctx.cfg);
+    ctx.worklist = p->worklist;
 
     // allocate more stuff now that we've run stats on the IR
     nl_map_create(ctx.emit.labels, ctx.cfg.block_count);
     nl_map_create(ctx.stack_slots, 8);
     dyn_array_create(ctx.debug_stack_slots, 8);
 
-    worklist_clear_visited(&p->worklist);
+    worklist_clear_visited(&ctx.worklist);
 
     // Instruction selection:
     //   we just decide which instructions to emit, which operands are
@@ -999,6 +1005,15 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
         // Arch-specific: convert instruction buffer into actual instructions
         CUIK_TIMED_BLOCK("emit code") {
             emit_code(&ctx, func_out, end);
+        }
+
+        // Fill jump table entries
+        CUIK_TIMED_BLOCK("jump tables") {
+            dyn_array_for(i, ctx.jump_table_patches) {
+                uint32_t target = nl_map_get_checked(ctx.emit.labels, ctx.jump_table_patches[i].target);
+                assert((target & 0x80000000) && "target label wasn't resolved... what?");
+                *ctx.jump_table_patches[i].pos = target;
+            }
         }
     }
 

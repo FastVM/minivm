@@ -117,7 +117,8 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             .tag = VM_TAG_F64,
             .args[0] = (vm_arg_t){
                 .type = VM_ARG_NUM,
-                .num.f64 = tag,
+                .num.tag = VM_TAG_F64,
+                .num.value.f64 = tag,
             }};
     }
     if (instr.op == VM_IOP_MOVE) {
@@ -153,31 +154,6 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         }
     }
     return instr;
-}
-
-bool vm_rblock_type_check_instr(vm_tags_t *types, vm_instr_t instr) {
-    if (instr.op == VM_IOP_SET) {
-    } else if (instr.op == VM_IOP_LEN) {
-    } else {
-        for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
-            if (instr.args[i].type == VM_ARG_REG) {
-                if (types->tags[instr.args[i].reg] != instr.tag) {
-                    // vm_print_instr(stdout, instr);
-                    // printf("\n^ TYPE ERROR (arg %%%zu of type #%zu) ^\n",
-                    //        (size_t)instr.args[i].reg,
-                    //        (size_t)types->tags[instr.args[i].reg]);
-                    return false;
-                }
-            }
-        }
-    }
-    return true;
-}
-
-bool vm_rblock_type_check_branch(vm_tags_t *types, vm_branch_t branch) {
-    (void)types;
-    (void)branch;
-    return true;
 }
 
 vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types,

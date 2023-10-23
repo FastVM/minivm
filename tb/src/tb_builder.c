@@ -252,7 +252,7 @@ TB_Node* tb_inst_local(TB_Function* f, TB_CharUnits size, TB_CharUnits alignment
 }
 
 void tb_inst_safepoint_poll(TB_Function* f, TB_Node* addr, int input_count, TB_Node** inputs) {
-    TB_Node* n = tb_alloc_node(f, TB_SAFEPOINT_POLL, TB_TYPE_VOID, 3 + input_count, sizeof(TB_NodeSafepoint));
+    TB_Node* n = tb_alloc_node(f, TB_SAFEPOINT_POLL, TB_TYPE_CONTROL, 3 + input_count, sizeof(TB_NodeSafepoint));
     n->inputs[0] = f->active_control_node;
     n->inputs[1] = peek_mem(f, f->active_control_node);
     n->inputs[2] = addr;

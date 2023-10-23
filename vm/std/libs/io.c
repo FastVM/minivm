@@ -55,6 +55,35 @@ static void vm_indent(FILE *out, size_t indent, const char *prefix) {
     fprintf(out, "%s", prefix);
 }
 
+void vm_io_print_num(FILE *out, vm_std_value_t value) {
+    switch (value.tag) {
+        case VM_TAG_I8: {
+            fprintf(out, "%" PRIi8, value.value.i8);
+            break;
+        }
+        case VM_TAG_I16: {
+            fprintf(out, "%" PRIi16, value.value.i16);
+            break;
+        }
+        case VM_TAG_I32: {
+            fprintf(out, "%" PRIi32, value.value.i32);
+            break;
+        }
+        case VM_TAG_I64: {
+            fprintf(out, "%" PRIi64, value.value.i64);
+            break;
+        }
+        case VM_TAG_F32: {
+            fprintf(out, "%lf", value.value.f32);
+            break;
+        }
+        case VM_TAG_F64: {
+            fprintf(out, "%f", value.value.f64);
+            break;
+        }
+    }
+}
+
 void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
@@ -87,9 +116,29 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
             }
             break;
         }
+        case VM_TAG_I8: {
+            vm_indent(out, indent, prefix);
+            fprintf(out, "%" PRIi8 "\n", value.value.i8);
+            break;
+        }
+        case VM_TAG_I16: {
+            vm_indent(out, indent, prefix);
+            fprintf(out, "%" PRIi16 "\n", value.value.i16);
+            break;
+        }
+        case VM_TAG_I32: {
+            vm_indent(out, indent, prefix);
+            fprintf(out, "%" PRIi32 "\n", value.value.i32);
+            break;
+        }
         case VM_TAG_I64: {
             vm_indent(out, indent, prefix);
             fprintf(out, "%" PRIi64 "\n", value.value.i64);
+            break;
+        }
+        case VM_TAG_F32: {
+            vm_indent(out, indent, prefix);
+            fprintf(out, "%lf\n", value.value.f32);
             break;
         }
         case VM_TAG_F64: {
@@ -139,16 +188,16 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
                         }
                         break;
                     }
-                    case VM_TAG_I64: {
-                        vm_std_value_t val = (vm_std_value_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
-                        char buf[64];
-                        snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
-                        vm_io_debug(out, indent + 1, buf, val, &next);
-                        break;
-                    }
+                    // case VM_TAG_I64: {
+                    //     vm_std_value_t val = (vm_std_value_t){
+                    //         .tag = p.val_tag,
+                    //         .value = p.val_val,
+                    //     };
+                    //     char buf[64];
+                    //     snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
+                    //     vm_io_debug(out, indent + 1, buf, val, &next);
+                    //     break;
+                    // }
                     case VM_TAG_F64: {
                         vm_std_value_t val = (vm_std_value_t){
                             .tag = p.val_tag,

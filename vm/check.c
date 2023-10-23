@@ -4,16 +4,23 @@
 
 vm_block_t *vm_rblock_version(vm_rblock_t *rblock);
 
-static bool vm_check_arg_f64(vm_arg_t arg) {
+static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_NUM) {
-        return true;
+        return arg.num.tag;
     }
     if (arg.type == VM_ARG_REG) {
-        if (arg.reg_tag == VM_TAG_F64) {
-            return true;
-        }
+        return arg.reg_tag;
     }
-    return false;
+    return VM_TAG_UNK;
+}
+
+static bool vm_check_is_math(vm_tag_t arg) {
+    return arg == VM_TAG_I8
+        || arg == VM_TAG_I16
+        || arg == VM_TAG_I32
+        || arg == VM_TAG_I64
+        || arg == VM_TAG_F32
+        || arg == VM_TAG_F64;
 }
 
 bool vm_check_instr(vm_instr_t instr) {
@@ -29,13 +36,9 @@ bool vm_check_instr(vm_instr_t instr) {
     case VM_IOP_MUL:
     case VM_IOP_DIV:
     case VM_IOP_MOD: {
-        if (!vm_check_arg_f64(instr.args[0])) {
-            return false;
-        }
-        if (!vm_check_arg_f64(instr.args[1])) {
-            return false;
-        }
-        return true;
+        vm_tag_t a0 = vm_check_get_tag(instr.args[0]);
+        vm_tag_t a1 = vm_check_get_tag(instr.args[1]);
+        return vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1;
     }
     default: {
         return true;
@@ -47,13 +50,9 @@ bool vm_check_branch(vm_branch_t branch) {
     switch (branch.op) {
     case VM_BOP_BEQ:
     case VM_BOP_BLT: {
-        if (!vm_check_arg_f64(branch.args[0])) {
-            return false;
-        }
-        if (!vm_check_arg_f64(branch.args[1])) {
-            return false;
-        }
-        return true;
+        vm_tag_t a0 = vm_check_get_tag(branch.args[0]);
+        vm_tag_t a1 = vm_check_get_tag(branch.args[1]);
+        return vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1;
     }
     case VM_BOP_CALL: {
         if (branch.args[0].type == VM_ARG_RFUNC) {

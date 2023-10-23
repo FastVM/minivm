@@ -4,6 +4,7 @@
 
 #include "lib.h"
 #include "tag.h"
+#include "std/std.h"
 
 struct vm_arg_t;
 struct vm_branch_t;
@@ -84,9 +85,7 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        struct {
-            double f64;
-        } num;
+        vm_std_value_t num;
         const char *str;
         void *ffi;
         vm_block_t *func;

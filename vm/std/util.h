@@ -29,13 +29,13 @@ static inline bool vm_std_parse_args(vm_std_value_t *args, const char *fmt, ...)
                 *va_arg(ap, const char **) = args[head++].value.str;
                 break;
             }
-            case 'i': {
-                if (args[head].tag != VM_TAG_I64) {
-                    return false;
-                }
-                *va_arg(ap, int64_t *) = args[head++].value.i64;
-                break;
-            }
+            // case 'i': {
+            //     if (args[head].tag != VM_TAG_I64) {
+            //         return false;
+            //     }
+            //     *va_arg(ap, int64_t *) = args[head++].value.i64;
+            //     break;
+            // }
             case 'f': {
                 if (args[head].tag != VM_TAG_F64) {
                     return false;

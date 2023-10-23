@@ -166,6 +166,12 @@ static Inst* inst_jmp(TB_Node* target) {
     return i;
 }
 
+static Inst* inst_jmp_reg(int target) {
+    Inst* i = alloc_inst(JMP, TB_TYPE_VOID, 0, 1, 0);
+    i->operands[0] = target;
+    return i;
+}
+
 static Inst* inst_jcc(TB_Node* target, Cond cc) {
     Inst* i = alloc_inst(JO + cc, TB_TYPE_VOID, 0, 0, 0);
     i->flags = INST_NODE;
@@ -1242,12 +1248,12 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
                 int key = input_reg(ctx, n->inputs[1]);
 
                 // check if there's at most only one space between entries
-                uint64_t last = br->keys[1];
-                uint64_t min = last, max = last;
+                int64_t last = br->keys[1];
+                int64_t min = last, max = last;
 
                 bool use_jump_table = true;
                 FOREACH_N(i, 2, br->succ_count) {
-                    uint64_t key = br->keys[i - 1];
+                    int64_t key = br->keys[i - 1];
                     min = (min > key) ? key : min;
                     max = (max > key) ? max : key;
 
@@ -1259,24 +1265,73 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
                     last = key;
                 }
 
-                if (use_jump_table) {
-                    // Simple range check
-                    log_debug("Should do range check (%llu .. %llu)", min, max);
-                }
+                if (use_jump_table && fits_into_int32(min) && fits_into_int32(max)) {
+                    uint64_t range = (max - min) + 1;
 
-                FOREACH_N(i, 1, br->succ_count) {
-                    uint64_t curr_key = br->keys[i-1];
+                    // make a jump table with 4 byte relative pointers for each target
+                    TB_Function* f = ctx->f;
+                    TB_Global* jump_table = tb_global_create(f->super.module, 0, NULL, NULL, TB_LINKAGE_PRIVATE);
+                    tb_global_set_storage(f->super.module, tb_module_get_rdata(f->super.module), jump_table, range*4, 4, 1);
 
-                    if (fits_into_int32(curr_key)) {
-                        SUBMIT(inst_op_ri(CMP, dt, key, curr_key));
-                    } else {
-                        int tmp = DEF(n, dt);
-                        SUBMIT(inst_op_abs(MOVABS, dt, tmp, curr_key));
-                        SUBMIT(inst_op_rr(CMP, dt, key, tmp));
+                    // generate patches for later
+                    uint32_t* jump_entries = tb_global_add_region(f->super.module, jump_table, 0, range*4);
+
+                    Set entries_set = set_create(range);
+                    FOREACH_N(i, 1, br->succ_count) {
+                        uint64_t key_idx = br->keys[i - 1] - min;
+
+                        JumpTablePatch p;
+                        p.pos = &jump_entries[key_idx];
+                        p.target = succ[i];
+                        dyn_array_put(ctx->jump_table_patches, p);
+                        set_put(&entries_set, key_idx);
                     }
-                    SUBMIT(inst_jcc(succ[i], E));
+
+                    // handle default cases
+                    FOREACH_N(i, 0, range) {
+                        if (!set_get(&entries_set, i)) {
+                            JumpTablePatch p;
+                            p.pos = &jump_entries[i];
+                            p.target = succ[0];
+                            dyn_array_put(ctx->jump_table_patches, p);
+                        }
+                    }
+
+                    // Simple range check:
+                    //   if ((key - min) >= (max - min)) goto default
+                    int tmp = DEF(n, dt);
+                    SUBMIT(inst_move(dt, tmp, min));
+                    if (succ[0]->type != TB_UNREACHABLE) {
+                        SUBMIT(inst_op_rri(SUB, dt, tmp, tmp, min));
+                        SUBMIT(inst_op_ri(CMP, dt, tmp, range));
+                        SUBMIT(inst_jcc(succ[0], NB));
+                    }
+                    //   lea target, [rip + f]
+                    int target = DEF(n, TB_TYPE_I64);
+                    SUBMIT(inst_op_global(LEA, TB_TYPE_I64, target, (TB_Symbol*) f));
+                    //   lea table, [rip + JUMP_TABLE]
+                    int table = DEF(n, TB_TYPE_I64);
+                    SUBMIT(inst_op_global(LEA, TB_TYPE_I64, table, (TB_Symbol*) jump_table));
+                    //   add target, [table + key*4]
+                    SUBMIT(inst_op_rrm(ADD, TB_TYPE_I64, target, target, table, key, SCALE_X4, 0));
+                    //   jmp target
+                    SUBMIT(inst_jmp_reg(target));
+                } else {
+                    // Basic if-else chain
+                    FOREACH_N(i, 1, br->succ_count) {
+                        uint64_t curr_key = br->keys[i-1];
+
+                        if (fits_into_int32(curr_key)) {
+                            SUBMIT(inst_op_ri(CMP, dt, key, curr_key));
+                        } else {
+                            int tmp = DEF(n, dt);
+                            SUBMIT(inst_op_abs(MOVABS, dt, tmp, curr_key));
+                            SUBMIT(inst_op_rr(CMP, dt, key, tmp));
+                        }
+                        SUBMIT(inst_jcc(succ[i], E));
+                    }
+                    SUBMIT(inst_jmp(succ[0]));
                 }
-                SUBMIT(inst_jmp(succ[0]));
             }
             tb_arena_restore(arena, sp);
             break;
@@ -1770,7 +1825,8 @@ static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out, i
             } else if (inst->flags & INST_GLOBAL) {
                 target = val_global(inst->s);
             } else {
-                tb_todo();
+                assert(inst->in_count == 1);
+                target = val_gpr(inst->operands[0]);
             }
 
             inst1_print(e, inst->type, &target, inst->dt);
