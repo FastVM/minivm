@@ -7,8 +7,8 @@
 #include "../check.h"
 #include "../rblock.h"
 
-// #define VM_TB_CC TB_CDECL
-#define VM_TB_CC TB_STDCALL
+#define VM_TB_CC TB_CDECL
+// #define VM_TB_CC TB_STDCALL
 
 typedef TB_Node *vm_tb_binary_op_t(TB_Function *fun, TB_Node *lhs, TB_Node *rhs);
 
@@ -451,6 +451,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 1,
                 false);
 
+
             tb_inst_ret(fun, 0, NULL);
             break;
         }
@@ -597,8 +598,12 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 {TB_TYPE_PTR},
                 {TB_TYPE_PTR},
             };
+
+            TB_PrototypeParam get_returns[1] = {
+                {TB_TYPE_PTR},
+            };
             
-            TB_FunctionPrototype *get_proto = tb_prototype_create(state->module, VM_TB_CC, 2, get_params, 0, NULL, false);
+            TB_FunctionPrototype *get_proto = tb_prototype_create(state->module, VM_TB_CC, 2, get_params, 1, get_returns, false);
             TB_Node *arg2 = tb_inst_local(fun, sizeof(vm_pair_t), 8);
             tb_inst_store(
                 fun,
@@ -668,6 +673,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 }
             }
 
+
             if (write == 0) {
                 tb_inst_ret(fun, 0, NULL);
             } else if (write == 1) {
@@ -705,12 +711,11 @@ void vm_tb_print(uint32_t tag, void *value) {
         .tag = tag,
     };
     switch (tag) {
-        // case VM_TAG_I64: {
-        //     val.value.i64 = *(int64_t *)value;
-        //     break;
-        // }
         case VM_TAG_F64: {
             val.value.f64 = *(double *)value;
+            if (fabs(val.value.f64) > 100000000000000000000000000000000000.0) {
+                __builtin_trap();
+            }
             break;
         }
         case VM_TAG_STR: {
@@ -767,6 +772,7 @@ void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag
 
 void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
     void *test = rblock->cache;
+    printf("%p [cache = %p]\n", rblock, test);
     if (test != NULL) {
         return test;
     }
@@ -793,10 +799,9 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
     TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, block->nargs + 1, proto_args, 0, NULL, false);
     tb_function_set_prototype(
         fun,
-        -1, proto,
+        -1,
+        proto,
         NULL);
-
-    // tb_inst_debugbreak(fun);
 
     TB_Node **args = vm_malloc(sizeof(TB_Node *) * (block->nargs));
 
@@ -823,24 +828,27 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
 #if defined(VM_DUMP_TB)
     fprintf(stdout, "\n--- tb ---\n");
     tb_pass_print(passes);
+    fflush(stdout);
 #endif
     // tb_pass_optimize(passes);
 #if defined(VM_DUMP_TB_OPT)
     fprintf(stdout, "\n--- opt tb ---\n");
     tb_pass_print(passes);
+    fflush(stdout);
 #endif
 
 #if defined(VM_DUMP_X86)
     TB_FunctionOutput *out = tb_pass_codegen(passes, true);
     fprintf(stdout, "\n--- x86asm ---\n");
     tb_output_print_asm(out, stdout);
+    fflush(stdout);
 #else
     TB_FunctionOutput *out = tb_pass_codegen(passes, false);
 #endif
 
     tb_pass_exit(passes);
 
-    TB_JIT *jit = tb_jit_begin(state->module, 1 << 24);
+    TB_JIT *jit = tb_jit_begin(state->module, 1 << 20);
     void *ret = tb_jit_place_function(jit, fun);
 
     rblock->cache = ret;

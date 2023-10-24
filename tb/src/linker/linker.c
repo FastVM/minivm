@@ -597,6 +597,9 @@ void tb__apply_module_relocs(TB_Linker* l, TB_Module* m, uint8_t* output) {
     dyn_array_for(i, m->sections) {
         DynArray(TB_FunctionOutput*) funcs = m->sections[i].funcs;
         TB_LinkerSectionPiece* piece = m->sections[i].piece;
+        if (piece == NULL) {
+            continue;
+        }
 
         uint64_t text_piece_rva = piece->parent->address + piece->offset;
         uint64_t text_piece_file = piece->parent->offset + piece->offset;

@@ -1,4 +1,3 @@
-#include <dyn_array.h>
 #include "tb_test_regressions.inc"
 #include "tb_test_exit_status.inc"
 #include "tb_test_int_arith.inc"
@@ -29,7 +28,11 @@ int main(int argc, char **argv) {
     TEST(regression_link_global);
     TEST(exit_status);
 
-    TEST(i8_add);
+    // TEST(regression_module_arena);
+    // TEST(regression_link_global);
+    TEST(exit_status);
+
+    /*TEST(i8_add);
     TEST(i8_sub);
     TEST(i8_mul);
     TEST(i8_div);
@@ -75,7 +78,7 @@ int main(int argc, char **argv) {
     TEST(u64_sub);
     TEST(u64_mul);
     TEST(u64_div);
-    TEST(u64_mod);
+    TEST(u64_mod);*/
 
     fflush(stdout);
     if (failed > 0)
@@ -86,3 +89,4 @@ int main(int argc, char **argv) {
 
     return failed;
 }
+

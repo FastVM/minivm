@@ -523,7 +523,7 @@ bool tb_pass_print(TB_Passes* opt) {
         print_bb(&ctx, end_bb);
     }
 
-    worklist_free(&tmp_ws);
+    worklist_free(&opt->worklist);
     tb_free_cfg(&ctx.cfg);
     opt->worklist = old;
     opt->error_n = NULL;

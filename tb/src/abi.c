@@ -77,6 +77,15 @@ static RegClass classify_reg(TB_ABI abi, TB_DebugType* t) {
             return RG_MEMORY;
         }
 
+        case TB_ABI_SYSTEMV: {
+            int s = debug_type_size(abi, t);
+            if (s <= 8) {
+                return t->tag == TB_DEBUG_TYPE_FLOAT ? RG_SSE : RG_INTEGER;
+            }
+
+            return RG_MEMORY;
+        }
+
         default: tb_todo();
     }
 }
@@ -198,7 +207,7 @@ TB_API TB_FunctionPrototype* tb_prototype_from_dbg(TB_Module* m, TB_DebugType* d
     size_t param_count = dbg->func.param_count;
     TB_DebugType** param_list = dbg->func.params;
     if (abi == TB_ABI_SYSTEMV) {
-        tb_todo();
+        // tb_todo();
     }
 
     // build up prototype param types

@@ -472,7 +472,7 @@ static void isel(Ctx* restrict ctx, TB_Node* n, const int dst) {
 
                 // copy from parameter
                 int reg_class = (is_float ? REG_CLASS_XMM : REG_CLASS_GPR);
-                int id = is_float ? used_gpr : used_xmm;
+                int id = is_float ? used_xmm : used_gpr;
                 if (is_sysv) {
                     if (is_float) used_xmm += 1;
                     else used_gpr += 1;

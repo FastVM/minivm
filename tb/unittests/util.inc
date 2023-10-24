@@ -14,11 +14,13 @@
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #  define TB_TEST_IS_WINDOWS_ 1
 #  define WEXITSTATUS(x) x
+#  define EXEC_EXTENSION ".exe"
 
 static TB_System         tb_test_system   = TB_SYSTEM_WINDOWS;
 static TB_ExecutableType tb_test_exe_type = TB_EXECUTABLE_PE;
 #else
 #  define TB_TEST_IS_WINDOWS_ 0
+#  define EXEC_EXTENSION ""
 
 #  include <sys/wait.h>
 
@@ -36,8 +38,8 @@ static void tb_test_link_library(TB_Linker  *linker,
   //  Find and link library on Windows.
   //
 
-  char full_path[200] = "C:\\Program Files (x86)\\Windows "
-                        "Kits\\10\\Lib\\10.0.14393.0\\um\\x64\\";
+  char full_path[200] = "W:\\MSVC\\Windows Kits\\10\\Lib\\10.0.22621.0"
+                        "\\um\\x64\\";
 
   ptrdiff_t folder_len = strlen(full_path);
   ptrdiff_t name_len   = strlen(name);
@@ -141,36 +143,28 @@ static void tb_test_link_library(TB_Linker  *linker,
       module, TB_CDECL, 0, NULL, 0, NULL, false);             \
                                                               \
   TB_Function *f_main = tb_function_create(                   \
-      module, -1, "main", TB_LINKAGE_PUBLIC);                 \
+      module, -1, "main", TB_LINKAGE_PUBLIC, TB_COMDAT_NONE); \
                                                               \
-  TB_ModuleSectionHandle text = tb_module_get_text(module);   \
-  tb_function_set_prototype(f_main, text, fp_main, NULL);     \
+  tb_function_set_prototype(f_main, fp_main, NULL);           \
                                                               \
   if (f_main == NULL)                                         \
     ERROR("tb_function_create failed.");
 
 #define TB_TEST_MODULE_END_(name_, result_, print_asm_)          \
   {                                                              \
-    TB_SymbolIter it = tb_symbol_iter(module);                   \
-    TB_Symbol* sym;                                              \
-    while (sym = tb_symbol_iter_next(&it), sym) {                \
-      if (sym->tag == TB_SYMBOL_FUNCTION) {                      \
-        TB_Function *f = (TB_Function*) sym;                     \
-        TB_Passes *passes = tb_pass_enter(f, NULL);              \
+    TB_Passes *passes = tb_pass_enter(f_main, NULL);             \
                                                                  \
-        if (passes == NULL)                                      \
-          ERROR("tb_pass_enter failed.");                        \
+    if (passes == NULL)                                          \
+      ERROR("tb_pass_enter failed.");                            \
                                                                  \
-        TB_FunctionOutput *asm_out = tb_pass_codegen(passes, 1); \
+    TB_FunctionOutput *asm_out = tb_pass_codegen(passes, 1);     \
                                                                  \
-        if ((print_asm_) && asm_out != NULL) {                   \
-          printf("\n");                                          \
-          tb_output_print_asm(asm_out, stdout);                  \
-        }                                                        \
-                                                                 \
-        tb_pass_exit(passes);                                    \
-      }                                                          \
+    if ((print_asm_) && asm_out != NULL) {                       \
+      printf("\n");                                              \
+      tb_output_print_asm(asm_out, stdout);                      \
     }                                                            \
+                                                                 \
+    tb_pass_exit(passes);                                        \
   }                                                              \
                                                                  \
   linker = tb_linker_create(tb_test_exe_type, tb_test_arch);     \
@@ -186,7 +180,7 @@ static void tb_test_link_library(TB_Linker  *linker,
     tb_test_link_library(linker, "kernel32.lib");                \
                                                                  \
   TB_ExportBuffer buf = tb_linker_export(linker);                \
-  tb_export_buffer_to_file(buf, "bin/" #name_);                  \
+  tb_export_buffer_to_file(buf, "bin/" #name_ EXEC_EXTENSION);   \
   tb_export_buffer_free(buf);                                    \
                                                                  \
   if (!TB_TEST_IS_WINDOWS_) {                                    \
