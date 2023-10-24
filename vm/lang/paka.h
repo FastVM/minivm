@@ -89,4 +89,7 @@ vm_paka_parser_block_full_t vm_paka_parser_block_full(vm_paka_parser_t *parser, 
 vm_block_t *vm_paka_parse(const char *src);
 vm_paka_blocks_t vm_paka_parse_blocks(const char *src);
 
+#define VM_LANG_PAKA_NUM_TAG VM_TAG_I64
+#define VM_LANG_PAKA_NUM_FIELD i64
+
 #endif

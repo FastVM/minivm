@@ -1,8 +1,6 @@
 
 #include "./tb.h"
 
-#include <stdio.h>
-
 #include "../../tb/include/tb.h"
 #include "../check.h"
 #include "../rblock.h"
@@ -87,7 +85,29 @@ TB_DataType vm_tb_func_tag(TB_Function *fun, vm_tag_t tag) {
 TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
     switch (arg.type) {
         case VM_ARG_NUM: {
-            return tb_inst_float64(fun, arg.num.value.f64);
+            switch (arg.num.tag) {
+            case VM_TAG_I8: {
+                return tb_inst_sint(fun, TB_TYPE_I8, arg.num.value.i8);
+            }
+            case VM_TAG_I16: {
+                return tb_inst_sint(fun, TB_TYPE_I16, arg.num.value.i16);
+            }
+            case VM_TAG_I32: {
+                return tb_inst_sint(fun, TB_TYPE_I32, arg.num.value.i32);
+            }
+            case VM_TAG_I64: {
+                return tb_inst_sint(fun, TB_TYPE_I64, arg.num.value.i64);
+            }
+            case VM_TAG_F32: {
+                return tb_inst_float32(fun, arg.num.value.f32);
+            }
+            case VM_TAG_F64: {
+                return tb_inst_float64(fun, arg.num.value.f64);
+            }
+            default: {
+                __builtin_trap();
+            }
+            }
         }
         case VM_ARG_REG: {
             if (regs[arg.reg] == NULL) {
@@ -153,17 +173,6 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
 
         tb_inst_ret(fun, 0, NULL);
     } else {
-        TB_Node *global_addr = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t) &rblock->cache);
-        TB_Node *global = tb_inst_load( fun, TB_TYPE_PTR, global_addr, 1, false);
-        TB_Node *cond = tb_inst_cmp_eq(fun, global, tb_inst_uint(fun, TB_TYPE_PTR, 0));
-
-        TB_Node *has_global = tb_inst_region(fun);
-        TB_Node *no_global = tb_inst_region(fun);
-
-        tb_inst_if(fun, cond, no_global, has_global);
-
-        tb_inst_set_control(fun, no_global);
-
         TB_PrototypeParam comp_args[2] = {
             {TB_TYPE_PTR},
             {TB_TYPE_PTR},
@@ -177,9 +186,9 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
 
         TB_Node *comp_params[2];
 
-        GC_add_roots(rblock, rblock + 1);
-
         comp_params[0] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)state);
+        
+        GC_add_roots(rblock, rblock + 1);
         comp_params[1] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)rblock);
 
         TB_MultiOutput multi = tb_inst_call(
@@ -189,69 +198,34 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
             2,
             comp_params);
 
-        {
-            TB_PrototypeParam *call_params = vm_malloc(sizeof(TB_PrototypeParam) * (rblock->block->nargs + 1));
+        TB_PrototypeParam *call_params = vm_malloc(sizeof(TB_PrototypeParam) * (rblock->block->nargs + 1));
 
-            call_params[0] = (TB_PrototypeParam){TB_TYPE_PTR};
+        call_params[0] = (TB_PrototypeParam){TB_TYPE_PTR};
 
-            for (size_t arg = 0; arg < rblock->block->nargs; arg++) {
-                call_params[arg + 1] = (TB_PrototypeParam){
-                    vm_tb_func_tag(fun, rblock->regs->tags[rblock->block->args[arg].reg]),
-                };
-            }
-
-            TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, rblock->block->nargs + 1, call_params, 0, NULL, false);
-
-            TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * (rblock->block->nargs + 1));
-
-            call_args[0] = tb_inst_param(fun, 0);
-
-            for (size_t i = 0; i < rblock->block->nargs; i++) {
-                call_args[i + 1] = args[i];
-            }
-
-            tb_inst_call(
-                fun,
-                call_proto,
-                multi.single,
-                rblock->block->nargs + 1,
-                call_args);
-
-            tb_inst_ret(fun, 0, NULL);
+        for (size_t arg = 0; arg < rblock->block->nargs; arg++) {
+            call_params[arg + 1] = (TB_PrototypeParam){
+                vm_tb_func_tag(fun, rblock->regs->tags[rblock->block->args[arg].reg]),
+            };
         }
 
-        tb_inst_set_control(fun, has_global);
+        TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, rblock->block->nargs + 1, call_params, 0, NULL, false);
 
-        {
-            TB_PrototypeParam *call_params = vm_malloc(sizeof(TB_PrototypeParam) * (rblock->block->nargs + 1));
+        TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * (rblock->block->nargs + 1));
 
-            call_params[0] = (TB_PrototypeParam){TB_TYPE_PTR};
+        call_args[0] = tb_inst_param(fun, 0);
 
-            for (size_t arg = 0; arg < rblock->block->nargs; arg++) {
-                call_params[arg + 1] = (TB_PrototypeParam){
-                    vm_tb_func_tag(fun, rblock->regs->tags[rblock->block->args[arg].reg]),
-                };
-            }
-
-            TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, rblock->block->nargs + 1, call_params, 0, NULL, false);
-
-            TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * (rblock->block->nargs + 1));
-
-            call_args[0] = tb_inst_param(fun, 0);
-
-            for (size_t i = 0; i < rblock->block->nargs; i++) {
-                call_args[i + 1] = args[i];
-            }
-            
-            tb_inst_call(
-                fun,
-                call_proto,
-                global,
-                rblock->block->nargs + 1,
-                call_args);
-
-            tb_inst_ret(fun, 0, NULL);
+        for (size_t i = 0; i < rblock->block->nargs; i++) {
+            call_args[i + 1] = args[i];
         }
+
+        tb_inst_call(
+            fun,
+            call_proto,
+            multi.single,
+            rblock->block->nargs + 1,
+            call_args);
+
+        tb_inst_ret(fun, 0, NULL);
     }
 
     tb_inst_set_control(fun, ctrl);
@@ -711,11 +685,31 @@ void vm_tb_print(uint32_t tag, void *value) {
         .tag = tag,
     };
     switch (tag) {
-        case VM_TAG_F64: {
-            val.value.f64 = *(double *)value;
-            if (fabs(val.value.f64) > 100000000000000000000000000000000000.0) {
+        case VM_TAG_I8: {
+            val.value.i8 = *(int8_t *)value;
+            break;
+        }
+        case VM_TAG_I16: {
+            val.value.i16 = *(int16_t *)value;
+            break;
+        }
+        case VM_TAG_I32: {
+            val.value.i32 = *(int32_t *)value;
+            break;
+        }
+        case VM_TAG_I64: {
+            val.value.i64 = *(int64_t *)value;
+            if (val.value.i64 > 100) {
                 __builtin_trap();
             }
+            break;
+        }
+        case VM_TAG_F32: {
+            val.value.f32 = *(float *)value;
+            break;
+        }
+        case VM_TAG_F64: {
+            val.value.f64 = *(double *)value;
             break;
         }
         case VM_TAG_STR: {
@@ -772,7 +766,7 @@ void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag
 
 void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
     void *test = rblock->cache;
-    printf("%p [cache = %p]\n", rblock, test);
+    // printf("%p [cache = %p]\n", rblock, test);
     if (test != NULL) {
         return test;
     }
@@ -817,7 +811,7 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
 
     for (size_t i = 0; i < block->nargs; i++) {
         regs[block->args[i].reg] = args[i];
-        vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], args[i]);
+        // vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], args[i]);
     }
 
     TB_Node *main = vm_tb_func_body_once(state, fun, regs, block);
@@ -830,7 +824,7 @@ void *vm_tb_rfunc_comp(vm_tb_state_t *state, vm_rblock_t *rblock) {
     tb_pass_print(passes);
     fflush(stdout);
 #endif
-    // tb_pass_optimize(passes);
+    tb_pass_optimize(passes);
 #if defined(VM_DUMP_TB_OPT)
     fprintf(stdout, "\n--- opt tb ---\n");
     tb_pass_print(passes);

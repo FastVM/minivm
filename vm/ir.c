@@ -256,10 +256,6 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "std");
             break;
         }
-        case VM_IOP_TYPE: {
-            fprintf(out, "type");
-            break;
-        }
         case VM_IOP_LEN: {
             fprintf(out, "len");
             break;

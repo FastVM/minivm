@@ -38,7 +38,7 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
             } else if (instr.args[1].type == VM_ARG_NUM) {
                 instr.args[3] = (vm_arg_t){
                     .type = VM_ARG_TAG,
-                    .tag = VM_TAG_F64,
+                    .tag = instr.args[1].num.tag,
                 };
             }
             if (instr.args[2].type == VM_ARG_REG) {
@@ -49,7 +49,7 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
             } else if (instr.args[2].type == VM_ARG_NUM) {
                 instr.args[4] = (vm_arg_t){
                     .type = VM_ARG_TAG,
-                    .tag = VM_TAG_F64,
+                    .tag = instr.args[1].num.tag,
                 };
             }
         }
@@ -69,7 +69,7 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
             if (branch.args[1].type == VM_ARG_REG) {
                 branch.tag = regs->tags[branch.args[1].reg];
             } else if (branch.args[1].type == VM_ARG_NUM) {
-                branch.tag = VM_TAG_F64;
+                branch.tag = branch.args[1].num.tag;
             }
             if (branch.args[1].type == VM_ARG_REG) {
                 branch.args[3] = (vm_arg_t){
@@ -79,7 +79,7 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
             } else if (branch.args[1].type == VM_ARG_NUM) {
                 branch.args[3] = (vm_arg_t){
                     .type = VM_ARG_TAG,
-                    .tag = VM_TAG_F64,
+                    .tag = branch.args[1].num.tag,
                 };
             }
             vm_block_t *from = branch.targets[0];

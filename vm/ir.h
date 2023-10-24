@@ -66,8 +66,6 @@ enum {
     VM_IOP_LEN,
     // objects
     VM_IOP_STD,
-    // intro
-    VM_IOP_TYPE,
 };
 
 struct vm_rblock_t {

@@ -406,26 +406,6 @@ redo:;
         arg = out;
         goto redo;
     }
-    if (vm_paka_parser_match(parser, "::")) {
-        vm_paka_parser_strip_spaces(parser);
-        if (vm_paka_parser_match_keyword(parser, "type")) {
-            vm_arg_t out = (vm_arg_t){
-                .type = VM_ARG_REG,
-                .reg = vm_paka_find_reg(comp->regs),
-            };
-            vm_instr_t instr = (vm_instr_t){
-                .op = VM_IOP_TYPE,
-                .out = out,
-                .args[0] = arg,
-            };
-            vm_block_realloc(comp->write, instr);
-            arg = out;
-            goto redo;
-        }
-        return (vm_arg_t){
-            .type = VM_ARG_UNK,
-        };
-    }
     if (vm_paka_parser_match(parser, ".")) {
         vm_paka_parser_strip_spaces(parser);
         vm_block_t *next = vm_paka_blocks_new(comp->blocks);
@@ -601,8 +581,8 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             }
             return (vm_arg_t){
                 .type = VM_ARG_NUM,
-                .num.tag = VM_TAG_F64,
-                .num.value.f64 = n,
+                .num.tag = VM_LANG_PAKA_NUM_TAG,
+                .num.value.VM_LANG_PAKA_NUM_FIELD = n,
             };
         }
     }
@@ -691,8 +671,8 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             .args[0] =
                 (vm_arg_t){
                     .type = VM_ARG_NIL,
-                    .num.tag = VM_TAG_F64,
-                    .num.value.f64 = 0,
+                    .num.tag = VM_LANG_PAKA_NUM_TAG,
+                    .num.value.VM_LANG_PAKA_NUM_FIELD = 0,
                 },
         };
         comp->names = last_names;
