@@ -8,9 +8,8 @@ typedef struct {
 
 static bool is_local_ptr(TB_Node* n) {
     // skip past ptr arith
-    retry: {
-        if (n->type == TB_MEMBER_ACCESS) goto retry;
-        if (n->type == TB_ARRAY_ACCESS) goto retry;
+    while (n->type == TB_MEMBER_ACCESS || n->type == TB_ARRAY_ACCESS) {
+        n = n->inputs[1];
     }
 
     return n->type == TB_LOCAL;

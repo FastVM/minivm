@@ -142,8 +142,8 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
 
     tb_inst_set_control(fun, ret);
 
-    if (rblock->cache != NULL) {
-        TB_Node *func = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t) rblock->cache);
+    if (rblock->jit != NULL) {
+        TB_Node *func = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t) rblock->jit);
         TB_PrototypeParam *call_params = vm_malloc(sizeof(TB_PrototypeParam) * (rblock->block->nargs + 1));
 
         call_params[0] = (TB_PrototypeParam){TB_TYPE_PTR};
@@ -173,7 +173,7 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
 
         tb_inst_ret(fun, 0, NULL);
     } else {
-        // TB_Node *global_addr = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t) &rblock->cache);
+        // TB_Node *global_addr = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t) &rblock->jit);
         // TB_Node *global = tb_inst_load( fun, TB_TYPE_PTR, global_addr, 1, false);
         // TB_Node *cond = tb_inst_cmp_eq(fun, global, tb_inst_uint(fun, TB_TYPE_PTR, 0));
 
@@ -202,6 +202,10 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
             GC_add_roots(rblock, rblock + 1);
             comp_params[0] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)rblock);
             rblock->state = state;
+
+            // tb_inst_debugbreak(fun);
+
+            // state->faults += 1;
 
             TB_MultiOutput multi = tb_inst_call(
                 fun,
@@ -239,8 +243,6 @@ TB_Node *vm_tb_func_body(vm_tb_state_t *state, TB_Function *fun, TB_Node **args,
 
             tb_inst_ret(fun, 0, NULL);
         }
-
-        tb_inst_set_control(fun, ret);
 
         // tb_inst_set_control(fun, has_global);
 
@@ -287,8 +289,8 @@ TB_Node *vm_tb_func_body_call(vm_tb_state_t *state, TB_Function *fun, TB_Node **
     }
 
     TB_Node *func = NULL;
-    if (rblock->cache != NULL) {
-        func = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)rblock->cache);
+    if (rblock->jit != NULL) {
+        func = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)rblock->jit);
     } else {
         TB_PrototypeParam comp_args[2] = {
             {TB_TYPE_PTR},
@@ -305,6 +307,8 @@ TB_Node *vm_tb_func_body_call(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         GC_add_roots(rblock, rblock + 1);
         comp_params[0] = tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)rblock);
         rblock->state = state;
+
+        state->faults += 1;
 
         TB_MultiOutput multi = tb_inst_call(
             fun,
@@ -807,13 +811,14 @@ void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag
         params);
 }
 
-void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
-    void *test = rblock->cache;
-    if (test != NULL) {
-        return test;
+void *vm_tb_rfunc_comp(vm_rblock_t *restrict rblock) {
+    void *cache = rblock->jit;
+    if (cache != NULL && rblock->redo-- != 0) {
+        return cache;
     }
 
     vm_tb_state_t *state = rblock->state;
+    state->faults = 0;
 
     vm_block_t *block = vm_rblock_version(rblock);
     if (block == NULL) {
@@ -855,7 +860,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     for (size_t i = 0; i < block->nargs; i++) {
         regs[block->args[i].reg] = args[i];
+#if defined(VM_DUMP_JIT_ARGS)
         // vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], args[i]);
+#endif
     }
 
     TB_Node *main = vm_tb_func_body_once(state, fun, regs, block);
@@ -886,10 +893,28 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     tb_pass_exit(passes);
 
-    TB_JIT *jit = tb_jit_begin(state->module, 1 << 20);
+    TB_JIT *jit = tb_jit_begin(state->module, 1 << 16);
     void *ret = tb_jit_place_function(jit, fun);
 
-    rblock->cache = ret;
+    if (state->faults <= rblock->least_faults) {
+        rblock->jit = ret;
+    }
+
+    if (state->faults < rblock->least_faults) {
+        rblock->least_faults = state->faults;
+    } else {
+        if (state->faults == 0) {
+            rblock->base_redo = SIZE_MAX;
+        } else {
+            rblock->base_redo *= 4;
+        }
+        rblock->redo = rblock->base_redo;
+    }
+
+
+    // printf("block #%zi with %zu faults\n", rblock->block->id, state->faults);
+
+    // printf("RETURN (code ptr: %p => %p)\n", rblock, ret);
 
     return ret;
 }

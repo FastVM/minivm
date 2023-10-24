@@ -16,6 +16,7 @@ typedef struct vm_tb_state_t vm_tb_state_t;
 struct vm_tb_state_t {
     vm_table_t *std;
     void *module;
+    size_t faults;
 
     // externals
     void *state_self;

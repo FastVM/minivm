@@ -6,8 +6,17 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     rblock->block = block;
     rblock->regs = regs;
-    rblock->cache = NULL;
+    rblock->cache = vm_malloc(sizeof(vm_cache_t));
+    vm_cache_new(rblock->cache);
+    rblock->jit = NULL;
+    rblock->least_faults = SIZE_MAX;
+    rblock->redo = 0;
+    rblock->base_redo = 256;
     return rblock;
+}
+
+void vm_cache_new(vm_cache_t *out) {
+    *out = (vm_cache_t) {0}; 
 }
 
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {

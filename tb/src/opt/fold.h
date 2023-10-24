@@ -438,12 +438,12 @@ static TB_Node* ideal_extension(TB_Passes* restrict opt, TB_Function* f, TB_Node
 
 static int node_pos(TB_Node* n) {
     switch (n->type) {
-        case TB_PHI:
-        return 1;
-
         case TB_INTEGER_CONST:
         case TB_FLOAT32_CONST:
         case TB_FLOAT64_CONST:
+        return 1;
+
+        case TB_PHI:
         return 2;
 
         default:
@@ -455,7 +455,7 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
     TB_NodeTypeEnum type = n->type;
     if (is_commutative(type)) {
         // if it's commutative: we wanna have a canonical form.
-        if (node_pos(n->inputs[1]) > node_pos(n->inputs[2])) {
+        if (node_pos(n->inputs[1]) < node_pos(n->inputs[2])) {
             TB_Node* tmp = n->inputs[1];
             set_input(opt, n, n->inputs[2], 1);
             set_input(opt, n, tmp, 2);
