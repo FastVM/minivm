@@ -1,7 +1,8 @@
-#include "../x64/x64.h"
-#include "../x64/x64_emitter.h"
+#include "x64.h"
+#include "x64_emitter.h"
 #include "../objects/win64eh.h"
 
+#include <tb_x64.h>
 #include "x64_disasm.c"
 
 enum {
@@ -15,13 +16,6 @@ enum {
     FIRST_GPR = 0,
     FIRST_XMM = 16, // we're getting more GPRs in intel APX so this might change :)
 };
-
-typedef struct {
-    TB_DataType dt;
-
-    int old;
-    int stack_pos;
-} Reload;
 
 static const struct ParamDescriptor {
     int gpr_count;
@@ -1654,7 +1648,7 @@ static void inst2_print(TB_CGEmitter* restrict e, InstType type, Val* dst, Val* 
         dt = TB_X86_TYPE_SSE_PD;
     }
 
-    if (e->emit_asm) {
+    /*if (e->emit_asm) {
         EMITA(e, "  %s", inst_table[type].mnemonic);
         if (inst_table[type].cat == INST_BINOP_EXT3) {
             // movd/q
@@ -1669,7 +1663,7 @@ static void inst2_print(TB_CGEmitter* restrict e, InstType type, Val* dst, Val* 
         EMITA(e, ", ");
         print_operand(e, src, dt);
         EMITA(e, "\n");
-    }
+    }*/
 
     if (dt >= TB_X86_TYPE_SSE_SS && dt <= TB_X86_TYPE_SSE_PD) {
         inst2sse(e, type, dst, src, dt);
@@ -1679,11 +1673,11 @@ static void inst2_print(TB_CGEmitter* restrict e, InstType type, Val* dst, Val* 
 }
 
 static void inst1_print(TB_CGEmitter* restrict e, int type, Val* src, TB_X86_DataType dt) {
-    if (e->emit_asm) {
+    /*if (e->emit_asm) {
         EMITA(e, "  %s ", inst_table[type].mnemonic);
         print_operand(e, src, dt);
         EMITA(e, "\n");
-    }
+    }*/
     inst1(e, type, src, dt);
 }
 
@@ -1888,13 +1882,13 @@ static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out, i
                 ternary = (i < in_base + inst->in_count) || (inst->flags & (INST_IMM | INST_ABS));
                 if (ternary && inst->type == IMUL && (inst->flags & INST_IMM)) {
                     // there's a special case for ternary IMUL r64, r/m64, imm32
-                    if (e->emit_asm) {
+                    /*if (e->emit_asm) {
                         EMITA(e, "  imul ");
                         print_operand(e, &out, inst->dt);
                         EMITA(e, ", ");
                         print_operand(e, &lhs, inst->dt);
                         EMITA(e, ", %d\n", inst->imm);
-                    }
+                    }*/
 
                     inst2(e, IMUL3, &out, &lhs, inst->dt);
                     if (inst->dt == TB_X86_TYPE_WORD) {
@@ -2129,10 +2123,78 @@ static size_t emit_call_patches(TB_Module* restrict m, TB_FunctionOutput* out_f)
     return out_f->patch_count - r;
 }
 
+#undef E
+#define E(fmt, ...) tb_asm_print(e, fmt, ## __VA_ARGS__)
+static void disassemble(TB_CGEmitter* e, int bb, size_t pos, size_t end) {
+    if (bb >= 0) {
+        E(".bb%d:\n", bb);
+    }
+
+    while (pos < end) {
+        TB_X86_Inst inst;
+        if (!tb_x86_disasm(&inst, end - pos, &e->data[pos])) {
+            E("  ERROR\n");
+            pos += 1; // skip ahead once... cry
+        }
+
+        const char* mnemonic = tb_x86_mnemonic(&inst);
+        E("  %s ", mnemonic);
+
+        bool mem = true, imm = true;
+        for (int i = 0; i < 4; i++) {
+            if (inst.regs[i] == -1) {
+                if (mem && (inst.flags & TB_X86_INSTR_USE_MEMOP)) {
+                    if (i > 0) E(", ");
+
+                    mem = false;
+                    E("%s [", tb_x86_type_name(inst.data_type));
+                    if (inst.base != 255) {
+                        E("%s", tb_x86_reg_name(inst.base, TB_X86_TYPE_QWORD));
+                    }
+
+                    if (inst.index != 255) {
+                        E(" + %s*%d", tb_x86_reg_name(inst.index, TB_X86_TYPE_QWORD), 1 << inst.scale);
+                    }
+
+                    if (inst.disp > 0) {
+                        E(" + %d", inst.disp);
+                    } else if (inst.disp < 0) {
+                        E(" - %d", -inst.disp);
+                    }
+
+                    E("]");
+                } else if (imm && (inst.flags & (TB_X86_INSTR_IMMEDIATE | TB_X86_INSTR_ABSOLUTE))) {
+                    if (i > 0) E(", ");
+
+                    imm = false;
+                    E("%d", inst.imm);
+                } else {
+                    break;
+                }
+            } else {
+                if (i > 0) {
+                    E(", ");
+
+                    // special case for certain ops with two data types
+                    if (inst.flags & TB_X86_INSTR_TWO_DATA_TYPES) {
+                        E("%s", tb_x86_reg_name(inst.regs[i], inst.data_type2));
+                        continue;
+                    }
+                }
+
+                E("%s", tb_x86_reg_name(inst.regs[i], inst.data_type));
+            }
+        }
+        E("\n");
+
+        pos += inst.length;
+    }
+}
+#undef E
+
 ICodeGen tb__x64_codegen = {
     .minimum_addressable_size = 8,
     .pointer_size = 64,
-
     .emit_win64eh_unwind_info = emit_win64eh_unwind_info,
     .emit_call_patches  = emit_call_patches,
     .get_data_type_size = get_data_type_size,

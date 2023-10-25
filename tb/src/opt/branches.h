@@ -64,7 +64,7 @@ static TB_Node* ideal_phi(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     // "switch" logic for data.
     TB_DataType dt = n->dt;
     TB_Node* region = n->inputs[0];
-    if (region->input_count == 2) {
+    if (n->dt.type != TB_MEMORY && region->input_count == 2) {
         // for now we'll leave multi-phi scenarios alone, we need
         // to come up with a cost-model around this stuff.
         for (User* use = find_users(opt, region); use; use = use->next) {

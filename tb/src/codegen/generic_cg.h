@@ -128,6 +128,7 @@ static bool is_terminator(int type);
 static bool wont_spill_around(int type);
 static int classify_reg_class(TB_DataType dt);
 static void isel(Ctx* restrict ctx, TB_Node* n, int dst);
+static void disassemble(TB_CGEmitter* e, int id, size_t pos, size_t end);
 static bool should_rematerialize(TB_Node* n);
 
 static void emit_code(Ctx* restrict ctx, TB_FunctionOutput* restrict func_out, int end);
@@ -902,7 +903,6 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
         .target_abi = f->super.module->target_abi,
         .emit = {
             .f = f,
-            .emit_asm = emit_asm,
             .output = func_out,
             .data = out,
             .capacity = out_capacity,
@@ -991,7 +991,6 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     }
     p->worklist = ctx.worklist;
 
-    EMITA(&ctx.emit, "%s:\n", f->super.name);
     {
         int end;
         CUIK_TIMED_BLOCK("data flow") {
@@ -1014,6 +1013,27 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
                 assert((target & 0x80000000) && "target label wasn't resolved... what?");
                 *ctx.jump_table_patches[i].pos = target & ~0x80000000;
             }
+        }
+    }
+
+    if (emit_asm) {
+        printf("%s:\n", f->super.name);
+
+        // dump epilogue
+        disassemble(&ctx.emit, -1, 0, func_out->prologue_length);
+
+        TB_Node** bbs = ctx.worklist.items;
+        FOREACH_N(i, 0, ctx.bb_count) {
+            TB_Node* bb = bbs[bb_order[i]];
+
+            uint32_t start = nl_map_get_checked(ctx.emit.labels, bb) & ~0x80000000;
+            uint32_t end   = ctx.emit.count;
+            if (i + 1 < ctx.bb_count) {
+                TB_Node* next = bbs[bb_order[i + 1]];
+                end = nl_map_get_checked(ctx.emit.labels, next) & ~0x80000000;
+            }
+
+            disassemble(&ctx.emit, i, start, end);
         }
     }
 

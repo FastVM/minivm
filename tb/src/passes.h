@@ -106,14 +106,17 @@ typedef struct {
     int dst, src;
 } PhiVal;
 
-typedef struct TB_BasicBlock {
-    TB_Node* dom;
+typedef struct TB_BasicBlock TB_BasicBlock;
+struct TB_BasicBlock {
+    TB_BasicBlock* dom;
+
+    TB_Node* start;
     TB_Node* end;
     int id, dom_depth;
 
     TB_Node* mem_in;
     NL_HashSet items;
-} TB_BasicBlock;
+};
 
 typedef struct TB_CFG {
     size_t block_count;
@@ -324,15 +327,20 @@ static TB_Node* get_block_begin(TB_Node* n) {
 }
 
 static TB_BasicBlock* idom_bb(TB_Passes* p, TB_BasicBlock* bb) {
-    ptrdiff_t search = nl_map_get(p->scheduled, bb->dom);
-    return search >= 0 ? p->scheduled[search].v : NULL;
+    return bb->dom;
 }
 
 // shorthand because we use it a lot
 static TB_Node* idom(TB_CFG* cfg, TB_Node* n) {
     if (cfg->node_to_block == NULL) return NULL;
+
     ptrdiff_t search = nl_map_get(cfg->node_to_block, n);
-    return search >= 0 ? cfg->node_to_block[search].v.dom : NULL;
+    if (search < 0) {
+        return NULL;
+    }
+
+    TB_BasicBlock* dom = cfg->node_to_block[search].v.dom;
+    return dom ? dom->start : NULL;
 }
 
 static int dom_depth(TB_CFG* cfg, TB_Node* n) {

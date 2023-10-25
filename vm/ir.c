@@ -38,10 +38,6 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             }
             break;
         }
-        case VM_ARG_FFI: {
-            fprintf(out, "<ffi.func>");
-            break;
-        }
         case VM_ARG_FUNC: {
             if (val.func == NULL) {
                 fprintf(out, "<null.fun>");

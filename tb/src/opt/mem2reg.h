@@ -79,7 +79,7 @@ static void add_phi_operand(Mem2Reg_Ctx* restrict c, TB_Function* f, TB_Node* ph
 
     assert(phi_node->type == TB_PHI);
     TB_Node* phi_region = phi_node->inputs[0];
-    DO_IF(TB_OPTDEBUG_MEM2REG)(log_debug("v%u: adding v%u to PHI", phi_node->gvn, node->gvn));
+    DO_IF(TB_OPTDEBUG_MEM2REG)(printf("v%u: adding v%u to PHI\n", phi_node->gvn, node->gvn));
 
     // the slot to fill is based on the predecessor list of the region
     FOREACH_N(i, 0, phi_region->input_count) {
@@ -121,7 +121,8 @@ static void ssa_replace_phi_arg(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, TB_
 
         bool found = false;
         FOREACH_N(j, 0, dst->input_count) {
-            if (dst->inputs[j] == bb) {
+            TB_Node* pred = get_pred(dst, j);
+            if (pred == bb) {
                 // try to replace
                 set_input(c->p, phi_reg, top, j + 1);
                 found = true;
@@ -244,7 +245,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
         // fill successors
         for (User* u = end->users; u; u = u->next) {
             if (cfg_is_control(u->n)) {
-                TB_Node* succ = cfg_next_region_control(u->n);
+                TB_Node* succ = cfg_get_fallthru(u->n);
                 ssa_replace_phi_arg(c, f, bb, succ, stack);
             }
         }
@@ -416,8 +417,6 @@ bool tb_pass_mem2reg(TB_Passes* p) {
     // for each global name we'll insert phi nodes
     TB_Node** phi_p = tb_tls_push(tls, c.cfg.block_count * sizeof(TB_Node*));
 
-    // tb_pass_print_dot(p, tb_default_print_callback, stdout);
-
     NL_HashSet ever_worked = nl_hashset_alloc(c.cfg.block_count);
     NL_HashSet has_already = nl_hashset_alloc(c.cfg.block_count);
     FOREACH_N(var, 0, c.to_promote_count) {
@@ -489,7 +488,6 @@ bool tb_pass_mem2reg(TB_Passes* p) {
     }
 
     ssa_rename(&c, f, c.blocks[0], stack);
-    // tb_function_print(f, tb_default_print_callback, stdout);
 
     // don't need these anymore
     FOREACH_N(var, 0, c.to_promote_count) {

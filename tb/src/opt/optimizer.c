@@ -801,7 +801,7 @@ static bool peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Peeph
     if (n->type != TB_END && n->type != TB_UNREACHABLE && n->users == NULL) {
         DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[196mKILL\x1b[0m"));
         tb_pass_kill_node(p, n);
-        return false;
+        return true;
     }
 
     // idealize node (in a loop of course)
@@ -1007,7 +1007,7 @@ void tb_pass_peephole(TB_Passes* p, TB_PeepholeFlags flags) {
                 // to end the iteration of a dom chain.
                 TB_Node* dom = NULL;
                 if (i != 0) {
-                    dom = nl_map_get_checked(cfg.node_to_block, tmp_ws.items[i]).dom;
+                    dom = nl_map_get_checked(cfg.node_to_block, tmp_ws.items[i]).dom->start;
                 }
 
                 Lattice* l = lattice_ctrl(&p->universe, dom);

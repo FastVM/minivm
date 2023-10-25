@@ -32,7 +32,6 @@ enum {
     VM_ARG_REG,
     VM_ARG_NUM,
     VM_ARG_STR,
-    VM_ARG_FFI,
     VM_ARG_FUNC,
     // for backend use
     VM_ARG_TAG,
@@ -78,6 +77,7 @@ struct vm_rblock_t {
     size_t least_faults;
     ptrdiff_t redo;
     size_t base_redo;
+    size_t count;
 };
 
 struct vm_cache_t {

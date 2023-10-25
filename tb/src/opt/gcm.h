@@ -57,12 +57,12 @@ static TB_BasicBlock* find_lca(TB_Passes* p, TB_BasicBlock* a, TB_BasicBlock* b)
     if (a == NULL) return b;
 
     // line both up
-    while (a->dom_depth > b->dom_depth) a = nl_map_get_checked(p->scheduled, a->dom);
-    while (b->dom_depth > a->dom_depth) b = nl_map_get_checked(p->scheduled, b->dom);
+    while (a->dom_depth > b->dom_depth) a = a->dom;
+    while (b->dom_depth > a->dom_depth) b = b->dom;
 
     while (a != b) {
-        b = idom_bb(p, b);
-        a = idom_bb(p, a);
+        b = b->dom;
+        a = a->dom;
     }
 
     return a;

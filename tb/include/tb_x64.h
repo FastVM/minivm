@@ -93,5 +93,6 @@ typedef struct {
 
 bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* data);
 const char* tb_x86_reg_name(int8_t reg, TB_X86_DataType dt);
+const char* tb_x86_type_name(TB_X86_DataType dt);
 
 #endif /* TB_X64_H */

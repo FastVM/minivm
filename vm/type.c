@@ -12,6 +12,7 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     rblock->least_faults = SIZE_MAX;
     rblock->redo = 0;
     rblock->base_redo = 256;
+    rblock->count = 0;
     return rblock;
 }
 
@@ -143,12 +144,7 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types,
     if (branch.op == VM_BOP_GET) {
         return branch;
     } else if (branch.op == VM_BOP_CALL) {
-        if (branch.args[0].type == VM_ARG_FFI) {
-            branch.tag = VM_TAG_FFI;
-            return branch;
-        } else {
-            return branch;
-        }
+        return branch;
     } else if (branch.tag == VM_TAG_UNK) {
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_REG) {

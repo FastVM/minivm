@@ -48,7 +48,7 @@ TB_CFG tb_compute_rpo2(TB_Function* f, Worklist* ws, DynArray(TB_Node*)* tmp_sta
         // we've spotted a BB entry
         if (cfg_is_bb_entry(n)) {
             // proj BB's will prefer to be REGION BB's
-            if (n->inputs[0]->type != TB_START && n->type == TB_PROJ && n->users->n->type == TB_REGION) {
+            if (n->inputs[0]->type != TB_START && n->type == TB_PROJ && n->users->next == NULL && n->users->n->type == TB_REGION) {
                 // we've already seen this BB, let's skip it
                 if (worklist_test_n_set(ws, n->users->n)) {
                     continue;
@@ -70,12 +70,12 @@ TB_CFG tb_compute_rpo2(TB_Function* f, Worklist* ws, DynArray(TB_Node*)* tmp_sta
 
             // the start node always has it's dom depth filled
             if (bb.id == 0) {
-                bb.dom = entry;
                 bb.dom_depth = 0;
             } else {
                 bb.dom_depth = -1;
             }
 
+            bb.start = entry;
             bb.end = n;
             dyn_array_put(ws->items, entry);
             nl_map_put(cfg.node_to_block, entry, bb);
@@ -131,6 +131,11 @@ static int resolve_dom_depth(TB_CFG* cfg, TB_Node* bb) {
     return parent + 1;
 }
 
+static TB_BasicBlock* get_pred_bb(TB_CFG* cfg, TB_Node* n, int i) {
+    n = get_pred(n, i);
+    return &nl_map_get_checked(cfg->node_to_block, n);
+}
+
 TB_DominanceFrontiers* tb_get_dominance_frontiers(TB_Function* f, TB_Passes* restrict p, TB_CFG cfg, TB_Node** blocks) {
     size_t stride = (cfg.block_count + 63) / 64;
     size_t elems = stride * cfg.block_count;
@@ -173,6 +178,10 @@ void tb_compute_dominators(TB_Function* f, TB_Passes* restrict p, TB_CFG cfg) {
 
 void tb_compute_dominators2(TB_Function* f, Worklist* ws, TB_CFG cfg) {
     TB_Node** blocks = ws->items;
+
+    TB_BasicBlock* entry = &nl_map_get_checked(cfg.node_to_block, blocks[0]);
+    entry->dom = entry;
+
     bool changed = true;
     while (changed) {
         changed = false;
@@ -216,9 +225,9 @@ void tb_compute_dominators2(TB_Function* f, Worklist* ws, TB_CFG cfg) {
             }
 
             assert(new_idom != NULL);
-            TB_Node** dom_ptr = &nl_map_get_checked(cfg.node_to_block, b).dom;
-            if (*dom_ptr != new_idom) {
-                *dom_ptr = new_idom;
+            TB_BasicBlock* b_bb = &nl_map_get_checked(cfg.node_to_block, b);
+            if (b_bb->dom == NULL || b_bb->dom->start != new_idom) {
+                b_bb->dom = &nl_map_get_checked(cfg.node_to_block, new_idom);
                 changed = true;
             }
         }
@@ -234,21 +243,22 @@ void tb_compute_dominators2(TB_Function* f, Worklist* ws, TB_CFG cfg) {
 
 TB_Node* tb_get_parent_region(TB_Node* n) {
     while (n->type != TB_REGION && n->type != TB_START) {
-        tb_assert(n->inputs[0], "node has no have a control edge");
+        tb_assert(n->inputs[0], "node doesn't have a control edge");
         n = n->inputs[0];
     }
 
     return n;
 }
 
-bool tb_is_dominated_by(TB_CFG cfg, TB_Node* expected_dom, TB_Node* bb) {
-    while (expected_dom != bb) {
-        TB_Node* new_bb = idom(&cfg, bb);
-        if (bb == new_bb) {
+bool tb_is_dominated_by(TB_CFG cfg, TB_Node* expected_dom, TB_Node* n) {
+    TB_BasicBlock* expected = &nl_map_get_checked(cfg.node_to_block, expected_dom);
+    TB_BasicBlock* bb = &nl_map_get_checked(cfg.node_to_block, n);
+
+    while (bb != expected) {
+        if (bb->dom == bb) {
             return false;
         }
-
-        bb = new_bb;
+        bb = bb->dom;
     }
 
     return true;

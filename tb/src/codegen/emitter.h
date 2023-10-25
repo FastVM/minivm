@@ -19,7 +19,6 @@ typedef struct {
     TB_Function* f;
     TB_FunctionOutput* output;
 
-    bool emit_asm;
     TB_Assembly *head_asm, *tail_asm;
 
     // this is mapped to a giant buffer and is technically
@@ -51,9 +50,6 @@ static void tb_reloc4(TB_CGEmitter* restrict e, uint32_t p, uint32_t b) {
 }
 
 static void tb_asm_print(TB_CGEmitter* restrict e, const char* fmt, ...) {
-    // let's hope the optimizer can hoist this early-out outside of the call
-    if (!e->emit_asm) { return; }
-
     // make sure we have enough bytes for the operation
     TB_Assembly* new_head = e->tail_asm;
     if (new_head == NULL || new_head->length + 100 >= TB_ASSEMBLY_CHUNK_CAP) {
