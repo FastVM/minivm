@@ -47,7 +47,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_RFUNC: {
-            fprintf(out, "rfunc(.%zi)", val.rfunc->block->id);
+            fprintf(out, "<rfunc.%zi>", val.rfunc->block->id);
             break;
         };
     }

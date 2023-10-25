@@ -967,7 +967,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *restrict rblock) {
         rblock->redo = rblock->base_redo;
     }
 
-    printf("block #%zi with %zu faults\n", rblock->block->id, state->faults);
+    // printf("block #%zi with %zu faults\n", rblock->block->id, state->faults);
 
     // printf("RETURN (code ptr: %p => %p)\n", rblock, ret);
 
