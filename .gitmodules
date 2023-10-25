@@ -1,0 +1,3 @@
+[submodule "cuik"]
+	path = cuik
+	url = https://github.com/realnegate/cuik
