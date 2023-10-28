@@ -3,6 +3,7 @@
 
 #include "../ir.h"
 #include "../lib.h"
+#include "../type.h"
 
 struct vm_paka_parser_t;
 typedef struct vm_paka_parser_t vm_paka_parser_t;

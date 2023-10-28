@@ -8,7 +8,7 @@ void GC_disable();
 
 int main(int argc, char **argv) {
     vm_init_mem();
-    // GC_disable();
+    GC_disable();
     if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
             }
             vm_std_value_t main_args[1];
             main_args[0].tag = VM_TAG_UNK;
-            vm_std_value_t res = vm_x64_run(block, vm_std_new(), main_args);
+            vm_std_value_t res = vm_x64_run(block, vm_std_new());
             fprintf(stdout, "\n--- result #%i ---\n", i - 2);
             vm_io_debug(stdout, 0, "", res, NULL);
         }
@@ -72,9 +72,7 @@ int main(int argc, char **argv) {
             return 1;
         }
         vm_free((void *)src);
-        vm_std_value_t main_args[1];
-        main_args[0].tag = VM_TAG_UNK;
-        vm_x64_run(block, vm_std_new(), main_args);
+        vm_x64_run(block, vm_std_new());
         return 0;
     } else {
         fprintf(stderr, "error: provide a command to minivm\n");

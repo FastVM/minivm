@@ -111,7 +111,9 @@ static vm_block_t *vm_paka_blocks_new(vm_paka_blocks_t *blocks) {
     vm_block_t *block = vm_malloc(sizeof(vm_block_t));
     *block = (vm_block_t){
         .id = (ptrdiff_t) blocks->len,
+        .cache = vm_malloc(sizeof(vm_cache_t)),
     };
+    vm_cache_new(block->cache);
     blocks->blocks[blocks->len++] = block;
     return block;
 }
@@ -787,7 +789,6 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         };
     }
     if (vm_paka_parser_is_ident0_char(vm_paka_parser_peek(parser))) {
-        vm_paka_parser_t save = *parser;
         size_t len = vm_paka_parser_ident_len(parser);
         if (len == 0) {
             goto err;

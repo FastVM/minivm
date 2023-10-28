@@ -1,7 +1,5 @@
 #include "./obj.h"
 
-#include <linux/limits.h>
-
 #include "./ir.h"
 #include "./std/libs/io.h"
 

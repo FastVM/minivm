@@ -1,5 +1,4 @@
 
-#include <stddef.h>
 #if !defined(VM_HEADER_IR)
 #define VM_HEADER_IR
 
@@ -72,12 +71,9 @@ struct vm_rblock_t {
     void *jit;
     vm_tags_t *regs;
     vm_block_t *block;
-    vm_cache_t *cache;
     void *state;
-    size_t least_faults;
-    ptrdiff_t redo;
-    size_t base_redo;
     size_t count;
+    vm_block_t *versioned;
 };
 
 struct vm_cache_t {
@@ -138,7 +134,7 @@ struct vm_block_t {
 
     size_t nregs;
 
-    vm_cache_t cache;
+    vm_cache_t *cache;
     void *pass;
 
     int64_t label : 60;

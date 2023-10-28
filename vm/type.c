@@ -2,16 +2,13 @@
 #include "ir.h"
 #include "type.h"
 
+
+
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     rblock->block = block;
     rblock->regs = regs;
-    rblock->cache = vm_malloc(sizeof(vm_cache_t));
-    vm_cache_new(rblock->cache);
     rblock->jit = NULL;
-    rblock->least_faults = SIZE_MAX;
-    rblock->redo = 0;
-    rblock->base_redo = 256;
     rblock->count = 0;
     return rblock;
 }
@@ -39,21 +36,22 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 }
 
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
-    for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
-        vm_rblock_t *found = cache->keys[i];
-        if (rblock->block->isfunc == found->block->isfunc &&
-            rblock->block == found->block) {
-            for (size_t j = 0; j < rblock->block->nargs; j++) {
-                vm_arg_t arg = rblock->block->args[j];
-                if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
-                    goto next;
-                }
-            }
-            cache->values[i] = value;
-            return;
-        }
-    next:;
-    }
+    // for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
+    //     vm_rblock_t *found = cache->keys[i];
+    //     if (rblock->block->isfunc == found->block->isfunc &&
+    //         rblock->block == found->block) {
+    //         for (size_t j = 0; j < rblock->block->nargs; j++) {
+    //             vm_arg_t arg = rblock->block->args[j];
+    //             if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
+    //                 goto next;
+    //             }
+    //         }
+    //         __builtin_trap();
+    //         // cache->values[i] = value;
+    //         // return;
+    //     }
+    // next:;
+    // }
     if (cache->len + 1 >= cache->alloc) {
         cache->alloc = (cache->len + 1) * 2;
         cache->keys = vm_realloc(cache->keys, sizeof(vm_rblock_t *) * cache->alloc);

@@ -1,6 +1,5 @@
 
 #include "check.h"
-#include <stdio.h>
 
 vm_block_t *vm_rblock_version(vm_rblock_t *rblock);
 
