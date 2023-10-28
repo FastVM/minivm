@@ -62,5 +62,3 @@ void GC_free(void *ptr);
 
 #define VM_LANG_PAKA_NUM_TAG VM_TAG_I64
 #define VM_LANG_PAKA_NUM_FIELD i64
-
-#define VM_JIT_HOT 2

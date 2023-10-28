@@ -1,17 +1,16 @@
 
 #include "rblock.h"
-#include <stdio.h>
 #include "ir.h"
 #include "type.h"
 #include "check.h"
 
 vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
-    void *cache = rblock->versioned;
+    void *cache = vm_cache_get(rblock->block->cache, rblock);
     if (cache != NULL) {
         return cache;
     }
     vm_block_t *ret = vm_malloc(sizeof(vm_block_t));
-    rblock->versioned = ret;
+    vm_cache_set(rblock->block->cache, rblock, ret);
     vm_tags_t *regs = vm_rblock_regs_dup(rblock->regs, 256);
     *ret = *rblock->block;
     ret->label = -1;

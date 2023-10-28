@@ -10,6 +10,9 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     rblock->regs = regs;
     rblock->jit = NULL;
     rblock->count = 0;
+    rblock->least_faults = SIZE_MAX;
+    rblock->base_redo = 256;
+    rblock->redo = 0;
     return rblock;
 }
 
