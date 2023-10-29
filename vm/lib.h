@@ -23,9 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-void dasm_mem_free(void *ptr);
-void *dasm_mem_realloc(void *ptr, size_t size);
-
 #if 0
 #define __builtin_trap()                                       \
     printf("file %s, line %zu\n", __FILE__, (size_t)__LINE__); \
@@ -37,9 +34,9 @@ void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t size);
 void GC_free(void *ptr);
 
-
-// void GC_disable(void);
-// void GC_add_roots(void *low, void *high);
+void GC_disable(void);
+void GC_add_roots(void *low, void *high);
+void GC_remove_roots(void *low, void *high);
 
 // #define vm_init_mem() (GC_init())
 #define vm_init_mem() (GC_init())

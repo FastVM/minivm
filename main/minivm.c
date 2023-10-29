@@ -6,22 +6,37 @@
 
 void GC_disable();
 
+void vm_main_help(char *arg0) {
+    fprintf(stderr, "error: provide a command to minivm\n");
+    fprintf(stderr, "example: %s run [FILE]\n", arg0);
+}
+
 int main(int argc, char **argv) {
     vm_init_mem();
     GC_disable();
-    if (!strcmp(argv[1], "ir")) {
+    if (argv[1] == NULL) {
+        vm_main_help(argv[0]);
+        return 1;
+    } else if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;
+        bool expr = false;
         while (argv[1] != NULL) {
-            const char *filename = argv[1];
-            char *src = vm_io_read(filename);
-            if (src == NULL) {
-                fprintf(stderr, "error: could not read file\n");
-                return 1;
-            }
-            vm_paka_blocks_t blocks = vm_paka_parse_blocks(src);
-            for (size_t i = 0; i < blocks.len; i++) {
-                vm_print_block(stdout, blocks.blocks[i]);
+            if (!strcmp(argv[1], "-e")) {
+                expr = true;
+            } else if (!strcmp(argv[1], "-f")) {
+                expr = false;
+            } else {
+                char *filename = argv[1];
+                char *src = expr ? filename : vm_io_read(filename);
+                if (src == NULL) {
+                    fprintf(stderr, "error: could not read file\n");
+                    return 1;
+                }
+                vm_paka_blocks_t blocks = vm_paka_parse_blocks(src);
+                for (size_t i = 0; i < blocks.len; i++) {
+                    vm_print_block(stdout, blocks.blocks[i]);
+                }
             }
             argv += 1;
             argc -= 1;
@@ -42,7 +57,9 @@ int main(int argc, char **argv) {
     } else if (!strcmp(argv[1], "run")) {
         argv += 1;
         argc -= 1;
-        const char *filename = NULL;
+        size_t iters = 1;
+        bool expr = false;
+        char *filename = NULL;
         while (true) {
             if (argc < 2) {
                 if (filename == NULL) {
@@ -52,7 +69,15 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
-            if (filename != NULL) {
+            if (!strcmp(argv[1], "-e")) {
+                expr = true;
+            } else if (!strcmp(argv[1], "-f")) {
+                expr = false;
+            } else if (!strcmp(argv[1], "-n")) {
+                argv += 1;
+                argc -= 1;
+                sscanf(argv[1], "%zu", &iters);
+            } else if (filename != NULL) {
                 fprintf(stderr, "error: cannot handle multiple files at cli\n");
                 return 1;
             } else {
@@ -61,7 +86,7 @@ int main(int argc, char **argv) {
             argv += 1;
             argc -= 1;
         }
-        char *src = vm_io_read(filename);
+        char *src = expr ? filename : vm_io_read(filename);
         if (src == NULL) {
             fprintf(stderr, "error: could not read file\n");
             return 1;
@@ -71,12 +96,12 @@ int main(int argc, char **argv) {
             fprintf(stderr, "error: could not parse file\n");
             return 1;
         }
-        vm_free((void *)src);
-        vm_x64_run(block, vm_std_new());
+        for (size_t i = 0; i < iters; i++) {
+            vm_x64_run(block, vm_std_new());
+        }
         return 0;
     } else {
-        fprintf(stderr, "error: provide a command to minivm\n");
-        fprintf(stderr, "example: %s run [FILE]", argv[0]);
-        return 0;
+        vm_main_help(argv[0]);
+        return 1;
     }
 }

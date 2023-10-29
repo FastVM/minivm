@@ -97,8 +97,8 @@ struct vm_arg_t {
         bool logic;
         vm_tag_t tag;
         struct {
-            uint16_t reg;
-            uint8_t reg_tag;
+            uint64_t reg: 56;
+            uint8_t reg_tag: 8;
         };
     };
     uint8_t type;

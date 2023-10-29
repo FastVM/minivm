@@ -25,6 +25,10 @@ struct vm_tb_state_t {
     void *vm_tb_print;
     void *vm_tb_report_err;
 };
+
+void GC_add_roots(void *low, void *high);
+void GC_remove_roots(void *low, void *high);
+
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock);
 vm_std_value_t vm_x64_run(vm_block_t *block, vm_table_t *std);
 

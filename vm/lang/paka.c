@@ -118,14 +118,8 @@ static vm_block_t *vm_paka_blocks_new(vm_paka_blocks_t *blocks) {
     return block;
 }
 
-static uint8_t vm_paka_find_reg(size_t *regs) {
-    for (size_t i = 0; i < 256; i++) {
-        if (regs[i] == 0) {
-            regs[i] = 1;
-            return (uint8_t)i;
-        }
-    }
-    __builtin_trap();
+static size_t vm_paka_find_reg(vm_paka_comp_t *comp) {
+    return ++comp->nregs;
 }
 
 bool vm_paka_parser_branch(vm_paka_parser_t *parser, vm_paka_comp_t *comp,
@@ -150,7 +144,7 @@ bool vm_paka_parser_branch(vm_paka_parser_t *parser, vm_paka_comp_t *comp,
         };
         return true;
     }
-    if (vm_paka_parser_match(parser, "~=")) {
+    if (vm_paka_parser_match(parser, "!=")) {
         vm_paka_parser_strip_spaces(parser);
         vm_arg_t rhs = vm_paka_parser_expr_base(parser, comp);
         if (rhs.type == VM_ARG_UNK) {
@@ -247,7 +241,7 @@ vm_arg_t vm_paka_parser_expr_mul(vm_paka_parser_t *parser,
                 .out =
                     (vm_arg_t){
                         .type = VM_ARG_REG,
-                        .reg = vm_paka_find_reg(comp->regs),
+                        .reg = vm_paka_find_reg(comp),
                     },
                 .args[0] = arg,
                 .args[1] = arg2,
@@ -265,7 +259,7 @@ vm_arg_t vm_paka_parser_expr_mul(vm_paka_parser_t *parser,
                 .out =
                     (vm_arg_t){
                         .type = VM_ARG_REG,
-                        .reg = vm_paka_find_reg(comp->regs),
+                        .reg = vm_paka_find_reg(comp),
                     },
                 .args[0] = arg,
                 .args[1] = arg2,
@@ -283,7 +277,7 @@ vm_arg_t vm_paka_parser_expr_mul(vm_paka_parser_t *parser,
                 .out =
                     (vm_arg_t){
                         .type = VM_ARG_REG,
-                        .reg = vm_paka_find_reg(comp->regs),
+                        .reg = vm_paka_find_reg(comp),
                     },
                 .args[0] = arg,
                 .args[1] = arg2,
@@ -316,7 +310,7 @@ vm_arg_t vm_paka_parser_expr_add(vm_paka_parser_t *parser,
                 .out =
                     (vm_arg_t){
                         .type = VM_ARG_REG,
-                        .reg = vm_paka_find_reg(comp->regs),
+                        .reg = vm_paka_find_reg(comp),
                     },
                 .args[0] = arg,
                 .args[1] = arg2,
@@ -334,7 +328,7 @@ vm_arg_t vm_paka_parser_expr_add(vm_paka_parser_t *parser,
                 .out =
                     (vm_arg_t){
                         .type = VM_ARG_REG,
-                        .reg = vm_paka_find_reg(comp->regs),
+                        .reg = vm_paka_find_reg(comp),
                     },
                 .args[0] = arg,
                 .args[1] = arg2,
@@ -374,7 +368,7 @@ redo:;
         vm_block_t *next = vm_paka_blocks_new(comp->blocks);
         vm_arg_t out = (vm_arg_t){
             .type = VM_ARG_REG,
-            .reg = vm_paka_find_reg(comp->regs),
+            .reg = vm_paka_find_reg(comp),
         };
         vm_branch_t branch = (vm_branch_t){
             .op = VM_BOP_CALL,
@@ -387,7 +381,7 @@ redo:;
             vm_paka_parser_strip_spaces(parser);
             vm_arg_t xarg = (vm_arg_t){
                 .type = VM_ARG_REG,
-                .reg = vm_paka_find_reg(comp->regs),
+                .reg = vm_paka_find_reg(comp),
             };
             vm_instr_t instr = (vm_instr_t){
                 .op = VM_IOP_MOVE,
@@ -413,7 +407,7 @@ redo:;
         vm_block_t *next = vm_paka_blocks_new(comp->blocks);
         vm_arg_t xout = (vm_arg_t) {
             .type = VM_ARG_REG,
-            .reg = vm_paka_find_reg(comp->regs),
+            .reg = vm_paka_find_reg(comp),
         };
         size_t len = vm_paka_parser_ident_len(parser);
         if (len == 0) {
@@ -436,7 +430,7 @@ redo:;
             if (key.type != VM_ARG_REG) {
                 vm_arg_t yout = (vm_arg_t){
                     .type = VM_ARG_REG,
-                    .reg = vm_paka_find_reg(comp->regs),
+                    .reg = vm_paka_find_reg(comp),
                 };
                 vm_instr_t move = (vm_instr_t){
                     .op = VM_IOP_MOVE,
@@ -452,7 +446,7 @@ redo:;
             if (val.type != VM_ARG_REG) {
                 vm_arg_t yout = (vm_arg_t){
                     .type = VM_ARG_REG,
-                    .reg = vm_paka_find_reg(comp->regs),
+                    .reg = vm_paka_find_reg(comp),
                 };
                 vm_instr_t move = (vm_instr_t){
                     .op = VM_IOP_MOVE,
@@ -499,7 +493,7 @@ redo:;
         vm_block_t *next = vm_paka_blocks_new(comp->blocks);
         vm_arg_t out = (vm_arg_t){
             .type = VM_ARG_REG,
-            .reg = vm_paka_find_reg(comp->regs),
+            .reg = vm_paka_find_reg(comp),
         };
         comp->write->branch = (vm_branch_t){
             .op = VM_BOP_GET,
@@ -540,7 +534,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         str[len] = '\0';
         vm_arg_t ret = (vm_arg_t){
             .type = VM_ARG_REG,
-            .reg = vm_paka_find_reg(comp->regs),
+            .reg = vm_paka_find_reg(comp),
         };
         vm_instr_t instr = (vm_instr_t){
             .op = VM_IOP_MOVE,
@@ -561,7 +555,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         }
         vm_arg_t out = (vm_arg_t){
             .type = VM_ARG_REG,
-            .reg = vm_paka_find_reg(comp->regs),
+            .reg = vm_paka_find_reg(comp),
         };
         vm_block_realloc(comp->write, (vm_instr_t){
                                           .op = VM_IOP_LEN,
@@ -591,7 +585,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
     if (vm_paka_parser_match(parser, "{}")) {
         vm_arg_t arg = (vm_arg_t) {
             .type = VM_ARG_REG,
-            .reg = vm_paka_find_reg(comp->regs),
+            .reg = vm_paka_find_reg(comp),
         };
         vm_instr_t new_instr = (vm_instr_t){
             .op = VM_IOP_NEW,
@@ -620,13 +614,10 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         }
         vm_paka_name_map_t *last_names = comp->names;
         vm_block_t *last_write = comp->write;
-        size_t *last_regs = comp->regs;
+        size_t last_nregs = comp->nregs;
         vm_paka_name_map_t names = (vm_paka_name_map_t){0};
         vm_block_t *body = vm_paka_blocks_new(comp->blocks);
-        comp->regs = vm_malloc(sizeof(size_t) * 256);
-        for (size_t i = 0; i < 256; i++) {
-            comp->regs[i] = 0;
-        }
+        comp->nregs = 0;
         if (comp->nfuncs + 1 >= comp->funcs_alloc) {
             comp->funcs_alloc = (comp->nfuncs + 1) * 2;
             comp->func_names = vm_realloc(comp->func_names,
@@ -639,9 +630,8 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         comp->nfuncs += 1;
         comp->names = &names;
         comp->write = body;
-        uint8_t reg = 0;
         do {
-            reg += 1;
+            size_t reg = vm_paka_find_reg(comp);
             vm_paka_parser_strip_spaces(parser);
             char *arg = vm_paka_parser_name(parser);
             size_t index = comp->names->len++;
@@ -650,9 +640,8 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                 comp->names->keys = vm_realloc(
                     comp->names->keys, sizeof(const char *) * comp->names->alloc);
                 comp->names->values = vm_realloc(
-                    comp->names->values, sizeof(uint8_t) * comp->names->alloc);
+                    comp->names->values, sizeof(size_t) * comp->names->alloc);
             }
-            comp->regs[reg] = 1;
             comp->names->keys[index] = arg;
             comp->names->values[index] = reg;
             vm_paka_parser_strip_spaces(parser);
@@ -679,7 +668,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         };
         comp->names = last_names;
         comp->write = last_write;
-        comp->regs = last_regs;
+        comp->nregs = last_nregs;
         return (vm_arg_t){.type = VM_ARG_NIL};
     }
     if (vm_paka_parser_match_keyword(parser, "let")) {
@@ -692,10 +681,10 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             comp->names->keys = vm_realloc(comp->names->keys,
                                            sizeof(const char *) * comp->names->alloc);
             comp->names->values =
-                vm_realloc(comp->names->values, sizeof(uint8_t) * comp->names->alloc);
+                vm_realloc(comp->names->values, sizeof(size_t) * comp->names->alloc);
         }
         comp->names->keys[index] = buf;
-        uint8_t reg = vm_paka_find_reg(comp->regs);
+        size_t reg = vm_paka_find_reg(comp);
         comp->names->values[index] = reg;
         if (vm_paka_parser_match(parser, "=")) {
             vm_paka_parser_strip_spaces(parser);
@@ -741,6 +730,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         };
     }
     if (vm_paka_parser_match_keyword(parser, "if")) {
+        // size_t reg = vm_paka_find_reg(comp);
         vm_block_t *body = vm_paka_blocks_new(comp->blocks);
         vm_block_t *after = vm_paka_blocks_new(comp->blocks);
         vm_paka_parser_strip_spaces(parser);
@@ -801,7 +791,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         if (!strcmp(buf, "env")) {
             vm_arg_t reg = (vm_arg_t){
                 .type = VM_ARG_REG,
-                .reg = vm_paka_find_reg(comp->regs),
+                .reg = vm_paka_find_reg(comp),
             };
             vm_block_realloc(comp->write, (vm_instr_t){
                                               .op = VM_IOP_STD,
@@ -833,7 +823,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                 };
             }
             vm_block_t *next = vm_paka_blocks_new(comp->blocks);
-            uint8_t out = vm_paka_find_reg(comp->regs);
+            size_t out = vm_paka_find_reg(comp);
             comp->write->branch = (vm_branch_t){
                 .op = VM_BOP_GET,
                 .out =
@@ -932,7 +922,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                         } else {
                             vm_arg_t real = (vm_arg_t){
                                 .type = VM_ARG_REG,
-                                .reg = vm_paka_find_reg(comp->regs),
+                                .reg = vm_paka_find_reg(comp),
                             };
                             vm_block_realloc(comp->write, (vm_instr_t){
                                                               .op = VM_IOP_MOVE,
@@ -949,7 +939,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
                 }
                 branch.out = (vm_arg_t){
                     .type = VM_ARG_REG,
-                    .reg = vm_paka_find_reg(comp->regs),
+                    .reg = vm_paka_find_reg(comp),
                 };
                 vm_block_t *then = vm_paka_blocks_new(comp->blocks);
                 branch.targets[0] = then;
@@ -1016,13 +1006,8 @@ static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
     };
     vm_paka_blocks_t blocks = (vm_paka_blocks_t){0};
     vm_block_t *block = vm_paka_blocks_new(&blocks);
-    size_t *regs = vm_malloc(sizeof(size_t) * 256);
-    for (size_t i = 0; i < 256; i++) {
-        regs[i] = 0;
-    }
     vm_paka_comp_t comp = (vm_paka_comp_t){
         .write = block,
-        .regs = regs,
         .blocks = &blocks,
     };
     vm_paka_parser_block_full_t full = vm_paka_parser_block_full(&parser, &comp);
@@ -1035,7 +1020,7 @@ static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
     if (full.arg.type != VM_ARG_NONE && full.arg.type != VM_ARG_UNK && full.arg.type != VM_ARG_REG) {
         vm_arg_t arg = (vm_arg_t) {
             .type = VM_ARG_REG,
-            .reg = vm_paka_find_reg(comp.regs),
+            .reg = vm_paka_find_reg(&comp),
         };
         vm_block_realloc(comp.write, (vm_instr_t) {
             .op = VM_IOP_MOVE,

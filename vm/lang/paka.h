@@ -35,9 +35,12 @@ struct vm_paka_blocks_t {
 
 struct vm_paka_comp_t {
     vm_block_t *write;
-    size_t *regs;
+    
+    size_t nregs;
+
     vm_paka_name_map_t *names;
     vm_paka_blocks_t *blocks;
+    
     size_t nfuncs;
     const char **func_names;
     vm_block_t **func_blocks;
@@ -47,7 +50,7 @@ struct vm_paka_comp_t {
 struct vm_paka_name_map_t {
     vm_paka_name_map_t *next;
     const char **keys;
-    uint8_t *values;
+    size_t *values;
     size_t len;
     size_t alloc;
 };

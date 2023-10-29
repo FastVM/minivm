@@ -1,0 +1,10 @@
+
+def fac(n) {
+    if n != 0 {
+        return fac(n-1) * n
+    } else {
+        return 1
+    }
+}
+
+env.io.debug(fac(20))
