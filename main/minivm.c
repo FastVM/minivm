@@ -13,7 +13,6 @@ void vm_main_help(char *arg0) {
 
 int main(int argc, char **argv) {
     vm_init_mem();
-    GC_disable();
     if (argv[1] == NULL) {
         vm_main_help(argv[0]);
         return 1;

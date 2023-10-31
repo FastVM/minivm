@@ -41,15 +41,17 @@ void GC_add_roots(void *low, void *high);
 void GC_remove_roots(void *low, void *high);
 
 // #define vm_init_mem() (GC_init())
+#if !VM_USE_LEAKS
 #define vm_init_mem() (GC_init())
-#if 1
 #define vm_malloc(x) (GC_malloc((x)))
 #define vm_realloc(x, y) (GC_realloc((x), (y)))
 #define vm_free(x) (GC_free((x)))
 #else
+#define vm_init_mem() ((void)0)
 #define vm_malloc(x) (malloc((x)))
 #define vm_realloc(x, y) (realloc((x), (y)))
-#define vm_free(x) (free((x)))
+// #define vm_free(x) (free((x)))
+#define vm_free(x) ((void)((x)))
 #endif
 #endif
 

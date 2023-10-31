@@ -910,7 +910,7 @@ void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag
         params);
 }
 
-void *vm_tb_new_module(vm_tb_state_t *state) {
+void vm_tb_new_module(vm_tb_state_t *state) {
     TB_FeatureSet features = (TB_FeatureSet){0};
     
     TB_Module *mod = tb_module_create_for_host(&features, true);
@@ -928,6 +928,8 @@ void *vm_tb_new_module(vm_tb_state_t *state) {
     tb_symbol_bind_ptr(state->vm_tb_print, &vm_tb_print);
     tb_symbol_bind_ptr(state->vm_tb_report_err, &vm_tb_report_err);
 }
+
+
 
 void vm_tb_comp_call(vm_std_value_t *ret, vm_tb_comp_state_t *comp, vm_value_t *args) {
     vm_rblock_t *rblock = comp->rblock;
@@ -958,6 +960,7 @@ void vm_tb_comp_call(vm_std_value_t *ret, vm_tb_comp_state_t *comp, vm_value_t *
         -1,
         proto,
         NULL);
+
     TB_Node **regs = vm_malloc(sizeof(TB_Node *) * block->nregs);
 
     for (size_t i = 0; i < block->nregs; i++) {
@@ -1010,13 +1013,15 @@ void vm_tb_comp_call(vm_std_value_t *ret, vm_tb_comp_state_t *comp, vm_value_t *
 
     comp->func = new_func;
 
+    // printf("code buf: %p\n", new_func);
+
     new_func(ret, NULL, args);
 }
 
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     void *cache = rblock->jit;
     if (__builtin_expect(cache != NULL, true)) {
-#if !defined(VM_NO_RECOMPILE)
+#if VM_USE_RECOMPILE
         size_t redo = rblock->redo--;
         if (__builtin_expect(redo != 0, true)) {
             return cache;
@@ -1124,7 +1129,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     // printf("block #%zi with %zu faults\n", rblock->block->id, state->faults);
 
-    // printf("RETURN (code ptr: %p => %p)\n", rblock, ret);
+    // printf("code buf: %p\n", ret);
 
     return ret;
 }

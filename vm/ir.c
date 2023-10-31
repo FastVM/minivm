@@ -414,6 +414,10 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 if (target == NULL) {
                     break;
                 }
+                if (target->nregs > block->nregs) {
+                    block->nregs = target->nregs;
+                    redo = true;
+                }
                 size_t total = block->nargs + target->nargs;
                 if (total >= alloc) {
                     alloc = total * 2;

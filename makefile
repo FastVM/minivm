@@ -1,7 +1,7 @@
 
 OPT ?= -O2
 
-EXE ?= .exe
+EXE ?= 
 
 BUILD_DIR ?= build
 OBJ_DIR ?= $(BUILD_DIR)/obj
@@ -12,7 +12,7 @@ RES_DIR ?= $(BUILD_DIR)/res
 PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
+GC_SRCS = vm/gc/gc.c vm/gc/if.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS := vm/std/libs/io.c vm/std/std.c
@@ -51,7 +51,7 @@ all: bins
 
 clang-windows: .dummy
 	rm -rf build
-	$(MAKE) -Bj$(J) CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Ic11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="c11threads/threads_msvc.c"
+	$(MAKE) -Bj$(J) CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Icuik/c11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="cuik/c11threads/threads_msvc.c"
 
 gcc-windows: .dummy
 	rm -rf build

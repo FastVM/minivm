@@ -10,5 +10,7 @@
 #define VM_EMIT_ASM 0
 
 #define VM_USE_NUM i64
+#define VM_USE_RECOMPILE 0
+#define VM_USE_LEAKS 0
 
 #endif
