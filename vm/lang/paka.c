@@ -1034,7 +1034,7 @@ static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
         .args[0] = full.arg,
     };
     vm_block_info(blocks.len, blocks.blocks);
-#if defined(VM_DUMP_PARSE)
+#if VM_DUMP_PARSE
     for (size_t i = 0; i < blocks.len; i++) {
         vm_print_block(stdout, blocks.blocks[i]);
     }

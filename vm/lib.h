@@ -13,6 +13,8 @@
 #define __section(x) __attribute__((__section__(x)))
 #endif
 
+#include "config.h"
+
 #include <inttypes.h>
 #include <math.h>
 #include <stdarg.h>
@@ -56,6 +58,3 @@ void GC_remove_roots(void *low, void *high);
 #else
 #define VM_CDECL
 #endif
-
-#define VM_LANG_PAKA_NUM_TAG VM_TAG_I64
-#define VM_LANG_PAKA_NUM_FIELD i64
