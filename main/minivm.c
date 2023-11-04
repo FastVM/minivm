@@ -3,6 +3,7 @@
 #include "../vm/std/libs/io.h"
 #include "../vm/lang/paka.h"
 #include "../vm/be/tb.h"
+#include <time.h>
 
 void GC_disable();
 
@@ -11,11 +12,17 @@ void vm_main_help(char *arg0) {
     fprintf(stderr, "example: %s run [FILE]\n", arg0);
 }
 
-int main(int argc, char **argv) {
-    vm_init_mem();
+int vm_main(char *argv0, int argc, char **argv) {
     if (argv[1] == NULL) {
-        vm_main_help(argv[0]);
+        vm_main_help(argv0);
         return 1;
+    } else if (!strcmp(argv[1], "time")) {
+        clock_t start = clock();
+        int res = vm_main(argv0, argc - 1, argv + 1);
+        clock_t end = clock();
+        double diff = (double) (end - start) / CLOCKS_PER_SEC * 1000;
+        printf("--- took %03fms ---", diff);
+        return res;
     } else if (!strcmp(argv[1], "ir")) {
         argv += 1;
         argc -= 1;
@@ -40,6 +47,7 @@ int main(int argc, char **argv) {
             argv += 1;
             argc -= 1;
         }
+        return 0;
     } else if (!strcmp(argv[1], "print")) {
         for (int i = 2; i < argc; i++) {
             vm_block_t *block = vm_paka_parse(argv[i]);
@@ -53,6 +61,7 @@ int main(int argc, char **argv) {
             fprintf(stdout, "\n--- result #%i ---\n", i - 2);
             vm_io_debug(stdout, 0, "", res, NULL);
         }
+        return 0;
     } else if (!strcmp(argv[1], "run")) {
         argv += 1;
         argc -= 1;
@@ -100,7 +109,13 @@ int main(int argc, char **argv) {
         }
         return 0;
     } else {
-        vm_main_help(argv[0]);
+        vm_main_help(argv0);
         return 1;
     }
+}
+
+int main(int argc, char **argv) {
+    vm_init_mem();
+    char *argv0 = argv[0];
+    return vm_main(argv0, argc, argv);
 }
