@@ -1,5 +1,6 @@
 
 #if !defined(VM_HEADER_CONFIG)
+#define VM_HEADER_CONFIG
 
 #define VM_DUMP_PARSE 0
 #define VM_DUMP_IR 0

@@ -16,7 +16,6 @@
 #include "config.h"
 
 #include <inttypes.h>
-#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -24,6 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+// this is only used for clock()
+#include <time.h>
 
 #if 0
 #define __builtin_trap()                                       \
@@ -35,10 +37,6 @@ void GC_init(void);
 void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t size);
 void GC_free(void *ptr);
-
-void GC_disable(void);
-void GC_add_roots(void *low, void *high);
-void GC_remove_roots(void *low, void *high);
 
 // #define vm_init_mem() (GC_init())
 #if !VM_USE_LEAKS

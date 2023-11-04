@@ -33,8 +33,8 @@ RUNNER ?= $(BIN_DIR)/minivm
 UNAME_S := $(shell uname -s)
 UNAME_O := $(shell uname -o)
 
-LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000 -lm
-LDFLAGS_S_Linux = -lm
+LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000
+LDFLAGS_S_Linux =
 LDFLAGS_O_Cygwin =
 
 LDFLAGS := $(LDFLAGS_S_$(UNAME_S)) $(LDFLAGS_O_$(UNAME_O)) $(LDFLAGS)

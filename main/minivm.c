@@ -3,7 +3,6 @@
 #include "../vm/std/libs/io.h"
 #include "../vm/lang/paka.h"
 #include "../vm/be/tb.h"
-#include <time.h>
 
 void GC_disable();
 
@@ -20,8 +19,8 @@ int vm_main(char *argv0, int argc, char **argv) {
         clock_t start = clock();
         int res = vm_main(argv0, argc - 1, argv + 1);
         clock_t end = clock();
-        double diff = (double) (end - start) / CLOCKS_PER_SEC * 1000;
-        printf("--- took %03fms ---", diff);
+        double diff = (double) (end - start) / CLOCKS_PER_SEC;
+        printf("\n--- took %fs ---\n", diff);
         return res;
     } else if (!strcmp(argv[1], "ir")) {
         argv += 1;
@@ -46,6 +45,18 @@ int vm_main(char *argv0, int argc, char **argv) {
             }
             argv += 1;
             argc -= 1;
+        }
+        return 0;
+    } else if (!strcmp(argv[1], "eval")) {
+        for (int i = 2; i < argc; i++) {
+            vm_block_t *block = vm_paka_parse(argv[i]);
+            if (block == NULL) {
+                fprintf(stderr, "error: could not parse file\n");
+                return 1;
+            }
+            vm_std_value_t main_args[1];
+            main_args[0].tag = VM_TAG_UNK;
+            vm_tb_run(block, vm_std_new());
         }
         return 0;
     } else if (!strcmp(argv[1], "print")) {
