@@ -918,7 +918,9 @@ void vm_tb_comp_call(vm_std_value_t *ret, vm_tb_comp_state_t *comp, vm_value_t *
     tb_pass_print(passes);
     fflush(stdout);
 #endif
+#if VM_USE_TB_OPT
     tb_pass_optimize(passes);
+#endif
 #if VM_DUMP_TB_OPT
     fprintf(stdout, "\n--- opt tb ---\n");
     tb_pass_print(passes);
@@ -1026,7 +1028,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     tb_pass_print(passes);
     fflush(stdout);
 #endif
+#if VM_USE_TB_OPT
     tb_pass_optimize(passes);
+#endif
 #if VM_DUMP_TB_OPT
     fprintf(stdout, "\n--- opt tb ---\n");
     tb_pass_print(passes);
