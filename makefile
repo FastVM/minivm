@@ -16,7 +16,7 @@ GC_SRCS = vm/gc/gc.c vm/gc/if.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS := vm/std/libs/io.c vm/std/std.c
-VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/lang/paka.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c
+VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/lang/ast.c vm/lang/paka.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 

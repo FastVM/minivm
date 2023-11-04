@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
             }
             vm_std_value_t main_args[1];
             main_args[0].tag = VM_TAG_UNK;
-            vm_std_value_t res = vm_x64_run(block, vm_std_new());
+            vm_std_value_t res = vm_tb_run(block, vm_std_new());
             fprintf(stdout, "\n--- result #%i ---\n", i - 2);
             vm_io_debug(stdout, 0, "", res, NULL);
         }
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
             return 1;
         }
         for (size_t i = 0; i < iters; i++) {
-            vm_x64_run(block, vm_std_new());
+            vm_tb_run(block, vm_std_new());
         }
         return 0;
     } else {

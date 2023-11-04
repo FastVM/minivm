@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 enum {
     TGC_MARK = 0x01,
@@ -21,11 +22,11 @@ typedef struct {
 
 typedef struct {
     void *bottom;
-    int paused;
     uintptr_t minptr, maxptr;
     tgc_ptr_t *items, *frees;
     double loadfactor, sweepfactor;
     size_t nitems, nslots, mitems, nfrees;
+    bool paused: 1;
 } tgc_t;
 
 void tgc_start(tgc_t *gc, void *stk);
