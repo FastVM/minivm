@@ -15,7 +15,7 @@ struct vm_tb_comp_state_t;
 typedef struct vm_tb_state_t vm_tb_state_t;
 typedef struct vm_tb_comp_state_t vm_tb_comp_state_t;
 
-typedef void VM_CDECL vm_tb_comp_t(vm_std_value_t *ret, vm_tb_comp_state_t *comp, vm_value_t *args);
+typedef vm_std_value_t VM_CDECL vm_tb_comp_t(vm_tb_comp_state_t *comp, vm_value_t *args);
 
 struct vm_tb_state_t {
     vm_table_t *std;
@@ -36,11 +36,8 @@ struct vm_tb_comp_state_t {
     vm_rblock_t *rblock;
 };
 
-void GC_add_roots(void *low, void *high);
-void GC_remove_roots(void *low, void *high);
-
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock);
 vm_std_value_t vm_tb_run(vm_block_t *block, vm_table_t *std);
-void vm_tb_comp_call(vm_std_value_t *ret, vm_tb_comp_state_t *comp, vm_value_t *args);
+vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args);
 
 #endif

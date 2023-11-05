@@ -1,7 +1,6 @@
 
 #include "check.h"
-
-vm_block_t *vm_rblock_version(vm_rblock_t *rblock);
+#include "rblock.h"
 
 static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_NUM) {
@@ -81,7 +80,6 @@ bool vm_check_branch(vm_branch_t branch) {
                         return true;
                     }
                 }
-                return false;
             }
         }
         return false;

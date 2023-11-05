@@ -7,6 +7,7 @@
 #define VM_DUMP_TB 0
 #define VM_DUMP_TB_OPT 0
 #define VM_DUMP_X86 0
+#define VM_DUMP_JIT_ARGS 0
 
 #define VM_EMIT_ASM 0
 

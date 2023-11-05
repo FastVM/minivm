@@ -160,8 +160,8 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
             ret->args[i].reg_tag = regs->tags[ret->args[i].reg];
         }
     }
-    if (!vm_check_block(ret)) {
-        return NULL;
-    }
+    // if (!vm_check_block(ret)) {
+    //     return NULL;
+    // }
     return ret;
 }
