@@ -193,8 +193,7 @@ static vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_
     return NULL;
 }
 
-void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val,
-                  uint32_t key_tag, uint32_t val_tag) {
+void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uint32_t key_tag, uint32_t val_tag) {
     vm_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
     if (pair != NULL) {
         pair->val_val = pair->val_val;

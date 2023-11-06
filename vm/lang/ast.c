@@ -13,7 +13,8 @@
             vm_ast_form_args_c3,            \
             vm_ast_form_args_c2,            \
             vm_ast_form_args_c1,            \
-            vm_ast_args_c0)(__VA_ARGS__),   \
+            vm_ast_args_c0                  \
+        )(__VA_ARGS__),                     \
     })
 #define vm_ast_form0(TYPE_)         \
     ((vm_ast_node_t){               \

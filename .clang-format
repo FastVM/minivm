@@ -1,6 +1,10 @@
 ---
 Language: Cpp
-BasedOnStyle:  Google
-IndentWidth: 4
+AlignAfterOpenBracket: BlockIndent
 ColumnLimit: 0
+IndentCaseBlocks: false
+IndentWidth: 4
+InsertBraces: true
 SortIncludes: true
+IndentCaseLabels: true
+BreakBeforeBraces: Attach

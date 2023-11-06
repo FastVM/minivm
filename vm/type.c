@@ -140,8 +140,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
     return instr;
 }
 
-vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types,
-                                             vm_branch_t branch) {
+vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branch) {
     if (branch.op == VM_BOP_GET) {
         return branch;
     } else if (branch.op == VM_BOP_CALL) {
