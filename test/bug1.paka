@@ -1,0 +1,7 @@
+
+let i = 5
+while i < 1 {
+    i = i + 10
+}
+
+env.io.debug(i)

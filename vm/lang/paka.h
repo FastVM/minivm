@@ -3,6 +3,7 @@
 
 #include "../ir.h"
 #include "../lib.h"
+#include "../type.h"
 
 struct vm_paka_parser_t;
 typedef struct vm_paka_parser_t vm_paka_parser_t;
@@ -15,6 +16,9 @@ typedef struct vm_paka_comp_t vm_paka_comp_t;
 
 struct vm_paka_name_map_t;
 typedef struct vm_paka_name_map_t vm_paka_name_map_t;
+
+struct vm_paka_parser_block_full_t;
+typedef struct vm_paka_parser_block_full_t vm_paka_parser_block_full_t;
 
 struct vm_paka_parser_t {
     const char *src;
@@ -31,9 +35,12 @@ struct vm_paka_blocks_t {
 
 struct vm_paka_comp_t {
     vm_block_t *write;
-    size_t *regs;
+    
+    size_t nregs;
+
     vm_paka_name_map_t *names;
     vm_paka_blocks_t *blocks;
+    
     size_t nfuncs;
     const char **func_names;
     vm_block_t **func_blocks;
@@ -43,9 +50,14 @@ struct vm_paka_comp_t {
 struct vm_paka_name_map_t {
     vm_paka_name_map_t *next;
     const char **keys;
-    uint8_t *values;
+    size_t *values;
     size_t len;
     size_t alloc;
+};
+
+struct vm_paka_parser_block_full_t {
+    int ret;
+    vm_arg_t arg;
 };
 
 // char test funcs
@@ -76,6 +88,7 @@ vm_arg_t vm_paka_parser_expr_base(vm_paka_parser_t *src, vm_paka_comp_t *comp);
 vm_arg_t vm_paka_parser_postfix(vm_paka_parser_t *parser, vm_paka_comp_t *comp,
                                 vm_arg_t arg);
 int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
+vm_paka_parser_block_full_t vm_paka_parser_block_full(vm_paka_parser_t *parser, vm_paka_comp_t *comp);
 // string parsers
 vm_block_t *vm_paka_parse(const char *src);
 vm_paka_blocks_t vm_paka_parse_blocks(const char *src);

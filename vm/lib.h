@@ -13,9 +13,9 @@
 #define __section(x) __attribute__((__section__(x)))
 #endif
 
-#include <dlfcn.h>
+#include "config.h"
+
 #include <inttypes.h>
-#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -24,8 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-void dasm_mem_free(void *ptr);
-void *dasm_mem_realloc(void *ptr, size_t size);
+// this is only used for clock()
+#include <time.h>
 
 #if 0
 #define __builtin_trap()                                       \
@@ -37,18 +37,24 @@ void GC_init(void);
 void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t size);
 void GC_free(void *ptr);
-// void GC_disable(void);
-// void GC_add_roots(void *low, void *high);
 
 // #define vm_init_mem() (GC_init())
+#if !VM_USE_LEAKS
 #define vm_init_mem() (GC_init())
-#if 1
 #define vm_malloc(x) (GC_malloc((x)))
 #define vm_realloc(x, y) (GC_realloc((x), (y)))
 #define vm_free(x) (GC_free((x)))
 #else
+#define vm_init_mem() ((void)0)
 #define vm_malloc(x) (malloc((x)))
 #define vm_realloc(x, y) (realloc((x), (y)))
-#define vm_free(x) (free((x)))
+// #define vm_free(x) (free((x)))
+#define vm_free(x) ((void)((x)))
 #endif
+#endif
+
+#if defined(_WIN32)
+#define VM_CDECL __attribute__((cdecl))
+#else
+#define VM_CDECL
 #endif

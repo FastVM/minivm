@@ -1,0 +1,18 @@
+{
+    "files.associations": {
+        "*.dasc": "c",
+        "array": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "list": "c",
+        "type_traits": "c",
+        "vector": "c",
+        "xhash": "c",
+        "xstring": "c",
+        "xtree": "c",
+        "xutility": "c",
+        "tb_internal.h": "c",
+        "gc.h": "c",
+        "windows.h": "c"
+    }
+}

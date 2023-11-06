@@ -1,5 +1,6 @@
 
 #include "ir.h"
+#include "std/libs/io.h"
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
@@ -21,7 +22,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_NUM: {
-            fprintf(out, "%lf", val.num);
+            vm_io_print_num(stdout, val.num);
             break;
         }
         case VM_ARG_STR: {
@@ -37,48 +38,18 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             }
             break;
         }
-        case VM_ARG_FFI: {
-            fprintf(out, "<ffi.func>");
-            break;
-        }
         case VM_ARG_FUNC: {
-            fprintf(out, ".%zi", val.func->id);
+            if (val.func == NULL) {
+                fprintf(out, "<null.fun>");
+            } else {
+                fprintf(out, ".%zi", val.func->id);
+            }
             break;
         }
         case VM_ARG_RFUNC: {
-            fprintf(out, ".%zi", val.rfunc->block->id);
+            fprintf(out, "<rfunc.%zi>", val.rfunc->block->id);
             break;
-        }
-        case VM_ARG_CPU0: {
-            fprintf(out, "(rax|xmm0)%%%zu", (size_t)val.vmreg);
-            break;
-        }
-        case VM_ARG_CPU_GP: {
-            const char *names[16] = {
-                "rax",
-                "rcx",
-                "rdx",
-                "rbx",
-                "rsp",
-                "rbp",
-                "rsi",
-                "rdi",
-                "r8",
-                "r9",
-                "r10",
-                "r11",
-                "r12",
-                "r13",
-                "r14",
-                "r15",
-            };
-            fprintf(out, "%s%%%zu", names[val.r64], (size_t)val.vmreg);
-            break;
-        }
-        case VM_ARG_CPU_FP: {
-            fprintf(out, "xmm%zu%%%zu", (size_t)val.f64, (size_t)val.vmreg);
-            break;
-        }
+        };
     }
 }
 void vm_print_tag(FILE *out, vm_tag_t tag) {
@@ -95,8 +66,24 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
             fprintf(out, "bool");
             break;
         }
+        case VM_TAG_I8: {
+            fprintf(out, "i8");
+            break;
+        }
+        case VM_TAG_I16: {
+            fprintf(out, "i16");
+            break;
+        }
+        case VM_TAG_I32: {
+            fprintf(out, "i32");
+            break;
+        }
         case VM_TAG_I64: {
             fprintf(out, "i64");
+            break;
+        }
+        case VM_TAG_F32: {
+            fprintf(out, "f32");
             break;
         }
         case VM_TAG_F64: {
@@ -118,6 +105,9 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
         case VM_TAG_FFI: {
             fprintf(out, "ffi");
             break;
+        }
+        default: {
+            fprintf(out, "<tag: invalid>");
         }
     }
 }
@@ -149,10 +139,6 @@ void vm_print_branch(FILE *out, vm_branch_t val) {
         }
         case VM_BOP_RET: {
             fprintf(out, "ret");
-            break;
-        }
-        case VM_BOP_EXIT: {
-            fprintf(out, "exit");
             break;
         }
         case VM_BOP_GET: {
@@ -254,14 +240,6 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "mod");
             break;
         }
-        case VM_IOP_OUT: {
-            fprintf(out, "out");
-            break;
-        }
-        case VM_IOP_PRINT: {
-            fprintf(out, "print");
-            break;
-        }
         case VM_IOP_SET: {
             fprintf(out, "set");
             break;
@@ -274,12 +252,12 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             fprintf(out, "std");
             break;
         }
-        case VM_IOP_TYPE: {
-            fprintf(out, "type");
-            break;
-        }
         case VM_IOP_LEN: {
             fprintf(out, "len");
+            break;
+        }
+        default: {
+            fprintf(out, "<instr: %zu>", (size_t) val.op);
             break;
         }
     }
@@ -294,6 +272,9 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
 }
 
 void vm_print_block(FILE *out, vm_block_t *val) {
+    if (val == NULL) {
+        printf("<block: null>\n");
+    }
     fprintf(out, ".%zi(", val->id);
     for (size_t i = 0; i < val->nargs; i++) {
         if (i != 0) {
@@ -432,6 +413,10 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 vm_block_t *target = block->branch.targets[t];
                 if (target == NULL) {
                     break;
+                }
+                if (target->nregs > block->nregs) {
+                    block->nregs = target->nregs;
+                    redo = true;
                 }
                 size_t total = block->nargs + target->nargs;
                 if (total >= alloc) {
