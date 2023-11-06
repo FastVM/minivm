@@ -1,43 +1,70 @@
-![The MiniVM Logo, a blueish grey brick](res/MiniVM.svg)
+![The MiniVM Logo, a blueish grey brick (Or maybe can of tuna if you are a cat)](res/MiniVM.svg)
 
 # MiniVM
 
-**MiniVM is a small and portable language virtual machine (VM) written in C**, meaning it can compile and run just about anywhere. 
+MiniVM is a Small but Optimizing Virtual Machine and Runtime.
 
-Some reasons to use MiniVM are:
+It has a just-in-time compiler based on [Cuik](https://github.com/realnegate/cuik)'s [TB](https://github.com/RealNeGate/Cuik/tree/master/tb).
 
-- MiniVM is *fast*
-    - LuaJIT's interpreter, [known for its speed](http://lambda-the-ultimate.org/node/3851#comment-57761), takes nearly twice as long as MiniVM to execute similar code.
-    - Types are gone at runtime. Data has no type associated with it.
-        - Sanitization could be used to catch type errors.
-- MiniVM is *small*
-    - 34KiB when building with `make -B OPT='-O2 -fno-ssa-phiopt -s -fuse-ld=lld -Wl,--gc-sections' CC=gcc-11`
-    - Single binary to assemble and run.
-- MiniVM is portable
-    - MiniVM can compile with `gcc`, `clang`, `tcc` and many more
+Currently it supports Linux x86-64, FreeBSD amd64 with work going on to re-add Windows x64 support.
 
-## History
-MiniVM started its life as an example of how to write a VM. It all started in a discord call, when the question of "how do i write a virtual machine" came up. Shaw wrote the first prototye in a couple hours and sent it on github as an example.
+MiniVM is written in C11 with (minor GNU extensions), and builds with GCC and Clang, with TCC support not hard to patch in.
 
-Development went along for several months, with many frontends being written, most notably, [Paka](https://github.com/fastvm/paka). Paka was originally written in Dlang, but was converted to be self hosted on minivm soon after. 
+## Building
 
-Then came the Hacker News [Post](https://news.ycombinator.com/item?id=29850562)... MiniVM was #1 on hacker news for a few hours. 
+MiniVM uses GNU Make as it's build system.
 
-MiniVM has gone through many stages.
-- Stack Based Prototype
-- Conversion to Registers Machine
-- Pauseless GC based on Ring Buffers
-    - Loading a value, but pauses were gone
-- Removal of arrays, in favor of the Cons Cell
-- Floating point operations
-- Assembler added
+### Requirements
 
-## Benchmarks
-TODO: add benchmarks
-TODO: automatic benchmarks
+You'll need
+* The MiniVM repo
+    * Make sure to get the cuik submodule
+        * You can use `git clone github.com/FastVM/minivm --recursive`
+        * If you've already cloned you can use `git submodule update --init`
+* A C Compiler
+    * GCC works
+    * Clang works if you replace CC=gcc with CC=clang
 
-## Roadmap
-- Continue Development of MiniVM
-- Reduce dependancy to LibC
-- Better Validators
-- Continue to improve performance
+### Build Configs
+
+Here's some Shell Commands to build MiniVM different ways
+
+* Debug - `make -Bj OPT='-g'`
+* For Size - `make -Bj CC=gcc OPT='-s -Oz -flto -fno-asynchronous-unwind-tables -fomit-frame-pointer'`
+    * GCC does a better job than Clang to make tiny binaries of MiniVM.
+* For Speed - `make -Bj OPT='-O3 -flto'`
+
+## Binary Size
+
+* 142.9 KiB when built for size
+* 284.1 KiB when built for speed
+* 901.0 Kib when built for debug
+
+## Speed
+
+Here's some benchmark runs, they aren't too representative yet.
+
+### Math + Recursion
+
+```sh
+shell> ./build/bin/minivm time run test/fib40.paka
+102334155
+
+--- took 1.284161s ---
+```
+
+```
+shell> ./build/bin/minivm time run test/fib35.paka
+9227465
+
+--- took 0.113154s ---
+```
+
+### Startup Perf
+
+```sh
+shell> ./build/bin/minivm time eval 'env.io.debug("hello world")'
+"hello world"
+
+--- took 0.000544s ---
+```
