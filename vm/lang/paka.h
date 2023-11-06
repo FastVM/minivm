@@ -93,19 +93,4 @@ vm_paka_parser_block_full_t vm_paka_parser_block_full(vm_paka_parser_t *parser, 
 vm_block_t *vm_paka_parse(const char *src);
 vm_paka_blocks_t vm_paka_parse_blocks(const char *src);
 
-#define VM_LANG_PAKA_NUM_TAG_i8(...)  VM_TAG_I8 
-#define VM_LANG_PAKA_NUM_TAG_i16(...) VM_TAG_I16
-#define VM_LANG_PAKA_NUM_TAG_i32(...) VM_TAG_I32
-#define VM_LANG_PAKA_NUM_TAG_i64(...) VM_TAG_I64
-
-#define VM_LANG_PAKA_NUM_TAG_f32(...) VM_TAG_F32
-#define VM_LANG_PAKA_NUM_TAG_f64(...) VM_TAG_F64
-
-#define VM_LANG_PAKA_NUM_FIELD VM_USE_NUM
-
-#define VM_LANG_PAKA_MACRO_CONCAT2_IMPL(x, y) x ## y
-#define VM_LANG_PAKA_MACRO_CONCAT2(x, y) VM_LANG_PAKA_MACRO_CONCAT2_IMPL(x, y)
-
-#define VM_LANG_PAKA_NUM_TAG VM_LANG_PAKA_MACRO_CONCAT2(VM_LANG_PAKA_NUM_TAG_, VM_USE_NUM)()
-
 #endif

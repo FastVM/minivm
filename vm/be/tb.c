@@ -1094,7 +1094,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     // printf("block #%zi with %zu faults\n", rblock->block->id, state->faults);
 
-    printf("code buf: %p\n", ret);
+    // printf("code buf: %p\n", ret);
 
     return ret;
 }
