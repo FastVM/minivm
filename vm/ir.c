@@ -1,5 +1,6 @@
 
 #include "ir.h"
+
 #include "std/libs/io.h"
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
@@ -257,7 +258,7 @@ void vm_print_instr(FILE *out, vm_instr_t val) {
             break;
         }
         default: {
-            fprintf(out, "<instr: %zu>", (size_t) val.op);
+            fprintf(out, "<instr: %zu>", (size_t)val.op);
             break;
         }
     }
@@ -391,7 +392,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             if (regs[reg] == VM_INFO_REG_ARG) {
                 block->args[block->nargs++] = (vm_arg_t){
                     .type = VM_ARG_REG,
-                    .reg = (uint32_t) reg,
+                    .reg = (uint32_t)reg,
                 };
                 if (reg >= block->nregs) {
                     block->nregs = reg + 1;
@@ -404,7 +405,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
     vm_arg_t *next = vm_malloc(sizeof(vm_arg_t) * alloc);
     while (redo) {
         redo = false;
-        for (ptrdiff_t i = (ptrdiff_t) nblocks - 1; i >= 0; i--) {
+        for (ptrdiff_t i = (ptrdiff_t)nblocks - 1; i >= 0; i--) {
             vm_block_t *block = blocks[i];
             if (block->id < 0) {
                 continue;

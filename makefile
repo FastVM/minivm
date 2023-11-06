@@ -79,10 +79,15 @@ $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 
+# format
+
+format: .dummy
+	clang-format -i $(ALL_OBJS:$(OBJ_DIR)/%.o=%.c)
+
 # cleanup
 
 clean: .dummy
-	rm -rf $(BIN_DIR) $(OBJ_DIR) $(TMP_DIR)
+	rm -rf $(BUILD_DIR)
 
 # dummy
 

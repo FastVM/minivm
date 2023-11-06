@@ -1,5 +1,6 @@
 
 #include "./io.h"
+
 #include "../util.h"
 
 void vm_std_io_putchar(vm_std_value_t *args) {

@@ -3,7 +3,6 @@
 #include "./ir.h"
 #include "./std/libs/io.h"
 
-
 bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
     switch (lhs.tag) {
         case VM_TAG_NIL: {
@@ -179,7 +178,7 @@ vm_table_t *vm_table_new(void) {
 
 static vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag) {
     uint32_t head = 0;
-    vm_std_value_t lhs = (vm_std_value_t) {
+    vm_std_value_t lhs = (vm_std_value_t){
         .tag = key_tag,
         .value = key_val,
     };

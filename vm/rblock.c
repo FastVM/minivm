@@ -1,8 +1,9 @@
 
 #include "rblock.h"
+
+#include "check.h"
 #include "ir.h"
 #include "type.h"
-#include "check.h"
 
 vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
     void *cache = vm_cache_get(rblock->block->cache, rblock);

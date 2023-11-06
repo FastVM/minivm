@@ -1,6 +1,6 @@
 #include "paka.h"
 
-#define VM_LANG_PAKA_NUM_TAG_i8(...)  VM_TAG_I8 
+#define VM_LANG_PAKA_NUM_TAG_i8(...) VM_TAG_I8
 #define VM_LANG_PAKA_NUM_TAG_i16(...) VM_TAG_I16
 #define VM_LANG_PAKA_NUM_TAG_i32(...) VM_TAG_I32
 #define VM_LANG_PAKA_NUM_TAG_i64(...) VM_TAG_I64
@@ -10,7 +10,7 @@
 
 #define VM_LANG_PAKA_NUM_FIELD VM_USE_NUM
 
-#define VM_LANG_PAKA_MACRO_CONCAT2_IMPL(x, y) x ## y
+#define VM_LANG_PAKA_MACRO_CONCAT2_IMPL(x, y) x##y
 #define VM_LANG_PAKA_MACRO_CONCAT2(x, y) VM_LANG_PAKA_MACRO_CONCAT2_IMPL(x, y)
 
 #define VM_LANG_PAKA_NUM_TAG VM_LANG_PAKA_MACRO_CONCAT2(VM_LANG_PAKA_NUM_TAG_, VM_USE_NUM)()
@@ -125,7 +125,7 @@ static vm_block_t *vm_paka_blocks_new(vm_paka_blocks_t *blocks) {
     }
     vm_block_t *block = vm_malloc(sizeof(vm_block_t));
     *block = (vm_block_t){
-        .id = (ptrdiff_t) blocks->len,
+        .id = (ptrdiff_t)blocks->len,
         .cache = vm_malloc(sizeof(vm_cache_t)),
     };
     vm_cache_new(block->cache);
@@ -441,7 +441,7 @@ redo:;
     if (vm_paka_parser_match(parser, ".")) {
         vm_paka_parser_strip_spaces(parser);
         vm_block_t *next = vm_paka_blocks_new(comp->blocks);
-        vm_arg_t xout = (vm_arg_t) {
+        vm_arg_t xout = (vm_arg_t){
             .type = VM_ARG_REG,
             .reg = vm_paka_find_reg(comp),
         };
@@ -515,7 +515,7 @@ redo:;
                                           });
             comp->write->branch = (vm_branch_t){
                 .op = VM_BOP_GET,
-                .out = xout, 
+                .out = xout,
                 .args[0] = arg,
                 .args[1] = xout,
                 .targets[0] = next,
@@ -619,7 +619,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         }
     }
     if (vm_paka_parser_match(parser, "{}")) {
-        vm_arg_t arg = (vm_arg_t) {
+        vm_arg_t arg = (vm_arg_t){
             .type = VM_ARG_REG,
             .reg = vm_paka_find_reg(comp),
         };
@@ -657,7 +657,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         if (comp->nfuncs + 1 >= comp->funcs_alloc) {
             comp->funcs_alloc = (comp->nfuncs + 1) * 2;
             comp->func_names = vm_realloc(comp->func_names,
-                                            sizeof(const char *) * comp->funcs_alloc);
+                                          sizeof(const char *) * comp->funcs_alloc);
             comp->func_blocks = vm_realloc(
                 comp->func_blocks, sizeof(vm_block_t *) * comp->funcs_alloc);
         }
@@ -768,7 +768,7 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
         vm_block_t *check = vm_paka_blocks_new(comp->blocks);
         vm_block_t *body = vm_paka_blocks_new(comp->blocks);
         vm_block_t *after = vm_paka_blocks_new(comp->blocks);
-        comp->write->branch = (vm_branch_t) {
+        comp->write->branch = (vm_branch_t){
             .op = VM_BOP_JUMP,
             .targets[0] = check,
         };
@@ -788,13 +788,13 @@ vm_arg_t vm_paka_parser_expr_single(vm_paka_parser_t *parser,
             goto err;
         }
 
-        comp->write->branch = (vm_branch_t) {
+        comp->write->branch = (vm_branch_t){
             .op = VM_BOP_JUMP,
             .targets[0] = check,
         };
 
         comp->write = after;
-        return (vm_arg_t) {
+        return (vm_arg_t){
             .tag = VM_ARG_NIL,
         };
     }
@@ -1051,7 +1051,7 @@ vm_paka_parser_block_full_t vm_paka_parser_block_full(vm_paka_parser_t *parser, 
     }
     vm_paka_parser_strip_spaces(parser);
     comp->names = names.next;
-    return (vm_paka_parser_block_full_t) {
+    return (vm_paka_parser_block_full_t){
         .ret = ret,
         .arg = arg,
     };
@@ -1064,7 +1064,7 @@ int vm_paka_parser_block(vm_paka_parser_t *parser, vm_paka_comp_t *comp) {
 typedef struct {
     vm_paka_blocks_t blocks;
     vm_block_t *block;
-}  vm_paka_parse_result_t;
+} vm_paka_parse_result_t;
 
 static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
     vm_paka_parser_t parser = (vm_paka_parser_t){
@@ -1082,20 +1082,20 @@ static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
     vm_paka_parser_block_full_t full = vm_paka_parser_block_full(&parser, &comp);
     if (vm_paka_parser_peek(&parser) != '\0') {
         fprintf(stderr, "error(2) at line %zu, col %zu\n", parser.line, parser.col);
-        return (vm_paka_parse_result_t) {0};
+        return (vm_paka_parse_result_t){0};
     }
     // vm_print_arg(stdout, full.arg);
     // printf("\n\n");
     if (full.arg.type != VM_ARG_NONE && full.arg.type != VM_ARG_UNK && full.arg.type != VM_ARG_REG) {
-        vm_arg_t arg = (vm_arg_t) {
+        vm_arg_t arg = (vm_arg_t){
             .type = VM_ARG_REG,
             .reg = vm_paka_find_reg(&comp),
         };
-        vm_block_realloc(comp.write, (vm_instr_t) {
-            .op = VM_IOP_MOVE,
-            .out = arg,
-            .args[0] = full.arg,
-        });
+        vm_block_realloc(comp.write, (vm_instr_t){
+                                         .op = VM_IOP_MOVE,
+                                         .out = arg,
+                                         .args[0] = full.arg,
+                                     });
         full.arg = arg;
     }
     comp.write->branch = (vm_branch_t){
@@ -1108,7 +1108,7 @@ static vm_paka_parse_result_t vm_paka_parse_internal(const char *src) {
         vm_print_block(stdout, blocks.blocks[i]);
     }
 #endif
-    return (vm_paka_parse_result_t) {
+    return (vm_paka_parse_result_t){
         .block = block,
         .blocks = blocks,
     };
