@@ -1,132 +1,142 @@
-#include "../vm/ir.h"
-#include "../vm/std/std.h"
-#include "../vm/std/libs/io.h"
-#include "../vm/lang/paka.h"
+#include "../vm/ast/build.h"
+#include "../vm/ast/comp.h"
+#include "../vm/ast/print.h"
 #include "../vm/be/tb.h"
+#include "../vm/ir.h"
+#include "../vm/std/libs/io.h"
+#include "../vm/std/std.h"
 
-void GC_disable();
+typedef vm_ast_node_t (*vm_test_func_t)(void);
 
-void vm_main_help(char *arg0) {
-    fprintf(stderr, "error: provide a command to minivm\n");
-    fprintf(stderr, "example: %s run [FILE]\n", arg0);
+static vm_ast_node_t vm_main_test_math_add(void) {
+    vm_ast_node_t ten = vm_ast_build_literal(i64, 10);
+    vm_ast_node_t twenty = vm_ast_build_literal(i64, 20);
+    vm_ast_node_t add = vm_ast_build_add(ten, twenty);
+    return add;
 }
 
-int vm_main(char *argv0, int argc, char **argv) {
-    if (argv[1] == NULL) {
-        vm_main_help(argv0);
-        return 1;
-    } else if (!strcmp(argv[1], "time")) {
-        clock_t start = clock();
-        int res = vm_main(argv0, argc - 1, argv + 1);
-        clock_t end = clock();
-        double diff = (double) (end - start) / CLOCKS_PER_SEC;
-        printf("\n--- took %fs ---\n", diff);
-        return res;
-    } else if (!strcmp(argv[1], "ir")) {
-        argv += 1;
-        argc -= 1;
-        bool expr = false;
-        while (argv[1] != NULL) {
-            if (!strcmp(argv[1], "-e")) {
-                expr = true;
-            } else if (!strcmp(argv[1], "-f")) {
-                expr = false;
-            } else {
-                char *filename = argv[1];
-                char *src = expr ? filename : vm_io_read(filename);
-                if (src == NULL) {
-                    fprintf(stderr, "error: could not read file\n");
-                    return 1;
-                }
-                vm_paka_blocks_t blocks = vm_paka_parse_blocks(src);
-                for (size_t i = 0; i < blocks.len; i++) {
-                    vm_print_block(stdout, blocks.blocks[i]);
-                }
-            }
-            argv += 1;
-            argc -= 1;
-        }
-        return 0;
-    } else if (!strcmp(argv[1], "eval")) {
-        for (int i = 2; i < argc; i++) {
-            vm_block_t *block = vm_paka_parse(argv[i]);
-            if (block == NULL) {
-                fprintf(stderr, "error: could not parse file\n");
-                return 1;
-            }
-            vm_std_value_t main_args[1];
-            main_args[0].tag = VM_TAG_UNK;
-            vm_tb_run(block, vm_std_new());
-        }
-        return 0;
-    } else if (!strcmp(argv[1], "print")) {
-        for (int i = 2; i < argc; i++) {
-            vm_block_t *block = vm_paka_parse(argv[i]);
-            if (block == NULL) {
-                fprintf(stderr, "error: could not parse file\n");
-                return 1;
-            }
-            vm_std_value_t main_args[1];
-            main_args[0].tag = VM_TAG_UNK;
-            vm_std_value_t res = vm_tb_run(block, vm_std_new());
-            fprintf(stdout, "\n--- result #%i ---\n", i - 2);
-            vm_io_debug(stdout, 0, "", res, NULL);
-        }
-        return 0;
-    } else if (!strcmp(argv[1], "run")) {
-        argv += 1;
-        argc -= 1;
-        size_t iters = 1;
-        bool expr = false;
-        char *filename = NULL;
-        while (true) {
-            if (argc < 2) {
-                if (filename == NULL) {
-                    fprintf(stderr, "error: minivm run: cannot run no file\n");
-                    return 1;
-                } else {
-                    break;
-                }
-            }
-            if (!strcmp(argv[1], "-e")) {
-                expr = true;
-            } else if (!strcmp(argv[1], "-f")) {
-                expr = false;
-            } else if (!strcmp(argv[1], "-n")) {
-                argv += 1;
-                argc -= 1;
-                sscanf(argv[1], "%zu", &iters);
-            } else if (filename != NULL) {
-                fprintf(stderr, "error: cannot handle multiple files at cli\n");
-                return 1;
-            } else {
-                filename = argv[1];
-            }
-            argv += 1;
-            argc -= 1;
-        }
-        char *src = expr ? filename : vm_io_read(filename);
-        if (src == NULL) {
-            fprintf(stderr, "error: could not read file\n");
-            return 1;
-        }
-        vm_block_t *block = vm_paka_parse(src);
-        if (block == NULL) {
-            fprintf(stderr, "error: could not parse file\n");
-            return 1;
-        }
-        for (size_t i = 0; i < iters; i++) {
-            vm_tb_run(block, vm_std_new());
-        }
-        return 0;
+static vm_ast_node_t vm_main_test_math_sub(void) {
+    vm_ast_node_t ten = vm_ast_build_literal(i64, 10);
+    vm_ast_node_t twenty = vm_ast_build_literal(i64, 5);
+    vm_ast_node_t add = vm_ast_build_sub(ten, twenty);
+    return add;
+}
+
+static vm_ast_node_t vm_main_test_math_mul(void) {
+    vm_ast_node_t ten = vm_ast_build_literal(i64, 49);
+    vm_ast_node_t twenty = vm_ast_build_literal(i64, 84);
+    vm_ast_node_t add = vm_ast_build_mul(ten, twenty);
+    return add;
+}
+
+static vm_ast_node_t vm_main_test_math_div(void) {
+    vm_ast_node_t ten = vm_ast_build_literal(i64, 18);
+    vm_ast_node_t twenty = vm_ast_build_literal(i64, 3);
+    vm_ast_node_t add = vm_ast_build_div(ten, twenty);
+    return add;
+}
+
+static vm_ast_node_t vm_main_test_math_mod(void) {
+    vm_ast_node_t ten = vm_ast_build_literal(i64, 10);
+    vm_ast_node_t twenty = vm_ast_build_literal(i64, 20);
+    vm_ast_node_t add = vm_ast_build_mod(ten, twenty);
+    return add;
+}
+
+static vm_ast_node_t vm_main_test_math_chain(void) {
+    return vm_ast_build_add(
+        vm_ast_build_mul(
+            vm_ast_build_literal(i64, 1),
+            vm_ast_build_literal(i64, 2)
+        ),
+        vm_ast_build_mul(
+            vm_ast_build_literal(i64, 3),
+            vm_ast_build_literal(i64, 4)
+        )
+    );
+}
+
+static vm_ast_node_t vm_main_test_huge_fib_rec(size_t n) {
+    if (n < 2) {
+        return vm_ast_build_literal(i64, n);
     } else {
-        vm_main_help(argv0);
-        return 1;
+        return vm_ast_build_add(
+            vm_main_test_huge_fib_rec(n - 2),
+            vm_main_test_huge_fib_rec(n - 1)
+        );
     }
+}
+
+static vm_ast_node_t vm_main_test_huge_fib(void) {
+    return vm_main_test_huge_fib_rec(15);
+}
+
+static vm_ast_node_t vm_main_test_math_fac(void) {
+    vm_ast_node_t value = vm_ast_build_literal(i64, 1);
+    for (size_t i = 2; i < 10; i++) {
+        value = vm_ast_build_mul(vm_ast_build_literal(i64, i), value);
+    }
+    return value;
+}
+
+void vm_test(const char *name, vm_test_func_t gen) {
+    printf("\ntest: %s\n", name);
+    clock_t p1 = clock();
+
+    vm_ast_node_t node0 = gen();
+
+    vm_ast_node_t node = vm_ast_build_return(node0);
+
+    clock_t p2 = clock();
+
+    vm_ast_blocks_t blocks = vm_ast_comp(node);
+
+    vm_print_blocks(stdout, blocks.len, blocks.blocks);
+
+    clock_t p3 = clock();
+
+    vm_std_value_t value = vm_tb_run(blocks.blocks[0], vm_std_new());
+    clock_t p4 = clock();
+
+    vm_io_debug(stdout, 0, "result: ", value, NULL);
+    double diff1 = (double)(p2 - p1) / CLOCKS_PER_SEC * 1000;
+    double diff2 = (double)(p3 - p2) / CLOCKS_PER_SEC * 1000;
+    double diff3 = (double)(p4 - p3) / CLOCKS_PER_SEC * 1000;
+    printf("took: %.3fms / %.3fms / %.3fms\n", diff1, diff2, diff3);
 }
 
 int main(int argc, char **argv) {
     vm_init_mem();
-    char *argv0 = argv[0];
-    return vm_main(argv0, argc, argv);
+    vm_test(
+        "math.add",
+        vm_main_test_math_add
+    );
+    vm_test(
+        "math.sub",
+        vm_main_test_math_sub
+    );
+    vm_test(
+        "math.mul",
+        vm_main_test_math_mul
+    );
+    vm_test(
+        "math.div",
+        vm_main_test_math_div
+    );
+    vm_test(
+        "math.mod",
+        vm_main_test_math_mod
+    );
+    vm_test(
+        "math.chain",
+        vm_main_test_math_chain
+    );
+    vm_test(
+        "math.fac",
+        vm_main_test_math_fac
+    );
+    vm_test(
+        "huge.fib",
+        vm_main_test_huge_fib
+    );
 }

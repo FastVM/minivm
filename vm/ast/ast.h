@@ -2,7 +2,7 @@
 #define VM_HEADER_AST_AST
 
 #include "../lib.h"
-#include "../std/std.h"
+#include "../obj.h"
 
 struct vm_ast_form_t;
 typedef struct vm_ast_form_t vm_ast_form_t;
@@ -24,14 +24,12 @@ typedef uint8_t vm_ast_form_type_t;
 enum {
     VM_AST_FORM_DO,
     // locals
-    VM_AST_FORM_GET_LOCAL,
-    VM_AST_FORM_SET_LOCAL,
+    VM_AST_FORM_SET,
     // globals
     VM_AST_FORM_ENV,
     // tables
-    VM_AST_FORM_TABLE_NEW,
-    VM_AST_FORM_TABLE_SET,
-    VM_AST_FORM_TABLE_GET,
+    VM_AST_FORM_NEW,
+    VM_AST_FORM_LOAD,
     // math
     VM_AST_FORM_ADD,
     VM_AST_FORM_SUB,
@@ -46,6 +44,9 @@ enum {
     VM_AST_FORM_GT,
     VM_AST_FORM_LE,
     VM_AST_FORM_GE,
+    // logic
+    VM_AST_FORM_AND,
+    VM_AST_FORM_OR,
     // branch
     VM_AST_FORM_IF,
     VM_AST_FORM_WHILE,

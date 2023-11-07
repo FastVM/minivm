@@ -301,9 +301,9 @@ void vm_print_block(FILE *out, vm_block_t *val) {
     }
 }
 
-void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *blocks) {
+void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **blocks) {
     for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = &blocks[i];
+        vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }

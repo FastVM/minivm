@@ -109,15 +109,14 @@ struct vm_branch_t {
         vm_block_t *targets[VM_TAG_MAX];
         vm_rblock_t *rtargets[VM_TAG_MAX];
     };
-    int8_t *pass[2];
-    vm_arg_t args[16];
+    vm_arg_t *args;
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;
 };
 
 struct vm_instr_t {
-    vm_arg_t args[6];
+    vm_arg_t *args;
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;
@@ -154,7 +153,7 @@ void vm_print_tag(FILE *out, vm_tag_t tag);
 void vm_print_branch(FILE *out, vm_branch_t val);
 void vm_print_instr(FILE *out, vm_instr_t val);
 void vm_print_block(FILE *out, vm_block_t *val);
-void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *val);
+void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
 

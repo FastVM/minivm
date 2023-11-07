@@ -5,45 +5,43 @@
 #include "ast.h"
 
 // blocks
-vm_ast_node_t vm_ast_do(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_do(vm_ast_node_t lhs, vm_ast_node_t rhs);
 
 // locals
-vm_ast_node_t vm_ast_set_local(const char *name, vm_ast_node_t value);
-vm_ast_node_t vm_ast_get_local(const char *name);
+vm_ast_node_t vm_ast_build_set(const char *name, vm_ast_node_t value);
 
 // globals
-vm_ast_node_t vm_ast_env(void);
+vm_ast_node_t vm_ast_build_env(void);
 
 // tables
-vm_ast_node_t vm_ast_table_new(void);
-vm_ast_node_t vm_ast_table_set(vm_ast_node_t table, vm_ast_node_t key, vm_ast_node_t value);
-vm_ast_node_t vm_ast_table_get(vm_ast_node_t table, vm_ast_node_t key);
+vm_ast_node_t vm_ast_build_new(void);
+vm_ast_node_t vm_ast_build_loadt(vm_ast_node_t table, vm_ast_node_t key);
 
 // math
-vm_ast_node_t vm_ast_add(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_sub(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_mul(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_div(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_mod(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_pow(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_add(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_sub(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_mul(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_div(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_mod(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_pow(vm_ast_node_t lhs, vm_ast_node_t rhs);
 
 // compare
-vm_ast_node_t vm_ast_eq(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_ne(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_lt(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_gt(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_le(vm_ast_node_t lhs, vm_ast_node_t rhs);
-vm_ast_node_t vm_ast_ge(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_eq(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_ne(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_lt(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_gt(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_le(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_ge(vm_ast_node_t lhs, vm_ast_node_t rhs);
 
 // control flow
-vm_ast_node_t vm_ast_if(vm_ast_node_t cond, vm_ast_node_t iftrue, vm_ast_node_t iffalse);
-vm_ast_node_t vm_ast_while(vm_ast_node_t cond, vm_ast_node_t body);
+vm_ast_node_t vm_ast_build_if(vm_ast_node_t cond, vm_ast_node_t iftrue, vm_ast_node_t iffalse);
+vm_ast_node_t vm_ast_build_while(vm_ast_node_t cond, vm_ast_node_t body);
 
 // functions
-vm_ast_node_t vm_ast_arg(uint32_t nth);
-vm_ast_node_t vm_ast_lambda(vm_ast_node_t body);
-vm_ast_node_t vm_ast_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args);
-vm_ast_node_t vm_ast_return(vm_ast_node_t value);
+vm_ast_node_t vm_ast_build_arg(uint32_t nth);
+vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t body);
+vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args);
+vm_ast_node_t vm_ast_build_return(vm_ast_node_t value);
 
 // ugly hacks
 #define VM_AST_LITERAL_TYPE_TO_TAG_i8(...) VM_TAG_I8
@@ -59,7 +57,7 @@ vm_ast_node_t vm_ast_return(vm_ast_node_t value);
 // use this like follows
 // vm_ast_literal(i32, 10)
 // vm_ast_literal(f64, )
-#define vm_ast_literal(TYPE_, VALUE_)                                                         \
+#define vm_ast_build_literal(TYPE_, VALUE_)                                                         \
     ((vm_ast_node_t){                                                                         \
         .type = VM_AST_NODE_LITERAL,                                                          \
         .value.literal = (vm_std_value_t){                                                    \

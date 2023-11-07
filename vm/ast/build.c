@@ -44,7 +44,7 @@ static vm_ast_form_t vm_ast_form_args_c1(vm_ast_form_type_t type, vm_ast_node_t 
 static vm_ast_form_t vm_ast_form_args_c2(vm_ast_form_type_t type, vm_ast_node_t arg0, vm_ast_node_t arg1) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * 2);
     ret[0] = arg0;
-    ret[1] = arg0;
+    ret[1] = arg1;
     return (vm_ast_form_t){
         .type = type,
         .len = 2,
@@ -65,91 +65,84 @@ static vm_ast_form_t vm_ast_form_args_c3(vm_ast_form_type_t type, vm_ast_node_t 
 }
 
 // blocks
-vm_ast_node_t vm_ast_do(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_do(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_DO, lhs, rhs);
 }
 
 // locals
-vm_ast_node_t vm_ast_set_local(const char *name, vm_ast_node_t value) {
-    return vm_ast_form(VM_AST_FORM_SET_LOCAL, vm_ast_ident(name), value);
-}
-
-vm_ast_node_t vm_ast_get_local(const char *name) {
-    return vm_ast_form(VM_AST_FORM_GET_LOCAL, vm_ast_ident(name));
+vm_ast_node_t vm_ast_build_set(const char *name, vm_ast_node_t value) {
+    return vm_ast_form(VM_AST_FORM_SET, vm_ast_ident(name), value);
 }
 
 // globals
-vm_ast_node_t vm_ast_env(void) {
+vm_ast_node_t vm_ast_build_env(void) {
     return vm_ast_form0(VM_AST_FORM_ENV);
 }
 
 // tables
-vm_ast_node_t vm_ast_table_new(void) {
-    return vm_ast_form0(VM_AST_FORM_TABLE_NEW);
+vm_ast_node_t vm_ast_build_new(void) {
+    return vm_ast_form0(VM_AST_FORM_NEW);
 }
-vm_ast_node_t vm_ast_table_set(vm_ast_node_t table, vm_ast_node_t key, vm_ast_node_t value) {
-    return vm_ast_form(VM_AST_FORM_TABLE_NEW, table, key, value);
-}
-vm_ast_node_t vm_ast_table_get(vm_ast_node_t table, vm_ast_node_t key) {
-    return vm_ast_form(VM_AST_FORM_TABLE_NEW, table, key);
+vm_ast_node_t vm_ast_build_load(vm_ast_node_t table, vm_ast_node_t key) {
+    return vm_ast_form(VM_AST_FORM_LOAD, table, key);
 }
 
 // math
-vm_ast_node_t vm_ast_add(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_add(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_ADD, lhs, rhs);
 }
-vm_ast_node_t vm_ast_sub(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_sub(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_SUB, lhs, rhs);
 }
-vm_ast_node_t vm_ast_mul(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_mul(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_MUL, lhs, rhs);
 }
-vm_ast_node_t vm_ast_div(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_div(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_DIV, lhs, rhs);
 }
-vm_ast_node_t vm_ast_mod(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_mod(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_MOD, lhs, rhs);
 }
-vm_ast_node_t vm_ast_pow(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_pow(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_POW, lhs, rhs);
 }
 
 // compare
-vm_ast_node_t vm_ast_eq(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_eq(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_EQ, lhs, rhs);
 }
-vm_ast_node_t vm_ast_ne(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_ne(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_NE, lhs, rhs);
 }
-vm_ast_node_t vm_ast_lt(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_lt(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_LT, lhs, rhs);
 }
-vm_ast_node_t vm_ast_gt(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_gt(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_GT, lhs, rhs);
 }
-vm_ast_node_t vm_ast_le(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_le(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_LE, lhs, rhs);
 }
-vm_ast_node_t vm_ast_ge(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+vm_ast_node_t vm_ast_build_ge(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_GE, lhs, rhs);
 }
 
 // control flow
-vm_ast_node_t vm_ast_if(vm_ast_node_t cond, vm_ast_node_t iftrue, vm_ast_node_t iffalse) {
+vm_ast_node_t vm_ast_build_if(vm_ast_node_t cond, vm_ast_node_t iftrue, vm_ast_node_t iffalse) {
     return vm_ast_form(VM_AST_FORM_IF, cond, iftrue, iffalse);
 }
-vm_ast_node_t vm_ast_while(vm_ast_node_t cond, vm_ast_node_t body) {
+vm_ast_node_t vm_ast_build_while(vm_ast_node_t cond, vm_ast_node_t body) {
     return vm_ast_form(VM_AST_FORM_WHILE, cond, body);
 }
 
 // functions
-vm_ast_node_t vm_ast_arg(uint32_t nth) {
-    return vm_ast_form(VM_AST_FORM_ARG, vm_ast_literal(i32, nth));
+vm_ast_node_t vm_ast_build_arg(uint32_t nth) {
+    return vm_ast_form(VM_AST_FORM_ARG, vm_ast_build_literal(i32, nth));
 }
-vm_ast_node_t vm_ast_lambda(vm_ast_node_t body) {
+vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t body) {
     return vm_ast_form(VM_AST_FORM_LAMBDA, body);
 }
-vm_ast_node_t vm_ast_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args) {
+vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));
     ret[0] = func;
     for (size_t i = 0; i < nargs; i++) {
@@ -164,6 +157,6 @@ vm_ast_node_t vm_ast_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args)
         },
     };
 }
-vm_ast_node_t vm_ast_return(vm_ast_node_t value) {
+vm_ast_node_t vm_ast_build_return(vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_RETURN, value);
 }

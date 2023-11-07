@@ -19,28 +19,20 @@ void vm_ast_print_node(FILE *out, size_t indent, const char *prefix, vm_ast_node
                     fprintf(out, "do");
                     break;
                 }
-                case VM_AST_FORM_GET_LOCAL: {
-                    fprintf(out, "get_local");
-                    break;
-                }
-                case VM_AST_FORM_SET_LOCAL: {
-                    fprintf(out, "set_local");
+                case VM_AST_FORM_SET: {
+                    fprintf(out, "set");
                     break;
                 }
                 case VM_AST_FORM_ENV: {
                     fprintf(out, "env");
                     break;
                 }
-                case VM_AST_FORM_TABLE_NEW: {
-                    fprintf(out, "table_new");
+                case VM_AST_FORM_NEW: {
+                    fprintf(out, "new");
                     break;
                 }
-                case VM_AST_FORM_TABLE_SET: {
-                    fprintf(out, "table_set");
-                    break;
-                }
-                case VM_AST_FORM_TABLE_GET: {
-                    fprintf(out, "table_get");
+                case VM_AST_FORM_LOAD: {
+                    fprintf(out, "load");
                     break;
                 }
                 case VM_AST_FORM_ADD: {

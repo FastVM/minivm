@@ -164,68 +164,124 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 break;
             }
             case VM_IOP_ADD: {
+                TB_Node *value = NULL;
+                if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
+                    value = tb_inst_fadd(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                    );
+                } else {
+                    value = tb_inst_add(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        TB_ARITHMATIC_NONE
+                    );
+                }
                 tb_inst_store(
                     fun,
                     vm_tag_to_tb_type(instr.tag),
                     regs[instr.out.reg],
-                    vm_tb_select_binary_type(
-                        instr.tag,
-                        tb_inst_add, tb_inst_fadd,
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
-                    ),
+                    value,
                     8,
                     false
                 );
                 break;
             }
             case VM_IOP_SUB: {
+                TB_Node *value = NULL;
+                if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
+                    value = tb_inst_fsub(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                    );
+                } else {
+                    value = tb_inst_sub(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        TB_ARITHMATIC_NONE
+                    );
+                }
                 tb_inst_store(
                     fun,
                     vm_tag_to_tb_type(instr.tag),
                     regs[instr.out.reg],
-                    vm_tb_select_binary_type(
-                        instr.tag,
-                        tb_inst_sub, tb_inst_fsub,
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
-                    ),
+                    value,
                     8,
                     false
                 );
                 break;
             }
             case VM_IOP_MUL: {
+                TB_Node *value = NULL;
+                if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
+                    value = tb_inst_fmul(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                    );
+                } else {
+                    value = tb_inst_mul(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        TB_ARITHMATIC_NONE
+                    );
+                }
                 tb_inst_store(
                     fun,
                     vm_tag_to_tb_type(instr.tag),
                     regs[instr.out.reg],
-                    vm_tb_select_binary_type(
-                        instr.tag,
-                        tb_inst_mul, tb_inst_fmul,
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
-                    ),
+                    value,
                     8,
                     false
                 );
                 break;
             }
             case VM_IOP_DIV: {
+                TB_Node *value = NULL;
+                if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
+                    value = tb_inst_fdiv(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                    );
+                } else {
+                    value = tb_inst_div(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        true
+                    );
+                }
                 tb_inst_store(
                     fun,
                     vm_tag_to_tb_type(instr.tag),
                     regs[instr.out.reg],
-                    vm_tb_select_binary_type(
-                        instr.tag,
-                        tb_inst_div, tb_inst_fdiv,
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
-                    ),
+                    value,
+                    8,
+                    false
+                );
+                break;
+            }
+            case VM_IOP_MOD: {
+                if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
+                    __builtin_trap();
+                }
+                TB_Node *value = tb_inst_mod(
+                    fun,
+                    vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                    vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                    true
+                );
+                tb_inst_store(
+                    fun,
+                    vm_tag_to_tb_type(instr.tag),
+                    regs[instr.out.reg],
+                    value,
                     8,
                     false
                 );

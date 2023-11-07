@@ -31,30 +31,6 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
                 instr.args[i].reg_tag = regs->tags[instr.args[i].reg];
             }
         }
-        if (instr.op == VM_IOP_SET) {
-            if (instr.args[1].type == VM_ARG_REG) {
-                instr.args[3] = (vm_arg_t){
-                    .type = VM_ARG_TAG,
-                    .tag = instr.args[1].reg_tag,
-                };
-            } else if (instr.args[1].type == VM_ARG_NUM) {
-                instr.args[3] = (vm_arg_t){
-                    .type = VM_ARG_TAG,
-                    .tag = instr.args[1].num.tag,
-                };
-            }
-            if (instr.args[2].type == VM_ARG_REG) {
-                instr.args[4] = (vm_arg_t){
-                    .type = VM_ARG_TAG,
-                    .tag = instr.args[2].reg_tag,
-                };
-            } else if (instr.args[2].type == VM_ARG_NUM) {
-                instr.args[4] = (vm_arg_t){
-                    .type = VM_ARG_TAG,
-                    .tag = instr.args[1].num.tag,
-                };
-            }
-        }
         ret->instrs[ninstr] = instr;
         if (instr.out.type == VM_ARG_REG) {
             regs->tags[instr.out.reg] = instr.tag;
@@ -72,17 +48,6 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
                 branch.tag = regs->tags[branch.args[1].reg];
             } else if (branch.args[1].type == VM_ARG_NUM) {
                 branch.tag = branch.args[1].num.tag;
-            }
-            if (branch.args[1].type == VM_ARG_REG) {
-                branch.args[3] = (vm_arg_t){
-                    .type = VM_ARG_TAG,
-                    .tag = branch.args[1].reg_tag,
-                };
-            } else if (branch.args[1].type == VM_ARG_NUM) {
-                branch.args[3] = (vm_arg_t){
-                    .type = VM_ARG_TAG,
-                    .tag = branch.args[1].num.tag,
-                };
             }
             vm_block_t *from = branch.targets[0];
             for (size_t i = 0; i < from->nargs; i++) {
