@@ -1,10 +1,6 @@
 
 #include "./tb.h"
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-
 #include "../../cuik/tb/include/tb.h"
 #include "../check.h"
 #include "../rblock.h"

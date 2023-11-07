@@ -1,20 +1,17 @@
 
-#include "ast.h"
-
-#include <stddef.h>
+#include "build.h"
 
 #define VM_MACRO_SELECT(_0, _1, _2, NAME, ...) NAME
-#define vm_ast_form(TYPE_, ...)             \
-    ((vm_ast_node_t){                       \
-        .type = VM_AST_NODE_FORM,           \
-        .value.form.type = (TYPE_),         \
-        .value.form.args = VM_MACRO_SELECT( \
-            __VA_ARGS__,                    \
-            vm_ast_form_args_c3,            \
-            vm_ast_form_args_c2,            \
-            vm_ast_form_args_c1,            \
-            vm_ast_args_c0                  \
-        )(__VA_ARGS__),                     \
+#define vm_ast_form(TYPE_, ...)        \
+    ((vm_ast_node_t){                  \
+        .type = VM_AST_NODE_FORM,      \
+        .value.form = VM_MACRO_SELECT( \
+            __VA_ARGS__,               \
+            vm_ast_form_args_c3,       \
+            vm_ast_form_args_c2,       \
+            vm_ast_form_args_c1,       \
+            "use vm_ast_form0 instead" \
+        )((TYPE_), __VA_ARGS__),       \
     })
 #define vm_ast_form0(TYPE_)         \
     ((vm_ast_node_t){               \
@@ -34,40 +31,37 @@
         .value.literal = (LIT_),     \
     })
 
-static vm_ast_node_t *vm_ast_args_var(size_t nargs, ...) {
-    va_list list;
-    va_start(list, nargs);
-    vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * nargs);
-    for (size_t i = 0; i < nargs; i++) {
-        ret[i] = va_arg(list, vm_ast_node_t);
-    }
-    va_end(list);
-    return ret;
-}
-
-static vm_ast_node_t *vm_ast_args_c0(void) {
-    return NULL;
-}
-
-static vm_ast_node_t *vm_ast_form_args_c1(vm_ast_node_t arg0) {
+static vm_ast_form_t vm_ast_form_args_c1(vm_ast_form_type_t type, vm_ast_node_t arg0) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * 1);
     ret[0] = arg0;
-    return ret;
+    return (vm_ast_form_t){
+        .type = type,
+        .len = 1,
+        .args = ret,
+    };
 }
 
-static vm_ast_node_t *vm_ast_form_args_c2(vm_ast_node_t arg0, vm_ast_node_t arg1) {
+static vm_ast_form_t vm_ast_form_args_c2(vm_ast_form_type_t type, vm_ast_node_t arg0, vm_ast_node_t arg1) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * 2);
     ret[0] = arg0;
     ret[1] = arg0;
-    return ret;
+    return (vm_ast_form_t){
+        .type = type,
+        .len = 2,
+        .args = ret,
+    };
 }
 
-static vm_ast_node_t *vm_ast_form_args_c3(vm_ast_node_t arg0, vm_ast_node_t arg1, vm_ast_node_t arg2) {
+static vm_ast_form_t vm_ast_form_args_c3(vm_ast_form_type_t type, vm_ast_node_t arg0, vm_ast_node_t arg1, vm_ast_node_t arg2) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * 3);
     ret[0] = arg0;
     ret[1] = arg1;
     ret[2] = arg2;
-    return ret;
+    return (vm_ast_form_t){
+        .type = type,
+        .len = 3,
+        .args = ret,
+    };
 }
 
 // blocks
@@ -165,6 +159,7 @@ vm_ast_node_t vm_ast_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args)
         .type = VM_AST_NODE_FORM,
         .value.form = (vm_ast_form_t){
             .type = VM_AST_FORM_CALL,
+            .len = nargs + 1,
             .args = args,
         },
     };
