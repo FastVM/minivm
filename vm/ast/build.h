@@ -57,15 +57,15 @@ vm_ast_node_t vm_ast_build_return(vm_ast_node_t value);
 // use this like follows
 // vm_ast_literal(i32, 10)
 // vm_ast_literal(f64, )
-#define vm_ast_build_literal(TYPE_, VALUE_)                                                         \
-    ((vm_ast_node_t){                                                                         \
-        .type = VM_AST_NODE_LITERAL,                                                          \
-        .value.literal = (vm_std_value_t){                                                    \
+#define vm_ast_build_literal(TYPE_, VALUE_)                                                  \
+    ((vm_ast_node_t){                                                                        \
+        .type = VM_AST_NODE_LITERAL,                                                         \
+        .value.literal = (vm_std_value_t){                                                   \
             .tag = VM_AST_LITERAL_TYPE_TO_TAG_CONCAT2(VM_AST_LITERAL_TYPE_TO_TAG_, TYPE_)(), \
-            .value = (vm_value_t){                                                            \
-                .TYPE_ = (VALUE_),                                                            \
-            },                                                                                \
-        },                                                                                    \
+            .value = (vm_value_t){                                                           \
+                .TYPE_ = (VALUE_),                                                           \
+            },                                                                               \
+        },                                                                                   \
     })
 
 #endif

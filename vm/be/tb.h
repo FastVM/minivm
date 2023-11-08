@@ -5,9 +5,9 @@
 #include "../ir.h"
 #include "../lib.h"
 #include "../obj.h"
-#include "../type.h"
 #include "../std/libs/io.h"
 #include "../std/std.h"
+#include "../type.h"
 
 struct vm_tb_state_t;
 struct vm_tb_comp_state_t;

@@ -2,12 +2,11 @@
 #if !defined(VM_HEADER_AST_COMP)
 #define VM_HEADER_AST_COMP
 
-#include "ast.h"
 #include "../ir.h"
+#include "ast.h"
 
 struct vm_ast_blocks_t;
 typedef struct vm_ast_blocks_t vm_ast_blocks_t;
-
 
 struct vm_ast_blocks_t {
     size_t len;

@@ -81,6 +81,9 @@ $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 
 # format
 
+format-linux:
+	clang-format -i $$(find vm -name '*.c' -or -name '*.h')
+
 format: .dummy
 	clang-format -i $(ALL_OBJS:$(OBJ_DIR)/%.o=%.c)
 

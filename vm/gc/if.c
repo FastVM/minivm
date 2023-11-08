@@ -17,5 +17,5 @@ void GC_free(void *ptr) {
 
 void GC_init(void) {
     size_t dummy = 0;
-    tgc_start(&vm_gc_global, (uint8_t *) &dummy + 1024);
+    tgc_start(&vm_gc_global, (uint8_t *)&dummy + 1024);
 }

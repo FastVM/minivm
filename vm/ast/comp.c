@@ -137,7 +137,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *next = vm_ast_comp_new_block(comp);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_GET,
                             .out = out,
                             .args = vm_ast_args(2, arg1, arg2),
@@ -216,7 +216,6 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     break;
                 }
                 case VM_AST_FORM_IF: {
-
                 }
                 case VM_AST_FORM_RETURN: {
                     vm_arg_t arg = vm_ast_comp_to(comp, form.args[0]);

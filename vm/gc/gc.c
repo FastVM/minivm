@@ -33,7 +33,8 @@ static tgc_ptr_t *tgc_get_ptr(tgc_t *gc, void *ptr) {
 
 static void tgc_add_ptr(
     tgc_t *gc, void *ptr, size_t size,
-    int flags, void (*dtor)(void *)) {
+    int flags, void (*dtor)(void *)
+) {
     tgc_ptr_t item, tmp;
     size_t h, p, i, j;
 
@@ -120,7 +121,8 @@ static const size_t tgc_primes[TGC_PRIMES_COUNT] = {
     389, 683, 1259, 2417,
     4733, 9371, 18617, 37097,
     74093, 148073, 296099, 592019,
-    1100009, 2200013, 4400021, 8800019};
+    1100009, 2200013, 4400021, 8800019
+};
 
 static size_t tgc_ideal_size(tgc_t *gc, size_t size) {
     size_t i, last;
@@ -155,9 +157,7 @@ static int tgc_rehash(tgc_t *gc, size_t new_size) {
 
     for (i = 0; i < old_size; i++) {
         if (old_items[i].hash != 0) {
-            tgc_add_ptr(gc,
-                        old_items[i].ptr, old_items[i].size,
-                        old_items[i].flags, old_items[i].dtor);
+            tgc_add_ptr(gc, old_items[i].ptr, old_items[i].size, old_items[i].flags, old_items[i].dtor);
         }
     }
 
@@ -390,7 +390,8 @@ void tgc_run(tgc_t *gc) {
 
 static void *tgc_add(
     tgc_t *gc, void *ptr, size_t size,
-    int flags, void (*dtor)(void *)) {
+    int flags, void (*dtor)(void *)
+) {
     gc->nitems++;
     gc->maxptr = ((uintptr_t)ptr) + size > gc->maxptr ? ((uintptr_t)ptr) + size : gc->maxptr;
     gc->minptr = ((uintptr_t)ptr) < gc->minptr ? ((uintptr_t)ptr) : gc->minptr;
@@ -475,7 +476,8 @@ void *tgc_alloc_opt(tgc_t *gc, size_t size, int flags, void (*dtor)(void *)) {
 
 void *tgc_calloc_opt(
     tgc_t *gc, size_t num, size_t size,
-    int flags, void (*dtor)(void *)) {
+    int flags, void (*dtor)(void *)
+) {
     void *ptr = calloc(num, size);
     if (ptr != NULL) {
         ptr = tgc_add(gc, ptr, num * size, flags, dtor);
