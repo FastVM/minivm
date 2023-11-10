@@ -13,8 +13,6 @@
 #define __section(x) __attribute__((__section__(x)))
 #endif
 
-#include "config.h"
-
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -23,6 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "config.h"
 
 // this is only used for clock()
 #include <time.h>

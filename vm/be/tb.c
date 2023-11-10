@@ -120,7 +120,7 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
             );
         }
         case VM_ARG_STR: {
-            return tb_inst_string(fun, strlen(arg.str), arg.str);
+            return tb_inst_string(fun, strlen(arg.str) + 1, arg.str);
         }
         default: {
             vm_print_arg(stderr, arg);
@@ -143,11 +143,10 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
     block->pass = ret;
 
-#if VM_DUMP_IR
-    fprintf(stdout, "\n--- vmir ---\n");
-    vm_print_block(stdout, block);
-    fflush(stdout);
-#endif
+    if (state->config->dump_ver) {
+        fprintf(stdout, "\n--- vmir ---\n");
+        vm_print_block(stdout, block);
+    }
 
     for (size_t n = 0; n < block->len; n++) {
         vm_instr_t instr = block->instrs[n];
@@ -528,12 +527,25 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     TB_Node *call_arg = tb_inst_local(fun, sizeof(vm_std_value_t) * (nparams + 1), 8);
 
                     for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
+                        vm_arg_t arg = branch.args[i];
                         TB_Node *head = tb_inst_member_access(fun, call_arg, sizeof(vm_std_value_t) * (i - 1));
+                        vm_tag_t tag = VM_TAG_NIL;
+                        if (arg.type == VM_ARG_REG) {
+                            tag = arg.reg_tag;
+                        } else if (arg.type == VM_ARG_NUM) {
+                            tag = arg.num.tag;
+                        } else if (arg.type == VM_ARG_STR) {
+                            tag = VM_TAG_STR;
+                        } else {
+                            fprintf(stderr, "ERROR: ");
+                            vm_print_branch(stderr, branch);
+                            fprintf(stderr, "\n");
+                        }
                         tb_inst_store(
                             fun,
-                            vm_tag_to_tb_type(branch.args[i].reg_tag),
+                            vm_tag_to_tb_type(tag),
                             tb_inst_member_access(fun, head, offsetof(vm_std_value_t, value)),
-                            vm_tb_func_read_arg(fun, regs, branch.args[i]),
+                            vm_tb_func_read_arg(fun, regs, arg),
                             8,
                             false
                         );
@@ -541,7 +553,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                             fun,
                             TB_TYPE_I32,
                             tb_inst_member_access(fun, head, offsetof(vm_std_value_t, tag)),
-                            tb_inst_uint(fun, TB_TYPE_I32, branch.args[i].reg_tag),
+                            tb_inst_uint(fun, TB_TYPE_I32, tag),
                             4,
                             false
                         );
@@ -599,6 +611,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         1,
                         false
                     );
+
                     // printf("ffi %p\n", res_ptr);
                 } else {
                     fprintf(stderr, "call of ");
@@ -645,7 +658,12 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 sizeof(vm_tb_comp_state_t)
             );
 
-            TB_Node *args_local = tb_inst_local(fun, 8 * branch.targets[0]->nargs, 8);
+            TB_Node *args_local;
+            if (branch.targets[0]->nargs == 0) {
+                args_local = tb_inst_uint(fun, TB_TYPE_PTR, 0);
+            } else {
+                args_local = tb_inst_local(fun, 8 * branch.targets[0]->nargs, 8);
+            }
 
             TB_Node *call_args[2];
 
@@ -995,8 +1013,11 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
     vm_rblock_t *rblock = comp->rblock;
 
+    vm_tb_state_t *last_state = rblock->state;
+
     vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
-    state->std = ((vm_tb_state_t *)rblock->state)->std;
+    state->std = last_state->std;
+    state->config = last_state->config;
 
     vm_tb_new_module(state);
 
@@ -1048,9 +1069,9 @@ vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
             8,
             false
         );
-#if VM_DUMP_JIT_ARGS
-        vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], regs[block->args[i].reg]);
-#endif
+        if (state->config->dump_args) {
+            vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], regs[block->args[i].reg]);
+        }
     }
 
     TB_Node *main = vm_tb_func_body_once(state, fun, regs, block);
@@ -1058,28 +1079,25 @@ vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
     tb_inst_goto(fun, main);
 
     TB_Passes *passes = tb_pass_enter(fun, tb_function_get_arena(fun));
-#if VM_DUMP_TB
-    fprintf(stdout, "\n--- tb ---\n");
-    tb_pass_print(passes);
-    fflush(stdout);
-#endif
-#if VM_USE_TB_OPT
-    tb_pass_optimize(passes);
-#endif
-#if VM_DUMP_TB_OPT
-    fprintf(stdout, "\n--- opt tb ---\n");
-    tb_pass_print(passes);
-    fflush(stdout);
-#endif
-
-#if VM_DUMP_X86
-    TB_FunctionOutput *out = tb_pass_codegen(passes, true);
-    fprintf(stdout, "\n--- x86asm ---\n");
-    tb_output_print_asm(out, stdout);
-    fflush(stdout);
-#else
-    tb_pass_codegen(passes, (bool)VM_EMIT_ASM);
-#endif
+    if (state->config->dump_tb) {
+        fprintf(stdout, "\n--- tb ---\n");
+        tb_pass_print(passes);
+    }
+    if (state->config->use_tb_opt) {
+        tb_pass_optimize(passes);
+        if (state->config->dump_tb_opt) {
+            fprintf(stdout, "\n--- opt tb ---\n");
+            tb_pass_print(passes);
+            fflush(stdout);
+        }
+    }
+    if (state->config->dump_x86) {
+        TB_FunctionOutput *out = tb_pass_codegen(passes, true);
+        fprintf(stdout, "\n--- x86asm ---\n");
+        tb_output_print_asm(out, stdout);
+    } else {
+        tb_pass_codegen(passes, false);
+    }
 
     tb_pass_exit(passes);
 
@@ -1155,9 +1173,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             8,
             false
         );
-#if VM_DUMP_JIT_ARGS
-        vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], tb_inst_param(fun, i));
-#endif
+        if (state->config->dump_args) {
+            vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], regs[block->args[i].reg]);
+        }
     }
 
     TB_Node *main = vm_tb_func_body_once(state, fun, regs, block);
@@ -1165,28 +1183,25 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     tb_inst_goto(fun, main);
 
     TB_Passes *passes = tb_pass_enter(fun, tb_function_get_arena(fun));
-#if VM_DUMP_TB
-    fprintf(stdout, "\n--- tb ---\n");
-    tb_pass_print(passes);
-    fflush(stdout);
-#endif
-#if VM_USE_TB_OPT
-    tb_pass_optimize(passes);
-#endif
-#if VM_DUMP_TB_OPT
-    fprintf(stdout, "\n--- opt tb ---\n");
-    tb_pass_print(passes);
-    fflush(stdout);
-#endif
-
-#if VM_DUMP_X86
-    TB_FunctionOutput *out = tb_pass_codegen(passes, true);
-    fprintf(stdout, "\n--- x86asm ---\n");
-    tb_output_print_asm(out, stdout);
-    fflush(stdout);
-#else
-    tb_pass_codegen(passes, (bool)VM_EMIT_ASM);
-#endif
+    if (state->config->dump_tb) {
+        fprintf(stdout, "\n--- tb ---\n");
+        tb_pass_print(passes);
+    }
+    if (state->config->use_tb_opt) {
+        tb_pass_optimize(passes);
+        if (state->config->dump_tb_opt) {
+            fprintf(stdout, "\n--- opt tb ---\n");
+            tb_pass_print(passes);
+            fflush(stdout);
+        }
+    }
+    if (state->config->dump_x86) {
+        TB_FunctionOutput *out = tb_pass_codegen(passes, true);
+        fprintf(stdout, "\n--- x86asm ---\n");
+        tb_output_print_asm(out, stdout);
+    } else {
+        tb_pass_codegen(passes, false);
+    }
 
     tb_pass_exit(passes);
 
@@ -1223,9 +1238,10 @@ void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
 
 typedef vm_std_value_t VM_CDECL vm_tb_func_t(void);
 
-vm_std_value_t vm_tb_run(vm_block_t *block, vm_table_t *std) {
+vm_std_value_t vm_tb_run(vm_config_t *config, vm_block_t *block, vm_table_t *std) {
     vm_tb_state_t state = (vm_tb_state_t){
         .std = std,
+        .config = config,
     };
 
     vm_tb_new_module(&state);

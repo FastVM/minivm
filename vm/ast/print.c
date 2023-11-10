@@ -117,6 +117,7 @@ void vm_ast_print_node(FILE *out, size_t indent, const char *prefix, vm_ast_node
             break;
         }
         case VM_AST_NODE_IDENT: {
+            vm_indent(out, indent, prefix);
             fprintf(out, "%s\n", node.value.ident);
             break;
         }

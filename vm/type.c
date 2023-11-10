@@ -134,6 +134,10 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
                 instr.tag = instr.args[i].num.tag;
                 return instr;
             }
+            if (instr.args[i].type == VM_ARG_STR) {
+                instr.tag = VM_TAG_STR;
+                return instr;
+            }
         }
         instr.tag = VM_TAG_NIL;
     }
@@ -155,6 +159,10 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branc
         for (size_t i = 0; i < 2; i++) {
             if (branch.args[i].type == VM_ARG_NUM) {
                 branch.tag = branch.args[i].num.tag;
+                return branch;
+            }
+            if (branch.args[i].type == VM_ARG_STR) {
+                branch.tag = VM_TAG_STR;
                 return branch;
             }
         }

@@ -21,6 +21,7 @@ struct vm_tb_state_t {
     vm_table_t *std;
     void *module;
     size_t faults;
+    vm_config_t *config;
 
     // externals
     void *state_self;
@@ -37,7 +38,7 @@ struct vm_tb_comp_state_t {
 };
 
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock);
-vm_std_value_t vm_tb_run(vm_block_t *block, vm_table_t *std);
+vm_std_value_t vm_tb_run(vm_config_t *config, vm_block_t *block, vm_table_t *std);
 vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args);
 
 #endif

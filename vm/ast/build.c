@@ -70,8 +70,8 @@ vm_ast_node_t vm_ast_build_do(vm_ast_node_t lhs, vm_ast_node_t rhs) {
 }
 
 // locals
-vm_ast_node_t vm_ast_build_set(const char *name, vm_ast_node_t value) {
-    return vm_ast_form(VM_AST_FORM_SET, vm_ast_ident(name), value);
+vm_ast_node_t vm_ast_build_set(vm_ast_node_t target, vm_ast_node_t value) {
+    return vm_ast_form(VM_AST_FORM_SET, target, value);
 }
 
 // globals
@@ -153,10 +153,27 @@ vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t 
         .value.form = (vm_ast_form_t){
             .type = VM_AST_FORM_CALL,
             .len = nargs + 1,
-            .args = args,
+            .args = ret,
         },
     };
 }
 vm_ast_node_t vm_ast_build_return(vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_RETURN, value);
+}
+vm_ast_node_t vm_ast_build_block(size_t len, ...) {
+    va_list ap;
+    va_start(ap, len);
+    vm_ast_node_t ret;
+    if (len == 0) {
+        ret = vm_ast_build_literal(i64, 0);
+    } else if (len == 1) {
+        ret = va_arg(ap, vm_ast_node_t);
+    } else {
+        ret = va_arg(ap, vm_ast_node_t);
+        for (size_t i = 1; i < len; i++) {
+            ret = vm_ast_build_do(ret, va_arg(ap, vm_ast_node_t));
+        }
+    }
+    va_end(ap);
+    return ret;
 }

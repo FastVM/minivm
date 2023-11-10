@@ -1,0 +1,4 @@
+
+do  print 1i64
+do  print 2i64
+    return 0i64
