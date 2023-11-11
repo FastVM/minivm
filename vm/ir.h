@@ -3,8 +3,8 @@
 #define VM_HEADER_IR
 
 #include "lib.h"
-#include "tag.h"
 #include "std/std.h"
+#include "tag.h"
 
 struct vm_arg_t;
 struct vm_branch_t;
@@ -97,8 +97,8 @@ struct vm_arg_t {
         bool logic;
         vm_tag_t tag;
         struct {
-            uint64_t reg: 56;
-            uint8_t reg_tag: 8;
+            uint64_t reg : 56;
+            uint8_t reg_tag : 8;
         };
     };
     uint8_t type;
