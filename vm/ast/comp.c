@@ -98,7 +98,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_BLT,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iftrue,
@@ -112,7 +112,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_BLT,
                             .args = vm_ast_args(2, arg2, arg1),
                             .targets[0] = iftrue,
@@ -126,7 +126,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_BLT,
                             .args = vm_ast_args(2, arg2, arg1),
                             .targets[0] = iffalse,
@@ -140,7 +140,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_BLT,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iffalse,
@@ -154,7 +154,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_BEQ,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iftrue,
@@ -168,7 +168,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_BEQ,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iffalse,
@@ -183,7 +183,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
         case VM_AST_NODE_LITERAL: {
             vm_ast_blocks_branch(
                 comp,
-                (vm_branch_t) {
+                (vm_branch_t){
                     .op = VM_BOP_JUMP,
                     .args = vm_ast_args(0),
                     .targets[0] = iftrue,
@@ -221,7 +221,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             comp,
                             (vm_instr_t){
                                 .op = VM_IOP_MOVE,
-                                .out = (vm_arg_t) {
+                                .out = (vm_arg_t){
                                     .type = VM_ARG_REG,
                                     .reg = local,
                                 },
@@ -232,6 +232,22 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             .type = VM_ARG_REG,
                             .reg = local,
                         };
+                    }
+                    if (target.type == VM_AST_NODE_FORM && target.value.form.type == VM_AST_FORM_LOAD) {
+                        vm_arg_t table = vm_ast_comp_to(comp, target.value.form.args[0]);
+                        vm_arg_t key = vm_ast_comp_to(comp, target.value.form.args[1]);
+                        vm_arg_t val = vm_ast_comp_to(comp, form.args[1]);
+                        vm_ast_blocks_instr(
+                            comp,
+                            (vm_instr_t){
+                                .op = VM_IOP_SET,
+                                .args = vm_ast_args(3, table, key, val),
+                                .out = (vm_arg_t){
+                                    .type = VM_ARG_NONE,
+                                },
+                            }
+                        );
+                        return val;
                     }
                     break;
                 }
@@ -283,14 +299,14 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     for (size_t i = 1; i < form.len; i++) {
                         args[i] = vm_ast_comp_to(comp, form.args[i]);
                     }
-                    args[form.len] = (vm_arg_t) {
+                    args[form.len] = (vm_arg_t){
                         .type = VM_ARG_NONE,
                     };
                     vm_arg_t out = vm_ast_comp_reg(comp);
                     vm_block_t *next = vm_ast_comp_new_block(comp);
                     vm_ast_blocks_branch(
                         comp,
-                        (vm_branch_t) {
+                        (vm_branch_t){
                             .op = VM_BOP_CALL,
                             .out = out,
                             .args = args,
@@ -351,7 +367,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t true_value = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_blocks_instr(
                         comp,
-                        (vm_instr_t) {
+                        (vm_instr_t){
                             .op = VM_IOP_MOVE,
                             .out = out,
                             .args = vm_ast_args(1, true_value),
@@ -369,7 +385,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t false_value = vm_ast_comp_to(comp, form.args[2]);
                     vm_ast_blocks_instr(
                         comp,
-                        (vm_instr_t) {
+                        (vm_instr_t){
                             .op = VM_IOP_MOVE,
                             .out = out,
                             .args = vm_ast_args(1, false_value),
@@ -441,11 +457,11 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     .num = num,
                 };
             } else if (num.tag == VM_TAG_NIL) {
-                return (vm_arg_t) {
+                return (vm_arg_t){
                     .type = VM_ARG_NIL,
                 };
             } else if (num.tag == VM_TAG_STR) {
-                vm_arg_t str = (vm_arg_t) {
+                vm_arg_t str = (vm_arg_t){
                     .type = VM_ARG_STR,
                     .str = num.value.str,
                 };
@@ -479,7 +495,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         .args = vm_ast_args(0),
                     }
                 );
-                vm_arg_t env_key = (vm_arg_t) {
+                vm_arg_t env_key = (vm_arg_t){
                     .type = VM_ARG_STR,
                     .str = lit,
                 };
@@ -487,7 +503,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 vm_block_t *next = vm_ast_comp_new_block(comp);
                 vm_ast_blocks_branch(
                     comp,
-                    (vm_branch_t) {
+                    (vm_branch_t){
                         .op = VM_BOP_GET,
                         .out = out,
                         .args = vm_ast_args(2, env_table, env_key),
@@ -497,7 +513,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 comp->cur = next;
                 return out;
             }
-            return (vm_arg_t) {
+            return (vm_arg_t){
                 .type = VM_ARG_REG,
                 .reg = got,
             };

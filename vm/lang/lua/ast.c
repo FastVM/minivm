@@ -124,8 +124,11 @@ vm_ast_node_t vm_lang_lua_conv(const char *src, TSNode node) {
         return vm_ast_build_literal(str, vm_lang_lua_src(src, content));
     }
     if (!strcmp(type, "number")) {
+        // double n;
+        // sscanf(vm_lang_lua_src(src, node), "%lf", &n);
+        // return vm_ast_build_literal(f64, n);
         int64_t n;
-        sscanf(vm_lang_lua_src(src, node), "%"SCNi64, &n);
+        sscanf(vm_lang_lua_src(src, node), "%" SCNi64, &n);
         // return vm_ast_build_literal(i64, n);
         return vm_ast_build_literal(i32, n);
     }
@@ -138,6 +141,16 @@ vm_ast_node_t vm_lang_lua_conv(const char *src, TSNode node) {
             args[i] = vm_lang_lua_conv(src, ts_node_child(args_node, i + 1));
         }
         return vm_ast_build_call(func, nargs, args);
+    }
+    if (!strcmp(type, "table_constructor")) {
+        if (num_children == 2) {
+            return vm_ast_build_new();
+        }
+    }
+    if (!strcmp(type, "dot_index_expression")) {
+        vm_ast_node_t table = vm_lang_lua_conv(src, ts_node_child(node, 0));
+        char *field = vm_lang_lua_src(src, ts_node_child(node, 2));
+        return vm_ast_build_load(table, vm_ast_build_literal(str, field));
     }
     printf("str = %s\n", ts_node_string(node));
     fflush(stdout);

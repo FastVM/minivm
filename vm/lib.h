@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wctype.h>
+#include <math.h>
 
 #include "config.h"
 

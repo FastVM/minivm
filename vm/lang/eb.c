@@ -216,16 +216,16 @@ static vm_ast_node_t vm_lang_eb_expr(vm_lang_eb_state_t *state) {
                 vm_lang_eb_skip_char(state);
             } else {
                 if (vm_lang_eb_match_keyword(state, "i8")) {
-                    return vm_ast_build_literal(i8, (int8_t) n);
+                    return vm_ast_build_literal(i8, (int8_t)n);
                 }
                 if (vm_lang_eb_match_keyword(state, "i16")) {
-                    return vm_ast_build_literal(i16, (int16_t) n);
+                    return vm_ast_build_literal(i16, (int16_t)n);
                 }
                 if (vm_lang_eb_match_keyword(state, "i32")) {
-                    return vm_ast_build_literal(i32, (int32_t) n);
+                    return vm_ast_build_literal(i32, (int32_t)n);
                 }
                 if (vm_lang_eb_match_keyword(state, "i64")) {
-                    return vm_ast_build_literal(i64, (int64_t) n);
+                    return vm_ast_build_literal(i64, (int64_t)n);
                 }
                 fprintf(stderr, "expected a number suffix at Line %zu, Col %zu", state->line, state->col);
                 exit(1);
@@ -262,7 +262,7 @@ static vm_ast_node_t vm_lang_eb_expr(vm_lang_eb_state_t *state) {
 }
 
 vm_ast_node_t vm_lang_eb_parse(vm_config_t *config, const char *str) {
-    vm_lang_eb_state_t state = (vm_lang_eb_state_t) {
+    vm_lang_eb_state_t state = (vm_lang_eb_state_t){
         .str = str,
         .line = 1,
         .col = 1,
