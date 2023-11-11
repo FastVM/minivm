@@ -69,7 +69,7 @@ minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 
 $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I cuik/tb/include -I cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS
+	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) -Wno-unused-value -I cuik/tb/include -I cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS $(CFLAGS)
 
 $(PROG_OBJS) $(ALL_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))

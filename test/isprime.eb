@@ -1,0 +1,9 @@
+do  set num 7i64
+do  set check 2i64
+do  set isprime 1i64
+do  while lt check num
+        do  when eq mod num check 0i64
+                do  print check set isprime 0i64
+            set check add check 1i64
+    return isprime
+    

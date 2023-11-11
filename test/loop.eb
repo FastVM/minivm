@@ -1,0 +1,5 @@
+do  set x 10i64
+do  while gt x 0i64
+    do  print x
+        set x sub x 1i64
+    return 0i64

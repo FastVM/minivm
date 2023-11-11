@@ -130,8 +130,27 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
     }
 }
 
+void vm_tb_func_reset_pass(vm_block_t *block) {
+    if (block->pass == NULL) {
+        return;
+    }
+    block->pass = NULL;
+    switch (block->branch.op) {
+    case VM_BOP_JUMP: {
+        vm_tb_func_reset_pass(block->branch.targets[0]);
+        break;
+    }
+    case VM_BOP_BLT:
+    case VM_BOP_BEQ: {
+        vm_tb_func_reset_pass(block->branch.targets[0]);
+        vm_tb_func_reset_pass(block->branch.targets[1]);
+        break;
+    }
+    }
+}
+
 TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **regs, vm_block_t *block) {
-    if (block->pass) {
+    if (block->pass != NULL) {
         return block->pass;
     }
 
@@ -869,8 +888,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         }
     }
 
-    block->pass = NULL;
-
     tb_inst_set_control(fun, old_ctrl);
 
     return ret;
@@ -1077,7 +1094,9 @@ vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
         }
     }
 
+    vm_tb_func_reset_pass(block);
     TB_Node *main = vm_tb_func_body_once(state, fun, regs, block);
+    vm_tb_func_reset_pass(block);
 
     tb_inst_goto(fun, main);
 
@@ -1181,7 +1200,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         }
     }
 
+    vm_tb_func_reset_pass(block);
     TB_Node *main = vm_tb_func_body_once(state, fun, regs, block);
+    vm_tb_func_reset_pass(block);
 
     tb_inst_goto(fun, main);
 
