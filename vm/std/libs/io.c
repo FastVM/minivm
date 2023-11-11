@@ -3,27 +3,6 @@
 
 #include "../util.h"
 
-void vm_std_io_putchar(vm_std_value_t *args) {
-    double num = 0;
-    if (vm_std_parse_args(args, "f", &num)) {
-        printf("%c", (int)num);
-        *args = (vm_std_value_t){
-            .tag = VM_TAG_NIL,
-        };
-        return;
-    }
-    ptrdiff_t inum = 0;
-    if (vm_std_parse_args(args, "i", &inum)) {
-        printf("%c", (int)inum);
-        *args = (vm_std_value_t){
-            .tag = VM_TAG_NIL,
-        };
-        return;
-    }
-    fprintf(stderr, "std.io.putchar: expected an int or float");
-    exit(1);
-}
-
 char *vm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
     if (file == NULL) {
@@ -251,13 +230,4 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
             __builtin_trap();
         }
     }
-}
-
-void vm_std_io_debug(vm_std_value_t *args) {
-    while (args->tag != 0) {
-        vm_io_debug(stdout, 0, "", *args++, NULL);
-    }
-    *args = (vm_std_value_t){
-        .tag = VM_TAG_NIL,
-    };
 }

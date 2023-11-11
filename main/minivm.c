@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
     };
     vm_config_t *config = &val_config;
     bool dry_run = false;
+    bool echo = false;
     const char *lang = "lua";
     for (size_t i = 1; i < argc; i++) {
         char *arg = argv[i];
@@ -26,6 +27,10 @@ int main(int argc, char **argv) {
             config->use_tb_opt = true;
         } else if (!strcmp(arg, "--no-opt")) {
             config->use_tb_opt = false;
+        } else if (!strcmp(arg, "--echo")) {
+            echo = true;
+        } else if (!strcmp(arg, "--no-echo")) {
+            echo = false;
         } else if (!strcmp(arg, "--dry-run")) {
             dry_run = true;
         } else if (!strncmp(arg, "--dump-", 7)) {
@@ -91,7 +96,9 @@ int main(int argc, char **argv) {
                 vm_table_t *std = vm_std_new();
                 // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
                 vm_std_value_t value = vm_tb_run(config, blocks.blocks[0], std);
-                vm_io_debug(stdout, 0, "", value, NULL);
+                if (echo) {
+                    vm_io_debug(stdout, 0, "", value, NULL);
+                }
                 // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
             }
 

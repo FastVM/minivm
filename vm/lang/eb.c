@@ -157,7 +157,7 @@ static vm_ast_node_t vm_lang_eb_expr(vm_lang_eb_state_t *state) {
     if (vm_lang_eb_match_keyword(state, "when")) {
         vm_ast_node_t arg1 = vm_lang_eb_expr(state);
         vm_ast_node_t arg2 = vm_lang_eb_expr(state);
-        vm_ast_node_t arg3 = vm_ast_build_literal(i64, 0);
+        vm_ast_node_t arg3 = vm_ast_build_nil();
         return vm_ast_build_if(arg1, arg2, arg3);
     }
     if (vm_lang_eb_match_keyword(state, "while")) {

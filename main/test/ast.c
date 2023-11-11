@@ -85,11 +85,8 @@ static vm_ast_node_t vm_main_test_table_env(void) {
 
 static vm_ast_node_t vm_main_test_table_load_basic(void) {
     return vm_ast_build_load(
-        vm_ast_build_load(
-            vm_ast_build_env(),
-            vm_ast_build_literal(str, "io")
-        ),
-        vm_ast_build_literal(str, "debug")
+        vm_ast_build_env(),
+        vm_ast_build_literal(str, "print")
     );
 }
 

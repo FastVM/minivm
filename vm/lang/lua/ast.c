@@ -27,7 +27,7 @@ vm_ast_node_t vm_lang_lua_conv(const char *src, TSNode node) {
             return vm_ast_build_nil();
         }
         vm_ast_node_t ret = vm_lang_lua_conv(src, ts_node_child(node, 0));
-        for (size_t i = 0; i < num_children; i++) {
+        for (size_t i = 1; i < num_children; i++) {
             ret = vm_ast_build_do(ret, vm_lang_lua_conv(src, ts_node_child(node, i)));
         }
         return ret;
@@ -118,6 +118,10 @@ vm_ast_node_t vm_lang_lua_conv(const char *src, TSNode node) {
             return vm_ast_build_ge(left, right);
         }
         return vm_ast_build_nil();
+    }
+    if (!strcmp(type, "string")) {
+        TSNode content = ts_node_child(node, 1);
+        return vm_ast_build_literal(str, vm_lang_lua_src(src, content));
     }
     if (!strcmp(type, "number")) {
         int64_t n;
