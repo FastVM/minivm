@@ -276,11 +276,6 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = next;
                     return out;
                 }
-                case VM_AST_FORM_NIL: {
-                    return (vm_arg_t) {
-                        .type = VM_ARG_NIL,
-                    };
-                }
                 case VM_AST_FORM_CALL: {
                     vm_arg_t func = vm_ast_comp_to(comp, form.args[0]);
                     vm_arg_t *args = vm_malloc(sizeof(vm_arg_t) * (form.len + 1));
@@ -444,6 +439,10 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 return (vm_arg_t){
                     .type = VM_ARG_NIL,
                     .num = num,
+                };
+            } else if (num.tag == VM_TAG_NIL) {
+                return (vm_arg_t) {
+                    .type = VM_ARG_NIL,
                 };
             } else if (num.tag == VM_TAG_STR) {
                 vm_arg_t str = (vm_arg_t) {

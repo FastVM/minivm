@@ -179,5 +179,10 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...) {
 }
 
 vm_ast_node_t vm_ast_build_nil(void) {
-    return vm_ast_form0(VM_AST_FORM_NIL);
+    return (vm_ast_node_t) {
+        .type = VM_AST_NODE_LITERAL,
+        .value.literal = (vm_std_value_t) {
+            .tag = VM_TAG_NIL,
+        },
+    };
 }

@@ -34,6 +34,21 @@ void vm_tb_func_report_error(vm_tb_state_t *state, TB_Function *fun, const char 
     ret;                                                      \
 })
 
+vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
+    vm_tag_t tag = VM_TAG_NIL;
+    if (arg.type == VM_ARG_REG) {
+        return arg.reg_tag;
+    } else if (arg.type == VM_ARG_NUM) {
+        return arg.num.tag;
+    } else if (arg.type == VM_ARG_NIL) {
+        return VM_TAG_NIL;
+    } else if (arg.type == VM_ARG_STR) {
+        return VM_TAG_STR;
+    } else {
+        return VM_TAG_UNK;
+    }
+}
+
 TB_DataType vm_tag_to_tb_type(vm_tag_t tag) {
     switch (tag) {
         case VM_TAG_NIL: {
@@ -551,18 +566,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
                         vm_arg_t arg = branch.args[i];
                         TB_Node *head = tb_inst_member_access(fun, call_arg, sizeof(vm_std_value_t) * (i - 1));
-                        vm_tag_t tag = VM_TAG_NIL;
-                        if (arg.type == VM_ARG_REG) {
-                            tag = arg.reg_tag;
-                        } else if (arg.type == VM_ARG_NUM) {
-                            tag = arg.num.tag;
-                        } else if (arg.type == VM_ARG_STR) {
-                            tag = VM_TAG_STR;
-                        } else {
-                            fprintf(stderr, "ERROR: ");
-                            vm_print_branch(stderr, branch);
-                            fprintf(stderr, "\n");
-                        }
+                        vm_tag_t tag = vm_arg_to_tag(arg);
                         tb_inst_store(
                             fun,
                             vm_tag_to_tb_type(tag),
@@ -742,9 +746,10 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             TB_FunctionPrototype *get_proto = tb_prototype_create(state->module, VM_TB_CC, 2, get_params, 0, NULL, false);
             TB_Node *arg2 = tb_inst_local(fun, sizeof(vm_pair_t), 8);
+            vm_tag_t tag = vm_arg_to_tag(branch.args[1]);
             tb_inst_store(
                 fun,
-                vm_tag_to_tb_type(branch.tag),
+                vm_tag_to_tb_type(tag),
                 tb_inst_member_access(
                     fun,
                     arg2,
@@ -762,7 +767,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     arg2,
                     offsetof(vm_pair_t, key_tag)
                 ),
-                tb_inst_uint(fun, TB_TYPE_I32, branch.tag),
+                tb_inst_uint(fun, TB_TYPE_I32, tag),
                 4,
                 false
             );
