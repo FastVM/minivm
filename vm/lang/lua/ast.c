@@ -126,7 +126,8 @@ vm_ast_node_t vm_lang_lua_conv(const char *src, TSNode node) {
     if (!strcmp(type, "number")) {
         int64_t n;
         sscanf(vm_lang_lua_src(src, node), "%"SCNi64, &n);
-        return vm_ast_build_literal(i64, n);
+        // return vm_ast_build_literal(i64, n);
+        return vm_ast_build_literal(i32, n);
     }
     if (!strcmp(type, "function_call")) {
         vm_ast_node_t func = vm_lang_lua_conv(src, ts_node_child(node, 0));

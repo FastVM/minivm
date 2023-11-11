@@ -14,4 +14,4 @@ while pprime < max do
     pprime = pprime + 2
 end
 
-return count
+print(count)
