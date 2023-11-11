@@ -220,17 +220,17 @@ void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair) {
     vm_table_set(table, pair->key_val, pair->val_val, pair->key_tag, pair->val_tag);
 }
 
-vm_pair_t *vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
+void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
     vm_value_t key_val = out->key_val;
     vm_tag_t key_tag = (vm_tag_t)out->key_tag;
     vm_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
     if (pair != NULL) {
         out->val_val = pair->val_val;
         out->val_tag = pair->val_tag;
-        return out;
+        return;
     }
     out->val_tag = VM_TAG_NIL;
-    return out;
+    return;
 }
 
 double vm_table_len(vm_table_t *table) {

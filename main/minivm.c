@@ -13,12 +13,19 @@ int main(int argc, char **argv) {
         .use_tb_opt = true,
     };
     vm_config_t *config = &val_config;
+    bool dry_run = false;
     for (size_t i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "--")) {
             break;
         }
-        if (!strncmp(arg, "--dump-", 7)) {
+        if (!strcmp(arg, "--opt")) {
+            config->use_tb_opt = true;
+        } else if (!strcmp(arg, "--no-opt")) {
+            config->use_tb_opt = false;
+        } else if (!strcmp(arg, "--dry-run")) {
+            dry_run = true;
+        } else if (!strncmp(arg, "--dump-", 7)) {
             arg += 7;
             if (!strcmp(arg, "src")) {
                 config->dump_src = true;
@@ -47,6 +54,10 @@ int main(int argc, char **argv) {
             clock_t start = clock();
             
             const char *src = vm_io_read(arg);
+
+            if (src == NULL) {
+                fprintf(stderr, "error: no such file: %s\n", src);
+            }
             
             if (config->dump_src) {
                 printf("\n--- src ---\n");
@@ -66,9 +77,13 @@ int main(int argc, char **argv) {
                 vm_print_blocks(stdout, blocks.len, blocks.blocks);
             }
 
-            vm_std_value_t value = vm_tb_run(config, blocks.blocks[0], vm_std_new());
-            
-            vm_io_debug(stdout, 0, "", value, NULL);
+            if (!dry_run) {
+                vm_table_t *std = vm_std_new();
+                // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
+                vm_std_value_t value = vm_tb_run(config, blocks.blocks[0], std);
+                vm_io_debug(stdout, 0, "", value, NULL);
+                // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
+            }
 
             if (config->dump_time) {
                 clock_t end = clock();

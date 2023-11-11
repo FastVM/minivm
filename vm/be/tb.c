@@ -643,17 +643,17 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_params, 2, proto_rets, false);
 
-            vm_tb_comp_state_t *state = vm_malloc(sizeof(vm_tb_comp_state_t) * VM_TAG_MAX);
+            vm_tb_comp_state_t *value_state = vm_malloc(sizeof(vm_tb_comp_state_t) * VM_TAG_MAX);
 
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                state[i].func = &vm_tb_comp_call;
+                value_state[i].func = &vm_tb_comp_call;
                 branch.rtargets[i]->state = state;
-                state[i].rblock = branch.rtargets[i];
+                value_state[i].rblock = branch.rtargets[i];
             }
 
             TB_Node *ptr_state = tb_inst_array_access(
                 fun,
-                tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)state),
+                tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)value_state),
                 val_tag,
                 sizeof(vm_tb_comp_state_t)
             );
@@ -718,11 +718,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 {TB_TYPE_PTR},
             };
 
-            TB_PrototypeParam get_returns[1] = {
-                {TB_TYPE_PTR},
-            };
-
-            TB_FunctionPrototype *get_proto = tb_prototype_create(state->module, VM_TB_CC, 2, get_params, 1, get_returns, false);
+            TB_FunctionPrototype *get_proto = tb_prototype_create(state->module, VM_TB_CC, 2, get_params, 0, NULL, false);
             TB_Node *arg2 = tb_inst_local(fun, sizeof(vm_pair_t), 8);
             tb_inst_store(
                 fun,
@@ -796,22 +792,27 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_params, 2, proto_rets, false);
 
-            vm_tb_comp_state_t *state = vm_malloc(sizeof(vm_tb_comp_state_t) * VM_TAG_MAX);
+            vm_tb_comp_state_t *value_state = vm_malloc(sizeof(vm_tb_comp_state_t) * VM_TAG_MAX);
 
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                state[i].func = &vm_tb_comp_call;
+                value_state[i].func = &vm_tb_comp_call;
                 branch.rtargets[i]->state = state;
-                state[i].rblock = branch.rtargets[i];
+                value_state[i].rblock = branch.rtargets[i];
             }
 
             TB_Node *ptr_state = tb_inst_array_access(
                 fun,
-                tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)state),
+                tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)value_state),
                 val_tag,
                 sizeof(vm_tb_comp_state_t)
             );
 
-            TB_Node *args_local = tb_inst_local(fun, 8 * branch.targets[0]->nargs, 8);
+            TB_Node *args_local;
+            if (branch.targets[0]->nargs == 0) {
+                args_local = tb_inst_uint(fun, TB_TYPE_PTR, 0);
+            } else {
+                args_local = tb_inst_local(fun, 8 * branch.targets[0]->nargs, 8);
+            }
 
             TB_Node *call_args[2];
 
@@ -1013,11 +1014,13 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
     vm_rblock_t *rblock = comp->rblock;
 
-    vm_tb_state_t *last_state = rblock->state;
+    // vm_tb_state_t *last_state = rblock->state;
 
-    vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
-    state->std = last_state->std;
-    state->config = last_state->config;
+    // vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
+    // state->std = last_state->std;
+    // state->config = last_state->config;
+
+    vm_tb_state_t *state = rblock->state;
 
     vm_tb_new_module(state);
 
@@ -1239,13 +1242,12 @@ void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
 typedef vm_std_value_t VM_CDECL vm_tb_func_t(void);
 
 vm_std_value_t vm_tb_run(vm_config_t *config, vm_block_t *block, vm_table_t *std) {
-    vm_tb_state_t state = (vm_tb_state_t){
-        .std = std,
-        .config = config,
-    };
+    vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
+    state->std = std;
+    state->config = config;
 
-    vm_tb_new_module(&state);
+    vm_tb_new_module(state);
 
-    vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(&state, block);
+    vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, block);
     return fn();
 }

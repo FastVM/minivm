@@ -18,7 +18,6 @@ typedef struct vm_tb_comp_state_t vm_tb_comp_state_t;
 typedef vm_std_value_t VM_CDECL vm_tb_comp_t(vm_tb_comp_state_t *comp, vm_value_t *args);
 
 struct vm_tb_state_t {
-    vm_table_t *std;
     void *module;
     size_t faults;
     vm_config_t *config;
@@ -29,6 +28,7 @@ struct vm_tb_state_t {
     void *vm_table_get_pair;
     void *vm_tb_print;
     void *vm_tb_report_err;
+    void *std;
 };
 
 struct vm_tb_comp_state_t {
