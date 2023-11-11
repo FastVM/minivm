@@ -177,3 +177,7 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...) {
     va_end(ap);
     return ret;
 }
+
+vm_ast_node_t vm_ast_build_nil(void) {
+    return vm_ast_form0(VM_AST_FORM_NIL);
+}

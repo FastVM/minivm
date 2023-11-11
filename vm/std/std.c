@@ -12,6 +12,7 @@ vm_table_t *vm_std_new(void) {
     VM_STD_SET_FFI(io, "putchar", &vm_std_io_putchar);
 
     VM_STD_SET_TAB(std, "io", io);
+    VM_STD_SET_FFI(std, "print", &vm_std_io_debug);
 
     return std;
 }

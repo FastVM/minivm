@@ -7,6 +7,8 @@
 #include "../vm/std/std.h"
 #include "../vm/lang/eb.h"
 
+vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
+
 int main(int argc, char **argv) {
     vm_init_mem();
     vm_config_t val_config = (vm_config_t) {
@@ -14,6 +16,7 @@ int main(int argc, char **argv) {
     };
     vm_config_t *config = &val_config;
     bool dry_run = false;
+    const char *lang = "lua";
     for (size_t i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "--")) {
@@ -50,7 +53,6 @@ int main(int argc, char **argv) {
                 return 1;
             }
         } else {
-
             clock_t start = clock();
             
             const char *src = vm_io_read(arg);
@@ -64,7 +66,15 @@ int main(int argc, char **argv) {
                 printf("%s\n", src);
             }
 
-            vm_ast_node_t node = vm_lang_eb_parse(config, src);
+            vm_ast_node_t node;
+            if (!strcmp(lang, "lua")) {
+                node = vm_lang_lua_parse(config, src);
+            } else if (!strcmp(lang, "ast")) {
+                node = vm_lang_eb_parse(config, src);
+            } else {
+                fprintf(stderr, "not supported: lang %s\n", lang);
+                return 1;
+            }
 
             if (config->dump_ast) {
                 printf("\n--- ast ---\n");

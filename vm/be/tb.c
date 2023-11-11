@@ -122,6 +122,9 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
         case VM_ARG_STR: {
             return tb_inst_string(fun, strlen(arg.str) + 1, arg.str);
         }
+        case VM_ARG_NIL: {
+            return tb_inst_uint(fun, TB_TYPE_PTR, 0);
+        }
         default: {
             vm_print_arg(stderr, arg);
             fprintf(stderr, "\n ^ unhandled arg (type#%zu)\n", (size_t)arg.type);

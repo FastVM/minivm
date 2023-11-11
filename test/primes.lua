@@ -8,11 +8,10 @@ while pprime < max do
         if pprime%check == 0 then
             isprime = 0
         end
-        check = check + 1
+        check = check + 2
     end
     count = count + isprime
     pprime = pprime + 2
 end
 
 print(count)
-print([["PRIMES"]])

@@ -81,7 +81,7 @@ static void vm_ast_blocks_branch(vm_ast_comp_t *comp, vm_branch_t branch) {
 
 static size_t vm_ast_comp_get_local(vm_ast_comp_t *comp, const char *name) {
     for (size_t i = 0; i < comp->nregs; i++) {
-        if (!strcmp(comp->names[i], name)) {
+        if (comp->names[i] != NULL && !strcmp(comp->names[i], name)) {
             return i;
         }
     }
@@ -276,6 +276,11 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = next;
                     return out;
                 }
+                case VM_AST_FORM_NIL: {
+                    return (vm_arg_t) {
+                        .type = VM_ARG_NIL,
+                    };
+                }
                 case VM_AST_FORM_CALL: {
                     vm_arg_t func = vm_ast_comp_to(comp, form.args[0]);
                     vm_arg_t *args = vm_malloc(sizeof(vm_arg_t) * (form.len + 1));
@@ -466,7 +471,32 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             const char *lit = node.value.ident;
             size_t got = vm_ast_comp_get_local(comp, lit);
             if (got == SIZE_MAX) {
-                break;
+                vm_arg_t env_table = vm_ast_comp_reg(comp);
+                vm_ast_blocks_instr(
+                    comp,
+                    (vm_instr_t){
+                        .op = VM_IOP_STD,
+                        .out = env_table,
+                        .args = vm_ast_args(0),
+                    }
+                );
+                vm_arg_t env_key = (vm_arg_t) {
+                    .type = VM_ARG_STR,
+                    .str = lit,
+                };
+                vm_arg_t out = vm_ast_comp_reg(comp);
+                vm_block_t *next = vm_ast_comp_new_block(comp);
+                vm_ast_blocks_branch(
+                    comp,
+                    (vm_branch_t) {
+                        .op = VM_BOP_GET,
+                        .out = out,
+                        .args = vm_ast_args(2, env_table, env_key),
+                        .targets[0] = next,
+                    }
+                );
+                comp->cur = next;
+                return out;
             }
             return (vm_arg_t) {
                 .type = VM_ARG_REG,

@@ -45,6 +45,8 @@ vm_ast_node_t vm_ast_build_return(vm_ast_node_t value);
 
 vm_ast_node_t vm_ast_build_block(size_t len, ...);
 
+vm_ast_node_t vm_ast_build_nil(void);
+
 // ugly hacks
 #define VM_AST_LITERAL_TYPE_TO_TAG_i8(...) VM_TAG_I8
 #define VM_AST_LITERAL_TYPE_TO_TAG_i16(...) VM_TAG_I16
@@ -76,5 +78,5 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...);
         .type = VM_AST_NODE_IDENT, \
         .value.ident = (STR_),\
     })
-
+    
 #endif

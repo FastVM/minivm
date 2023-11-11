@@ -11,5 +11,4 @@ do  while lt pprime max
                 set check add check 2i32
     do  set count add count isprime
         set pprime add pprime 2i32
-    do  print count
-        return [PRIMES]
+    return count
