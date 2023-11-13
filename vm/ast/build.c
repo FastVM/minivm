@@ -165,7 +165,7 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...) {
     va_start(ap, len);
     vm_ast_node_t ret;
     if (len == 0) {
-        ret = vm_ast_build_literal(i64, 0);
+        ret = vm_ast_build_nil();
     } else if (len == 1) {
         ret = va_arg(ap, vm_ast_node_t);
     } else {

@@ -382,14 +382,14 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             case VM_IOP_SET: {
                 vm_tag_t key_tag = vm_arg_to_tag(instr.args[1]);
                 vm_tag_t val_tag = vm_arg_to_tag(instr.args[2]);
-                TB_PrototypeParam proto_params[4] = {
+                TB_PrototypeParam proto_params[5] = {
                     {TB_TYPE_PTR},
                     {vm_tag_to_tb_type(key_tag)},
                     {vm_tag_to_tb_type(val_tag)},
                     {TB_TYPE_I32},
                     {TB_TYPE_I32},
                 };
-                TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 4, proto_params, 0, NULL, false);
+                TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 5, proto_params, 0, NULL, false);
                 TB_Node *args[5] = {
                     vm_tb_func_read_arg(fun, regs, instr.args[0]),
                     vm_tb_func_read_arg(fun, regs, instr.args[1]),
@@ -762,6 +762,17 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             vm_tb_comp_state_t *value_state = vm_malloc(sizeof(vm_tb_comp_state_t) * VM_TAG_MAX);
 
+            // for (size_t i = 1; i < VM_TAG_MAX; i++) {
+            //     vm_rblock_t *value_rblock = branch.rtargets[i];
+            //     if (value_rblock->jit != NULL) {
+            //         value_state[i].func = value_rblock->jit;
+            //     } else {
+            //         value_state[i].func = &vm_tb_comp_call;
+            //     }
+            //     value_rblock->state = state;
+            //     value_state[i].rblock = value_rblock;
+            // }
+            
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
                 value_state[i].func = &vm_tb_comp_call;
                 branch.rtargets[i]->state = state;
@@ -911,6 +922,17 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_params, 2, proto_rets, false);
 
             vm_tb_comp_state_t *value_state = vm_malloc(sizeof(vm_tb_comp_state_t) * VM_TAG_MAX);
+
+            // for (size_t i = 1; i < VM_TAG_MAX; i++) {
+            //     vm_rblock_t *value_rblock = branch.rtargets[i];
+            //     if (value_rblock->jit != NULL) {
+            //         value_state[i].func = value_rblock->jit;
+            //     } else {
+            //         value_state[i].func = &vm_tb_comp_call;
+            //     }
+            //     value_rblock->state = state;
+            //     value_state[i].rblock = value_rblock;
+            // }
 
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
                 value_state[i].func = &vm_tb_comp_call;
@@ -1134,13 +1156,13 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
     vm_rblock_t *rblock = comp->rblock;
 
-    // vm_tb_state_t *last_state = rblock->state;
+    vm_tb_state_t *last_state = rblock->state;
 
-    // vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
-    // state->std = last_state->std;
-    // state->config = last_state->config;
+    vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
+    state->std = last_state->std;
+    state->config = last_state->config;
 
-    vm_tb_state_t *state = rblock->state;
+    // vm_tb_state_t *state = rblock->state;
 
     vm_tb_new_module(state);
 
@@ -1230,6 +1252,8 @@ vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
     vm_tb_comp_t *new_func = tb_jit_place_function(jit, fun);
 
     comp->func = new_func;
+
+    // rblock->jit = new_func;
 
     // printf("code buf: %p\n", new_func);
 

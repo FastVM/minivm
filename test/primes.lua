@@ -1,5 +1,6 @@
+
 local count = 1
-local max = 1000000
+local max = 100000
 local pprime = 3
 while pprime < max do
     local check = 3

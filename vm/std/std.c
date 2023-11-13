@@ -4,6 +4,14 @@
 #include "./libs/io.h"
 #include "./util.h"
 
+void vm_std_os_clock(vm_std_value_t *args) {
+    vm_std_value_t *ret = args;
+    *ret = (vm_std_value_t) {
+        .tag = VM_TAG_F64,
+        .value.f64 = (double) clock() / CLOCKS_PER_SEC,
+    };
+}
+
 void vm_std_print(vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     FILE *out = stdout;
@@ -39,7 +47,7 @@ void vm_std_print(vm_std_value_t *args) {
                 break;
             }
             case VM_TAG_F32: {
-                fprintf(out, "%lf", value.value.f32);
+                fprintf(out, "%f", value.value.f32);
                 break;
             }
             case VM_TAG_F64: {
@@ -76,6 +84,10 @@ vm_table_t *vm_std_new(void) {
 
     vm_table_t *io = vm_table_new();
     VM_STD_SET_TAB(std, "io", io);
+    
+    vm_table_t *os = vm_table_new();
+    VM_STD_SET_TAB(std, "os", os);
+    VM_STD_SET_FFI(os, "clock", &vm_std_os_clock);
 
     VM_STD_SET_FFI(std, "print", &vm_std_print);
 

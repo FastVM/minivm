@@ -23,7 +23,8 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_NUM: {
-            vm_io_print_num(stdout, val.num);
+            vm_io_print_num(out, val.num);
+            vm_print_tag(out, val.num.tag);
             break;
         }
         case VM_ARG_STR: {

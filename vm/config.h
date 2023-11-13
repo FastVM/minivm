@@ -11,7 +11,17 @@
 struct vm_config_t;
 typedef struct vm_config_t vm_config_t;
 
+enum {
+    VM_USE_NUM_I8,
+    VM_USE_NUM_I16,
+    VM_USE_NUM_I32,
+    VM_USE_NUM_I64,
+    VM_USE_NUM_F32,
+    VM_USE_NUM_F64,
+};
+
 struct vm_config_t {
+    uint8_t use_num: 3;
     bool use_tb_opt: 1;
     
     bool dump_src: 1;

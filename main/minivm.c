@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
     vm_init_mem();
     vm_config_t val_config = (vm_config_t) {
         .use_tb_opt = true,
+        .use_num = VM_USE_NUM_I32,
     };
     vm_config_t *config = &val_config;
     bool dry_run = false;
@@ -33,6 +34,24 @@ int main(int argc, char **argv) {
             echo = false;
         } else if (!strcmp(arg, "--dry-run")) {
             dry_run = true;
+        } else if (!strncmp(arg, "--number=", 9)) {
+            arg += 9;
+            if (!strcmp(arg, "i8")) {
+                config->use_num = VM_USE_NUM_I8;
+            } else if (!strcmp(arg, "i16")) {
+                config->use_num = VM_USE_NUM_I16;
+            } else if (!strcmp(arg, "i32")) {
+                config->use_num = VM_USE_NUM_I32;
+            } else if (!strcmp(arg, "i64")) {
+                config->use_num = VM_USE_NUM_I64;
+            } else if (!strcmp(arg, "f32")) {
+                config->use_num = VM_USE_NUM_F32;
+            } else if (!strcmp(arg, "f64")) {
+                config->use_num = VM_USE_NUM_F64;
+            } else {
+                fprintf(stderr, "cannot use have as a number type: %s\n", arg);
+                return 1;
+            }
         } else if (!strncmp(arg, "--dump-", 7)) {
             arg += 7;
             if (!strcmp(arg, "src")) {
