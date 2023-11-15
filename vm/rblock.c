@@ -66,13 +66,13 @@ vm_block_t *vm_rblock_version(vm_rblock_t *rblock) {
         }
         case VM_BOP_CALL: {
             vm_block_t *from = branch.targets[0];
-            vm_tags_t *regs2 = vm_rblock_regs_empty(from->nregs);
-            for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
-                if (branch.args[i].type == VM_ARG_REG) {
-                    regs2->tags[i] = branch.args[i].reg_tag;
-                }
-            }
             if (branch.args[0].type == VM_ARG_FUNC) {
+                vm_tags_t *regs2 = vm_rblock_regs_empty(branch.args[0].func->nregs);
+                for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
+                    if (branch.args[i].type == VM_ARG_REG) {
+                        regs2->tags[branch.args[i].reg] = branch.args[i].reg_tag;
+                    }
+                }
                 vm_rblock_t *rblock = vm_rblock_new(branch.args[0].func, regs2);
                 branch.args[0] = (vm_arg_t){
                     .type = VM_ARG_RFUNC,
