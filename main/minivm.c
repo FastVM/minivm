@@ -12,8 +12,8 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 int main(int argc, char **argv) {
     vm_init_mem();
     vm_config_t val_config = (vm_config_t) {
-        .use_tb_opt = true,
-        .use_num = VM_USE_NUM_I32,
+        .use_tb_opt = false,
+        .use_num = VM_USE_NUM_F64,
     };
     vm_config_t *config = &val_config;
     bool dry_run = false;
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "cannot use have as a number type: %s\n", arg);
                 return 1;
             }
-        } else if (!strncmp(arg, "--dump-", 7)) {
+        } else if (!strncmp(arg, "--dump-", 7) || !strncmp(arg, "--dump=", 7)) {
             arg += 7;
             if (!strcmp(arg, "src")) {
                 config->dump_src = true;
@@ -79,7 +79,13 @@ int main(int argc, char **argv) {
         } else {
             clock_t start = clock();
             
-            const char *src = vm_io_read(arg);
+            const char *src;
+            if (!strcmp(arg, "-e")) {
+                src = argv[i+1];
+                i += 1;
+            } else {
+                src = vm_io_read(arg);
+            }
 
             if (src == NULL) {
                 fprintf(stderr, "error: no such file: %s\n", src);

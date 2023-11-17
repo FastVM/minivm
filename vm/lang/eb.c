@@ -201,8 +201,11 @@ static vm_ast_node_t vm_lang_eb_expr(vm_lang_eb_state_t *state) {
     }
     char first = vm_lang_eb_peek_char(state);
     if (('0' <= first && first <= '9') || first == '-') {
-        __int128 n = 0;
-        __int128 sign = 1;
+        if (vm_lang_eb_match_keyword(state, "-9223372036854775808i64")) {
+            return vm_ast_build_literal(i64, INT64_MIN);
+        }
+        int64_t n = 0;
+        int64_t sign = 1;
         if (vm_lang_eb_match_char(state, '-')) {
             sign = -1;
         } else if (vm_lang_eb_match_char(state, '+')) {
@@ -216,16 +219,16 @@ static vm_ast_node_t vm_lang_eb_expr(vm_lang_eb_state_t *state) {
                 vm_lang_eb_skip_char(state);
             } else {
                 if (vm_lang_eb_match_keyword(state, "i8")) {
-                    return vm_ast_build_literal(i8, (int8_t)n);
+                    return vm_ast_build_literal(i8, (int8_t)(n*sign));
                 }
                 if (vm_lang_eb_match_keyword(state, "i16")) {
-                    return vm_ast_build_literal(i16, (int16_t)n);
+                    return vm_ast_build_literal(i16, (int16_t)(n*sign));
                 }
                 if (vm_lang_eb_match_keyword(state, "i32")) {
-                    return vm_ast_build_literal(i32, (int32_t)n);
+                    return vm_ast_build_literal(i32, (int32_t)(n*sign));
                 }
                 if (vm_lang_eb_match_keyword(state, "i64")) {
-                    return vm_ast_build_literal(i64, (int64_t)n);
+                    return vm_ast_build_literal(i64, (int64_t)(n*sign));
                 }
                 fprintf(stderr, "expected a number suffix at Line %zu, Col %zu", state->line, state->col);
                 exit(1);

@@ -66,7 +66,7 @@ bins: $(BIN_DIR)/minivm$(EXE)
 
 minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) -lm $(LDFLAGS)
+	$(CC) $(OPT) $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) $(LDFLAGS)
 
 # intermediate files
 

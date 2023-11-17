@@ -136,11 +136,19 @@ vm_ast_node_t vm_ast_build_while(vm_ast_node_t cond, vm_ast_node_t body) {
 }
 
 // functions
-vm_ast_node_t vm_ast_build_arg(uint32_t nth) {
-    return vm_ast_form(VM_AST_FORM_ARG, vm_ast_build_literal(i32, nth));
+vm_ast_node_t vm_ast_build_args(size_t nargs, vm_ast_node_t *bind) {
+    vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));
+    return (vm_ast_node_t){
+        .type = VM_AST_NODE_FORM,
+        .value.form = (vm_ast_form_t){
+            .type = VM_AST_FORM_ARGS,
+            .len = nargs,
+            .args = bind,
+        },
+    };
 }
-vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t body) {
-    return vm_ast_form(VM_AST_FORM_LAMBDA, body);
+vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t args, vm_ast_node_t body) {
+    return vm_ast_form(VM_AST_FORM_LAMBDA, args, body);
 }
 vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));

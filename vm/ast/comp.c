@@ -402,6 +402,38 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = after;
                     return out;
                 }
+                case VM_AST_FORM_LAMBDA: {
+                    size_t old_nregs = comp->nregs;
+                    const char **old_names = comp->names;
+                    size_t old_names_alloc = comp->names_alloc;
+                    vm_block_t *old_cur = comp->cur;
+                    
+                    vm_block_t *body = vm_ast_comp_new_block(comp);
+                    comp->cur = body;
+
+                    vm_ast_form_t args = form.args[0].value.form;
+
+                    body->nargs = args.len;
+                    body->args = vm_malloc(sizeof(vm_arg_t) * body->nargs);
+                    for (size_t i = 0; i < args.len; i++) {
+                        vm_ast_node_t arg = args.args[i];
+                        if (arg.type != VM_AST_NODE_IDENT) {
+                            __builtin_trap();
+                        }
+                        body->args[i] = vm_ast_comp_reg_named(comp, arg.value.ident);
+                    }
+
+                    vm_ast_comp_to(comp, form.args[1]);
+
+                    comp->nregs = old_nregs;
+                    comp->names = old_names;
+                    comp->names_alloc = old_names_alloc;
+                    comp->cur = old_cur;
+                    return (vm_arg_t) {
+                        .type = VM_ARG_FUNC,
+                        .func = body,
+                    };
+                }
                 case VM_AST_FORM_WHILE: {
                     // vm_block_t *cond = vm_ast_comp_new_block(comp);
                     vm_block_t *body = vm_ast_comp_new_block(comp);

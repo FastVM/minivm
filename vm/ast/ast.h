@@ -51,7 +51,7 @@ enum {
     VM_AST_FORM_IF,
     VM_AST_FORM_WHILE,
     // calls
-    VM_AST_FORM_ARG,
+    VM_AST_FORM_ARGS,
     VM_AST_FORM_LAMBDA,
     VM_AST_FORM_CALL,
     VM_AST_FORM_RETURN,

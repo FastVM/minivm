@@ -23,7 +23,6 @@ struct vm_tb_state_t {
     vm_config_t *config;
 
     // externals
-    void *state_self;
     void *vm_tb_rfunc_comp;
     void *vm_table_new;
     void *vm_table_set;
