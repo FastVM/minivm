@@ -410,6 +410,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     
                     vm_block_t *body = vm_ast_comp_new_block(comp);
                     comp->cur = body;
+                    comp->nregs = 0;
+                    comp->names = NULL;
+                    comp->names_alloc = 0;
 
                     vm_ast_form_t args = form.args[0].value.form;
 
@@ -430,7 +433,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->names_alloc = old_names_alloc;
                     comp->cur = old_cur;
                     return (vm_arg_t) {
-                        .type = VM_ARG_FUNC,
+                        .type = VM_ARG_FUN,
                         .func = body,
                     };
                 }
@@ -566,15 +569,12 @@ vm_ast_blocks_t vm_ast_comp(vm_ast_node_t node) {
     };
     comp.cur = vm_ast_comp_new_block(&comp);
     vm_ast_comp_to(&comp, node);
-    size_t write = 0;
     for (size_t i = 0; i < comp.blocks.len; i++) {
         vm_block_t *block = comp.blocks.blocks[i];
         if (block->branch.op == VM_BOP_FALL) {
-            continue;
+            block->branch.args = vm_ast_args(0);
         }
-        comp.blocks.blocks[write++] = block;
     }
-    comp.blocks.len = write;
     vm_block_info(comp.blocks.len, comp.blocks.blocks);
     return comp.blocks;
 }

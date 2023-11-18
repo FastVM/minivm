@@ -40,7 +40,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             }
             break;
         }
-        case VM_ARG_FUNC: {
+        case VM_ARG_FUN: {
             if (val.func == NULL) {
                 fprintf(out, "<null.fun>");
             } else {
@@ -493,5 +493,41 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
         if (block->nregs > func->nregs) {
             func->nregs = block->nregs;
         }
+    }
+    for (size_t i = 0; i < nblocks; i++) {
+        vm_block_t *block = blocks[i];
+        for (size_t j = 0; j < block->len; j++) {
+            vm_instr_t instr = block->instrs[j];
+            for (size_t k = 0; instr.args[k].type != VM_ARG_NONE; k++) {
+                vm_arg_t arg = instr.args[k];
+                if (arg.type == VM_ARG_FUN) {
+                    arg.func->isfunc = true;
+                }
+            }
+        }
+        vm_branch_t branch = block->branch;
+        for (size_t k = 0; branch.args[k].type != VM_ARG_NONE; k++) {
+            vm_arg_t arg = branch.args[k];
+            if (arg.type == VM_ARG_FUN) {
+                arg.func->isfunc = true;
+            }
+        }
+    }
+}
+
+vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
+    vm_tag_t tag = VM_TAG_NIL;
+    if (arg.type == VM_ARG_REG) {
+        return arg.reg_tag;
+    } else if (arg.type == VM_ARG_NUM) {
+        return arg.num.tag;
+    } else if (arg.type == VM_ARG_NIL) {
+        return VM_TAG_NIL;
+    } else if (arg.type == VM_ARG_STR) {
+        return VM_TAG_STR;
+    } else if (arg.type == VM_ARG_FUN) {
+        return VM_TAG_FUN;
+    } else {
+        return VM_TAG_UNK;
     }
 }

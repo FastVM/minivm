@@ -6,7 +6,7 @@
 
 #include "lib.h"
 
-#define VM_USE_LEAKS 0
+#define VM_USE_LEAKS 1
 
 struct vm_config_t;
 typedef struct vm_config_t vm_config_t;

@@ -37,6 +37,30 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         }
         return ret;
     }
+    if (!strcmp(type, "function_definition")) {
+        TSNode params = ts_node_child(node, 1);
+        size_t nargs = 0;
+        for (size_t i = 0; i < ts_node_child_count(params); i++) {
+            TSNode arg = ts_node_child(params, i);
+            const char *argtype = ts_node_type(arg);
+            if (!strcmp(argtype, "identifier")) {
+                nargs += 1;
+            }
+        }
+        vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
+        size_t write = 0;
+        for (size_t i = 0; i < ts_node_child_count(params); i++) {
+            TSNode arg = ts_node_child(params, i);
+            const char *argtype = ts_node_type(arg);
+            if (!strcmp(argtype, "identifier")) {
+                args[write++] = vm_lang_lua_conv(src, arg);
+            }
+        }
+        return vm_ast_build_lambda(
+            vm_ast_build_args(nargs, args),
+            vm_lang_lua_conv(src, ts_node_child(node, 2))
+        );
+    }
     if (!strcmp(type, "function_declaration")) {
         TSNode params = ts_node_child(node, 3);
         size_t nargs = 0;
@@ -85,7 +109,6 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             if (i < ts_node_child_count(exprs)) {
                 cur = vm_ast_build_set(vm_lang_lua_conv(src, list_ent), vm_lang_lua_conv(src, ts_node_child(exprs, i)));
             } else {
-                printf("local = nil\n");
                 cur = vm_ast_build_set(vm_lang_lua_conv(src, list_ent), vm_ast_build_nil());
             }
             ret = vm_ast_build_do(ret, cur);
@@ -190,20 +213,41 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         }
     }
     if (!strcmp(type, "function_call")) {
-        vm_ast_node_t func = vm_lang_lua_conv(src, ts_node_child(node, 0));
-        TSNode args_node = ts_node_child(node, 1);
-        size_t nargs = ts_node_child_count(args_node);
-        vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
-        size_t real_nargs = 0;
-        for (size_t i = 1; i < ts_node_child_count(args_node); i += 1) {
-            TSNode arg = ts_node_child(args_node, i);
-            const char *name = ts_node_type(arg);
-            if (!strcmp(name, "(") || !strcmp(name, ",") || !strcmp(name, ")")) {
-                continue;
+        TSNode func_node = ts_node_child(node, 0);
+        if (!strcmp(ts_node_type(func_node), "method_index_expression")) {
+            vm_ast_node_t obj = vm_lang_lua_conv(src, ts_node_child(func_node, 0));
+            vm_ast_node_t index = vm_ast_build_literal(str, vm_lang_lua_src(src, ts_node_child(func_node, 2)));
+            vm_ast_node_t func = vm_ast_build_load(obj, index);
+            TSNode args_node = ts_node_child(node, 1);
+            size_t nargs = ts_node_child_count(args_node);
+            vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));
+            size_t real_nargs = 0;
+            args[real_nargs++] = obj;
+            for (size_t i = 1; i < ts_node_child_count(args_node); i += 1) {
+                TSNode arg = ts_node_child(args_node, i);
+                const char *name = ts_node_type(arg);
+                if (!strcmp(name, "(") || !strcmp(name, ",") || !strcmp(name, ")")) {
+                    continue;
+                }
+                args[real_nargs++] = vm_lang_lua_conv(src, arg);
             }
-            args[real_nargs++] = vm_lang_lua_conv(src, arg);
+            return vm_ast_build_call(func, real_nargs, args);
+        } else {
+            vm_ast_node_t func = vm_lang_lua_conv(src, func_node);
+            TSNode args_node = ts_node_child(node, 1);
+            size_t nargs = ts_node_child_count(args_node);
+            vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
+            size_t real_nargs = 0;
+            for (size_t i = 1; i < ts_node_child_count(args_node); i += 1) {
+                TSNode arg = ts_node_child(args_node, i);
+                const char *name = ts_node_type(arg);
+                if (!strcmp(name, "(") || !strcmp(name, ",") || !strcmp(name, ")")) {
+                    continue;
+                }
+                args[real_nargs++] = vm_lang_lua_conv(src, arg);
+            }
+            return vm_ast_build_call(func, real_nargs, args);
         }
-        return vm_ast_build_call(func, real_nargs, args);
     }
     if (!strcmp(type, "parenthesized_expression")) {
         return vm_lang_lua_conv(src, ts_node_child(node, 1));

@@ -31,7 +31,7 @@ enum {
     VM_ARG_REG,
     VM_ARG_NUM,
     VM_ARG_STR,
-    VM_ARG_FUNC,
+    VM_ARG_FUN,
     // for backend use
     VM_ARG_TAG,
     VM_ARG_RFUNC,
@@ -111,6 +111,10 @@ struct vm_branch_t {
     };
     vm_arg_t *args;
     vm_arg_t out;
+    struct {
+        vm_rblock_t **call_table;
+        void **jump_table;
+    };
     uint8_t op;
     vm_tag_t tag;
 };
@@ -156,5 +160,6 @@ void vm_print_block(FILE *out, vm_block_t *val);
 void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
+vm_tag_t vm_arg_to_tag(vm_arg_t arg);
 
 #endif
