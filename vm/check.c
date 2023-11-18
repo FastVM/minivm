@@ -58,7 +58,7 @@ bool vm_check_branch(vm_branch_t branch) {
                 if (branch.args[0].reg_tag == VM_TAG_FFI) {
                     return true;
                 }
-                if (branch.args[0].reg_tag == VM_TAG_FUN) {
+                if (branch.args[0].reg_tag == VM_TAG_FUN || branch.args[0].reg_tag == VM_TAG_CLOSURE) {
                     return true;
                 }
             }
