@@ -131,9 +131,14 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
             fprintf(out, "\"%s\"\n", value.value.str);
             break;
         }
+        case VM_TAG_CLOSURE: {
+            vm_indent(out, indent, prefix);
+            fprintf(out, "<closure: %p>\n", value.value.all);
+            break;
+        }
         case VM_TAG_FUN: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "<function: %p>\n", value.value.all);
+            fprintf(out, "<code: %p>\n", value.value.all);
             break;
         }
         case VM_TAG_TAB: {

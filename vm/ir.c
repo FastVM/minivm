@@ -96,6 +96,10 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
             fprintf(out, "str");
             break;
         }
+        case VM_TAG_CLOSURE: {
+            fprintf(out, "closure");
+            break;
+        }
         case VM_TAG_FUN: {
             fprintf(out, "fun");
             break;

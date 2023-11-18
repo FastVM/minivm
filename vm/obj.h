@@ -26,6 +26,7 @@ union vm_value_t {
     double f64;
     const char *str;
     vm_table_t *table;
+    vm_std_value_t *closure;
     void *all;
 };
 

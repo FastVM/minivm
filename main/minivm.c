@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     vm_init_mem();
     vm_config_t val_config = (vm_config_t) {
         .use_tb_opt = false,
-        .use_num = VM_USE_NUM_F64,
+        .use_num = VM_USE_NUM_I64,
     };
     vm_config_t *config = &val_config;
     bool dry_run = false;
