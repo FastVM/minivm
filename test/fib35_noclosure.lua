@@ -7,5 +7,5 @@ local fib = function(fib, n)
     end
 end
 
-local res = fib(fib, 40)
+local res = fib(fib, 35)
 print(res)

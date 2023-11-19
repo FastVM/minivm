@@ -93,7 +93,7 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
                         }
                         vm_tags_t *regs2 = vm_rblock_regs_empty(blocks[j]->nregs);
                         for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
-                            regs2->tags[blocks[j]->args[i-1].reg] = vm_arg_to_tag(branch.args[i]);
+                            regs2->tags[blocks[j]->args[i - 1].reg] = vm_arg_to_tag(branch.args[i]);
                         }
                         branch.call_table[j] = vm_rblock_new(blocks[j], regs2);
                     }

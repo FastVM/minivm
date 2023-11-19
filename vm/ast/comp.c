@@ -407,7 +407,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     const char **old_names = comp->names;
                     size_t old_names_alloc = comp->names_alloc;
                     vm_block_t *old_cur = comp->cur;
-                    
+
                     vm_block_t *body = vm_ast_comp_new_block(comp);
                     comp->cur = body;
                     comp->nregs = 0;
@@ -432,7 +432,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->names = old_names;
                     comp->names_alloc = old_names_alloc;
                     comp->cur = old_cur;
-                    return (vm_arg_t) {
+                    return (vm_arg_t){
                         .type = VM_ARG_FUN,
                         .func = body,
                     };
