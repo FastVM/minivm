@@ -66,6 +66,10 @@ int main(int argc, char **argv) {
                 config->dump_tb = true;
             } else if (!strcmp(arg, "opt")) {
                 config->dump_tb_opt = true;
+            } else if (!strcmp(arg, "tb-dot")) {
+                config->dump_tb_dot = true;
+            } else if (!strcmp(arg, "opt-dot")) {
+                config->dump_tb_opt_dot = true;
             } else if (!strcmp(arg, "x86")) {
                 config->dump_x86 = true;
             } else if (!strcmp(arg, "args")) {

@@ -21,6 +21,8 @@ enum {
 };
 
 struct vm_config_t {
+    size_t ndumps;
+
     uint8_t use_num: 3;
     bool use_tb_opt: 1;
     
@@ -30,6 +32,8 @@ struct vm_config_t {
     bool dump_ver: 1;
     bool dump_tb: 1;
     bool dump_tb_opt: 1;
+    bool dump_tb_dot: 1;
+    bool dump_tb_opt_dot: 1;
     bool dump_x86: 1;
     bool dump_args: 1;
     bool dump_time: 1;

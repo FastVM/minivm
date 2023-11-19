@@ -1124,7 +1124,8 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     );
                 }
             }
-            TB_Node **ret_vals = tb_inst_call(
+
+            tb_inst_tailcall(
                                      fun,
                                      proto,
                                      tb_inst_load(
@@ -1136,10 +1137,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                                      ),
                                      2,
                                      call_args
-            )
-                                     .multiple;
-
-            tb_inst_ret(fun, 2, ret_vals);
+            );
             break;
         }
 
@@ -1324,7 +1322,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 }
             }
 
-            TB_Node **ret_vals = tb_inst_call(
+            tb_inst_tailcall(
                                      fun,
                                      proto,
                                      tb_inst_load(
@@ -1336,10 +1334,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                                      ),
                                      2,
                                      call_args
-            )
-                                     .multiple;
-
-            tb_inst_ret(fun, 2, ret_vals);
+            );
             break;
         }
 
@@ -1580,12 +1575,19 @@ vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
         fprintf(stdout, "\n--- tb ---\n");
         tb_pass_print(passes);
     }
+    if (state->config->dump_tb_dot) {
+        fprintf(stdout, "\n--- tb dot ---\n");
+        tb_pass_print_dot(passes, tb_default_print_callback, stdout);
+    }
     if (state->config->use_tb_opt) {
         tb_pass_optimize(passes);
         if (state->config->dump_tb_opt) {
             fprintf(stdout, "\n--- opt tb ---\n");
             tb_pass_print(passes);
-            fflush(stdout);
+        }
+        if (state->config->dump_tb_dot) {
+            fprintf(stdout, "\n--- opt dot ---\n");
+            tb_pass_print_dot(passes, tb_default_print_callback, stdout);
         }
     }
     if (state->config->dump_x86) {
@@ -1679,12 +1681,19 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         fprintf(stdout, "\n--- tb ---\n");
         tb_pass_print(passes);
     }
+    if (state->config->dump_tb_dot) {
+        fprintf(stdout, "\n--- tb dot ---\n");
+        tb_pass_print_dot(passes, tb_default_print_callback, stdout);
+    }
     if (state->config->use_tb_opt) {
         tb_pass_optimize(passes);
         if (state->config->dump_tb_opt) {
             fprintf(stdout, "\n--- opt tb ---\n");
             tb_pass_print(passes);
-            fflush(stdout);
+        }
+        if (state->config->dump_tb_dot) {
+            fprintf(stdout, "\n--- opt dot ---\n");
+            tb_pass_print_dot(passes, tb_default_print_callback, stdout);
         }
     }
     if (state->config->dump_x86) {

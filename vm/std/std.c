@@ -38,10 +38,16 @@ void vm_std_os_clock(vm_std_value_t *args) {
     };
 }
 
-void vm_std_vm_array(vm_std_value_t *args) {
+void vm_std_vm_closure(vm_std_value_t *args) {
     int64_t nargs = 0;
     for (size_t i = 0; args[i].tag != 0; i++) {
         nargs += 1;
+    }
+    if (nargs == 0 || args[0].tag != VM_TAG_FUN) {
+        *args = (vm_std_value_t) {
+            .tag = VM_TAG_NIL,
+        };
+        return;
     }
     vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * nargs);
     for (size_t i = 0; args[i].tag != 0; i++) {
@@ -51,6 +57,7 @@ void vm_std_vm_array(vm_std_value_t *args) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = vals,
     };
+    return;
 }
 
 void vm_std_print(vm_std_value_t *args) {
@@ -134,7 +141,7 @@ vm_table_t *vm_std_new(void) {
 
     {
         vm_table_t *vm = vm_table_new();
-        VM_STD_SET_FFI(vm, "closure", &vm_std_vm_array);
+        VM_STD_SET_FFI(vm, "closure", &vm_std_vm_closure);
         VM_STD_SET_TAB(std, "vm", vm);
     }
 
