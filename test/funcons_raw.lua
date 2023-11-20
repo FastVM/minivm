@@ -3,9 +3,9 @@ local x = "unused"
 
 local i = 10000000
 while i > 0 do
-    x = vm.closure(function(c, i)
+    x = function(c, i)
         return i - 1
-    end)
+    end
     i = x(i)
 end
 

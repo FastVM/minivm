@@ -427,6 +427,14 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     }
 
                     vm_ast_comp_to(comp, form.args[1]);
+                    
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_RET,
+                            .args = vm_ast_args(1, (vm_arg_t) { .type = VM_ARG_NIL }),
+                        }
+                    );
 
                     comp->nregs = old_nregs;
                     comp->names = old_names;
