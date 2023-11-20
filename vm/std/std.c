@@ -44,7 +44,7 @@ void vm_std_vm_closure(vm_std_value_t *args) {
         nargs += 1;
     }
     if (nargs == 0 || args[0].tag != VM_TAG_FUN) {
-        *args = (vm_std_value_t) {
+        *args = (vm_std_value_t){
             .tag = VM_TAG_NIL,
         };
         return;

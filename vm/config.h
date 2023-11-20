@@ -7,6 +7,7 @@
 #include "lib.h"
 
 #define VM_USE_LEAKS 1
+#define VM_USE_DUMP 1
 
 struct vm_config_t;
 typedef struct vm_config_t vm_config_t;
@@ -21,10 +22,9 @@ enum {
 };
 
 struct vm_config_t {
-    size_t ndumps;
-
     uint8_t use_num: 3;
     bool use_tb_opt: 1;
+    bool use_tailcall: 1;
     
     bool dump_src: 1;
     bool dump_ast: 1;
