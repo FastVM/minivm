@@ -92,7 +92,7 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
                             continue;
                         }
                         vm_tags_t *regs2 = vm_rblock_regs_empty(blocks[j]->nregs);
-                        for (size_t i = 1; i < blocks[j]->nargs; i++) {
+                        for (size_t i = 1; i <= blocks[j]->nargs; i++) {
                             if (i <= nargs) {
                                 regs2->tags[blocks[j]->args[i - 1].reg] = vm_arg_to_tag(branch.args[i]);
                             } else {
