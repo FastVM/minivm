@@ -391,16 +391,18 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             regs[block->branch.out.reg] == VM_INFO_REG_UNK) {
             regs[block->branch.out.reg] = VM_INFO_REG_DEF;
         }
-        block->nargs = 0;
-        block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
-        for (size_t reg = 0; reg < block->nregs; reg++) {
-            if (regs[reg] == VM_INFO_REG_ARG) {
-                block->args[block->nargs++] = (vm_arg_t){
-                    .type = VM_ARG_REG,
-                    .reg = (uint32_t)reg,
-                };
-                if (reg >= block->nregs) {
-                    block->nregs = reg + 1;
+        if (block->nargs == 0) {
+            block->nargs = 0;
+            block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
+            for (size_t reg = 0; reg < block->nregs; reg++) {
+                if (regs[reg] == VM_INFO_REG_ARG) {
+                    block->args[block->nargs++] = (vm_arg_t){
+                        .type = VM_ARG_REG,
+                        .reg = (uint32_t)reg,
+                    };
+                    if (reg >= block->nregs) {
+                        block->nregs = reg + 1;
+                    }
                 }
             }
         }

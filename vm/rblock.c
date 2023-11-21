@@ -92,8 +92,12 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
                             continue;
                         }
                         vm_tags_t *regs2 = vm_rblock_regs_empty(blocks[j]->nregs);
-                        for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
-                            regs2->tags[blocks[j]->args[i - 1].reg] = vm_arg_to_tag(branch.args[i]);
+                        for (size_t i = 1; i < blocks[j]->nargs; i++) {
+                            if (i <= nargs) {
+                                regs2->tags[blocks[j]->args[i - 1].reg] = vm_arg_to_tag(branch.args[i]);
+                            } else {
+                                regs2->tags[blocks[j]->args[i - 1].reg] = VM_TAG_NIL;
+                            }
                         }
                         branch.call_table[j] = vm_rblock_new(blocks[j], regs2);
                     }
@@ -105,14 +109,18 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
                     }
                     branch.call_table = vm_malloc(sizeof(vm_rblock_t *) * nblocks);
                     for (size_t j = 0; j < nblocks; j++) {
-                        if (!blocks[j]->isfunc || blocks[j]->nargs != nargs + 1) {
+                        if (!blocks[j]->isfunc) {
                             branch.call_table[j] = NULL;
                             continue;
                         }
                         vm_tags_t *regs2 = vm_rblock_regs_empty(blocks[j]->nregs);
                         regs2->tags[blocks[j]->args[0].reg] = VM_TAG_CLOSURE;
-                        for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
-                            regs2->tags[blocks[j]->args[i].reg] = vm_arg_to_tag(branch.args[i]);
+                        for (size_t i = 1; i < blocks[j]->nargs; i++) {
+                            if (i <= nargs) {
+                                regs2->tags[blocks[j]->args[i].reg] = vm_arg_to_tag(branch.args[i]);
+                            } else {
+                                regs2->tags[blocks[j]->args[i].reg] = VM_TAG_NIL;
+                            }
                         }
                         branch.call_table[j] = vm_rblock_new(blocks[j], regs2);
                     }
