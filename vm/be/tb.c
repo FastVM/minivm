@@ -1543,15 +1543,15 @@ vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args) {
         return new_func(NULL, args);
     }
 
-    vm_tb_state_t *last_state = rblock->state;
+    vm_tb_state_t *state = rblock->state;
 
-    vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
-    state->std = last_state->std;
-    state->config = last_state->config;
-    state->nblocks = last_state->nblocks;
-    state->blocks = last_state->blocks;
+    // vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
+    // state->std = last_state->std;
+    // state->config = last_state->config;
+    // state->nblocks = last_state->nblocks;
+    // state->blocks = last_state->blocks;
 
-    vm_tb_new_module(state);
+    // vm_tb_new_module(state);
 
     state->faults = 0;
 

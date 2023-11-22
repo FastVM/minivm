@@ -9,7 +9,10 @@ TMP_DIR ?= $(BUILD_DIR)/tmp
 BIN_DIR ?= $(BUILD_DIR)/bin
 RES_DIR ?= $(BUILD_DIR)/res
 
-PROG_SRCS = main/minivm.c main/test.c
+UNAME_S != uname -s
+UNAME_O != uname -o
+
+PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
@@ -33,12 +36,14 @@ LDFLAGS += $(FLAGS)
 
 RUNNER ?= $(BIN_DIR)/minivm
 
-UNAME_S := $(shell uname -s)
-UNAME_O := $(shell uname -o)
+OBJS_FreeBSD = 
+
+OBJS := $(OBJS) $(OBJS_$(UNAME_S))
 
 LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000
 LDFLAGS_S_Linux =
 LDFLAGS_O_Cygwin =
+LDFLAGS_S_FreeBSD = -lstdthreads
 
 LDFLAGS := $(LDFLAGS_S_$(UNAME_S)) $(LDFLAGS_O_$(UNAME_O)) $(LDFLAGS)
 
@@ -72,7 +77,7 @@ minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 
 $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) -Wno-unused-value -I cuik/tb/include -I cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS $(CFLAGS)
+	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I cuik/tb/include -I cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS
 
 $(PROG_OBJS) $(ALL_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
@@ -83,9 +88,6 @@ $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 
 # format
-
-format-linux:
-	clang-format -i $$(find vm -name '*.c' -or -name '*.h')
 
 format: .dummy
 	clang-format -i $(ALL_OBJS:$(OBJ_DIR)/%.o=%.c)

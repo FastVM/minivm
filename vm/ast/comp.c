@@ -8,13 +8,43 @@
 struct vm_ast_comp_t;
 typedef struct vm_ast_comp_t vm_ast_comp_t;
 
+struct vm_ast_comp_name_t;
+typedef struct vm_ast_comp_name_t vm_ast_comp_name_t;
+
+struct vm_ast_comp_names_t;
+typedef struct vm_ast_comp_names_t vm_ast_comp_names_t;
+
 struct vm_ast_comp_t {
     vm_ast_blocks_t blocks;
     vm_block_t *cur;
-    size_t nregs;
-    const char **names;
-    size_t names_alloc;
+    vm_ast_comp_names_t *names;
 };
+
+struct vm_ast_comp_names_t {
+    struct {
+        size_t len;
+        const char **ptr;
+        size_t alloc;
+    } regs;
+    struct {
+        size_t len;
+        const char **ptr;
+        size_t alloc;
+    } captures;
+    vm_ast_comp_names_t *next;
+};
+
+static void vm_ast_comp_names_push(vm_ast_comp_t *comp) {
+    vm_ast_comp_names_t *names = vm_malloc(sizeof(vm_ast_comp_names_t));
+    *names = (vm_ast_comp_names_t) {
+        .next = comp->names,
+    };
+    comp->names = names;
+}
+
+static void vm_ast_comp_names_pop(vm_ast_comp_t *comp) {
+    comp->names = comp->names->next;
+}
 
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
@@ -52,12 +82,12 @@ static vm_block_t *vm_ast_comp_new_block(vm_ast_comp_t *comp) {
 }
 
 static vm_arg_t vm_ast_comp_reg_named(vm_ast_comp_t *comp, const char *name) {
-    size_t reg = comp->nregs++;
-    if (reg + 1 >= comp->names_alloc) {
-        comp->names_alloc = (reg + 1) * 2;
-        comp->names = vm_realloc(comp->names, sizeof(const char *) * comp->names_alloc);
+    size_t reg = comp->names->regs.len++;
+    if (reg + 1 >= comp->names->regs.alloc) {
+        comp->names->regs.alloc = (reg + 1) * 2;
+        comp->names->regs.ptr = vm_realloc(comp->names->regs.ptr, sizeof(const char *) * comp->names->regs.alloc);
     }
-    comp->names[reg] = name;
+    comp->names->regs.ptr[reg] = name;
     return (vm_arg_t){
         .type = VM_ARG_REG,
         .reg = reg,
@@ -80,8 +110,8 @@ static void vm_ast_blocks_branch(vm_ast_comp_t *comp, vm_branch_t branch) {
 }
 
 static size_t vm_ast_comp_get_local(vm_ast_comp_t *comp, const char *name) {
-    for (size_t i = 0; i < comp->nregs; i++) {
-        if (comp->names[i] != NULL && !strcmp(comp->names[i], name)) {
+    for (size_t i = 0; i < comp->names->regs.len; i++) {
+        if (comp->names->regs.ptr[i] != NULL && !strcmp(comp->names->regs.ptr[i], name)) {
             return i;
         }
     }
@@ -403,16 +433,11 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_LAMBDA: {
-                    size_t old_nregs = comp->nregs;
-                    const char **old_names = comp->names;
-                    size_t old_names_alloc = comp->names_alloc;
-                    vm_block_t *old_cur = comp->cur;
+                    vm_ast_comp_names_push(comp);
 
+                    vm_block_t *old_cur = comp->cur;
                     vm_block_t *body = vm_ast_comp_new_block(comp);
                     comp->cur = body;
-                    comp->nregs = 0;
-                    comp->names = NULL;
-                    comp->names_alloc = 0;
 
                     vm_ast_form_t args = form.args[0].value.form;
 
@@ -436,9 +461,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     );
 
-                    comp->nregs = old_nregs;
-                    comp->names = old_names;
-                    comp->names_alloc = old_names_alloc;
+                    vm_ast_comp_names_pop(comp);
                     comp->cur = old_cur;
                     return (vm_arg_t){
                         .type = VM_ARG_FUN,
@@ -573,10 +596,11 @@ vm_ast_blocks_t vm_ast_comp(vm_ast_node_t node) {
             .blocks = NULL,
             .alloc = 0,
         },
-        .nregs = 0,
     };
+    vm_ast_comp_names_push(&comp);
     comp.cur = vm_ast_comp_new_block(&comp);
     vm_ast_comp_to(&comp, node);
+    vm_ast_comp_names_pop(&comp);
     for (size_t i = 0; i < comp.blocks.len; i++) {
         vm_block_t *block = comp.blocks.blocks[i];
         if (block->branch.op == VM_BOP_FALL) {
