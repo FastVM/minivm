@@ -85,7 +85,7 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        vm_std_value_t num;
+        vm_std_value_t lit;
         vm_block_t *func;
         vm_rblock_t *rfunc;
         struct {
@@ -154,6 +154,6 @@ void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **val);
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
 vm_tag_t vm_arg_to_tag(vm_arg_t arg);
 
-#define vm_arg_nil() ((vm_arg_t) { .type = VM_ARG_LIT, .num.tag = VM_TAG_NIL })
+#define vm_arg_nil() ((vm_arg_t) { .type = VM_ARG_LIT, .lit.tag = VM_TAG_NIL })
 
 #endif

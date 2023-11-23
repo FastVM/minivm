@@ -5,7 +5,7 @@
 
 static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_LIT) {
-        return arg.num.tag;
+        return arg.lit.tag;
     }
     if (arg.type == VM_ARG_REG) {
         return arg.reg_tag;

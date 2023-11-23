@@ -134,7 +134,7 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
             vm_block_t *next = vm_ast_comp_new_block(comp);
             vm_arg_t slot = (vm_arg_t){
                 .type = VM_ARG_LIT,
-                .num = (vm_std_value_t){
+                .lit = (vm_std_value_t){
                     .tag = VM_TAG_I32,
                     .value = cap.slot,
                 }
@@ -170,7 +170,7 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
     vm_block_t *next = vm_ast_comp_new_block(comp);
     vm_arg_t slot = (vm_arg_t){
         .type = VM_ARG_LIT,
-        .num = (vm_std_value_t){
+        .lit = (vm_std_value_t){
             .tag = VM_TAG_I32,
             .value = slotnum + 1,
         }
@@ -583,7 +583,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
                     vm_arg_t name_vm = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .num = (vm_std_value_t) {
+                        .lit = (vm_std_value_t) {
                             .tag = VM_TAG_STR,
                             .value = "vm",
                         },
@@ -603,7 +603,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
                     vm_arg_t name_closure = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .num = (vm_std_value_t) {
+                        .lit = (vm_std_value_t) {
                             .tag = VM_TAG_STR,
                             .value = "closure",
                         },
@@ -705,7 +705,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             } else if (num.tag == VM_TAG_STR) {
                 vm_arg_t str = (vm_arg_t){
                     .type = VM_ARG_LIT,
-                    .num = num,
+                    .lit = num,
                 };
                 vm_arg_t ret = vm_ast_comp_reg(comp);
                 vm_ast_blocks_instr(
@@ -720,7 +720,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             } else {
                 return (vm_arg_t){
                     .type = VM_ARG_LIT,
-                    .num = num,
+                    .lit = num,
                 };
             }
         }
@@ -741,7 +741,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             );
             vm_arg_t env_key = (vm_arg_t){
                 .type = VM_ARG_LIT,
-                .num = (vm_std_value_t) {
+                .lit = (vm_std_value_t) {
                     .tag = VM_TAG_STR,
                     .value.str = lit,
                 },

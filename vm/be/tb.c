@@ -98,30 +98,30 @@ TB_DataType vm_tag_to_tb_type(vm_tag_t tag) {
 TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
     switch (arg.type) {
         case VM_ARG_LIT: {
-            switch (arg.num.tag) {
+            switch (arg.lit.tag) {
                 case VM_TAG_NIL: {
                     return tb_inst_uint(fun, TB_TYPE_PTR, 0);
                 }
                 case VM_TAG_I8: {
-                    return tb_inst_sint(fun, TB_TYPE_I8, arg.num.value.i8);
+                    return tb_inst_sint(fun, TB_TYPE_I8, arg.lit.value.i8);
                 }
                 case VM_TAG_I16: {
-                    return tb_inst_sint(fun, TB_TYPE_I16, arg.num.value.i16);
+                    return tb_inst_sint(fun, TB_TYPE_I16, arg.lit.value.i16);
                 }
                 case VM_TAG_I32: {
-                    return tb_inst_sint(fun, TB_TYPE_I32, arg.num.value.i32);
+                    return tb_inst_sint(fun, TB_TYPE_I32, arg.lit.value.i32);
                 }
                 case VM_TAG_I64: {
-                    return tb_inst_sint(fun, TB_TYPE_I64, arg.num.value.i64);
+                    return tb_inst_sint(fun, TB_TYPE_I64, arg.lit.value.i64);
                 }
                 case VM_TAG_F32: {
-                    return tb_inst_float32(fun, arg.num.value.f32);
+                    return tb_inst_float32(fun, arg.lit.value.f32);
                 }
                 case VM_TAG_F64: {
-                    return tb_inst_float64(fun, arg.num.value.f64);
+                    return tb_inst_float64(fun, arg.lit.value.f64);
                 }
                 case VM_TAG_STR: {
-                    return tb_inst_string(fun, strlen(arg.num.value.str) + 1, arg.num.value.str);
+                    return tb_inst_string(fun, strlen(arg.lit.value.str) + 1, arg.lit.value.str);
                 }
                 default: {
                     __builtin_trap();

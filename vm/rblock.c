@@ -47,7 +47,7 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
             if (branch.args[1].type == VM_ARG_REG) {
                 branch.tag = regs->tags[branch.args[1].reg];
             } else if (branch.args[1].type == VM_ARG_LIT) {
-                branch.tag = branch.args[1].num.tag;
+                branch.tag = branch.args[1].lit.tag;
             }
             vm_block_t *from = branch.targets[0];
             for (size_t i = 0; i < from->nargs; i++) {

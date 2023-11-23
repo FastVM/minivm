@@ -15,8 +15,8 @@ void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
 void vm_print_arg(FILE *out, vm_arg_t val) {
     switch (val.type) {
         case VM_ARG_LIT: {
-            vm_io_print_lit(out, val.num);
-            vm_print_tag(out, val.num.tag);
+            vm_io_print_lit(out, val.lit);
+            vm_print_tag(out, val.lit.tag);
             break;
         }
         case VM_ARG_REG: {
@@ -523,7 +523,7 @@ vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_REG) {
         return arg.reg_tag;
     } else if (arg.type == VM_ARG_LIT) {
-        return arg.num.tag;
+        return arg.lit.tag;
     } else if (arg.type == VM_ARG_FUN) {
         return VM_TAG_FUN;
     } else {

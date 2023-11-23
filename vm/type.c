@@ -127,7 +127,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         }
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_LIT) {
-                instr.tag = instr.args[i].num.tag;
+                instr.tag = instr.args[i].lit.tag;
                 return instr;
             }
         }
@@ -150,7 +150,7 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branc
         }
         for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
             if (branch.args[i].type == VM_ARG_LIT) {
-                branch.tag = branch.args[i].num.tag;
+                branch.tag = branch.args[i].lit.tag;
                 return branch;
             }
         }
