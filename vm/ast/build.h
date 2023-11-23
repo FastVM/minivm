@@ -39,7 +39,7 @@ vm_ast_node_t vm_ast_build_while(vm_ast_node_t cond, vm_ast_node_t body);
 
 // functions
 vm_ast_node_t vm_ast_build_args(size_t nargs, vm_ast_node_t *bind);
-vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t args, vm_ast_node_t body);
+vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t self, vm_ast_node_t args, vm_ast_node_t body);
 vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args);
 vm_ast_node_t vm_ast_build_return(vm_ast_node_t value);
 

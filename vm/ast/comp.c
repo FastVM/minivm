@@ -57,6 +57,8 @@ static vm_ast_comp_names_t *vm_ast_comp_names_pop(vm_ast_comp_t *comp) {
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
 
+void vm_std_vm_closure(vm_std_value_t *args);
+
 static vm_arg_t *vm_ast_args(size_t nargs, ...) {
     va_list ap;
     va_start(ap, nargs);
@@ -538,7 +540,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *body = vm_ast_comp_new_block(comp);
                     comp->cur = body;
 
-                    vm_ast_form_t args = form.args[0].value.form;
+                    vm_ast_form_t args = form.args[1].value.form;
 
                     body->nargs = args.len + 1;
                     body->args = vm_malloc(sizeof(vm_arg_t) * body->nargs);
@@ -554,7 +556,23 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         body->args[i + 1] = vm_ast_comp_reg_named(comp, arg.value.ident);
                     }
 
-                    vm_ast_comp_to(comp, form.args[1]);
+                    if (form.args[0].type == VM_AST_NODE_IDENT) {
+                        vm_arg_t out = vm_ast_comp_reg_named(comp, form.args[0].value.ident);
+                        vm_arg_t cap = (vm_arg_t){
+                            .type = VM_ARG_REG,
+                            .reg = 0,
+                        };
+                        vm_ast_blocks_instr(
+                            comp,
+                            (vm_instr_t){
+                                .op = VM_IOP_MOVE,
+                                .out = out,
+                                .args = vm_ast_args(1, cap),
+                            }
+                        );
+                    }
+
+                    vm_ast_comp_to(comp, form.args[2]);
 
                     vm_ast_blocks_branch(
                         comp,
@@ -568,62 +586,67 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = old_cur;
 
                     vm_arg_t out = vm_ast_comp_reg(comp);
-                    vm_block_t *with_vm = vm_ast_comp_new_block(comp);
-                    vm_block_t *with_closure = vm_ast_comp_new_block(comp);
+                    // vm_block_t *with_vm = vm_ast_comp_new_block(comp);
+                    // vm_block_t *with_closure = vm_ast_comp_new_block(comp);
                     vm_block_t *with_lambda = vm_ast_comp_new_block(comp);
 
-                    vm_ast_blocks_instr(
-                        comp,
-                        (vm_instr_t){
-                            .op = VM_IOP_STD,
-                            .out = out,
-                            .args = vm_ast_args(0),
-                        }
-                    );
+                    // vm_ast_blocks_instr(
+                    //     comp,
+                    //     (vm_instr_t){
+                    //         .op = VM_IOP_STD,
+                    //         .out = out,
+                    //         .args = vm_ast_args(0),
+                    //     }
+                    // );
 
-                    vm_arg_t name_vm = (vm_arg_t){
-                        .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t) {
-                            .tag = VM_TAG_STR,
-                            .value = "vm",
-                        },
-                    };
+                    // vm_arg_t name_vm = (vm_arg_t){
+                    //     .type = VM_ARG_LIT,
+                    //     .lit = (vm_std_value_t) {
+                    //         .tag = VM_TAG_STR,
+                    //         .value = "vm",
+                    //     },
+                    // };
 
-                    vm_ast_blocks_branch(
-                        comp,
-                        (vm_branch_t){
-                            .op = VM_BOP_GET,
-                            .out = out,
-                            .args = vm_ast_args(2, out, name_vm),
-                            .targets[0] = with_vm,
-                        }
-                    );
+                    // vm_ast_blocks_branch(
+                    //     comp,
+                    //     (vm_branch_t){
+                    //         .op = VM_BOP_GET,
+                    //         .out = out,
+                    //         .args = vm_ast_args(2, out, name_vm),
+                    //         .targets[0] = with_vm,
+                    //     }
+                    // );
 
-                    comp->cur = with_vm;
+                    // comp->cur = with_vm;
 
-                    vm_arg_t name_closure = (vm_arg_t){
-                        .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t) {
-                            .tag = VM_TAG_STR,
-                            .value = "closure",
-                        },
-                    };
+                    // vm_arg_t name_closure = (vm_arg_t){
+                    //     .type = VM_ARG_LIT,
+                    //     .lit = (vm_std_value_t) {
+                    //         .tag = VM_TAG_STR,
+                    //         .value = "closure",
+                    //     },
+                    // };
 
+                    // vm_ast_blocks_branch(
+                    //     comp,
+                    //     (vm_branch_t){
+                    //         .op = VM_BOP_GET,
+                    //         .out = out,
+                    //         .args = vm_ast_args(2, out, name_closure),
+                    //         .targets[0] = with_closure,
+                    //     }
+                    // );
 
-                    vm_ast_blocks_branch(
-                        comp,
-                        (vm_branch_t){
-                            .op = VM_BOP_GET,
-                            .out = out,
-                            .args = vm_ast_args(2, out, name_closure),
-                            .targets[0] = with_closure,
-                        }
-                    );
-
-                    comp->cur = with_closure;
+                    // comp->cur = with_closure;
 
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * (names->caps.len + 3));
-                    call_args[0] = out;
+                    call_args[0] = (vm_arg_t){
+                        .type = VM_ARG_LIT,
+                        .lit = (vm_std_value_t){
+                            .tag = VM_TAG_FFI,
+                            .value.ffi = &vm_std_vm_closure,
+                        },
+                    };
                     call_args[1] = (vm_arg_t){
                         .type = VM_ARG_FUN,
                         .func = body,
@@ -741,7 +764,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             );
             vm_arg_t env_key = (vm_arg_t){
                 .type = VM_ARG_LIT,
-                .lit = (vm_std_value_t) {
+                .lit = (vm_std_value_t){
                     .tag = VM_TAG_STR,
                     .value.str = lit,
                 },

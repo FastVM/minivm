@@ -27,6 +27,7 @@ union vm_value_t {
     const char *str;
     vm_table_t *table;
     vm_std_value_t *closure;
+    void (*ffi)(vm_std_value_t *args);
     void *all;
 };
 

@@ -147,8 +147,8 @@ vm_ast_node_t vm_ast_build_args(size_t nargs, vm_ast_node_t *bind) {
         },
     };
 }
-vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t args, vm_ast_node_t body) {
-    return vm_ast_form(VM_AST_FORM_LAMBDA, args, body);
+vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t self, vm_ast_node_t args, vm_ast_node_t body) {
+    return vm_ast_form(VM_AST_FORM_LAMBDA, self, args, body);
 }
 vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));

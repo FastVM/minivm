@@ -57,6 +57,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             }
         }
         return vm_ast_build_lambda(
+            vm_ast_build_nil(),
             vm_ast_build_args(nargs, args),
             vm_lang_lua_conv(src, ts_node_child(node, 2))
         );
@@ -83,6 +84,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         return vm_ast_build_set(
             vm_lang_lua_conv(src, ts_node_child(node, 2)),
             vm_ast_build_lambda(
+                vm_lang_lua_conv(src, ts_node_child(node, 2)),
                 vm_ast_build_args(nargs, args),
                 vm_lang_lua_conv(src, ts_node_child(node, 4))
             )

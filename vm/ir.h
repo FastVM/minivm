@@ -154,6 +154,6 @@ void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **val);
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
 vm_tag_t vm_arg_to_tag(vm_arg_t arg);
 
-#define vm_arg_nil() ((vm_arg_t) { .type = VM_ARG_LIT, .lit.tag = VM_TAG_NIL })
+#define vm_arg_nil() ((vm_arg_t) { .type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL) })
 
 #endif
