@@ -5,4 +5,9 @@ local add = function(x)
     end
 end
 
-print(add(1)(2))
+local i = 0
+while i < 1000 * 1000 * 10 do
+    i = add(i)(1)
+end
+
+print(i)

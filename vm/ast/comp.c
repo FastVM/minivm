@@ -342,7 +342,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t value_arg = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_node_t target = form.args[0];
                     if (target.type == VM_AST_NODE_IDENT) {
-                        size_t local = vm_ast_comp_get_local(comp, target.value.ident);
+                        size_t local = vm_ast_comp_get_local(comp->names, target.value.ident);
                         if (local == SIZE_MAX) {
                             local = vm_ast_comp_reg_named(comp, target.value.ident).reg;
                         }
@@ -624,7 +624,6 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     for (size_t i = 0; i < names->caps.len; i++) {
                         vm_ast_comp_cap_t cap = names->caps.ptr[i];
                         vm_arg_t got = vm_ast_comp_get_var(comp, cap.name);
-                        printf("#%zu = c%zu\n", i, cap.slot);
                         if (got.type != VM_ARG_NONE) {
                             call_args[i + 2] = got;
                         } else {
