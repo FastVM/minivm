@@ -738,8 +738,8 @@ GC_API_PRIV GC_abort_func GC_on_abort;
 /* The argument (if any) format specifier should be:    */
 /* "%s", "%p", "%"WARN_PRIdPTR or "%"WARN_PRIuPTR.      */
 #define WARN(msg, arg)                                                   \
-    (*GC_current_warn_proc)((/* no const */ char *)("GC Warning: " msg), \
-                            (word)(arg))
+    ((*GC_current_warn_proc)((/* no const */ char *)("GC Warning: " msg), \
+                            (word)(arg)), __builtin_trap())
 GC_EXTERN GC_warn_proc GC_current_warn_proc;
 
 /* Print format type macro for decimal signed_word value passed WARN(). */
