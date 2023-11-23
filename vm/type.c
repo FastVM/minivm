@@ -105,10 +105,6 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         return instr;
     }
     if (instr.op == VM_IOP_MOVE) {
-        if (instr.args[0].type == VM_ARG_STR) {
-            instr.tag = VM_TAG_STR;
-            return instr;
-        }
         if (instr.args[0].type == VM_ARG_FUN) {
             instr.tag = VM_TAG_FUN;
             return instr;
@@ -130,12 +126,8 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
             }
         }
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
-            if (instr.args[i].type == VM_ARG_NUM) {
+            if (instr.args[i].type == VM_ARG_LIT) {
                 instr.tag = instr.args[i].num.tag;
-                return instr;
-            }
-            if (instr.args[i].type == VM_ARG_STR) {
-                instr.tag = VM_TAG_STR;
                 return instr;
             }
         }
@@ -157,12 +149,8 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branc
             }
         }
         for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
-            if (branch.args[i].type == VM_ARG_NUM) {
+            if (branch.args[i].type == VM_ARG_LIT) {
                 branch.tag = branch.args[i].num.tag;
-                return branch;
-            }
-            if (branch.args[i].type == VM_ARG_STR) {
-                branch.tag = VM_TAG_STR;
                 return branch;
             }
         }

@@ -4,7 +4,7 @@
 #include "rblock.h"
 
 static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
-    if (arg.type == VM_ARG_NUM) {
+    if (arg.type == VM_ARG_LIT) {
         return arg.num.tag;
     }
     if (arg.type == VM_ARG_REG) {

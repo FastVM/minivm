@@ -35,7 +35,7 @@ static void vm_indent(FILE *out, size_t indent, const char *prefix) {
     fprintf(out, "%s", prefix);
 }
 
-void vm_io_print_num(FILE *out, vm_std_value_t value) {
+void vm_io_print_lit(FILE *out, vm_std_value_t value) {
     switch (value.tag) {
         case VM_TAG_I8: {
             fprintf(out, "%" PRIi8, value.value.i8);
@@ -59,6 +59,10 @@ void vm_io_print_num(FILE *out, vm_std_value_t value) {
         }
         case VM_TAG_F64: {
             fprintf(out, "%f", value.value.f64);
+            break;
+        }
+        case VM_TAG_STR: {
+            fprintf(out, "\"%s\"", value.value.str);
             break;
         }
     }

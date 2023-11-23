@@ -46,7 +46,7 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
         case VM_BOP_GET: {
             if (branch.args[1].type == VM_ARG_REG) {
                 branch.tag = regs->tags[branch.args[1].reg];
-            } else if (branch.args[1].type == VM_ARG_NUM) {
+            } else if (branch.args[1].type == VM_ARG_LIT) {
                 branch.tag = branch.args[1].num.tag;
             }
             vm_block_t *from = branch.targets[0];
@@ -114,12 +114,14 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
                             continue;
                         }
                         vm_tags_t *regs2 = vm_rblock_regs_empty(blocks[j]->nregs);
-                        regs2->tags[blocks[j]->args[0].reg] = VM_TAG_CLOSURE;
-                        for (size_t i = 1; i < blocks[j]->nargs; i++) {
-                            if (i <= nargs) {
-                                regs2->tags[blocks[j]->args[i].reg] = vm_arg_to_tag(branch.args[i]);
-                            } else {
-                                regs2->tags[blocks[j]->args[i].reg] = VM_TAG_NIL;
+                        if (blocks[j]->nargs != 0) {
+                            regs2->tags[blocks[j]->args[0].reg] = VM_TAG_CLOSURE;
+                            for (size_t i = 1; i < blocks[j]->nargs; i++) {
+                                if (i <= nargs) {
+                                    regs2->tags[blocks[j]->args[i].reg] = vm_arg_to_tag(branch.args[i]);
+                                } else {
+                                    regs2->tags[blocks[j]->args[i].reg] = VM_TAG_NIL;
+                                }
                             }
                         }
                         branch.call_table[j] = vm_rblock_new(blocks[j], regs2);

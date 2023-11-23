@@ -26,11 +26,8 @@ enum {
     // we dont know
     VM_ARG_UNK,
     // normal args
-    VM_ARG_NIL,
-    VM_ARG_BOOL,
     VM_ARG_REG,
-    VM_ARG_NUM,
-    VM_ARG_STR,
+    VM_ARG_LIT,
     VM_ARG_FUN,
     // for backend use
     VM_ARG_TAG,
@@ -89,13 +86,8 @@ struct vm_cache_t {
 struct vm_arg_t {
     union {
         vm_std_value_t num;
-        const char *str;
-        void *ffi;
         vm_block_t *func;
         vm_rblock_t *rfunc;
-        vm_instr_t *instr;
-        bool logic;
-        vm_tag_t tag;
         struct {
             uint64_t reg : 56;
             uint8_t reg_tag : 8;
@@ -161,5 +153,7 @@ void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
 vm_tag_t vm_arg_to_tag(vm_arg_t arg);
+
+#define vm_arg_nil() ((vm_arg_t) { .type = VM_ARG_LIT, .num.tag = VM_TAG_NIL })
 
 #endif

@@ -97,8 +97,11 @@ TB_DataType vm_tag_to_tb_type(vm_tag_t tag) {
 
 TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
     switch (arg.type) {
-        case VM_ARG_NUM: {
+        case VM_ARG_LIT: {
             switch (arg.num.tag) {
+                case VM_TAG_NIL: {
+                    return tb_inst_uint(fun, TB_TYPE_PTR, 0);
+                }
                 case VM_TAG_I8: {
                     return tb_inst_sint(fun, TB_TYPE_I8, arg.num.value.i8);
                 }
@@ -117,6 +120,9 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
                 case VM_TAG_F64: {
                     return tb_inst_float64(fun, arg.num.value.f64);
                 }
+                case VM_TAG_STR: {
+                    return tb_inst_string(fun, strlen(arg.num.value.str) + 1, arg.num.value.str);
+                }
                 default: {
                     __builtin_trap();
                 }
@@ -134,14 +140,8 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
                 false
             );
         }
-        case VM_ARG_STR: {
-            return tb_inst_string(fun, strlen(arg.str) + 1, arg.str);
-        }
         case VM_ARG_FUN: {
             return tb_inst_uint(fun, TB_TYPE_I32, (uint64_t)arg.func->id);
-        }
-        case VM_ARG_NIL: {
-            return tb_inst_uint(fun, TB_TYPE_PTR, 0);
         }
         default: {
             vm_print_arg(stderr, arg);

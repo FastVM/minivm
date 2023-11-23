@@ -42,7 +42,7 @@ struct vm_ast_comp_names_t {
 
 static void vm_ast_comp_names_push(vm_ast_comp_t *comp) {
     vm_ast_comp_names_t *names = vm_malloc(sizeof(vm_ast_comp_names_t));
-    *names = (vm_ast_comp_names_t) {
+    *names = (vm_ast_comp_names_t){
         .next = comp->names,
     };
     comp->names = names;
@@ -132,9 +132,9 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
         if (!strcmp(cap.name, name)) {
             vm_arg_t reg = vm_ast_comp_reg(comp);
             vm_block_t *next = vm_ast_comp_new_block(comp);
-            vm_arg_t slot = (vm_arg_t) {
-                .type = VM_ARG_NUM,
-                .num = (vm_std_value_t) {
+            vm_arg_t slot = (vm_arg_t){
+                .type = VM_ARG_LIT,
+                .num = (vm_std_value_t){
                     .tag = VM_TAG_I32,
                     .value = cap.slot,
                 }
@@ -153,7 +153,7 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
         }
     }
     if (names->next == NULL) {
-        return (vm_arg_t) {
+        return (vm_arg_t){
             .type = VM_ARG_NONE,
         };
     }
@@ -162,15 +162,15 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
         names->caps.alloc = (slotnum + 1) * 2;
         names->caps.ptr = vm_realloc(names->caps.ptr, sizeof(vm_ast_comp_cap_t) * names->caps.alloc);
     }
-    names->caps.ptr[slotnum] = (vm_ast_comp_cap_t) {
+    names->caps.ptr[slotnum] = (vm_ast_comp_cap_t){
         .name = name,
         .slot = slotnum + 1,
     };
     vm_arg_t reg = vm_ast_comp_reg(comp);
     vm_block_t *next = vm_ast_comp_new_block(comp);
-    vm_arg_t slot = (vm_arg_t) {
-        .type = VM_ARG_NUM,
-        .num = (vm_std_value_t) {
+    vm_arg_t slot = (vm_arg_t){
+        .type = VM_ARG_LIT,
+        .num = (vm_std_value_t){
             .tag = VM_TAG_I32,
             .value = slotnum + 1,
         }
@@ -196,7 +196,7 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
     //     names->caps.ptr[new_index] = (vm_ast_comp_cap_t) {
     //         .is_cap2 = true,
     //         .name = name,
-    //         .reg = 
+    //         .reg =
     //     }
     // }
     // return SIZE_MAX;
@@ -210,7 +210,7 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
             .reg = got,
         };
     };
-    vm_arg_t cap = (vm_arg_t) {
+    vm_arg_t cap = (vm_arg_t){
         .type = VM_ARG_REG,
         .reg = 0,
     };
@@ -542,7 +542,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
                     body->nargs = args.len + 1;
                     body->args = vm_malloc(sizeof(vm_arg_t) * body->nargs);
-                    body->args[0] = (vm_arg_t) {
+                    body->args[0] = (vm_arg_t){
                         .type = VM_ARG_REG,
                         .reg = 0,
                     };
@@ -555,12 +555,12 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     }
 
                     vm_ast_comp_to(comp, form.args[1]);
-                    
+
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
                             .op = VM_BOP_RET,
-                            .args = vm_ast_args(1, (vm_arg_t) { .type = VM_ARG_NIL }),
+                            .args = vm_ast_args(1, vm_arg_nil()),
                         }
                     );
 
@@ -581,9 +581,12 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     );
 
-                    vm_arg_t name_vm = (vm_arg_t) {
-                        .type = VM_ARG_STR,
-                        .str = "vm",
+                    vm_arg_t name_vm = (vm_arg_t){
+                        .type = VM_ARG_LIT,
+                        .num = (vm_std_value_t) {
+                            .tag = VM_TAG_STR,
+                            .value = "vm",
+                        },
                     };
 
                     vm_ast_blocks_branch(
@@ -598,10 +601,14 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
                     comp->cur = with_vm;
 
-                    vm_arg_t name_closure = (vm_arg_t) {
-                        .type = VM_ARG_STR,
-                        .str = "closure",
+                    vm_arg_t name_closure = (vm_arg_t){
+                        .type = VM_ARG_LIT,
+                        .num = (vm_std_value_t) {
+                            .tag = VM_TAG_STR,
+                            .value = "closure",
+                        },
                     };
+
 
                     vm_ast_blocks_branch(
                         comp,
@@ -627,15 +634,13 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         if (got.type != VM_ARG_NONE) {
                             call_args[i + 2] = got;
                         } else {
-                            call_args[i + 2] = (vm_arg_t) {
-                                .type = VM_ARG_NIL,
-                            };
+                            call_args[i + 2] = vm_arg_nil();
                         }
                     }
-                    call_args[names->caps.len + 2] = (vm_arg_t) {
+                    call_args[names->caps.len + 2] = (vm_arg_t){
                         .type = VM_ARG_NONE,
                     };
-                    
+
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -676,9 +681,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     //     }
                     // );
                     comp->cur = after;
-                    return (vm_arg_t){
-                        .type = VM_ARG_NIL,
-                    };
+                    return vm_arg_nil();
                 }
                 case VM_AST_FORM_RETURN: {
                     vm_arg_t arg = vm_ast_comp_to(comp, form.args[0]);
@@ -690,9 +693,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     );
                     comp->cur = vm_ast_comp_new_block(comp);
-                    return (vm_arg_t){
-                        .type = VM_ARG_NIL,
-                    };
+                    return vm_arg_nil();
                 }
             }
             break;
@@ -700,18 +701,11 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
         case VM_AST_NODE_LITERAL: {
             vm_std_value_t num = node.value.literal;
             if (num.tag == VM_TAG_NIL) {
-                return (vm_arg_t){
-                    .type = VM_ARG_NIL,
-                    .num = num,
-                };
-            } else if (num.tag == VM_TAG_NIL) {
-                return (vm_arg_t){
-                    .type = VM_ARG_NIL,
-                };
+                return vm_arg_nil();
             } else if (num.tag == VM_TAG_STR) {
                 vm_arg_t str = (vm_arg_t){
-                    .type = VM_ARG_STR,
-                    .str = num.value.str,
+                    .type = VM_ARG_LIT,
+                    .num = num,
                 };
                 vm_arg_t ret = vm_ast_comp_reg(comp);
                 vm_ast_blocks_instr(
@@ -725,7 +719,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 return ret;
             } else {
                 return (vm_arg_t){
-                    .type = VM_ARG_NUM,
+                    .type = VM_ARG_LIT,
                     .num = num,
                 };
             }
@@ -746,8 +740,11 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 }
             );
             vm_arg_t env_key = (vm_arg_t){
-                .type = VM_ARG_STR,
-                .str = lit,
+                .type = VM_ARG_LIT,
+                .num = (vm_std_value_t) {
+                    .tag = VM_TAG_STR,
+                    .value.str = lit,
+                },
             };
             vm_arg_t out = vm_ast_comp_reg(comp);
             vm_block_t *next = vm_ast_comp_new_block(comp);
