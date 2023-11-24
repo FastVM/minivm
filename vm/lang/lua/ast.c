@@ -34,7 +34,7 @@ vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     const char *type = ts_node_type(node);
     size_t num_children = ts_node_child_count(node);
-    if (!strcmp(type, "chunk") || !strcmp(type, "block")) {
+    if (!strcmp(type, "chunk") || !strcmp(type, "block") || !strcmp(type, "end")) {
         if (num_children == 0) {
             return vm_ast_build_nil();
         }

@@ -16,7 +16,9 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
     switch (val.type) {
         case VM_ARG_LIT: {
             vm_io_print_lit(out, val.lit);
-            vm_print_tag(out, val.lit.tag);
+            if (val.lit.tag != VM_TAG_NIL && val.lit.tag != VM_TAG_STR && val.lit.tag != VM_TAG_FFI) {
+                vm_print_tag(out, val.lit.tag);
+            }
             break;
         }
         case VM_ARG_REG: {
