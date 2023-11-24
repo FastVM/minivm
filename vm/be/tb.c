@@ -620,9 +620,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     1,
                     false
                 );
-
-                // printf("ffi %p\n", res_ptr);
-
             } else if (vm_arg_to_tag(branch.args[0]) == VM_TAG_CLOSURE) {
                 TB_Node *closure = vm_tb_func_read_arg(fun, regs, branch.args[0]);
                 TB_Node *block_num = tb_inst_load(
@@ -825,13 +822,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 __builtin_trap();
             }
 
-            // tb_inst_store(
-            //     fun,
-            //     TB_TYPE_PTR,
-            //     regs[branch.out.reg],
-            //     val_val,
-            //     8,
-            //     false);
             TB_PrototypeParam proto_params[2] = {
                 {TB_TYPE_PTR},
                 {TB_TYPE_PTR},
@@ -845,17 +835,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_params, 2, proto_rets, false);
 
             vm_tb_comp_state_t *value_state = vm_malloc(sizeof(vm_tb_comp_state_t) * VM_TAG_MAX);
-
-            // for (size_t i = 1; i < VM_TAG_MAX; i++) {
-            //     vm_rblock_t *value_rblock = branch.rtargets[i];
-            //     if (value_rblock->jit != NULL) {
-            //         value_state[i].func = value_rblock->jit;
-            //     } else {
-            //         value_state[i].func = &vm_tb_comp_call;
-            //     }
-            //     value_rblock->state = state;
-            //     value_state[i].rblock = value_rblock;
-            // }
 
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
                 value_state[i].func = &vm_tb_comp_call;

@@ -10,6 +10,7 @@ extern const TSLanguage *tree_sitter_lua(void);
 typedef struct {
     const char *src;
     vm_config_t *config;
+    size_t *nsyms;
 } vm_lang_lua_t;
 
 char *vm_lang_lua_src(vm_lang_lua_t src, TSNode node) {
@@ -22,6 +23,12 @@ char *vm_lang_lua_src(vm_lang_lua_t src, TSNode node) {
     }
     ident[len] = '\0';
     return ident;
+}
+
+vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
+    char buf[32];
+    snprintf(buf, 31, "gensym.%zu", *src.nsyms);
+    return vm_ast_build_ident(buf);
 }
 
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
@@ -258,6 +265,28 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (num_children == 2) {
             return vm_ast_build_new();
         }
+        vm_ast_node_t var = vm_lang_lua_gensym(src);
+        size_t nfields = 1;
+        vm_ast_node_t built = vm_ast_build_set(var, vm_ast_build_new());
+        for (size_t i = 0; i < num_children; i++) {
+            TSNode sub = ts_node_child(node, i);
+            const char *name = ts_node_type(sub);
+            if (!strcmp(name, "{") || !strcmp(name, ",") || !strcmp(name, "}")) {
+                continue;
+            }
+            vm_ast_node_t cur = vm_ast_build_nil();
+            if (!strcmp(name, "field")) {
+                vm_ast_node_t target = vm_ast_build_load(var, vm_ast_build_literal(i32, nfields));
+                vm_ast_node_t value = vm_lang_lua_conv(src, ts_node_child(sub, 0));
+                cur = vm_ast_build_set(target, value);
+                nfields += 1;
+            } else {
+                printf("n%zu: %s\n", i, name);
+                __builtin_trap();
+            }
+            built = vm_ast_build_do(built, cur);
+        }
+        return vm_ast_build_do(built, var);
     }
     if (!strcmp(type, "bracket_index_expression")) {
         vm_ast_node_t table = vm_lang_lua_conv(src, ts_node_child(node, 0));
@@ -286,9 +315,12 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str) {
 
     TSNode root_node = ts_tree_root_node(tree);
 
+    size_t nsyms = 0;
+
     vm_lang_lua_t src = (vm_lang_lua_t){
         .src = str,
         .config = config,
+        .nsyms = &nsyms,
     };
 
     vm_ast_node_t res = vm_lang_lua_conv(src, root_node);

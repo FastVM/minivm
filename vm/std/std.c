@@ -119,7 +119,7 @@ void vm_std_print(vm_std_value_t *args) {
                 break;
             }
             case VM_TAG_FFI: {
-                fprintf(out, "<cfunction: %p>", value.value.all);
+                fprintf(out, "<function: %p>", value.value.all);
                 break;
             }
         }
