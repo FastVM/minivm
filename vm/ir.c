@@ -14,20 +14,9 @@ void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
 
 void vm_print_arg(FILE *out, vm_arg_t val) {
     switch (val.type) {
-        case VM_ARG_NIL: {
-            fprintf(out, "nil");
-            break;
-        }
-        case VM_ARG_BOOL: {
-            fprintf(out, "%s", val.logic ? "true" : "false");
-            break;
-        }
-        case VM_ARG_NUM: {
-            vm_io_print_num(stdout, val.num);
-            break;
-        }
-        case VM_ARG_STR: {
-            fprintf(out, "\"%s\"", val.str);
+        case VM_ARG_LIT: {
+            vm_io_print_lit(out, val.lit);
+            vm_print_tag(out, val.lit.tag);
             break;
         }
         case VM_ARG_REG: {
@@ -39,7 +28,7 @@ void vm_print_arg(FILE *out, vm_arg_t val) {
             }
             break;
         }
-        case VM_ARG_FUNC: {
+        case VM_ARG_FUN: {
             if (val.func == NULL) {
                 fprintf(out, "<null.fun>");
             } else {
@@ -93,6 +82,10 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
         }
         case VM_TAG_STR: {
             fprintf(out, "str");
+            break;
+        }
+        case VM_TAG_CLOSURE: {
+            fprintf(out, "closure");
             break;
         }
         case VM_TAG_FUN: {
@@ -301,9 +294,9 @@ void vm_print_block(FILE *out, vm_block_t *val) {
     }
 }
 
-void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *blocks) {
+void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **blocks) {
     for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = &blocks[i];
+        vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }
@@ -386,17 +379,28 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             regs[block->branch.out.reg] == VM_INFO_REG_UNK) {
             regs[block->branch.out.reg] = VM_INFO_REG_DEF;
         }
-        block->nargs = 0;
-        block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
-        for (size_t reg = 0; reg < block->nregs; reg++) {
-            if (regs[reg] == VM_INFO_REG_ARG) {
-                block->args[block->nargs++] = (vm_arg_t){
-                    .type = VM_ARG_REG,
-                    .reg = (uint32_t)reg,
-                };
-                if (reg >= block->nregs) {
-                    block->nregs = reg + 1;
+        if (block->nargs == 0) {
+            block->nargs = 0;
+            block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
+            for (size_t reg = 0; reg < block->nregs; reg++) {
+                if (regs[reg] == VM_INFO_REG_ARG) {
+                    block->args[block->nargs++] = (vm_arg_t){
+                        .type = VM_ARG_REG,
+                        .reg = (uint32_t)reg,
+                    };
+                    if (reg >= block->nregs) {
+                        block->nregs = reg + 1;
+                    }
                 }
+            }
+        }
+    }
+    for (size_t i = 0; i < nblocks; i++) {
+        vm_block_t *block = blocks[i];
+        for (size_t argno = 0; argno < block->nargs; argno++) {
+            vm_arg_t arg = block->args[argno];
+            if (block->nregs <= arg.reg) {
+                block->nregs = arg.reg + 1;
             }
         }
     }
@@ -492,5 +496,37 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
         if (block->nregs > func->nregs) {
             func->nregs = block->nregs;
         }
+    }
+    for (size_t i = 0; i < nblocks; i++) {
+        vm_block_t *block = blocks[i];
+        for (size_t j = 0; j < block->len; j++) {
+            vm_instr_t instr = block->instrs[j];
+            for (size_t k = 0; instr.args[k].type != VM_ARG_NONE; k++) {
+                vm_arg_t arg = instr.args[k];
+                if (arg.type == VM_ARG_FUN) {
+                    arg.func->isfunc = true;
+                }
+            }
+        }
+        vm_branch_t branch = block->branch;
+        for (size_t k = 0; branch.args[k].type != VM_ARG_NONE; k++) {
+            vm_arg_t arg = branch.args[k];
+            if (arg.type == VM_ARG_FUN) {
+                arg.func->isfunc = true;
+            }
+        }
+    }
+}
+
+vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
+    vm_tag_t tag = VM_TAG_NIL;
+    if (arg.type == VM_ARG_REG) {
+        return arg.reg_tag;
+    } else if (arg.type == VM_ARG_LIT) {
+        return arg.lit.tag;
+    } else if (arg.type == VM_ARG_FUN) {
+        return VM_TAG_FUN;
+    } else {
+        return VM_TAG_UNK;
     }
 }

@@ -1,8 +1,0 @@
-
-def id(x) {
-    return x
-}
-
-let x = id(4984)
-
-env.io.debug(x)

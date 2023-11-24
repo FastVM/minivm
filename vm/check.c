@@ -4,8 +4,8 @@
 #include "rblock.h"
 
 static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
-    if (arg.type == VM_ARG_NUM) {
-        return arg.num.tag;
+    if (arg.type == VM_ARG_LIT) {
+        return arg.lit.tag;
     }
     if (arg.type == VM_ARG_REG) {
         return arg.reg_tag;
@@ -51,17 +51,14 @@ bool vm_check_branch(vm_branch_t branch) {
         case VM_BOP_CALL: {
             if (branch.args[0].type == VM_ARG_RFUNC) {
                 if (branch.args[0].rfunc != NULL) {
-                    for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                        vm_block_t *next = vm_rblock_version(branch.rtargets[i]);
-                        if (vm_check_block(next)) {
-                            return true;
-                        }
-                    }
-                    return false;
+                    return true;
                 }
             }
             if (branch.args[0].type == VM_ARG_REG) {
                 if (branch.args[0].reg_tag == VM_TAG_FFI) {
+                    return true;
+                }
+                if (branch.args[0].reg_tag == VM_TAG_FUN || branch.args[0].reg_tag == VM_TAG_CLOSURE) {
                     return true;
                 }
             }
@@ -70,12 +67,7 @@ bool vm_check_branch(vm_branch_t branch) {
         case VM_BOP_GET: {
             if (branch.args[0].type == VM_ARG_REG) {
                 if (branch.args[0].reg_tag == VM_TAG_TAB) {
-                    for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                        vm_block_t *next = vm_rblock_version(branch.rtargets[i]);
-                        if (vm_check_block(next)) {
-                            return true;
-                        }
-                    }
+                    return true;
                 }
             }
             return false;

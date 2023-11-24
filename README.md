@@ -47,10 +47,9 @@ Here's some benchmark runs, they aren't too representative yet.
 ### Math + Recursion
 
 ```sh
-shell> ./build/bin/minivm time run test/fib40.paka
+shell> ./build/bin/minivm --dump-time test/fib/fib40.lua
 102334155
-
---- took 1.284161s ---
+took: 1725.805ms
 ```
 
 ```
@@ -63,8 +62,7 @@ shell> ./build/bin/minivm time run test/fib35.paka
 ### Startup Perf
 
 ```sh
-shell> ./build/bin/minivm time eval 'env.io.debug("hello world")'
-"hello world"
-
---- took 0.000544s ---
+shell> ./build/bin/minivm --dump-time -e 'print("hello world")'
+Hello, World
+took: 0.307ms
 ```

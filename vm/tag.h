@@ -16,6 +16,7 @@ enum {
     VM_TAG_F32,
     VM_TAG_F64,
     VM_TAG_STR,
+    VM_TAG_CLOSURE,
     VM_TAG_FUN,
     VM_TAG_TAB,
     VM_TAG_FFI,

@@ -13,8 +13,6 @@
 #define __section(x) __attribute__((__section__(x)))
 #endif
 
-#include "config.h"
-
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -23,9 +21,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wctype.h>
+#include <math.h>
+#include <time.h>
+
+#include "config.h"
 
 // this is only used for clock()
-#include <time.h>
 
 #if 0
 #define __builtin_trap()                                       \
@@ -33,22 +35,22 @@
     exit(1);
 #endif
 
-void GC_init(void);
+#if VM_USE_LEAKS == VM_USE_LEAKS_BDWGC
+void GC_init();
 void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t size);
 void GC_free(void *ptr);
 
-// #define vm_init_mem() (GC_init())
-#if !VM_USE_LEAKS
 #define vm_init_mem() (GC_init())
-#define vm_malloc(x) (GC_malloc((x)))
-#define vm_realloc(x, y) (GC_realloc((x), (y)))
-#define vm_free(x) (GC_free((x)))
-#else
+#define vm_malloc(x) (GC_malloc(x))
+#define vm_realloc(x, y) (GC_realloc(x, y))
+#define vm_free(x) (GC_free(x))
+#endif
+
+#if VM_USE_LEAKS == VM_USE_LEAKS_NOGC
 #define vm_init_mem() ((void)0)
 #define vm_malloc(x) (malloc((x)))
 #define vm_realloc(x, y) (realloc((x), (y)))
-// #define vm_free(x) (free((x)))
 #define vm_free(x) ((void)((x)))
 #endif
 #endif

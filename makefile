@@ -9,15 +9,21 @@ TMP_DIR ?= $(BUILD_DIR)/tmp
 BIN_DIR ?= $(BUILD_DIR)/bin
 RES_DIR ?= $(BUILD_DIR)/res
 
+UNAME_S != uname -s
+UNAME_O != uname -o
+
 PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-GC_SRCS = vm/gc/gc.c vm/gc/if.c
+GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
+TREES_SRCS := trees/alloc.c trees/get_changed_ranges.c trees/language.c trees/lexer.c trees/node.c trees/parser.c trees/query.c trees/stack.c trees/subtree.c trees/tree_cursor.c trees/tree.c
+
 STD_SRCS := vm/std/libs/io.c vm/std/std.c
-VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/lang/ast.c vm/lang/paka.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c
-ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS)
+VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/ast/build.c vm/ast/comp.c vm/ast/print.c vm/lang/eb.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c vm/lang/lua/parse.c vm/lang/lua/scan.c vm/lang/lua/ast.c
+
+ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 TB_SRCS := cuik/common/common.c cuik/common/perf.c cuik/tb/src/libtb.c cuik/tb/src/x64/x64.c
@@ -30,12 +36,14 @@ LDFLAGS += $(FLAGS)
 
 RUNNER ?= $(BIN_DIR)/minivm
 
-UNAME_S := $(shell uname -s)
-UNAME_O := $(shell uname -o)
+OBJS_FreeBSD = 
+
+OBJS := $(OBJS) $(OBJS_$(UNAME_S))
 
 LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000
 LDFLAGS_S_Linux =
 LDFLAGS_O_Cygwin =
+LDFLAGS_S_FreeBSD = -lstdthreads
 
 LDFLAGS := $(LDFLAGS_S_$(UNAME_S)) $(LDFLAGS_O_$(UNAME_O)) $(LDFLAGS)
 

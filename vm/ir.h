@@ -3,8 +3,8 @@
 #define VM_HEADER_IR
 
 #include "lib.h"
-#include "tag.h"
 #include "std/std.h"
+#include "tag.h"
 
 struct vm_arg_t;
 struct vm_branch_t;
@@ -26,12 +26,9 @@ enum {
     // we dont know
     VM_ARG_UNK,
     // normal args
-    VM_ARG_NIL,
-    VM_ARG_BOOL,
     VM_ARG_REG,
-    VM_ARG_NUM,
-    VM_ARG_STR,
-    VM_ARG_FUNC,
+    VM_ARG_LIT,
+    VM_ARG_FUN,
     // for backend use
     VM_ARG_TAG,
     VM_ARG_RFUNC,
@@ -88,17 +85,12 @@ struct vm_cache_t {
 
 struct vm_arg_t {
     union {
-        vm_std_value_t num;
-        const char *str;
-        void *ffi;
+        vm_std_value_t lit;
         vm_block_t *func;
         vm_rblock_t *rfunc;
-        vm_instr_t *instr;
-        bool logic;
-        vm_tag_t tag;
         struct {
-            uint64_t reg: 56;
-            uint8_t reg_tag: 8;
+            uint64_t reg : 56;
+            uint8_t reg_tag : 8;
         };
     };
     uint8_t type;
@@ -109,15 +101,18 @@ struct vm_branch_t {
         vm_block_t *targets[VM_TAG_MAX];
         vm_rblock_t *rtargets[VM_TAG_MAX];
     };
-    int8_t *pass[2];
-    vm_arg_t args[16];
+    vm_arg_t *args;
     vm_arg_t out;
+    struct {
+        vm_rblock_t **call_table;
+        void **jump_table;
+    };
     uint8_t op;
     vm_tag_t tag;
 };
 
 struct vm_instr_t {
-    vm_arg_t args[6];
+    vm_arg_t *args;
     vm_arg_t out;
     uint8_t op;
     vm_tag_t tag;
@@ -154,8 +149,11 @@ void vm_print_tag(FILE *out, vm_tag_t tag);
 void vm_print_branch(FILE *out, vm_branch_t val);
 void vm_print_instr(FILE *out, vm_instr_t val);
 void vm_print_block(FILE *out, vm_block_t *val);
-void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t *val);
+void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
+vm_tag_t vm_arg_to_tag(vm_arg_t arg);
+
+#define vm_arg_nil() ((vm_arg_t) { .type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL) })
 
 #endif
