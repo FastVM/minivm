@@ -52,13 +52,6 @@ shell> ./build/bin/minivm --dump-time test/fib/fib40.lua
 took: 1725.805ms
 ```
 
-```
-shell> ./build/bin/minivm time run test/fib35.paka
-9227465
-
---- took 0.113154s ---
-```
-
 ### Startup Perf
 
 ```sh
