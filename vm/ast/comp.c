@@ -414,7 +414,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_DO: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
+                    vm_ast_comp_to(comp, form.args[0]);
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     return arg2;
                 }
@@ -720,7 +720,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     // comp->cur = cond;
                     vm_ast_comp_br(comp, form.args[0], body, after);
                     comp->cur = body;
-                    vm_arg_t true_value = vm_ast_comp_to(comp, form.args[1]);
+                    vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_comp_br(comp, form.args[0], body, after);
                     // vm_ast_blocks_branch(
                     //     comp,

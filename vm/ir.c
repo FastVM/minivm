@@ -521,7 +521,6 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
 }
 
 vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
-    vm_tag_t tag = VM_TAG_NIL;
     if (arg.type == VM_ARG_REG) {
         return arg.reg_tag;
     } else if (arg.type == VM_ARG_LIT) {

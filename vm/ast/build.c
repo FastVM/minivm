@@ -148,7 +148,6 @@ vm_ast_node_t vm_ast_build_while(vm_ast_node_t cond, vm_ast_node_t body) {
 
 // functions
 vm_ast_node_t vm_ast_build_args(size_t nargs, vm_ast_node_t *bind) {
-    vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));
     return (vm_ast_node_t){
         .type = VM_AST_NODE_FORM,
         .value.form = (vm_ast_form_t){

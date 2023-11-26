@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     bool dry_run = false;
     bool echo = false;
     const char *lang = "lua";
-    for (size_t i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "--")) {
             break;
