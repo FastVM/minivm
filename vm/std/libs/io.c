@@ -41,6 +41,10 @@ void vm_io_print_lit(FILE *out, vm_std_value_t value) {
             fprintf(out, "nil");
             break;
         }
+        case VM_TAG_BOOL: {
+            fprintf(out, "%s", value.value.b ? "true" : "false");
+            break;
+        }
         case VM_TAG_I8: {
             fprintf(out, "%" PRIi8, value.value.i8);
             break;

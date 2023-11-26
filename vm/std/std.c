@@ -38,6 +38,22 @@ void vm_std_os_clock(vm_std_value_t *args) {
     };
 }
 
+void vm_std_os_exit(vm_std_value_t *args) {
+    exit((int) vm_value_to_i64(args[0]));
+}
+
+void vm_std_assert(vm_std_value_t *args) {
+    vm_std_value_t val = args[0];
+    if (val.tag == VM_TAG_NIL || (val.tag == VM_TAG_BOOL && !val.value.b)) {
+        vm_std_value_t msg = args[1];
+        vm_io_print_lit(stderr, msg);
+        fprintf(stderr, "\n");
+    }
+    *args = (vm_std_value_t){
+        .tag = VM_TAG_NIL,
+    };
+}
+
 void vm_std_vm_closure(vm_std_value_t *args) {
     int64_t nargs = 0;
     for (size_t i = 0; args[i].tag != 0; i++) {
@@ -148,10 +164,12 @@ vm_table_t *vm_std_new(void) {
     {
         vm_table_t *os = vm_table_new();
         VM_STD_SET_FFI(os, "clock", &vm_std_os_clock);
+        VM_STD_SET_FFI(os, "exit", &vm_std_os_exit);
         VM_STD_SET_TAB(std, "os", os);
     }
 
     VM_STD_SET_FFI(std, "print", &vm_std_print);
+    VM_STD_SET_FFI(std, "assert", &vm_std_assert);
 
     return std;
 }

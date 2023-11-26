@@ -33,6 +33,11 @@ vm_ast_node_t vm_ast_build_gt(vm_ast_node_t lhs, vm_ast_node_t rhs);
 vm_ast_node_t vm_ast_build_le(vm_ast_node_t lhs, vm_ast_node_t rhs);
 vm_ast_node_t vm_ast_build_ge(vm_ast_node_t lhs, vm_ast_node_t rhs);
 
+// booleans
+vm_ast_node_t vm_ast_build_and(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_or(vm_ast_node_t lhs, vm_ast_node_t rhs);
+vm_ast_node_t vm_ast_build_not(vm_ast_node_t value);
+
 // control flow
 vm_ast_node_t vm_ast_build_if(vm_ast_node_t cond, vm_ast_node_t iftrue, vm_ast_node_t iffalse);
 vm_ast_node_t vm_ast_build_while(vm_ast_node_t cond, vm_ast_node_t body);
@@ -54,6 +59,7 @@ vm_ast_node_t vm_ast_build_nil(void);
 #define VM_AST_LITERAL_TYPE_TO_TAG_i64(...) VM_TAG_I64
 #define VM_AST_LITERAL_TYPE_TO_TAG_f32(...) VM_TAG_F32
 #define VM_AST_LITERAL_TYPE_TO_TAG_f64(...) VM_TAG_F64
+#define VM_AST_LITERAL_TYPE_TO_TAG_b(...) VM_TAG_BOOL
 #define VM_AST_LITERAL_TYPE_TO_TAG_str(...) VM_TAG_STR
 
 #define VM_AST_LITERAL_TYPE_TO_TAG_CONCAT2_IMPL(X_, Y_) X_##Y_

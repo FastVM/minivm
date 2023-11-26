@@ -28,7 +28,6 @@ enum {
 struct vm_config_t {
     uint8_t use_num: 3;
     bool use_tb_opt: 1;
-    bool use_tailcall: 1;
     
     bool dump_src: 1;
     bool dump_ast: 1;

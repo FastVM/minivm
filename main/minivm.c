@@ -12,8 +12,7 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 int main(int argc, char **argv) {
     vm_init_mem();
     vm_config_t val_config = (vm_config_t) {
-        .use_tb_opt = false,
-        .use_tailcall = true,
+        .use_tb_opt = true,
         .use_num = VM_USE_NUM_I32,
     };
     vm_config_t *config = &val_config;
@@ -53,10 +52,6 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "cannot use have as a number type: %s\n", arg);
                 return 1;
             }
-        } else if (!strcmp(arg, "--tailcall")) {
-            config->use_tailcall = true;
-        } else if (!strcmp(arg, "--no-tailcall")) {
-            config->use_tailcall = false;
         } else if (!strncmp(arg, "--dump-", 7) || !strncmp(arg, "--dump=", 7)) {
             arg += 7;
             if (!strcmp(arg, "src")) {

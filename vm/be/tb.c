@@ -102,6 +102,9 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
                 case VM_TAG_NIL: {
                     return tb_inst_uint(fun, TB_TYPE_PTR, 0);
                 }
+                case VM_TAG_BOOL: {
+                    return tb_inst_bool(fun, arg.lit.value.b);
+                }
                 case VM_TAG_I8: {
                     return tb_inst_sint(fun, TB_TYPE_I8, arg.lit.value.i8);
                 }
@@ -164,6 +167,7 @@ void vm_tb_func_reset_pass(vm_block_t *block) {
             vm_tb_func_reset_pass(block->branch.targets[0]);
             break;
         }
+        case VM_BOP_BB:
         case VM_BOP_BLT:
         case VM_BOP_BEQ: {
             vm_tb_func_reset_pass(block->branch.targets[0]);
@@ -484,6 +488,28 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 fun,
                 vm_tb_func_body_once(state, fun, regs, branch.targets[0])
             );
+            break;
+        }
+
+        case VM_BOP_BB: {
+            if (branch.tag == VM_TAG_BOOL) {
+                tb_inst_if(
+                    fun,
+                    vm_tb_func_read_arg(fun, regs, branch.args[0]),
+                    vm_tb_func_body_once(state, fun, regs, branch.targets[0]),
+                    vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                );
+            } else if (branch.tag == VM_TAG_NIL) {
+                tb_inst_goto(
+                    fun, 
+                    vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                );
+            } else {
+                tb_inst_goto(
+                    fun, 
+                    vm_tb_func_body_once(state, fun, regs, branch.targets[0])
+                );
+            }
             break;
         }
 

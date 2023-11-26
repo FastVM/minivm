@@ -181,7 +181,14 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(op, ">=")) {
             return vm_ast_build_ge(left, right);
         }
-        return vm_ast_build_nil();
+        if (!strcmp(op, "or")) {
+            return vm_ast_build_or(left, right);
+        }
+        if (!strcmp(op, "and")) {
+            return vm_ast_build_and(left, right);
+        }
+        printf("binop = %s\n", op);
+        // return vm_ast_build_nil();
     }
     if (!strcmp(type, "string")) {
         TSNode content = ts_node_child(node, 1);
@@ -298,8 +305,13 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         char *field = vm_lang_lua_src(src, ts_node_child(node, 2));
         return vm_ast_build_load(table, vm_ast_build_literal(str, field));
     }
+    if (!strcmp(type, "true")) {
+        return vm_ast_build_literal(b, true);
+    }
+    if (!strcmp(type, "false")) {
+        return vm_ast_build_literal(b, false);
+    }
     printf("str = %s\n", ts_node_string(node));
-    fflush(stdout);
     return vm_ast_build_nil();
 }
 
@@ -324,8 +336,6 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str) {
     };
 
     vm_ast_node_t res = vm_lang_lua_conv(src, root_node);
-
-    fflush(stdout);
 
     return vm_ast_build_do(res, vm_ast_build_return(vm_ast_build_nil()));
 }

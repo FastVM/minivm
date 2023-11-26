@@ -83,6 +83,18 @@ void vm_ast_print_node(FILE *out, size_t indent, const char *prefix, vm_ast_node
                     fprintf(out, "ge");
                     break;
                 }
+                case VM_AST_FORM_AND: {
+                    fprintf(out, "and");
+                    break;
+                }
+                case VM_AST_FORM_OR: {
+                    fprintf(out, "or");
+                    break;
+                }
+                case VM_AST_FORM_NOT: {
+                    fprintf(out, "not");
+                    break;
+                }
                 case VM_AST_FORM_IF: {
                     fprintf(out, "if");
                     break;

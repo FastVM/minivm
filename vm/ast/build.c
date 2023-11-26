@@ -127,6 +127,17 @@ vm_ast_node_t vm_ast_build_ge(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_GE, lhs, rhs);
 }
 
+// booleans
+vm_ast_node_t vm_ast_build_and(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+    return vm_ast_form(VM_AST_FORM_AND, lhs, rhs);
+}
+vm_ast_node_t vm_ast_build_or(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+    return vm_ast_form(VM_AST_FORM_OR, lhs, rhs);
+}
+vm_ast_node_t vm_ast_build_not(vm_ast_node_t value) {
+    return vm_ast_form(VM_AST_FORM_NOT, value);
+}
+
 // control flow
 vm_ast_node_t vm_ast_build_if(vm_ast_node_t cond, vm_ast_node_t iftrue, vm_ast_node_t iffalse) {
     return vm_ast_form(VM_AST_FORM_IF, cond, iftrue, iffalse);

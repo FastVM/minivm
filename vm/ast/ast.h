@@ -47,6 +47,7 @@ enum {
     // logic
     VM_AST_FORM_AND,
     VM_AST_FORM_OR,
+    VM_AST_FORM_NOT,
     // branch
     VM_AST_FORM_IF,
     VM_AST_FORM_WHILE,
