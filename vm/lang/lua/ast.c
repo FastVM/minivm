@@ -34,6 +34,9 @@ vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     const char *type = ts_node_type(node);
     size_t num_children = ts_node_child_count(node);
+    if (!strcmp(type, "comment")) {
+        return vm_ast_build_nil();
+    }
     if (!strcmp(type, "chunk") || !strcmp(type, "block") || !strcmp(type, "end")) {
         if (num_children == 0) {
             return vm_ast_build_nil();
@@ -70,32 +73,115 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         );
     }
     if (!strcmp(type, "function_declaration")) {
-        TSNode params = ts_node_child(node, 3);
-        size_t nargs = 0;
-        for (size_t i = 0; i < ts_node_child_count(params); i++) {
-            TSNode arg = ts_node_child(params, i);
-            const char *argtype = ts_node_type(arg);
-            if (!strcmp(argtype, "identifier")) {
-                nargs += 1;
+        if (!strcmp("local", ts_node_type(ts_node_child(node, 0)))) {
+            TSNode self = ts_node_child(node, 2);
+            TSNode params = ts_node_child(node, 3);
+            TSNode body = ts_node_child(node, 4);
+            vm_ast_node_t body_node;
+            if (!!strcmp("end", ts_node_type(body))) {
+                body_node = vm_lang_lua_conv(src, body);
+            }
+            size_t nargs = 0;
+            for (size_t i = 0; i < ts_node_child_count(params); i++) {
+                TSNode arg = ts_node_child(params, i);
+                const char *argtype = ts_node_type(arg);
+                if (!strcmp(argtype, "identifier")) {
+                    nargs += 1;
+                }
+            }
+            vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
+            size_t write = 0;
+            for (size_t i = 0; i < ts_node_child_count(params); i++) {
+                TSNode arg = ts_node_child(params, i);
+                const char *argtype = ts_node_type(arg);
+                if (!strcmp(argtype, "identifier")) {
+                    args[write++] = vm_lang_lua_conv(src, arg);
+                }
+            }
+            return vm_ast_build_set(
+                vm_lang_lua_conv(src, self),
+                vm_ast_build_lambda(
+                    vm_lang_lua_conv(src, self),
+                    vm_ast_build_args(nargs, args),
+                    body_node
+                )
+            );
+        } else if (!strcmp("function", ts_node_type(ts_node_child(node, 0)))) {
+            TSNode target = ts_node_child(node, 1);
+            if (!strcmp("method_index_expression", ts_node_type(target))) {
+                TSNode params = ts_node_child(node, 2);
+                vm_ast_node_t body_node = vm_ast_build_nil();
+                if (num_children > 3) {
+                    TSNode body = ts_node_child(node, 3);
+                    if (!!strcmp("end", ts_node_type(body))) {
+                        body_node = vm_lang_lua_conv(src, body);
+                    }
+                }
+                size_t nargs = 1;
+                for (size_t i = 0; i < ts_node_child_count(params); i++) {
+                    TSNode arg = ts_node_child(params, i);
+                    const char *argtype = ts_node_type(arg);
+                    if (!strcmp(argtype, "identifier")) {
+                        nargs += 1;
+                    }
+                }
+                vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
+                args[0] = vm_ast_build_ident("self");
+                size_t write = 1;
+                for (size_t i = 0; i < ts_node_child_count(params); i++) {
+                    TSNode arg = ts_node_child(params, i);
+                    const char *argtype = ts_node_type(arg);
+                    if (!strcmp(argtype, "identifier")) {
+                        args[write++] = vm_lang_lua_conv(src, arg);
+                    }
+                }
+                return vm_ast_build_set(
+                    vm_ast_build_load(
+                        vm_lang_lua_conv(src, ts_node_child(target, 0)),
+                        vm_lang_lua_conv(src, ts_node_child(target, 2))
+                    ),
+                    vm_ast_build_lambda(
+                        vm_ast_build_nil(),
+                        vm_ast_build_args(nargs, args),
+                        body_node
+                    )
+                );
+            } else {
+                TSNode params = ts_node_child(node, 2);
+                vm_ast_node_t body_node = vm_ast_build_nil();
+                if (num_children > 3) {
+                    TSNode body = ts_node_child(node, 3);
+                    if (!!strcmp("end", ts_node_type(body))) {
+                        body_node = vm_lang_lua_conv(src, body);
+                    }
+                }
+                size_t nargs = 0;
+                for (size_t i = 0; i < ts_node_child_count(params); i++) {
+                    TSNode arg = ts_node_child(params, i);
+                    const char *argtype = ts_node_type(arg);
+                    if (!strcmp(argtype, "identifier")) {
+                        nargs += 1;
+                    }
+                }
+                vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
+                size_t write = 0;
+                for (size_t i = 0; i < ts_node_child_count(params); i++) {
+                    TSNode arg = ts_node_child(params, i);
+                    const char *argtype = ts_node_type(arg);
+                    if (!strcmp(argtype, "identifier")) {
+                        args[write++] = vm_lang_lua_conv(src, arg);
+                    }
+                }
+                return vm_ast_build_set(
+                    vm_lang_lua_conv(src, target),
+                    vm_ast_build_lambda(
+                        vm_ast_build_nil(),
+                        vm_ast_build_args(nargs, args),
+                        body_node
+                    )
+                );
             }
         }
-        vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
-        size_t write = 0;
-        for (size_t i = 0; i < ts_node_child_count(params); i++) {
-            TSNode arg = ts_node_child(params, i);
-            const char *argtype = ts_node_type(arg);
-            if (!strcmp(argtype, "identifier")) {
-                args[write++] = vm_lang_lua_conv(src, arg);
-            }
-        }
-        return vm_ast_build_set(
-            vm_lang_lua_conv(src, ts_node_child(node, 2)),
-            vm_ast_build_lambda(
-                vm_lang_lua_conv(src, ts_node_child(node, 2)),
-                vm_ast_build_args(nargs, args),
-                vm_lang_lua_conv(src, ts_node_child(node, 4))
-            )
-        );
     }
     if (!strcmp(type, "return_statement")) {
         TSNode value = ts_node_child(node, 1);
@@ -140,6 +226,13 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             vm_lang_lua_conv(src, ts_node_child(node, 3)),
             num_children == 6 ? vm_lang_lua_conv(src, ts_node_child(ts_node_child(node, 4), 1)) : vm_ast_build_nil()
         );
+    }
+    if (!strcmp(type, "unary_expression")) {
+        const char *op = ts_node_type(ts_node_child(node, 0));
+        vm_ast_node_t right = vm_lang_lua_conv(src, ts_node_child(node, 1));
+        if (!strcmp(op, "#")) {
+            return vm_ast_build_len(right);
+        }
     }
     if (!strcmp(type, "binary_expression")) {
         vm_ast_node_t left = vm_lang_lua_conv(src, ts_node_child(node, 0));
@@ -304,6 +397,9 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         vm_ast_node_t table = vm_lang_lua_conv(src, ts_node_child(node, 0));
         char *field = vm_lang_lua_src(src, ts_node_child(node, 2));
         return vm_ast_build_load(table, vm_ast_build_literal(str, field));
+    }
+    if (!strcmp(type, "nil")) {
+        return vm_ast_build_nil();
     }
     if (!strcmp(type, "true")) {
         return vm_ast_build_literal(b, true);

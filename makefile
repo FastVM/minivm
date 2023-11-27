@@ -41,9 +41,9 @@ OBJS_FreeBSD =
 OBJS := $(OBJS) $(OBJS_$(UNAME_S))
 
 LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000
-LDFLAGS_S_Linux =
+LDFLAGS_S_Linux = -lm
 LDFLAGS_O_Cygwin =
-LDFLAGS_S_FreeBSD = -lstdthreads
+LDFLAGS_S_FreeBSD = -lm -lstdthreads
 
 LDFLAGS := $(LDFLAGS_S_$(UNAME_S)) $(LDFLAGS_O_$(UNAME_O)) $(LDFLAGS)
 

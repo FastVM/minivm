@@ -29,6 +29,7 @@ enum {
     VM_AST_FORM_ENV,
     // tables
     VM_AST_FORM_NEW,
+    VM_AST_FORM_LEN,
     VM_AST_FORM_LOAD,
     // math
     VM_AST_FORM_ADD,

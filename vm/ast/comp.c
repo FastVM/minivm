@@ -484,6 +484,19 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     );
                     return out;
                 }
+                case VM_AST_FORM_LEN: {
+                    vm_arg_t out = vm_ast_comp_reg(comp);
+                    vm_arg_t in = vm_ast_comp_to(comp, form.args[0]);
+                    vm_ast_blocks_instr(
+                        comp,
+                        (vm_instr_t) {
+                            .op = VM_IOP_LEN,
+                            .args = vm_ast_args(1, in),
+                            .out = out,
+                        }
+                    );
+                    return out;
+                }
                 case VM_AST_FORM_LOAD: {
                     vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);

@@ -83,6 +83,9 @@ vm_ast_node_t vm_ast_build_env(void) {
 vm_ast_node_t vm_ast_build_new(void) {
     return vm_ast_form0(VM_AST_FORM_NEW);
 }
+vm_ast_node_t vm_ast_build_len(vm_ast_node_t table) {
+    return vm_ast_form(VM_AST_FORM_LEN, table);
+}
 vm_ast_node_t vm_ast_build_load(vm_ast_node_t table, vm_ast_node_t key) {
     return vm_ast_form(VM_AST_FORM_LOAD, table, key);
 }

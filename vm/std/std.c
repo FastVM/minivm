@@ -4,32 +4,6 @@
 #include "./libs/io.h"
 #include "./util.h"
 
-int64_t vm_value_to_i64(vm_std_value_t arg) {
-    switch (arg.tag) {
-        case VM_TAG_I8: {
-            return (int64_t)arg.value.i8;
-        }
-        case VM_TAG_I16: {
-            return (int64_t)arg.value.i16;
-        }
-        case VM_TAG_I32: {
-            return (int64_t)arg.value.i32;
-        }
-        case VM_TAG_I64: {
-            return (int64_t)arg.value.i64;
-        }
-        case VM_TAG_F32: {
-            return (int64_t)arg.value.f32;
-        }
-        case VM_TAG_F64: {
-            return (int64_t)arg.value.f64;
-        }
-        default: {
-            return -1;
-        }
-    }
-}
-
 void vm_std_os_clock(vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     *ret = (vm_std_value_t){

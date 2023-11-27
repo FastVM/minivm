@@ -31,6 +31,10 @@ void vm_ast_print_node(FILE *out, size_t indent, const char *prefix, vm_ast_node
                     fprintf(out, "new");
                     break;
                 }
+                case VM_AST_FORM_LEN: {
+                    fprintf(out, "len");
+                    break;
+                }
                 case VM_AST_FORM_LOAD: {
                     fprintf(out, "load");
                     break;

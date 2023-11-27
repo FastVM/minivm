@@ -423,6 +423,42 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 );
                 break;
             }
+            case VM_IOP_LEN: {
+                vm_tag_t table_tag = vm_arg_to_tag(instr.args[0]);
+                if (table_tag == VM_TAG_TAB) {
+                    TB_Node *len = tb_inst_load(
+                        fun,
+                        TB_TYPE_I32,
+                        tb_inst_member_access(
+                            fun,
+                            vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                            offsetof(vm_table_t, len)
+                        ),
+                        1,
+                        false
+                    );
+                    if (instr.tag == VM_TAG_I32) {
+                        // defaults to i32
+                    } else if (instr.tag == VM_TAG_I64) {
+                        len = tb_inst_zxt(fun, len, TB_TYPE_I64);
+                    } else if (instr.tag == VM_TAG_F32) {
+                        len = tb_inst_int2float(fun, len, TB_TYPE_F32, false);
+                    } else if (instr.tag == VM_TAG_F64) {
+                        len = tb_inst_int2float(fun, len, TB_TYPE_F64, false);
+                    }
+                    tb_inst_store(
+                        fun,
+                        vm_tag_to_tb_type(instr.tag),
+                        regs[instr.out.reg],
+                        len,
+                        1,
+                        false
+                    );
+                } else {
+                    fprintf(stderr, "\n ^ unhandled instruction\n");
+                }
+                break;
+            }
             case VM_IOP_SET: {
                 vm_tag_t key_tag = vm_arg_to_tag(instr.args[1]);
                 vm_tag_t val_tag = vm_arg_to_tag(instr.args[2]);
@@ -475,7 +511,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             default: {
                 vm_print_instr(stderr, instr);
                 fprintf(stderr, "\n ^ unhandled instruction\n");
-                asm("int3");
+                exit(1);
             }
         }
     }
@@ -501,12 +537,12 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 );
             } else if (branch.tag == VM_TAG_NIL) {
                 tb_inst_goto(
-                    fun, 
+                    fun,
                     vm_tb_func_body_once(state, fun, regs, branch.targets[1])
                 );
             } else {
                 tb_inst_goto(
-                    fun, 
+                    fun,
                     vm_tb_func_body_once(state, fun, regs, branch.targets[0])
                 );
             }
@@ -886,7 +922,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     }
                 }
 
-
                 TB_PrototypeParam next_rets[2] = {
                     {TB_TYPE_PTR},
                     {TB_TYPE_I32},
@@ -940,7 +975,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         1,
                         &comp_param
                     );
-                                
+
                     TB_Node *new_func = new_func_multi.single;
 
                     tb_inst_store(
@@ -1124,7 +1159,6 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     }
                 }
 
-
                 TB_PrototypeParam next_rets[2] = {
                     {TB_TYPE_PTR},
                     {TB_TYPE_I32},
@@ -1176,7 +1210,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         1,
                         &comp_param
                     );
-                                
+
                     TB_Node *new_func = new_func_multi.single;
 
                     tb_inst_store(
@@ -1212,8 +1246,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         default: {
             vm_print_branch(stderr, branch);
             fprintf(stderr, "\n ^ unhandled branch\n");
-            asm("int3");
-            break;
+            exit(1);
         }
     }
 
@@ -1302,8 +1335,7 @@ void vm_tb_print(uint32_t tag, void *value) {
         }
         default: {
             printf("bad tag: %zu\n", (size_t)tag);
-            asm("int3");
-            break;
+            exit(1);
         }
     }
     vm_io_debug(stdout, 0, "debug: ", val, NULL);

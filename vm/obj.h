@@ -45,16 +45,18 @@ struct vm_pair_t {
 
 struct vm_table_t {
     vm_pair_t *pairs;
-    uint32_t nbytes;
+    uint32_t len;
+    uint32_t used;
     uint8_t alloc;
 };
 
 bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs);
+bool vm_value_is_int(vm_std_value_t val);
+int64_t vm_value_to_i64(vm_std_value_t arg);
 
 vm_table_t *vm_table_new(void);
 void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uint32_t key_tag, uint32_t val_tag);
 void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair);
 void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
-double vm_table_len(vm_table_t *table);
 
 #endif

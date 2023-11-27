@@ -15,6 +15,7 @@ vm_ast_node_t vm_ast_build_env(void);
 
 // tables
 vm_ast_node_t vm_ast_build_new(void);
+vm_ast_node_t vm_ast_build_len(vm_ast_node_t table);
 vm_ast_node_t vm_ast_build_load(vm_ast_node_t table, vm_ast_node_t key);
 
 // math
