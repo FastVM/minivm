@@ -23,6 +23,10 @@ void vm_ast_print_node(FILE *out, size_t indent, const char *prefix, vm_ast_node
                     fprintf(out, "set");
                     break;
                 }
+                case VM_AST_FORM_LOCAL: {
+                    fprintf(out, "set");
+                    break;
+                }
                 case VM_AST_FORM_ENV: {
                     fprintf(out, "env");
                     break;

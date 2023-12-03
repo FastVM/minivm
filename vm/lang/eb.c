@@ -88,6 +88,11 @@ static vm_ast_node_t vm_lang_eb_expr(vm_lang_eb_state_t *state) {
         vm_ast_node_t arg2 = vm_lang_eb_expr(state);
         return vm_ast_build_set(arg1, arg2);
     }
+    if (vm_lang_eb_match_keyword(state, "local")) {
+        vm_ast_node_t arg1 = vm_lang_eb_expr(state);
+        vm_ast_node_t arg2 = vm_lang_eb_expr(state);
+        return vm_ast_build_local(arg1, arg2);
+    }
     if (vm_lang_eb_match_keyword(state, "add")) {
         vm_ast_node_t arg1 = vm_lang_eb_expr(state);
         vm_ast_node_t arg2 = vm_lang_eb_expr(state);

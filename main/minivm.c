@@ -26,17 +26,17 @@ vm_std_value_t vm_main_table_get(vm_table_t *table, const char *key) {
 void vm_main_table_get_config(vm_table_t *table, vm_config_t *config) {
     config->use_tb_opt = vm_table_lookup_str(table, "opt")->val_val.b;
     vm_table_t *dump = vm_table_lookup_str(table, "dump")->val_val.table;
-    config->dump_src = vm_table_lookup_str(dump, "src");
-    config->dump_ast = vm_table_lookup_str(dump, "ast");
-    config->dump_ir = vm_table_lookup_str(dump, "ir");
-    config->dump_ver = vm_table_lookup_str(dump, "ver");
-    config->dump_tb = vm_table_lookup_str(dump, "tb");
-    config->dump_tb_opt = vm_table_lookup_str(dump, "tb_opt");
-    config->dump_tb_dot = vm_table_lookup_str(dump, "tb_dot");
-    config->dump_tb_opt_dot = vm_table_lookup_str(dump, "tb_opt_dot");
-    config->dump_x86 = vm_table_lookup_str(dump, "x86");
-    config->dump_args = vm_table_lookup_str(dump, "args");
-    config->dump_time = vm_table_lookup_str(dump, "time");
+    config->dump_src = vm_table_lookup_str(dump, "src")->val_val.b;
+    config->dump_ast = vm_table_lookup_str(dump, "ast")->val_val.b;
+    config->dump_ir = vm_table_lookup_str(dump, "ir")->val_val.b;
+    config->dump_ver = vm_table_lookup_str(dump, "ver")->val_val.b;
+    config->dump_tb = vm_table_lookup_str(dump, "tb")->val_val.b;
+    config->dump_tb_opt = vm_table_lookup_str(dump, "tb_opt")->val_val.b;
+    config->dump_tb_dot = vm_table_lookup_str(dump, "tb_dot")->val_val.b;
+    config->dump_tb_opt_dot = vm_table_lookup_str(dump, "tb_opt_dot")->val_val.b;
+    config->dump_x86 = vm_table_lookup_str(dump, "x86")->val_val.b;
+    config->dump_args = vm_table_lookup_str(dump, "args")->val_val.b;
+    config->dump_time = vm_table_lookup_str(dump, "time")->val_val.b;
 }
 
 void vm_main_table_set_config(vm_table_t *table, vm_config_t *config) {
@@ -203,12 +203,13 @@ int main(int argc, char **argv) {
         vm_table_t *repl = vm_table_new();
         vm_main_table_set_config(repl, config);
         VM_STD_SET_BOOL(repl, "echo", true);
-        VM_STD_SET_TAB(std, "repl", repl);
+        VM_STD_SET_TAB(std, "config", repl);
 
         ic_set_history(".minivm-history", 2000);
 
         char *input;
         while ((input = ic_readline("lua")) != NULL) {
+            vm_main_table_get_config(repl, config);
             ic_history_add(input);
             clock_t start = clock();
 

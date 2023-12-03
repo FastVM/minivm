@@ -5,13 +5,15 @@
 
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
-    rblock->block = block;
-    rblock->regs = regs;
-    rblock->jit = NULL;
-    rblock->count = 0;
-    rblock->least_faults = SIZE_MAX;
-    rblock->base_redo = 256;
-    rblock->redo = 0;
+    *rblock = (vm_rblock_t) {
+        .block = block,
+        .regs = regs,
+        .jit = NULL,
+        .count = 0,
+        .least_faults = SIZE_MAX,
+        .base_redo = 256,
+        .redo = 0,
+    };
     return rblock;
 }
 

@@ -25,6 +25,7 @@ enum {
     VM_AST_FORM_DO,
     // locals
     VM_AST_FORM_SET,
+    VM_AST_FORM_LOCAL,
     // globals
     VM_AST_FORM_ENV,
     // tables

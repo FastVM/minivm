@@ -98,7 +98,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                     args[write++] = vm_lang_lua_conv(src, arg);
                 }
             }
-            return vm_ast_build_set(
+            return vm_ast_build_local(
                 vm_lang_lua_conv(src, self),
                 vm_ast_build_lambda(
                     vm_lang_lua_conv(src, self),
@@ -135,7 +135,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                         args[write++] = vm_lang_lua_conv(src, arg);
                     }
                 }
-                return vm_ast_build_set(
+                return vm_ast_build_local(
                     vm_ast_build_load(
                         vm_lang_lua_conv(src, ts_node_child(target, 0)),
                         vm_lang_lua_conv(src, ts_node_child(target, 2))
@@ -172,7 +172,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                         args[write++] = vm_lang_lua_conv(src, arg);
                     }
                 }
-                return vm_ast_build_set(
+                return vm_ast_build_local(
                     vm_lang_lua_conv(src, target),
                     vm_ast_build_lambda(
                         vm_ast_build_nil(),
@@ -370,7 +370,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         }
         vm_ast_node_t var = vm_lang_lua_gensym(src);
         size_t nfields = 1;
-        vm_ast_node_t built = vm_ast_build_set(var, vm_ast_build_new());
+        vm_ast_node_t built = vm_ast_build_local(var, vm_ast_build_new());
         for (size_t i = 0; i < num_children; i++) {
             TSNode sub = ts_node_child(node, i);
             const char *name = ts_node_type(sub);
@@ -381,7 +381,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             if (!strcmp(name, "field")) {
                 vm_ast_node_t target = vm_ast_build_load(var, vm_ast_build_literal(i32, nfields));
                 vm_ast_node_t value = vm_lang_lua_conv(src, ts_node_child(sub, 0));
-                cur = vm_ast_build_set(target, value);
+                cur = vm_ast_build_local(target, value);
                 nfields += 1;
             } else {
                 printf("n%zu: %s\n", i, name);

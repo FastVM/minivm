@@ -3,6 +3,7 @@
 #include "comp.h"
 #include "../type.h"
 #include "ast.h"
+#include "build.h"
 #include "print.h"
 
 struct vm_ast_comp_t;
@@ -139,8 +140,7 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
                 .lit = (vm_std_value_t){
                     .tag = VM_TAG_I32,
                     .value = cap.slot,
-                }
-            };
+                }};
             vm_ast_blocks_branch(
                 comp,
                 (vm_branch_t){
@@ -175,8 +175,7 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
         .lit = (vm_std_value_t){
             .tag = VM_TAG_I32,
             .value = slotnum + 1,
-        }
-    };
+        }};
     vm_ast_blocks_branch(
         comp,
         (vm_branch_t){
@@ -348,14 +347,14 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             vm_ast_form_t form = node.value.form;
             switch (form.type) {
 
-                case VM_AST_FORM_EQ: 
-                case VM_AST_FORM_NE: 
-                case VM_AST_FORM_LT: 
-                case VM_AST_FORM_GT: 
-                case VM_AST_FORM_LE: 
-                case VM_AST_FORM_GE: 
-                case VM_AST_FORM_AND: 
-                case VM_AST_FORM_OR: 
+                case VM_AST_FORM_EQ:
+                case VM_AST_FORM_NE:
+                case VM_AST_FORM_LT:
+                case VM_AST_FORM_GT:
+                case VM_AST_FORM_LE:
+                case VM_AST_FORM_GE:
+                case VM_AST_FORM_AND:
+                case VM_AST_FORM_OR:
                 case VM_AST_FORM_NOT: {
                     vm_arg_t out = vm_ast_comp_reg(comp);
                     vm_block_t *iftrue = vm_ast_comp_new_block(comp);
@@ -363,9 +362,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *after = vm_ast_comp_new_block(comp);
                     vm_ast_comp_br(comp, node, iftrue, iffalse);
                     comp->cur = iftrue;
-                    vm_arg_t true_value = (vm_arg_t) {
+                    vm_arg_t true_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t) {
+                        .lit = (vm_std_value_t){
                             .value.b = true,
                             .tag = VM_TAG_BOOL,
                         },
@@ -387,9 +386,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     );
                     comp->cur = iffalse;
-                    vm_arg_t false_value = (vm_arg_t) {
+                    vm_arg_t false_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t) {
+                        .lit = (vm_std_value_t){
                             .value.b = false,
                             .tag = VM_TAG_BOOL,
                         },
@@ -418,29 +417,62 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
                     return arg2;
                 }
+                case VM_AST_FORM_LOCAL: {
+                    vm_arg_t value_arg = vm_ast_comp_to(comp, form.args[1]);
+                    vm_ast_node_t target = form.args[0];
+                    size_t local = vm_ast_comp_reg_named(comp, target.value.ident).reg;
+                    vm_ast_blocks_instr(
+                        comp,
+                        (vm_instr_t){
+                            .op = VM_IOP_MOVE,
+                            .out = (vm_arg_t){
+                                .type = VM_ARG_REG,
+                                .reg = local,
+                            },
+                            .args = vm_ast_args(1, value_arg),
+                        }
+                    );
+                    return vm_arg_nil();
+                }
                 case VM_AST_FORM_SET: {
                     vm_arg_t value_arg = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_node_t target = form.args[0];
                     if (target.type == VM_AST_NODE_IDENT) {
                         size_t local = vm_ast_comp_get_local(comp->names, target.value.ident);
                         if (local == SIZE_MAX) {
-                            local = vm_ast_comp_reg_named(comp, target.value.ident).reg;
-                        }
-                        vm_ast_blocks_instr(
-                            comp,
-                            (vm_instr_t){
-                                .op = VM_IOP_MOVE,
-                                .out = (vm_arg_t){
-                                    .type = VM_ARG_REG,
-                                    .reg = local,
+                            vm_arg_t env_arg = vm_ast_comp_to(comp, vm_ast_build_ident("_ENV"));
+                            vm_arg_t key_arg = (vm_arg_t) {
+                                .type = VM_ARG_LIT,
+                                .lit = (vm_std_value_t) {
+                                    .tag = VM_TAG_STR,
+                                    .value.str = target.value.ident,
                                 },
-                                .args = vm_ast_args(1, value_arg),
-                            }
-                        );
-                        return (vm_arg_t){
-                            .type = VM_ARG_REG,
-                            .reg = local,
-                        };
+                            };
+                            vm_ast_blocks_instr(
+                                comp,
+                                (vm_instr_t){
+                                    .op = VM_IOP_SET,
+                                    .out = (vm_arg_t){
+                                        .type = VM_ARG_NONE,
+                                    },
+                                    .args = vm_ast_args(3, env_arg, key_arg, value_arg),
+                                }
+                            );
+                            return vm_arg_nil();
+                        } else {
+                            vm_ast_blocks_instr(
+                                comp,
+                                (vm_instr_t){
+                                    .op = VM_IOP_MOVE,
+                                    .out = (vm_arg_t){
+                                        .type = VM_ARG_REG,
+                                        .reg = local,
+                                    },
+                                    .args = vm_ast_args(1, value_arg),
+                                }
+                            );
+                            return vm_arg_nil();
+                        }
                     }
                     if (target.type == VM_AST_NODE_FORM && target.value.form.type == VM_AST_FORM_LOAD) {
                         vm_arg_t table = vm_ast_comp_to(comp, target.value.form.args[0]);
@@ -456,7 +488,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                                 },
                             }
                         );
-                        return val;
+                        return vm_arg_nil();
                     }
                     break;
                 }
@@ -489,7 +521,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t in = vm_ast_comp_to(comp, form.args[0]);
                     vm_ast_blocks_instr(
                         comp,
-                        (vm_instr_t) {
+                        (vm_instr_t){
                             .op = VM_IOP_LEN,
                             .args = vm_ast_args(1, in),
                             .out = out,

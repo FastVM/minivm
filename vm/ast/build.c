@@ -73,6 +73,9 @@ vm_ast_node_t vm_ast_build_do(vm_ast_node_t lhs, vm_ast_node_t rhs) {
 vm_ast_node_t vm_ast_build_set(vm_ast_node_t target, vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_SET, target, value);
 }
+vm_ast_node_t vm_ast_build_local(vm_ast_node_t target, vm_ast_node_t value) {
+    return vm_ast_form(VM_AST_FORM_LOCAL, target, value);
+}
 
 // globals
 vm_ast_node_t vm_ast_build_env(void) {
