@@ -195,64 +195,66 @@ int main(int argc, char **argv) {
         }
     }
 
-    config->is_repl = true;
+    if (isrepl) {
+        config->is_repl = true;
 
-    vm_table_t *std = vm_std_new();
+        vm_table_t *std = vm_std_new();
 
-    vm_table_t *repl = vm_table_new();
-    vm_main_table_set_config(repl, config);
-    VM_STD_SET_BOOL(repl, "echo", true);
-    VM_STD_SET_TAB(std, "repl", repl);
+        vm_table_t *repl = vm_table_new();
+        vm_main_table_set_config(repl, config);
+        VM_STD_SET_BOOL(repl, "echo", true);
+        VM_STD_SET_TAB(std, "repl", repl);
 
-    ic_set_history(".minivm-history", 2000);
+        ic_set_history(".minivm-history", 2000);
 
-    char *input;
-    while ((input = ic_readline("lua")) != NULL) {
-        ic_history_add(input);
-        clock_t start = clock();
+        char *input;
+        while ((input = ic_readline("lua")) != NULL) {
+            ic_history_add(input);
+            clock_t start = clock();
 
-        if (config->dump_src) {
-            printf("\n--- src ---\n");
-            printf("%s\n", input);
-        }
-
-        vm_ast_node_t node;
-        if (!strcmp(lang, "lua")) {
-            node = vm_lang_lua_parse(config, input);
-        } else if (!strcmp(lang, "ast")) {
-            node = vm_lang_eb_parse(config, input);
-        } else {
-            fprintf(stderr, "not supported: lang %s\n", lang);
-            return 1;
-        }
-
-        if (config->dump_ast) {
-            printf("\n--- ast ---\n");
-            vm_ast_print_node(stdout, 0, "", node);
-        }
-
-        vm_ast_blocks_t blocks = vm_ast_comp(node);
-
-        if (config->dump_ir) {
-            vm_print_blocks(stdout, blocks.len, blocks.blocks);
-        }
-
-        if (!dry_run) {
-            // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
-            vm_std_value_t value = vm_tb_run(config, blocks.len, blocks.blocks, std);
-            if (vm_main_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
-                vm_io_debug(stdout, 0, "", value, NULL);
+            if (config->dump_src) {
+                printf("\n--- src ---\n");
+                printf("%s\n", input);
             }
-            // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
-        }
 
-        if (config->dump_time) {
-            clock_t end = clock();
+            vm_ast_node_t node;
+            if (!strcmp(lang, "lua")) {
+                node = vm_lang_lua_parse(config, input);
+            } else if (!strcmp(lang, "ast")) {
+                node = vm_lang_eb_parse(config, input);
+            } else {
+                fprintf(stderr, "not supported: lang %s\n", lang);
+                return 1;
+            }
 
-            double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
-            printf("took: %.3fms\n", diff);
+            if (config->dump_ast) {
+                printf("\n--- ast ---\n");
+                vm_ast_print_node(stdout, 0, "", node);
+            }
+
+            vm_ast_blocks_t blocks = vm_ast_comp(node);
+
+            if (config->dump_ir) {
+                vm_print_blocks(stdout, blocks.len, blocks.blocks);
+            }
+
+            if (!dry_run) {
+                // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
+                vm_std_value_t value = vm_tb_run(config, blocks.len, blocks.blocks, std);
+                if (vm_main_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
+                    vm_io_debug(stdout, 0, "", value, NULL);
+                }
+                // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
+            }
+
+            if (config->dump_time) {
+                clock_t end = clock();
+
+                double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
+                printf("took: %.3fms\n", diff);
+            }
+            free(input);
         }
-        free(input);
     }
 
     return 0;
