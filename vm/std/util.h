@@ -3,6 +3,13 @@
 
 #include "./std.h"
 
+#define VM_STD_SET_BOOL(table, key, value) vm_table_set( \
+    (table),                                             \
+    (vm_value_t){.str = (key)},                          \
+    (vm_value_t){.b = (_Bool)(value)},                  \
+    VM_TAG_STR,                                          \
+    VM_TAG_BOOL                                          \
+)
 #define VM_STD_SET_TAB(table, key, value) vm_table_set( \
     (table),                                            \
     (vm_value_t){.str = (key)},                         \

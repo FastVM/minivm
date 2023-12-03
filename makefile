@@ -12,7 +12,7 @@ RES_DIR ?= $(BUILD_DIR)/res
 UNAME_S != uname -s
 UNAME_O != uname -o
 
-PROG_SRCS = main/minivm.c
+PROG_SRCS = main/minivm.c main/isocline/isocline.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
@@ -69,9 +69,9 @@ gcc-windows: .dummy
 
 bins: $(BIN_DIR)/minivm$(EXE)
 
-minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
+minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJ_DIR)/main/isocline/isocline.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) $(LDFLAGS)
+	$(CC) $(OPT)  $(OBJ_DIR)/main/minivm.o $(OBJ_DIR)/main/isocline/isocline.o $(OBJS) -o $(@) $(LDFLAGS)
 
 # intermediate files
 
@@ -79,11 +79,7 @@ $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I cuik/tb/include -I cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS
 
-$(PROG_OBJS) $(ALL_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
-	@mkdir -p $$(dirname $(@))
-	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
-
-$(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
+$(PROG_OBJS) $(ALL_OBJS) $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 

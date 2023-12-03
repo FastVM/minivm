@@ -102,6 +102,10 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
             fprintf(out, "ffi");
             break;
         }
+        case VM_TAG_ERROR: {
+            fprintf(out, "error");
+            break;
+        }
         default: {
             fprintf(out, "<tag: invalid>");
         }

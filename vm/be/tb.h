@@ -30,7 +30,6 @@ struct vm_tb_state_t {
     void *vm_table_set;
     void *vm_table_get_pair;
     void *vm_tb_print;
-    void *vm_tb_report_err;
     void *std;
 };
 

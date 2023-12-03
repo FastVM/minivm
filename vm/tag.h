@@ -20,6 +20,7 @@ enum {
     VM_TAG_FUN,
     VM_TAG_TAB,
     VM_TAG_FFI,
+    VM_TAG_ERROR,
     VM_TAG_MAX,
 };
 

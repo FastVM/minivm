@@ -68,6 +68,7 @@ struct vm_rblock_t {
     void *jit;
     vm_tags_t *regs;
     vm_block_t *block;
+    vm_block_t *cache;
     void *state;
     size_t count;
     vm_block_t *versioned;
@@ -134,12 +135,12 @@ struct vm_block_t {
 
     vm_cache_t *cache;
     void *pass;
+    const char *check;
 
-    int64_t label : 60;
+    int64_t label : 61;
     bool isfunc : 1;
     bool mark : 1;
     bool checked : 1;
-    bool check : 1;
 };
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);

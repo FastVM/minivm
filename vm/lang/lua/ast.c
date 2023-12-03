@@ -37,7 +37,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "comment")) {
         return vm_ast_build_nil();
     }
-    if (!strcmp(type, "chunk") || !strcmp(type, "block") || !strcmp(type, "end")) {
+    if (!strcmp(type, "ERROR") || !strcmp(type, "chunk") || !strcmp(type, "block") || !strcmp(type, "end")) {
         if (num_children == 0) {
             return vm_ast_build_nil();
         }
@@ -410,7 +410,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "false")) {
         return vm_ast_build_literal(b, false);
     }
-    printf("str = %s\n", ts_node_string(node));
+    // printf("str = %s\n", ts_node_string(node));
     return vm_ast_build_nil();
 }
 

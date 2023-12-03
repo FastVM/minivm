@@ -6,12 +6,16 @@
 #include "type.h"
 
 vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *rblock) {
+    if (rblock->cache != NULL) {
+        return rblock->cache;
+    }
     void *cache = vm_cache_get(rblock->block->cache, rblock);
     if (cache != NULL) {
         return cache;
     }
     vm_block_t *ret = vm_malloc(sizeof(vm_block_t));
     vm_cache_set(rblock->block->cache, rblock, ret);
+    rblock->cache = cache;
     vm_tags_t *regs = vm_rblock_regs_dup(rblock->regs, rblock->block->nregs);
     *ret = *rblock->block;
     ret->label = -1;
@@ -175,8 +179,5 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
             ret->args[i].reg_tag = regs->tags[ret->args[i].reg];
         }
     }
-    // if (!vm_check_block(ret)) {
-    //     return NULL;
-    // }
     return ret;
 }

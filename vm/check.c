@@ -17,13 +17,13 @@ static bool vm_check_is_math(vm_tag_t arg) {
     return arg == VM_TAG_I8 || arg == VM_TAG_I16 || arg == VM_TAG_I32 || arg == VM_TAG_I64 || arg == VM_TAG_F32 || arg == VM_TAG_F64;
 }
 
-bool vm_check_instr(vm_instr_t instr) {
+const char *vm_check_instr(vm_instr_t instr) {
     switch (instr.op) {
         case VM_IOP_NOP: {
-            return true;
+            return NULL;
         }
         case VM_IOP_MOVE: {
-            return true;
+            return NULL;
         }
         case VM_IOP_ADD:
         case VM_IOP_SUB:
@@ -32,71 +32,82 @@ bool vm_check_instr(vm_instr_t instr) {
         case VM_IOP_MOD: {
             vm_tag_t a0 = vm_check_get_tag(instr.args[0]);
             vm_tag_t a1 = vm_check_get_tag(instr.args[1]);
-            return vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1;
+            if (vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1) {
+                return NULL;
+            }
+            return "bad math";
         }
         default: {
-            return true;
+            return NULL;
         }
     }
 }
 
-bool vm_check_branch(vm_branch_t branch) {
+const char *vm_check_branch(vm_branch_t branch) {
     switch (branch.op) {
         case VM_BOP_BEQ:
         case VM_BOP_BLT: {
             vm_tag_t a0 = vm_check_get_tag(branch.args[0]);
             vm_tag_t a1 = vm_check_get_tag(branch.args[1]);
-            return vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1;
+            if (vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1) {
+                return NULL;
+            }
+            return "bad branch";
         }
         case VM_BOP_CALL: {
             if (branch.args[0].type == VM_ARG_RFUNC) {
                 if (branch.args[0].rfunc != NULL) {
-                    return true;
+                    return NULL;
                 }
             }
             if (branch.args[0].type == VM_ARG_REG) {
                 if (branch.args[0].reg_tag == VM_TAG_FFI) {
-                    return true;
+                    return NULL;
                 }
                 if (branch.args[0].reg_tag == VM_TAG_FUN || branch.args[0].reg_tag == VM_TAG_CLOSURE) {
-                    return true;
+                    return NULL;
                 }
             }
-            return false;
+            return "can't call non-func";
         }
         case VM_BOP_GET: {
             if (branch.args[0].type == VM_ARG_REG) {
                 if (branch.args[0].reg_tag == VM_TAG_TAB) {
-                    return true;
+                    return NULL;
+                }
+                if (branch.args[0].reg_tag == VM_TAG_TAB) {
+                    return NULL;
                 }
             }
-            return false;
+            return "can't index value: not a table";
         }
         default: {
-            return true;
+            return NULL;
         }
     }
 }
 
-bool vm_check_block(vm_block_t *block) {
+const char *vm_check_block(vm_block_t *block) {
     if (block == NULL) {
         return false;
     }
     if (block->checked) {
         return block->check;
     }
-    bool ret;
+    const char *ret;
     for (size_t i = 0; i < block->len; i++) {
-        if (!vm_check_instr(block->instrs[i])) {
-            ret = false;
+        const char *err = vm_check_instr(block->instrs[i]);
+        if (err != NULL) {
+            ret = err;
             goto ret;
         }
     }
-    if (!vm_check_branch(block->branch)) {
-        ret = false;
+    const char *err = vm_check_branch(block->branch);
+    if (err != NULL) {
+        ret = err;
         goto ret;
     }
-    ret = true;
+    ret = NULL;
     goto ret;
 ret:;
     block->checked = true;
