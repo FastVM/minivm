@@ -284,7 +284,7 @@ vm_table_t *vm_table_new(void) {
     return vm_table_new_size(2);
 }
 
-static vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag) {
+vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag) {
     if (table->alloc == 0) {
         return NULL;
     }

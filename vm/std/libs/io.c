@@ -159,85 +159,128 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
         }
         case VM_TAG_TAB: {
             vm_table_t *tab = value.value.table;
-            vm_indent(out, indent, prefix);
             if (tab == NULL) {
+                vm_indent(out, indent, prefix);
                 fprintf(out, "table(NULL)\n");
-                exit(1);
+                break;
             }
-            fprintf(out, "table(%p) {...}\n", tab);
-            // for (size_t i = 0; i < tab->len; i++) {
-            //     vm_pair_t p = tab->pairs[i];
-            //     switch (p.key_tag) {
-            //         case VM_TAG_NIL: {
-            //             vm_std_value_t val = (vm_std_value_t){
-            //                 .tag = p.val_tag,
-            //                 .value = p.val_val,
-            //             };
-            //             vm_io_debug(out, indent + 1, "nil = ", val, &next);
-            //             break;
-            //         }
-            //         case VM_TAG_BOOL: {
-            //             vm_std_value_t val = (vm_std_value_t){
-            //                 .tag = p.val_tag,
-            //                 .value = p.val_val,
-            //             };
-            //             if (value.value.b) {
-            //                 vm_io_debug(out, indent + 1, "true = ", val, &next);
-            //             } else {
-            //                 vm_io_debug(out, indent + 1, "false = ", val, &next);
-            //             }
-            //             break;
-            //         }
-            //         // case VM_TAG_I64: {
-            //         //     vm_std_value_t val = (vm_std_value_t){
-            //         //         .tag = p.val_tag,
-            //         //         .value = p.val_val,
-            //         //     };
-            //         //     char buf[64];
-            //         //     snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
-            //         //     vm_io_debug(out, indent + 1, buf, val, &next);
-            //         //     break;
-            //         // }
-            //         case VM_TAG_F64: {
-            //             vm_std_value_t val = (vm_std_value_t){
-            //                 .tag = p.val_tag,
-            //                 .value = p.val_val,
-            //             };
-            //             char buf[64];
-            //             snprintf(buf, 63, "%f = ", p.key_val.f64);
-            //             vm_io_debug(out, indent + 1, buf, val, &next);
-            //             break;
-            //         }
-            //         case VM_TAG_STR: {
-            //             vm_std_value_t val = (vm_std_value_t){
-            //                 .tag = p.val_tag,
-            //                 .value = p.val_val,
-            //             };
-            //             char buf[64];
-            //             snprintf(buf, 63, "%s = ", p.key_val.str);
-            //             vm_io_debug(out, indent + 1, buf, val, &next);
-            //             break;
-            //         }
-            //         default: {
-            //             vm_indent(out, indent + 1, "");
-            //             fprintf(out, "pair {\n");
-            //             vm_std_value_t key = (vm_std_value_t){
-            //                 .tag = p.key_tag,
-            //                 .value = p.key_val,
-            //             };
-            //             vm_io_debug(out, indent + 2, "key = ", key, &next);
-            //             vm_std_value_t val = (vm_std_value_t){
-            //                 .tag = p.val_tag,
-            //                 .value = p.val_val,
-            //             };
-            //             vm_io_debug(out, indent + 2, "val = ", val, &next);
-            //             vm_indent(out, indent + 1, "");
-            //             fprintf(out, "}\n");
-            //         }
-            //     }
-            // }
-            // vm_indent(out, indent, "");
-            // fprintf(out, "}\n");
+            vm_indent(out, indent, prefix);
+            fprintf(out, "table(%p) {\n", tab);
+            size_t len = 1 << tab->alloc; 
+            for (size_t i = 0; i < len; i++) {
+                vm_pair_t p = tab->pairs[i];
+                switch (p.key_tag) {
+                    case 0:
+                    case VM_TAG_NIL: {
+                        // vm_std_value_t val = (vm_std_value_t){
+                        //     .tag = p.val_tag,
+                        //     .value = p.val_val,
+                        // };
+                        // vm_io_debug(out, indent + 1, "nil = ", val, &next);
+                        break;
+                    }
+                    case VM_TAG_BOOL: {
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        if (value.value.b) {
+                            vm_io_debug(out, indent + 1, "true = ", val, &next);
+                        } else {
+                            vm_io_debug(out, indent + 1, "false = ", val, &next);
+                        }
+                        break;
+                    }
+                    // case VM_TAG_I64: {
+                    //     vm_std_value_t val = (vm_std_value_t){
+                    //         .tag = p.val_tag,
+                    //         .value = p.val_val,
+                    //     };
+                    //     char buf[64];
+                    //     snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
+                    //     vm_io_debug(out, indent + 1, buf, val, &next);
+                    //     break;
+                    // }
+                    case VM_TAG_I8: {
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        char buf[64];
+                        snprintf(buf, 63, "%"PRIi8" = ", p.key_val.i8);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        break;
+                    }
+                    case VM_TAG_I16: {
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        char buf[64];
+                        snprintf(buf, 63, "%"PRIi16" = ", p.key_val.i16);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        break;
+                    }
+                    case VM_TAG_I32: {
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        char buf[64];
+                        snprintf(buf, 63, "%"PRIi32" = ", p.key_val.i32);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        break;
+                    }
+                    case VM_TAG_I64: {
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        char buf[64];
+                        snprintf(buf, 63, "%"PRIi64" = ", p.key_val.i64);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        break;
+                    }
+                    case VM_TAG_F64: {
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        char buf[64];
+                        snprintf(buf, 63, "%f = ", p.key_val.f64);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        break;
+                    }
+                    case VM_TAG_STR: {
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        char buf[64];
+                        snprintf(buf, 63, "%s = ", p.key_val.str);
+                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        break;
+                    }
+                    default: {
+                        vm_indent(out, indent + 1, "");
+                        fprintf(out, "pair {\n");
+                        vm_std_value_t key = (vm_std_value_t){
+                            .tag = p.key_tag,
+                            .value = p.key_val,
+                        };
+                        vm_io_debug(out, indent + 2, "key = ", key, &next);
+                        vm_std_value_t val = (vm_std_value_t){
+                            .tag = p.val_tag,
+                            .value = p.val_val,
+                        };
+                        vm_io_debug(out, indent + 2, "val = ", val, &next);
+                        vm_indent(out, indent + 1, "");
+                        fprintf(out, "}\n");
+                    }
+                }
+            }
+            vm_indent(out, indent, "");
+            fprintf(out, "}\n");
             break;
         }
         case VM_TAG_FFI: {

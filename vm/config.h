@@ -40,6 +40,8 @@ struct vm_config_t {
     bool dump_x86: 1;
     bool dump_args: 1;
     bool dump_time: 1;
+
+    bool is_repl: 1;
 };
 
 #endif

@@ -23,10 +23,26 @@ vm_std_value_t vm_main_table_get(vm_table_t *table, const char *key) {
     };
 }
 
+void vm_main_table_get_config(vm_table_t *table, vm_config_t *config) {
+    config->use_tb_opt = vm_table_lookup_str(table, "opt")->val_val.b;
+    vm_table_t *dump = vm_table_lookup_str(table, "dump")->val_val.table;
+    config->dump_src = vm_table_lookup_str(dump, "src");
+    config->dump_ast = vm_table_lookup_str(dump, "ast");
+    config->dump_ir = vm_table_lookup_str(dump, "ir");
+    config->dump_ver = vm_table_lookup_str(dump, "ver");
+    config->dump_tb = vm_table_lookup_str(dump, "tb");
+    config->dump_tb_opt = vm_table_lookup_str(dump, "tb_opt");
+    config->dump_tb_dot = vm_table_lookup_str(dump, "tb_dot");
+    config->dump_tb_opt_dot = vm_table_lookup_str(dump, "tb_opt_dot");
+    config->dump_x86 = vm_table_lookup_str(dump, "x86");
+    config->dump_args = vm_table_lookup_str(dump, "args");
+    config->dump_time = vm_table_lookup_str(dump, "time");
+}
+
 void vm_main_table_set_config(vm_table_t *table, vm_config_t *config) {
     VM_STD_SET_BOOL(table, "opt", config->use_tb_opt);
     vm_table_t *dump = vm_table_new();
-    VM_STD_SET_BOOL(table, "dump", dump);
+    VM_STD_SET_TAB(table, "dump", dump);
     VM_STD_SET_BOOL(dump, "src", config->dump_src);
     VM_STD_SET_BOOL(dump, "ast", config->dump_ast);
     VM_STD_SET_BOOL(dump, "ir", config->dump_ir);
@@ -179,6 +195,8 @@ int main(int argc, char **argv) {
         }
     }
 
+    config->is_repl = true;
+
     vm_table_t *std = vm_std_new();
 
     vm_table_t *repl = vm_table_new();
@@ -186,8 +204,11 @@ int main(int argc, char **argv) {
     VM_STD_SET_BOOL(repl, "echo", true);
     VM_STD_SET_TAB(std, "repl", repl);
 
+    ic_set_history(".minivm-history", 2000);
+
     char *input;
     while ((input = ic_readline("lua")) != NULL) {
+        ic_history_add(input);
         clock_t start = clock();
 
         if (config->dump_src) {
