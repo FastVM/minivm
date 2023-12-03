@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 
-tests_start=$(date +%s.%N)
+cd $(dirname $0)
+cd ..
 
-make clean > /dev/null
-make -j$(nproc) build/bin/minivm CFLAGS='-DNDEBUG' > /dev/null
+tests_start=$(date +%s.%N)
 
 test_failed=()
 test_passed=()
+
+global_bench_file="build/bench/all.txt"
 
 for test in $(find test -name '*.lua')
 do
@@ -14,17 +16,18 @@ do
     test_start=$(date +%s.%N)
     test_out_file="build/runs/$test.log"
     test_err_file="build/runs/$test.err"
-    test_bench_file="build/bench/$test.time"
+    test_bench_file="build/bench/$test.txt"
     mkdir -p $(dirname "$test_out_file")
     mkdir -p $(dirname "$test_err_file")
     mkdir -p $(dirname "$test_bench_file")
-    if ./build/bin/minivm $test > "$test_out_file" 2> "$test_err_file"
+    if luajit $test > "$test_out_file" 2> "$test_err_file"
     then
         cat "$test_out_file"
         test_passed+=($test)
         test_end=$(date +%s.%N)
         test_took=$(echo "$test_end-$test_start" | bc | sed 's/^\./0./')
-        echo $test_took > "$test_bench_file"
+        echo "luajit: $test_took" >> "$test_bench_file"
+        echo "$test: luajit: $test_took" >> "$global_bench_file"
         echo "^ took ${test_took}s ^"
     else
         test_failed+=($test)

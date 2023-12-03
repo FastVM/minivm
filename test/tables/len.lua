@@ -27,8 +27,8 @@ local mi = 1
 while mi < max - mi do
     mt[mi] = fill_value
     mt[max - mi] = fill_value
+    assert(#mt == mi, "mid table")
     mi = mi + 1
-    assert(#mt == mi - 1, "mid table")
 end
 mt[mi] = fill_value
 assert(#mt == max - 1, "mid table")

@@ -63,6 +63,10 @@ void vm_ast_print_node(FILE *out, size_t indent, const char *prefix, vm_ast_node
                     fprintf(out, "pow");
                     break;
                 }
+                case VM_AST_FORM_CONCAT: {
+                    fprintf(out, "concat");
+                    break;
+                }
                 case VM_AST_FORM_EQ: {
                     fprintf(out, "eq");
                     break;

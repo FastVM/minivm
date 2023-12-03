@@ -280,6 +280,9 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(op, "and")) {
             return vm_ast_build_and(left, right);
         }
+        if (!strcmp(op, "..")) {
+            return vm_ast_build_concat(left, right);
+        }
         printf("binop = %s\n", op);
         // return vm_ast_build_nil();
     }

@@ -12,7 +12,7 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 int main(int argc, char **argv) {
     vm_init_mem();
     vm_config_t val_config = (vm_config_t) {
-        .use_tb_opt = false,
+        .use_tb_opt = true,
         .use_num = VM_USE_NUM_I32,
     };
     vm_config_t *config = &val_config;

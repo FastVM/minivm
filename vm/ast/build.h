@@ -26,6 +26,9 @@ vm_ast_node_t vm_ast_build_div(vm_ast_node_t lhs, vm_ast_node_t rhs);
 vm_ast_node_t vm_ast_build_mod(vm_ast_node_t lhs, vm_ast_node_t rhs);
 vm_ast_node_t vm_ast_build_pow(vm_ast_node_t lhs, vm_ast_node_t rhs);
 
+// strings
+vm_ast_node_t vm_ast_build_concat(vm_ast_node_t lhs, vm_ast_node_t rhs);
+
 // compare
 vm_ast_node_t vm_ast_build_eq(vm_ast_node_t lhs, vm_ast_node_t rhs);
 vm_ast_node_t vm_ast_build_ne(vm_ast_node_t lhs, vm_ast_node_t rhs);

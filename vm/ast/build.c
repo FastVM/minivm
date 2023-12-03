@@ -110,6 +110,11 @@ vm_ast_node_t vm_ast_build_pow(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_POW, lhs, rhs);
 }
 
+// strings
+vm_ast_node_t vm_ast_build_concat(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+    return vm_ast_form(VM_AST_FORM_CONCAT, lhs, rhs);
+}
+
 // compare
 vm_ast_node_t vm_ast_build_eq(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_EQ, lhs, rhs);

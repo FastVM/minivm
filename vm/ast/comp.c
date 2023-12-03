@@ -538,6 +538,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = next;
                     return out;
                 }
+                case VM_AST_FORM_CONCAT: {
+                    break;
+                }
                 case VM_AST_FORM_ADD:
                 case VM_AST_FORM_SUB:
                 case VM_AST_FORM_MUL:

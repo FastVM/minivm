@@ -38,6 +38,8 @@ enum {
     VM_AST_FORM_DIV,
     VM_AST_FORM_MOD,
     VM_AST_FORM_POW,
+    // strings
+    VM_AST_FORM_CONCAT,
     // compare
     VM_AST_FORM_EQ,
     VM_AST_FORM_NE,
