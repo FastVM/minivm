@@ -8,7 +8,7 @@
 #include <string.h>  
 #include <sys/stat.h>
 
-#include "../include/isocline.h"
+#include "./isocline.h"
 #include "common.h"
 #include "history.h"
 #include "stringbuf.h"

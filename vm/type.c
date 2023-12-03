@@ -5,7 +5,7 @@
 
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
-    *rblock = (vm_rblock_t) {
+    *rblock = (vm_rblock_t){
         .block = block,
         .regs = regs,
         .jit = NULL,

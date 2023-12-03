@@ -8,7 +8,7 @@
 #ifndef IC_ENV_H
 #define IC_ENV_H
 
-#include "../include/isocline.h"
+#include "./isocline.h"
 #include "common.h"
 #include "term.h"
 #include "tty.h"

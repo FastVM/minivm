@@ -140,7 +140,8 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
                 .lit = (vm_std_value_t){
                     .tag = VM_TAG_I32,
                     .value = cap.slot,
-                }};
+                }
+            };
             vm_ast_blocks_branch(
                 comp,
                 (vm_branch_t){
@@ -175,7 +176,8 @@ static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_
         .lit = (vm_std_value_t){
             .tag = VM_TAG_I32,
             .value = slotnum + 1,
-        }};
+        }
+    };
     vm_ast_blocks_branch(
         comp,
         (vm_branch_t){
@@ -441,9 +443,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         size_t local = vm_ast_comp_get_local(comp->names, target.value.ident);
                         if (local == SIZE_MAX) {
                             vm_arg_t env_arg = vm_ast_comp_to(comp, vm_ast_build_ident("_ENV"));
-                            vm_arg_t key_arg = (vm_arg_t) {
+                            vm_arg_t key_arg = (vm_arg_t){
                                 .type = VM_ARG_LIT,
-                                .lit = (vm_std_value_t) {
+                                .lit = (vm_std_value_t){
                                     .tag = VM_TAG_STR,
                                     .value.str = target.value.ident,
                                 },

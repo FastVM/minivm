@@ -228,7 +228,7 @@ size_t vm_value_hash(vm_std_value_t value) {
             return SIZE_MAX - 2;
         }
         case VM_TAG_BOOL: {
-            return SIZE_MAX - (size_t) value.value.b;
+            return SIZE_MAX - (size_t)value.value.b;
         }
         case VM_TAG_I8: {
             return value.value.i8;
@@ -243,10 +243,10 @@ size_t vm_value_hash(vm_std_value_t value) {
             return value.value.i64;
         }
         case VM_TAG_F32: {
-            return *(uint32_t *) &value.value.f32;
+            return *(uint32_t *)&value.value.f32;
         }
         case VM_TAG_F64: {
-            return *(uint64_t *) &value.value.f64;
+            return *(uint64_t *)&value.value.f64;
         }
         case VM_TAG_STR: {
             size_t ret = 1 << 16;
@@ -262,7 +262,7 @@ size_t vm_value_hash(vm_std_value_t value) {
         case VM_TAG_CLOSURE:
         case VM_TAG_TAB:
         case VM_TAG_FUN: {
-            return (size_t) value.value.all >> 4;
+            return (size_t)value.value.all >> 4;
         }
         default: {
             return SIZE_MAX - 3;
@@ -288,17 +288,17 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_t
     if (table->alloc == 0) {
         return NULL;
     }
-    vm_std_value_t key = (vm_std_value_t) {
+    vm_std_value_t key = (vm_std_value_t){
         .tag = key_tag,
         .value = key_val,
     };
-    size_t len = 1 << table->alloc; 
+    size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop & and;
     do {
         vm_pair_t *pair = &table->pairs[next];
-        vm_std_value_t value = (vm_std_value_t) {
+        vm_std_value_t value = (vm_std_value_t){
             .tag = pair->key_tag,
             .value = pair->key_val,
         };
@@ -318,11 +318,11 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
     if (table->alloc == 0) {
         return;
     }
-    vm_std_value_t key = (vm_std_value_t) {
+    vm_std_value_t key = (vm_std_value_t){
         .tag = key_tag,
         .value = key_val,
     };
-    size_t len = 1 << table->alloc; 
+    size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop & and;
@@ -331,7 +331,7 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         if (pair->key_tag == 0) {
             break;
         }
-        vm_std_value_t check = (vm_std_value_t) {
+        vm_std_value_t check = (vm_std_value_t){
             .tag = pair->key_tag,
             .value = pair->key_val,
         };
@@ -376,20 +376,20 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         return;
     }
     table->used += 1;
-    table->pairs[next] = (vm_pair_t) {
+    table->pairs[next] = (vm_pair_t){
         .key_tag = key_tag,
         .key_val = key_val,
         .val_tag = val_tag,
         .val_val = val_val,
     };
-    vm_std_value_t vlen = (vm_std_value_t) {
+    vm_std_value_t vlen = (vm_std_value_t){
         .tag = VM_TAG_I32,
         .value.i32 = table->len + 1,
     };
     if (vm_value_eq(vlen, key)) {
         while (true) {
             int32_t next = table->len + 1;
-            vm_pair_t *got = vm_table_lookup(table, (vm_value_t) { .i32 = next }, VM_TAG_I32);
+            vm_pair_t *got = vm_table_lookup(table, (vm_value_t){.i32 = next}, VM_TAG_I32);
             if (got == NULL) {
                 break;
             }

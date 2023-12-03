@@ -12,7 +12,7 @@ RES_DIR ?= $(BUILD_DIR)/res
 UNAME_S != uname -s
 UNAME_O != uname -o
 
-PROG_SRCS = main/minivm.c main/isocline/isocline.c
+PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
@@ -21,7 +21,7 @@ GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 TREES_SRCS := trees/alloc.c trees/get_changed_ranges.c trees/language.c trees/lexer.c trees/node.c trees/parser.c trees/query.c trees/stack.c trees/subtree.c trees/tree_cursor.c trees/tree.c
 
 STD_SRCS := vm/std/libs/io.c vm/std/std.c
-VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/ast/build.c vm/ast/comp.c vm/ast/print.c vm/lang/eb.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c vm/lang/lua/parser.c vm/lang/lua/scan.c vm/lang/lua/ast.c
+VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/ast/build.c vm/ast/comp.c vm/ast/print.c vm/lang/eb.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c vm/lang/lua/parser.c vm/lang/lua/scan.c vm/lang/lua/ast.c vm/lang/lua/repl.c isocline/isocline.c
 
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
@@ -69,9 +69,9 @@ gcc-windows: .dummy
 
 bins: $(BIN_DIR)/minivm$(EXE)
 
-minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJ_DIR)/main/isocline/isocline.o $(OBJS)
+minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 	@mkdir -p $$(dirname $(@))
-	$(CC) $(OPT)  $(OBJ_DIR)/main/minivm.o $(OBJ_DIR)/main/isocline/isocline.o $(OBJS) -o $(@) $(LDFLAGS)
+	$(CC) $(OPT)  $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) $(LDFLAGS)
 
 # intermediate files
 

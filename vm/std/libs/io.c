@@ -166,7 +166,7 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
             }
             vm_indent(out, indent, prefix);
             fprintf(out, "table(%p) {\n", tab);
-            size_t len = 1 << tab->alloc; 
+            size_t len = 1 << tab->alloc;
             for (size_t i = 0; i < len; i++) {
                 vm_pair_t p = tab->pairs[i];
                 switch (p.key_tag) {
@@ -207,7 +207,7 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
                             .value = p.val_val,
                         };
                         char buf[64];
-                        snprintf(buf, 63, "%"PRIi8" = ", p.key_val.i8);
+                        snprintf(buf, 63, "%" PRIi8 " = ", p.key_val.i8);
                         vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }
@@ -217,7 +217,7 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
                             .value = p.val_val,
                         };
                         char buf[64];
-                        snprintf(buf, 63, "%"PRIi16" = ", p.key_val.i16);
+                        snprintf(buf, 63, "%" PRIi16 " = ", p.key_val.i16);
                         vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }
@@ -227,7 +227,7 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
                             .value = p.val_val,
                         };
                         char buf[64];
-                        snprintf(buf, 63, "%"PRIi32" = ", p.key_val.i32);
+                        snprintf(buf, 63, "%" PRIi32 " = ", p.key_val.i32);
                         vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }
@@ -237,7 +237,7 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
                             .value = p.val_val,
                         };
                         char buf[64];
-                        snprintf(buf, 63, "%"PRIi64" = ", p.key_val.i64);
+                        snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
                         vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }

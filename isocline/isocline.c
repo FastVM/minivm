@@ -44,7 +44,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "../include/isocline.h"
+#include "./isocline.h"
 #include "common.h"
 #include "env.h"
 

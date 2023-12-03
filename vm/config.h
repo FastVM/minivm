@@ -4,8 +4,6 @@
 
 #define VM_USE_NUM i64
 
-#include "lib.h"
-
 #define VM_USE_LEAKS_NOGC 0
 #define VM_USE_LEAKS_TGC 1
 #define VM_USE_LEAKS_BDWGC 2
@@ -26,22 +24,22 @@ enum {
 };
 
 struct vm_config_t {
-    uint8_t use_num: 3;
-    bool use_tb_opt: 1;
+    unsigned int use_num: 3;
+    _Bool use_tb_opt: 1;
     
-    bool dump_src: 1;
-    bool dump_ast: 1;
-    bool dump_ir: 1;
-    bool dump_ver: 1;
-    bool dump_tb: 1;
-    bool dump_tb_opt: 1;
-    bool dump_tb_dot: 1;
-    bool dump_tb_opt_dot: 1;
-    bool dump_x86: 1;
-    bool dump_args: 1;
-    bool dump_time: 1;
+    _Bool dump_src: 1;
+    _Bool dump_ast: 1;
+    _Bool dump_ir: 1;
+    _Bool dump_ver: 1;
+    _Bool dump_tb: 1;
+    _Bool dump_tb_opt: 1;
+    _Bool dump_tb_dot: 1;
+    _Bool dump_tb_opt_dot: 1;
+    _Bool dump_x86: 1;
+    _Bool dump_args: 1;
+    _Bool dump_time: 1;
 
-    bool is_repl: 1;
+    _Bool is_repl: 1;
 };
 
 #endif

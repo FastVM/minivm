@@ -5,7 +5,7 @@
 #include "./util.h"
 
 void vm_std_os_exit(vm_std_value_t *args) {
-    exit((int) vm_value_to_i64(args[0]));
+    exit((int)vm_value_to_i64(args[0]));
 }
 
 void vm_std_assert(vm_std_value_t *args) {

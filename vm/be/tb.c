@@ -198,7 +198,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             return ret;
         }
     }
-    
+
     block->pass = ret;
 
 #if VM_USE_DUMP
@@ -1025,7 +1025,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             tb_inst_set_control(fun, bad_region);
             tb_inst_unreachable(fun);
-            
+
             break;
         }
 
@@ -1290,7 +1290,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
 void vm_tb_func_report_error(vm_tb_state_t *state, TB_Function *fun, const char *str) {
     TB_Node *ret_vals[2];
-    ret_vals[0] = vm_tb_ptr_name(state->module, fun, "<error>", (void *) str);
+    ret_vals[0] = vm_tb_ptr_name(state->module, fun, "<error>", (void *)str);
     ret_vals[1] = tb_inst_uint(fun, TB_TYPE_I32, VM_TAG_ERROR);
     tb_inst_ret(fun, 2, ret_vals);
 }
@@ -1421,7 +1421,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         };
 
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, proto_rets, false);
-    
+
         tb_function_set_prototype(
             fun,
             -1,
