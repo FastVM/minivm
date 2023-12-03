@@ -283,7 +283,6 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(op, "..")) {
             return vm_ast_build_concat(left, right);
         }
-        printf("binop = %s\n", op);
         // return vm_ast_build_nil();
     }
     if (!strcmp(type, "string")) {
@@ -384,8 +383,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                 cur = vm_ast_build_local(target, value);
                 nfields += 1;
             } else {
-                printf("n%zu: %s\n", i, name);
-                __builtin_trap();
+                return vm_ast_build_nil();
             }
             built = vm_ast_build_do(built, cur);
         }
@@ -410,7 +408,6 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "false")) {
         return vm_ast_build_literal(b, false);
     }
-    printf("str = %s\n", ts_node_string(node));
     return vm_ast_build_nil();
 }
 

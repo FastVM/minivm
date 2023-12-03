@@ -61,8 +61,53 @@ void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
 
 void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     vm_lang_lua_repl_complete_state_t *state = cenv->arg;
+    ptrdiff_t len = strlen(prefix);
+    ptrdiff_t head = len - 1;
+    while (head >= 0 &&(iswalnum(prefix[head]) || prefix[head] == '.')) {
+        head -= 1;
+    }
+    head += 1;
+    const char *last_word = &prefix[head];
+    if (!strcmp(last_word, "")) {
+        return;
+    }
     FILE *f = fopen("out.log", "w");
-    fprintf(f, "prefix: <<%s>>\n", prefix);
+
+    vm_table_t *std = state->std;
+with_new_std:;
+    fprintf(f, "find: %s\n", last_word);
+    for (size_t i = 0; i < (1 << std->alloc); i++) {
+        vm_pair_t *pair = &std->pairs[i];
+        if (pair->key_tag == VM_TAG_STR) {
+            const char *got = pair->key_val.str;
+            fprintf(f, "in: %s\n", got);
+            size_t i = 0;
+            while (got[i] != '\0') {
+                if (last_word[i] == '\0') {
+                    fprintf(f, "found: %s in %s\n", last_word, got);
+                    const char *completions[2];
+                    completions[0] = got+i;
+                    completions[1] = NULL;
+                    if (!ic_add_completions(cenv, "", completions)) {
+                        goto ret;
+                    }
+                    break;
+                } else if (got[i] != last_word[i]) {
+                    break;
+                } else {
+                    i += 1;
+                    continue;
+                }
+            }
+            if (last_word[i] == '.' && pair->val_tag == VM_TAG_TAB) {
+                std = pair->val_val.table;
+                last_word = &last_word[i+1];
+                goto with_new_std;
+            }
+        }
+    }
+ret:;
+    fprintf(f, "prefix: <<%.*s>>\n", (int)(len - head), prefix + head);
     fclose(f);
 }
 void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
@@ -79,8 +124,13 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
 
     ic_set_history(".minivm-history", 2000);
 
-    vm_lang_lua_repl_complete_state_t complete_state = (vm_lang_lua_repl_complete_state_t){0};
-    vm_lang_lua_repl_highlight_state_t highlight_state = (vm_lang_lua_repl_highlight_state_t){0};
+    vm_lang_lua_repl_complete_state_t complete_state = (vm_lang_lua_repl_complete_state_t){
+        .config = config,
+        .std = std,
+    };
+    vm_lang_lua_repl_highlight_state_t highlight_state = (vm_lang_lua_repl_highlight_state_t){
+        .config = config,
+    };
 
     char *input;
     while ((input = ic_readline_ex("lua", vm_lang_lua_repl_completer, &complete_state, vm_lang_lua_repl_highlight, &highlight_state)) != NULL) {
@@ -94,6 +144,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
         }
 
         vm_ast_node_t node = vm_lang_lua_parse(config, input);
+        free(input);
 
         if (config->dump_ast) {
             printf("\n--- ast ---\n");
@@ -106,7 +157,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
             vm_print_blocks(stdout, blocks.len, blocks.blocks);
         }
 
-        vm_std_value_t value = vm_tb_run(config, blocks.len, blocks.blocks, std);
+        vm_std_value_t value = vm_tb_run_main(config, blocks.len, blocks.blocks, std);
         if (vm_lang_lua_repl_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
             vm_io_debug(stdout, 0, "", value, NULL);
         }
@@ -117,6 +168,5 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
             double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
             printf("took: %.3fms\n", diff);
         }
-        free(input);
     }
 }

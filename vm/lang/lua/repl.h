@@ -15,7 +15,7 @@ typedef struct vm_lang_lua_repl_highlight_state_t vm_lang_lua_repl_highlight_sta
 
 struct vm_lang_lua_repl_complete_state_t {
     vm_config_t *config;
-    vm_table_t *env;
+    vm_table_t *std;
 };
 struct vm_lang_lua_repl_highlight_state_t {
     vm_config_t *config;
