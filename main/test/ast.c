@@ -162,7 +162,7 @@ void vm_test(vm_config_t *config, const char *name, vm_test_func_t gen) {
         vm_print_blocks(stdout, blocks.len, blocks.blocks);
     }
 
-    vm_std_value_t value = vm_tb_run_main(config, blocks.len, blocks.blocks, vm_std_new());
+    vm_std_value_t value = vm_tb_run_main(config, blocks.entry, blocks.len, blocks.blocks, vm_std_new());
     
     clock_t p4 = clock();
 

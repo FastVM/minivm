@@ -1547,24 +1547,15 @@ void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
 
 typedef vm_std_value_t VM_CDECL vm_tb_func_t(void);
 
-vm_std_value_t vm_tb_run_main(vm_config_t *config, size_t nblocks, vm_block_t **blocks, vm_table_t *std) {
-    vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
-    state->std = std;
-    state->config = config;
-    state->nblocks = nblocks;
-    state->blocks = blocks;
-
-    vm_tb_new_module(state);
-
-    vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, blocks[0]);
-    vm_std_value_t val = fn();
+vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, size_t nblocks, vm_block_t **blocks, vm_table_t *std) {
+    vm_std_value_t val = vm_tb_run_repl(config, entry, nblocks, blocks, std);
     if (val.tag == VM_TAG_ERROR) {
         printf("error: %s\n", val.value.str);
     }
     return val;
 }
 
-vm_std_value_t vm_tb_run_repl(vm_config_t *config, size_t nblocks, vm_block_t **blocks, vm_table_t *std) {
+vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, size_t nblocks, vm_block_t **blocks, vm_table_t *std) {
     vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
     state->std = std;
     state->config = config;
@@ -1573,6 +1564,6 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, size_t nblocks, vm_block_t **
 
     vm_tb_new_module(state);
 
-    vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, blocks[0]);
+    vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, entry);
     return fn();
 }

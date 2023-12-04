@@ -19,6 +19,7 @@ struct vm_lang_lua_repl_complete_state_t {
 };
 struct vm_lang_lua_repl_highlight_state_t {
     vm_config_t *config;
+    vm_table_t *std;
 };
 
 #endif

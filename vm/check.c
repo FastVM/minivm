@@ -60,24 +60,23 @@ const char *vm_check_branch(vm_branch_t branch) {
                     return NULL;
                 }
             }
-            if (branch.args[0].type == VM_ARG_REG) {
-                if (branch.args[0].reg_tag == VM_TAG_FFI) {
-                    return NULL;
-                }
-                if (branch.args[0].reg_tag == VM_TAG_FUN || branch.args[0].reg_tag == VM_TAG_CLOSURE) {
-                    return NULL;
-                }
+            if (vm_check_get_tag(branch.args[0]) == VM_TAG_FFI) {
+                return NULL;
+            }
+            if (vm_check_get_tag(branch.args[0]) == VM_TAG_FUN) {
+                return NULL;
+            }
+            if (vm_check_get_tag(branch.args[0]) == VM_TAG_CLOSURE) {
+                return NULL;
             }
             return "can't call non-func";
         }
         case VM_BOP_GET: {
-            if (branch.args[0].type == VM_ARG_REG) {
-                if (branch.args[0].reg_tag == VM_TAG_TAB) {
-                    return NULL;
-                }
-                if (branch.args[0].reg_tag == VM_TAG_TAB) {
-                    return NULL;
-                }
+            if (vm_check_get_tag(branch.args[0]) == VM_TAG_TAB) {
+                return NULL;
+            }
+            if (vm_check_get_tag(branch.args[0]) == VM_TAG_CLOSURE) {
+                return NULL;
             }
             return "can't index value: not a table";
         }

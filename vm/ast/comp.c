@@ -874,16 +874,14 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
     exit(1);
 }
 
-vm_ast_blocks_t vm_ast_comp(vm_ast_node_t node) {
+void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
     vm_ast_comp_t comp = (vm_ast_comp_t){
-        .blocks = (vm_ast_blocks_t){
-            .len = 0,
-            .blocks = NULL,
-            .alloc = 0,
-        },
+        .blocks = *blocks,
     };
     vm_ast_comp_names_push(&comp);
-    comp.cur = vm_ast_comp_new_block(&comp);
+    comp.blocks.entry = vm_ast_comp_new_block(&comp);
+    size_t start = comp.blocks.entry->id;
+    comp.cur = comp.blocks.entry; 
     vm_ast_blocks_instr(
         &comp,
         (vm_instr_t){
@@ -900,6 +898,19 @@ vm_ast_blocks_t vm_ast_comp(vm_ast_node_t node) {
             block->branch.args = vm_ast_args(0);
         }
     }
-    vm_block_info(comp.blocks.len, comp.blocks.blocks);
-    return comp.blocks;
+    vm_block_info(comp.blocks.len - start, &comp.blocks.blocks[start]);
+    *blocks = comp.blocks;
+}
+
+vm_ast_blocks_t vm_ast_comp(vm_ast_node_t node) {
+    vm_ast_blocks_t blocks = (vm_ast_blocks_t) {
+        .len = 0,
+        .blocks = NULL,
+        .alloc = 0,
+    };
+    vm_ast_comp_more(
+        node,
+        &blocks
+    );
+    return blocks;
 }

@@ -5,7 +5,7 @@
 #include "../../ast/print.h"
 #include "./parser.h"
 
-extern const TSLanguage *tree_sitter_lua(void);
+const TSLanguage *tree_sitter_lua(void);
 
 typedef struct {
     const char *src;
@@ -135,7 +135,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                         args[write++] = vm_lang_lua_conv(src, arg);
                     }
                 }
-                return vm_ast_build_local(
+                return vm_ast_build_set(
                     vm_ast_build_load(
                         vm_lang_lua_conv(src, ts_node_child(target, 0)),
                         vm_lang_lua_conv(src, ts_node_child(target, 2))
@@ -172,7 +172,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                         args[write++] = vm_lang_lua_conv(src, arg);
                     }
                 }
-                return vm_ast_build_local(
+                return vm_ast_build_set(
                     vm_lang_lua_conv(src, target),
                     vm_ast_build_lambda(
                         vm_ast_build_nil(),
@@ -367,6 +367,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (num_children == 2) {
             return vm_ast_build_new();
         }
+        printf("%zu\n", num_children);
         vm_ast_node_t var = vm_lang_lua_gensym(src);
         size_t nfields = 1;
         vm_ast_node_t built = vm_ast_build_local(var, vm_ast_build_new());
@@ -376,11 +377,12 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             if (!strcmp(name, "{") || !strcmp(name, ",") || !strcmp(name, "}")) {
                 continue;
             }
+            printf("%s\n", name);
             vm_ast_node_t cur = vm_ast_build_nil();
             if (!strcmp(name, "field")) {
                 vm_ast_node_t target = vm_ast_build_load(var, vm_ast_build_literal(i32, nfields));
                 vm_ast_node_t value = vm_lang_lua_conv(src, ts_node_child(sub, 0));
-                cur = vm_ast_build_local(target, value);
+                cur = vm_ast_build_set(target, value);
                 nfields += 1;
             } else {
                 return vm_ast_build_nil();

@@ -1,12 +1,15 @@
-#include "repl.h"
-#include "../../std/util.h"
-#include "../../be/tb.h"
-#include "../../ast/ast.h"
-#include "../../ast/print.h"
-#include "../../ast/comp.h"
+#include "./repl.h"
+#include "./parser.h"
 #include "../../ir.h"
+#include "../../ast/ast.h"
+#include "../../ast/comp.h"
+#include "../../ast/print.h"
+#include "../../be/tb.h"
 #include "../../std/libs/io.h"
+#include "../../std/util.h"
+#include "../../../trees/api.h"
 
+const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 
 vm_std_value_t vm_lang_lua_repl_table_get(vm_table_t *table, const char *key) {
@@ -27,19 +30,19 @@ bool vm_lang_lua_repl_table_get_bool(vm_table_t *table, const char *key) {
 }
 
 void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
-    config->use_tb_opt = vm_table_lookup_str(table, "opt")->val_val.b;
+    config->use_tb_opt = vm_lang_lua_repl_table_get_bool(table, "opt");
     vm_table_t *dump = vm_table_lookup_str(table, "dump")->val_val.table;
-    config->dump_src = vm_table_lookup_str(dump, "src")->val_val.b;
-    config->dump_ast = vm_table_lookup_str(dump, "ast")->val_val.b;
-    config->dump_ir = vm_table_lookup_str(dump, "ir")->val_val.b;
-    config->dump_ver = vm_table_lookup_str(dump, "ver")->val_val.b;
-    config->dump_tb = vm_table_lookup_str(dump, "tb")->val_val.b;
-    config->dump_tb_opt = vm_table_lookup_str(dump, "tb_opt")->val_val.b;
-    config->dump_tb_dot = vm_table_lookup_str(dump, "tb_dot")->val_val.b;
-    config->dump_tb_opt_dot = vm_table_lookup_str(dump, "tb_opt_dot")->val_val.b;
-    config->dump_x86 = vm_table_lookup_str(dump, "x86")->val_val.b;
-    config->dump_args = vm_table_lookup_str(dump, "args")->val_val.b;
-    config->dump_time = vm_table_lookup_str(dump, "time")->val_val.b;
+    config->dump_src = vm_lang_lua_repl_table_get_bool(dump, "src");
+    config->dump_ast = vm_lang_lua_repl_table_get_bool(dump, "ast");
+    config->dump_ir = vm_lang_lua_repl_table_get_bool(dump, "ir");
+    config->dump_ver = vm_lang_lua_repl_table_get_bool(dump, "ver");
+    config->dump_tb = vm_lang_lua_repl_table_get_bool(dump, "tb");
+    config->dump_tb_opt = vm_lang_lua_repl_table_get_bool(dump, "tb_opt");
+    config->dump_tb_dot = vm_lang_lua_repl_table_get_bool(dump, "tb_dot");
+    config->dump_tb_opt_dot = vm_lang_lua_repl_table_get_bool(dump, "tb_opt_dot");
+    config->dump_x86 = vm_lang_lua_repl_table_get_bool(dump, "x86");
+    config->dump_args = vm_lang_lua_repl_table_get_bool(dump, "args");
+    config->dump_time = vm_lang_lua_repl_table_get_bool(dump, "time");
 }
 
 void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
@@ -68,23 +71,15 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     }
     head += 1;
     const char *last_word = &prefix[head];
-    if (!strcmp(last_word, "")) {
-        return;
-    }
-    FILE *f = fopen("out.log", "w");
-
     vm_table_t *std = state->std;
 with_new_std:;
-    fprintf(f, "find: %s\n", last_word);
     for (size_t i = 0; i < (1 << std->alloc); i++) {
         vm_pair_t *pair = &std->pairs[i];
         if (pair->key_tag == VM_TAG_STR) {
             const char *got = pair->key_val.str;
-            fprintf(f, "in: %s\n", got);
             size_t i = 0;
             while (got[i] != '\0') {
                 if (last_word[i] == '\0') {
-                    fprintf(f, "found: %s in %s\n", last_word, got);
                     const char *completions[2];
                     completions[0] = got+i;
                     completions[1] = NULL;
@@ -99,19 +94,124 @@ with_new_std:;
                     continue;
                 }
             }
-            if (last_word[i] == '.' && pair->val_tag == VM_TAG_TAB) {
-                std = pair->val_val.table;
-                last_word = &last_word[i+1];
-                goto with_new_std;
+            if (pair->val_tag == VM_TAG_TAB) {
+                if (last_word[i] == '.') {
+                    std = pair->val_val.table;
+                    last_word = &last_word[i+1];
+                    goto with_new_std;
+                }
+                if (!strcmp(last_word, got)) {
+                    const char *completions[2];
+                    completions[0] = ".";
+                    completions[1] = NULL;
+                    if (!ic_add_completions(cenv, "", completions)) {
+                        goto ret;
+                    }
+                }
             }
         }
     }
 ret:;
-    fprintf(f, "prefix: <<%.*s>>\n", (int)(len - head), prefix + head);
-    fclose(f);
 }
+
+const char *vm_lang_lua_repl_highlight_bracket_color(vm_table_t *repl, size_t depth) {
+    if (repl == NULL) {
+        return "";
+    }
+    vm_pair_t *value = vm_table_lookup_str(repl, "parens");
+    if (value == NULL) {
+        return "";
+    }
+    if (value->val_tag != VM_TAG_TAB) {
+        return "";
+    }
+    if (value->val_val.table->len == 0) {
+        return "";
+    }
+    vm_table_t *tab = value->val_val.table;
+    vm_pair_t *sub = vm_table_lookup(tab, (vm_value_t) {.i32 = (int32_t) depth % (int32_t) tab->len + 1}, VM_TAG_I32);
+    if (sub == NULL || sub->val_tag != VM_TAG_STR) {
+        return "";
+    }
+    return sub->val_val.str;
+}
+
+void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, vm_table_t *repl, size_t *depth, TSNode node) {
+    const char *type = ts_node_type(node);
+    size_t start = ts_node_start_byte(node);
+    size_t end = ts_node_end_byte(node);
+    size_t len = end - start;
+    if (!strcmp("string", type)) {
+        ic_highlight(henv, start, len, "orange");
+    }
+    if (!strcmp("number", type)) {
+        ic_highlight(henv, start, len, "lightgreen");
+    }
+    if (!strcmp("identifier", type)) {
+        ic_highlight(henv, start, len, "white");
+    }
+    // if (!strcmp("binary_expression", type)) {
+    //     TSNode node2 = ts_node_child(node, 1);
+    //     size_t start2 = ts_node_start_byte(node2);
+    //     size_t end2 = ts_node_end_byte(node2);
+    //     size_t len2 = end2 - start2;
+    //     ic_highlight(henv, start2, len2, "white");
+    // }
+    if (!strcmp("(", type)) {
+        ic_highlight(henv, start, len, vm_lang_lua_repl_highlight_bracket_color(repl, *depth));
+        *depth += 1;
+    }
+    if (!strcmp(")", type)) {
+        *depth -= 1;
+        ic_highlight(henv, start, len, vm_lang_lua_repl_highlight_bracket_color(repl, *depth));
+    }
+    const char *keywords[] = {
+        "local",
+        "function",
+        "while",
+        "do",
+        "if",
+        "then",
+        "return",
+        "else",
+        "end",
+        NULL,
+    };
+    for (size_t i = 0; keywords[i] != NULL; i++) {
+        if (!strcmp(keywords[i], type)) {
+            ic_highlight(henv, start, len, "keyword");
+        }
+    }
+    size_t num_children = ts_node_child_count(node);
+    for (size_t i = 0; i < num_children; i++) {
+        TSNode sub = ts_node_child(node, i);
+        vm_lang_lua_repl_highlight_walk(henv, repl, depth, sub);
+    }
+}
+
 void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
     vm_lang_lua_repl_highlight_state_t *state = arg;
+    TSParser *parser = ts_parser_new();
+    ts_parser_set_language(parser, tree_sitter_lua());
+    TSTree *tree = ts_parser_parse_string(
+        parser,
+        NULL,
+        input,
+        strlen(input)
+    );
+    TSNode root_node = ts_tree_root_node(tree);
+    size_t depth = 0;
+    vm_pair_t *value = vm_table_lookup_str(state->std, "config");
+    vm_table_t *repl = NULL;
+    if (value != NULL && value->val_tag == VM_TAG_TAB) {
+        repl = value->val_val.table;
+    }
+    vm_lang_lua_repl_highlight_walk(henv, repl, &depth, root_node);
+
+    // FILE *out = fopen("out.log", "w");
+    // fprintf(out, "%s\n", input);
+    // fclose(out);
+    // ic_highlight(henv, 1, strlen(input) - 2, "keyword");
 }
 
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
@@ -120,6 +220,11 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
     vm_table_t *repl = vm_table_new();
     vm_lang_lua_repl_table_set_config(repl, config);
     VM_STD_SET_BOOL(repl, "echo", true);
+    vm_table_t *parens = vm_table_new();
+    vm_table_set(parens, (vm_value_t) {.i32 = 1}, (vm_value_t) {.str = "yellow"}, VM_TAG_I32, VM_TAG_STR);
+    vm_table_set(parens, (vm_value_t) {.i32 = 2}, (vm_value_t) {.str = "magenta"}, VM_TAG_I32, VM_TAG_STR);
+    vm_table_set(parens, (vm_value_t) {.i32 = 3}, (vm_value_t) {.str = "blue"}, VM_TAG_I32, VM_TAG_STR);
+    VM_STD_SET_TAB(repl, "parens", parens);
     VM_STD_SET_TAB(std, "config", repl);
 
     ic_set_history(".minivm-history", 2000);
@@ -130,10 +235,26 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
     };
     vm_lang_lua_repl_highlight_state_t highlight_state = (vm_lang_lua_repl_highlight_state_t){
         .config = config,
+        .std = std,
     };
 
-    char *input;
-    while ((input = ic_readline_ex("lua", vm_lang_lua_repl_completer, &complete_state, vm_lang_lua_repl_highlight, &highlight_state)) != NULL) {
+    vm_ast_blocks_t blocks = (vm_ast_blocks_t) {
+        .len = 0,
+        .blocks = NULL,
+        .alloc = 0,
+    };
+
+    while (true) {
+        char *input = ic_readline_ex(
+            "lua", 
+            vm_lang_lua_repl_completer,
+            &complete_state,
+            vm_lang_lua_repl_highlight, 
+            &highlight_state
+        );
+        if (input == NULL) {
+            break;
+        }
         vm_lang_lua_repl_table_get_config(repl, config);
         ic_history_add(input);
         clock_t start = clock();
@@ -151,14 +272,16 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
             vm_ast_print_node(stdout, 0, "", node);
         }
 
-        vm_ast_blocks_t blocks = vm_ast_comp(node);
+        vm_ast_comp_more(node, &blocks);
 
         if (config->dump_ir) {
             vm_print_blocks(stdout, blocks.len, blocks.blocks);
         }
 
-        vm_std_value_t value = vm_tb_run_main(config, blocks.len, blocks.blocks, std);
-        if (vm_lang_lua_repl_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
+        vm_std_value_t value = vm_tb_run_repl(config, blocks.entry, blocks.len, blocks.blocks, std);
+        if (value.tag == VM_TAG_ERROR) {
+            printf("error: %s\n", value.value.str);
+        } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
             vm_io_debug(stdout, 0, "", value, NULL);
         }
 

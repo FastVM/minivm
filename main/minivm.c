@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
             if (!dry_run) {
                 vm_table_t *std = vm_std_new();
                 // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
-                vm_std_value_t value = vm_tb_run_main(config, blocks.len, blocks.blocks, std);
+                vm_std_value_t value = vm_tb_run_main(config, blocks.entry, blocks.len, blocks.blocks, std);
                 if (echo) {
                     vm_io_debug(stdout, 0, "", value, NULL);
                 }
