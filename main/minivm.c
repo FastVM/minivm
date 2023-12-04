@@ -3,7 +3,6 @@
 #include "../vm/ast/print.h"
 #include "../vm/be/tb.h"
 #include "../vm/ir.h"
-#include "../vm/lang/eb.h"
 #include "../vm/std/util.h"
 #include "../vm/std/libs/io.h"
 #include "../vm/std/std.h"
@@ -21,7 +20,6 @@ int main(int argc, char **argv) {
     vm_config_t *config = &val_config;
     bool dry_run = false;
     bool echo = false;
-    const char *lang = "lua";
     bool isrepl = true;
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
@@ -106,15 +104,7 @@ int main(int argc, char **argv) {
                 printf("%s\n", src);
             }
 
-            vm_ast_node_t node;
-            if (!strcmp(lang, "lua")) {
-                node = vm_lang_lua_parse(config, src);
-            } else if (!strcmp(lang, "ast")) {
-                node = vm_lang_eb_parse(config, src);
-            } else {
-                fprintf(stderr, "not supported: lang %s\n", lang);
-                return 1;
-            }
+            vm_ast_node_t node = vm_lang_lua_parse(config, src);
 
             if (config->dump_ast) {
                 printf("\n--- ast ---\n");

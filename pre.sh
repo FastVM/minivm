@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 cd $(dirname $0)
 
-
-cd vm/lang/lua
+cd vm/lua
 
 mkdir -p trees
 trap "cd $(pwd) && rm -r trees" EXIT

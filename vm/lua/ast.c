@@ -1,8 +1,8 @@
 
-#include "../../ast/ast.h"
-#include "../../../trees/api.h"
-#include "../../ast/build.h"
-#include "../../ast/print.h"
+#include "../ast/ast.h"
+#include "../../trees/api.h"
+#include "../ast/build.h"
+#include "../ast/print.h"
 #include "./parser.h"
 
 const TSLanguage *tree_sitter_lua(void);

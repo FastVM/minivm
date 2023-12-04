@@ -898,7 +898,7 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
             block->branch.args = vm_ast_args(0);
         }
     }
-    vm_block_info(comp.blocks.len - start, &comp.blocks.blocks[start]);
+    vm_block_info(comp.blocks.len, comp.blocks.blocks);
     *blocks = comp.blocks;
 }
 

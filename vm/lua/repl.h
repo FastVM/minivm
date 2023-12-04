@@ -1,11 +1,11 @@
 #if !defined(VM_HEADER_LANG_LUA_REPL)
 #define VM_HEADER_LANG_LUA_REPL
 
-#include "../../config.h"
-#include "../../obj.h"
-#include "../../lib.h"
-#include "../../../isocline/isocline.h"
-#include "../../../isocline/completions.h"
+#include "../config.h"
+#include "../obj.h"
+#include "../lib.h"
+#include "../../isocline/isocline.h"
+#include "../../isocline/completions.h"
 
 struct vm_lang_lua_repl_complete_state_t;
 struct vm_lang_lua_repl_complete_state_t;
