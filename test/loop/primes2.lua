@@ -6,7 +6,7 @@ while pprime < max do
     local check = 2
     local isprime = 1
     while check < pprime do
-        if pprime%check == 0 then
+        if pprime % check == 0 then
             isprime = 0
         end
         check = check + 1

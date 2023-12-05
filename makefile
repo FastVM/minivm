@@ -1,5 +1,5 @@
 
-OPT ?= -O2
+OPT ?= -Os -flto
 
 EXE ?= 
 

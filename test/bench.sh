@@ -16,4 +16,6 @@ done
 
 bash ./test/minivm.sh
 bash ./test/luajit.sh
-# bash ./test/lua.sh
+bash ./test/lua.sh
+
+bash ./test/graph.sh

@@ -3,13 +3,13 @@
 cd $(dirname $0)
 cd ..
 
-build_start=$(date +%s.%N)
-make clean > /dev/null
-make -j$(nproc) build/bin/minivm CFLAGS='-DNDEBUG' > /dev/null
-build_end=$(date +%s.%N)
-build_took=$(echo "$build_end-$build_start" | bc | sed 's/^\./0./')
-echo "--- build ---"
-echo "build minivm in ${build_took}s"
+# build_start=$(date +%s.%N)
+# make clean > /dev/null
+# make -j$(nproc) build/bin/minivm CFLAGS='-DNDEBUG' > /dev/null
+# build_end=$(date +%s.%N)
+# build_took=$(echo "$build_end-$build_start" | bc | sed 's/^\./0./')
+# echo "--- build ---"
+# echo "build minivm in ${build_took}s"
 
 tests_start=$(date +%s.%N)
 

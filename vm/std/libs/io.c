@@ -3,6 +3,33 @@
 
 #include "../util.h"
 
+char *vm_io_vformat(char *fmt, va_list ap) {
+    size_t alloc = 16;
+    char *buf = vm_malloc(sizeof(char) * alloc);
+    size_t len = 0;
+    va_list ap_copy;
+    while (true) {
+        int avail = alloc - len;
+        va_copy(ap_copy, ap);
+        int written = vsnprintf(&buf[len], avail, fmt, ap_copy);
+        va_end(ap_copy);
+        if (avail <= written) {
+            buf = vm_realloc(buf, sizeof(char) * alloc);
+            continue;
+        }
+        len += written;
+        return buf;
+    }
+}
+
+char *vm_io_format(char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    char *r = vm_io_vformat(fmt, ap);
+    va_end(ap);
+    return r;
+}
+
 char *vm_io_read(const char *filename) {
     void *file = fopen(filename, "rb");
     if (file == NULL) {

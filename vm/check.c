@@ -52,6 +52,9 @@ const char *vm_check_branch(vm_branch_t branch) {
             if (vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1) {
                 return NULL;
             }
+            if (a0 == VM_TAG_BOOL && a1 == VM_TAG_BOOL) {
+                return NULL;
+            }
             return "bad branch";
         }
         case VM_BOP_CALL: {

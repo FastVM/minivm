@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
     bool dry_run = false;
     bool echo = false;
     bool isrepl = true;
+    vm_table_t *std = vm_std_new();
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "--")) {
@@ -34,6 +35,9 @@ int main(int argc, char **argv) {
             echo = true;
         } else if (!strcmp(arg, "--no-echo")) {
             echo = false;
+        } else if (!strcmp(arg, "--repl")) {
+            vm_lang_lua_repl(config, std);
+            isrepl = false;
         } else if (!strcmp(arg, "--dry-run")) {
             dry_run = true;
         } else if (!strncmp(arg, "--number=", 9)) {
@@ -83,11 +87,17 @@ int main(int argc, char **argv) {
                 return 1;
             }
         } else {
+            bool last_isrepl = isrepl;
             isrepl = false;
 
             clock_t start = clock();
 
             const char *src;
+            // if (!strcmp(arg, "-f")) {
+            //     isrepl = last_isrepl;
+            //     arg = argv[i + 1];
+            //     i += 1;
+            // }
             if (!strcmp(arg, "-e")) {
                 src = argv[i + 1];
                 i += 1;
@@ -118,7 +128,6 @@ int main(int argc, char **argv) {
             }
 
             if (!dry_run) {
-                vm_table_t *std = vm_std_new();
                 // vm_io_debug(stdout, 0, "std = ", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std,}, NULL);
                 vm_std_value_t value = vm_tb_run_main(config, blocks.entry, blocks.len, blocks.blocks, std);
                 if (echo) {
@@ -137,7 +146,7 @@ int main(int argc, char **argv) {
     }
 
     if (isrepl) {
-        vm_lang_lua_repl(config, vm_std_new());
+        vm_lang_lua_repl(config, std);
     }
 
     return 0;

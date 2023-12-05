@@ -55,6 +55,7 @@ vm_ast_node_t vm_ast_build_return(vm_ast_node_t value);
 
 vm_ast_node_t vm_ast_build_block(size_t len, ...);
 
+vm_ast_node_t vm_ast_build_error(const char *str);
 vm_ast_node_t vm_ast_build_nil(void);
 
 // ugly hacks

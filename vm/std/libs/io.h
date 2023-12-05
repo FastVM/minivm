@@ -14,5 +14,7 @@ struct vm_io_debug_t {
 void vm_io_print_lit(FILE *out, vm_std_value_t value);
 void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link);
 char *vm_io_read(const char *filename);
+char *vm_io_vformat(char *fmt, va_list ap);
+char *vm_io_format(char *fmt, ...);
 
 #endif

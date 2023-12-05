@@ -4,6 +4,7 @@
 #include "../ast/build.h"
 #include "../ast/print.h"
 #include "./parser.h"
+#include "../std/libs/io.h"
 
 const TSLanguage *tree_sitter_lua(void);
 
@@ -37,7 +38,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "comment")) {
         return vm_ast_build_nil();
     }
-    if (!strcmp(type, "chunk") || !strcmp(type, "block") || !strcmp(type, "end")) {
+    if (!strcmp(type, "chunk") || !strcmp(type, "block")) {
         if (num_children == 0) {
             return vm_ast_build_nil();
         }
@@ -233,6 +234,13 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(op, "#")) {
             return vm_ast_build_len(right);
         }
+        if (!strcmp(op, "-")) {
+            switch (src.config->use_num) {
+                case VM_USE_NUM_I32: {
+                    return vm_ast_build_sub(vm_ast_build_literal(i32, 0), right);
+                }
+            }
+        }
     }
     if (!strcmp(type, "binary_expression")) {
         vm_ast_node_t left = vm_lang_lua_conv(src, ts_node_child(node, 0));
@@ -283,7 +291,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(op, "..")) {
             return vm_ast_build_concat(left, right);
         }
-        // return vm_ast_build_nil();
+        return vm_ast_build_error(vm_io_format("unknown operator: %s", op));
     }
     if (!strcmp(type, "string")) {
         TSNode content = ts_node_child(node, 1);
@@ -367,7 +375,6 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (num_children == 2) {
             return vm_ast_build_new();
         }
-        printf("%zu\n", num_children);
         vm_ast_node_t var = vm_lang_lua_gensym(src);
         size_t nfields = 1;
         vm_ast_node_t built = vm_ast_build_local(var, vm_ast_build_new());
@@ -377,7 +384,6 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             if (!strcmp(name, "{") || !strcmp(name, ",") || !strcmp(name, "}")) {
                 continue;
             }
-            printf("%s\n", name);
             vm_ast_node_t cur = vm_ast_build_nil();
             if (!strcmp(name, "field")) {
                 vm_ast_node_t target = vm_ast_build_load(var, vm_ast_build_literal(i32, nfields));
@@ -385,7 +391,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                 cur = vm_ast_build_set(target, value);
                 nfields += 1;
             } else {
-                return vm_ast_build_nil();
+                return vm_ast_build_error(vm_io_format("unknown field type: %s", name));
             }
             built = vm_ast_build_do(built, cur);
         }
@@ -410,7 +416,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "false")) {
         return vm_ast_build_literal(b, false);
     }
-    return vm_ast_build_nil();
+    return vm_ast_build_error(vm_io_format("unknown node type: %s", type));
 }
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str) {

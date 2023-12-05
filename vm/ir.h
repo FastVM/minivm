@@ -133,7 +133,7 @@ struct vm_block_t {
 
     size_t nregs;
 
-    vm_cache_t *cache;
+    vm_cache_t cache;
     void *pass;
     const char *check;
 

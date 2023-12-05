@@ -441,7 +441,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                     if (bi >= block->nargs) {
                         while (ti < target->nargs) {
                             vm_arg_t newreg = target->args[ti++];
-                            if (newreg.reg >= blocks[i]->nregs) {
+                            if (newreg.reg + 1 > blocks[i]->nregs) {
                                 all_regs[i] =
                                     vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg.reg + 1));
                                 for (size_t c = blocks[i]->nregs; c < newreg.reg + 1; c++) {

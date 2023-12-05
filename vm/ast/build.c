@@ -207,6 +207,16 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...) {
     return ret;
 }
 
+vm_ast_node_t vm_ast_build_error(const char *str) {
+    return (vm_ast_node_t){
+        .type = VM_AST_NODE_LITERAL,
+        .value.literal = (vm_std_value_t){
+            .tag = VM_TAG_ERROR,
+            .value.str = str,
+        },
+    };
+}
+
 vm_ast_node_t vm_ast_build_nil(void) {
     return (vm_ast_node_t){
         .type = VM_AST_NODE_LITERAL,
