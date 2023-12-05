@@ -193,7 +193,21 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         }
     }
     if (!strcmp(type, "variable_declaration")) {
-        return vm_lang_lua_conv(src, ts_node_child(node, 1));
+        TSNode as = ts_node_child(node, 1);
+        TSNode list = ts_node_child(as, 0);
+        TSNode exprs = ts_node_child(as, 2);
+        vm_ast_node_t ret = vm_ast_build_nil();
+        for (size_t i = 0; i < ts_node_child_count(list); i++) {
+            TSNode list_ent = ts_node_child(list, i);
+            vm_ast_node_t cur;
+            if (i < ts_node_child_count(exprs)) {
+                cur = vm_ast_build_local(vm_lang_lua_conv(src, list_ent), vm_lang_lua_conv(src, ts_node_child(exprs, i)));
+            } else {
+                cur = vm_ast_build_local(vm_lang_lua_conv(src, list_ent), vm_ast_build_nil());
+            }
+            ret = vm_ast_build_do(ret, cur);
+        }
+        return ret;
     }
     if (!strcmp(type, "assignment_statement")) {
         TSNode list = ts_node_child(node, 0);
