@@ -14,6 +14,11 @@ for line in src.split('\n'):
         maps[bench] = {}
     maps[bench][engine] = float(time)
 
+map2 = {
+    'lua':  '#000080',
+    'luajit': '#97a7d7',
+    'minivm': '#75819F',
+}
 for key in maps:
     pair = maps[key]
     # if 'minivm' in pair and 'luajit' in pair and 'lua' in pair:
@@ -26,7 +31,9 @@ for key in maps:
 
     data = [pair[i] for i in keys]
 
-    ax.bar(keys, data, color=('#000080', '#97a7d7', '#75819F'))
+    colors = [map2[i] for i in keys]
+
+    ax.bar(keys, data, color=colors)
 
     fig.savefig(f'build/bench/png/v{len(pair)}-{name.replace("/", "-")}.png')
     plt.close(fig)
