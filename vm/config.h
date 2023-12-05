@@ -8,7 +8,7 @@
 #define VM_USE_LEAKS_TGC 1
 #define VM_USE_LEAKS_BDWGC 2
 
-#define VM_USE_LEAKS VM_USE_LEAKS_NOGC
+#define VM_USE_LEAKS VM_USE_LEAKS_BWDGC
 #define VM_USE_DUMP 1
 
 struct vm_config_t;
