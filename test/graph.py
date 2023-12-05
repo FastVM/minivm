@@ -22,11 +22,11 @@ for key in maps:
 
     fig.suptitle(f'MicroBench - {name}')
 
-    keys = pair.keys()
+    keys = sorted(pair.keys())
 
     data = [pair[i] for i in keys]
 
-    ax.bar(keys, data, color=('#97a7d7', '#75819F', '#000080'))
+    ax.bar(keys, data, color=('#000080', '#97a7d7', '#75819F'))
 
     fig.savefig(f'build/bench/png/v{len(pair)}-{name.replace("/", "-")}.png')
     plt.close(fig)
