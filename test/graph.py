@@ -3,7 +3,6 @@ from sys import argv
 from dataclasses import dataclass
 from typing import TypeAlias, Dict, List, Tuple, Literal
 
-
 @dataclass
 class Engine:
     name: str

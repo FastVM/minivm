@@ -13,7 +13,7 @@ static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
     return VM_TAG_UNK;
 }
 
-static bool vm_check_is_math(vm_tag_t arg) {
+bool vm_check_is_math(vm_tag_t arg) {
     return arg == VM_TAG_I8 || arg == VM_TAG_I16 || arg == VM_TAG_I32 || arg == VM_TAG_I64 || arg == VM_TAG_F32 || arg == VM_TAG_F64;
 }
 

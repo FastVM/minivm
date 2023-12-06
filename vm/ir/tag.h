@@ -1,7 +1,7 @@
 #if !defined(VM_HEADER_TAG)
 #define VM_HEADER_TAG
 
-#include "lib.h"
+#include "../lib.h"
 
 typedef uint8_t vm_tag_t;
 

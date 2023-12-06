@@ -1,7 +1,7 @@
 #include "../../vm/ast/build.h"
 #include "../../vm/ast/comp.h"
 #include "../../vm/ast/print.h"
-#include "../../vm/be/tb.h"
+#include "../../vm/backend/tb.h"
 #include "../../vm/ir.h"
 #include "../../vm/std/libs/io.h"
 #include "../../vm/std/std.h"

@@ -35,7 +35,7 @@
     exit(1);
 #endif
 
-#if VM_USE_LEAKS == VM_USE_LEAKS_BDWGC
+#if 1
 void GC_init();
 void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t size);
@@ -47,7 +47,7 @@ void GC_free(void *ptr);
 #define vm_free(x) (GC_free(x))
 #endif
 
-#if VM_USE_LEAKS == VM_USE_LEAKS_NOGC
+#if 0
 #define vm_init_mem() ((void)0)
 #define vm_malloc(x) (malloc((x)))
 #define vm_realloc(x, y) (realloc((x), (y)))

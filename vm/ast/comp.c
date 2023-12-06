@@ -1,7 +1,7 @@
 
 
 #include "comp.h"
-#include "../type.h"
+#include "../ir/type.h"
 #include "ast.h"
 #include "build.h"
 #include "print.h"

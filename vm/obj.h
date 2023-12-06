@@ -2,7 +2,7 @@
 #define VM_HEADER_TABLE
 
 #include "lib.h"
-#include "tag.h"
+#include "ir/tag.h"
 
 union vm_value_t;
 typedef union vm_value_t vm_value_t;

@@ -21,7 +21,7 @@ GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 TREES_SRCS := trees/alloc.c trees/get_changed_ranges.c trees/language.c trees/lexer.c trees/node.c trees/parser.c trees/query.c trees/stack.c trees/subtree.c trees/tree_cursor.c trees/tree.c
 
 STD_SRCS := vm/std/libs/io.c vm/std/std.c
-VM_SRCS := vm/ir.c vm/lib.c vm/type.c vm/ast/build.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/be/tb.c vm/check.c vm/rblock.c vm/lua/parser.c vm/lua/scan.c vm/lua/ast.c vm/lua/repl.c isocline/isocline.c
+VM_SRCS := vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser.c vm/lua/scan.c vm/lua/ast.c vm/lua/repl.c isocline/isocline.c
 
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)

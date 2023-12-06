@@ -1,6 +1,5 @@
 #include "./obj.h"
 
-#include "./ir.h"
 #include "./std/libs/io.h"
 
 int64_t vm_value_to_i64(vm_std_value_t arg) {

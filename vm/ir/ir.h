@@ -2,8 +2,8 @@
 #if !defined(VM_HEADER_IR)
 #define VM_HEADER_IR
 
-#include "lib.h"
-#include "std/std.h"
+#include "../lib.h"
+#include "../std/std.h"
 #include "tag.h"
 
 struct vm_arg_t;

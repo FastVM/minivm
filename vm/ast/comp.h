@@ -2,7 +2,7 @@
 #if !defined(VM_HEADER_AST_COMP)
 #define VM_HEADER_AST_COMP
 
-#include "../ir.h"
+#include "../ir/ir.h"
 #include "ast.h"
 
 struct vm_ast_blocks_t;
