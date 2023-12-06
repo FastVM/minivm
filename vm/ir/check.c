@@ -45,7 +45,20 @@ const char *vm_check_instr(vm_instr_t instr) {
 
 const char *vm_check_branch(vm_branch_t branch) {
     switch (branch.op) {
-        case VM_BOP_BEQ:
+        case VM_BOP_BEQ: {
+            vm_tag_t a0 = vm_check_get_tag(branch.args[0]);
+            vm_tag_t a1 = vm_check_get_tag(branch.args[1]);
+            if (vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1) {
+                return NULL;
+            }
+            if (a0 == VM_TAG_BOOL && a1 == VM_TAG_BOOL) {
+                return NULL;
+            }
+            if (a0 == VM_TAG_STR && a1 == VM_TAG_STR) {
+                return NULL;
+            }
+            return "bad eq";
+        }
         case VM_BOP_BLT: {
             vm_tag_t a0 = vm_check_get_tag(branch.args[0]);
             vm_tag_t a1 = vm_check_get_tag(branch.args[1]);
@@ -55,7 +68,7 @@ const char *vm_check_branch(vm_branch_t branch) {
             if (a0 == VM_TAG_BOOL && a1 == VM_TAG_BOOL) {
                 return NULL;
             }
-            return "bad branch";
+            return "bad lt";
         }
         case VM_BOP_CALL: {
             if (branch.args[0].type == VM_ARG_RFUNC) {

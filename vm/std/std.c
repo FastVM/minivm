@@ -8,6 +8,17 @@ void vm_std_os_exit(vm_std_value_t *args) {
     exit((int)vm_value_to_i64(args[0]));
 }
 
+vm_table_t *vm_serialize_binary_value_table(vm_std_value_t value);
+
+void vm_std_vm_snapbin(vm_std_value_t *args) {
+    vm_std_value_t val = args[0];
+    vm_table_t *got = vm_serialize_binary_value_table(val);
+    *args = (vm_std_value_t) {
+        .tag = VM_TAG_TAB,
+        .value.table = got,
+    };
+}
+
 void vm_std_assert(vm_std_value_t *args) {
     vm_std_value_t val = args[0];
     if (val.tag == VM_TAG_NIL || (val.tag == VM_TAG_BOOL && !val.value.b)) {
@@ -31,7 +42,12 @@ void vm_std_vm_closure(vm_std_value_t *args) {
         };
         return;
     }
-    vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * nargs);
+    vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * (nargs + 1));
+    // vals[0] = (vm_std_value_t) {
+    //     .tag = VM_TAG_I64,
+    //     .value.i64 = nargs,
+    // };
+    // vals += 1;
     for (size_t i = 0; args[i].tag != 0; i++) {
         vals[i] = args[i];
     }
@@ -40,6 +56,78 @@ void vm_std_vm_closure(vm_std_value_t *args) {
         .value.closure = vals,
     };
     return;
+}
+
+void vm_std_vm_print(vm_std_value_t *args) {
+    for (size_t i = 0; args[i].tag; i++) {
+        vm_io_debug(stdout, 0, "", args[i], NULL);
+    }
+}
+
+void vm_std_type(vm_std_value_t *args) {
+    const char *ret = "unknown";
+    switch (args[0].tag) {
+        case VM_TAG_NIL: {
+            ret = "nil";
+            break;
+        }
+        case VM_TAG_BOOL: {
+            ret = "bool";
+            break;
+        }
+        case VM_TAG_I8: {
+            ret = "i8";
+            break;
+        }
+        case VM_TAG_I16: {
+            ret = "i16";
+            break;
+        }
+        case VM_TAG_I32: {
+            ret = "i32";
+            break;
+        }
+        case VM_TAG_I64: {
+            ret = "i64";
+            break;
+        }
+        case VM_TAG_F32: {
+            ret = "f32";
+            break;
+        }
+        case VM_TAG_F64: {
+            ret = "f64";
+            break;
+        }
+        case VM_TAG_STR: {
+            ret = "str";
+            break;
+        }
+        case VM_TAG_CLOSURE: {
+            ret = "closure";
+            break;
+        }
+        case VM_TAG_FUN: {
+            ret = "fun";
+            break;
+        }
+        case VM_TAG_TAB: {
+            ret = "tab";
+            break;
+        }
+        case VM_TAG_FFI: {
+            ret = "ffi";
+            break;
+        }
+        case VM_TAG_ERROR: {
+            ret = "error";
+            break;
+        }
+    }
+    *args = (vm_std_value_t) {
+        .tag = VM_TAG_STR,
+        .value.str = ret,
+    };
 }
 
 void vm_std_print(vm_std_value_t *args) {
@@ -123,6 +211,8 @@ vm_table_t *vm_std_new(void) {
 
     {
         vm_table_t *vm = vm_table_new();
+        VM_STD_SET_FFI(vm, "print", &vm_std_vm_print);
+        VM_STD_SET_FFI(std, "type", &vm_std_vm_type);
         VM_STD_SET_TAB(std, "vm", vm);
     }
 
