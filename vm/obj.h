@@ -17,6 +17,7 @@ struct vm_std_value_t;
 typedef struct vm_std_value_t vm_std_value_t;
 
 union vm_value_t {
+    void *all;
     bool b;
     int8_t i8;
     int16_t i16;
@@ -28,7 +29,6 @@ union vm_value_t {
     vm_table_t *table;
     vm_std_value_t *closure;
     void (*ffi)(vm_std_value_t *args);
-    void *all;
 };
 
 struct vm_std_value_t {

@@ -19,7 +19,7 @@ struct vm_ast_comp_t {
     vm_ast_blocks_t blocks;
     vm_block_t *cur;
     vm_ast_comp_names_t *names;
-    bool is_error: 1;
+    bool is_error : 1;
 };
 
 struct vm_ast_comp_cap_t {
@@ -39,7 +39,6 @@ struct vm_ast_comp_names_t {
         size_t alloc;
     } caps;
     vm_ast_comp_names_t *next;
-    bool cap2;
 };
 
 static void vm_ast_comp_names_push(vm_ast_comp_t *comp) {
@@ -127,69 +126,10 @@ static size_t vm_ast_comp_get_local(vm_ast_comp_names_t *names, const char *name
     return SIZE_MAX;
 }
 
-static vm_arg_t vm_ast_comp_names_get_nonlocal(vm_ast_comp_t *comp, vm_ast_comp_names_t *names, vm_arg_t cap_arg, const char *name) {
-    for (size_t i = 0; i < names->caps.len; i++) {
-        vm_ast_comp_cap_t cap = names->caps.ptr[i];
-        if (!strcmp(cap.name, name)) {
-            vm_arg_t reg = vm_ast_comp_reg(comp);
-            vm_block_t *next = vm_ast_comp_new_block(comp);
-            vm_arg_t slot = (vm_arg_t){
-                .type = VM_ARG_LIT,
-                .lit = (vm_std_value_t){
-                    .tag = VM_TAG_I32,
-                    .value = cap.slot,
-                }
-            };
-            vm_ast_blocks_branch(
-                comp,
-                (vm_branch_t){
-                    .op = VM_BOP_GET,
-                    .out = reg,
-                    .args = vm_ast_args(2, cap_arg, slot),
-                    .targets[0] = next,
-                }
-            );
-            comp->cur = next;
-            return reg;
-        }
-    }
-    if (names->next == NULL) {
-        return (vm_arg_t){
-            .type = VM_ARG_NONE,
-        };
-    }
-    size_t slotnum = names->caps.len++;
-    if (slotnum + 1 > names->caps.alloc) {
-        names->caps.alloc = (slotnum + 1) * 2;
-        names->caps.ptr = vm_realloc(names->caps.ptr, sizeof(vm_ast_comp_cap_t) * names->caps.alloc);
-    }
-    names->caps.ptr[slotnum] = (vm_ast_comp_cap_t){
-        .name = name,
-        .slot = slotnum + 1,
-    };
-    vm_arg_t reg = vm_ast_comp_reg(comp);
-    vm_block_t *next = vm_ast_comp_new_block(comp);
-    vm_arg_t slot = (vm_arg_t){
-        .type = VM_ARG_LIT,
-        .lit = (vm_std_value_t){
-            .tag = VM_TAG_I32,
-            .value = slotnum + 1,
-        }
-    };
-    vm_ast_blocks_branch(
-        comp,
-        (vm_branch_t){
-            .op = VM_BOP_GET,
-            .out = reg,
-            .args = vm_ast_args(2, cap_arg, slot),
-            .targets[0] = next,
-        }
-    );
-    comp->cur = next;
-    return reg;
-}
-
 static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
+    if (name == NULL) {
+        __builtin_trap();
+    }
     size_t got = vm_ast_comp_get_local(comp->names, name);
     if (got != SIZE_MAX) {
         return (vm_arg_t){
@@ -201,7 +141,45 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
         .type = VM_ARG_REG,
         .reg = 0,
     };
-    return vm_ast_comp_names_get_nonlocal(comp, comp->names, cap, name);
+    ptrdiff_t slotnum = -1;
+    for (size_t i = 0; i < comp->names->caps.len; i++) {
+        vm_ast_comp_cap_t cap = comp->names->caps.ptr[i];
+        if (!strcmp(cap.name, name)) {
+            slotnum = cap.slot;
+            break;
+        }
+    }
+    if (slotnum < 0) {
+        slotnum = ++comp->names->caps.len;
+        if (slotnum + 1 >= comp->names->caps.alloc) {
+            comp->names->caps.alloc = slotnum * 2;
+            comp->names->caps.ptr = vm_realloc(comp->names->caps.ptr, sizeof(vm_ast_comp_cap_t) * comp->names->caps.alloc);
+        }
+        comp->names->caps.ptr[slotnum - 1] = (vm_ast_comp_cap_t){
+            .name = name,
+            .slot = slotnum,
+        };
+    }
+    vm_arg_t reg = vm_ast_comp_reg(comp);
+    vm_block_t *next = vm_ast_comp_new_block(comp);
+    vm_arg_t slot = (vm_arg_t){
+        .type = VM_ARG_LIT,
+        .lit = (vm_std_value_t){
+            .tag = VM_TAG_I32,
+            .value.i32 = slotnum,
+        }
+    };
+    vm_ast_blocks_branch(
+        comp,
+        (vm_branch_t){
+            .op = VM_BOP_GET,
+            .out = reg,
+            .args = vm_ast_args(2, cap, slot),
+            .targets[0] = next,
+        }
+    );
+    comp->cur = next;
+    return reg;
 }
 
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse) {
@@ -822,7 +800,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 return ret;
             } else if (num.tag == VM_TAG_ERROR) {
                 comp->is_error = true;
-                return (vm_arg_t) {
+                return (vm_arg_t){
                     .type = VM_ARG_NONE,
                 };
             } else {
@@ -893,7 +871,7 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
     vm_ast_comp_names_push(&comp);
     comp.blocks.entry = vm_ast_comp_new_block(&comp);
     size_t start = comp.blocks.entry->id;
-    comp.cur = comp.blocks.entry; 
+    comp.cur = comp.blocks.entry;
     vm_ast_blocks_instr(
         &comp,
         (vm_instr_t){
@@ -916,7 +894,7 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
 }
 
 vm_ast_blocks_t vm_ast_comp(vm_ast_node_t node) {
-    vm_ast_blocks_t blocks = (vm_ast_blocks_t) {
+    vm_ast_blocks_t blocks = (vm_ast_blocks_t){
         .len = 0,
         .blocks = NULL,
         .alloc = 0,

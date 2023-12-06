@@ -8,17 +8,6 @@ void vm_std_os_exit(vm_std_value_t *args) {
     exit((int)vm_value_to_i64(args[0]));
 }
 
-vm_table_t *vm_serialize_binary_value_table(vm_std_value_t value);
-
-void vm_std_vm_snapbin(vm_std_value_t *args) {
-    vm_std_value_t val = args[0];
-    vm_table_t *got = vm_serialize_binary_value_table(val);
-    *args = (vm_std_value_t) {
-        .tag = VM_TAG_TAB,
-        .value.table = got,
-    };
-}
-
 void vm_std_assert(vm_std_value_t *args) {
     vm_std_value_t val = args[0];
     if (val.tag == VM_TAG_NIL || (val.tag == VM_TAG_BOOL && !val.value.b)) {
@@ -43,11 +32,11 @@ void vm_std_vm_closure(vm_std_value_t *args) {
         return;
     }
     vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * (nargs + 1));
-    // vals[0] = (vm_std_value_t) {
-    //     .tag = VM_TAG_I64,
-    //     .value.i64 = nargs,
-    // };
-    // vals += 1;
+    vals[0] = (vm_std_value_t) {
+        .tag = VM_TAG_I32,
+        .value.i32 = (int32_t) nargs,
+    };
+    vals += 1;
     for (size_t i = 0; args[i].tag != 0; i++) {
         vals[i] = args[i];
     }
@@ -64,7 +53,29 @@ void vm_std_vm_print(vm_std_value_t *args) {
     }
 }
 
-void vm_std_type(vm_std_value_t *args) {
+void vm_std_vm_concat(vm_std_value_t *args) {
+    size_t len = 1;
+    for (size_t i = 0; args[i].tag == VM_TAG_STR; i++) {
+        len += strlen(args[i].value.str);
+    }
+    char *buf = vm_malloc(sizeof(char) * len);
+    size_t head = 0;
+    for (size_t i = 0; args[i].tag == VM_TAG_STR; i++) {
+        size_t len = strlen(args[i].value.str);
+        if (len == 0) {
+            continue;
+        }
+        memcpy(&buf[head], args[i].value.str, len);
+        head += len;
+    }
+    buf[len-1] = '\0';
+    *args = (vm_std_value_t) {
+        .tag = VM_TAG_STR,
+        .value.str = buf,
+    };
+}
+
+void vm_std_vm_type(vm_std_value_t *args) {
     const char *ret = "unknown";
     switch (args[0].tag) {
         case VM_TAG_NIL: {
@@ -212,7 +223,8 @@ vm_table_t *vm_std_new(void) {
     {
         vm_table_t *vm = vm_table_new();
         VM_STD_SET_FFI(vm, "print", &vm_std_vm_print);
-        VM_STD_SET_FFI(std, "type", &vm_std_vm_type);
+        VM_STD_SET_FFI(vm, "concat", &vm_std_vm_concat);
+        VM_STD_SET_FFI(vm, "type", &vm_std_vm_type);
         VM_STD_SET_TAB(std, "vm", vm);
     }
 

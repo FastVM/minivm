@@ -1,25 +1,20 @@
 
 
 local lib = {}
+local table = {}
 
-function lib.new(obj)
-    local t = {}
-    local function put(byte)
-        t[#t + 1] = byte
+function table.concat(table)
+    local function more(low, high)
+        if low + 1 == high then
+            return table[low]
+        else
+            local mid = (high + low) / 2
+            return vm.concat(more(low, mid), more(mid, high))
+        end
     end
 
-    local function more(obj)
-        
-    end
+    return more(1, #table + 1)
 end
 
-function lib.bytes(tab)
-    local n = 1
-    while n <= #tab do
-        print(tab[n])
-        n = n + 1
-    end
-end
 
-local obj = lib.new(10)
-lib.bytes(obj)
+print(table.concat({'a', 'b'}))
