@@ -70,11 +70,6 @@ struct vm_rblock_t {
     vm_block_t *block;
     vm_block_t *cache;
     void *state;
-    size_t count;
-    vm_block_t *versioned;
-    size_t least_faults;
-    size_t base_redo;
-    size_t redo;
 };
 
 struct vm_cache_t {

@@ -74,6 +74,8 @@ const char *vm_check_branch(vm_branch_t branch) {
             if (vm_check_get_tag(branch.args[0]) == VM_TAG_CLOSURE) {
                 return NULL;
             }
+            vm_print_branch(stdout, branch);
+            fprintf(stdout, "\n");
             return "can't call non-func";
         }
         case VM_BOP_GET: {

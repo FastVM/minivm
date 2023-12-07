@@ -1,5 +1,6 @@
 
 local assert = assert
+local print = print
 
 local low = 1
 local mid = 10
@@ -10,6 +11,7 @@ assert((low < low) == false, "test low < low")
 assert((low < mid) == true, "test low < mid")
 assert((low < high) == true, "test low < high")
 assert((mid < low) == false, "test mid < low")
+
 assert((mid < mid) == false, "test mid < mid")
 assert((mid < high) == true, "test mid < high")
 assert((high < low) == false, "test high < low")

@@ -191,6 +191,17 @@ void vm_tb_func_reset_pass(vm_block_t *block) {
     }
 }
 
+void vm_tb_func_write(TB_Function *fun, vm_tag_t tag, TB_Node **regs, size_t reg, TB_Node *value) {
+    tb_inst_store(
+        fun,
+        vm_tag_to_tb_type(tag),
+        regs[reg],
+        value,
+        8,
+        false
+    );
+}
+
 TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **regs, vm_block_t *block) {
     if (block->pass != NULL) {
         return block->pass;
@@ -228,14 +239,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         vm_instr_t instr = block->instrs[n];
         switch (instr.op) {
             case VM_IOP_MOVE: {
-                tb_inst_store(
-                    fun,
-                    vm_tag_to_tb_type(instr.tag),
-                    regs[instr.out.reg],
-                    vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                    8,
-                    false
-                );
+                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, vm_tb_func_read_arg(fun, regs, instr.args[0]));
                 break;
             }
             case VM_IOP_ADD: {
@@ -254,14 +258,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         TB_ARITHMATIC_NONE
                     );
                 }
-                tb_inst_store(
-                    fun,
-                    vm_tag_to_tb_type(instr.tag),
-                    regs[instr.out.reg],
-                    value,
-                    8,
-                    false
-                );
+                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_SUB: {
@@ -280,14 +277,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         TB_ARITHMATIC_NONE
                     );
                 }
-                tb_inst_store(
-                    fun,
-                    vm_tag_to_tb_type(instr.tag),
-                    regs[instr.out.reg],
-                    value,
-                    8,
-                    false
-                );
+                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_MUL: {
@@ -306,14 +296,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         TB_ARITHMATIC_NONE
                     );
                 }
-                tb_inst_store(
-                    fun,
-                    vm_tag_to_tb_type(instr.tag),
-                    regs[instr.out.reg],
-                    value,
-                    8,
-                    false
-                );
+                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_DIV: {
@@ -332,14 +315,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         true
                     );
                 }
-                tb_inst_store(
-                    fun,
-                    vm_tag_to_tb_type(instr.tag),
-                    regs[instr.out.reg],
-                    value,
-                    8,
-                    false
-                );
+                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_MOD: {
@@ -404,41 +380,25 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         TB_Node *float_div = tb_inst_int2float(fun, int_div, TB_TYPE_F32, true);
                         TB_Node *mul = tb_inst_fmul(fun, float_div, rhs);
                         TB_Node *sub = tb_inst_fsub(fun, lhs, mul);
-                        tb_inst_store(
-                            fun,
-                            vm_tag_to_tb_type(instr.tag),
-                            regs[instr.out.reg],
-                            sub, 8, false
-                        );
+                        vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, sub);
                         tb_inst_goto(fun, after);
                     }
                     {
                         tb_inst_set_control(fun, bad);
                         TB_Node *mul = tb_inst_fmul(fun, raw_div, rhs);
                         TB_Node *sub = tb_inst_fsub(fun, lhs, mul);
-                        tb_inst_store(
-                            fun,
-                            vm_tag_to_tb_type(instr.tag),
-                            regs[instr.out.reg],
-                            sub, 8, false
-                        );
+                        vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, sub);
                         tb_inst_goto(fun, after);
                     }
                     tb_inst_set_control(fun, after);
                 } else {
-                    tb_inst_store(
+                    TB_Node *value = tb_inst_mod(
                         fun,
-                        vm_tag_to_tb_type(instr.tag),
-                        regs[instr.out.reg],
-                        tb_inst_mod(
-                            fun,
-                            vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                            vm_tb_func_read_arg(fun, regs, instr.args[1]),
-                            true
-                        ),
-                        8,
-                        false
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        true
                     );
+                    vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
                 }
                 break;
             }
@@ -1105,7 +1065,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 fun,
                 vm_tb_ptr_name(state->module, fun, "<rtargets>", mem),
                 val_tag,
-                sizeof(vm_rblock_t *)
+                sizeof(void *)
             );
             TB_Node *func = tb_inst_load(
                 fun,
@@ -1324,8 +1284,6 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         return cache;
     }
 
-    rblock->count += 1;
-
     vm_tb_state_t *state = rblock->state;
     state->faults = 0;
 
@@ -1393,6 +1351,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             }
 
             for (size_t i = 0; i < block->nargs; i++) {
+                regs[block->args[i].reg] = tb_inst_local(fun, 8, 8);
                 tb_inst_store(
                     fun,
                     vm_tag_to_tb_type(block->args[i].reg_tag),
@@ -1453,18 +1412,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     rblock->jit = ret;
 
-    if (state->faults < rblock->least_faults) {
-        rblock->least_faults = state->faults;
-    } else {
-        if (state->faults == 0) {
-            rblock->base_redo = SIZE_MAX;
-        } else {
-            rblock->base_redo *= 256;
-        }
-        rblock->redo = rblock->base_redo;
-    }
-
-    // printf("block #%zi with %zu faults\n", rblock->block->id, state->faults);
+    // printf("%zi -> %p\n", block->id, rblock->jit);
 
     // printf("code buf: %p\n", ret);
 

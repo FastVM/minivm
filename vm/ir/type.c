@@ -7,13 +7,9 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     *rblock = (vm_rblock_t){
         .block = block,
-        .regs = regs,
         .jit = NULL,
-        .count = 0,
-        .least_faults = SIZE_MAX,
-        .base_redo = 256,
-        .redo = 0,
     };
+    rblock->regs = vm_rblock_regs_dup(regs);
     return rblock;
 }
 
@@ -76,10 +72,10 @@ vm_tags_t *vm_rblock_regs_empty(size_t ntags) {
     return ret;
 }
 
-vm_tags_t *vm_rblock_regs_dup(vm_tags_t *regs, size_t ntags) {
+vm_tags_t *vm_rblock_regs_dup(vm_tags_t *regs) {
     vm_tags_t *ret = vm_malloc(sizeof(vm_tags_t));
-    ret->ntags = ntags;
-    ret->tags = vm_malloc(sizeof(vm_tag_t) * ntags);
+    ret->ntags = regs->ntags;
+    ret->tags = vm_malloc(sizeof(vm_tag_t) * ret->ntags);
     for (size_t i = 0; i < ret->ntags && i < regs->ntags; i++) {
         ret->tags[i] = regs->tags[i];
     }
