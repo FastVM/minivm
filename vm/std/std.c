@@ -75,7 +75,7 @@ void vm_std_vm_concat(vm_std_value_t *args) {
     };
 }
 
-void vm_std_vm_type(vm_std_value_t *args) {
+void vm_std_type(vm_std_value_t *args) {
     const char *ret = "unknown";
     switch (args[0].tag) {
         case VM_TAG_NIL: {
@@ -83,55 +83,55 @@ void vm_std_vm_type(vm_std_value_t *args) {
             break;
         }
         case VM_TAG_BOOL: {
-            ret = "bool";
+            ret = "boolean";
             break;
         }
         case VM_TAG_I8: {
-            ret = "i8";
+            ret = "number";
             break;
         }
         case VM_TAG_I16: {
-            ret = "i16";
+            ret = "number";
             break;
         }
         case VM_TAG_I32: {
-            ret = "i32";
+            ret = "number";
             break;
         }
         case VM_TAG_I64: {
-            ret = "i64";
+            ret = "number";
             break;
         }
         case VM_TAG_F32: {
-            ret = "f32";
+            ret = "number";
             break;
         }
         case VM_TAG_F64: {
-            ret = "f64";
+            ret = "number";
             break;
         }
         case VM_TAG_STR: {
-            ret = "str";
+            ret = "string";
             break;
         }
         case VM_TAG_CLOSURE: {
-            ret = "closure";
+            ret = "function";
             break;
         }
         case VM_TAG_FUN: {
-            ret = "fun";
+            ret = "function";
             break;
         }
         case VM_TAG_TAB: {
-            ret = "tab";
+            ret = "table";
             break;
         }
         case VM_TAG_FFI: {
-            ret = "ffi";
+            ret = "function";
             break;
         }
         case VM_TAG_ERROR: {
-            ret = "error";
+            ret = "string";
             break;
         }
     }
@@ -223,8 +223,6 @@ vm_table_t *vm_std_new(void) {
     {
         vm_table_t *vm = vm_table_new();
         VM_STD_SET_FFI(vm, "print", &vm_std_vm_print);
-        VM_STD_SET_FFI(vm, "concat", &vm_std_vm_concat);
-        VM_STD_SET_FFI(vm, "type", &vm_std_vm_type);
         VM_STD_SET_TAB(std, "vm", vm);
     }
 
@@ -234,6 +232,7 @@ vm_table_t *vm_std_new(void) {
         VM_STD_SET_TAB(std, "os", os);
     }
 
+    VM_STD_SET_FFI(std, "type", &vm_std_type);
     VM_STD_SET_FFI(std, "print", &vm_std_print);
     VM_STD_SET_FFI(std, "assert", &vm_std_assert);
 

@@ -44,14 +44,12 @@ void GC_free(void *ptr);
 #define vm_init_mem() (GC_init())
 #define vm_malloc(x) (GC_malloc(x))
 #define vm_realloc(x, y) (GC_realloc(x, y))
-#define vm_free(x) (GC_free(x))
 #endif
 
 #if 1
 #define vm_init_mem() ((void)0)
 #define vm_malloc(x) (malloc((x)))
 #define vm_realloc(x, y) (realloc((x), (y)))
-#define vm_free(x) ((void)((x)))
 #endif
 #endif
 

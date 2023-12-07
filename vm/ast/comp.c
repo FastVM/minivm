@@ -59,6 +59,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
 
 void vm_std_vm_closure(vm_std_value_t *args);
+void vm_std_vm_concat(vm_std_value_t *args);
 
 static vm_arg_t *vm_ast_args(size_t nargs, ...) {
     va_list ap;
@@ -329,15 +330,118 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
         case VM_AST_NODE_FORM: {
             vm_ast_form_t form = node.value.form;
             switch (form.type) {
-
+                case VM_AST_FORM_AND: {
+                    vm_arg_t out = vm_ast_comp_reg(comp);
+                    vm_block_t *iftrue = vm_ast_comp_new_block(comp);
+                    vm_block_t *iffalse = vm_ast_comp_new_block(comp);
+                    vm_block_t *after = vm_ast_comp_new_block(comp);
+                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_BB,
+                            .args = vm_ast_args(1, arg1),
+                            .targets[0] = iftrue,
+                            .targets[1] = iffalse,
+                        }
+                    );
+                    comp->cur = iffalse;
+                    vm_ast_blocks_instr(
+                        comp,
+                        (vm_instr_t) {
+                            .op = VM_IOP_MOVE,
+                            .out = out,
+                            .args = vm_ast_args(1, arg1),
+                        }
+                    );
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_JUMP,
+                            .args = vm_ast_args(0),
+                            .targets[0] = after,
+                        }
+                    );
+                    comp->cur = iftrue;
+                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_ast_blocks_instr(
+                        comp,
+                        (vm_instr_t) {
+                            .op = VM_IOP_MOVE,
+                            .out = out,
+                            .args = vm_ast_args(1, arg2),
+                        }
+                    );
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_JUMP,
+                            .args = vm_ast_args(0),
+                            .targets[0] = after,
+                        }
+                    );
+                    comp->cur = after;
+                    return out;
+                }
+                case VM_AST_FORM_OR: {
+                    vm_arg_t out = vm_ast_comp_reg(comp);
+                    vm_block_t *iftrue = vm_ast_comp_new_block(comp);
+                    vm_block_t *iffalse = vm_ast_comp_new_block(comp);
+                    vm_block_t *after = vm_ast_comp_new_block(comp);
+                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_BB,
+                            .args = vm_ast_args(1, arg1),
+                            .targets[0] = iftrue,
+                            .targets[1] = iffalse,
+                        }
+                    );
+                    comp->cur = iftrue;
+                    vm_ast_blocks_instr(
+                        comp,
+                        (vm_instr_t) {
+                            .op = VM_IOP_MOVE,
+                            .out = out,
+                            .args = vm_ast_args(1, arg1),
+                        }
+                    );
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_JUMP,
+                            .args = vm_ast_args(0),
+                            .targets[0] = after,
+                        }
+                    );
+                    comp->cur = iffalse;
+                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_ast_blocks_instr(
+                        comp,
+                        (vm_instr_t) {
+                            .op = VM_IOP_MOVE,
+                            .out = out,
+                            .args = vm_ast_args(1, arg2),
+                        }
+                    );
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_JUMP,
+                            .args = vm_ast_args(0),
+                            .targets[0] = after,
+                        }
+                    );
+                    comp->cur = after;
+                    return out;
+                }
                 case VM_AST_FORM_EQ:
                 case VM_AST_FORM_NE:
                 case VM_AST_FORM_LT:
                 case VM_AST_FORM_GT:
                 case VM_AST_FORM_LE:
                 case VM_AST_FORM_GE:
-                case VM_AST_FORM_AND:
-                case VM_AST_FORM_OR:
                 case VM_AST_FORM_NOT: {
                     vm_arg_t out = vm_ast_comp_reg(comp);
                     vm_block_t *iftrue = vm_ast_comp_new_block(comp);
@@ -554,7 +658,37 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_CONCAT: {
-                    break;
+                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_block_t *with_result = vm_ast_comp_new_block(comp);
+
+                    vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
+                    call_args[0] = (vm_arg_t){
+                        .type = VM_ARG_LIT,
+                        .lit = (vm_std_value_t){
+                            .tag = VM_TAG_FFI,
+                            .value.ffi = &vm_std_vm_concat,
+                        },
+                    };
+                    call_args[1] = arg1;
+                    call_args[2] = arg2;
+                    call_args[3] = (vm_arg_t){
+                        .type = VM_ARG_NONE,
+                    };
+                    vm_arg_t out = vm_ast_comp_reg(comp);
+
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_CALL,
+                            .out = out,
+                            .args = call_args,
+                            .targets[0] = with_result,
+                        }
+                    );
+
+                    comp->cur = with_result;
+                    return out;
                 }
                 case VM_AST_FORM_ADD:
                 case VM_AST_FORM_SUB:

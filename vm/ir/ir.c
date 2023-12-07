@@ -91,11 +91,11 @@ void vm_print_tag(FILE *out, vm_tag_t tag) {
             break;
         }
         case VM_TAG_FUN: {
-            fprintf(out, "fun");
+            fprintf(out, "rawfunc");
             break;
         }
         case VM_TAG_TAB: {
-            fprintf(out, "tab");
+            fprintf(out, "table");
             break;
         }
         case VM_TAG_FFI: {
@@ -324,6 +324,12 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             continue;
         }
         size_t nregs = 1;
+        for (size_t j = 0; j < block->nargs; j++) {
+            vm_arg_t arg = block->args[j];
+            if (arg.type == VM_ARG_REG && arg.reg >= nregs) {
+                nregs = arg.reg + 1;
+            }
+        }
         for (size_t j = 0; j < block->len; j++) {
             vm_instr_t *instr = &block->instrs[j];
             if (instr->out.type == VM_ARG_REG && instr->out.reg >= nregs) {
@@ -345,8 +351,27 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 nregs = block->branch.args[j].reg + 1;
             }
         }
-        if (nregs > block->nregs) {
-            block->nregs = nregs;
+        // if (nregs > block->nregs) {
+        block->nregs = nregs;
+        // }
+    }
+    {
+        bool redo = true;
+        while (redo) {
+            redo = false;
+            for (size_t i = 0; i < nblocks; i++) {
+                vm_block_t *block = blocks[i];
+                for (size_t t = 0; t < 2; t++) {
+                    vm_block_t *target = block->branch.targets[t];
+                    if (target == NULL) {
+                        break;
+                    }
+                    if (target->nregs > block->nregs) {
+                        block->nregs = target->nregs;
+                        redo = true;
+                    }
+                }
+            }
         }
     }
     for (size_t i = 0; i < nblocks; i++) {
@@ -354,7 +379,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
         if (block->id < 0) {
             continue;
         }
-        uint8_t *regs = vm_malloc(sizeof(uint8_t) * (block->nregs + 1));
+        uint8_t *regs = vm_malloc(sizeof(uint8_t) * block->nregs);
         all_regs[i] = regs;
         for (size_t j = 0; j < block->nregs; j++) {
             regs[j] = VM_INFO_REG_UNK;
@@ -401,23 +426,15 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             }
         }
     }
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = blocks[i];
-        for (size_t argno = 0; argno < block->nargs; argno++) {
-            vm_arg_t arg = block->args[argno];
-            if (block->nregs <= arg.reg) {
-                block->nregs = arg.reg + 1;
-            }
-        }
-    }
     bool redo = true;
-    size_t alloc = 16;
-    vm_arg_t *next = vm_malloc(sizeof(vm_arg_t) * alloc);
     while (redo) {
         redo = false;
         for (ptrdiff_t i = (ptrdiff_t)nblocks - 1; i >= 0; i--) {
             vm_block_t *block = blocks[i];
             if (block->id < 0) {
+                continue;
+            }
+            if (block->isfunc) {
                 continue;
             }
             for (size_t t = 0; t < 2; t++) {
@@ -430,10 +447,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                     redo = true;
                 }
                 size_t total = block->nargs + target->nargs;
-                if (total >= alloc) {
-                    alloc = total * 2;
-                    next = vm_realloc(next, sizeof(vm_arg_t) * alloc);
-                }
+                vm_arg_t *next = vm_malloc(sizeof(vm_arg_t) * total);
                 size_t nargs = 0;
                 size_t bi = 0;
                 size_t ti = 0;
@@ -441,15 +455,8 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                     if (bi >= block->nargs) {
                         while (ti < target->nargs) {
                             vm_arg_t newreg = target->args[ti++];
-                            if (newreg.reg + 1 > blocks[i]->nregs) {
-                                all_regs[i] =
-                                    vm_realloc(all_regs[i], sizeof(uint8_t) * (newreg.reg + 1));
-                                for (size_t c = blocks[i]->nregs; c < newreg.reg + 1; c++) {
-                                    all_regs[i][c] = VM_INFO_REG_UNK;
-                                }
-                                blocks[i]->nregs = newreg.reg + 1;
-                            }
-                            if (all_regs[i][newreg.reg] != VM_INFO_REG_DEF) {
+                            uint8_t *regs = all_regs[i];
+                            if (regs[newreg.reg] != VM_INFO_REG_DEF) {
                                 next[nargs++] = newreg;
                             }
                         }
@@ -471,25 +478,20 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                         next[nargs++] = block->args[bi++];
                     }
                 }
+                block->args = next;
+                block->nargs = nargs;
                 if (nargs != block->nargs) {
-                    vm_free(block->args);
-                    block->args = next;
-                    block->nargs = nargs;
                     redo = true;
-                    next = vm_malloc(sizeof(vm_arg_t) * alloc);
                 }
             }
         }
     }
-    vm_free(next);
     for (size_t i = 0; i < nblocks; i++) {
         vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }
-        vm_free(all_regs[i]);
     }
-    vm_free(all_regs);
     vm_block_t *func = blocks[0];
     for (size_t i = 0; i < nblocks; i++) {
         vm_block_t *block = blocks[i];

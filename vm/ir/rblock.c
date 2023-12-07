@@ -179,5 +179,7 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
             ret->args[i].reg_tag = regs->tags[ret->args[i].reg];
         }
     }
+    // fprintf(stdout, "\n--- version ---\n");
+    // vm_print_block(stdout, ret);
     return ret;
 }

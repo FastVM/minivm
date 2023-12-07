@@ -102,61 +102,69 @@ bool vm_rblock_regs_match(vm_tags_t *a, vm_tags_t *b) {
 }
 
 vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
+    if (instr.tag != VM_TAG_UNK) {
+        __builtin_trap();
+    }
     if (instr.op == VM_IOP_STD) {
         instr.tag = VM_TAG_TAB;
-        return instr;
+        goto ret;
     }
     if (instr.op == VM_IOP_MOVE) {
         if (instr.args[0].type == VM_ARG_FUN) {
             instr.tag = VM_TAG_FUN;
-            return instr;
+            goto ret;
         }
     }
     if (instr.op == VM_IOP_NEW) {
         instr.tag = VM_TAG_TAB;
-        return instr;
+        goto ret;
     }
     if (instr.op == VM_IOP_LEN) {
         instr.tag = VM_TAG_I32;
-        return instr;
+        goto ret;
     }
     if (instr.tag == VM_TAG_UNK) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 instr.tag = types->tags[instr.args[i].reg];
-                return instr;
+                goto ret;
             }
         }
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_LIT) {
                 instr.tag = instr.args[i].lit.tag;
-                return instr;
+                goto ret;
             }
         }
         instr.tag = VM_TAG_NIL;
     }
+ret:;
     return instr;
 }
 
 vm_branch_t vm_rblock_type_specialize_branch(vm_tags_t *types, vm_branch_t branch) {
+    if (branch.tag != VM_TAG_UNK) {
+        __builtin_trap();
+    }
     if (branch.op == VM_BOP_GET) {
-        return branch;
+        goto ret;
     } else if (branch.op == VM_BOP_CALL) {
-        return branch;
+        goto ret;
     } else if (branch.tag == VM_TAG_UNK) {
         for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
             if (branch.args[i].type == VM_ARG_REG) {
                 branch.tag = types->tags[branch.args[i].reg];
-                return branch;
+                goto ret;
             }
         }
         for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
             if (branch.args[i].type == VM_ARG_LIT) {
                 branch.tag = branch.args[i].lit.tag;
-                return branch;
+                goto ret;
             }
         }
         branch.tag = VM_TAG_NIL;
     }
+ret:;
     return branch;
 }
