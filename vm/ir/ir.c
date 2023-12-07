@@ -369,9 +369,16 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 }
             }
         }
+    }
+    redo = true;
+    while (redo) {
+        redo = false;
         for (size_t i = 0; i < nblocks; i++) {
             vm_block_t *block = blocks[i];
             if (block->id < 0) {
+                continue;
+            }
+            if (block->isfunc) {
                 continue;
             }
             uint8_t *regs = vm_malloc(sizeof(uint8_t) * block->nregs);
@@ -414,120 +421,99 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                     if (target->args[a].type == VM_ARG_REG &&
                         regs[target->args[a].reg] == VM_INFO_REG_UNK) {
                         regs[target->args[a].reg] = VM_INFO_REG_ARG;
+                        nargs += 1;
                     }
                 }
             }
-            if (block->nargs == 0) {
-                block->nargs = 0;
-                block->args = vm_malloc(sizeof(vm_arg_t) * nargs);
-                for (size_t reg = 0; reg < block->nregs; reg++) {
-                    if (regs[reg] == VM_INFO_REG_ARG) {
-                        block->args[block->nargs++] = (vm_arg_t){
-                            .type = VM_ARG_REG,
-                            .reg = (uint32_t)reg,
-                        };
-                        if (reg >= block->nregs) {
-                            block->nregs = reg + 1;
-                        }
-                    }
+            size_t next_nargs = 0;
+            vm_arg_t *next_args = vm_malloc(sizeof(vm_arg_t) * nargs);
+            for (size_t reg = 0; reg < block->nregs; reg++) {
+                if (regs[reg] == VM_INFO_REG_ARG) {
+                    next_args[next_nargs++] = (vm_arg_t){
+                        .type = VM_ARG_REG,
+                        .reg = (uint32_t)reg,
+                    };
                 }
             }
-        }
-        for (ptrdiff_t i = (ptrdiff_t)nblocks - 1; i >= 0; i--) {
-            vm_block_t *block = blocks[i];
-            if (block->id < 0) {
-                continue;
-            }
-            if (block->isfunc) {
-                continue;
-            }
-            for (size_t t = 0; t < 2; t++) {
-                vm_block_t *target = block->branch.targets[t];
-                if (target == NULL) {
-                    break;
-                }
-                if (target->nregs > block->nregs) {
-                    block->nregs = target->nregs;
-                    redo = true;
-                }
-                size_t total = block->nargs + target->nargs;
-                vm_arg_t *next = vm_malloc(sizeof(vm_arg_t) * total);
-                size_t nargs = 0;
-                size_t bi = 0;
-                size_t ti = 0;
-                while (true) {
-                    if (bi >= block->nargs) {
-                        while (ti < target->nargs) {
-                            vm_arg_t newreg = target->args[ti++];
-                            uint8_t *regs = all_regs[i];
-                            if (regs[newreg.reg] != VM_INFO_REG_DEF) {
-                                next[nargs++] = newreg;
-                            }
-                        }
+            if (next_nargs == block->nargs && !redo) {
+                for (size_t a = 0; a < next_nargs; a++) {
+                    if (next_args[a].reg != block->args[a].reg) {
+                        redo = true;
                         break;
-                    } else if (ti >= target->nargs) {
-                        while (bi < block->nargs) {
-                            next[nargs++] = block->args[bi++];
-                        }
-                        break;
-                    } else if (block->args[bi].reg == target->args[ti].reg) {
-                        next[nargs++] = block->args[bi++];
-                        ti += 1;
-                    } else if (block->args[bi].reg > target->args[ti].reg) {
-                        vm_arg_t newreg = target->args[ti++];
-                        if (all_regs[i][newreg.reg] != VM_INFO_REG_DEF) {
-                            next[nargs++] = newreg;
-                        }
-                    } else if (block->args[bi].reg < target->args[ti].reg) {
-                        next[nargs++] = block->args[bi++];
                     }
                 }
-                block->args = next;
-                block->nargs = nargs;
-                if (nargs != block->nargs) {
-                    redo = true;
-                }
+            } else {
+                redo = true;
             }
+            block->nargs = next_nargs;
+            block->args = next_args;
         }
     }
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = blocks[i];
-        if (block->id < 0) {
-            continue;
-        }
-    }
-    vm_block_t *func = blocks[0];
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = blocks[i];
-        if (block->id < 0) {
-            continue;
-        }
-        if (block->isfunc) {
-            func = block;
-        }
-        if (block->nregs > func->nregs) {
-            func->nregs = block->nregs;
-        }
-    }
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = blocks[i];
-        for (size_t j = 0; j < block->len; j++) {
-            vm_instr_t instr = block->instrs[j];
-            for (size_t k = 0; instr.args[k].type != VM_ARG_NONE; k++) {
-                vm_arg_t arg = instr.args[k];
-                if (arg.type == VM_ARG_FUN) {
-                    arg.func->isfunc = true;
-                }
-            }
-        }
-        vm_branch_t branch = block->branch;
-        for (size_t k = 0; branch.args[k].type != VM_ARG_NONE; k++) {
-            vm_arg_t arg = branch.args[k];
-            if (arg.type == VM_ARG_FUN) {
-                arg.func->isfunc = true;
-            }
-        }
-    }
+    // redo = true;
+    // while (redo) {
+    //     redo = false;
+    //     for (ptrdiff_t i = (ptrdiff_t)nblocks - 1; i >= 0; i--) {
+    //         vm_block_t *block = blocks[i];
+    //         if (block->id < 0) {
+    //             continue;
+    //         }
+    //         if (block->isfunc) {
+    //             continue;
+    //         }
+    //         for (size_t t = 0; t < 2; t++) {
+    //             vm_block_t *target = block->branch.targets[t];
+    //             if (target == NULL) {
+    //                 break;
+    //             }
+    //             if (target->nregs > block->nregs) {
+    //                 block->nregs = target->nregs;
+    //                 redo = true;
+    //             }
+    //             size_t total = block->nargs + target->nargs;
+    //             vm_arg_t *next = vm_malloc(sizeof(vm_arg_t) * total);
+    //             size_t nargs = 0;
+    //             size_t bi = 0;
+    //             size_t ti = 0;
+    //             while (true) {
+    //                 if (bi >= block->nargs) {
+    //                     while (ti < target->nargs) {
+    //                         vm_arg_t newreg = target->args[ti++];
+    //                         uint8_t *regs = all_regs[i];
+    //                         if (regs[newreg.reg] != VM_INFO_REG_DEF) {
+    //                             next[nargs++] = newreg;
+    //                         }
+    //                     }
+    //                     break;
+    //                 } else if (ti >= target->nargs) {
+    //                     while (bi < block->nargs) {
+    //                         next[nargs++] = block->args[bi++];
+    //                     }
+    //                     break;
+    //                 } else if (block->args[bi].reg == target->args[ti].reg) {
+    //                     next[nargs++] = block->args[bi++];
+    //                     ti += 1;
+    //                 } else if (block->args[bi].reg > target->args[ti].reg) {
+    //                     vm_arg_t newreg = target->args[ti++];
+    //                     if (all_regs[i][newreg.reg] != VM_INFO_REG_DEF) {
+    //                         next[nargs++] = newreg;
+    //                     }
+    //                 } else if (block->args[bi].reg < target->args[ti].reg) {
+    //                     next[nargs++] = block->args[bi++];
+    //                 }
+    //             }
+    //             for (size_t a = 0; a < nargs; a++) {
+    //                 if (next[a].type == VM_ARG_REG && next[a].reg > block->nregs) {
+    //                     block->nregs = next[a].reg + 1;
+    //                 }
+    //             }
+    //             block->args = next;
+    //             block->nargs = nargs;
+    //             if (nargs != block->nargs) {
+    //                 redo = true;
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 vm_tag_t vm_arg_to_tag(vm_arg_t arg) {

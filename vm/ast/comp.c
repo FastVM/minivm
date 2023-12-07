@@ -782,6 +782,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *old_cur = comp->cur;
                     vm_block_t *body = vm_ast_comp_new_block(comp);
                     comp->cur = body;
+                    body->isfunc = true;
 
                     vm_ast_form_t args = form.args[1].value.form;
 

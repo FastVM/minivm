@@ -1351,7 +1351,6 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             }
 
             for (size_t i = 0; i < block->nargs; i++) {
-                regs[block->args[i].reg] = tb_inst_local(fun, 8, 8);
                 tb_inst_store(
                     fun,
                     vm_tag_to_tb_type(block->args[i].reg_tag),
@@ -1421,7 +1420,6 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
 void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
     vm_tags_t *regs = vm_rblock_regs_empty(block->nregs);
-    block->isfunc = true;
     vm_rblock_t *rblock = vm_rblock_new(block, regs);
     rblock->state = state;
     return vm_tb_rfunc_comp(rblock);
