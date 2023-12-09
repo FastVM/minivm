@@ -15,18 +15,18 @@ UNAME_O != uname -o
 PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-GC_SRCS = bdwgc/alloc.c bdwgc/allchblk.c bdwgc/blacklst.c bdwgc/dbg_mlc.c bdwgc/dyn_load.c bdwgc/finalize.c bdwgc/headers.c bdwgc/malloc.c bdwgc/mallocx.c bdwgc/mark.c bdwgc/mach_dep.c bdwgc/mark_rts.c bdwgc/misc.c bdwgc/new_hblk.c bdwgc/obj_map.c bdwgc/os_dep.c bdwgc/ptr_chck.c bdwgc/reclaim.c
+GC_SRCS = vendor/bdwgc/alloc.c vendor/bdwgc/allchblk.c vendor/bdwgc/blacklst.c vendor/bdwgc/dbg_mlc.c vendor/bdwgc/dyn_load.c vendor/bdwgc/finalize.c vendor/bdwgc/headers.c vendor/bdwgc/malloc.c vendor/bdwgc/mallocx.c vendor/bdwgc/mark.c vendor/bdwgc/mach_dep.c vendor/bdwgc/mark_rts.c vendor/bdwgc/misc.c vendor/bdwgc/new_hblk.c vendor/bdwgc/obj_map.c vendor/bdwgc/os_dep.c vendor/bdwgc/ptr_chck.c vendor/bdwgc/reclaim.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TREES_SRCS := trees/alloc.c trees/get_changed_ranges.c trees/language.c trees/lexer.c trees/node.c trees/parser.c trees/query.c trees/stack.c trees/subtree.c trees/tree_cursor.c trees/tree.c
+TREES_SRCS := vendor/trees/alloc.c vendor/trees/get_changed_ranges.c vendor/trees/language.c vendor/trees/lexer.c vendor/trees/node.c vendor/trees/parser.c vendor/trees/query.c vendor/trees/stack.c vendor/trees/subtree.c vendor/trees/tree_cursor.c vendor/trees/tree.c
 
 STD_SRCS := vm/std/libs/io.c vm/std/std.c
-VM_SRCS := vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser.c vm/lua/scan.c vm/lua/ast.c vm/lua/repl.c isocline/isocline.c
+VM_SRCS := vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser.c vm/lua/scan.c vm/lua/ast.c vm/lua/repl.c vendor/isocline/isocline.c
 
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TB_SRCS := cuik/common/common.c cuik/common/perf.c cuik/tb/src/libtb.c cuik/tb/src/x64/x64.c
+TB_SRCS := vendor/cuik/common/common.c vendor/cuik/common/perf.c vendor/cuik/tb/src/libtb.c vendor/cuik/tb/src/x64/x64.c
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS)
@@ -59,7 +59,7 @@ all: bins
 
 clang-windows: .dummy
 	rm -rf build
-	$(MAKE) -Bj$(J) CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Icuik/c11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="cuik/c11threads/threads_msvc.c"
+	$(MAKE) -Bj$(J) CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Icuik/c11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="vendor/cuik/c11threads/threads_msvc.c"
 
 gcc-windows: .dummy
 	rm -rf build
@@ -77,7 +77,7 @@ minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 
 $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I cuik/tb/include -I cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS
+	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I vendor/cuik/tb/include -I vendor/cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS
 
 $(PROG_OBJS) $(ALL_OBJS) $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))

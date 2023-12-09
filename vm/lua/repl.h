@@ -4,8 +4,8 @@
 #include "../config.h"
 #include "../obj.h"
 #include "../lib.h"
-#include "../../isocline/isocline.h"
-#include "../../isocline/completions.h"
+#include "../../vendor/isocline/isocline.h"
+#include "../../vendor/isocline/completions.h"
 
 struct vm_lang_lua_repl_complete_state_t;
 struct vm_lang_lua_repl_complete_state_t;

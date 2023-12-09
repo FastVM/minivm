@@ -7,7 +7,7 @@
 #include "../backend/tb.h"
 #include "../std/libs/io.h"
 #include "../std/util.h"
-#include "../../trees/api.h"
+#include "../../vendor/trees/api.h"
 
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);

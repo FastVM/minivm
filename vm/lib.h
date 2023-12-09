@@ -35,7 +35,7 @@
     exit(1);
 #endif
 
-#if 0
+#if 1
 void GC_init();
 void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t size);
@@ -46,7 +46,7 @@ void GC_free(void *ptr);
 #define vm_realloc(x, y) (GC_realloc(x, y))
 #endif
 
-#if 1
+#if 0
 #define vm_init_mem() ((void)0)
 #define vm_malloc(x) (malloc((x)))
 #define vm_realloc(x, y) (realloc((x), (y)))

@@ -1,6 +1,6 @@
 
 #include "../ast/ast.h"
-#include "../../trees/api.h"
+#include "../../vendor/trees/api.h"
 #include "../ast/build.h"
 #include "../ast/print.h"
 #include "./parser.h"
@@ -27,7 +27,8 @@ char *vm_lang_lua_src(vm_lang_lua_t src, TSNode node) {
 }
 
 vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
-    char buf[32];
+    char *buf = vm_malloc(sizeof(char) * 32);
+    *src.nsyms += 1; 
     snprintf(buf, 31, "gensym.%zu", *src.nsyms);
     return vm_ast_build_ident(buf);
 }
@@ -386,9 +387,9 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         return vm_lang_lua_conv(src, ts_node_child(node, 1));
     }
     if (!strcmp(type, "table_constructor")) {
-        if (num_children == 2) {
-            return vm_ast_build_new();
-        }
+        // if (num_children == 2) {
+        //     return vm_ast_build_new();
+        // }
         vm_ast_node_t var = vm_lang_lua_gensym(src);
         size_t nfields = 1;
         vm_ast_node_t built = vm_ast_build_local(var, vm_ast_build_new());
