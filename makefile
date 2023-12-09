@@ -26,7 +26,7 @@ VM_SRCS := vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/comp.c vm/ast/
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TB_SRCS := vendor/cuik/common/common.c vendor/cuik/common/perf.c vendor/cuik/tb/src/libtb.c vendor/cuik/tb/src/x64/x64.c
+TB_SRCS := vendor/common/common.c vendor/common/perf.c vendor/tb/src/libtb.c vendor/tb/src/x64/x64.c
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS)
@@ -59,7 +59,7 @@ all: bins
 
 clang-windows: .dummy
 	rm -rf build
-	$(MAKE) -Bj$(J) CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Icuik/c11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="vendor/cuik/c11threads/threads_msvc.c"
+	$(MAKE) -Bj$(J) CC=clang EXE=.exe OPT="$(OPT)" CFLAGS="-Icuik/c11threads $(CFLAGS)" LDFLAGS="$(LDFLAGS)" EXTRA_SRCS="vendor/c11threads/threads_msvc.c"
 
 gcc-windows: .dummy
 	rm -rf build
@@ -77,7 +77,7 @@ minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 
 $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I vendor/cuik/tb/include -I vendor/cuik/common -DCUIK_USE_TB -DLOG_SUPPRESS
+	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I vendor/tb/include -I vendor/common -DCUIK_USE_TB -DLOG_SUPPRESS
 
 $(PROG_OBJS) $(ALL_OBJS) $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))

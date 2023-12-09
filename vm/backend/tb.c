@@ -1,7 +1,7 @@
 
 #include "./tb.h"
 
-#include "../../vendor/cuik/tb/include/tb.h"
+#include "../../vendor/tb/include/tb.h"
 #include "../ir/check.h"
 #include "../ir/rblock.h"
 
