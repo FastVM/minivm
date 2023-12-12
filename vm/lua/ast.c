@@ -270,7 +270,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(op, "*")) {
             return vm_ast_build_mul(left, right);
         }
-        if (!strcmp(op, "//")) {
+        if (!strcmp(op, "//") || !strcmp(op, "/")) {
             return vm_ast_build_div(left, right);
         }
         if (!strcmp(op, "%")) {

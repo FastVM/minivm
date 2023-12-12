@@ -89,7 +89,7 @@ void vm_io_print_lit(FILE *out, vm_std_value_t value) {
             break;
         }
         case VM_TAG_F32: {
-            fprintf(out, "%lf", value.value.f32);
+            fprintf(out, "%f", value.value.f32);
             break;
         }
         case VM_TAG_F64: {
@@ -161,12 +161,12 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
         }
         case VM_TAG_F32: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%lf\n", value.value.f32);
+            fprintf(out, "%f (.bits = 0x%"PRIX32")\n", value.value.f32, value.value.i32);
             break;
         }
         case VM_TAG_F64: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%f\n", value.value.f64);
+            fprintf(out, "%f (.bits = 0x%"PRIX64")\n", value.value.f64, value.value.i64);
             break;
         }
         case VM_TAG_STR: {
@@ -316,6 +316,7 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
             break;
         }
         default: {
+            vm_indent(out, indent, prefix);
             fprintf(out, "<T%zu: %p>\n", (size_t)value.tag, value.value.all);
             __builtin_trap();
         }

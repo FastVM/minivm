@@ -7,5 +7,4 @@ while x <= 10000000 do
     x = x + 1
 end
 
-
-print(a[x-1] // 2)
+print(a[x-1] / 2)

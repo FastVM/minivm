@@ -230,16 +230,16 @@ size_t vm_value_hash(vm_std_value_t value) {
             return SIZE_MAX - (size_t)value.value.b;
         }
         case VM_TAG_I8: {
-            return value.value.i8;
+            return value.value.i8 * 1610612741;
         }
         case VM_TAG_I16: {
-            return value.value.i16;
+            return value.value.i16 * 1610612741;
         }
         case VM_TAG_I32: {
-            return value.value.i32;
+            return value.value.i32 * 1610612741;
         }
         case VM_TAG_I64: {
-            return value.value.i64;
+            return value.value.i64 * 1610612741;
         }
         case VM_TAG_F32: {
             return *(uint32_t *)&value.value.f32;

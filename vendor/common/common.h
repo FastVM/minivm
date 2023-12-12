@@ -16,10 +16,13 @@
 #define cuik_realloc(ptr, size)  mi_realloc(ptr, size)
 #define cuik_strdup(x)           mi_strdup(x)
 #else
-#define cuik_malloc(size)        malloc(size)
-#define cuik_calloc(count, size) calloc(count, size)
-#define cuik_free(size)          free(size)
-#define cuik_realloc(ptr, size)  realloc(ptr, size)
+void *GC_malloc(size_t size);
+void *GC_realloc(void *ptr, size_t size);
+void *GC_free(void *ptr);
+#define cuik_malloc(size)        GC_malloc(size)
+#define cuik_calloc(count, size) GC_malloc((count) * (size))
+#define cuik_free(size)          ((void)(size))
+#define cuik_realloc(ptr, size)  GC_realloc(ptr, size)
 
 #ifdef _WIN32
 #define cuik_strdup(x)           _strdup(x)

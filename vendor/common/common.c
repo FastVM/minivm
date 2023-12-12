@@ -58,7 +58,8 @@ void* cuik__valloc(size_t size) {
     cuik__page_size = 4096;
     cuik__page_mask = 4095;
 
-    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    return GC_malloc(size);
     #endif
 }
 

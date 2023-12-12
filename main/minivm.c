@@ -14,7 +14,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std);
 int main(int argc, char **argv) {
     vm_init_mem();
     vm_config_t val_config = (vm_config_t){
-        .use_tb_opt = true,
+        .use_tb_opt = false,
         .use_num = VM_USE_NUM_I32,
     };
     vm_config_t *config = &val_config;
