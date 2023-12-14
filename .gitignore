@@ -17,7 +17,6 @@ minivm.exe
 *.out
 out.*
 *.perf
-perf.*
 *.profdata
 *.profraw
 *.rdbg
