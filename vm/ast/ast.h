@@ -55,6 +55,7 @@ enum {
     // branch
     VM_AST_FORM_IF,
     VM_AST_FORM_WHILE,
+    VM_AST_FORM_BREAK,
     // calls
     VM_AST_FORM_ARGS,
     VM_AST_FORM_LAMBDA,

@@ -115,6 +115,10 @@ void vm_ast_print_node(FILE *out, size_t indent, const char *prefix, vm_ast_node
                     fprintf(out, "while");
                     break;
                 }
+                case VM_AST_FORM_BREAK: {
+                    fprintf(out, "break");
+                    break;
+                }
                 case VM_AST_FORM_ARGS: {
                     fprintf(out, "args");
                     break;

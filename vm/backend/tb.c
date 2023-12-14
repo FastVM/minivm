@@ -770,15 +770,12 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     }
 
                     TB_PrototypeParam *call_proto_params = vm_malloc(sizeof(TB_PrototypeParam) * nargs);
-                    TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * nargs);
 
                     call_proto_params[0] = (TB_PrototypeParam){TB_TYPE_PTR};
-                    call_args[0] = closure;
                     for (size_t arg = 1; branch.args[arg].type != VM_ARG_NONE; arg++) {
                         call_proto_params[arg] = (TB_PrototypeParam){
                             vm_tag_to_tb_type(vm_arg_to_tag(branch.args[arg])),
                         };
-                        call_args[arg] = vm_tb_func_read_arg(fun, regs, branch.args[arg]);
                     }
 
                     TB_PrototypeParam call_proto_rets[2] = {
@@ -843,6 +840,12 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                             false
                         );
 
+                        TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * nargs);
+                        call_args[0] = closure;
+                        for (size_t arg = 1; branch.args[arg].type != VM_ARG_NONE; arg++) {
+                            call_args[arg] = vm_tb_func_read_arg(fun, regs, branch.args[arg]);
+                        }
+
                         TB_Node **got = vm_tb_inst_call(
                                             fun,
                                             call_proto,
@@ -876,6 +879,12 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     {
                         tb_inst_set_control(fun, has_cache);
 
+                        TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * nargs);
+                        call_args[0] = closure;
+                        for (size_t arg = 1; branch.args[arg].type != VM_ARG_NONE; arg++) {
+                            call_args[arg] = vm_tb_func_read_arg(fun, regs, branch.args[arg]);
+                        }
+                        
                         TB_Node **got = vm_tb_inst_call(
                                             fun,
                                             call_proto,
@@ -1041,16 +1050,13 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             size_t next_nargs = branch.targets[0]->nargs;
             TB_PrototypeParam *next_params = vm_malloc(sizeof(TB_PrototypeParam) * next_nargs);
-            TB_Node **next_args = vm_malloc(sizeof(TB_Node *) * next_nargs);
 
             for (size_t argno = 0; argno < next_nargs; argno++) {
                 vm_arg_t arg = branch.targets[0]->args[argno];
                 if (arg.type == VM_ARG_REG && arg.reg == branch.out.reg) {
                     next_params[argno] = (TB_PrototypeParam){ TB_TYPE_PTR };
-                    next_args[argno] = val_val;
                 } else {
                     next_params[argno] = (TB_PrototypeParam){vm_tag_to_tb_type(vm_arg_to_tag(arg))};
-                    next_args[argno] = vm_tb_func_read_arg(fun, regs, arg);
                 }
             }
 
@@ -1135,6 +1141,16 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     1,
                     false
                 );
+
+                TB_Node **next_args = vm_malloc(sizeof(TB_Node *) * next_nargs);
+                for (size_t argno = 0; argno < next_nargs; argno++) {
+                    vm_arg_t arg = branch.targets[0]->args[argno];
+                    if (arg.type == VM_ARG_REG && arg.reg == branch.out.reg) {
+                        next_args[argno] = val_val;
+                    } else {
+                        next_args[argno] = vm_tb_func_read_arg(fun, regs, arg);
+                    }
+                }
                 
                 if (next_nargs > 6) {
                     TB_MultiOutput out = vm_tb_inst_call(
@@ -1159,6 +1175,16 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
             {
                 tb_inst_set_control(fun, has_cache_region);
+                
+                TB_Node **next_args = vm_malloc(sizeof(TB_Node *) * next_nargs);
+                for (size_t argno = 0; argno < next_nargs; argno++) {
+                    vm_arg_t arg = branch.targets[0]->args[argno];
+                    if (arg.type == VM_ARG_REG && arg.reg == branch.out.reg) {
+                        next_args[argno] = val_val;
+                    } else {
+                        next_args[argno] = vm_tb_func_read_arg(fun, regs, arg);
+                    }
+                }
                 
                 if (next_nargs > 6) {
                     TB_MultiOutput out = vm_tb_inst_call(

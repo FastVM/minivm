@@ -19,6 +19,7 @@ struct vm_ast_comp_t {
     vm_ast_blocks_t blocks;
     vm_block_t *cur;
     vm_ast_comp_names_t *names;
+    vm_block_t *on_break;
     bool is_error : 1;
 };
 
@@ -816,7 +817,10 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         );
                     }
 
+                    vm_block_t *old_break = comp->on_break;
+                    comp->on_break = NULL;
                     vm_ast_comp_to(comp, form.args[2]);
+                    comp->on_break = old_break;
 
                     vm_ast_blocks_branch(
                         comp,
@@ -886,7 +890,10 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     // comp->cur = cond;
                     vm_ast_comp_br(comp, form.args[0], body, after);
                     comp->cur = body;
+                    vm_block_t *old_break = comp->on_break;
+                    comp->on_break = after;
                     vm_ast_comp_to(comp, form.args[1]);
+                    comp->on_break = old_break;
                     vm_ast_comp_br(comp, form.args[0], body, after);
                     // vm_ast_blocks_branch(
                     //     comp,
@@ -896,6 +903,23 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     //         .targets[0] = cond,
                     //     }
                     // );
+                    comp->cur = after;
+                    return vm_arg_nil();
+                }
+                case VM_AST_FORM_BREAK: {
+                    if (comp->on_break == NULL) {
+                        vm_ast_print_node(stdout, 0, "error node (break) = ", node);
+                        exit(1);
+                    }
+                    vm_block_t *after = vm_ast_comp_new_block(comp);
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_JUMP,
+                            .args = vm_ast_args(0),
+                            .targets[0] = comp->on_break,
+                        }
+                    );
                     comp->cur = after;
                     return vm_arg_nil();
                 }
@@ -997,6 +1021,7 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
         .blocks = *blocks,
         .names = NULL,
         .cur = NULL,
+        .on_break = NULL,
         .is_error = false,
     };
     for (size_t i = 0; i < blocks->len; i++) {

@@ -36,6 +36,7 @@ vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     const char *type = ts_node_type(node);
     size_t num_children = ts_node_child_count(node);
+    // printf("%s\n", ts_node_string(node));
     if (!strcmp(type, "comment")) {
         return vm_ast_build_nil();
     }
@@ -48,6 +49,9 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             ret = vm_ast_build_do(ret, vm_lang_lua_conv(src, ts_node_child(node, i)));
         }
         return ret;
+    }
+    if (!strcmp(type, "break_statement")) {
+        return vm_ast_build_break();
     }
     if (!strcmp(type, "function_definition")) {
         TSNode params = ts_node_child(node, 1);
@@ -236,11 +240,27 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             vm_lang_lua_conv(src, ts_node_child(node, 3))
         );
     }
-    if (!strcmp(type, "if_statement")) {
+    if (!strcmp(type, "if_expression")) {
+        vm_ast_node_t els = vm_ast_build_nil();
+        for (size_t i = num_children - 2; i >= 4; i--) {
+            TSNode child = ts_node_child(node, i);
+            const char *child_type = ts_node_type(child);
+            if (!strcmp(child_type, "else_expression")) {
+                els = vm_lang_lua_conv(src, ts_node_child(child, 1));
+            } else if (!strcmp(child_type, "elseif_expression")) {
+                els = vm_ast_build_if(
+                    vm_lang_lua_conv(src, ts_node_child(child, 1)),
+                    vm_lang_lua_conv(src, ts_node_child(child, 3)),
+                    els
+                );
+            } else {
+                __builtin_trap();
+            }
+        }
         return vm_ast_build_if(
             vm_lang_lua_conv(src, ts_node_child(node, 1)),
             vm_lang_lua_conv(src, ts_node_child(node, 3)),
-            num_children == 6 ? vm_lang_lua_conv(src, ts_node_child(ts_node_child(node, 4), 1)) : vm_ast_build_nil()
+            els
         );
     }
     if (!strcmp(type, "unary_expression")) {

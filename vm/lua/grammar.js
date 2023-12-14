@@ -89,7 +89,6 @@ module.exports = grammar({
                 $.do_statement,
                 $.while_statement,
                 $.repeat_statement,
-                $.if_statement,
                 $.for_statement,
                 $.declaration,
                 $.expression,
@@ -152,18 +151,18 @@ module.exports = grammar({
             ),
 
         // if exp then block {elseif exp then block} [else block] end
-        if_statement: ($) =>
+        if_expression: ($) =>
             seq(
                 'if',
                 field('condition', $.expression),
                 'then',
                 field('consequence', optional_block($)),
-                repeat(field('alternative', $.elseif_statement)),
-                optional(field('alternative', $.else_statement)),
+                repeat(field('alternative', $.elseif_expression)),
+                optional(field('alternative', $.else_expression)),
                 'end'
             ),
         // elseif exp then block
-        elseif_statement: ($) =>
+        elseif_expression: ($) =>
             seq(
                 'elseif',
                 field('condition', $.expression),
@@ -171,7 +170,7 @@ module.exports = grammar({
                 field('consequence', optional_block($))
             ),
         // else block
-        else_statement: ($) => seq('else', field('body', optional_block($))),
+        else_expression: ($) => seq('else', field('body', optional_block($))),
 
         // for Name '=' exp ',' exp [',' exp] do block end
         // for namelist in explist do block end
@@ -297,7 +296,8 @@ module.exports = grammar({
                 $.parenthesized_expression,
                 $.table_constructor,
                 $.binary_expression,
-                $.unary_expression
+                $.unary_expression,
+                $.if_expression,
             ),
 
         // nil
