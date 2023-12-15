@@ -5,7 +5,7 @@
 #include "../ast/comp.h"
 #include "../ast/print.h"
 #include "../backend/tb.h"
-#include "../std/libs/io.h"
+#include "../std/io.h"
 #include "../std/util.h"
 #include "../../vendor/trees/api.h"
 
@@ -268,21 +268,26 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
         free(input);
 
         if (config->dump_ast) {
-            printf("\n--- ast ---\n");
-            vm_ast_print_node(stdout, 0, "", node);
+            vm_io_buffer_t buf = {0};
+            vm_ast_print_node(&buf, 0, "", node);
+            printf("\n--- ast ---\n%.*s", (int) buf.len, buf.buf);
         }
 
         vm_ast_comp_more(node, &blocks);
 
         if (config->dump_ir) {
-            vm_print_blocks(stdout, blocks.len, blocks.blocks);
+            vm_io_buffer_t buf = {0};
+            vm_io_format_blocks(&buf, blocks.len, blocks.blocks);
+            printf("%.*s", (int) buf.len, buf.buf);
         }
 
         vm_std_value_t value = vm_tb_run_repl(config, blocks.entry, blocks.len, blocks.blocks, std);
         if (value.tag == VM_TAG_ERROR) {
             printf("error: %s\n", value.value.str);
         } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
-            vm_io_debug(stdout, 0, "", value, NULL);
+            vm_io_buffer_t buf = {0};
+            vm_io_debug(&buf, 0, "", value, NULL);
+            printf("%.*s", (int) buf.len, buf.buf);
         }
 
         if (config->dump_time) {

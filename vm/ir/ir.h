@@ -3,6 +3,7 @@
 #define VM_HEADER_IR
 
 #include "../lib.h"
+#include "../std/io.h"
 #include "../std/std.h"
 #include "tag.h"
 
@@ -140,12 +141,12 @@ struct vm_block_t {
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
 
-void vm_print_arg(FILE *out, vm_arg_t val);
-void vm_print_tag(FILE *out, vm_tag_t tag);
-void vm_print_branch(FILE *out, vm_branch_t val);
-void vm_print_instr(FILE *out, vm_instr_t val);
-void vm_print_block(FILE *out, vm_block_t *val);
-void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **val);
+void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val);
+void vm_io_format_tag(vm_io_buffer_t *out, vm_tag_t tag);
+void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val);
+void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val);
+void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val);
+void vm_io_format_blocks(vm_io_buffer_t *out, size_t nblocks, vm_block_t **val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
 vm_tag_t vm_arg_to_tag(vm_arg_t arg);

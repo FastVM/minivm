@@ -1,25 +1,36 @@
 
 #include "./io.h"
 
-#include "../util.h"
+#include "./util.h"
 
-char *vm_io_vformat(char *fmt, va_list ap) {
-    size_t alloc = 16;
-    char *buf = vm_malloc(sizeof(char) * alloc);
-    size_t len = 0;
-    va_list ap_copy;
+void vm_io_buffer_vformat(vm_io_buffer_t *buf, char *fmt, va_list ap) {
     while (true) {
-        int avail = alloc - len;
+        int avail = buf->alloc - buf->len;
+        va_list ap_copy;
         va_copy(ap_copy, ap);
-        int written = vsnprintf(&buf[len], avail, fmt, ap_copy);
+        int written = vsnprintf(&buf->buf[buf->len], avail, fmt, ap_copy);
         va_end(ap_copy);
         if (avail <= written) {
-            buf = vm_realloc(buf, sizeof(char) * alloc);
+            buf->alloc = buf->alloc * 2 + 16;
+            buf->buf = vm_realloc(buf->buf, sizeof(char) * buf->alloc);
             continue;
         }
-        len += written;
-        return buf;
+        buf->len += written;
+        break;
     }
+}
+
+void vm_io_buffer_format(vm_io_buffer_t *buf, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vm_io_buffer_vformat(buf, fmt, ap);
+    va_end(ap);
+}
+
+char *vm_io_vformat(char *fmt, va_list ap) {
+    vm_io_buffer_t buf = (vm_io_buffer_t) {0};
+    vm_io_buffer_vformat(&buf, fmt, ap);
+    return buf.buf;
 }
 
 char *vm_io_format(char *fmt, ...) {
@@ -30,9 +41,9 @@ char *vm_io_format(char *fmt, ...) {
     return r;
 }
 
-char *vm_io_read(const char *filename) {
-    void *file = fopen(filename, "rb");
-    if (file == NULL) {
+char *vm_io_read(const char *vm_io_buffer_tname) {
+    void *vm_io_buffer_t = fopen(vm_io_buffer_tname, "rb");
+    if (vm_io_buffer_t == NULL) {
         return NULL;
     }
     size_t nalloc = 512;
@@ -44,76 +55,76 @@ char *vm_io_read(const char *filename) {
             nalloc = (nops + 256) * 2;
             ops = vm_realloc(ops, sizeof(char) * nalloc);
         }
-        size = fread(&ops[nops], 1, 256, file);
+        size = fread(&ops[nops], 1, 256, vm_io_buffer_t);
         nops += size;
         if (size < 256) {
             break;
         }
     }
     ops[nops] = '\0';
-    fclose(file);
+    fclose(vm_io_buffer_t);
     return ops;
 }
 
-static void vm_indent(FILE *out, size_t indent, const char *prefix) {
+static void vm_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {
     while (indent-- > 0) {
-        fprintf(out, "    ");
+        vm_io_buffer_format(out, "    ");
     }
-    fprintf(out, "%s", prefix);
+    vm_io_buffer_format(out, "%s", prefix);
 }
 
-void vm_io_print_lit(FILE *out, vm_std_value_t value) {
+void vm_io_print_lit(vm_io_buffer_t *out, vm_std_value_t value) {
     switch (value.tag) {
         case VM_TAG_NIL: {
-            fprintf(out, "nil");
+            vm_io_buffer_format(out, "nil");
             break;
         }
         case VM_TAG_BOOL: {
-            fprintf(out, "%s", value.value.b ? "true" : "false");
+            vm_io_buffer_format(out, "%s", value.value.b ? "true" : "false");
             break;
         }
         case VM_TAG_I8: {
-            fprintf(out, "%" PRIi8, value.value.i8);
+            vm_io_buffer_format(out, "%" PRIi8, value.value.i8);
             break;
         }
         case VM_TAG_I16: {
-            fprintf(out, "%" PRIi16, value.value.i16);
+            vm_io_buffer_format(out, "%" PRIi16, value.value.i16);
             break;
         }
         case VM_TAG_I32: {
-            fprintf(out, "%" PRIi32, value.value.i32);
+            vm_io_buffer_format(out, "%" PRIi32, value.value.i32);
             break;
         }
         case VM_TAG_I64: {
-            fprintf(out, "%" PRIi64, value.value.i64);
+            vm_io_buffer_format(out, "%" PRIi64, value.value.i64);
             break;
         }
         case VM_TAG_F32: {
-            fprintf(out, "%f", value.value.f32);
+            vm_io_buffer_format(out, "%f", value.value.f32);
             break;
         }
         case VM_TAG_F64: {
-            fprintf(out, "%f", value.value.f64);
+            vm_io_buffer_format(out, "%f", value.value.f64);
             break;
         }
         case VM_TAG_FFI: {
-            fprintf(out, "<function: %p>", value.value.ffi);
+            vm_io_buffer_format(out, "<function: %p>", value.value.ffi);
             break;
         }
         case VM_TAG_STR: {
-            fprintf(out, "\"%s\"", value.value.str);
+            vm_io_buffer_format(out, "\"%s\"", value.value.str);
             break;
         }
     }
 }
 
-void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link) {
+void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
         if (value.tag == link->value.tag) {
             if (value.value.all == link->value.value.all) {
                 vm_indent(out, indent, prefix);
-                fprintf(out, "<ref %zu>\n", up);
+                vm_io_buffer_format(out, "<ref %zu>\n", up);
                 return;
             }
         }
@@ -127,72 +138,72 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
     switch (value.tag) {
         case VM_TAG_NIL: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "nil\n");
+            vm_io_buffer_format(out, "nil\n");
             break;
         }
         case VM_TAG_BOOL: {
             vm_indent(out, indent, prefix);
             if (value.value.b) {
-                fprintf(out, "true\n");
+                vm_io_buffer_format(out, "true\n");
             } else {
-                fprintf(out, "false\n");
+                vm_io_buffer_format(out, "false\n");
             }
             break;
         }
         case VM_TAG_I8: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%" PRIi8 "\n", value.value.i8);
+            vm_io_buffer_format(out, "%" PRIi8 "\n", value.value.i8);
             break;
         }
         case VM_TAG_I16: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%" PRIi16 "\n", value.value.i16);
+            vm_io_buffer_format(out, "%" PRIi16 "\n", value.value.i16);
             break;
         }
         case VM_TAG_I32: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%" PRIi32 "\n", value.value.i32);
+            vm_io_buffer_format(out, "%" PRIi32 "\n", value.value.i32);
             break;
         }
         case VM_TAG_I64: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%" PRIi64 "\n", value.value.i64);
+            vm_io_buffer_format(out, "%" PRIi64 "\n", value.value.i64);
             break;
         }
         case VM_TAG_F32: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%f (.bits = 0x%"PRIX32")\n", value.value.f32, value.value.i32);
+            vm_io_buffer_format(out, "%g\n", value.value.f32);
             break;
         }
         case VM_TAG_F64: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "%f (.bits = 0x%"PRIX64")\n", value.value.f64, value.value.i64);
+            vm_io_buffer_format(out, "%g\n", value.value.f64);
             break;
         }
         case VM_TAG_STR: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "\"%s\"\n", value.value.str);
+            vm_io_buffer_format(out, "\"%s\"\n", value.value.str);
             break;
         }
         case VM_TAG_CLOSURE: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "<closure: %p>\n", value.value.all);
+            vm_io_buffer_format(out, "<closure: %p>\n", value.value.all);
             break;
         }
         case VM_TAG_FUN: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "<code: %p>\n", value.value.all);
+            vm_io_buffer_format(out, "<code: %p>\n", value.value.all);
             break;
         }
         case VM_TAG_TAB: {
             vm_table_t *tab = value.value.table;
             if (tab == NULL) {
                 vm_indent(out, indent, prefix);
-                fprintf(out, "table(NULL)\n");
+                vm_io_buffer_format(out, "table(NULL)\n");
                 break;
             }
             vm_indent(out, indent, prefix);
-            fprintf(out, "table(%p) {\n", tab);
+            vm_io_buffer_format(out, "table(%p) {\n", tab);
             size_t len = 1 << tab->alloc;
             for (size_t i = 0; i < len; i++) {
                 vm_pair_t p = tab->pairs[i];
@@ -290,7 +301,7 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
                     }
                     default: {
                         vm_indent(out, indent + 1, "");
-                        fprintf(out, "pair {\n");
+                        vm_io_buffer_format(out, "pair {\n");
                         vm_std_value_t key = (vm_std_value_t){
                             .tag = p.key_tag,
                             .value = p.key_val,
@@ -302,22 +313,22 @@ void vm_io_debug(FILE *out, size_t indent, const char *prefix, vm_std_value_t va
                         };
                         vm_io_debug(out, indent + 2, "val = ", val, &next);
                         vm_indent(out, indent + 1, "");
-                        fprintf(out, "}\n");
+                        vm_io_buffer_format(out, "}\n");
                     }
                 }
             }
             vm_indent(out, indent, "");
-            fprintf(out, "}\n");
+            vm_io_buffer_format(out, "}\n");
             break;
         }
         case VM_TAG_FFI: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "<function: %p>\n", value.value.all);
+            vm_io_buffer_format(out, "<function: %p>\n", value.value.all);
             break;
         }
         default: {
             vm_indent(out, indent, prefix);
-            fprintf(out, "<T%zu: %p>\n", (size_t)value.tag, value.value.all);
+            vm_io_buffer_format(out, "<T%zu: %p>\n", (size_t)value.tag, value.value.all);
             __builtin_trap();
         }
     }

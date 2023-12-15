@@ -5,7 +5,7 @@
 #include "../ir/ir.h"
 #include "../lib.h"
 #include "../obj.h"
-#include "../std/libs/io.h"
+#include "../std/io.h"
 #include "../std/std.h"
 #include "../ir/type.h"
 

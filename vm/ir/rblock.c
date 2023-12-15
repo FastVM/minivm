@@ -194,6 +194,6 @@ vm_block_t *vm_rblock_version(size_t nblocks, vm_block_t **blocks, vm_rblock_t *
         }
     }
     // fprintf(stdout, "\n--- version ---\n");
-    // vm_print_block(stdout, ret);
+    // vm_io_format_block(stdout, ret);
     return ret;
 }

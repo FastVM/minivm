@@ -3,8 +3,8 @@
 #include "../../vendor/trees/api.h"
 #include "../ast/build.h"
 #include "../ast/print.h"
+#include "../std/io.h"
 #include "./parser.h"
-#include "../std/libs/io.h"
 
 const TSLanguage *tree_sitter_lua(void);
 
@@ -28,7 +28,7 @@ char *vm_lang_lua_src(vm_lang_lua_t src, TSNode node) {
 
 vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
     char *buf = vm_malloc(sizeof(char) * 32);
-    *src.nsyms += 1; 
+    *src.nsyms += 1;
     snprintf(buf, 31, "gensym.%zu", *src.nsyms);
     return vm_ast_build_ident(buf);
 }
@@ -36,7 +36,7 @@ vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     const char *type = ts_node_type(node);
     size_t num_children = ts_node_child_count(node);
-    // printf("%s\n", ts_node_string(node));
+    // printf("\n---\n%s\n", ts_node_string(node));
     if (!strcmp(type, "comment")) {
         return vm_ast_build_nil();
     }
@@ -202,7 +202,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         TSNode list = ts_node_child(as, 0);
         TSNode exprs = ts_node_child(as, 2);
         vm_ast_node_t ret = vm_ast_build_nil();
-        for (size_t i = 0; i < ts_node_child_count(list); i++) {
+        for (size_t i = 0; i < ts_node_child_count(list); i += 2) {
             TSNode list_ent = ts_node_child(list, i);
             vm_ast_node_t cur;
             if (i < ts_node_child_count(exprs)) {
@@ -240,6 +240,9 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             vm_lang_lua_conv(src, ts_node_child(node, 3))
         );
     }
+    if (!strcmp(type, "do_expression")) {
+        return vm_lang_lua_conv(src, ts_node_child(node, 1));
+    }
     if (!strcmp(type, "if_expression")) {
         vm_ast_node_t els = vm_ast_build_nil();
         for (size_t i = num_children - 2; i >= 4; i--) {
@@ -271,8 +274,23 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         }
         if (!strcmp(op, "-")) {
             switch (src.config->use_num) {
+                case VM_USE_NUM_I8: {
+                    return vm_ast_build_sub(vm_ast_build_literal(i8, 0), right);
+                }
+                case VM_USE_NUM_I16: {
+                    return vm_ast_build_sub(vm_ast_build_literal(i16, 0), right);
+                }
                 case VM_USE_NUM_I32: {
                     return vm_ast_build_sub(vm_ast_build_literal(i32, 0), right);
+                }
+                case VM_USE_NUM_I64: {
+                    return vm_ast_build_sub(vm_ast_build_literal(i64, 0), right);
+                }
+                case VM_USE_NUM_F32: {
+                    return vm_ast_build_sub(vm_ast_build_literal(f32, 0), right);
+                }
+                case VM_USE_NUM_F64: {
+                    return vm_ast_build_sub(vm_ast_build_literal(f64, 0), right);
                 }
             }
         }

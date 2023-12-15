@@ -1,7 +1,7 @@
 
 #include "ir.h"
 
-#include "../std/libs/io.h"
+#include "../std/io.h"
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
@@ -12,301 +12,301 @@ void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     block->instrs[block->len++] = instr;
 }
 
-void vm_print_arg(FILE *out, vm_arg_t val) {
+void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
     switch (val.type) {
         case VM_ARG_LIT: {
             vm_io_print_lit(out, val.lit);
             if (val.lit.tag != VM_TAG_NIL && val.lit.tag != VM_TAG_STR && val.lit.tag != VM_TAG_FFI && val.lit.tag != VM_TAG_BOOL) {
-                vm_print_tag(out, val.lit.tag);
+                vm_io_format_tag(out, val.lit.tag);
             }
             break;
         }
         case VM_ARG_REG: {
             if (val.reg_tag == VM_TAG_UNK) {
-                fprintf(out, "%%%zu", (size_t)val.reg);
+                vm_io_buffer_format(out, "%%%zu", (size_t)val.reg);
             } else {
-                fprintf(out, "%%%zu:", (size_t)val.reg);
-                vm_print_tag(out, val.reg_tag);
+                vm_io_buffer_format(out, "%%%zu:", (size_t)val.reg);
+                vm_io_format_tag(out, val.reg_tag);
             }
             break;
         }
         case VM_ARG_FUN: {
             if (val.func == NULL) {
-                fprintf(out, "<null.fun>");
+                vm_io_buffer_format(out, "<null.fun>");
             } else {
-                fprintf(out, ".%zi", val.func->id);
+                vm_io_buffer_format(out, ".%zi", val.func->id);
             }
             break;
         }
         case VM_ARG_RFUNC: {
-            fprintf(out, "<rfunc.%zi>", val.rfunc->block->id);
+            vm_io_buffer_format(out, "<rfunc.%zi>", val.rfunc->block->id);
             break;
         };
     }
 }
-void vm_print_tag(FILE *out, vm_tag_t tag) {
+void vm_io_format_tag(vm_io_buffer_t *out, vm_tag_t tag) {
     switch (tag) {
         case VM_TAG_UNK: {
-            fprintf(out, "unk");
+            vm_io_buffer_format(out, "unk");
             break;
         }
         case VM_TAG_NIL: {
-            fprintf(out, "nil");
+            vm_io_buffer_format(out, "nil");
             break;
         }
         case VM_TAG_BOOL: {
-            fprintf(out, "bool");
+            vm_io_buffer_format(out, "bool");
             break;
         }
         case VM_TAG_I8: {
-            fprintf(out, "i8");
+            vm_io_buffer_format(out, "i8");
             break;
         }
         case VM_TAG_I16: {
-            fprintf(out, "i16");
+            vm_io_buffer_format(out, "i16");
             break;
         }
         case VM_TAG_I32: {
-            fprintf(out, "i32");
+            vm_io_buffer_format(out, "i32");
             break;
         }
         case VM_TAG_I64: {
-            fprintf(out, "i64");
+            vm_io_buffer_format(out, "i64");
             break;
         }
         case VM_TAG_F32: {
-            fprintf(out, "f32");
+            vm_io_buffer_format(out, "f32");
             break;
         }
         case VM_TAG_F64: {
-            fprintf(out, "f64");
+            vm_io_buffer_format(out, "f64");
             break;
         }
         case VM_TAG_STR: {
-            fprintf(out, "str");
+            vm_io_buffer_format(out, "str");
             break;
         }
         case VM_TAG_CLOSURE: {
-            fprintf(out, "closure");
+            vm_io_buffer_format(out, "closure");
             break;
         }
         case VM_TAG_FUN: {
-            fprintf(out, "rawfunc");
+            vm_io_buffer_format(out, "rawfunc");
             break;
         }
         case VM_TAG_TAB: {
-            fprintf(out, "table");
+            vm_io_buffer_format(out, "table");
             break;
         }
         case VM_TAG_FFI: {
-            fprintf(out, "ffi");
+            vm_io_buffer_format(out, "ffi");
             break;
         }
         case VM_TAG_ERROR: {
-            fprintf(out, "error");
+            vm_io_buffer_format(out, "error");
             break;
         }
         default: {
-            fprintf(out, "<tag: invalid>");
+            vm_io_buffer_format(out, "<tag: invalid>");
         }
     }
 }
-void vm_print_branch(FILE *out, vm_branch_t val) {
+void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
     if (val.out.type != VM_ARG_NONE) {
-        vm_print_arg(out, val.out);
-        fprintf(out, " <- ");
+        vm_io_format_arg(out, val.out);
+        vm_io_buffer_format(out, " <- ");
     }
     switch (val.op) {
         case VM_BOP_JUMP: {
-            fprintf(out, "jump");
+            vm_io_buffer_format(out, "jump");
             break;
         }
         case VM_BOP_BB: {
-            fprintf(out, "bb");
+            vm_io_buffer_format(out, "bb");
             break;
         }
         case VM_BOP_BTYPE: {
-            fprintf(out, "btype");
+            vm_io_buffer_format(out, "btype");
             break;
         }
         case VM_BOP_BLT: {
-            fprintf(out, "blt");
+            vm_io_buffer_format(out, "blt");
             break;
         }
         case VM_BOP_BEQ: {
-            fprintf(out, "beq");
+            vm_io_buffer_format(out, "beq");
             break;
         }
         case VM_BOP_RET: {
-            fprintf(out, "ret");
+            vm_io_buffer_format(out, "ret");
             break;
         }
         case VM_BOP_GET: {
-            fprintf(out, "get");
+            vm_io_buffer_format(out, "get");
             break;
         }
         case VM_BOP_CALL: {
-            fprintf(out, "call");
+            vm_io_buffer_format(out, "call");
             break;
         }
     }
     if (val.tag != VM_TAG_UNK) {
-        fprintf(out, ".");
-        vm_print_tag(out, val.tag);
+        vm_io_buffer_format(out, ".");
+        vm_io_format_tag(out, val.tag);
     }
     if (val.op == VM_BOP_CALL) {
-        fprintf(out, " ");
-        vm_print_arg(out, val.args[0]);
-        fprintf(out, "(");
+        vm_io_buffer_format(out, " ");
+        vm_io_format_arg(out, val.args[0]);
+        vm_io_buffer_format(out, "(");
         for (size_t i = 1; val.args[i].type != VM_ARG_NONE; i++) {
             if (i != 1) {
-                fprintf(out, ", ");
+                vm_io_buffer_format(out, ", ");
             }
-            vm_print_arg(out, val.args[i]);
+            vm_io_format_arg(out, val.args[i]);
         }
-        fprintf(out, ")");
+        vm_io_buffer_format(out, ")");
     } else {
         for (size_t i = 0; val.args[i].type != VM_ARG_NONE; i++) {
-            fprintf(out, " ");
-            vm_print_arg(out, val.args[i]);
+            vm_io_buffer_format(out, " ");
+            vm_io_format_arg(out, val.args[i]);
         }
     }
     if (val.op == VM_BOP_GET || val.op == VM_BOP_CALL) {
-        fprintf(out, " then .%zi", (size_t)val.targets[0]->id);
-        fprintf(out, "(");
+        vm_io_buffer_format(out, " then .%zi", (size_t)val.targets[0]->id);
+        vm_io_buffer_format(out, "(");
         for (size_t i = 0; i < val.targets[0]->nargs; i++) {
             if (i != 0) {
-                fprintf(out, ", ");
+                vm_io_buffer_format(out, ", ");
             }
-            vm_print_arg(out, val.targets[0]->args[i]);
+            vm_io_format_arg(out, val.targets[0]->args[i]);
         }
-        fprintf(out, ")");
+        vm_io_buffer_format(out, ")");
     } else {
         if (val.targets[0]) {
-            fprintf(out, " .%zi", (size_t)val.targets[0]->id);
-            fprintf(out, "(");
+            vm_io_buffer_format(out, " .%zi", (size_t)val.targets[0]->id);
+            vm_io_buffer_format(out, "(");
             for (size_t i = 0; i < val.targets[0]->nargs; i++) {
                 if (i != 0) {
-                    fprintf(out, ", ");
+                    vm_io_buffer_format(out, ", ");
                 }
-                vm_print_arg(out, val.targets[0]->args[i]);
+                vm_io_format_arg(out, val.targets[0]->args[i]);
             }
-            fprintf(out, ")");
+            vm_io_buffer_format(out, ")");
         }
         if (val.targets[1]) {
-            fprintf(out, " .%zi", (size_t)val.targets[1]->id);
-            fprintf(out, "(");
+            vm_io_buffer_format(out, " .%zi", (size_t)val.targets[1]->id);
+            vm_io_buffer_format(out, "(");
             for (size_t i = 0; i < val.targets[1]->nargs; i++) {
                 if (i != 0) {
-                    fprintf(out, ", ");
+                    vm_io_buffer_format(out, ", ");
                 }
-                vm_print_arg(out, val.targets[1]->args[i]);
+                vm_io_format_arg(out, val.targets[1]->args[i]);
             }
-            fprintf(out, ")");
+            vm_io_buffer_format(out, ")");
         }
     }
 }
-void vm_print_instr(FILE *out, vm_instr_t val) {
+void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
     if (val.op == VM_IOP_NOP) {
-        fprintf(out, "nop");
+        vm_io_buffer_format(out, "nop");
         return;
     }
     if (val.out.type != VM_ARG_NONE) {
-        vm_print_arg(out, val.out);
-        fprintf(out, " <- ");
+        vm_io_format_arg(out, val.out);
+        vm_io_buffer_format(out, " <- ");
     }
     switch (val.op) {
         case VM_IOP_MOVE: {
-            fprintf(out, "move");
+            vm_io_buffer_format(out, "move");
             break;
         }
         case VM_IOP_ADD: {
-            fprintf(out, "add");
+            vm_io_buffer_format(out, "add");
             break;
         }
         case VM_IOP_SUB: {
-            fprintf(out, "sub");
+            vm_io_buffer_format(out, "sub");
             break;
         }
         case VM_IOP_MUL: {
-            fprintf(out, "mul");
+            vm_io_buffer_format(out, "mul");
             break;
         }
         case VM_IOP_DIV: {
-            fprintf(out, "div");
+            vm_io_buffer_format(out, "div");
             break;
         }
         case VM_IOP_MOD: {
-            fprintf(out, "mod");
+            vm_io_buffer_format(out, "mod");
             break;
         }
         case VM_IOP_SET: {
-            fprintf(out, "set");
+            vm_io_buffer_format(out, "set");
             break;
         }
         case VM_IOP_NEW: {
-            fprintf(out, "new");
+            vm_io_buffer_format(out, "new");
             break;
         }
         case VM_IOP_STD: {
-            fprintf(out, "std");
+            vm_io_buffer_format(out, "std");
             break;
         }
         case VM_IOP_LEN: {
-            fprintf(out, "len");
+            vm_io_buffer_format(out, "len");
             break;
         }
         default: {
-            fprintf(out, "<instr: %zu>", (size_t)val.op);
+            vm_io_buffer_format(out, "<instr: %zu>", (size_t)val.op);
             break;
         }
     }
     if (val.tag != VM_TAG_UNK) {
-        fprintf(out, ".");
-        vm_print_tag(out, val.tag);
+        vm_io_buffer_format(out, ".");
+        vm_io_format_tag(out, val.tag);
     }
     for (size_t i = 0; val.args[i].type != VM_ARG_NONE; i++) {
-        fprintf(out, " ");
-        vm_print_arg(out, val.args[i]);
+        vm_io_buffer_format(out, " ");
+        vm_io_format_arg(out, val.args[i]);
     }
 }
 
-void vm_print_block(FILE *out, vm_block_t *val) {
+void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val) {
     if (val == NULL) {
         printf("<block: null>\n");
     }
-    fprintf(out, ".%zi(", val->id);
+    vm_io_buffer_format(out, ".%zi(", val->id);
     for (size_t i = 0; i < val->nargs; i++) {
         if (i != 0) {
-            fprintf(out, ", ");
+            vm_io_buffer_format(out, ", ");
         }
-        vm_print_arg(out, val->args[i]);
+        vm_io_format_arg(out, val->args[i]);
     }
-    fprintf(out, "):\n");
+    vm_io_buffer_format(out, "):\n");
     for (size_t i = 0; i < val->len; i++) {
         if (val->instrs[i].op == VM_IOP_NOP) {
             continue;
         }
-        fprintf(out, "    ");
-        vm_print_instr(out, val->instrs[i]);
-        fprintf(out, "\n");
+        vm_io_buffer_format(out, "    ");
+        vm_io_format_instr(out, val->instrs[i]);
+        vm_io_buffer_format(out, "\n");
     }
     if (val->branch.op != VM_BOP_FALL) {
-        fprintf(out, "    ");
-        vm_print_branch(out, val->branch);
-        fprintf(out, "\n");
+        vm_io_buffer_format(out, "    ");
+        vm_io_format_branch(out, val->branch);
+        vm_io_buffer_format(out, "\n");
     } else {
-        fprintf(out, "    <fall>\n");
+        vm_io_buffer_format(out, "    <fall>\n");
     }
 }
 
-void vm_print_blocks(FILE *out, size_t nblocks, vm_block_t **blocks) {
+void vm_io_format_blocks(vm_io_buffer_t *out, size_t nblocks, vm_block_t **blocks) {
     for (size_t i = 0; i < nblocks; i++) {
         vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }
-        vm_print_block(out, block);
+        vm_io_format_block(out, block);
     }
 }
 

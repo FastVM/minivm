@@ -908,7 +908,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 }
                 case VM_AST_FORM_BREAK: {
                     if (comp->on_break == NULL) {
-                        vm_ast_print_node(stdout, 0, "error node (break) = ", node);
+                        vm_io_buffer_t buf = {0};
+                        vm_ast_print_node(&buf, 0, "error node (break) = ", node);
+                        fprintf(stderr, "%.*s", (int) buf.len, buf.buf);
                         exit(1);
                     }
                     vm_block_t *after = vm_ast_comp_new_block(comp);
@@ -1012,7 +1014,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             }
         }
     }
-    vm_ast_print_node(stdout, 0, "error node = ", node);
+    vm_io_buffer_t buf = {0};
+    vm_ast_print_node(&buf, 0, "error node = ", node);
+    fprintf(stderr, "%.*s", (int) buf.len, buf.buf);
     exit(1);
 }
 

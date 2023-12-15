@@ -83,8 +83,8 @@ TB_DataType vm_tag_to_tb_type(vm_tag_t tag) {
             return TB_TYPE_PTR;
         }
         default: {
-            vm_print_tag(stderr, tag);
-            fprintf(stderr, "\n ^ unhandled tag #%zu\n", (size_t)tag);
+            // vm_io_format_tag(stderr, tag);
+            fprintf(stderr, "\nunhandled tag #%zu\n", (size_t)tag);
             __builtin_trap();
         }
     }
@@ -145,8 +145,8 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
             return tb_inst_uint(fun, TB_TYPE_I32, (uint64_t)arg.func->id);
         }
         default: {
-            vm_print_arg(stderr, arg);
-            fprintf(stderr, "\n ^ unhandled arg (type#%zu)\n", (size_t)arg.type);
+            // vm_io_format_arg(stderr, arg);
+            fprintf(stderr, "\nunhandled arg (type#%zu)\n", (size_t)arg.type);
             __builtin_trap();
         }
     }
@@ -237,8 +237,9 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
 #if VM_USE_DUMP
     if (state->config->dump_ver) {
-        fprintf(stdout, "\n--- vmir ---\n");
-        vm_print_block(stdout, block);
+        vm_io_buffer_t buf = {0};
+        vm_io_format_block(&buf, block);
+        fprintf(stdout, "\n--- vmir ---\n%.*s", (int) buf.len, buf.buf);
     }
 #endif
 
@@ -509,8 +510,8 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 break;
             }
             default: {
-                vm_print_instr(stderr, instr);
-                fprintf(stderr, "\n ^ unhandled instruction\n");
+                // vm_io_format_instr(stderr, instr);
+                fprintf(stderr, "\nunhandled instruction #%zu\n", (size_t) instr.op);
                 exit(1);
             }
         }
@@ -625,6 +626,13 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         case VM_BOP_RET: {
             TB_Node *ret[2];
 
+            // TB_Node *ref = tb_inst_local(fun, sizeof(vm_value_t), 8);
+
+            // tb_inst_store(fun, TB_TYPE_PTR, ref, tb_inst_uint(fun, TB_TYPE_PTR, 0), 8, false);
+
+            // tb_inst_store(fun, vm_tag_to_tb_type(branch.tag), ref, vm_tb_func_read_arg(fun, regs, branch.args[0]), 8, false);
+
+            // ret[0] = tb_inst_load(fun, TB_TYPE_PTR, ref, 8, false);
             ret[0] = tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, branch.args[0]), TB_TYPE_PTR);
 
             ret[1] = tb_inst_uint(fun, TB_TYPE_I32, branch.tag);
@@ -1152,7 +1160,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     }
                 }
                 
-                if (next_nargs > 6) {
+                if (next_nargs > 6 && VM_ALLOW_BIG_TAILCALL) {
                     TB_MultiOutput out = vm_tb_inst_call(
                         fun,
                         next_proto,
@@ -1186,7 +1194,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     }
                 }
                 
-                if (next_nargs > 6) {
+                if (next_nargs > 6 && VM_ALLOW_BIG_TAILCALL) {
                     TB_MultiOutput out = vm_tb_inst_call(
                         fun,
                         next_proto,
@@ -1211,8 +1219,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         }
 
         default: {
-            vm_print_branch(stderr, branch);
-            fprintf(stderr, "\n ^ unhandled branch\n");
+            fprintf(stderr, "\nunhandled branch #%zu\n", (size_t) branch.op);
             exit(1);
         }
     }
@@ -1279,7 +1286,9 @@ void vm_tb_print(uint32_t tag, void *value) {
             exit(1);
         }
     }
-    vm_io_debug(stdout, 0, "debug: ", val, NULL);
+    vm_io_buffer_t buf = {0};
+    vm_io_debug(&buf, 0, "debug: ", val, NULL);
+    fprintf(stdout, "%.*s", (int)buf.len, buf.buf);
 }
 
 void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag, TB_Node *value) {

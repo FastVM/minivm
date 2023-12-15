@@ -1,7 +1,7 @@
 
 #include "./std.h"
 
-#include "./libs/io.h"
+#include "./io.h"
 #include "./util.h"
 
 void vm_std_os_exit(vm_std_value_t *args) {
@@ -12,12 +12,17 @@ void vm_std_assert(vm_std_value_t *args) {
     vm_std_value_t val = args[0];
     if (val.tag == VM_TAG_NIL || (val.tag == VM_TAG_BOOL && !val.value.b)) {
         vm_std_value_t msg = args[1];
-        vm_io_print_lit(stderr, msg);
-        fprintf(stderr, "\n");
+        vm_io_buffer_t buf = {0};
+        vm_io_print_lit(&buf, msg);
+        *args = (vm_std_value_t){
+            .tag = VM_TAG_ERROR,
+            .value.str = buf.buf,
+        };
+    } else {
+        *args = (vm_std_value_t){
+            .tag = VM_TAG_NIL,
+        };
     }
-    *args = (vm_std_value_t){
-        .tag = VM_TAG_NIL,
-    };
 }
 
 void vm_std_vm_closure(vm_std_value_t *args) {
@@ -49,7 +54,9 @@ void vm_std_vm_closure(vm_std_value_t *args) {
 
 void vm_std_vm_print(vm_std_value_t *args) {
     for (size_t i = 0; args[i].tag; i++) {
-        vm_io_debug(stdout, 0, "", args[i], NULL);
+        vm_io_buffer_t buf = {0};
+        vm_io_debug(&buf, 0, "", args[i], NULL);
+        printf("%.*s", (int) buf.len, buf.buf);
     }
 }
 
@@ -141,72 +148,84 @@ void vm_std_type(vm_std_value_t *args) {
     };
 }
 
+void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value) {
+    switch (value.tag) {
+        case VM_TAG_NIL: {
+            vm_io_buffer_format(buf, "nil");
+            break;
+        }
+        case VM_TAG_BOOL: {
+            vm_io_buffer_format(buf, "%s", value.value.b ? "true" : "false");
+            break;
+        }
+        case VM_TAG_I8: {
+            vm_io_buffer_format(buf, "%" PRIi8, value.value.i8);
+            break;
+        }
+        case VM_TAG_I16: {
+            vm_io_buffer_format(buf, "%" PRIi16, value.value.i16);
+            break;
+        }
+        case VM_TAG_I32: {
+            vm_io_buffer_format(buf, "%" PRIi32, value.value.i32);
+            break;
+        }
+        case VM_TAG_I64: {
+            vm_io_buffer_format(buf, "%" PRIi64, value.value.i64);
+            break;
+        }
+        case VM_TAG_F32: {
+            vm_io_buffer_format(buf, "%g", value.value.f32);
+            break;
+        }
+        case VM_TAG_F64: {
+            vm_io_buffer_format(buf, "%g", value.value.f64);
+            break;
+        }
+        case VM_TAG_STR: {
+            vm_io_buffer_format(buf, "%s", value.value.str);
+            break;
+        }
+        case VM_TAG_CLOSURE: {
+            vm_io_buffer_format(buf, "<function: %p>", value.value.closure);
+            break;
+        }
+        case VM_TAG_FUN: {
+            vm_io_buffer_format(buf, "<code: %p>", value.value.all);
+            break;
+        }
+        case VM_TAG_TAB: {
+            vm_io_buffer_format(buf, "<table: %p>", value.value.table);
+            break;
+        }
+        case VM_TAG_FFI: {
+            vm_io_buffer_format(buf, "<function: %p>", value.value.all);
+            break;
+        }
+    }
+}
+
+void vm_std_tostring(vm_std_value_t *args) {
+    vm_io_buffer_t out = {0};
+    vm_value_buffer_tostring(&out, *args);
+    *args = (vm_std_value_t) {
+        .tag = VM_TAG_STR,
+        .value.str = out.buf,
+    };
+}
+
 void vm_std_print(vm_std_value_t *args) {
     vm_std_value_t *ret = args;
-    FILE *out = stdout;
+    vm_io_buffer_t out = {0};
     bool first = true;
     while (args->tag != 0) {
         if (!first) {
-            fprintf(out, "\t");
+            vm_io_buffer_format(&out, "\t");
         }
-        vm_std_value_t value = *args++;
-        switch (value.tag) {
-            case VM_TAG_NIL: {
-                fprintf(out, "nil");
-                break;
-            }
-            case VM_TAG_BOOL: {
-                fprintf(out, "%s", value.value.b ? "true" : "false");
-                break;
-            }
-            case VM_TAG_I8: {
-                fprintf(out, "%" PRIi8, value.value.i8);
-                break;
-            }
-            case VM_TAG_I16: {
-                fprintf(out, "%" PRIi16, value.value.i16);
-                break;
-            }
-            case VM_TAG_I32: {
-                fprintf(out, "%" PRIi32, value.value.i32);
-                break;
-            }
-            case VM_TAG_I64: {
-                fprintf(out, "%" PRIi64, value.value.i64);
-                break;
-            }
-            case VM_TAG_F32: {
-                fprintf(out, "%f", value.value.f32);
-                break;
-            }
-            case VM_TAG_F64: {
-                fprintf(out, "%f", value.value.f64);
-                break;
-            }
-            case VM_TAG_STR: {
-                fprintf(out, "%s", value.value.str);
-                break;
-            }
-            case VM_TAG_CLOSURE: {
-                fprintf(out, "<function: %p>", value.value.closure);
-                break;
-            }
-            case VM_TAG_FUN: {
-                fprintf(out, "<code: %p>", value.value.all);
-                break;
-            }
-            case VM_TAG_TAB: {
-                fprintf(out, "<table: %p>", value.value.table);
-                break;
-            }
-            case VM_TAG_FFI: {
-                fprintf(out, "<function: %p>", value.value.all);
-                break;
-            }
-        }
+        vm_value_buffer_tostring(&out, *args++);
         first = false;
     }
-    fprintf(out, "\n");
+    fprintf(stdout, "%.*s\n", (int) out.len, out.buf);
     *ret = (vm_std_value_t){
         .tag = VM_TAG_NIL,
     };
@@ -232,6 +251,7 @@ vm_table_t *vm_std_new(void) {
         VM_STD_SET_TAB(std, "os", os);
     }
 
+    VM_STD_SET_FFI(std, "tostring", &vm_std_tostring);
     VM_STD_SET_FFI(std, "type", &vm_std_type);
     VM_STD_SET_FFI(std, "print", &vm_std_print);
     VM_STD_SET_FFI(std, "assert", &vm_std_assert);

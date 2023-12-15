@@ -86,7 +86,6 @@ module.exports = grammar({
                 $.label_statement,
                 $.break_statement,
                 $.goto_statement,
-                $.do_statement,
                 $.while_statement,
                 $.repeat_statement,
                 $.for_statement,
@@ -129,7 +128,7 @@ module.exports = grammar({
         goto_statement: ($) => seq('goto', $.identifier),
 
         // do block end
-        do_statement: ($) => seq('do', field('body', optional_block($)), 'end'),
+        do_expression: ($) => seq('do', field('body', optional_block($)), 'end'),
 
         // while exp do block end
         while_statement: ($) =>
@@ -297,6 +296,7 @@ module.exports = grammar({
                 $.table_constructor,
                 $.binary_expression,
                 $.unary_expression,
+                $.do_expression,
                 $.if_expression,
             ),
 
