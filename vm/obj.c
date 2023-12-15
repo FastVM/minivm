@@ -43,10 +43,10 @@ bool vm_value_is_int(vm_std_value_t val) {
             return true;
         }
         case VM_TAG_F32: {
-            return fmodf(val.value.f32, 1.0f) == 0.0f;
+            return floorf(val.value.f32) == val.value.f32;
         }
         case VM_TAG_F64: {
-            return fmod(val.value.f64, 1.0) == 0.0;
+            return floor(val.value.f64) == val.value.f64;
         }
         default: {
             return false;

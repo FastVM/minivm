@@ -172,12 +172,12 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
         }
         case VM_TAG_F32: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%g\n", value.value.f32);
+            vm_io_buffer_format(out, "%f\n", value.value.f32);
             break;
         }
         case VM_TAG_F64: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%g\n", value.value.f64);
+            vm_io_buffer_format(out, "%f\n", value.value.f64);
             break;
         }
         case VM_TAG_STR: {

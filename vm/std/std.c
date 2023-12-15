@@ -175,11 +175,11 @@ void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value) {
             break;
         }
         case VM_TAG_F32: {
-            vm_io_buffer_format(buf, "%g", value.value.f32);
+            vm_io_buffer_format(buf, "%f", value.value.f32);
             break;
         }
         case VM_TAG_F64: {
-            vm_io_buffer_format(buf, "%g", value.value.f64);
+            vm_io_buffer_format(buf, "%f", value.value.f64);
             break;
         }
         case VM_TAG_STR: {
