@@ -334,6 +334,56 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
                 break;
             }
+            case VM_IOP_IDIV: {
+                if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
+                    TB_Node *raw_div = tb_inst_fdiv(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                    );
+                    TB_Node *after = tb_inst_region(fun);
+                    TB_Node *in_int_only_range = tb_inst_region(fun);
+                    TB_Node *in_i64_range = tb_inst_region(fun);
+                    TB_Node *too_low = tb_inst_cmp_flt(fun, raw_div, tb_inst_float64(fun, (double)INT64_MIN));
+                    TB_Node *too_high = tb_inst_cmp_fgt(fun, raw_div, tb_inst_float64(fun, (double)INT64_MAX));
+                    TB_Node *is_out_of_range = tb_inst_or(fun, too_low, too_high);
+                    tb_inst_if(fun, is_out_of_range, in_int_only_range, in_i64_range);
+                    {
+                        tb_inst_set_control(fun, in_i64_range);
+                        TB_Node *int_div = tb_inst_float2int(fun, raw_div, TB_TYPE_I64, true);
+                        TB_Node *float_div = tb_inst_int2float(fun, int_div, TB_TYPE_F64, true);
+                        vm_tb_func_write(
+                            fun,
+                            instr.tag,
+                            regs,
+                            instr.out.reg,
+                            float_div
+                        );
+                        tb_inst_goto(fun, after);
+                    }
+                    {
+                        tb_inst_set_control(fun, in_int_only_range);
+                        vm_tb_func_write(
+                            fun,
+                            instr.tag,
+                            regs,
+                            instr.out.reg,
+                            raw_div
+                        );
+                        tb_inst_goto(fun, after);
+                    }
+                    tb_inst_set_control(fun, after);
+                } else {
+                    TB_Node *value = tb_inst_div(
+                        fun,
+                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        true
+                    );
+                    vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
+                }
+                break;
+            }
             case VM_IOP_MOD: {
                 if (instr.tag == VM_TAG_F64) {
                     TB_Node *bad = tb_inst_region(fun);
@@ -1353,6 +1403,12 @@ void vm_tb_new_module(vm_tb_state_t *state) {
     tb_symbol_bind_ptr(state->vm_tb_print, (void *)&vm_tb_print);
 }
 
+vm_block_t *vm_tb_handle_upvalues(vm_block_t *input) {
+    vm_block_t *output = vm_malloc(sizeof(vm_block_t));
+    memcpy(output, input, sizeof(vm_block_t));
+    return output;
+}
+
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     void *cache = rblock->jit;
     // printf("%zi\n", rblock->block->id);
@@ -1363,7 +1419,8 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     vm_tb_state_t *state = rblock->state;
     state->faults = 0;
 
-    vm_block_t *block = vm_rblock_version(state->nblocks, state->blocks, rblock);
+    vm_block_t *block_pre = vm_rblock_version(state->nblocks, state->blocks, rblock);
+    vm_block_t *block = vm_tb_handle_upvalues(block_pre);
     TB_Function *fun = tb_function_create(state->module, -1, "block", TB_LINKAGE_PRIVATE);
     
     if (block == NULL) {

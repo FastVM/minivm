@@ -56,6 +56,7 @@ enum {
     VM_IOP_SUB,
     VM_IOP_MUL,
     VM_IOP_DIV,
+    VM_IOP_IDIV,
     VM_IOP_MOD,
     // tables
     VM_IOP_SET,

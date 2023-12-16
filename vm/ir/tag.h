@@ -3,7 +3,7 @@
 
 #include "../lib.h"
 
-typedef uint8_t vm_tag_t;
+typedef uint32_t vm_tag_t;
 
 enum {
     VM_TAG_UNK,
@@ -21,6 +21,7 @@ enum {
     VM_TAG_TAB,
     VM_TAG_FFI,
     VM_TAG_ERROR,
+    VM_TAG_UPVALUE,
     VM_TAG_MAX,
 };
 

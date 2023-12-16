@@ -236,6 +236,10 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
             vm_io_buffer_format(out, "div");
             break;
         }
+        case VM_IOP_IDIV: {
+            vm_io_buffer_format(out, "idiv");
+            break;
+        }
         case VM_IOP_MOD: {
             vm_io_buffer_format(out, "mod");
             break;

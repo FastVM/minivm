@@ -9,8 +9,7 @@ while run do
     elseif v == 3 then
         "v == 3"
     else
-        run = false
-        "stop"
+        break
     end
     print(x)
     v = v + 1

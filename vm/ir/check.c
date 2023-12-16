@@ -2,6 +2,7 @@
 #include "check.h"
 
 #include "rblock.h"
+#include "../std/io.h"
 
 static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_LIT) {
@@ -57,7 +58,10 @@ const char *vm_check_branch(vm_branch_t branch) {
             if (a0 == VM_TAG_BOOL && a1 == VM_TAG_BOOL) {
                 return NULL;
             }
-            return "bad less than";
+            vm_io_buffer_t buf = {0};
+            vm_io_buffer_format(&buf, "bad less than: ");
+            vm_io_format_branch(&buf, branch);
+            return buf.buf;
         }
         case VM_BOP_CALL: {
             if (branch.args[0].type == VM_ARG_RFUNC) {
@@ -74,9 +78,10 @@ const char *vm_check_branch(vm_branch_t branch) {
             if (vm_check_get_tag(branch.args[0]) == VM_TAG_CLOSURE) {
                 return NULL;
             }
-            // vm_io_format_branch(stdout, branch);
-            // fprintf(stdout, "\n");
-            return "can't call non-func";
+            vm_io_buffer_t buf = {0};
+            vm_io_buffer_format(&buf, "can't call type ");
+            vm_io_format_tag(&buf, vm_arg_to_tag(branch.args[0]));
+            return buf.buf;
         }
         case VM_BOP_GET: {
             if (vm_check_get_tag(branch.args[0]) == VM_TAG_TAB) {

@@ -43,10 +43,18 @@ bool vm_value_is_int(vm_std_value_t val) {
             return true;
         }
         case VM_TAG_F32: {
-            return floorf(val.value.f32) == val.value.f32;
+            float v = val.value.f32;
+            if ((float) INT32_MIN <= v && v <= (float) INT32_MAX) {
+                return (float) (int32_t) v == v;
+            }
+            return fmodf(v, 1.0f) == 0.0f;
         }
         case VM_TAG_F64: {
-            return floor(val.value.f64) == val.value.f64;
+            double v = val.value.f64;
+            if ((double) INT64_MIN <= v && v <= (double) INT64_MAX) {
+                return (double) (int64_t) v == v;
+            }
+            return fmod(v, 1.0) == 0.0;
         }
         default: {
             return false;
@@ -230,22 +238,28 @@ size_t vm_value_hash(vm_std_value_t value) {
             return SIZE_MAX - (size_t)value.value.b;
         }
         case VM_TAG_I8: {
-            return value.value.i8 * 1610612741;
+            return (size_t) value.value.i8 * 1610612741;
         }
         case VM_TAG_I16: {
-            return value.value.i16 * 1610612741;
+            return (size_t) value.value.i16 * 1610612741;
         }
         case VM_TAG_I32: {
-            return value.value.i32 * 1610612741;
+            return (size_t) value.value.i32 * 1610612741;
         }
         case VM_TAG_I64: {
-            return value.value.i64 * 1610612741;
+            return (size_t) value.value.i64 * 1610612741;
         }
         case VM_TAG_F32: {
-            return *(uint32_t *)&value.value.f32;
+            if (vm_value_is_int(value)) {
+                return (size_t) value.value.f32 * 1610612741;
+            }
+            return (size_t) *(uint32_t *) &value.value.f32;
         }
         case VM_TAG_F64: {
-            return *(uint64_t *)&value.value.f64;
+            if (vm_value_is_int(value)) {
+                return (size_t) value.value.f64 * 1610612741;
+            }
+            return (size_t) *(uint64_t *) &value.value.f64;
         }
         case VM_TAG_STR: {
             size_t ret = 1 << 16;
@@ -304,9 +318,20 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_t
         if (value.tag == 0) {
             return NULL;
         }
+        // vm_io_buffer_t buf = {0};
+        // vm_io_debug(&buf, 0, "key = ", key, NULL);
+        // vm_io_debug(&buf, 0, "val = ", value, NULL);
         if (vm_value_eq(key, value)) {
+            // vm_std_value_t val = (vm_std_value_t) {
+            //     .tag = pair->val_tag,
+            //     .value = pair->val_val,
+            // };
+            // vm_io_buffer_t buf = {0};
+            // vm_io_debug(&buf, 0, "res = ", val, NULL);
+            // printf("%s\n", buf.buf);
             return pair;
         }
+        // printf("%s\n", buf.buf);
         next += 1;
         next &= and;
     } while (next != stop);

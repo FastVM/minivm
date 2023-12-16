@@ -37,6 +37,7 @@ enum {
     VM_AST_FORM_SUB,
     VM_AST_FORM_MUL,
     VM_AST_FORM_DIV,
+    VM_AST_FORM_IDIV,
     VM_AST_FORM_MOD,
     VM_AST_FORM_POW,
     // strings

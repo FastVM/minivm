@@ -116,7 +116,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_tags_t *types, vm_instr_t instr) {
         goto ret;
     }
     if (instr.op == VM_IOP_LEN) {
-        instr.tag = VM_TAG_I32;
+        instr.tag = VM_TAG_F64;
         goto ret;
     }
     if (instr.tag == VM_TAG_UNK) {

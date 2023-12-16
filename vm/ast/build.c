@@ -106,6 +106,9 @@ vm_ast_node_t vm_ast_build_mul(vm_ast_node_t lhs, vm_ast_node_t rhs) {
 vm_ast_node_t vm_ast_build_div(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_DIV, lhs, rhs);
 }
+vm_ast_node_t vm_ast_build_idiv(vm_ast_node_t lhs, vm_ast_node_t rhs) {
+    return vm_ast_form(VM_AST_FORM_IDIV, lhs, rhs);
+}
 vm_ast_node_t vm_ast_build_mod(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_MOD, lhs, rhs);
 }

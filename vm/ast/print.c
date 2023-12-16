@@ -59,6 +59,10 @@ void vm_ast_print_node(vm_io_buffer_t *out, size_t indent, const char *prefix, v
                     vm_io_buffer_format(out, "div");
                     break;
                 }
+                case VM_AST_FORM_IDIV: {
+                    vm_io_buffer_format(out, "idiv");
+                    break;
+                }
                 case VM_AST_FORM_MOD: {
                     vm_io_buffer_format(out, "mod");
                     break;

@@ -695,6 +695,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 case VM_AST_FORM_SUB:
                 case VM_AST_FORM_MUL:
                 case VM_AST_FORM_DIV:
+                case VM_AST_FORM_IDIV:
                 case VM_AST_FORM_MOD: {
                     vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
                     vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
@@ -715,6 +716,10 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                         case VM_AST_FORM_DIV: {
                             op = VM_IOP_DIV;
+                            break;
+                        }
+                        case VM_AST_FORM_IDIV: {
+                            op = VM_IOP_IDIV;
                             break;
                         }
                         case VM_AST_FORM_MOD: {
