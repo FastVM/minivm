@@ -38,14 +38,17 @@ size_t vm_tb_ptr_len = 0;
 void **vm_tb_ptr_globals = NULL;
 size_t vm_tb_ptr_alloc = 0;
 
+// void GC_add_roots(void *, void *);
+
 TB_Node *vm_tb_ptr_name(vm_tb_state_t *state, const char *name, void *value) {
-    if (value != NULL) {
-        if (vm_tb_ptr_len + 1 >= vm_tb_ptr_alloc) {
-            vm_tb_ptr_alloc = (vm_tb_ptr_len + 1) * 2;
-            vm_tb_ptr_globals = vm_realloc(vm_tb_ptr_globals, sizeof(void *) * vm_tb_ptr_alloc);
-        }
-        vm_tb_ptr_globals[vm_tb_ptr_len++] = value;
-    }
+    // if (value != NULL) {
+    //     if (vm_tb_ptr_len + 1 >= vm_tb_ptr_alloc) {
+    //         vm_tb_ptr_alloc = (vm_tb_ptr_len + 1) * 2;
+    //         vm_tb_ptr_globals = vm_realloc(vm_tb_ptr_globals, sizeof(void *) * vm_tb_ptr_alloc);
+    //         GC_add_roots(vm_tb_ptr_globals, &vm_tb_ptr_globals[vm_tb_ptr_alloc]);
+    //     }
+    //     vm_tb_ptr_globals[vm_tb_ptr_len++] = value;
+    // }
     return tb_inst_uint(state->fun, TB_TYPE_PTR, (uint64_t)value);
 }
 

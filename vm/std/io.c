@@ -100,11 +100,11 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_std_value_t value) {
             break;
         }
         case VM_TAG_F32: {
-            vm_io_buffer_format(out, "%f", value.value.f32);
+            vm_io_buffer_format(out, VM_FORMAT_FLOAT, value.value.f32);
             break;
         }
         case VM_TAG_F64: {
-            vm_io_buffer_format(out, "%f", value.value.f64);
+            vm_io_buffer_format(out, VM_FORMAT_FLOAT, value.value.f64);
             break;
         }
         case VM_TAG_FFI: {
@@ -172,12 +172,12 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
         }
         case VM_TAG_F32: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%f\n", value.value.f32);
+            vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", value.value.f32);
             break;
         }
         case VM_TAG_F64: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%f\n", value.value.f64);
+            vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", value.value.f64);
             break;
         }
         case VM_TAG_STR: {
@@ -285,7 +285,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                             .value = p.val_val,
                         };
                         char buf[64];
-                        snprintf(buf, 63, "%f = ", p.key_val.f64);
+                        snprintf(buf, 63, VM_FORMAT_FLOAT " = ", p.key_val.f64);
                         vm_io_debug(out, indent + 1, buf, val, &next);
                         break;
                     }
