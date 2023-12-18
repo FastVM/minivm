@@ -144,7 +144,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                 return vm_ast_build_set(
                     vm_ast_build_load(
                         vm_lang_lua_conv(src, ts_node_child(target, 0)),
-                        vm_lang_lua_conv(src, ts_node_child(target, 2))
+                        vm_ast_build_literal(str, vm_lang_lua_src(src, ts_node_child(target, 2)))
                     ),
                     vm_ast_build_lambda(
                         vm_ast_build_nil(),
@@ -390,7 +390,8 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "function_call")) {
         TSNode func_node = ts_node_child(node, 0);
         if (!strcmp(ts_node_type(func_node), "method_index_expression")) {
-            vm_ast_node_t obj = vm_lang_lua_conv(src, ts_node_child(func_node, 0));
+            vm_ast_node_t obj = vm_lang_lua_gensym(src);
+            vm_ast_node_t set_obj = vm_ast_build_local(obj, vm_lang_lua_conv(src, ts_node_child(func_node, 0)));
             vm_ast_node_t index = vm_ast_build_literal(str, vm_lang_lua_src(src, ts_node_child(func_node, 2)));
             vm_ast_node_t func = vm_ast_build_load(obj, index);
             TSNode args_node = ts_node_child(node, 1);
@@ -406,7 +407,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                 }
                 args[real_nargs++] = vm_lang_lua_conv(src, arg);
             }
-            return vm_ast_build_call(func, real_nargs, args);
+            return vm_ast_build_do(set_obj, vm_ast_build_call(func, real_nargs, args));
         } else {
             vm_ast_node_t func = vm_lang_lua_conv(src, func_node);
             TSNode args_node = ts_node_child(node, 1);

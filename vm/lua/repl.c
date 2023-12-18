@@ -214,7 +214,7 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     // ic_highlight(henv, 1, strlen(input) - 2, "keyword");
 }
 
-void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
+void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks) {
     config->is_repl = true;
 
     vm_table_t *repl = vm_table_new();
@@ -236,12 +236,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
     vm_lang_lua_repl_highlight_state_t highlight_state = (vm_lang_lua_repl_highlight_state_t){
         .config = config,
         .std = std,
-    };
-
-    vm_ast_blocks_t blocks = (vm_ast_blocks_t) {
-        .len = 0,
-        .blocks = NULL,
-        .alloc = 0,
     };
 
     while (true) {
@@ -273,15 +267,15 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std) {
             printf("\n--- ast ---\n%.*s", (int) buf.len, buf.buf);
         }
 
-        vm_ast_comp_more(node, &blocks);
+        vm_ast_comp_more(node, blocks);
 
         if (config->dump_ir) {
             vm_io_buffer_t buf = {0};
-            vm_io_format_blocks(&buf, blocks.len, blocks.blocks);
+            vm_io_format_blocks(&buf, blocks);
             printf("%.*s", (int) buf.len, buf.buf);
         }
 
-        vm_std_value_t value = vm_tb_run_repl(config, blocks.entry, blocks.len, blocks.blocks, std);
+        vm_std_value_t value = vm_tb_run_repl(config, blocks->entry, blocks, std);
         if (value.tag == VM_TAG_ERROR) {
             printf("error: %s\n", value.value.str);
         } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {

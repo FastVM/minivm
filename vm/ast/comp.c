@@ -16,7 +16,7 @@ struct vm_ast_comp_names_t;
 typedef struct vm_ast_comp_names_t vm_ast_comp_names_t;
 
 struct vm_ast_comp_t {
-    vm_ast_blocks_t blocks;
+    vm_blocks_t *blocks;
     vm_block_t *cur;
     vm_ast_comp_names_t *names;
     vm_block_t *on_break;
@@ -59,8 +59,8 @@ static vm_ast_comp_names_t *vm_ast_comp_names_pop(vm_ast_comp_t *comp) {
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
 
-void vm_std_vm_closure(vm_std_value_t *args);
-void vm_std_vm_concat(vm_std_value_t *args);
+void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args);
+void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args);
 
 static vm_arg_t *vm_ast_args(size_t nargs, ...) {
     va_list ap;
@@ -77,17 +77,17 @@ static vm_arg_t *vm_ast_args(size_t nargs, ...) {
 }
 
 static vm_block_t *vm_ast_comp_new_block(vm_ast_comp_t *comp) {
-    if (comp->blocks.len + 1 >= comp->blocks.alloc) {
-        // comp->blocks.alloc = (comp->blocks.len + 1) * 4;
-        comp->blocks.alloc = (comp->blocks.len + 1) * 128;
-        comp->blocks.blocks = vm_realloc(comp->blocks.blocks, sizeof(vm_block_t *) * comp->blocks.alloc);
+    if (comp->blocks->len + 1 >= comp->blocks->alloc) {
+        // comp->blocks.alloc = (comp->blocks->len + 1) * 4;
+        comp->blocks->alloc = (comp->blocks->len + 1) * 128;
+        comp->blocks->blocks = vm_realloc(comp->blocks->blocks, sizeof(vm_block_t *) * comp->blocks->alloc);
     }
     vm_block_t *block = vm_malloc(sizeof(vm_block_t));
     *block = (vm_block_t){
-        .id = (ptrdiff_t)comp->blocks.len,
+        .id = (ptrdiff_t)comp->blocks->len,
     };
     vm_cache_new(&block->cache);
-    comp->blocks.blocks[comp->blocks.len++] = block;
+    comp->blocks->blocks[comp->blocks->len++] = block;
     return block;
 }
 
@@ -1025,9 +1025,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
     exit(1);
 }
 
-void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
+void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks) {
     vm_ast_comp_t comp = (vm_ast_comp_t){
-        .blocks = *blocks,
+        .blocks = blocks,
         .names = NULL,
         .cur = NULL,
         .on_break = NULL,
@@ -1035,12 +1035,16 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
     };
     for (size_t i = 0; i < blocks->len; i++) {
         vm_block_t *block = blocks->blocks[i];
+        for (size_t j = 0; j < block->cache.len; j++) {
+            vm_rblock_t *rblock = block->cache.values[j];
+            rblock->jit = NULL;
+        }
         block->cache.len = 0;
     }
     vm_ast_comp_names_push(&comp);
-    comp.blocks.entry = vm_ast_comp_new_block(&comp);
-    size_t start = comp.blocks.entry->id;
-    comp.cur = comp.blocks.entry;
+    comp.blocks->entry = vm_ast_comp_new_block(&comp);
+    size_t start = comp.blocks->entry->id;
+    comp.cur = comp.blocks->entry;
     vm_ast_blocks_instr(
         &comp,
         (vm_instr_t){
@@ -1051,26 +1055,13 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_ast_blocks_t *blocks) {
     );
     vm_ast_comp_to(&comp, node);
     vm_ast_comp_names_pop(&comp);
-    for (size_t i = start; i < comp.blocks.len; i++) {
-        vm_block_t *block = comp.blocks.blocks[i];
+    for (size_t i = start; i < comp.blocks->len; i++) {
+        vm_block_t *block = comp.blocks->blocks[i];
         if (block->branch.op == VM_BOP_FALL) {
             block->branch.args = vm_ast_args(0);
         }
     }
-    // vm_block_info(comp.blocks.len - start, comp.blocks.blocks + start);
-    vm_block_info(comp.blocks.len, comp.blocks.blocks);
-    *blocks = comp.blocks;
-}
-
-vm_ast_blocks_t vm_ast_comp(vm_ast_node_t node) {
-    vm_ast_blocks_t blocks = (vm_ast_blocks_t){
-        .len = 0,
-        .blocks = NULL,
-        .alloc = 0,
-    };
-    vm_ast_comp_more(
-        node,
-        &blocks
-    );
-    return blocks;
+    comp.blocks->entry->isfunc = true;
+    vm_block_info(comp.blocks->len - start, comp.blocks->blocks + start);
+    // vm_block_info(comp.blocks->len, comp.blocks->blocks);
 }

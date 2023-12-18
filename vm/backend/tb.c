@@ -8,9 +8,9 @@
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
-void vm_tb_func_print_value(vm_tb_state_t *mod, TB_Function *fun, vm_tag_t tag, TB_Node *value);
-TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **regs, vm_block_t *block);
-void vm_tb_func_report_error(vm_tb_state_t *state, TB_Function *fun, const char *str);
+void vm_tb_func_print_value(vm_tb_state_t *state, vm_tag_t tag, TB_Node *value);
+TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Node **regs, vm_block_t *block);
+void vm_tb_func_report_error(vm_tb_state_t *state, const char *str);
 
 #define vm_tb_select_binary_type(xtag, onint, onfloat, ...) ({ \
     vm_tag_t tag = xtag;                                       \
@@ -34,8 +34,19 @@ void vm_tb_func_report_error(vm_tb_state_t *state, TB_Function *fun, const char 
     ret;                                                      \
 })
 
-TB_Node *vm_tb_ptr_name(TB_Module *mod, TB_Function *fun, const char *name, void *value) {
-    return tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)value);
+size_t vm_tb_ptr_len = 0;
+void **vm_tb_ptr_globals = NULL;
+size_t vm_tb_ptr_alloc = 0;
+
+TB_Node *vm_tb_ptr_name(vm_tb_state_t *state, const char *name, void *value) {
+    if (value != NULL) {
+        if (vm_tb_ptr_len + 1 >= vm_tb_ptr_alloc) {
+            vm_tb_ptr_alloc = (vm_tb_ptr_len + 1) * 2;
+            vm_tb_ptr_globals = vm_realloc(vm_tb_ptr_globals, sizeof(void *) * vm_tb_ptr_alloc);
+        }
+        vm_tb_ptr_globals[vm_tb_ptr_len++] = value;
+    }
+    return tb_inst_uint(state->fun, TB_TYPE_PTR, (uint64_t)value);
 }
 
 TB_DataType vm_tag_to_tb_type(vm_tag_t tag) {
@@ -90,39 +101,39 @@ TB_DataType vm_tag_to_tb_type(vm_tag_t tag) {
     }
 }
 
-TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
+TB_Node *vm_tb_func_read_arg(vm_tb_state_t *state, TB_Node **regs, vm_arg_t arg) {
     switch (arg.type) {
         case VM_ARG_LIT: {
             switch (arg.lit.tag) {
                 case VM_TAG_NIL: {
-                    return tb_inst_uint(fun, TB_TYPE_PTR, 0);
+                    return vm_tb_ptr_name(state, "0", NULL);
                 }
                 case VM_TAG_BOOL: {
-                    return tb_inst_bool(fun, arg.lit.value.b);
+                    return tb_inst_bool(state->fun, arg.lit.value.b);
                 }
                 case VM_TAG_I8: {
-                    return tb_inst_sint(fun, TB_TYPE_I8, arg.lit.value.i8);
+                    return tb_inst_sint(state->fun, TB_TYPE_I8, arg.lit.value.i8);
                 }
                 case VM_TAG_I16: {
-                    return tb_inst_sint(fun, TB_TYPE_I16, arg.lit.value.i16);
+                    return tb_inst_sint(state->fun, TB_TYPE_I16, arg.lit.value.i16);
                 }
                 case VM_TAG_I32: {
-                    return tb_inst_sint(fun, TB_TYPE_I32, arg.lit.value.i32);
+                    return tb_inst_sint(state->fun, TB_TYPE_I32, arg.lit.value.i32);
                 }
                 case VM_TAG_I64: {
-                    return tb_inst_sint(fun, TB_TYPE_I64, arg.lit.value.i64);
+                    return tb_inst_sint(state->fun, TB_TYPE_I64, arg.lit.value.i64);
                 }
                 case VM_TAG_F32: {
-                    return tb_inst_float32(fun, arg.lit.value.f32);
+                    return tb_inst_float32(state->fun, arg.lit.value.f32);
                 }
                 case VM_TAG_F64: {
-                    return tb_inst_float64(fun, arg.lit.value.f64);
+                    return tb_inst_float64(state->fun, arg.lit.value.f64);
                 }
                 case VM_TAG_STR: {
-                    return tb_inst_string(fun, strlen(arg.lit.value.str) + 1, arg.lit.value.str);
+                    return tb_inst_string(state->fun, strlen(arg.lit.value.str) + 1, arg.lit.value.str);
                 }
                 case VM_TAG_FFI: {
-                    return tb_inst_uint(fun, TB_TYPE_PTR, (uint64_t)arg.lit.value.ffi);
+                    return vm_tb_ptr_name(state, "<ffi>", arg.lit.value.ffi);
                 }
                 default: {
                     __builtin_trap();
@@ -130,13 +141,13 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
             }
         }
         case VM_ARG_NONE: {
-            return tb_inst_uint(fun, TB_TYPE_PTR, 0);
+            return vm_tb_ptr_name(state, "0", NULL);
         }
         case VM_ARG_REG: {
             return tb_inst_bitcast(
-                fun,
+                state->fun,
                 tb_inst_load(
-                    fun,
+                    state->fun,
                     VM_TB_TYPE_VALUE,
                     regs[arg.reg],
                     8,
@@ -146,7 +157,8 @@ TB_Node *vm_tb_func_read_arg(TB_Function *fun, TB_Node **regs, vm_arg_t arg) {
             );
         }
         case VM_ARG_FUN: {
-            return tb_inst_uint(fun, TB_TYPE_I32, (uint64_t)arg.func->id);
+            // printf("ref.func %zu\n", arg.func->id);
+            return tb_inst_uint(state->fun, TB_TYPE_I32, (uint64_t)arg.func->id);
         }
         default: {
             // vm_io_format_arg(stderr, arg);
@@ -195,13 +207,13 @@ void vm_tb_func_reset_pass(vm_block_t *block) {
     }
 }
 
-void vm_tb_func_write(TB_Function *fun, vm_tag_t tag, TB_Node **regs, size_t reg, TB_Node *value) {
+void vm_tb_func_write(vm_tb_state_t *state, vm_tag_t tag, TB_Node **regs, size_t reg, TB_Node *value) {
     tb_inst_store(
-        fun,
+        state->fun,
         VM_TB_TYPE_VALUE,
         regs[reg],
         tb_inst_bitcast(
-            fun,
+            state->fun,
             value,
             VM_TB_TYPE_VALUE
         ),
@@ -210,33 +222,33 @@ void vm_tb_func_write(TB_Function *fun, vm_tag_t tag, TB_Node **regs, size_t reg
     );
 }
 
-TB_MultiOutput vm_tb_inst_call(TB_Function* fun, TB_FunctionPrototype* proto, TB_Node* target, size_t param_count, TB_Node** params) {
-    // TB_Node *local = tb_inst_local(fun, sizeof(void *), 1);
-    // tb_inst_store(fun, TB_TYPE_PTR, local, target, 1, false);
-    // target = tb_inst_load(fun, TB_TYPE_PTR, local, 1, false);
-    return tb_inst_call(fun, proto, target, param_count, params);
+TB_MultiOutput vm_tb_inst_call(vm_tb_state_t *state, TB_FunctionPrototype* proto, TB_Node* target, size_t param_count, TB_Node** params) {
+    // TB_Node *local = tb_inst_local(state->fun, sizeof(void *), 1);
+    // tb_inst_store(state->fun, TB_TYPE_PTR, local, target, 1, false);
+    // target = tb_inst_load(state->fun, TB_TYPE_PTR, local, 1, false);
+    return tb_inst_call(state->fun, proto, target, param_count, params);
 }
 
-TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **regs, vm_block_t *block) {
+TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Node **regs, vm_block_t *block) {
     if (block->pass != NULL) {
         return block->pass;
     }
-    TB_Node *old_ctrl = tb_inst_get_control(fun);
+    TB_Node *old_ctrl = tb_inst_get_control(state->fun);
 
-    TB_Node *ret = tb_inst_region(fun);
+    TB_Node *ret = tb_inst_region(state->fun);
 
     char name[24];
     snprintf(name, 23, "vm.%zi", block->id);
 
-    tb_inst_set_region_name(fun, ret, -1, name);
+    tb_inst_set_region_name(state->fun, ret, -1, name);
 
-    tb_inst_set_control(fun, ret);
+    tb_inst_set_control(state->fun, ret);
 
     {
         const char *block_err = vm_check_block(block);
         if (block_err != NULL) {
-            vm_tb_func_report_error(state, fun, block_err);
-            tb_inst_set_control(fun, old_ctrl);
+            vm_tb_func_report_error(state, block_err);
+            tb_inst_set_control(state->fun, old_ctrl);
             return ret;
         }
     }
@@ -255,230 +267,236 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         vm_instr_t instr = block->instrs[n];
         switch (instr.op) {
             case VM_IOP_MOVE: {
-                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, vm_tb_func_read_arg(fun, regs, instr.args[0]));
+                vm_tb_func_write(state, instr.tag, regs, instr.out.reg, vm_tb_func_read_arg(state, regs, instr.args[0]));
                 break;
             }
             case VM_IOP_ADD: {
                 TB_Node *value = NULL;
                 if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
                     value = tb_inst_fadd(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1])
                     );
                 } else {
                     value = tb_inst_add(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1]),
                         TB_ARITHMATIC_NONE
                     );
                 }
-                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
+                vm_tb_func_write(state, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_SUB: {
                 TB_Node *value = NULL;
                 if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
                     value = tb_inst_fsub(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1])
                     );
                 } else {
                     value = tb_inst_sub(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1]),
                         TB_ARITHMATIC_NONE
                     );
                 }
-                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
+                vm_tb_func_write(state, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_MUL: {
                 TB_Node *value = NULL;
                 if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
                     value = tb_inst_fmul(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1])
                     );
                 } else {
                     value = tb_inst_mul(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1]),
                         TB_ARITHMATIC_NONE
                     );
                 }
-                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
+                vm_tb_func_write(state, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_DIV: {
                 TB_Node *value = NULL;
                 if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
                     value = tb_inst_fdiv(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1])
                     );
                 } else {
                     value = tb_inst_div(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1]),
                         true
                     );
                 }
-                vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
+                vm_tb_func_write(state, instr.tag, regs, instr.out.reg, value);
                 break;
             }
             case VM_IOP_IDIV: {
-                if (instr.tag == VM_TAG_F32 || instr.tag == VM_TAG_F64) {
+                if (instr.tag == VM_TAG_F32) {
                     TB_Node *raw_div = tb_inst_fdiv(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1])
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1])
                     );
-                    TB_Node *after = tb_inst_region(fun);
-                    TB_Node *in_int_only_range = tb_inst_region(fun);
-                    TB_Node *in_i64_range = tb_inst_region(fun);
-                    TB_Node *too_low = tb_inst_cmp_flt(fun, raw_div, tb_inst_float64(fun, (double)INT64_MIN));
-                    TB_Node *too_high = tb_inst_cmp_fgt(fun, raw_div, tb_inst_float64(fun, (double)INT64_MAX));
-                    TB_Node *is_out_of_range = tb_inst_or(fun, too_low, too_high);
-                    tb_inst_if(fun, is_out_of_range, in_int_only_range, in_i64_range);
-                    {
-                        tb_inst_set_control(fun, in_i64_range);
-                        TB_Node *int_div = tb_inst_float2int(fun, raw_div, TB_TYPE_I64, true);
-                        TB_Node *float_div = tb_inst_int2float(fun, int_div, TB_TYPE_F64, true);
-                        vm_tb_func_write(
-                            fun,
-                            instr.tag,
-                            regs,
-                            instr.out.reg,
-                            float_div
-                        );
-                        tb_inst_goto(fun, after);
-                    }
-                    {
-                        tb_inst_set_control(fun, in_int_only_range);
-                        vm_tb_func_write(
-                            fun,
-                            instr.tag,
-                            regs,
-                            instr.out.reg,
-                            raw_div
-                        );
-                        tb_inst_goto(fun, after);
-                    }
-                    tb_inst_set_control(fun, after);
+                    TB_PrototypeParam f32p = {TB_TYPE_F32};
+                    TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 1, &f32p, 1, &f32p, false);
+                    TB_MultiOutput multi = tb_inst_call(
+                        state->fun,
+                        proto,
+                        vm_tb_ptr_name(state, "floor", &floorf),
+                        1,
+                        &raw_div
+                    );
+                    vm_tb_func_write(
+                        state,
+                        instr.tag,
+                        regs,
+                        instr.out.reg,
+                        multi.single
+                    );
+                } else if (instr.tag == VM_TAG_F64) {
+                    TB_Node *raw_div = tb_inst_fdiv(
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1])
+                    );
+                    TB_PrototypeParam f64p = {TB_TYPE_F64};
+                    TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 1, &f64p, 1, &f64p, false);
+                    TB_MultiOutput multi = tb_inst_call(
+                        state->fun,
+                        proto,
+                        vm_tb_ptr_name(state, "floor", &floor),
+                        1,
+                        &raw_div
+                    );
+                    vm_tb_func_write(
+                        state,
+                        instr.tag,
+                        regs,
+                        instr.out.reg,
+                        multi.single
+                    );
                 } else {
                     TB_Node *value = tb_inst_div(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1]),
                         true
                     );
-                    vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
+                    vm_tb_func_write(state, instr.tag, regs, instr.out.reg, value);
                 }
                 break;
             }
             case VM_IOP_MOD: {
                 if (instr.tag == VM_TAG_F64) {
-                    TB_Node *bad = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, bad, -1, "bad_mod");
-                    TB_Node *good = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, good, -1, "good_mod");
-                    TB_Node *after = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, after, -1, "after_mod");
-                    TB_Node *lhs = vm_tb_func_read_arg(fun, regs, instr.args[0]);
-                    TB_Node *rhs = vm_tb_func_read_arg(fun, regs, instr.args[1]);
-                    TB_Node *raw_div = tb_inst_fdiv(fun, lhs, rhs);
-                    TB_Node *too_low = tb_inst_cmp_flt(fun, raw_div, tb_inst_float64(fun, (double)INT64_MIN));
-                    TB_Node *too_high = tb_inst_cmp_fgt(fun, raw_div, tb_inst_float64(fun, (double)INT64_MAX));
-                    TB_Node *is_bad = tb_inst_or(fun, too_low, too_high);
-                    tb_inst_if(fun, is_bad, bad, good);
+                    TB_Node *bad = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, bad, -1, "bad_mod");
+                    TB_Node *good = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, good, -1, "good_mod");
+                    TB_Node *after = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, after, -1, "after_mod");
+                    TB_Node *lhs = vm_tb_func_read_arg(state, regs, instr.args[0]);
+                    TB_Node *rhs = vm_tb_func_read_arg(state, regs, instr.args[1]);
+                    TB_Node *raw_div = tb_inst_fdiv(state->fun, lhs, rhs);
+                    TB_Node *too_low = tb_inst_cmp_flt(state->fun, raw_div, tb_inst_float64(state->fun, (double)INT64_MIN));
+                    TB_Node *too_high = tb_inst_cmp_fgt(state->fun, raw_div, tb_inst_float64(state->fun, (double)INT64_MAX));
+                    TB_Node *is_bad = tb_inst_or(state->fun, too_low, too_high);
+                    tb_inst_if(state->fun, is_bad, bad, good);
                     {
-                        tb_inst_set_control(fun, good);
-                        TB_Node *int_div = tb_inst_float2int(fun, raw_div, TB_TYPE_I64, true);
-                        TB_Node *float_div = tb_inst_int2float(fun, int_div, TB_TYPE_F64, true);
-                        TB_Node *mul = tb_inst_fmul(fun, float_div, rhs);
-                        TB_Node *sub = tb_inst_fsub(fun, lhs, mul);
+                        tb_inst_set_control(state->fun, good);
+                        TB_Node *int_div = tb_inst_float2int(state->fun, raw_div, TB_TYPE_I64, true);
+                        TB_Node *float_div = tb_inst_int2float(state->fun, int_div, TB_TYPE_F64, true);
+                        TB_Node *mul = tb_inst_fmul(state->fun, float_div, rhs);
+                        TB_Node *sub = tb_inst_fsub(state->fun, lhs, mul);
                         vm_tb_func_write(
-                            fun,
+                            state,
                             instr.tag,
                             regs,
                             instr.out.reg,
                             sub
                         );
-                        tb_inst_goto(fun, after);
+                        tb_inst_goto(state->fun, after);
                     }
                     {
-                        tb_inst_set_control(fun, bad);
-                        TB_Node *mul = tb_inst_fmul(fun, raw_div, rhs);
-                        TB_Node *sub = tb_inst_fsub(fun, lhs, mul);
+                        tb_inst_set_control(state->fun, bad);
+                        TB_Node *mul = tb_inst_fmul(state->fun, raw_div, rhs);
+                        TB_Node *sub = tb_inst_fsub(state->fun, lhs, mul);
                         vm_tb_func_write(
-                            fun,
+                            state,
                             instr.tag,
                             regs,
                             instr.out.reg,
                             sub
                         );
-                        tb_inst_goto(fun, after);
+                        tb_inst_goto(state->fun, after);
                     }
-                    tb_inst_set_control(fun, after);
+                    tb_inst_set_control(state->fun, after);
                 } else if (instr.tag == VM_TAG_F32) {
-                    TB_Node *bad = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, bad, -1, "bad_mod");
-                    TB_Node *good = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, bad, -1, "good_mod");
-                    TB_Node *after = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, bad, -1, "after_mod");
-                    TB_Node *lhs = vm_tb_func_read_arg(fun, regs, instr.args[0]);
-                    TB_Node *rhs = vm_tb_func_read_arg(fun, regs, instr.args[1]);
-                    TB_Node *raw_div = tb_inst_fdiv(fun, lhs, rhs);
-                    TB_Node *too_low = tb_inst_cmp_flt(fun, raw_div, tb_inst_float32(fun, (float)INT32_MIN));
-                    TB_Node *too_high = tb_inst_cmp_fgt(fun, raw_div, tb_inst_float32(fun, (float)INT32_MAX));
-                    TB_Node *is_bad = tb_inst_or(fun, too_low, too_high);
-                    tb_inst_if(fun, is_bad, bad, good);
+                    TB_Node *bad = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, bad, -1, "bad_mod");
+                    TB_Node *good = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, bad, -1, "good_mod");
+                    TB_Node *after = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, bad, -1, "after_mod");
+                    TB_Node *lhs = vm_tb_func_read_arg(state, regs, instr.args[0]);
+                    TB_Node *rhs = vm_tb_func_read_arg(state, regs, instr.args[1]);
+                    TB_Node *raw_div = tb_inst_fdiv(state->fun, lhs, rhs);
+                    TB_Node *too_low = tb_inst_cmp_flt(state->fun, raw_div, tb_inst_float32(state->fun, (float)INT32_MIN));
+                    TB_Node *too_high = tb_inst_cmp_fgt(state->fun, raw_div, tb_inst_float32(state->fun, (float)INT32_MAX));
+                    TB_Node *is_bad = tb_inst_or(state->fun, too_low, too_high);
+                    tb_inst_if(state->fun, is_bad, bad, good);
                     {
-                        tb_inst_set_control(fun, good);
-                        TB_Node *int_div = tb_inst_float2int(fun, raw_div, TB_TYPE_I32, true);
-                        TB_Node *float_div = tb_inst_int2float(fun, int_div, TB_TYPE_F32, true);
-                        TB_Node *mul = tb_inst_fmul(fun, float_div, rhs);
-                        TB_Node *sub = tb_inst_fsub(fun, lhs, mul);
+                        tb_inst_set_control(state->fun, good);
+                        TB_Node *int_div = tb_inst_float2int(state->fun, raw_div, TB_TYPE_I32, true);
+                        TB_Node *float_div = tb_inst_int2float(state->fun, int_div, TB_TYPE_F32, true);
+                        TB_Node *mul = tb_inst_fmul(state->fun, float_div, rhs);
+                        TB_Node *sub = tb_inst_fsub(state->fun, lhs, mul);
                         vm_tb_func_write(
-                            fun,
+                            state,
                             instr.tag,
                             regs,
                             instr.out.reg,
                             sub
                         );
-                        tb_inst_goto(fun, after);
+                        tb_inst_goto(state->fun, after);
                     }
                     {
-                        tb_inst_set_control(fun, bad);
-                        TB_Node *mul = tb_inst_fmul(fun, raw_div, rhs);
-                        TB_Node *sub = tb_inst_fsub(fun, lhs, mul);
+                        tb_inst_set_control(state->fun, bad);
+                        TB_Node *mul = tb_inst_fmul(state->fun, raw_div, rhs);
+                        TB_Node *sub = tb_inst_fsub(state->fun, lhs, mul);
                         vm_tb_func_write(
-                            fun,
+                            state,
                             instr.tag,
                             regs,
                             instr.out.reg,
                             sub
                         );
-                        tb_inst_goto(fun, after);
+                        tb_inst_goto(state->fun, after);
                     }
-                    tb_inst_set_control(fun, after);
+                    tb_inst_set_control(state->fun, after);
                 } else {
                     TB_Node *value = tb_inst_mod(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                        vm_tb_func_read_arg(fun, regs, instr.args[1]),
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, instr.args[0]),
+                        vm_tb_func_read_arg(state, regs, instr.args[1]),
                         true
                     );
-                    vm_tb_func_write(fun, instr.tag, regs, instr.out.reg, value);
+                    vm_tb_func_write(state, instr.tag, regs, instr.out.reg, value);
                 }
                 break;
             }
@@ -486,13 +504,12 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 break;
             }
             case VM_IOP_STD: {
-                tb_inst_store(
-                    fun,
-                    TB_TYPE_PTR,
-                    regs[instr.out.reg],
-                    vm_tb_ptr_name(state->module, fun, "<data>", state->std),
-                    8,
-                    false
+                vm_tb_func_write(
+                    state,
+                    instr.tag,
+                    regs,
+                    instr.out.reg,
+                    vm_tb_ptr_name(state, "<data>", state->std)
                 );
                 break;
             }
@@ -500,11 +517,11 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 vm_tag_t table_tag = vm_arg_to_tag(instr.args[0]);
                 if (table_tag == VM_TAG_TAB) {
                     TB_Node *len = tb_inst_load(
-                        fun,
+                        state->fun,
                         TB_TYPE_I32,
                         tb_inst_member_access(
-                            fun,
-                            vm_tb_func_read_arg(fun, regs, instr.args[0]),
+                            state->fun,
+                            vm_tb_func_read_arg(state, regs, instr.args[0]),
                             offsetof(vm_table_t, len)
                         ),
                         1,
@@ -513,14 +530,14 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     if (instr.tag == VM_TAG_I32) {
                         // defaults to i32
                     } else if (instr.tag == VM_TAG_I64) {
-                        len = tb_inst_zxt(fun, len, TB_TYPE_I64);
+                        len = tb_inst_zxt(state->fun, len, TB_TYPE_I64);
                     } else if (instr.tag == VM_TAG_F32) {
-                        len = tb_inst_int2float(fun, len, TB_TYPE_F32, false);
+                        len = tb_inst_int2float(state->fun, len, TB_TYPE_F32, false);
                     } else if (instr.tag == VM_TAG_F64) {
-                        len = tb_inst_int2float(fun, len, TB_TYPE_F64, false);
+                        len = tb_inst_int2float(state->fun, len, TB_TYPE_F64, false);
                     }
                     vm_tb_func_write(
-                        fun,
+                        state,
                         instr.tag,
                         regs,
                         instr.out.reg,
@@ -543,16 +560,16 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 };
                 TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 5, proto_params, 0, NULL, false);
                 TB_Node *args[5] = {
-                    vm_tb_func_read_arg(fun, regs, instr.args[0]),
-                    tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, instr.args[1]), VM_TB_TYPE_VALUE),
-                    tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, instr.args[2]), VM_TB_TYPE_VALUE),
-                    tb_inst_uint(fun, TB_TYPE_I32, key_tag),
-                    tb_inst_uint(fun, TB_TYPE_I32, val_tag),
+                    vm_tb_func_read_arg(state, regs, instr.args[0]),
+                    tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, instr.args[1]), VM_TB_TYPE_VALUE),
+                    tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, instr.args[2]), VM_TB_TYPE_VALUE),
+                    tb_inst_uint(state->fun, TB_TYPE_I32, key_tag),
+                    tb_inst_uint(state->fun, TB_TYPE_I32, val_tag),
                 };
                 vm_tb_inst_call(
-                    fun,
+                    state,
                     proto,
-                    tb_inst_get_symbol_address(fun, state->vm_table_set),
+                    tb_inst_get_symbol_address(state->fun, state->vm_table_set),
                     5,
                     args
                 );
@@ -564,13 +581,13 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 };
                 TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 1, proto_ret, false);
                 tb_inst_store(
-                    fun,
+                    state->fun,
                     TB_TYPE_PTR,
                     regs[instr.out.reg],
                     vm_tb_inst_call(
-                        fun,
+                        state,
                         proto,
-                        tb_inst_get_symbol_address(fun, state->vm_table_new),
+                        tb_inst_get_symbol_address(state->fun, state->vm_table_new),
                         0,
                         NULL
                     )
@@ -593,8 +610,8 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
     switch (branch.op) {
         case VM_BOP_JUMP: {
             tb_inst_goto(
-                fun,
-                vm_tb_func_body_once(state, fun, regs, branch.targets[0])
+                state->fun,
+                vm_tb_func_body_once(state, regs, branch.targets[0])
             );
             break;
         }
@@ -602,20 +619,20 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         case VM_BOP_BB: {
             if (branch.tag == VM_TAG_BOOL) {
                 tb_inst_if(
-                    fun,
-                    vm_tb_func_read_arg(fun, regs, branch.args[0]),
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[0]),
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                    state->fun,
+                    vm_tb_func_read_arg(state, regs, branch.args[0]),
+                    vm_tb_func_body_once(state, regs, branch.targets[0]),
+                    vm_tb_func_body_once(state, regs, branch.targets[1])
                 );
             } else if (branch.tag == VM_TAG_NIL) {
                 tb_inst_goto(
-                    fun,
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                    state->fun,
+                    vm_tb_func_body_once(state, regs, branch.targets[1])
                 );
             } else {
                 tb_inst_goto(
-                    fun,
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[0])
+                    state->fun,
+                    vm_tb_func_body_once(state, regs, branch.targets[0])
                 );
             }
             break;
@@ -623,16 +640,16 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
         case VM_BOP_BLT: {
             tb_inst_if(
-                fun,
+                state->fun,
                 vm_tb_select_binary_cmp(
                     branch.tag,
                     tb_inst_cmp_ilt, tb_inst_cmp_flt,
-                    fun,
-                    vm_tb_func_read_arg(fun, regs, branch.args[0]),
-                    vm_tb_func_read_arg(fun, regs, branch.args[1])
+                    state->fun,
+                    vm_tb_func_read_arg(state, regs, branch.args[0]),
+                    vm_tb_func_read_arg(state, regs, branch.args[1])
                 ),
-                vm_tb_func_body_once(state, fun, regs, branch.targets[0]),
-                vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                vm_tb_func_body_once(state, regs, branch.targets[0]),
+                vm_tb_func_body_once(state, regs, branch.targets[1])
             );
             break;
         }
@@ -640,13 +657,13 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         case VM_BOP_BEQ: {
             if (vm_arg_to_tag(branch.args[0]) != vm_arg_to_tag(branch.args[1])) {
                 tb_inst_goto(
-                    fun,
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                    state->fun,
+                    vm_tb_func_body_once(state, regs, branch.targets[1])
                 );
             } else if (branch.tag == VM_TAG_NIL) {
                 tb_inst_goto(
-                    fun,
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[0])
+                    state->fun,
+                    vm_tb_func_body_once(state, regs, branch.targets[0])
                 );
             } else if (branch.tag == VM_TAG_STR) {
                 TB_PrototypeParam params[2] = {
@@ -661,34 +678,34 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, params, 1, rets, false);
 
                 TB_Node *args[2] = {
-                    vm_tb_func_read_arg(fun, regs, branch.args[0]),
-                    vm_tb_func_read_arg(fun, regs, branch.args[1]),
+                    vm_tb_func_read_arg(state, regs, branch.args[0]),
+                    vm_tb_func_read_arg(state, regs, branch.args[1]),
                 };
 
                 TB_MultiOutput out = vm_tb_inst_call(
-                    fun,
+                    state,
                     proto,
-                    vm_tb_ptr_name(state->module, fun, "vm_tb_str_eq", &vm_tb_str_eq),
+                    vm_tb_ptr_name(state, "vm_tb_str_eq", &vm_tb_str_eq),
                     2,
                     args
                 );
 
                 tb_inst_if(
-                    fun,
+                    state->fun,
                     out.single, 
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[0]),
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                    vm_tb_func_body_once(state, regs, branch.targets[0]),
+                    vm_tb_func_body_once(state, regs, branch.targets[1])
                 );
             } else {
                 tb_inst_if(
-                    fun,
+                    state->fun,
                     tb_inst_cmp_eq(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, branch.args[0]),
-                        vm_tb_func_read_arg(fun, regs, branch.args[1])
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, branch.args[0]),
+                        vm_tb_func_read_arg(state, regs, branch.args[1])
                     ),
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[0]),
-                    vm_tb_func_body_once(state, fun, regs, branch.targets[1])
+                    vm_tb_func_body_once(state, regs, branch.targets[0]),
+                    vm_tb_func_body_once(state, regs, branch.targets[1])
                 );
             }
             break;
@@ -697,11 +714,11 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         case VM_BOP_RET: {
             TB_Node *ret[2];
 
-            ret[0] = tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, branch.args[0]), VM_TB_TYPE_VALUE);
+            ret[0] = tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, branch.args[0]), VM_TB_TYPE_VALUE);
 
-            ret[1] = tb_inst_uint(fun, TB_TYPE_I32, branch.tag);
+            ret[1] = tb_inst_uint(state->fun, TB_TYPE_I32, branch.tag);
 
-            tb_inst_ret(fun, 2, ret);
+            tb_inst_ret(state->fun, 2, ret);
             break;
         }
 
@@ -717,72 +734,83 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     nparams += 1;
                 }
                 if (vm_arg_to_tag(branch.args[0]) == VM_TAG_FFI) {
-                    TB_PrototypeParam call_proto_params[1] = {
+                    TB_PrototypeParam call_proto_params[2] = {
+                        {TB_TYPE_PTR},
                         {TB_TYPE_PTR},
                     };
 
-                    TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 1, call_proto_params, 0, NULL, false);
+                    vm_std_closure_t *closure = vm_malloc(sizeof(vm_std_closure_t));
 
-                    TB_Node *call_arg = tb_inst_local(fun, sizeof(vm_std_value_t) * (nparams + 1), 8);
+                    closure->config = state->config;
+                    closure->blocks = state->blocks;
+
+                    TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 2, call_proto_params, 0, NULL, false);
+
+                    TB_Node *call_arg = tb_inst_local(state->fun, sizeof(vm_std_value_t) * (nparams + 1), 8);
 
                     for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
                         vm_arg_t arg = branch.args[i];
-                        TB_Node *head = tb_inst_member_access(fun, call_arg, sizeof(vm_std_value_t) * (i - 1));
+                        TB_Node *head = tb_inst_member_access(state->fun, call_arg, sizeof(vm_std_value_t) * (i - 1));
                         vm_tag_t tag = vm_arg_to_tag(arg);
                         if (tag != VM_TAG_NIL) {
                             tb_inst_store(
-                                fun,
+                                state->fun,
                                 VM_TB_TYPE_VALUE,
-                                tb_inst_member_access(fun, head, offsetof(vm_std_value_t, value)),
-                                tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, arg), VM_TB_TYPE_VALUE),
+                                tb_inst_member_access(state->fun, head, offsetof(vm_std_value_t, value)),
+                                tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, arg), VM_TB_TYPE_VALUE),
                                 8,
                                 false
                             );
                         }
                         tb_inst_store(
-                            fun,
+                            state->fun,
                             TB_TYPE_I32,
-                            tb_inst_member_access(fun, head, offsetof(vm_std_value_t, tag)),
-                            tb_inst_uint(fun, TB_TYPE_I32, tag),
+                            tb_inst_member_access(state->fun, head, offsetof(vm_std_value_t, tag)),
+                            tb_inst_uint(state->fun, TB_TYPE_I32, tag),
                             4,
                             false
                         );
                     }
 
-                    TB_Node *end_head = tb_inst_member_access(fun, call_arg, sizeof(vm_std_value_t) * nparams);
+                    TB_Node *end_head = tb_inst_member_access(state->fun, call_arg, sizeof(vm_std_value_t) * nparams);
 
                     // tb_inst_store(
-                    //     fun,
+                    //     state->fun,
                     //     TB_TYPE_PTR,
-                    //     tb_inst_member_access(fun, end_head, offsetof(vm_std_value_t, value)),
-                    //     vm_tb_ptr_name(state->module, fun, "<data>", 0),
+                    //     tb_inst_member_access(state->fun, end_head, offsetof(vm_std_value_t, value)),
+                    //     vm_tb_ptr_name(state, "<data>", 0),
                     //     8,
                     //     false
                     // );
                     tb_inst_store(
-                        fun,
+                        state->fun,
                         TB_TYPE_I32,
-                        tb_inst_member_access(fun, end_head, offsetof(vm_std_value_t, tag)),
-                        tb_inst_uint(fun, TB_TYPE_I32, 0),
+                        tb_inst_member_access(state->fun, end_head, offsetof(vm_std_value_t, tag)),
+                        tb_inst_uint(state->fun, TB_TYPE_I32, 0),
                         4,
                         false
                     );
 
-                    TB_Node *call_func = vm_tb_func_read_arg(fun, regs, branch.args[0]);
+                    TB_Node *call_func = vm_tb_func_read_arg(state, regs, branch.args[0]);
+
+                    TB_Node *call_args[2] = {
+                        vm_tb_ptr_name(state, "closure", closure),
+                        call_arg,
+                    };
 
                     vm_tb_inst_call(
-                        fun,
+                        state,
                         call_proto,
                         call_func,
-                        1,
-                        &call_arg
+                        2,
+                        call_args
                     );
 
                     val_tag = tb_inst_load(
-                        fun,
+                        state->fun,
                         TB_TYPE_I32,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             call_arg,
                             offsetof(vm_std_value_t, tag)
                         ),
@@ -791,23 +819,25 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     );
 
                     val_val = tb_inst_load(
-                        fun,
+                        state->fun,
                         VM_TB_TYPE_VALUE,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             call_arg,
                             offsetof(vm_std_value_t, value)
                         ),
-                        1,
+                        4,
                         false
                     );
                 } else if (vm_arg_to_tag(branch.args[0]) == VM_TAG_CLOSURE) {
-                    TB_Node *closure = vm_tb_func_read_arg(fun, regs, branch.args[0]);
+                    // tb_inst_debugbreak(state->fun);
+                    
+                    TB_Node *closure = vm_tb_func_read_arg(state, regs, branch.args[0]);
                     TB_Node *block_num = tb_inst_load(
-                        fun,
+                        state->fun,
                         vm_tag_to_tb_type(VM_TAG_FUN),
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             closure,
                             offsetof(vm_std_value_t, value)
                         ),
@@ -815,26 +845,27 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         false
                     );
 
-                    void **cache = vm_malloc(sizeof(void *) * state->nblocks);
-                    memset(cache, 0, sizeof(void *) * state->nblocks);
 
-                    TB_Node *has_cache = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, has_cache, -1, "has_cache");
-                    TB_Node *no_cache = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, no_cache, -1, "no_cache");
-                    TB_Node *after = tb_inst_region(fun);
-                    tb_inst_set_region_name(fun, after, -1, "after_cache");
+                    void **cache = vm_malloc(sizeof(void *) * state->blocks->len);
+                    memset(cache, 0, sizeof(void *) * state->blocks->len);
+
+                    TB_Node *has_cache = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, has_cache, -1, "has_cache");
+                    TB_Node *no_cache = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, no_cache, -1, "no_cache");
+                    TB_Node *after = tb_inst_region(state->fun);
+                    tb_inst_set_region_name(state->fun, after, -1, "after_cache");
 
                     TB_Node *global_ptr = tb_inst_array_access(
-                        fun,
-                        vm_tb_ptr_name(state->module, fun, "<code_cache>", cache),
+                        state->fun,
+                        vm_tb_ptr_name(state, "<code_cache>", cache),
                         block_num,
                         sizeof(void *)
                     );
-                    TB_Node *global = tb_inst_load(fun, TB_TYPE_PTR, global_ptr, 1, false);
+                    TB_Node *global = tb_inst_load(state->fun, TB_TYPE_PTR, global_ptr, 1, false);
 
-                    val_val = tb_inst_local(fun, 8, 8);
-                    val_tag = tb_inst_local(fun, 4, 4);
+                    val_val = tb_inst_local(state->fun, 8, 8);
+                    val_tag = tb_inst_local(state->fun, 4, 4);
 
                     size_t nargs = 1;
                     for (size_t arg = 1; branch.args[arg].type != VM_ARG_NONE; arg++) {
@@ -858,23 +889,23 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, nargs, call_proto_params, 2, call_proto_rets, false);
 
                     tb_inst_if(
-                        fun,
-                        tb_inst_cmp_eq(fun, global, tb_inst_uint(fun, TB_TYPE_PTR, 0)),
+                        state->fun,
+                        tb_inst_cmp_eq(state->fun, global, vm_tb_ptr_name(state, "0", NULL)),
                         no_cache,
                         has_cache
                     );
 
                     {
-                        tb_inst_set_control(fun, no_cache);
+                        tb_inst_set_control(state->fun, no_cache);
 
-                        TB_Node *rblock_call_table = vm_tb_ptr_name(state->module, fun, "<call_table>", branch.call_table);
+                        TB_Node *rblock_call_table = vm_tb_ptr_name(state, "<call_table>", branch.call_table);
                         TB_Node *rblock_ref = tb_inst_array_access(
-                            fun,
+                            state->fun,
                             rblock_call_table,
                             block_num,
                             sizeof(vm_rblock_t *)
                         );
-                        TB_Node *rblock = tb_inst_load(fun, TB_TYPE_PTR, rblock_ref, 1, false);
+                        TB_Node *rblock = tb_inst_load(state->fun, TB_TYPE_PTR, rblock_ref, 1, false);
 
                         TB_PrototypeParam comp_params[2] = {
                             {TB_TYPE_PTR},
@@ -886,7 +917,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
                         TB_FunctionPrototype *comp_proto = tb_prototype_create(state->module, VM_TB_CC, 1, comp_params, 1, comp_ret, false);
 
-                        for (size_t i = 0; i < state->nblocks; i++) {
+                        for (size_t i = 0; i < state->blocks->len; i++) {
                             vm_rblock_t *rblock = branch.call_table[i];
                             if (rblock == NULL) {
                                 continue;
@@ -895,16 +926,16 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         }
 
                         TB_Node *call_func = vm_tb_inst_call(
-                                                fun,
+                                                state,
                                                 comp_proto,
-                                                tb_inst_get_symbol_address(fun, state->vm_tb_rfunc_comp),
+                                                tb_inst_get_symbol_address(state->fun, state->vm_tb_rfunc_comp),
                                                 1,
                                                 &rblock
                         )
                                                 .single;
 
                         tb_inst_store(
-                            fun,
+                            state->fun,
                             TB_TYPE_PTR,
                             global_ptr,
                             call_func,
@@ -915,11 +946,11 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * nargs);
                         call_args[0] = closure;
                         for (size_t arg = 1; branch.args[arg].type != VM_ARG_NONE; arg++) {
-                            call_args[arg] = tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, branch.args[arg]), VM_TB_TYPE_VALUE);
+                            call_args[arg] = tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, branch.args[arg]), VM_TB_TYPE_VALUE);
                         }
 
                         TB_Node **got = vm_tb_inst_call(
-                                            fun,
+                                            state,
                                             call_proto,
                                             call_func,
                                             nargs,
@@ -928,7 +959,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                                             .multiple;
 
                         tb_inst_store(
-                            fun,
+                            state->fun,
                             VM_TB_TYPE_VALUE,
                             val_val,
                             got[0],
@@ -937,7 +968,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         );
 
                         tb_inst_store(
-                            fun,
+                            state->fun,
                             TB_TYPE_I32,
                             val_tag,
                             got[1],
@@ -945,20 +976,20 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                             false
                         );
 
-                        tb_inst_goto(fun, after);
+                        tb_inst_goto(state->fun, after);
                     }
 
                     {
-                        tb_inst_set_control(fun, has_cache);
+                        tb_inst_set_control(state->fun, has_cache);
 
                         TB_Node **call_args = vm_malloc(sizeof(TB_Node *) * nargs);
                         call_args[0] = closure;
                         for (size_t arg = 1; branch.args[arg].type != VM_ARG_NONE; arg++) {
-                            call_args[arg] = tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, branch.args[arg]), VM_TB_TYPE_VALUE);
+                            call_args[arg] = tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, branch.args[arg]), VM_TB_TYPE_VALUE);
                         }
                         
                         TB_Node **got = vm_tb_inst_call(
-                                            fun,
+                                            state,
                                             call_proto,
                                             global,
                                             nargs,
@@ -967,7 +998,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                                             .multiple;
 
                         tb_inst_store(
-                            fun,
+                            state->fun,
                             VM_TB_TYPE_VALUE,
                             val_val,
                             got[0],
@@ -975,7 +1006,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                             false
                         );
                         tb_inst_store(
-                            fun,
+                            state->fun,
                             TB_TYPE_I32,
                             val_tag,
                             got[1],
@@ -983,13 +1014,13 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                             false
                         );
 
-                        tb_inst_goto(fun, after);
+                        tb_inst_goto(state->fun, after);
                     }
 
-                    tb_inst_set_control(fun, after);
+                    tb_inst_set_control(state->fun, after);
 
                     val_val = tb_inst_load(
-                        fun,
+                        state->fun,
                         VM_TB_TYPE_VALUE,
                         val_val,
                         8,
@@ -997,14 +1028,14 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     );
 
                     val_tag = tb_inst_load(
-                        fun,
+                        state->fun,
                         TB_TYPE_I32,
                         val_tag,
                         4,
                         false
                     );
                 } else {
-                    vm_tb_func_report_error(state, fun, "bad call");
+                    vm_tb_func_report_error(state, "bad call");
                     break;
                 }
             } else if (branch.op == VM_BOP_GET) {
@@ -1016,49 +1047,49 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     };
 
                     TB_FunctionPrototype *get_proto = tb_prototype_create(state->module, VM_TB_CC, 2, get_params, 0, NULL, false);
-                    TB_Node *arg2 = tb_inst_local(fun, sizeof(vm_pair_t), 8);
+                    TB_Node *arg2 = tb_inst_local(state->fun, sizeof(vm_pair_t), 8);
                     vm_tag_t tag = vm_arg_to_tag(branch.args[1]);
                     tb_inst_store(
-                        fun,
+                        state->fun,
                         VM_TB_TYPE_VALUE,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             arg2,
                             offsetof(vm_pair_t, key_val)
                         ),
-                        tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, branch.args[1]), VM_TB_TYPE_VALUE),
+                        tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, branch.args[1]), VM_TB_TYPE_VALUE),
                         8,
                         false
                     );
                     tb_inst_store(
-                        fun,
+                        state->fun,
                         TB_TYPE_I32,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             arg2,
                             offsetof(vm_pair_t, key_tag)
                         ),
-                        tb_inst_uint(fun, TB_TYPE_I32, tag),
+                        tb_inst_uint(state->fun, TB_TYPE_I32, tag),
                         4,
                         false
                     );
                     TB_Node *get_args[2] = {
-                        vm_tb_func_read_arg(fun, regs, branch.args[0]),
+                        vm_tb_func_read_arg(state, regs, branch.args[0]),
                         arg2,
                     };
                     vm_tb_inst_call(
-                        fun,
+                        state,
                         get_proto,
-                        tb_inst_get_symbol_address(fun, state->vm_table_get_pair),
+                        tb_inst_get_symbol_address(state->fun, state->vm_table_get_pair),
                         2,
                         get_args
                     );
 
                     val_tag = tb_inst_load(
-                        fun,
+                        state->fun,
                         TB_TYPE_I32,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             arg2,
                             offsetof(vm_pair_t, val_tag)
                         ),
@@ -1067,10 +1098,10 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     );
 
                     val_val = tb_inst_load(
-                        fun,
+                        state->fun,
                         TB_TYPE_PTR,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             arg2,
                             offsetof(vm_pair_t, val_val)
                         ),
@@ -1079,17 +1110,17 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     );
                 } else if (arg0tag == VM_TAG_CLOSURE) {
                     TB_Node *std_val_ref = tb_inst_array_access(
-                        fun,
-                        vm_tb_func_read_arg(fun, regs, branch.args[0]),
-                        vm_tb_func_read_arg(fun, regs, branch.args[1]),
+                        state->fun,
+                        vm_tb_func_read_arg(state, regs, branch.args[0]),
+                        vm_tb_func_read_arg(state, regs, branch.args[1]),
                         sizeof(vm_std_value_t)
                     );
 
                     val_tag = tb_inst_load(
-                        fun,
+                        state->fun,
                         TB_TYPE_I32,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             std_val_ref,
                             offsetof(vm_std_value_t, tag)
                         ),
@@ -1098,10 +1129,10 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     );
 
                     val_val = tb_inst_load(
-                        fun,
+                        state->fun,
                         TB_TYPE_PTR,
                         tb_inst_member_access(
-                            fun,
+                            state->fun,
                             std_val_ref,
                             offsetof(vm_std_value_t, value)
                         ),
@@ -1109,22 +1140,44 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                         false
                     );
                 } else {
-                    vm_tb_func_report_error(state, fun, "bad get");
+                    vm_tb_func_report_error(state, "bad get");
                     break;
                 }
 
             }
+
+            size_t next_nargs = branch.targets[0]->nargs;
+
+            for (size_t argno = 0; argno < next_nargs; argno++) {
+                if (branch.targets[0]->args[argno].reg == branch.out.reg) {
+                    goto branch_uses_reg;
+                }
+            }
+
+            {
+                TB_Node *report_err = tb_inst_region(state->fun);
+                TB_Node *after_err_check = tb_inst_region(state->fun);
+                TB_Node *is_err = tb_inst_cmp_eq(state->fun, val_tag, tb_inst_uint(state->fun, TB_TYPE_I32, VM_TAG_ERROR));
+                tb_inst_if(state->fun, is_err, report_err, after_err_check);
+                tb_inst_set_control(state->fun, report_err);
+                TB_Node *ret_args[2] = {
+                    val_val,
+                    val_tag,
+                };
+                tb_inst_ret(state->fun, 2, ret_args);
+                tb_inst_set_control(state->fun, after_err_check);
+            }
+
+        branch_uses_reg:;
             
             TB_PrototypeParam next_rets[2] = {
                 {TB_TYPE_PTR},
                 {TB_TYPE_I32},
             };
 
-            size_t next_nargs = branch.targets[0]->nargs;
             TB_PrototypeParam *next_params = vm_malloc(sizeof(TB_PrototypeParam) * next_nargs);
 
             for (size_t argno = 0; argno < next_nargs; argno++) {
-                vm_arg_t arg = branch.targets[0]->args[argno];
                 next_params[argno] = (TB_PrototypeParam){ TB_TYPE_PTR };
             }
 
@@ -1143,27 +1196,27 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             memset(mem, 0, sizeof(void *) * VM_TAG_MAX);
 
             TB_Node *func_ref = tb_inst_array_access(
-                fun,
-                vm_tb_ptr_name(state->module, fun, "<rtargets>", mem),
+                state->fun,
+                vm_tb_ptr_name(state, "<rtargets>", mem),
                 val_tag,
                 sizeof(void *)
             );
             TB_Node *func = tb_inst_load(
-                fun,
+                state->fun,
                 TB_TYPE_PTR,
                 func_ref,
                 1,
                 false
             );
-            TB_Node *func_nonzero = tb_inst_cmp_ne(fun, func, tb_inst_uint(fun, TB_TYPE_PTR, 0));
-            TB_Node *has_cache_region = tb_inst_region(fun);
-            tb_inst_set_region_name(fun, has_cache_region, -1, "has_cache_typecheck");
-            TB_Node *no_cache_region = tb_inst_region(fun);
-            tb_inst_set_region_name(fun, has_cache_region, -1, "no_cache_typecheck");
+            TB_Node *func_nonzero = tb_inst_cmp_ne(state->fun, func, vm_tb_ptr_name(state, "0", NULL));
+            TB_Node *has_cache_region = tb_inst_region(state->fun);
+            tb_inst_set_region_name(state->fun, has_cache_region, -1, "has_cache_typecheck");
+            TB_Node *no_cache_region = tb_inst_region(state->fun);
+            tb_inst_set_region_name(state->fun, has_cache_region, -1, "no_cache_typecheck");
 
-            tb_inst_if(fun, func_nonzero, has_cache_region, no_cache_region);
+            tb_inst_if(state->fun, func_nonzero, has_cache_region, no_cache_region);
             {
-                tb_inst_set_control(fun, no_cache_region);
+                tb_inst_set_control(state->fun, no_cache_region);
 
                 TB_PrototypeParam comp_params[1] = {
                     {TB_TYPE_PTR},
@@ -1181,11 +1234,11 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
 
                 TB_Node *comp_args[1];
                 comp_args[0] = tb_inst_load(
-                    fun,
+                    state->fun,
                     TB_TYPE_PTR,
                     tb_inst_array_access(
-                        fun,
-                        vm_tb_ptr_name(state->module, fun, "<rtargets>", &block->branch.rtargets[0]),
+                        state->fun,
+                        vm_tb_ptr_name(state, "<rtargets>", &block->branch.rtargets[0]),
                         val_tag,
                         sizeof(vm_rblock_t *)
                     ),
@@ -1194,15 +1247,15 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                 );
 
                 TB_MultiOutput new_func_multi = vm_tb_inst_call(
-                    fun,
+                    state,
                     comp_proto,
-                    tb_inst_get_symbol_address(fun, state->vm_tb_rfunc_comp),
+                    tb_inst_get_symbol_address(state->fun, state->vm_tb_rfunc_comp),
                     1,
                     comp_args
                 );
 
                 tb_inst_store(
-                    fun,
+                    state->fun,
                     TB_TYPE_PTR,
                     func_ref,
                     new_func_multi.single,
@@ -1216,23 +1269,23 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     if (arg.type == VM_ARG_REG && arg.reg == branch.out.reg) {
                         next_args[argno] = val_val;
                     } else {
-                        next_args[argno] = tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, arg), VM_TB_TYPE_VALUE);
+                        next_args[argno] = tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, arg), VM_TB_TYPE_VALUE);
                     }
                 }
                 
-                if (next_nargs > 6 && VM_ALLOW_BIG_TAILCALL) {
+                if (next_nargs > 6 || VM_NO_TAILCALL) {
                     TB_MultiOutput out = vm_tb_inst_call(
-                        fun,
+                        state,
                         next_proto,
                         new_func_multi.single,
                         next_nargs,
                         next_args
                     );
 
-                    tb_inst_ret(fun, 2, out.multiple);
+                    tb_inst_ret(state->fun, 2, out.multiple);
                 } else {
                     tb_inst_tailcall(
-                        fun,
+                        state->fun,
                         next_proto,
                         new_func_multi.single,
                         next_nargs,
@@ -1242,7 +1295,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
             }
 
             {
-                tb_inst_set_control(fun, has_cache_region);
+                tb_inst_set_control(state->fun, has_cache_region);
                 
                 TB_Node **next_args = vm_malloc(sizeof(TB_Node *) * next_nargs);
                 for (size_t argno = 0; argno < next_nargs; argno++) {
@@ -1250,23 +1303,23 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
                     if (arg.type == VM_ARG_REG && arg.reg == branch.out.reg) {
                         next_args[argno] = val_val;
                     } else {
-                        next_args[argno] = tb_inst_bitcast(fun, vm_tb_func_read_arg(fun, regs, arg), VM_TB_TYPE_VALUE);
+                        next_args[argno] = tb_inst_bitcast(state->fun, vm_tb_func_read_arg(state, regs, arg), VM_TB_TYPE_VALUE);
                     }
                 }
                 
-                if (next_nargs > 6 && VM_ALLOW_BIG_TAILCALL) {
+                if (next_nargs > 6 || VM_NO_TAILCALL) {
                     TB_MultiOutput out = vm_tb_inst_call(
-                        fun,
+                        state,
                         next_proto,
                         func,
                         next_nargs,
                         next_args
                     );
 
-                    tb_inst_ret(fun, 2, out.multiple);
+                    tb_inst_ret(state->fun, 2, out.multiple);
                 } else {
                     tb_inst_tailcall(
-                        fun,
+                        state->fun,
                         next_proto,
                         func,
                         next_nargs,
@@ -1284,74 +1337,75 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Function *fun, TB_Node **
         }
     }
 
-    tb_inst_set_control(fun, old_ctrl);
+    tb_inst_set_control(state->fun, old_ctrl);
 
     return ret;
 }
 
-void vm_tb_func_report_error(vm_tb_state_t *state, TB_Function *fun, const char *str) {
+void vm_tb_func_report_error(vm_tb_state_t *state, const char *str) {
     TB_Node *ret_vals[2];
-    ret_vals[0] = vm_tb_ptr_name(state->module, fun, "<error>", (void *)str);
-    ret_vals[1] = tb_inst_uint(fun, TB_TYPE_I32, VM_TAG_ERROR);
-    tb_inst_ret(fun, 2, ret_vals);
+    ret_vals[0] = vm_tb_ptr_name(state, "<error>", (void *)str);
+    ret_vals[1] = tb_inst_uint(state->fun, TB_TYPE_I32, VM_TAG_ERROR);
+    tb_inst_ret(state->fun, 2, ret_vals);
 }
 
 void vm_tb_print(uint32_t tag, void *value) {
     vm_std_value_t val = (vm_std_value_t){
         .tag = tag,
     };
-    switch (tag) {
-        case VM_TAG_I8: {
-            val.value.i8 = *(int8_t *)value;
-            break;
-        }
-        case VM_TAG_I16: {
-            val.value.i16 = *(int16_t *)value;
-            break;
-        }
-        case VM_TAG_I32: {
-            val.value.i32 = *(int32_t *)value;
-            break;
-        }
-        case VM_TAG_I64: {
-            val.value.i64 = *(int64_t *)value;
-            break;
-        }
-        case VM_TAG_F32: {
-            val.value.f32 = *(float *)value;
-            break;
-        }
-        case VM_TAG_F64: {
-            val.value.f64 = *(double *)value;
-            break;
-        }
-        case VM_TAG_STR: {
-            val.value.str = *(const char **)value;
-            break;
-        }
-        case VM_TAG_CLOSURE: {
-            val.value.closure = *(vm_std_value_t **)value;
-            break;
-        }
-        case VM_TAG_TAB: {
-            val.value.table = *(vm_table_t **)value;
-            break;
-        }
-        case VM_TAG_FFI: {
-            val.value.ffi = *(void (*)(vm_std_value_t *))value;
-            break;
-        }
-        default: {
-            printf("bad tag: %zu\n", (size_t)tag);
-            exit(1);
-        }
-    }
+    val.value = *(vm_value_t *)value;
+    // switch (tag) {
+    //     case VM_TAG_I8: {
+    //         val.value.i8 = *(int8_t *)value;
+    //         break;
+    //     }
+    //     case VM_TAG_I16: {
+    //         val.value.i16 = *(int16_t *)value;
+    //         break;
+    //     }
+    //     case VM_TAG_I32: {
+    //         val.value.i32 = *(int32_t *)value;
+    //         break;
+    //     }
+    //     case VM_TAG_I64: {
+    //         val.value.i64 = *(int64_t *)value;
+    //         break;
+    //     }
+    //     case VM_TAG_F32: {
+    //         val.value.f32 = *(float *)value;
+    //         break;
+    //     }
+    //     case VM_TAG_F64: {
+    //         val.value.f64 = *(double *)value;
+    //         break;
+    //     }
+    //     case VM_TAG_STR: {
+    //         val.value.str = *(const char **)value;
+    //         break;
+    //     }
+    //     case VM_TAG_CLOSURE: {
+    //         val.value.closure = *(vm_std_value_t **)value;
+    //         break;
+    //     }
+    //     case VM_TAG_TAB: {
+    //         val.value.table = *(vm_table_t **)value;
+    //         break;
+    //     }
+    //     case VM_TAG_FFI: {
+    //         val.value.ffi = *(void (*)(vm_std_closure_t *closure, vm_std_value_t *))value;
+    //         break;
+    //     }
+    //     default: {
+    //         printf("bad tag: %zu\n", (size_t)tag);
+    //         exit(1);
+    //     }
+    // }
     vm_io_buffer_t buf = {0};
     vm_io_debug(&buf, 0, "debug: ", val, NULL);
     fprintf(stdout, "%.*s", (int)buf.len, buf.buf);
 }
 
-void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag, TB_Node *value) {
+void vm_tb_func_print_value(vm_tb_state_t *state, vm_tag_t tag, TB_Node *value) {
     TB_PrototypeParam proto_args[2] = {
         {TB_TYPE_I32},
         {TB_TYPE_PTR},
@@ -1359,26 +1413,26 @@ void vm_tb_func_print_value(vm_tb_state_t *state, TB_Function *fun, vm_tag_t tag
 
     TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_args, 0, NULL, false);
 
-    TB_Node *local = tb_inst_local(fun, 8, 8);
+    TB_Node *local = tb_inst_local(state->fun, 8, 8);
 
     tb_inst_store(
-        fun,
+        state->fun,
         VM_TB_TYPE_VALUE,
         local,
-        tb_inst_bitcast(fun, value, VM_TB_TYPE_VALUE),
+        tb_inst_bitcast(state->fun, value, VM_TB_TYPE_VALUE),
         8,
         false
     );
 
     TB_Node *params[2] = {
-        tb_inst_uint(fun, TB_TYPE_I32, (uint64_t)tag),
+        tb_inst_uint(state->fun, TB_TYPE_I32, (uint64_t)tag),
         local,
     };
 
     vm_tb_inst_call(
-        fun,
+        state,
         proto,
-        tb_inst_get_symbol_address(fun, state->vm_tb_print),
+        tb_inst_get_symbol_address(state->fun, state->vm_tb_print),
         2,
         params
     );
@@ -1411,18 +1465,16 @@ vm_block_t *vm_tb_handle_upvalues(vm_block_t *input) {
 
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     void *cache = rblock->jit;
-    // printf("%zi\n", rblock->block->id);
     if (cache != NULL) {
         return cache;
     }
 
     vm_tb_state_t *state = rblock->state;
-    state->faults = 0;
 
-    vm_block_t *block_pre = vm_rblock_version(state->nblocks, state->blocks, rblock);
+    vm_block_t *block_pre = vm_rblock_version(state->blocks, rblock);
     vm_block_t *block = vm_tb_handle_upvalues(block_pre);
-    TB_Function *fun = tb_function_create(state->module, -1, "block", TB_LINKAGE_PRIVATE);
-    
+    state->fun  = tb_function_create(state->module, -1, "block", TB_LINKAGE_PRIVATE);
+
     if (block == NULL) {
         TB_PrototypeParam proto_rets[2] = {
             {VM_TB_TYPE_VALUE},
@@ -1432,18 +1484,17 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, proto_rets, false);
 
         tb_function_set_prototype(
-            fun,
+            state->fun,
             -1,
             proto,
             NULL
         );
 
-        vm_tb_func_report_error(state, fun, "internal: block == NULL");
+        vm_tb_func_report_error(state, "internal: block == NULL");
     } else {
         TB_PrototypeParam *proto_args = vm_malloc(sizeof(TB_PrototypeParam) * block->nargs);
 
         for (size_t arg = 0; arg < block->nargs; arg++) {
-            size_t reg = block->args[arg].reg;
             proto_args[arg] = (TB_PrototypeParam){
                 VM_TB_TYPE_VALUE,
             };
@@ -1457,7 +1508,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, block->nargs, proto_args, 2, proto_rets, false);
         
         tb_function_set_prototype(
-            fun,
+            state->fun,
             -1,
             proto,
             NULL
@@ -1468,9 +1519,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
                 vm_arg_t arg = block->args[i];
                 if (arg.type == VM_ARG_REG && rblock->regs->tags[arg.reg] == VM_TAG_ERROR) {
                     TB_Node *rets[2];
-                    rets[0] = tb_inst_param(fun, i);
-                    rets[1] = tb_inst_uint(fun, TB_TYPE_I32, VM_TAG_ERROR);
-                    tb_inst_ret(fun, 2, rets);
+                    rets[0] = tb_inst_param(state->fun, i);
+                    rets[1] = tb_inst_uint(state->fun, TB_TYPE_I32, VM_TAG_ERROR);
+                    tb_inst_ret(state->fun, 2, rets);
                     block = NULL;
                 }
             }
@@ -1480,31 +1531,31 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             TB_Node **regs = vm_malloc(sizeof(TB_Node *) * block->nregs);
 
             for (size_t i = 0; i < block->nregs; i++) {
-                regs[i] = tb_inst_local(fun, 8, 8);
+                regs[i] = tb_inst_local(state->fun, 8, 8);
             }
 
             for (size_t i = 0; i < block->nargs; i++) {
                 tb_inst_store(
-                    fun,
+                    state->fun,
                     VM_TB_TYPE_VALUE,
                     regs[block->args[i].reg],
-                    tb_inst_param(fun, i),
+                    tb_inst_param(state->fun, i),
                     8,
                     false
                 );
                 if (state->config->dump_args) {
-                    vm_tb_func_print_value(state, fun, rblock->regs->tags[block->args[i].reg], regs[block->args[i].reg]);
+                    vm_tb_func_print_value(state, rblock->regs->tags[block->args[i].reg], regs[block->args[i].reg]);
                 }
             }
 
             vm_tb_func_reset_pass(block);
-            TB_Node *main = vm_tb_func_body_once(state, fun, regs, block);
+            TB_Node *main = vm_tb_func_body_once(state, regs, block);
             vm_tb_func_reset_pass(block);
-            tb_inst_goto(fun, main);
+            tb_inst_goto(state->fun, main);
         }
     }
 
-    TB_Passes *passes = tb_pass_enter(fun, tb_function_get_arena(fun));
+    TB_Passes *passes = tb_pass_enter(state->fun, tb_function_get_arena(state->fun));
 #if VM_USE_DUMP
     if (state->config->dump_tb) {
         fprintf(stdout, "\n--- tb ---\n");
@@ -1540,7 +1591,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     tb_pass_exit(passes);
 
     TB_JIT *jit = tb_jit_begin(state->module, 1 << 16);
-    void *ret = tb_jit_place_function(jit, fun);
+    void *ret = tb_jit_place_function(jit, state->fun);
 
     rblock->jit = ret;
 
@@ -1560,19 +1611,18 @@ void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
 
 typedef vm_std_value_t VM_CDECL vm_tb_func_t(void);
 
-vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, size_t nblocks, vm_block_t **blocks, vm_table_t *std) {
-    vm_std_value_t val = vm_tb_run_repl(config, entry, nblocks, blocks, std);
+vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
+    vm_std_value_t val = vm_tb_run_repl(config, entry, blocks, std);
     if (val.tag == VM_TAG_ERROR) {
         printf("error: %s\n", val.value.str);
     }
     return val;
 }
 
-vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, size_t nblocks, vm_block_t **blocks, vm_table_t *std) {
+vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_tb_state_t *state = vm_malloc(sizeof(vm_tb_state_t));
     state->std = std;
     state->config = config;
-    state->nblocks = nblocks;
     state->blocks = blocks;
 
     vm_tb_new_module(state);

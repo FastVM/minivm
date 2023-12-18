@@ -9,14 +9,19 @@
 #include "../vm/config.h"
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
-void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std);
+void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks);
+
+// void GC_disable(void);
 
 int main(int argc, char **argv) {
     vm_init_mem();
+    // GC_disable();
     vm_config_t val_config = (vm_config_t){
         .use_tb_opt = false,
         .use_num = VM_USE_NUM_F64,
     };
+    vm_blocks_t val_blocks = {0};
+    vm_blocks_t *blocks = &val_blocks;
     vm_config_t *config = &val_config;
     bool dry_run = false;
     bool echo = false;
@@ -36,7 +41,7 @@ int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--no-echo")) {
             echo = false;
         } else if (!strcmp(arg, "--repl")) {
-            vm_lang_lua_repl(config, std);
+            vm_lang_lua_repl(config, std, blocks);
             isrepl = false;
         } else if (!strcmp(arg, "--dry-run")) {
             dry_run = true;
@@ -122,16 +127,16 @@ int main(int argc, char **argv) {
                 printf("\n--- ast ---\n%.*s", (int) buf.len, buf.buf);
             }
 
-            vm_ast_blocks_t blocks = vm_ast_comp(node);
+            vm_ast_comp_more(node, blocks);
 
             if (config->dump_ir) {
                 vm_io_buffer_t buf = {0};
-                vm_io_format_blocks(&buf, blocks.len, blocks.blocks);
-                printf("%.*s", (int) buf.len, buf.buf);
+                vm_io_format_blocks(&buf, blocks);
+                printf("\n--- ir ---\n%.*s", (int) buf.len, buf.buf);
             }
 
             if (!dry_run) {
-                vm_std_value_t value = vm_tb_run_main(config, blocks.entry, blocks.len, blocks.blocks, std);
+                vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
                 if (echo) {
                     vm_io_buffer_t buf = {0};
                     vm_io_debug(&buf, 0, "", value, NULL);
@@ -149,7 +154,7 @@ int main(int argc, char **argv) {
     }
 
     if (isrepl) {
-        vm_lang_lua_repl(config, std);
+        vm_lang_lua_repl(config, std, blocks);
     }
 
     return 0;

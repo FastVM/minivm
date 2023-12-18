@@ -1,10 +1,5 @@
 
-
-local table = table
-
-if type(table) == 'nil' then
-    table = {}
-end
+table = table or {}
 
 function table.concat(table)
     local function more(low, high)
@@ -19,4 +14,4 @@ function table.concat(table)
     return more(1, #table + 1)
 end
 
-print(table.concat({'a', 'b'}))
+print(table.concat({'a', 'b', 'c'}))

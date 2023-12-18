@@ -2,17 +2,13 @@
 #if !defined(VM_HEADER_IR)
 #define VM_HEADER_IR
 
-#include "../lib.h"
-#include "../std/io.h"
-#include "../std/std.h"
-#include "tag.h"
-
 struct vm_arg_t;
 struct vm_branch_t;
 struct vm_instr_t;
 struct vm_block_t;
 struct vm_rblock_t;
 struct vm_cache_t;
+struct vm_blocks_t;
 
 typedef struct vm_rblock_t vm_rblock_t;
 typedef struct vm_cache_t vm_cache_t;
@@ -20,6 +16,12 @@ typedef struct vm_arg_t vm_arg_t;
 typedef struct vm_branch_t vm_branch_t;
 typedef struct vm_instr_t vm_instr_t;
 typedef struct vm_block_t vm_block_t;
+typedef struct vm_blocks_t vm_blocks_t;
+
+#include "../lib.h"
+#include "../std/io.h"
+#include "../std/std.h"
+#include "tag.h"
 
 enum {
     // there are no more args
@@ -140,6 +142,13 @@ struct vm_block_t {
     bool checked : 1;
 };
 
+struct vm_blocks_t {
+    size_t len;
+    vm_block_t **blocks;
+    size_t alloc;
+    vm_block_t *entry;
+};
+
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
 
 void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val);
@@ -147,7 +156,7 @@ void vm_io_format_tag(vm_io_buffer_t *out, vm_tag_t tag);
 void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val);
 void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val);
 void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val);
-void vm_io_format_blocks(vm_io_buffer_t *out, size_t nblocks, vm_block_t **val);
+void vm_io_format_blocks(vm_io_buffer_t *out, vm_blocks_t *val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
 vm_tag_t vm_arg_to_tag(vm_arg_t arg);

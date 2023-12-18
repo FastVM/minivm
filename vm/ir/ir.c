@@ -304,9 +304,9 @@ void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val) {
     }
 }
 
-void vm_io_format_blocks(vm_io_buffer_t *out, size_t nblocks, vm_block_t **blocks) {
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = blocks[i];
+void vm_io_format_blocks(vm_io_buffer_t *out, vm_blocks_t *blocks) {
+    for (size_t i = 0; i < blocks->len; i++) {
+        vm_block_t *block = blocks->blocks[i];
         if (block->id < 0) {
             continue;
         }

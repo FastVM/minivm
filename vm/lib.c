@@ -9,7 +9,7 @@ void *end;
 void vm_hack_chkstk(void) {}
 #endif
 
-#if 0
+#if 1
 void GC_init() {
 }
 

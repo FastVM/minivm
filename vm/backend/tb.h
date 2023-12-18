@@ -19,10 +19,9 @@ typedef vm_std_value_t VM_CDECL vm_tb_comp_t(vm_tb_comp_state_t *comp, vm_value_
 
 struct vm_tb_state_t {
     void *module;
-    size_t faults;
+    void *fun;
     vm_config_t *config;
-    size_t nblocks;
-    vm_block_t **blocks;
+    vm_blocks_t *blocks;
 
     // externals
     void *vm_tb_rfunc_comp;
@@ -40,9 +39,10 @@ struct vm_tb_comp_state_t {
 };
 
 
+void vm_tb_new_module(vm_tb_state_t *state);
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock);
-vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, size_t nblocks, vm_block_t **blocks, vm_table_t *std);
-vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, size_t nblocks, vm_block_t **blocks, vm_table_t *std);
+vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std);
+vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std);
 vm_std_value_t vm_tb_comp_call(vm_tb_comp_state_t *comp, vm_value_t *args);
 
 #endif

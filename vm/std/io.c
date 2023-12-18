@@ -329,7 +329,8 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
         default: {
             vm_indent(out, indent, prefix);
             vm_io_buffer_format(out, "<T%zu: %p>\n", (size_t)value.tag, value.value.all);
-            __builtin_trap();
+            // __builtin_trap();
+            break;
         }
     }
 }
