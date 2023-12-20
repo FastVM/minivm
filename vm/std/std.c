@@ -276,6 +276,10 @@ vm_table_t *vm_std_new(void) {
     {
         vm_table_t *vm = vm_table_new();
         VM_STD_SET_FFI(vm, "print", &vm_std_vm_print);
+        {
+            vm_table_t *vm_ver = vm_table_new();
+            VM_STD_SET_TAB(vm, "version", vm_ver);
+        }
         VM_STD_SET_TAB(std, "vm", vm);
     }
 

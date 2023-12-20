@@ -3,7 +3,7 @@
 #define VM_HEADER_CONFIG
 
 #define VM_USE_DUMP 1
-#define VM_NO_TAILCALL 1
+#define VM_NO_TAILCALL 0
 #define VM_FORMAT_FLOAT "%.14g"
 
 struct vm_config_t;
@@ -18,9 +18,17 @@ enum {
     VM_USE_NUM_F64,
 };
 
+enum {
+    VM_USE_VERSION_COUNT_NONE,
+    VM_USE_VERSION_COUNT_GLOBAL,
+    VM_USE_VERSION_COUNT_FINE,
+};
+
 struct vm_config_t {
     unsigned int use_num: 3;
+    unsigned int use_ver_count: 2;
     _Bool use_tb_opt: 1;
+    _Bool use_profile: 1;
     
     _Bool dump_src: 1;
     _Bool dump_ast: 1;

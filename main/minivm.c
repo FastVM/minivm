@@ -36,6 +36,16 @@ int main(int argc, char **argv) {
             config->use_tb_opt = true;
         } else if (!strcmp(arg, "--no-opt")) {
             config->use_tb_opt = false;
+        } else if (!strcmp(arg, "--ver-count=none")) {
+            config->use_ver_count = VM_USE_VERSION_COUNT_NONE;
+        } else if (!strcmp(arg, "--ver-count=global")) {
+            config->use_ver_count = VM_USE_VERSION_COUNT_GLOBAL;
+        } else if (!strcmp(arg, "--ver-count=fine")) {
+            config->use_ver_count = VM_USE_VERSION_COUNT_FINE;
+        } else if (!strcmp(arg, "--profile")) {
+            config->use_profile = true;
+        } else if (!strcmp(arg, "--no-profile")) {
+            config->use_profile = false;
         } else if (!strcmp(arg, "--echo")) {
             echo = true;
         } else if (!strcmp(arg, "--no-echo")) {

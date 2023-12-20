@@ -8,6 +8,8 @@
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
+void vm_tb_new_module(vm_tb_state_t *state);
+void *vm_tb_rfunc_comp(vm_rblock_t *rblock);
 void vm_tb_func_print_value(vm_tb_state_t *state, vm_tag_t tag, TB_Node *value);
 TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Node **regs, vm_block_t *block);
 void vm_tb_func_report_error(vm_tb_state_t *state, const char *str);
@@ -34,21 +36,7 @@ void vm_tb_func_report_error(vm_tb_state_t *state, const char *str);
     ret;                                                      \
 })
 
-size_t vm_tb_ptr_len = 0;
-void **vm_tb_ptr_globals = NULL;
-size_t vm_tb_ptr_alloc = 0;
-
-// void GC_add_roots(void *, void *);
-
 TB_Node *vm_tb_ptr_name(vm_tb_state_t *state, const char *name, void *value) {
-    // if (value != NULL) {
-    //     if (vm_tb_ptr_len + 1 >= vm_tb_ptr_alloc) {
-    //         vm_tb_ptr_alloc = (vm_tb_ptr_len + 1) * 2;
-    //         vm_tb_ptr_globals = vm_realloc(vm_tb_ptr_globals, sizeof(void *) * vm_tb_ptr_alloc);
-    //         GC_add_roots(vm_tb_ptr_globals, &vm_tb_ptr_globals[vm_tb_ptr_alloc]);
-    //     }
-    //     vm_tb_ptr_globals[vm_tb_ptr_len++] = value;
-    // }
     return tb_inst_uint(state->fun, TB_TYPE_PTR, (uint64_t)value);
 }
 
@@ -1474,6 +1462,58 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     vm_tb_state_t *state = rblock->state;
 
+    if (state->config->use_ver_count >= VM_USE_VERSION_COUNT_GLOBAL) {
+        vm_table_t *vm_tab = vm_table_lookup(state->std, (vm_value_t) {.str = "vm"}, VM_TAG_STR)->val_val.table;
+        vm_table_t *vm_ver_tab = vm_table_lookup(vm_tab, (vm_value_t) {.str = "version"}, VM_TAG_STR)->val_val.table;
+        vm_pair_t *global_pair = vm_table_lookup(vm_ver_tab, (vm_value_t) {.str = "global"}, VM_TAG_STR);
+        int64_t global_count;
+        if (global_pair != NULL) {
+            vm_std_value_t global_val = (vm_std_value_t) {
+                .tag = global_pair->val_tag,
+                .value = global_pair->val_val,
+            };
+            global_count = vm_value_to_i64(global_val);
+        } else {
+            global_count = 0;
+        }
+        global_count += 1;
+        vm_tag_t tag;
+        vm_value_t res;
+        switch (state->config->use_num) {
+            case VM_USE_NUM_I8: {
+                tag = VM_TAG_I8;
+                res.i8 = global_count;
+                break;
+            }
+            case VM_USE_NUM_I16: {
+                tag = VM_TAG_I16;
+                res.i16 = global_count;
+                break;
+            }
+            case VM_USE_NUM_I32: {
+                tag = VM_TAG_I32;
+                res.i32 = global_count;
+                break;
+            }
+            case VM_USE_NUM_I64: {
+                tag = VM_TAG_I64;
+                res.i64 = global_count;
+                break;
+            }
+            case VM_USE_NUM_F32: {
+                tag = VM_TAG_F32;
+                res.f32 = global_count;
+                break;
+            }
+            case VM_USE_NUM_F64: {
+                tag = VM_TAG_F64;
+                res.f64 = global_count;
+                break;
+            }
+        }
+        vm_table_set(vm_ver_tab, (vm_value_t) {.str = "global"}, res, VM_TAG_STR, tag);
+    }
+
     vm_block_t *block_pre = vm_rblock_version(state->blocks, rblock);
     vm_block_t *block = vm_tb_handle_upvalues(block_pre);
     state->fun  = tb_function_create(state->module, -1, "block", TB_LINKAGE_PRIVATE);
@@ -1593,7 +1633,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 #endif
     tb_pass_exit(passes);
 
-    TB_JIT *jit = tb_jit_begin(state->module, 1 << 16);
+    TB_JIT *jit = tb_jit_begin(state->module, 1 << 16s);
     void *ret = tb_jit_place_function(jit, state->fun);
 
     rblock->jit = ret;

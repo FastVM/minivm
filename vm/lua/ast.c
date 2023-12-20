@@ -234,6 +234,63 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         char *ident = vm_lang_lua_src(src, node);
         return vm_ast_build_ident(ident);
     }
+    if (!strcmp(type, "for_statement")) {
+        TSNode clause = ts_node_child(node, 1);
+        const char *clause_type = ts_node_type(clause);
+        if (!strcmp(clause_type, "for_numeric_clause")) {
+            size_t len = ts_node_child_count(clause);
+            vm_ast_node_t var = vm_lang_lua_conv(src, ts_node_child(clause, 0));
+            vm_ast_node_t start = vm_lang_lua_conv(src, ts_node_child(clause, 2));
+            vm_ast_node_t stop_expr = vm_lang_lua_conv(src, ts_node_child(clause, 4));
+            vm_ast_node_t step_expr;
+            if (len == 5) {
+                switch (src.config->use_num) {
+                    case VM_USE_NUM_I8: {
+                        step_expr = vm_ast_build_literal(i8, 1);
+                        break;
+                    }
+                    case VM_USE_NUM_I16: {
+                        step_expr = vm_ast_build_literal(i16, 1);
+                        break;
+                    }
+                    case VM_USE_NUM_I32: {
+                        step_expr = vm_ast_build_literal(i64, 1);
+                        break;
+                    }
+                    case VM_USE_NUM_I64: {
+                        step_expr = vm_ast_build_literal(i64, 1);
+                        break;
+                    }
+                    case VM_USE_NUM_F32: {
+                        step_expr = vm_ast_build_literal(f32, 1);
+                        break;
+                    }
+                    case VM_USE_NUM_F64: {
+                        step_expr = vm_ast_build_literal(f64, 1);
+                        break;
+                    }
+                }
+            } else {
+                stop_expr = vm_lang_lua_conv(src, ts_node_child(clause, 6));
+            }
+            vm_ast_node_t step_var = vm_lang_lua_gensym(src);
+            vm_ast_node_t stop_var = vm_lang_lua_gensym(src);
+            return vm_ast_build_block(
+                4,
+                vm_ast_build_local(var, start),
+                vm_ast_build_local(step_var, step_expr),
+                vm_ast_build_local(stop_var, stop_expr),
+                vm_ast_build_while(
+                    vm_ast_build_le(var, stop_var),
+                    vm_ast_build_do(
+                        vm_lang_lua_conv(src, ts_node_child(node, 3)),
+                        vm_ast_build_set(var, vm_ast_build_add(var, step_var))
+                    )
+                )
+            );
+        }
+        // vm_ast_node_type_t node = vm_ast_build_while(less, body);
+    }
     if (!strcmp(type, "while_statement")) {
         return vm_ast_build_while(
             vm_lang_lua_conv(src, ts_node_child(node, 1)),
