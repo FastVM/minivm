@@ -17,13 +17,17 @@ void* tb_jit_stack_create(void);
 // Optimizer
 #include "opt/optimizer.c"
 
+// Regalloc
+#include "lsra.c"
+#include "chaitin.c"
+
 // Parsers
 #define TB_COFF_IMPL
 #include <tb_coff.h>
 
 // Debug
 #include "debug/cv.c"
-#include "debug/fut.c"
+#include "debug/sdg.c"
 
 // Objects
 #include "objects/coff.c"

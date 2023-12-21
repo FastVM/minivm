@@ -23,7 +23,6 @@ typedef struct {
     //
     //   add r0, r1, [sp - 24]
     enum {
-        USE_OUT,
         USE_REG,
         USE_MEM_OR_REG,
     } kind;
@@ -81,7 +80,6 @@ typedef struct {
     int* free_pos;
     int* block_pos;
 
-    DynArray(int) epilogues;
     uint64_t callee_saved[CG_REGISTER_CLASSES];
 
     Set active_set[CG_REGISTER_CLASSES];

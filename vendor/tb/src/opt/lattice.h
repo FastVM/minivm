@@ -1,6 +1,16 @@
 #include <hashes.h>
 
-static Lattice* lattice_top(LatticeUniverse* uni, TB_DataType dt);
+static Lattice TOP_IN_THE_SKY   = { LATTICE_TOP   };
+static Lattice BOT_IN_THE_SKY   = { LATTICE_BOT   };
+static Lattice CTRL_IN_THE_SKY  = { LATTICE_CTRL  };
+static Lattice XCTRL_IN_THE_SKY = { LATTICE_XCTRL };
+static Lattice TUP_IN_THE_SKY   = { LATTICE_TUPLE };
+static Lattice XNULL_IN_THE_SKY = { LATTICE_XNULL };
+static Lattice NULL_IN_THE_SKY  = { LATTICE_NULL  };
+static Lattice FALSE_IN_THE_SKY = { LATTICE_INT, ._int = { 0, 0, 1, 0 } };
+static Lattice TRUE_IN_THE_SKY  = { LATTICE_INT, ._int = { 1, 1, 0, 1 } };
+
+static Lattice* lattice_from_dt(TB_Passes* p, TB_DataType dt);
 
 static uint32_t lattice_hash(void* a) {
     return tb__murmur3_32(a, sizeof(Lattice));
@@ -14,88 +24,104 @@ static bool lattice_cmp(void* a, void* b) {
 static bool lattice_is_const_int(Lattice* l) { return l->_int.min == l->_int.max; }
 static bool lattice_is_const(Lattice* l) { return l->tag == LATTICE_INT && l->_int.min == l->_int.max; }
 
-static void lattice_universe_map(LatticeUniverse* uni, TB_Node* n, Lattice* l) {
-    // reserve cap, slow path :p
-    if (UNLIKELY(n->gvn >= uni->type_cap)) {
-        size_t new_cap = tb_next_pow2(n->gvn + 16);
-        uni->types = tb_platform_heap_realloc(uni->types, new_cap * sizeof(Lattice*));
+static void lattice_universe_grow(TB_Passes* p, size_t top) {
+    size_t new_cap = tb_next_pow2(top + 16);
+    p->types = tb_platform_heap_realloc(p->types, new_cap * sizeof(Lattice*));
 
-        // clear new space
-        FOREACH_N(i, uni->type_cap, new_cap) {
-            uni->types[i] = NULL;
-        }
-
-        uni->type_cap = new_cap;
+    // clear new space
+    FOREACH_N(i, p->type_cap, new_cap) {
+        p->types[i] = &TOP_IN_THE_SKY;
     }
 
-    uni->types[n->gvn] = l;
+    p->type_cap = new_cap;
 }
 
-Lattice* lattice_universe_get(LatticeUniverse* uni, TB_Node* n) {
+static bool lattice_universe_map_progress(TB_Passes* p, TB_Node* n, Lattice* l) {
     // reserve cap, slow path :p
-    if (UNLIKELY(n->gvn >= uni->type_cap)) {
-        size_t new_cap = tb_next_pow2(n->gvn + 16);
-        uni->types = tb_platform_heap_realloc(uni->types, new_cap * sizeof(Lattice*));
-
-        // clear new space
-        FOREACH_N(i, uni->type_cap, new_cap) {
-            uni->types[i] = NULL;
-        }
-
-        uni->type_cap = new_cap;
+    if (UNLIKELY(n->gvn >= p->type_cap)) {
+        lattice_universe_grow(p, n->gvn);
     }
 
-    if (uni->types[n->gvn] == NULL) {
-        return uni->types[n->gvn] = lattice_top(uni, n->dt);
-    } else {
-        return uni->types[n->gvn];
-    }
+    Lattice* old = p->types[n->gvn];
+    p->types[n->gvn] = l;
+    return old != l;
 }
 
-static Lattice* lattice_intern(LatticeUniverse* uni, Lattice l) {
-    Lattice* k = nl_hashset_get2(&uni->pool, &l, lattice_hash, lattice_cmp);
+static void lattice_universe_map(TB_Passes* p, TB_Node* n, Lattice* l) {
+    // reserve cap, slow path :p
+    if (UNLIKELY(n->gvn >= p->type_cap)) {
+        lattice_universe_grow(p, n->gvn);
+    }
+
+    p->types[n->gvn] = l;
+}
+
+Lattice* lattice_universe_get(TB_Passes* p, TB_Node* n) {
+    // reserve cap, slow path :p
+    if (UNLIKELY(n->gvn >= p->type_cap)) {
+        lattice_universe_grow(p, n->gvn);
+    }
+
+    assert(p->types[n->gvn] != NULL);
+    return p->types[n->gvn];
+}
+
+static Lattice* lattice_intern(TB_Passes* p, Lattice l) {
+    Lattice* k = nl_hashset_get2(&p->type_interner, &l, lattice_hash, lattice_cmp);
     if (k != NULL) {
         return k;
     }
 
     // allocate new node
-    k = tb_arena_alloc(uni->arena, sizeof(Lattice));
+    k = tb_arena_alloc(tmp_arena, sizeof(Lattice));
     memcpy(k, &l, sizeof(l));
-    nl_hashset_put2(&uni->pool, k, lattice_hash, lattice_cmp);
+    nl_hashset_put2(&p->type_interner, k, lattice_hash, lattice_cmp);
     return k;
+}
+
+static bool lattice_top_or_bot(Lattice* l) {
+    return l->tag <= LATTICE_TOP;
+}
+
+LatticeTrifecta lattice_truthy(Lattice* l) {
+    switch (l->tag) {
+        case LATTICE_INT:
+        if (l->_int.min == l->_int.max) {
+            return l->_int.min ? LATTICE_KNOWN_TRUE : LATTICE_KNOWN_FALSE;
+        }
+        return LATTICE_UNKNOWN;
+
+        case LATTICE_FLOAT32:
+        case LATTICE_FLOAT64:
+        return LATTICE_UNKNOWN;
+
+        case LATTICE_NULL:  return false;
+        case LATTICE_XNULL: return true;
+
+        default:
+        return LATTICE_UNKNOWN;
+    }
 }
 
 static int64_t lattice_int_min(int bits) { return 1ll << (bits - 1); }
 static int64_t lattice_int_max(int bits) { return (1ll << (bits - 1)) - 1; }
+static uint64_t lattice_uint_max(int bits) { return UINT64_MAX >> (64 - bits); }
 
-// constructs a type for a CONTROL node
-static Lattice* lattice_ctrl(LatticeUniverse* uni, TB_Node* dom) {
-    return lattice_intern(uni, (Lattice){ LATTICE_CONTROL, ._ctrl = { dom } });
-}
-
-// maximal subset
-static Lattice* lattice_top(LatticeUniverse* uni, TB_DataType dt) {
+static Lattice* lattice_from_dt(TB_Passes* p, TB_DataType dt) {
     switch (dt.type) {
         case TB_INT: {
             assert(dt.data <= 64);
-            return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = { lattice_int_min(dt.data), lattice_int_max(dt.data) } });
+            return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = { 0, lattice_uint_max(dt.data) } });
         }
 
         case TB_FLOAT: {
             assert(dt.data == TB_FLT_32 || dt.data == TB_FLT_64);
-            return lattice_intern(uni, (Lattice){ dt.data == TB_FLT_64 ? LATTICE_FLOAT64 : LATTICE_FLOAT32, ._float = { LATTICE_UNKNOWN } });
+            return lattice_intern(p, (Lattice){ dt.data == TB_FLT_64 ? LATTICE_FLOAT64 : LATTICE_FLOAT32, ._float = { LATTICE_UNKNOWN } });
         }
 
-        case TB_PTR: {
-            return lattice_intern(uni, (Lattice){ LATTICE_POINTER, ._ptr = { LATTICE_UNKNOWN } });
-        }
-
-        case TB_CONTROL: {
-            return lattice_intern(uni, (Lattice){ LATTICE_CONTROL, ._ctrl = { NULL } });
-        }
-
-        default:
-        tb_todo();
+        case TB_CONTROL: return &CTRL_IN_THE_SKY;
+        case TB_TUPLE: return &TUP_IN_THE_SKY;
+        default: return &BOT_IN_THE_SKY;
     }
 }
 
@@ -113,98 +139,128 @@ uint64_t tb__sxt(uint64_t src, uint64_t src_bits, uint64_t dst_bits) {
     return dst | (sign_bit ? mask : 0);
 }
 
-static LatticeTrifecta lattice_trifecta_join(LatticeTrifecta a, LatticeTrifecta b) {
-    if ((a == LATTICE_KNOWN_NOT_NULL && b == LATTICE_KNOWN_NULL) ||
-        (a == LATTICE_KNOWN_NULL && b == LATTICE_KNOWN_NOT_NULL)) {
-        tb_panic("trying to join to disjoint sets :(");
-    }
+static bool lattice_signed(LatticeInt* l) { return l->min > l->max; }
 
-    return a == LATTICE_UNKNOWN ? b : a;
+static LatticeInt lattice_into_unsigned(LatticeInt i) {
+    if (i.min > i.max) { SWAP(uint64_t, i.min, i.max); }
+    return i;
 }
 
-static int64_t wrapped_int_add(int64_t x, int64_t y) { return (uint64_t)x + (uint64_t)y; }
-static int64_t wrapped_int_sub(int64_t x, int64_t y) { return (uint64_t)x - (uint64_t)y; }
-static int64_t wrapped_int_mul(int64_t x, int64_t y) { return (uint64_t)x * (uint64_t)y; }
-static bool wrapped_int_lt(int64_t x, int64_t y, int bits) { return (int64_t)tb__sxt(x, bits, 64) < (int64_t)tb__sxt(y, bits, 64); }
+static Lattice* lattice_gimme_int(TB_Passes* p, int64_t min, int64_t max) {
+    assert(min <= max);
+    return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = { min, max } });
+}
 
-static void lattice_meet_int(LatticeInt* a, LatticeInt* b, TB_DataType dt) {
+static Lattice* lattice_gimme_uint(TB_Passes* p, uint64_t min, uint64_t max) {
+    assert(min <= max);
+    return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = { min, max } });
+}
+
+static bool l_add_overflow(uint64_t x, uint64_t y, uint64_t mask, uint64_t* out) {
+    *out = (x + y) & mask;
+    return x && *out < x;
+}
+
+static bool l_mul_overflow(uint64_t x, uint64_t y, uint64_t mask, uint64_t* out) {
+    *out = (x * y) & mask;
+    return x && *out < x;
+}
+
+static bool l_sub_overflow(uint64_t x, uint64_t y, uint64_t mask, uint64_t* out) {
+    *out = (x - y) & mask;
+    return x && *out > x;
+}
+
+static bool wrapped_int_lt(int64_t x, int64_t y, int bits) {
+    return (int64_t)tb__sxt(x, bits, 64) < (int64_t)tb__sxt(y, bits, 64);
+}
+
+static LatticeInt lattice_meet_int(LatticeInt a, LatticeInt b, TB_DataType dt) {
     // [amin, amax] ^ [bmin, bmax] => [min(amin, bmin), max(amax, bmax)]
     int bits = dt.data;
     uint64_t mask = tb__mask(dt.data);
 
-    if (wrapped_int_lt(b->min, a->min, bits)) a->min = b->min;
-    if (wrapped_int_lt(a->max, b->max, bits)) a->max = b->max;
+    bool aas = a.min > a.max;
+    bool bbs = b.min > b.max;
+    if (aas && bbs) {
+        if (wrapped_int_lt(b.min, a.min, bits)) a.min = b.min;
+        if (wrapped_int_lt(a.max, b.max, bits)) a.max = b.max;
+    } else {
+        if (!aas && !bbs) {
+            a = lattice_into_unsigned(a);
+            b = lattice_into_unsigned(b);
+        }
 
-    a->known_zeros &= b->known_zeros;
-    a->known_ones &= b->known_ones;
+        if (b.min < a.min) a.min = b.min;
+        if (a.max < b.max) a.max = b.max;
+    }
+
+    a.known_zeros &= b.known_zeros;
+    a.known_ones &= b.known_ones;
+    return a;
 }
 
 // generates the greatest lower bound between a and b
-static Lattice* lattice_meet(LatticeUniverse* uni, Lattice* a, Lattice* b, TB_DataType dt) {
-    assert(a->tag == b->tag);
-    switch (a->tag) {
-        case LATTICE_INT: {
-            // [amin, amax] ^ [bmin, bmax] => [min(amin, bmin), max(amax, bmax)]
-            LatticeInt aa = a->_int;
-            LatticeInt bb = b->_int;
+static Lattice* lattice_meet(TB_Passes* p, Lattice* a, Lattice* b, TB_DataType dt) {
+    // a ^ a = a
+    if (a == b) return a;
 
-            int bits = dt.data;
-            uint64_t mask = tb__mask(dt.data);
-
-            LatticeInt i = { aa.min, aa.max };
-            if (wrapped_int_lt(bb.min, i.min, bits)) i.min = bb.min;
-            if (wrapped_int_lt(i.max, bb.max, bits)) i.max = bb.max;
-
-            i.known_zeros = aa.known_zeros & bb.known_zeros;
-            i.known_ones = aa.known_ones & bb.known_ones;
-            return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = i });
-        }
-
-        case LATTICE_FLOAT32:
-        case LATTICE_FLOAT64: {
-            LatticeFloat f = { .trifecta = TRIFECTA_MEET(a->_float, b->_float) };
-            return lattice_intern(uni, (Lattice){ a->tag, ._float = f });
-        }
-
-        case LATTICE_POINTER: {
-            LatticePointer p = { .trifecta = TRIFECTA_MEET(a->_ptr, b->_ptr) };
-            return lattice_intern(uni, (Lattice){ LATTICE_POINTER, ._ptr = p });
-        }
-
-        default: tb_todo();
+    // it's commutative, so let's simplify later code this way
+    if (a->tag > b->tag) {
+        SWAP(Lattice*, a, b);
     }
-}
 
-// generates the lowest upper bound between a and b
-static Lattice* lattice_join(LatticeUniverse* uni, Lattice* a, Lattice* b, TB_DataType dt) {
-    assert(a->tag == b->tag);
     switch (a->tag) {
+        case LATTICE_BOT: return &BOT_IN_THE_SKY;
+        case LATTICE_TOP: return &TOP_IN_THE_SKY;
+
+        case LATTICE_CTRL:
+        case LATTICE_XCTRL: {
+            // ctrl  ^ ctrl   = ctrl
+            // ctrl  ^ xctrl  = bot
+            // xctrl ^ xctrl  = xctrl
+            return a == b ? a : &BOT_IN_THE_SKY;
+        }
+
         case LATTICE_INT: {
-            // [amin, amax] ^ [bmin, bmax] => [max(amin, bmin), min(amax, bmax)]
-            LatticeInt aa = a->_int;
-            LatticeInt bb = b->_int;
+            if (b->tag != LATTICE_INT) {
+                return &BOT_IN_THE_SKY;
+            }
 
-            int bits = dt.data;
-            uint64_t mask = tb__mask(dt.data);
-
-            LatticeInt i = { aa.min, aa.max };
-            if (wrapped_int_lt(i.min, bb.min, bits)) i.min = bb.min;
-            if (wrapped_int_lt(bb.max, i.max, bits)) i.max = bb.max;
-
-            i.known_zeros = aa.known_zeros | bb.known_zeros;
-            i.known_ones = aa.known_ones | bb.known_ones;
-            return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = i });
+            LatticeInt i = lattice_meet_int(a->_int, b->_int, dt);
+            return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = i });
         }
 
         case LATTICE_FLOAT32:
         case LATTICE_FLOAT64: {
-            LatticeFloat f = { .trifecta = lattice_trifecta_join(a->_float.trifecta, b->_float.trifecta) };
-            return lattice_intern(uni, (Lattice){ a->tag, ._float = f });
+            if (b->tag != a->tag) {
+                return &BOT_IN_THE_SKY;
+            }
+
+            LatticeFloat f = { .trifecta = TRIFECTA_MEET(a->_float, b->_float) };
+            return lattice_intern(p, (Lattice){ a->tag, ._float = f });
         }
 
-        case LATTICE_POINTER: {
-            LatticePointer p = { .trifecta = lattice_trifecta_join(a->_ptr.trifecta, b->_ptr.trifecta) };
-            return lattice_intern(uni, (Lattice){ LATTICE_POINTER, ._ptr = p });
+        // all cases that reached down here are bottoms
+        case LATTICE_NULL: return &BOT_IN_THE_SKY;
+
+        // ~null ^ sym = ~null
+        case LATTICE_XNULL: {
+            if (b->tag == LATTICE_PTR) {
+                return a;
+            } else {
+                return &BOT_IN_THE_SKY;
+            }
+        }
+
+        // symA ^ symB = ~null
+        case LATTICE_PTR: {
+            if (b->tag == LATTICE_PTR) {
+                assert(a->_ptr.sym != b->_ptr.sym);
+                return &XNULL_IN_THE_SKY;
+            } else {
+                return &BOT_IN_THE_SKY;
+            }
         }
 
         default: tb_todo();

@@ -2,13 +2,19 @@
 #include "../tb_internal.h"
 #include "properties.h"
 
-#define TB_OPTDEBUG_STATS   0
-#define TB_OPTDEBUG_PEEP    0
-#define TB_OPTDEBUG_LOOP    0
-#define TB_OPTDEBUG_SROA    0
-#define TB_OPTDEBUG_GCM     0
-#define TB_OPTDEBUG_MEM2REG 0
-#define TB_OPTDEBUG_CODEGEN 0
+enum {
+    FAST_IDOM_LIMIT = 20
+};
+
+#define TB_OPTDEBUG_STATS    0
+#define TB_OPTDEBUG_PEEP     0
+#define TB_OPTDEBUG_LOOP     0
+#define TB_OPTDEBUG_SROA     0
+#define TB_OPTDEBUG_GCM      0
+#define TB_OPTDEBUG_MEM2REG  0
+#define TB_OPTDEBUG_CODEGEN  0
+#define TB_OPTDEBUG_DATAFLOW 0
+#define TB_OPTDEBUG_REGALLOC 0
 
 #define TB_OPTDEBUG(cond) CONCAT(DO_IF_, CONCAT(TB_OPTDEBUG_, cond))
 
@@ -18,13 +24,17 @@
 
 #define BB_LOW_FREQ 1e-4
 
+#define FOR_USERS(u, n) for (User* u = n->users; u; u = u->next)
+
 ////////////////////////////////
 // SCCP
 ////////////////////////////////
+typedef struct Lattice Lattice;
+
 // TODO(NeGate): implement dual? from there i can do join with
 // dual(dual(x) ^ dual(y)) = join(x, y)
 typedef struct {
-    int64_t min, max;
+    uint64_t min, max;
 
     // for known bit analysis
     uint64_t known_zeros;
@@ -33,58 +43,70 @@ typedef struct {
 
 // a simplification of the set of all pointers (or floats)
 typedef enum {
-    LATTICE_UNKNOWN,        // top aka {nan, non-nan} or for pointers {null, non-null}
+    LATTICE_UNKNOWN,         // top aka {nan, non-nan} or for pointers {null, non-null}
 
-    LATTICE_KNOWN_NAN = 1,  // {nan}
-    LATTICE_KNOWN_NOT_NAN,  // {non-nan}
+    LATTICE_KNOWN_NAN = 1,   // {nan}
+    LATTICE_KNOWN_NOT_NAN,   // {non-nan}
 
-    LATTICE_KNOWN_NULL = 1, // {null}
-    LATTICE_KNOWN_NOT_NULL  // {non-null}
+    LATTICE_KNOWN_NULL = 1,  // {null}
+    LATTICE_KNOWN_NOT_NULL,  // {non-null}
+
+    LATTICE_KNOWN_FALSE = 1, // {false}
+    LATTICE_KNOWN_TRUE,      // {true}
 } LatticeTrifecta;
 
 typedef struct {
     LatticeTrifecta trifecta;
 } LatticeFloat;
 
-// TODO(NeGate): we might wanna store more info like aliasing, ownership and alignment.
 typedef struct {
-    LatticeTrifecta trifecta;
-} LatticePointer;
+    TB_Symbol* sym;
+} LatticePtrConst;
 
 typedef struct {
-    TB_Node* idom;
-} LatticeControl;
+    size_t count;
+    Lattice** arr;
+} LatticeTuple;
 
 // Represents the fancier type system within the optimizer, it's
 // all backed by my shitty understanding of lattice theory
-typedef struct {
+struct Lattice {
     enum {
+        LATTICE_BOT, // bot ^ x = bot
+        LATTICE_TOP, // top ^ x = x
+
         LATTICE_INT,
         LATTICE_FLOAT32,
         LATTICE_FLOAT64,
-        LATTICE_POINTER,
-        LATTICE_CONTROL,
+        LATTICE_TUPLE,
+
+        // pointers:
+        //      top
+        //      /  \
+        //     /    \
+        //    /    /|\
+        //    |   / | \
+        //    |  a  b  ...
+        //    |   \ | /
+        // null   ~null
+        //     \  /
+        //      bot
+        LATTICE_NULL,
+        LATTICE_XNULL,
+        LATTICE_PTR,
+
+        // control tokens
+        LATTICE_CTRL,
+        LATTICE_XCTRL,
     } tag;
     uint32_t pad;
     union {
         LatticeInt _int;
         LatticeFloat _float;
-        LatticePointer _ptr;
-        LatticeControl _ctrl;
+        LatticePtrConst _ptr;
+        LatticeTuple _tuple;
     };
-} Lattice;
-
-// hash-consing because there's a lot of
-// redundant types we might construct.
-typedef struct {
-    TB_Arena* arena;
-    NL_HashSet pool;
-
-    // track a lattice per node (basically all get one
-    // so a non-sparse array works)
-    size_t type_cap;
-    Lattice** types;
-} LatticeUniverse;
+};
 
 ////////////////////////////////
 // CFG
@@ -129,8 +151,6 @@ typedef struct TB_CFG {
     NL_Map(TB_Node*, TB_BasicBlock) node_to_block;
 } TB_CFG;
 
-typedef NL_Map(TB_Node*, TB_BasicBlock*) TB_Scheduled;
-
 ////////////////////////////////
 // Core optimizer
 ////////////////////////////////
@@ -146,7 +166,6 @@ typedef void (*TB_Scheduler)(TB_Passes* passes, TB_CFG* cfg, Worklist* ws, DynAr
 
 struct TB_Passes {
     TB_Function* f;
-    TB_Scheduled scheduled;
 
     // we use this to verify that we're on the same thread
     // for the entire duration of the TB_Passes.
@@ -154,20 +173,25 @@ struct TB_Passes {
 
     Worklist worklist;
 
-    // sometimes we be using arrays of nodes, let's just keep one around for a bit
-    DynArray(TB_Node*) stack;
-
-    // we wanna track locals because it's nice and easy
-    DynArray(TB_Node*) locals;
-
     // tracks the fancier type system
-    LatticeUniverse universe;
+    //   hash-consing because there's a lot of
+    //   redundant types we might construct.
+    struct {
+        NL_HashSet type_interner;
+
+        // track a lattice per node (basically all get one so a compact array works)
+        size_t type_cap;
+        Lattice** types;
+    };
 
     // this is used to do GVN
     NL_HashSet gvn_nodes;
 
     // might be out of date if you haven't called tb_pass_update_cfg
     TB_CFG cfg;
+
+    // value number -> TB_BasicBlock*
+    TB_BasicBlock** scheduled;
 
     // debug shit:
     TB_Node* error_n;
@@ -204,13 +228,13 @@ static bool cfg_is_control(TB_Node* n) {
     // checking which is annoying and slow)
     //
     //     branch, debugbreak, trap, unreachable, dead  OR  call, syscall, safepoint
-    return (n->type >= TB_BRANCH && n->type <= TB_DEAD) || (n->type >= TB_CALL && n->type <= TB_SAFEPOINT_NOP);
+    return n->type == TB_ROOT || (n->type >= TB_BRANCH && n->type <= TB_DEAD) || (n->type >= TB_CALL && n->type <= TB_SAFEPOINT_POLL);
 }
 
 static bool cfg_is_bb_entry(TB_Node* n) {
     if (n->type == TB_REGION) {
         return true;
-    } else if (n->type == TB_PROJ && (n->inputs[0]->type == TB_START || n->inputs[0]->type == TB_BRANCH)) {
+    } else if (n->type == TB_PROJ && (n->inputs[0]->type == TB_ROOT || n->inputs[0]->type == TB_BRANCH)) {
         // Start's control proj or a branch target
         return true;
     } else {
@@ -235,11 +259,11 @@ static bool is_mem_out_op(TB_Node* n) {
 }
 
 static bool is_pinned(TB_Node* n) {
-    return (n->type >= TB_START && n->type <= TB_SAFEPOINT_NOP) || n->type == TB_PROJ;
+    return (n->type >= TB_ROOT && n->type <= TB_SAFEPOINT_POLL) || n->type == TB_PROJ;
 }
 
 static bool is_mem_in_op(TB_Node* n) {
-    return is_mem_out_op(n) || n->type == TB_SAFEPOINT_POLL || n->type == TB_LOAD || n->type == TB_SAFEPOINT_NOP;
+    return is_mem_out_op(n) || n->type == TB_SAFEPOINT_POLL || n->type == TB_LOAD;
 }
 
 static bool cfg_critical_edge(TB_Node* proj, TB_Node* n) {
@@ -253,7 +277,7 @@ static bool cfg_critical_edge(TB_Node* proj, TB_Node* n) {
     assert(n->type == TB_BRANCH);
     TB_Node* r = proj->users->n;
     if (r->type == TB_REGION) {
-        for (User* u = r->users; u; u = u->next) {
+        FOR_USERS(u, r) {
             if (u->n->type == TB_PHI) return true;
         }
     }
@@ -277,7 +301,7 @@ static TB_Node* cfg_next_bb_after_cproj(TB_Node* n) {
 
 static TB_Node* cfg_next_region_control(TB_Node* n) {
     if (n->type != TB_REGION) {
-        for (User* u = n->users; u; u = u->next) {
+        FOR_USERS(u, n) {
             if (u->n->type == TB_REGION && u->n->input_count == 1) {
                 return u->n;
             }
@@ -287,8 +311,19 @@ static TB_Node* cfg_next_region_control(TB_Node* n) {
     return n;
 }
 
+static User* proj_with_index(TB_Node* n, int i) {
+    FOR_USERS(u, n) {
+        TB_NodeProj* p = TB_NODE_GET_EXTRA(u->n);
+        if (p->index == i) {
+            return u;
+        }
+    }
+
+    return NULL;
+}
+
 static User* cfg_next_user(TB_Node* n) {
-    for (User* u = n->users; u; u = u->next) {
+    FOR_USERS(u, n) {
         if (cfg_is_control(u->n)) {
             return u;
         }
@@ -299,7 +334,7 @@ static User* cfg_next_user(TB_Node* n) {
 
 static bool cfg_basically_empty_only_mem_phis(TB_Node* n) {
     if (n->type == TB_PROJ && n->users->next == NULL && n->users->n->type == TB_REGION) {
-        for (User* u = n->users; u; u = u->next) {
+        FOR_USERS(u, n) {
             if (u->n->type == TB_PHI && u->n->dt.type != TB_MEMORY) {
                 return false;
             }
@@ -316,7 +351,7 @@ static bool cfg_has_phis(TB_Node* n) {
         return false;
     }
 
-    for (User* u = n->users; u; u = u->next) {
+    FOR_USERS(u, n) {
         if (u->n->type == TB_PHI) {
             return true;
         }
@@ -326,7 +361,7 @@ static bool cfg_has_phis(TB_Node* n) {
 }
 
 static bool cfg_is_unreachable(TB_Node* n) {
-    for (User* u = n->users; u; u = u->next) {
+    FOR_USERS(u, n) {
         if (u->n->type == TB_UNREACHABLE) {
             return true;
         }
@@ -336,7 +371,7 @@ static bool cfg_is_unreachable(TB_Node* n) {
 }
 
 static TB_Node* cfg_next_control0(TB_Node* n) {
-    for (User* u = n->users; u; u = u->next) {
+    FOR_USERS(u, n) {
         if (u->slot == 0 && cfg_is_control(u->n)) {
             return u->n;
         }
@@ -346,7 +381,7 @@ static TB_Node* cfg_next_control0(TB_Node* n) {
 }
 
 static TB_Node* cfg_next_control(TB_Node* n) {
-    for (User* u = n->users; u; u = u->next) {
+    FOR_USERS(u, n) {
         if (cfg_is_control(u->n)) {
             return u->n;
         }
@@ -363,7 +398,7 @@ static TB_Node* get_pred(TB_Node* n, int i) {
         TB_Node* parent = n->inputs[0];
 
         // start or cprojs with multiple users (it's a BB) will just exit
-        if (parent->type == TB_START || (!ctrl_out_as_cproj_but_not_branch(parent) && n->users->next != NULL)) {
+        if (parent->type == TB_ROOT || (!ctrl_out_as_cproj_but_not_branch(parent) && n->users->next != NULL)) {
             return n;
         }
         n = parent;
@@ -391,7 +426,7 @@ static TB_Node* get_pred_cfg(TB_CFG* cfg, TB_Node* n, int i) {
 static TB_Node* next_control(TB_Node* n) {
     // unless it's a branch (aka a terminator), it'll have one successor
     TB_Node* next = NULL;
-    for (User* u = n->users; u; u = u->next) {
+    FOR_USERS(u, n) {
         TB_Node* succ = u->n;
 
         // we can't treat regions in the chain
@@ -437,11 +472,6 @@ static int dom_depth(TB_CFG* cfg, TB_Node* n) {
 extern thread_local TB_Arena* tmp_arena;
 
 void verify_tmp_arena(TB_Passes* p);
-void set_input(TB_Passes* restrict p, TB_Node* n, TB_Node* in, int slot);
-
-static User* find_users(TB_Passes* restrict p, TB_Node* n) {
-    return n->users;
-}
 
 // CFG
 //   pushes postorder walk into worklist items, also modifies the visited set.
@@ -465,6 +495,7 @@ TB_Node* worklist_pop(Worklist* ws);
 
 // Local scheduler
 void greedy_scheduler(TB_Passes* passes, TB_CFG* cfg, Worklist* ws, DynArray(PhiVal)* phi_vals, TB_BasicBlock* bb, TB_Node* end);
-void tb_pass_schedule(TB_Passes* opt, TB_CFG cfg);
+void tb_pass_schedule(TB_Passes* opt, TB_CFG cfg, bool renumber);
 
-Lattice* lattice_universe_get(LatticeUniverse* uni, TB_Node* n);
+Lattice* lattice_universe_get(TB_Passes* p, TB_Node* n);
+LatticeTrifecta lattice_truthy(Lattice* l);

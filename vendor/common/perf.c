@@ -4,6 +4,17 @@
 #include <stdarg.h>
 #include <stdatomic.h>
 
+#ifdef CUIK_USE_SPALL_AUTO
+#define SPALL_BUFFER_PROFILING
+#define SPALL_BUFFER_PROFILING_GET_TIME() __rdtsc()
+#define SPALL_AUTO_IMPLEMENTATION
+#include "spall_native_auto.h"
+#else
+#define SPALL_BUFFER_PROFILING
+#define SPALL_BUFFER_PROFILING_GET_TIME() cuik_time_in_nanos()
+#include "spall.h"
+#endif
+
 #if defined(_AMD64_) || defined(__amd64__)
 static double rdtsc_freq;
 static uint64_t timer_start;
@@ -15,18 +26,16 @@ static uint64_t timer_start;
 #else
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
 #endif
 
-static mtx_t timer_mutex;
-
-static bool should_lock_profiler;
-
-static const Cuik_IProfiler* profiler;
-static void* profiler_userdata;
+static _Atomic bool profiling;
+static SpallProfile ctx;
+static _Thread_local SpallBuffer muh_buffer;
 
 #ifdef CUIK__IS_X64
 #ifdef _WIN32
-static double get_rdtsc_freq(void) {
+static uint64_t get_rdtsc_freq(void) {
     // Get time before sleep
     uint64_t qpc_begin = 0; QueryPerformanceCounter((LARGE_INTEGER *)&qpc_begin);
     uint64_t tsc_begin = __rdtsc();
@@ -46,7 +55,7 @@ static double get_rdtsc_freq(void) {
         tsc_freq = 1000000000;
     }
 
-    return 1000000.0 / (double)tsc_freq;
+    return tsc_freq;
 }
 #else
 #include <sys/mman.h>
@@ -55,7 +64,7 @@ static double get_rdtsc_freq(void) {
 #include <unistd.h>
 #include <x86intrin.h>
 
-static double get_rdtsc_freq(void) {
+static uint64_t get_rdtsc_freq(void) {
     // Fast path: Load kernel-mapped memory page
     struct perf_event_attr pe = {0};
     pe.type = PERF_TYPE_HARDWARE;
@@ -110,51 +119,41 @@ static double get_rdtsc_freq(void) {
         tsc_freq = 1000000000;
     }
 
-    return 1000000.0 / (double)tsc_freq;
+    return tsc_freq;
 }
 #endif
 #endif
 
 void cuik_init_timer_system(void) {
     #if defined(_AMD64_) || defined(__amd64__)
-    rdtsc_freq = get_rdtsc_freq() / 1000000.0;
+    rdtsc_freq = 1000000000.0 / get_rdtsc_freq();
     timer_start = __rdtsc();
     #endif
 }
 
-void cuikperf_start(void* ud, const Cuik_IProfiler* p, bool lock_on_plot) {
-    assert(profiler == NULL);
-
-    profiler = p;
-    profiler_userdata = ud;
-    should_lock_profiler = lock_on_plot;
-
-    if (lock_on_plot) {
-        mtx_init(&timer_mutex, mtx_plain);
-    }
-
-    profiler->start(profiler_userdata);
-    profiler->begin_plot(profiler_userdata, cuik_time_in_nanos(), "main thread", "");
+void cuikperf_start(const char* path) {
+    #ifndef CUIK_USE_SPALL_AUTO
+    profiling = true;
+    ctx = spall_init_file(path, 1.0 / 1000.0);
+    cuikperf_thread_start();
+    #endif
 }
 
 void cuikperf_stop(void) {
-    assert(profiler != NULL);
-    profiler->end_plot(profiler_userdata, cuik_time_in_nanos());
-    profiler->stop(profiler_userdata);
-
-    if (should_lock_profiler) {
-        mtx_destroy(&timer_mutex);
-    }
-    profiler = NULL;
+    #ifndef CUIK_USE_SPALL_AUTO
+    cuikperf_thread_stop();
+    spall_quit(&ctx);
+    profiling = false;
+    #endif
 }
 
 bool cuikperf_is_active(void) {
-    return (profiler != NULL);
+    return profiling;
 }
 
 uint64_t cuik_time_in_nanos(void) {
     #if defined(_AMD64_) || defined(__amd64__)
-    return (__rdtsc() - timer_start) * (rdtsc_freq * 1000000000.0);
+    return (__rdtsc() - timer_start) * rdtsc_freq;
     #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -162,22 +161,66 @@ uint64_t cuik_time_in_nanos(void) {
     #endif
 }
 
-void cuikperf_region_start(const char* fmt, const char* extra) {
-    if (profiler == NULL) return;
-    uint64_t nanos = cuik_time_in_nanos();
+void cuikperf_thread_start(void) {
+    #if _WIN32
+    uint32_t tid = GetCurrentThreadId();
+    #else
+    uint32_t tid = pthread_self();
+    #endif
 
-    // lock if necessary
-    if (should_lock_profiler) mtx_lock(&timer_mutex);
+    if (profiling) {
+        #ifdef CUIK_USE_SPALL_AUTO
+        spall_auto_thread_init(tid, SPALL_DEFAULT_BUFFER_SIZE);
+        #else
+        if (cuikperf_is_active()) {
+            size_t size = 4 * 1024 * 1024;
+            muh_buffer = (SpallBuffer){ cuik_malloc(size), size };
+            spall_buffer_init(&ctx, &muh_buffer);
+        }
+        #endif
+    }
+}
 
-    profiler->begin_plot(profiler_userdata, nanos, fmt, extra ? extra : "");
-    if (should_lock_profiler) mtx_unlock(&timer_mutex);
+void cuikperf_thread_stop(void) {
+    if (profiling) {
+        #ifdef CUIK_USE_SPALL_AUTO
+        spall_auto_thread_quit();
+        #else
+        if (cuikperf_is_active()) {
+            spall_buffer_quit(&ctx, &muh_buffer);
+        }
+        #endif
+    }
+}
+
+void cuikperf_region_start(const char* label, const char* extra) {
+    if (profiling) {
+        uint64_t nanos = cuik_time_in_nanos();
+
+        #ifndef CUIK_USE_SPALL_AUTO
+        #if _WIN32
+        uint32_t tid = GetCurrentThreadId();
+        #else
+        uint32_t tid = pthread_self();
+        #endif
+
+        spall_buffer_begin_args(&ctx, &muh_buffer, label, strlen(label), extra, extra ? strlen(extra) : 0, nanos, tid, 0);
+        #endif
+    }
 }
 
 void cuikperf_region_end(void) {
-    if (profiler == NULL) return;
-    uint64_t nanos = cuik_time_in_nanos();
+    if (profiling) {
+        uint64_t nanos = cuik_time_in_nanos();
 
-    if (should_lock_profiler) mtx_lock(&timer_mutex);
-    profiler->end_plot(profiler_userdata, nanos);
-    if (should_lock_profiler) mtx_unlock(&timer_mutex);
+        #ifndef CUIK_USE_SPALL_AUTO
+        #if _WIN32
+        uint32_t tid = GetCurrentThreadId();
+        #else
+        uint32_t tid = pthread_self();
+        #endif
+
+        spall_buffer_end_ex(&ctx, &muh_buffer, nanos, tid, 0);
+        #endif
+    }
 }

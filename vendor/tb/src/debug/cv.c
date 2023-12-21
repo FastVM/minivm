@@ -70,13 +70,13 @@ static uint16_t get_codeview_type(TB_DataType dt) {
 }
 
 static uint16_t convert_to_codeview_type(CV_Builder* builder, TB_DebugType* type) {
-    if (type->cv_type_id != 0) {
-        return type->cv_type_id;
+    if (type->type_id != 0) {
+        return type->type_id;
     }
 
     switch (type->tag) {
-        case TB_DEBUG_TYPE_VOID: return (type->cv_type_id = T_VOID);
-        case TB_DEBUG_TYPE_BOOL: return (type->cv_type_id = T_BOOL08); // T_BOOL08
+        case TB_DEBUG_TYPE_VOID: return (type->type_id = T_VOID);
+        case TB_DEBUG_TYPE_BOOL: return (type->type_id = T_BOOL08); // T_BOOL08
 
         case TB_DEBUG_TYPE_INT:
         case TB_DEBUG_TYPE_UINT: {
@@ -91,38 +91,38 @@ static uint16_t convert_to_codeview_type(CV_Builder* builder, TB_DebugType* type
 
         case TB_DEBUG_TYPE_FLOAT: {
             switch (type->float_fmt) {
-                case TB_FLT_32: return (type->cv_type_id = T_REAL32);
-                case TB_FLT_64: return (type->cv_type_id = T_REAL64);
+                case TB_FLT_32: return (type->type_id = T_REAL32);
+                case TB_FLT_64: return (type->type_id = T_REAL64);
                 default: assert(0 && "Unknown float type");
             }
         }
 
         case TB_DEBUG_TYPE_ARRAY:
-        return (type->cv_type_id = tb_codeview_builder_add_array(builder, convert_to_codeview_type(builder, type->array.base), debug_type_size(TB_ABI_WIN64, type->array.base) * type->array.count));
+        return (type->type_id = tb_codeview_builder_add_array(builder, convert_to_codeview_type(builder, type->array.base), debug_type_size(TB_ABI_WIN64, type->array.base) * type->array.count));
 
         case TB_DEBUG_TYPE_POINTER:
-        return (type->cv_type_id = tb_codeview_builder_add_pointer(builder, convert_to_codeview_type(builder, type->ptr_to)));
+        return (type->type_id = tb_codeview_builder_add_pointer(builder, convert_to_codeview_type(builder, type->ptr_to)));
 
         case TB_DEBUG_TYPE_FUNCTION:
-        return (type->cv_type_id = tb_codeview_builder_add_pointer(builder, 0x0003));
+        return (type->type_id = tb_codeview_builder_add_pointer(builder, 0x0003));
 
         case TB_DEBUG_TYPE_ALIAS:
-        return (type->cv_type_id = tb_codeview_builder_add_alias(builder, convert_to_codeview_type(builder, type->alias.type), type->alias.name));
+        return (type->type_id = tb_codeview_builder_add_alias(builder, convert_to_codeview_type(builder, type->alias.type), type->alias.name));
 
         case TB_DEBUG_TYPE_STRUCT:
         case TB_DEBUG_TYPE_UNION: {
-            if (type->cv_type_id_fwd) {
-                return type->cv_type_id_fwd;
+            if (type->type_id_fwd) {
+                return type->type_id_fwd;
             }
 
             // generate forward declaration
             // TODO(NeGate): we might wanna avoid generating a forward declaration here if we never use it
             CV_RecordType rec_type = type->tag == TB_DEBUG_TYPE_STRUCT ? LF_STRUCTURE : LF_UNION;
-            type->cv_type_id_fwd = tb_codeview_builder_add_incomplete_record(builder, rec_type, type->record.tag);
+            type->type_id_fwd = tb_codeview_builder_add_incomplete_record(builder, rec_type, type->record.tag);
 
             if (type->record.count == 0) {
                 // it's incomplete so it doesn't matter
-                return type->cv_type_id_fwd;
+                return type->type_id_fwd;
             }
 
             TB_TemporaryStorage* tls = tb_tls_steal();
@@ -139,7 +139,7 @@ static uint16_t convert_to_codeview_type(CV_Builder* builder, TB_DebugType* type
             CV_TypeIndex field_list = tb_codeview_builder_add_field_list(builder, type->record.count, list);
             tb_tls_restore(tls, list);
 
-            return (type->cv_type_id = tb_codeview_builder_add_record(builder, rec_type, type->record.count, field_list, type->record.size, type->record.tag));
+            return (type->type_id = tb_codeview_builder_add_record(builder, rec_type, type->record.count, field_list, type->record.size, type->record.tag));
         }
 
         default:
@@ -243,8 +243,7 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
 
                 tb_out4b(&debugs_out, file_table_offset[f->id]);
                 tb_out2b(&debugs_out, 0x0110);
-                tb_out_reserve(&debugs_out, MD5_HASHBYTES);
-                tb_outs_UNSAFE(&debugs_out, MD5_HASHBYTES, sum);
+                tb_outs(&debugs_out, MD5_HASHBYTES, sum);
                 tb_out2b(&debugs_out, 0);
 
                 file_table_offset[f->id] = pos;
@@ -279,7 +278,7 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
 
                     tb_out4b(&debugs_out, 0); // SECREL  | .text
                     tb_out4b(&debugs_out, 0); // SECTION | .text
-                    tb_out4b(&debugs_out, out_f->code_size);
+                    tb_out4b(&debugs_out, out_f->code_size - out_f->nop_pads);
 
                     // when we make new file line regions
                     // we backpatch the line count for the
@@ -453,9 +452,9 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
                         function_type = tb_codeview_builder_add_function_id(&builder, proc, name);
                     }
 
-                    tb_out4b(&debugs_out, out_f->code_size); // procedure length
+                    tb_out4b(&debugs_out, out_f->code_size - out_f->nop_pads); // procedure length
                     tb_out4b(&debugs_out, 0);                // debug start offset
-                    tb_out4b(&debugs_out, out_f->code_size); // debug end offset
+                    tb_out4b(&debugs_out, 0);                // debug end offset
                     tb_out4b(&debugs_out, function_type);    // type index
 
                     // we save this location because there's two relocations
@@ -473,7 +472,7 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
                     tb_out2b(&debugs_out, 0); // segment
 
                     // the 1 means we have a frame pointer present
-                    tb_out1b(&debugs_out, 1); // flags
+                    tb_out1b(&debugs_out, 0); // flags
 
                     tb_out_reserve(&debugs_out, name_len);
                     tb_outs_UNSAFE(&debugs_out, name_len, (const uint8_t*)name);
@@ -496,16 +495,16 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
                         tb_out4b(&debugs_out, 0); // count of bytes of callee save registers
                         tb_out4b(&debugs_out, 0); // offset of exception handler
                         tb_out2b(&debugs_out, 0); // section id of exception handler
-                        tb_out4b(&debugs_out, 0x00114200); // flags
+                        tb_out4b(&debugs_out, 0x00014000); // flags
 
                         tb_patch2b(&debugs_out, frameproc_baseline, (debugs_out.count - frameproc_baseline) - 2);
 
                         dyn_array_for(j, out_f->stack_slots) {
-                            int stack_pos = out_f->stack_slots[j].position;
-                            TB_DebugType* type = out_f->stack_slots[j].storage_type;
+                            int stack_pos = out_f->stack_slots[j].storage.offset;
+                            TB_DebugType* type = out_f->stack_slots[j].type;
 
                             const char* var_name = out_f->stack_slots[j].name;
-                            if (var_name == NULL) continue;
+                            assert(var_name);
 
                             size_t var_name_len = strlen(var_name);
                             uint32_t type_index = convert_to_codeview_type(&builder, type);
@@ -517,7 +516,7 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
                                 .off = stack_pos,
                                 .typind = type_index,
                                 // AMD64_RBP is 334, AMD64_RSP is 335
-                                .reg = 334,
+                                .reg = 335,
                             };
                             tb_outs(&debugs_out, sizeof(CV_RegRel32), &l);
                             tb_outs(&debugs_out, var_name_len + 1, (const uint8_t*) var_name);

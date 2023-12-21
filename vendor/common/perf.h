@@ -10,24 +10,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct Cuik_IProfiler {
-    void (*start)(void* user_data);
-    void (*stop)(void* user_data);
-
-    void (*begin_plot)(void* user_data, uint64_t nanos, const char* label, const char* extra);
-    void (*end_plot)(void* user_data, uint64_t nanos);
-} Cuik_IProfiler;
-
 // DONT USE THIS :(((
 void cuik_init_timer_system(void);
 
-void cuikperf_start(void* ud, const Cuik_IProfiler* profiler, bool lock_on_plot);
+void cuikperf_start(const char* path);
 void cuikperf_stop(void);
 bool cuikperf_is_active(void);
 
 // the absolute values here don't have to mean anything, it's just about being able
 // to measure between two points.
 uint64_t cuik_time_in_nanos(void);
+
+void cuikperf_thread_start(void);
+void cuikperf_thread_stop(void);
 
 // Reports a region of time to the profiler callback
 void cuikperf_region_start(const char* fmt, const char* extra);

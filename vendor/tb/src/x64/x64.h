@@ -71,7 +71,7 @@ typedef struct Val {
         // for VAL_ABS this is used
         uint64_t abs;
         // for VAL_GLOBAL this is used as the base
-        const TB_Symbol* symbol;
+        TB_Symbol* symbol;
         // for VAL_LABEL
         int label;
     };
@@ -143,7 +143,7 @@ inline static Val val_flags(Cond c) {
     return (Val) { .type = VAL_FLAGS, .reg = c };
 }
 
-inline static Val val_global(const TB_Symbol* s, int disp) {
+inline static Val val_global(TB_Symbol* s, int disp) {
     return (Val) { .type = VAL_GLOBAL, .symbol = s, .imm = disp };
 }
 
@@ -160,9 +160,7 @@ inline static Val val_label(int target) {
 }
 
 inline static Val val_stack(int s) {
-    return (Val) {
-        .type = VAL_MEM, .reg = RBP, .index = GPR_NONE, .scale = SCALE_X1, .imm = s
-    };
+    return (Val) { .type = VAL_MEM, .reg = RSP, .index = GPR_NONE, .scale = SCALE_X1, .imm = s };
 }
 
 inline static Val val_base_disp(GPR b, int d) {
@@ -223,3 +221,41 @@ static const char* COND_NAMES[] = {
 #define INST1(op, a, dt)          inst1(&ctx->emit, op, a, dt)
 #define INST2(op, a, b, dt)       inst2(&ctx->emit, op, a, b, dt)
 #define INST2SSE(op, a, b, dt)    inst2sse(&ctx->emit, op, a, b, dt)
+
+typedef enum {
+    UNWIND_OP_PUSH_NONVOL = 0, /* info == register number */
+    UNWIND_OP_ALLOC_LARGE,     /* no info, alloc size in next 2 slots */
+    UNWIND_OP_ALLOC_SMALL,     /* info == size of allocation / 8 - 1 */
+    UNWIND_OP_SET_FPREG,       /* no info, FP = RSP + UNWIND_INFO.FPRegOffset*16 */
+    UNWIND_OP_SAVE_NONVOL,     /* info == register number, offset in next slot */
+    UNWIND_OP_SAVE_NONVOL_FAR, /* info == register number, offset in next 2 slots */
+    UNWIND_OP_SAVE_XMM128 = 8, /* info == XMM reg number, offset in next slot */
+    UNWIND_OP_SAVE_XMM128_FAR, /* info == XMM reg number, offset in next 2 slots */
+    UNWIND_OP_PUSH_MACHFRAME   /* info == 0: no error-code, 1: error-code */
+} UnwindCodeOps;
+
+typedef union {
+    struct {
+        uint8_t code_offset;
+        uint8_t unwind_op : 4;
+        uint8_t op_info   : 4;
+    };
+    uint16_t frame_offset;
+} UnwindCode;
+
+enum {
+    UNWIND_FLAG_EHANDLER  = 0x01,
+    UNWIND_FLAG_UHANDLER  = 0x02,
+    UNWIND_FLAG_CHAININFO = 0x04,
+};
+
+typedef struct {
+    uint8_t version : 3;
+    uint8_t flags   : 5;
+    uint8_t prolog_length;
+    uint8_t code_count;
+    uint8_t frame_register : 4;
+    uint8_t frame_offset   : 4;
+    UnwindCode code[]; // ((code_count + 1) & ~1) - 1
+} UnwindInfo;
+

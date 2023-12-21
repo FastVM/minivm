@@ -24,7 +24,6 @@
 #ifndef _WIN32
 // NOTE(NeGate): I love how we assume that if it's not windows
 // its just posix, these are the only options i guess
-#include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -36,8 +35,8 @@
 
 #define NL_HASH_MAP_INLINE
 #include <hash_map.h>
+#include <new_hash_map.h>
 
-#include <hash_set.h>
 #include <perf.h>
 
 #define FOREACH_N(it, start, end) \
@@ -90,7 +89,7 @@ struct TB_SymbolPatch {
     TB_SymbolPatch* next;
     uint32_t pos;
     bool internal; // handled already by the code gen's emit_call_patches
-    const TB_Symbol* target;
+    TB_Symbol* target;
 };
 
 struct TB_External {
@@ -98,6 +97,9 @@ struct TB_External {
     TB_ExternalType type;
 
     void* thunk; // JIT will cache a thunk here because it's helpful
+
+    // if non-NULL, the external was resolved
+    _Atomic(TB_Symbol*) resolved;
 };
 
 typedef struct TB_InitObj {
@@ -112,7 +114,7 @@ typedef struct TB_InitObj {
             const void* ptr;
         } region;
 
-        const TB_Symbol* reloc;
+        TB_Symbol* reloc;
     };
 } TB_InitObj;
 
@@ -161,8 +163,8 @@ struct TB_DebugType {
     // debug-info target specific data
     union {
         struct {
-            uint16_t cv_type_id;
-            uint16_t cv_type_id_fwd; // used by records to manage forward decls
+            uint16_t type_id;
+            uint16_t type_id_fwd; // used by records to manage forward decls
         };
     };
 
@@ -176,15 +178,18 @@ struct TB_DebugType {
             size_t count;
         } array;
         struct {
+            size_t len;
             char* name;
             TB_DebugType* type;
         } alias;
         struct {
+            size_t len;
             char* name;
             TB_CharUnits offset;
             TB_DebugType* type;
         } field;
         struct TB_DebugTypeRecord {
+            size_t len;
             char* tag;
             TB_CharUnits size, align;
 
@@ -202,19 +207,16 @@ struct TB_DebugType {
     };
 };
 
-#define TERMS(x) \
-(TB_Attrib, \
-    x(TB_ATTRIB_VARIABLE, var,   TB_Node* parent; char* name; TB_DebugType* storage) \
-    x(TB_ATTRIB_SCOPE,    scope, TB_Node* parent) \
-)
-#include "tagged_union.h"
+// TODO(NeGate): support complex variable descriptions
+// currently we only support stack relative
+typedef struct {
+    int32_t offset;
+} TB_DebugValue;
 
 typedef struct TB_StackSlot {
-    // TODO(NeGate): support complex variable descriptions
-    // currently we only support stack relative
-    int32_t position;
     const char* name;
-    TB_DebugType* storage_type;
+    TB_DebugType* type;
+    TB_DebugValue storage;
 } TB_StackSlot;
 
 typedef struct TB_Comdat {
@@ -236,6 +238,7 @@ struct TB_CodeRegion {
 };
 
 typedef struct COFF_UnwindInfo COFF_UnwindInfo;
+typedef struct ICodeGen ICodeGen;
 
 typedef struct TB_FunctionOutput {
     TB_Function* parent;
@@ -245,6 +248,8 @@ typedef struct TB_FunctionOutput {
 
     uint64_t ordinal;
     uint8_t prologue_length;
+    uint8_t epilogue_length;
+    uint8_t nop_pads;
 
     TB_Assembly* asm_out;
     uint64_t stack_usage;
@@ -284,25 +289,16 @@ struct TB_Function {
     size_t param_count;
     TB_Node** params;
 
-    TB_Node* start_node;
-    TB_Node* stop_node;
-
-    // for GVN
-    size_t node_count;
-
     // IR allocation
     TB_Arena* arena;
+    size_t node_count;
 
-    // used for CFG walk in TB_Passes
-    DynArray(TB_Node*) terminators;
+    TB_Node* root_node;
+    TB_Node* callgraph;
+    TB_Trace trace;
 
-    // IR building
-    TB_Node* active_control_node;
-    TB_NodeSafepoint exit_attrib;
-    TB_NodeSafepoint line_attrib;
-
-    // Attributes
-    NL_Map(uint64_t, DynArray(TB_Attrib)) attribs;
+    TB_NodeLocation* line_loc;
+    NL_Table locations; // TB_Node* -> TB_NodeLocation*
 
     // Compilation output
     union {
@@ -345,7 +341,7 @@ typedef struct {
 // only next_in_module is ever mutated on multiple threads (when first attached)
 struct TB_ThreadInfo {
     TB_Module* owner;
-    TB_ThreadInfo* next_in_module;
+    _Atomic(TB_ThreadInfo*) next_in_module;
 
     TB_ThreadInfo* prev;
     TB_ThreadInfo* next;
@@ -358,15 +354,10 @@ struct TB_ThreadInfo {
 
     TB_Arena perm_arena;
     TB_Arena tmp_arena;
-    TB_Arena type_arena;
 
     // live symbols (globals, functions and externals)
     //   we'll be iterating these during object/executable
     //   export to get all the symbols compiled.
-    //
-    // low contention lock but we still need it when removing on different
-    // threads.
-    mtx_t symbol_lock;
     NL_HashSet symbols;
 
     TB_CodeRegion* code; // compiled output
@@ -379,6 +370,7 @@ typedef struct {
 
 struct TB_Module {
     bool is_jit;
+    ICodeGen* codegen;
 
     atomic_flag is_tls_defined;
 
@@ -427,7 +419,7 @@ typedef struct {
     uint8_t data[];
 } TB_TemporaryStorage;
 
-typedef struct {
+struct ICodeGen {
     // what does CHAR_BIT mean on said platform
     int minimum_addressable_size, pointer_size;
 
@@ -440,7 +432,7 @@ typedef struct {
     void (*emit_win64eh_unwind_info)(TB_Emitter* e, TB_FunctionOutput* out_f, uint64_t stack_usage);
 
     void (*compile_function)(TB_Passes* p, TB_FunctionOutput* restrict func_out, const TB_FeatureSet* features, uint8_t* out, size_t out_capacity, bool emit_asm);
-} ICodeGen;
+};
 
 // All debug formats i know of boil down to adding some extra sections to the object file
 typedef struct {
@@ -515,8 +507,6 @@ void* tb_tls_pop(TB_TemporaryStorage* store, size_t size);
 void* tb_tls_peek(TB_TemporaryStorage* store, size_t distance);
 bool tb_tls_can_fit(TB_TemporaryStorage* store, size_t size);
 
-ICodeGen* tb__find_code_generator(TB_Module* m);
-
 void* tb_out_reserve(TB_Emitter* o, size_t count);
 void tb_out_commit(TB_Emitter* o, size_t count);
 
@@ -527,7 +517,6 @@ size_t tb_out_get_pos(TB_Emitter* o, void* p);
 
 // Adds null terminator onto the end and returns the starting position of the string
 size_t tb_outstr_nul_UNSAFE(TB_Emitter* o, const char* str);
-size_t tb_outstr_nul(TB_Emitter* o, const char* str);
 
 void tb_out1b_UNSAFE(TB_Emitter* o, uint8_t i);
 void tb_out4b_UNSAFE(TB_Emitter* o, uint32_t i);
@@ -589,12 +578,14 @@ void tb_export_append_chunk(TB_ExportBuffer* buffer, TB_ExportChunk* c);
 ////////////////////////////////
 // ANALYSIS
 ////////////////////////////////
+void set_input(TB_Function* f, TB_Node* n, TB_Node* in, int slot);
+void add_user(TB_Function* f, TB_Node* n, TB_Node* in, int slot, User* recycled);
 void print_node_sexpr(TB_Node* n, int depth);
 
 TB_Symbol* tb_symbol_alloc(TB_Module* m, TB_SymbolTag tag, ptrdiff_t len, const char* name, size_t size);
 void tb_symbol_append(TB_Module* m, TB_Symbol* s);
 
-void tb_emit_symbol_patch(TB_FunctionOutput* func_out, const TB_Symbol* target, size_t pos);
+void tb_emit_symbol_patch(TB_FunctionOutput* func_out, TB_Symbol* target, size_t pos);
 TB_Global* tb__small_data_intern(TB_Module* m, size_t len, const void* data);
 
 // out_bytes needs at least 16 bytes
@@ -604,7 +595,7 @@ uint64_t tb__sxt(uint64_t src, uint64_t src_bits, uint64_t dst_bits);
 
 char* tb__arena_strdup(TB_Module* m, ptrdiff_t len, const char* src);
 
-static bool is_same_location(TB_NodeSafepoint* a, TB_NodeSafepoint* b) {
+static bool is_same_location(TB_Location* a, TB_Location* b) {
     return a->file == b->file && a->line == b->line && a->column == b->column;
 }
 
@@ -612,19 +603,6 @@ static TB_Arena* get_temporary_arena(TB_Module* m) {
     return &tb_thread_info(m)->tmp_arena;
 }
 
-static TB_Arena* get_type_arena(TB_Module* m) {
-    return &tb_thread_info(m)->type_arena;
-}
-
 static TB_Arena* get_permanent_arena(TB_Module* m) {
     return &tb_thread_info(m)->perm_arena;
 }
-
-// NOTE(NeGate): Place all the codegen interfaces down here
-extern ICodeGen tb__x64_codegen;
-extern ICodeGen tb__aarch64_codegen;
-extern ICodeGen tb__wasm32_codegen;
-
-// And all debug formats here
-//extern IDebugFormat dwarf_debug_format;
-extern IDebugFormat tb__codeview_debug_format;

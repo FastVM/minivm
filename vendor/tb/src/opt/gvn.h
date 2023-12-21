@@ -19,7 +19,6 @@ static size_t extra_bytes(TB_Node* n) {
         }
 
         case TB_SAFEPOINT_POLL:
-        case TB_SAFEPOINT_NOP:
         return sizeof(TB_NodeSafepoint);
 
         case TB_AND:
@@ -46,8 +45,6 @@ static size_t extra_bytes(TB_Node* n) {
         return sizeof(TB_NodeArray);
 
         case TB_TRUNCATE:
-        case TB_INT2PTR:
-        case TB_PTR2INT:
         case TB_UINT2FLOAT:
         case TB_FLOAT2UINT:
         case TB_INT2FLOAT:
@@ -64,7 +61,6 @@ static size_t extra_bytes(TB_Node* n) {
         case TB_FMIN:
         case TB_NEG:
         case TB_NOT:
-        case TB_END:
         case TB_PROJ:
         case TB_PHI:
         case TB_CLZ:
@@ -79,9 +75,11 @@ static size_t extra_bytes(TB_Node* n) {
         case TB_DEBUGBREAK:
         case TB_ADDPAIR:
         case TB_MULPAIR:
+        case TB_READ:
+        case TB_WRITE:
+        case TB_ROOT:
         return 0;
 
-        case TB_START:
         case TB_REGION:
         return sizeof(TB_NodeRegion);
 
@@ -98,8 +96,6 @@ static size_t extra_bytes(TB_Node* n) {
         case TB_STORE:
         case TB_MEMCPY:
         case TB_MEMSET:
-        case TB_READ:
-        case TB_WRITE:
         return sizeof(TB_NodeMemAccess);
 
         case TB_ATOMIC_LOAD:
@@ -130,21 +126,23 @@ static size_t extra_bytes(TB_Node* n) {
 }
 
 uint32_t gvn_hash(void* a) {
-    TB_Node* n = a;
+    uint32_t h;
+    CUIK_TIMED_BLOCK("hash") {
+        TB_Node* n = a;
+        size_t extra = extra_bytes(n);
+        h = n->type + n->dt.raw + n->input_count + extra;
 
-    size_t extra = extra_bytes(n);
-    uint32_t h = n->type + n->dt.raw + n->input_count + extra;
+        // fib hashing amirite
+        h = ((uint64_t) h * 11400714819323198485llu) >> 32llu;
 
-    // fib hashing amirite
-    h = ((uint64_t) h * 11400714819323198485llu) >> 32llu;
+        FOREACH_N(i, 0, n->input_count) {
+            h ^= ((uintptr_t) n->inputs[i] * 11400714819323198485llu) >> 32llu;
+        }
 
-    FOREACH_N(i, 0, n->input_count) {
-        h ^= ((uintptr_t) n->inputs[i] * 11400714819323198485llu) >> 32llu;
-    }
-
-    // fnv1a the extra space
-    FOREACH_N(i, 0, extra) {
-        h = (n->extra[i] ^ h) * 0x01000193;
+        // fnv1a the extra space
+        FOREACH_N(i, 0, extra) {
+            h = (n->extra[i] ^ h) * 0x01000193;
+        }
     }
 
     return h;
@@ -235,8 +233,6 @@ bool gvn_compare(void* a, void* b) {
         }
 
         case TB_TRUNCATE:
-        case TB_INT2PTR:
-        case TB_PTR2INT:
         case TB_INT2FLOAT:
         case TB_FLOAT2INT:
         case TB_FLOAT_EXT:

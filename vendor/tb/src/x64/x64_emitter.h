@@ -10,6 +10,16 @@ static uint8_t rex(bool is_64bit, uint8_t rx, uint8_t base, uint8_t index) {
 // emits 0F if (inst->cat == a) is true
 #define EXT_OP(a) ((inst->cat == a) ? EMIT1(e, 0x0F) : 0)
 
+static void jmp(TB_CGEmitter* restrict e, int label) {
+    EMIT1(e, 0xE9); EMIT4(e, 0);
+    tb_emit_rel32(e, &e->labels[label], GET_CODE_POS(e) - 4);
+}
+
+static void jcc(TB_CGEmitter* restrict e, Cond cc, int label) {
+    EMIT1(e, 0x0F); EMIT1(e, 0x80 + cc); EMIT4(e, 0);
+    tb_emit_rel32(e, &e->labels[label], GET_CODE_POS(e) - 4);
+}
+
 static void emit_memory_operand(TB_CGEmitter* restrict e, uint8_t rx, const Val* restrict a) {
     // Operand encoding
     if (a->type == VAL_GPR || a->type == VAL_XMM) {

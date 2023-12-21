@@ -1,0 +1,17 @@
+# Optimizer crap
+
+  some of the optimizations i should probably worry about are proving when numbers can't
+  overflow, like induction vars:
+
+```
+for {
+    i = phi(0, j)
+    // even if n is TOP, i must be at least TOP and
+    // after all additions on the PHI... which means
+    // no overflow
+    if i >= n break
+    ...
+    // next
+    j = i + 1
+}
+```

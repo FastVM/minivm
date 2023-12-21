@@ -155,6 +155,7 @@ TB_Node** tb_function_set_prototype_from_dbg(TB_Function* f, TB_ModuleSectionHan
         FOREACH_N(i, 0, param_count) {
             TB_DebugType* type = param_list[i]->field.type;
             const char* name = param_list[i]->field.name;
+            size_t name_len = param_list[i]->field.len;
 
             int size = debug_type_size(abi, type);
             int align = debug_type_align(abi, type);
@@ -172,7 +173,7 @@ TB_Node** tb_function_set_prototype_from_dbg(TB_Function* f, TB_ModuleSectionHan
             }
 
             // mark debug info
-            tb_function_attrib_variable(f, params[i], NULL, -1, name, type);
+            tb_function_attrib_variable(f, params[i], NULL, name_len, name, type);
         }
     }
 

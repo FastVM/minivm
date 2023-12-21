@@ -52,10 +52,6 @@ typedef struct MachineBB {
     Set live_in, live_out;
 } MachineBB;
 
-typedef struct MachineReg {
-    uint8_t class, num;
-} MachineReg;
-
 typedef struct {
     int uses;
     RegIndex vreg;

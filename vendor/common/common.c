@@ -14,7 +14,10 @@
 #include <hash_map.h>
 
 #define NL_HASH_SET_IMPL
-#include <hash_set.h>
+#include <new_hash_map.h>
+
+#define NL_CHUNKED_ARRAY_IMPL
+#include <chunked_array.h>
 
 #define LOG_USE_COLOR
 #include "log.c"
@@ -58,8 +61,7 @@ void* cuik__valloc(size_t size) {
     cuik__page_size = 4096;
     cuik__page_mask = 4095;
 
-    // return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    return GC_malloc(size);
+    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     #endif
 }
 
@@ -119,6 +121,20 @@ void* tb_arena_unaligned_alloc(TB_Arena* restrict arena, size_t size) {
     }
 }
 
+TB_API void* tb_arena_realloc(TB_Arena* restrict arena, void* old, size_t size) {
+    char* p = old;
+    if (p + size == arena->watermark) {
+        // try to resize
+        arena->watermark = old;
+    }
+
+    char* dst = tb_arena_unaligned_alloc(arena, size);
+    if (dst != p && old) {
+        memcpy(dst, old, size);
+    }
+    return dst;
+}
+
 void tb_arena_pop(TB_Arena* restrict arena, void* ptr, size_t size) {
     char* p = ptr;
     assert(p + size == arena->watermark); // cannot pop from arena if it's not at the top
@@ -159,6 +175,7 @@ void tb_arena_restore(TB_Arena* arena, TB_ArenaSavepoint sp) {
     }
 
     arena->top = sp.top;
+    arena->top->next = NULL;
     arena->watermark = sp.watermark;
     arena->high_point = &sp.top->data[arena->chunk_size - sizeof(TB_ArenaChunk)];
 }

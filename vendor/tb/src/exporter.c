@@ -6,8 +6,12 @@ TB_ExportBuffer tb_elf64obj_write_output(TB_Module* restrict m, const IDebugForm
 TB_ExportBuffer tb_wasm_write_output(TB_Module* restrict m, const IDebugFormat* dbg);
 
 static const IDebugFormat* find_debug_format(TB_DebugFormat debug_fmt) {
+    // Place all debug formats here
+    extern IDebugFormat tb__codeview_debug_format;
+    extern IDebugFormat tb__sdg_debug_format;
+
     switch (debug_fmt) {
-        // case TB_DEBUGFMT_DWARF: return &tb__dwarf_debug_format;
+        case TB_DEBUGFMT_SDG: return &tb__sdg_debug_format;
         case TB_DEBUGFMT_CODEVIEW: return &tb__codeview_debug_format;
         default: return NULL;
     }
@@ -21,7 +25,6 @@ TB_API TB_ExportBuffer tb_module_object_export(TB_Module* m, TB_DebugFormat debu
         [TB_SYSTEM_WINDOWS] = tb_coff_write_output,
         [TB_SYSTEM_MACOS]   = tb_macho_write_output,
         [TB_SYSTEM_LINUX]   = tb_elf64obj_write_output,
-        // [TB_SYSTEM_WEB]     = tb_wasm_write_output,
     };
 
     assert(fn[m->target_system] != NULL && "TODO");
@@ -105,35 +108,41 @@ ExportList tb_module_layout_sections(TB_Module* m) {
 
         // unpack symbols
         TB_Symbol** syms = (TB_Symbol**) info->symbols.data;
-        size_t cap = 1ull << info->symbols.exp;
-        for (size_t i = 0; i < cap; i++) {
-            TB_Symbol* s = syms[i];
-            if (s == NULL || s == NL_HASHSET_TOMB) continue;
+        if (syms) {
+            size_t cap = 1ull << info->symbols.exp;
+            for (size_t i = 0; i < cap; i++) {
+                TB_Symbol* s = syms[i];
+                if (s == NULL || s == NL_HASHSET_TOMB) continue;
 
-            switch (atomic_load_explicit(&s->tag, memory_order_relaxed)) {
-                case TB_SYMBOL_FUNCTION: {
-                    TB_Function* f = (TB_Function*) s;
-                    TB_ModuleSection* sec = &m->sections[f->section];
+                switch (atomic_load_explicit(&s->tag, memory_order_relaxed)) {
+                    case TB_SYMBOL_FUNCTION: {
+                        TB_Function* f = (TB_Function*) s;
+                        TB_ModuleSection* sec = &m->sections[f->section];
 
-                    // we only care for compiled functions
-                    TB_FunctionOutput* out_f = f->output;
-                    if (out_f != NULL) {
-                        out_f->ordinal = f->super.ordinal;
-                        dyn_array_put(sec->funcs, out_f);
+                        // we only care for compiled functions
+                        TB_FunctionOutput* out_f = f->output;
+                        if (out_f != NULL) {
+                            out_f->ordinal = f->super.ordinal;
+                            dyn_array_put(sec->funcs, out_f);
+                        }
+                        break;
                     }
-                    break;
+                    case TB_SYMBOL_GLOBAL: {
+                        TB_Global* g = (TB_Global*) s;
+                        TB_ModuleSection* sec = &m->sections[g->parent];
+                        dyn_array_put(sec->globals, g);
+                        break;
+                    }
+                    case TB_SYMBOL_EXTERNAL: {
+                        // resolved externals are just globals or functions, we don't add them here
+                        TB_External* e = (TB_External*) s;
+                        if (atomic_load_explicit(&e->resolved, memory_order_relaxed) == NULL) {
+                            externals[external_count++] = e;
+                        }
+                        break;
+                    }
+                    default: break;
                 }
-                case TB_SYMBOL_GLOBAL: {
-                    TB_Global* g = (TB_Global*) s;
-                    TB_ModuleSection* sec = &m->sections[g->parent];
-                    dyn_array_put(sec->globals, g);
-                    break;
-                }
-                case TB_SYMBOL_EXTERNAL: {
-                    externals[external_count++] = (TB_External*) s;
-                    break;
-                }
-                default: break;
             }
         }
 

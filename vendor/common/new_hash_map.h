@@ -7,6 +7,9 @@
 #define NL_HASHSET_HIGH_BIT (~(SIZE_MAX >> ((size_t) 1)))
 #define NL_HASHSET_INDEX_BITS (SIZE_MAX >> ((size_t) 1))
 
+////////////////////////////////
+// Hashset
+////////////////////////////////
 typedef struct NL_HashSet {
     TB_Arena* allocator;
 
@@ -35,6 +38,31 @@ void nl_hashset_remove2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL
 #define nl_hashset_capacity(hs) (1ull << (hs)->exp)
 #define nl_hashset_for(it, hs)  for (void **it = (hs)->data, **_end_ = &it[nl_hashset_capacity(hs)]; it != _end_; it++) if (*it != NULL && *it != NL_HASHSET_TOMB)
 
+////////////////////////////////
+// Hashmap
+////////////////////////////////
+typedef struct {
+    void *k, *v;
+} NL_TableEntry;
+
+typedef struct {
+    TB_Arena* allocator;
+
+    size_t exp, count;
+    NL_TableEntry* data;
+} NL_Table;
+
+NL_Table nl_table_alloc(size_t cap);
+NL_Table nl_table_arena_alloc(TB_Arena* arena, size_t cap);
+void nl_table_free(NL_Table tbl);
+
+bool nl_table_put(NL_Table* restrict tbl, void* k, void* v);
+void* nl_table_get(NL_Table* restrict tbl, void* k);
+size_t nl_table_lookup(NL_Table* restrict tbl, void* k);
+
+#define nl_table_capacity(tbl) (1ull << (tbl)->exp)
+#define nl_table_for(it, tbl)  for (NL_TableEntry *it = (tbl)->data, *_end_ = &it[nl_table_capacity(tbl)]; it != _end_; it++) if (it->k != NULL && it->k != NL_HASHSET_TOMB)
+
 #endif /* NL_HASH_SET_H */
 
 #ifdef NL_HASH_SET_IMPL
@@ -53,9 +81,7 @@ NL_HashSet nl_hashset_alloc(size_t cap) {
     size_t exp = 64 - __builtin_clzll(cap - 1);
     #endif
 
-    cap = (cap == 1 ? 1 : 1 << exp);
-
-    return (NL_HashSet){ .exp = exp, .data = cuik_calloc(cap, sizeof(void*)) };
+    return (NL_HashSet){ .exp = exp, .data = cuik_calloc(1u << exp, sizeof(void*)) };
 }
 
 NL_HashSet nl_hashset_arena_alloc(TB_Arena* arena, size_t cap) {
@@ -217,6 +243,105 @@ void* nl_hashset_put2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL_C
 void nl_hashset_clear(NL_HashSet* restrict hs) {
     memset(hs->data, 0, nl_hashset_capacity(hs) * sizeof(void*));
     hs->count = 0;
+}
+
+////////////////////////////////
+// Hashmap
+////////////////////////////////
+NL_Table nl_table_alloc(size_t cap) {
+    cap = (cap * 4) / 3;
+    if (cap < 4) cap = 4;
+
+    // next power of two
+    #if defined(_MSC_VER) && !defined(__clang__)
+    size_t exp = 64 - _lzcnt_u64(cap - 1);
+    #else
+    size_t exp = 64 - __builtin_clzll(cap - 1);
+    #endif
+
+    return (NL_Table){ .exp = exp, .data = cuik_calloc(1u << exp, sizeof(NL_TableEntry)) };
+}
+
+NL_Table nl_table_arena_alloc(TB_Arena* arena, size_t cap) {
+    cap = (cap * 4) / 3;
+    if (cap < 4) cap = 4;
+
+    // next power of two
+    #if defined(_MSC_VER) && !defined(__clang__)
+    size_t exp = 64 - _lzcnt_u64(cap - 1);
+    #else
+    size_t exp = 64 - __builtin_clzll(cap - 1);
+    #endif
+
+    void* data = tb_arena_alloc(arena, cap * sizeof(NL_TableEntry));
+    memset(data, 0, cap * sizeof(NL_TableEntry));
+    return (NL_Table){ .exp = exp, .data = data };
+}
+
+void nl_table_free(NL_Table tbl) {
+    if (tbl.allocator == NULL) {
+        cuik_free(tbl.data);
+    } else {
+        tb_arena_pop(tbl.allocator, tbl.data, (1ull << tbl.exp) * sizeof(NL_TableEntry));
+    }
+}
+
+bool nl_table_put(NL_Table* restrict tbl, void* k, void* v) {
+    uint32_t post_load_factor = ((1ull << tbl->exp) * 3) / 4;
+    if (tbl->count >= post_load_factor) {
+        // rehash
+        assert(tbl->allocator == NULL && "arena hashsets can't be resized!");
+        NL_Table new_tbl = nl_table_alloc(nl_table_capacity(tbl));
+        nl_table_for(p, tbl) {
+            nl_table_put(&new_tbl, p->k, p->v);
+        }
+        nl_table_free(*tbl);
+        *tbl = new_tbl;
+    }
+
+    uint32_t h = NL_HASHSET_HASH(k);
+    size_t mask = (1 << tbl->exp) - 1;
+    size_t first = h & mask, i = first;
+
+    do {
+        if (tbl->data[i].k == NULL) {
+            // insert
+            tbl->count++;
+            tbl->data[i].k = k;
+            tbl->data[i].v = v;
+            return true;
+        } else if (tbl->data[i].k == NL_HASHSET_TOMB) {
+            // recycle tombstone
+            tbl->data[i].k = k;
+            tbl->data[i].v = v;
+            return true;
+        } else if (tbl->data[i].k == k) {
+            tbl->data[i].v = v;
+            return true;
+        }
+
+        i = (i + 1) & mask;
+    } while (i != first);
+
+    abort();
+}
+
+void* nl_table_get(NL_Table* restrict tbl, void* k) {
+    uint32_t h = NL_HASHSET_HASH(k);
+    size_t mask = (1 << tbl->exp) - 1;
+    size_t first = h & mask, i = first;
+
+    do {
+        if (tbl->data[i].k == NULL) {
+            return NULL;
+        } else if (tbl->data[i].k == k) {
+            return tbl->data[i].v;
+        }
+
+        i = (i + 1) & mask;
+    } while (i != first);
+
+    return NULL;
 }
 
 #endif /* NL_HASH_SET_IMPL */

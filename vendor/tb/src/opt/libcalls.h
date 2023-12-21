@@ -11,11 +11,11 @@ static TB_Node* ideal_libcall(TB_Passes* restrict passes, TB_Function* f, TB_Nod
     bool is_memset = strcmp(sym->name, "memset") == 0;
     if (is_memcpy || is_memset) {
         TB_Node* n2 = tb_alloc_node(f, is_memset ? TB_MEMSET : TB_MEMCPY, TB_TYPE_MEMORY, 5, sizeof(TB_NodeMemAccess));
-        set_input(passes, n2, n->inputs[0], 0); // ctrl
-        set_input(passes, n2, n->inputs[1], 1); // mem
-        set_input(passes, n2, n->inputs[3], 2); // dst
-        set_input(passes, n2, n->inputs[4], 3); // val
-        set_input(passes, n2, n->inputs[5], 4); // size
+        set_input(f, n2, n->inputs[0], 0); // ctrl
+        set_input(f, n2, n->inputs[1], 1); // mem
+        set_input(f, n2, n->inputs[3], 2); // dst
+        set_input(f, n2, n->inputs[4], 3); // val
+        set_input(f, n2, n->inputs[5], 4); // size
         TB_NODE_SET_EXTRA(n2, TB_NodeMemAccess, .align = 1);
 
         TB_Node* dst_ptr = n->inputs[2];

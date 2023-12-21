@@ -17,13 +17,10 @@
 #define NL_REALLOC(p, s) mi_realloc(p, s)
 #define NL_FREE(p)       mi_free(p)
 #else
-void *GC_malloc(size_t size);
-void *GC_realloc(void *ptr, size_t size);
-void *GC_free(void *ptr);
-#define NL_MALLOC(s)     GC_malloc(s)
-#define NL_CALLOC(c, s)  GC_malloc((c) * s)
-#define NL_REALLOC(p, s) GC_realloc(p, s)
-#define NL_FREE(p)          ((void)(p))
+#define NL_MALLOC(s)     malloc(s)
+#define NL_CALLOC(c, s)  calloc(c, s)
+#define NL_REALLOC(p, s) realloc(p, s)
+#define NL_FREE(p)       free(p)
 #endif
 
 #define NL_Map(K, V) struct { K k; V v; }*

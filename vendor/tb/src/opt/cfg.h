@@ -1,6 +1,7 @@
 
 typedef struct Block {
     struct Block* parent;
+    TB_ArenaSavepoint sp;
     TB_Node* bb;
     TB_Node* end;
     int succ_i;
@@ -32,6 +33,8 @@ static TB_Node* end_of_bb(TB_Node* n) {
 }
 
 static Block* create_block(TB_Arena* arena, TB_Node* bb) {
+    TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
+
     TB_Node* end = end_of_bb(bb);
     size_t succ_count = end->type == TB_BRANCH ? TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->succ_count : 1;
     if (cfg_is_endpoint(end)) {
@@ -40,13 +43,14 @@ static Block* create_block(TB_Arena* arena, TB_Node* bb) {
 
     Block* top = tb_arena_alloc(arena, sizeof(Block) + succ_count*sizeof(TB_Node*));
     *top = (Block){
+        .sp  = sp,
         .bb  = bb,
         .end = end,
         .succ_i = succ_count,
     };
 
     if (end->type == TB_BRANCH) {
-        for (User* u = end->users; u; u = u->next) {
+        FOR_USERS(u, end) {
             if (u->n->type == TB_PROJ) {
                 int index = TB_NODE_GET_EXTRA_T(u->n, TB_NodeProj)->index;
                 top->succ[index] = cfg_next_bb_after_cproj(u->n);
@@ -66,13 +70,14 @@ TB_CFG tb_compute_rpo2(TB_Function* f, Worklist* ws) {
     assert(dyn_array_length(ws->items) == 0);
 
     TB_CFG cfg = { 0 };
-    TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
+    nl_map_create(cfg.node_to_block, (f->node_count / 16) + 4);
 
     // push initial block
     Block* top = create_block(tmp_arena, f->params[0]);
     worklist_test_n_set(ws, f->params[0]);
 
     while (top != NULL) {
+        cuikperf_region_start("rpo_iter", NULL);
         if (top->succ_i > 0) {
             // push next unvisited succ
             TB_Node* succ = top->succ[--top->succ_i];
@@ -96,26 +101,30 @@ TB_CFG tb_compute_rpo2(TB_Function* f, Worklist* ws) {
             nl_map_put(cfg.node_to_block, b.bb, bb);
             cfg.block_count += 1;
 
-            // off to wherever we left off
-            top = b.parent;
+            tb_arena_restore(tmp_arena, top->sp);
+            top = b.parent; // off to wherever we left off
         }
+        cuikperf_region_end();
     }
 
     // just reverse the items here... im too lazy to flip all my uses
-    size_t last = cfg.block_count - 1;
-    FOREACH_N(i, 0, cfg.block_count / 2) {
-        SWAP(TB_Node*, ws->items[i], ws->items[last - i]);
-    }
-
-    FOREACH_N(i, 0, cfg.block_count) {
-        TB_BasicBlock* bb = &nl_map_get_checked(cfg.node_to_block, ws->items[i]);
-        if (i == 0) {
-            bb->dom_depth = 0;
+    CUIK_TIMED_BLOCK("reversing") {
+        size_t last = cfg.block_count - 1;
+        FOREACH_N(i, 0, cfg.block_count / 2) {
+            SWAP(TB_Node*, ws->items[i], ws->items[last - i]);
         }
-        bb->id = i;
     }
 
-    tb_arena_restore(tmp_arena, sp);
+    CUIK_TIMED_BLOCK("dom depths") {
+        FOREACH_N(i, 0, cfg.block_count) {
+            TB_BasicBlock* bb = &nl_map_get_checked(cfg.node_to_block, ws->items[i]);
+            if (i == 0) {
+                bb->dom_depth = 0;
+            }
+            bb->id = i;
+        }
+    }
+
     cuikperf_region_end();
     return cfg;
 }
@@ -163,7 +172,7 @@ TB_DominanceFrontiers* tb_get_dominance_frontiers(TB_Function* f, TB_Passes* res
             FOREACH_N(k, 0, bb->input_count) {
                 TB_Node* runner = get_pred_cfg(&cfg, bb, k);
 
-                while (!(runner->type == TB_PROJ && runner->inputs[0]->type == TB_START) && runner != idom(&cfg, bb)) {
+                while (!(runner->type == TB_PROJ && runner->inputs[0]->type == TB_ROOT) && runner != idom(&cfg, bb)) {
                     // add to frontier set
                     int id = nl_map_get_checked(cfg.node_to_block, runner).id;
                     tb_dommy_fronts_put(df, id, i);
@@ -259,15 +268,6 @@ void tb_compute_dominators2(TB_Function* f, Worklist* ws, TB_CFG cfg) {
             resolve_dom_depth(&cfg, blocks[i]);
         }
     }
-}
-
-TB_Node* tb_get_parent_region(TB_Node* n) {
-    while (n->type != TB_REGION && n->type != TB_START) {
-        tb_assert(n->inputs[0], "node doesn't have a control edge");
-        n = n->inputs[0];
-    }
-
-    return n;
 }
 
 bool tb_is_dominated_by(TB_CFG cfg, TB_Node* expected_dom, TB_Node* n) {

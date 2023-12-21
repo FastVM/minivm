@@ -13,7 +13,6 @@ typedef enum {
 typedef NL_Map(TB_Node*, TB_Node*) Mem2Reg_Def;
 
 typedef struct Mem2Reg_Ctx {
-    TB_TemporaryStorage* tls;
     TB_Function* f;
     TB_Passes* p;
     TB_Node** blocks;
@@ -33,7 +32,7 @@ static Coherency tb_get_stack_slot_coherency(TB_Passes* p, TB_Function* f, TB_No
 static int get_variable_id(Mem2Reg_Ctx* restrict c, TB_Node* r) {
     // TODO(NeGate): Maybe we speed this up... maybe it doesn't matter :P
     FOREACH_N(i, 0, c->to_promote_count) {
-        if (c->to_promote[i] == r) return (int)i;
+        if (c->to_promote[i] == r) return i;
     }
 
     return -1;
@@ -43,9 +42,7 @@ static int get_variable_id(Mem2Reg_Ctx* restrict c, TB_Node* r) {
 // be mutated into a PHI node by the rest of the code.
 static TB_Node* new_phi(Mem2Reg_Ctx* restrict c, TB_Function* f, int var, TB_Node* block, TB_DataType dt) {
     TB_Node* n = tb_alloc_node(f, TB_PHI, dt, 1 + block->input_count, 0);
-    FOREACH_N(i, 0, 1 + block->input_count) n->inputs[i] = NULL;
-
-    set_input(c->p, n, block, 0);
+    set_input(f, n, block, 0);
 
     // append variable attrib
     /*for (TB_Attrib* a = c->to_promote[var]->first_attrib; a; a = a->next) if (a->type == TB_ATTRIB_VARIABLE) {
@@ -77,7 +74,7 @@ static void add_phi_operand(Mem2Reg_Ctx* restrict c, TB_Function* f, TB_Node* ph
     FOREACH_N(i, 0, phi_region->input_count) {
         TB_Node* pred = get_pred_cfg(&c->p->cfg, phi_region, i);
         if (pred == bb) {
-            set_input(c->p, phi_node, node, i+1);
+            set_input(f, phi_node, node, i+1);
             break;
         }
     }
@@ -117,7 +114,7 @@ static void ssa_replace_phi_arg(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, TB_
             TB_Node* pred = get_pred_cfg(&c->p->cfg, dst, j);
             if (pred == bb) {
                 // try to replace
-                set_input(c->p, phi_reg, top, j + 1);
+                set_input(f, phi_reg, top, j + 1);
                 found = true;
                 break;
             }
@@ -134,7 +131,8 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
     TB_Passes* p = c->p;
 
     // push phi nodes
-    size_t* old_len = tb_tls_push(c->tls, sizeof(size_t) * c->to_promote_count);
+    TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
+    size_t* old_len = tb_arena_alloc(tmp_arena, sizeof(size_t) * c->to_promote_count);
     FOREACH_N(var, 0, c->to_promote_count) {
         old_len[var] = dyn_array_length(stack[var]);
 
@@ -178,7 +176,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
             }
 
             // check for any loads and replace them
-            for (User* u = n->users; u; u = u->next) {
+            FOR_USERS(u, n) {
                 TB_Node* use = u->n;
 
                 if (u->slot == 1 && use->type == TB_LOAD) {
@@ -198,12 +196,12 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
                         if (use->dt.raw != val->dt.raw) {
                             TB_Node* cast = tb_alloc_node(c->f, TB_BITCAST, use->dt, 2, 0);
                             tb_pass_mark(p, cast);
-                            set_input(p, cast, val, 1);
+                            set_input(f, cast, val, 1);
 
                             val = cast;
                         }
 
-                        set_input(p, use, NULL, 1); // unlink first
+                        set_input(f, use, NULL, 1); // unlink first
                         subsume_node(p, f, use, val);
 
                         tb_pass_mark(p, val);
@@ -232,7 +230,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
     // replace phi arguments on successor
     if (end->type == TB_BRANCH) {
         // fill successors
-        for (User* u = end->users; u; u = u->next) {
+        FOR_USERS(u, end) {
             if (!cfg_is_control(u->n)) continue;
 
             TB_Node* succ = cfg_next_bb_after_cproj(u->n);
@@ -242,7 +240,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
             //   if p is a var v, replace edge with stack[v]
             ssa_replace_phi_arg(c, f, bb, succ, stack);
         }
-    } else if (end->type != TB_END && end->type != TB_UNREACHABLE) {
+    } else if (end->type != TB_ROOT && end->type != TB_UNREACHABLE) {
         // fallthrough case
         ssa_replace_phi_arg(c, f, bb, cfg_next_control(end), stack);
     }
@@ -264,7 +262,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
     FOREACH_N(var, 0, c->to_promote_count) {
         dyn_array_set_length(stack[var], old_len[var]);
     }
-    tb_tls_restore(c->tls, old_len);
+    tb_arena_restore(tmp_arena, sp);
 }
 
 static void insert_phis(Mem2Reg_Ctx* restrict ctx, TB_Node* bb, TB_Node* n, TB_BasicBlock* bb_info) {
@@ -293,26 +291,24 @@ static void insert_phis(Mem2Reg_Ctx* restrict ctx, TB_Node* bb, TB_Node* n, TB_B
     } while (n != NULL && n->type != TB_PHI && cfg_underneath(&ctx->p->cfg, n, bb_info));
 }
 
-bool tb_pass_mem2reg(TB_Passes* p) {
+void tb_pass_mem2reg(TB_Passes* p) {
     cuikperf_region_start("mem2reg", NULL);
 
     TB_Function* f = p->f;
-    TB_TemporaryStorage* tls = tb_tls_steal();
 
     ////////////////////////////////
     // Decide which stack slots to promote
     ////////////////////////////////
-    size_t to_promote_count = 0;
-    TB_Node** to_promote = tb_tls_push(tls, sizeof(TB_Node*) * dyn_array_length(p->locals));
-    dyn_array_for(i, p->locals) {
-        TB_Node* n = p->locals[i];
+    FOR_USERS(u, f->root_node) {
+        if (u->n->type != TB_LOCAL) continue;
+        TB_Node* n = u->n;
 
         TB_DataType dt;
         Coherency coherence = tb_get_stack_slot_coherency(p, f, n, &dt);
 
         switch (coherence) {
             case COHERENCY_GOOD: {
-                to_promote[to_promote_count++] = n;
+                dyn_array_put(p->worklist.items, n);
                 n->dt = dt;
 
                 DO_IF(TB_OPTDEBUG_MEM2REG)(log_debug("%s: v%u promoting to IR register", f->super.name, n->gvn));
@@ -342,28 +338,32 @@ bool tb_pass_mem2reg(TB_Passes* p) {
         }
     }
 
+    size_t to_promote_count = dyn_array_length(p->worklist.items);
     if (to_promote_count == 0) {
         // doesn't need to mem2reg
-        goto no_changes;
+        cuikperf_region_end();
+        return;
     }
 
-    Mem2Reg_Ctx c = { 0 };
-    c.tls = tls;
-    c.f = f;
-    c.p = p;
+    TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
 
-    c.to_promote_count = to_promote_count;
-    c.to_promote = to_promote;
+    Mem2Reg_Ctx c = {
+        .f = f,
+        .p = p,
+        .to_promote_count = to_promote_count,
+        .to_promote = tb_arena_alloc(tmp_arena, to_promote_count * sizeof(TB_Node*)),
+    };
 
-    c.defs = tb_tls_push(c.tls, to_promote_count * sizeof(Mem2Reg_Def));
+    memcpy(c.to_promote, p->worklist.items, to_promote_count * sizeof(TB_Node*));
+    dyn_array_clear(p->worklist.items);
+
+    c.defs = tb_arena_alloc(tmp_arena, to_promote_count * sizeof(Mem2Reg_Def));
     memset(c.defs, 0, to_promote_count * sizeof(Mem2Reg_Def));
 
     tb_pass_update_cfg(p, &p->worklist, true);
     c.blocks = &p->worklist.items[0];
 
     worklist_clear_visited(&p->worklist);
-    tb_compute_dominators(f, p, c.p->cfg);
-
     TB_DominanceFrontiers* df = tb_get_dominance_frontiers(f, p, c.p->cfg, c.blocks);
 
     ////////////////////////////////
@@ -391,7 +391,7 @@ bool tb_pass_mem2reg(TB_Passes* p) {
         TB_Node* n = bb;
         TB_Node* mem = NULL;
         while (n != NULL) {
-            for (User* u = n->users; u; u = u->next) {
+            FOR_USERS(u, n) {
                 if (is_mem_out_op(u->n)) {
                     mem = u->n;
                     goto done;
@@ -406,7 +406,7 @@ bool tb_pass_mem2reg(TB_Passes* p) {
         // find earliest memory in the BB:
         //   note this doesn't account for multiple memory streams
         //   but that's fine for now...
-        if (mem) {
+        if (mem && !(mem->type == TB_PROJ && mem->inputs[0]->type == TB_ROOT)) {
             while (mem->type != TB_PHI && cfg_underneath(&c.p->cfg, mem->inputs[1], bb_info)) {
                 mem = mem->inputs[1];
             }
@@ -418,7 +418,7 @@ bool tb_pass_mem2reg(TB_Passes* p) {
     }
 
     // for each global name we'll insert phi nodes
-    TB_Node** phi_p = tb_tls_push(tls, c.p->cfg.block_count * sizeof(TB_Node*));
+    TB_Node** phi_p = tb_arena_alloc(tmp_arena, c.p->cfg.block_count * sizeof(TB_Node*));
 
     NL_HashSet ever_worked = nl_hashset_alloc(c.p->cfg.block_count);
     NL_HashSet has_already = nl_hashset_alloc(c.p->cfg.block_count);
@@ -480,12 +480,11 @@ bool tb_pass_mem2reg(TB_Passes* p) {
         }
     }
     tb_platform_heap_free(df);
-    tb_tls_restore(tls, phi_p);
 
     ////////////////////////////////
     // Phase 2: Rename loads and stores
     ////////////////////////////////
-    DynArray(TB_Node*)* stack = tb_tls_push(tls, c.to_promote_count * sizeof(DynArray(TB_Node*)));
+    DynArray(TB_Node*)* stack = tb_arena_alloc(tmp_arena, c.to_promote_count * sizeof(DynArray(TB_Node*)));
     FOREACH_N(var, 0, c.to_promote_count) {
         stack[var] = dyn_array_create(TB_Node*, 16);
     }
@@ -497,16 +496,9 @@ bool tb_pass_mem2reg(TB_Passes* p) {
         assert(c.to_promote[var]->users == NULL);
         tb_pass_kill_node(c.p, c.to_promote[var]);
     }
-
-    tb_tls_restore(tls, to_promote);
-
+    tb_arena_restore(tmp_arena, sp);
     tb_free_cfg(&p->cfg);
     cuikperf_region_end();
-    return true;
-
-    no_changes:
-    cuikperf_region_end();
-    return false;
 }
 
 // NOTE(NeGate): a stack slot is coherent when all loads and stores share
@@ -517,7 +509,7 @@ static Coherency tb_get_stack_slot_coherency(TB_Passes* p, TB_Function* f, TB_No
         return COHERENCY_DEAD;
     }
 
-    ICodeGen* cg = tb__find_code_generator(f->super.module);
+    ICodeGen* cg = f->super.module->codegen;
     int pointer_size = cg->pointer_size;
     int char_size = cg->minimum_addressable_size;
 

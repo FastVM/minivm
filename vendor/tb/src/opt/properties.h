@@ -23,6 +23,19 @@ static bool is_commutative(TB_NodeTypeEnum type) {
     }
 }
 
+static bool is_mem_access(TB_Node* n) {
+    switch (n->type) {
+        case TB_LOAD:
+        case TB_STORE:
+        case TB_MEMCPY:
+        case TB_MEMSET:
+        return true;
+
+        default:
+        return false;
+    }
+}
+
 static bool is_effect_tuple(TB_Node* n) {
     switch (n->type) {
         case TB_CALL:
@@ -38,12 +51,16 @@ static bool is_effect_tuple(TB_Node* n) {
     }
 }
 
+static bool cfg_is_loop(TB_Node* n) {
+    return n->type == TB_REGION && TB_NODE_GET_EXTRA_T(n, TB_NodeRegion)->natty;
+}
+
 // terminator without successors
 static bool cfg_is_endpoint(TB_Node* n) {
     switch (n->type) {
         case TB_UNREACHABLE:
         case TB_TRAP:
-        case TB_END:
+        case TB_ROOT:
         case TB_TAILCALL:
         return true;
 
@@ -57,7 +74,7 @@ static bool cfg_is_terminator(TB_Node* n) {
         case TB_BRANCH:
         case TB_UNREACHABLE:
         case TB_TRAP:
-        case TB_END:
+        case TB_ROOT:
         case TB_TAILCALL:
         return true;
 

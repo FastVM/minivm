@@ -5,7 +5,7 @@
 //   performed incrementally which means that certain mutations must go through
 //   functions to guarentee they update correctly. Let's go over those:
 //
-//   set_input(opt, n, in, slot)
+//   set_input(f, n, in, slot)
 //     basically `n->inputs[slot] = in` except it correctly updates the user set
 //
 // # How to implement peepholes
@@ -17,25 +17,18 @@
 thread_local TB_Arena* tmp_arena;
 
 // helps us do some matching later
-static void add_user(TB_Passes* restrict p, TB_Node* n, TB_Node* in, int slot, User* recycled);
-static User* remove_user(TB_Passes* restrict p, TB_Node* n, int slot);
-static void remove_input(TB_Passes* restrict p, TB_Function* f, TB_Node* n, size_t i);
-
-// transmutations let us generate new nodes from old ones
-TB_Node* tb_transmute_to_int(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, int num_words);
+static User* remove_user(TB_Node* n, int slot);
+static void remove_input(TB_Function* f, TB_Node* n, size_t i);
 
 static void subsume_node(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* new_n);
-
-static TB_Node* peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_PeepholeFlags flags);
 static TB_Node* gvn(TB_Passes* restrict p, TB_Node* n, size_t extra);
 
 // node creation helpers
 TB_Node* make_poison(TB_Function* f, TB_Passes* restrict p, TB_DataType dt);
+TB_Node* dead_node(TB_Function* f, TB_Passes* restrict p);
 TB_Node* make_int_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, uint64_t x);
-TB_Node* make_dead_node(TB_Function* f, TB_Passes* restrict p);
 TB_Node* make_proj_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, TB_Node* src, int i);
 
-static bool lattice_dommy(LatticeUniverse* uni, TB_Node* expected_dom, TB_Node* bb);
 static size_t tb_pass_update_cfg(TB_Passes* p, Worklist* ws, bool preserve);
 
 ////////////////////////////////
@@ -179,7 +172,7 @@ static char* lil_name(TB_Function* f, const char* fmt, ...) {
 }
 
 static TB_Node* mem_user(TB_Passes* restrict p, TB_Node* n, int slot) {
-    for (User* u = find_users(p, n); u; u = u->next) {
+    FOR_USERS(u, n) {
         if ((u->n->type == TB_PROJ && u->n->dt.type == TB_MEMORY) ||
             (u->slot == slot && is_mem_out_op(u->n))) {
             return u->n;
@@ -187,12 +180,6 @@ static TB_Node* mem_user(TB_Passes* restrict p, TB_Node* n, int slot) {
     }
 
     return NULL;
-}
-
-static TB_Node* single_user(TB_Passes* restrict p, TB_Node* n) {
-    User* u = find_users(p, n);
-    assert(u && u->next == NULL);
-    return u->n;
 }
 
 static bool single_use(TB_Passes* restrict p, TB_Node* n) {
@@ -212,7 +199,7 @@ static bool is_empty_bb(TB_Passes* restrict p, TB_Node* end) {
     }
 
     TB_Node* bb = end->inputs[0];
-    for (User* use = bb->users; use; use = use->next) {
+    FOR_USERS(use, bb) {
         TB_Node* n = use->n;
         if (use->n != end) return false;
     }
@@ -227,6 +214,40 @@ static bool is_if_branch(TB_Node* n, uint64_t* falsey) {
     }
 
     return false;
+}
+
+// incremental dominators, plays nice with peepholes and has
+// a limited walk of 20 steps.
+static TB_Node* fast_idom(TB_Node* bb) {
+    int steps = 0;
+    while (steps < FAST_IDOM_LIMIT && bb->type != TB_REGION && bb->type != TB_ROOT) {
+        bb = bb->inputs[0];
+        steps++;
+    }
+
+    return bb;
+}
+
+static bool fast_dommy(TB_Node* expected_dom, TB_Node* bb) {
+    int steps = 0;
+    while (steps < FAST_IDOM_LIMIT && bb != expected_dom && bb->type != TB_REGION && bb->type != TB_ROOT) {
+        bb = bb->inputs[0];
+        steps++;
+    }
+
+    return bb == expected_dom;
+}
+
+static bool slow_dommy(TB_CFG* cfg, TB_Node* expected_dom, TB_Node* bb) {
+    while (bb != NULL && expected_dom != bb) {
+        TB_Node* new_bb = idom(cfg, bb);
+        if (new_bb == NULL || new_bb == bb) {
+            return false;
+        }
+        bb = new_bb;
+    }
+
+    return true;
 }
 
 // unity build with all the passes
@@ -244,21 +265,6 @@ static bool is_if_branch(TB_Node* n, uint64_t* falsey) {
 #include "libcalls.h"
 #include "scheduler.h"
 
-static bool lattice_dommy(LatticeUniverse* uni, TB_Node* expected_dom, TB_Node* bb) {
-    while (bb != NULL && expected_dom != bb) {
-        Lattice* l = lattice_universe_get(uni, bb);
-        assert(l->tag == LATTICE_CONTROL);
-
-        TB_Node* new_bb = l->_ctrl.idom;
-        if (new_bb == NULL) {
-            return false;
-        }
-        bb = new_bb;
-    }
-
-    return true;
-}
-
 static TB_Node* gvn(TB_Passes* restrict p, TB_Node* n, size_t extra) {
     // try GVN, if we succeed, just delete the node and use the old copy
     TB_Node* k = nl_hashset_put2(&p->gvn_nodes, n, gvn_hash, gvn_compare);
@@ -273,11 +279,9 @@ static TB_Node* gvn(TB_Passes* restrict p, TB_Node* n, size_t extra) {
 }
 
 TB_Node* make_poison(TB_Function* f, TB_Passes* restrict p, TB_DataType dt) {
-    return gvn(p, tb_alloc_node(f, TB_POISON, dt, 1, 0), 0);
-}
-
-TB_Node* make_dead_node(TB_Function* f, TB_Passes* restrict p) {
-    return gvn(p, tb_alloc_node(f, TB_DEAD, TB_TYPE_CONTROL, 1, 0), 0);
+    TB_Node* n = tb_alloc_node(f, TB_POISON, dt, 1, 0);
+    set_input(f, n, f->root_node, 0);
+    return gvn(p, n, 0);
 }
 
 TB_Node* make_int_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, uint64_t x) {
@@ -288,38 +292,40 @@ TB_Node* make_int_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, ui
     TB_NodeInt* i = TB_NODE_GET_EXTRA(n);
     i->value = x;
 
+    set_input(f, n, f->root_node, 0);
+
     Lattice* l;
     if (dt.type == TB_INT) {
-        l = lattice_intern(&p->universe, (Lattice){ LATTICE_INT, ._int = { x, x, ~x & mask, x } });
+        l = lattice_intern(p, (Lattice){ LATTICE_INT, ._int = { x, x, ~x & mask, x } });
     } else {
-        LatticeTrifecta t = x ? LATTICE_KNOWN_NOT_NULL : LATTICE_KNOWN_NULL;
-        l = lattice_intern(&p->universe, (Lattice){ LATTICE_POINTER, ._ptr = { t } });
+        l = x ? &XNULL_IN_THE_SKY : &NULL_IN_THE_SKY;
     }
-    lattice_universe_map(&p->universe, n, l);
-
+    lattice_universe_map(p, n, l);
     return gvn(p, n, sizeof(TB_NodeInt));
+}
+
+TB_Node* dead_node(TB_Function* f, TB_Passes* restrict p) {
+    TB_Node* n = tb_alloc_node(f, TB_DEAD, TB_TYPE_CONTROL, 1, 0);
+    set_input(f, n, f->root_node, 0);
+    lattice_universe_map(p, n, &XCTRL_IN_THE_SKY);
+    return gvn(p, n, 0);
 }
 
 TB_Node* make_proj_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, TB_Node* src, int i) {
     TB_Node* n = tb_alloc_node(f, TB_PROJ, dt, 1, sizeof(TB_NodeProj));
-    set_input(p, n, src, 0);
+    set_input(f, n, src, 0);
     TB_NODE_SET_EXTRA(n, TB_NodeProj, .index = i);
     return n;
 }
 
-static TB_Node* clone_node(TB_Passes* restrict p, TB_Function* f, TB_Node* region, TB_Node* n, bool* new_node) {
-    assert(0 && "TODO");
-    return NULL;
-}
-
-static void remove_input(TB_Passes* restrict p, TB_Function* f, TB_Node* n, size_t i) {
+static void remove_input(TB_Function* f, TB_Node* n, size_t i) {
     // remove swap
     n->input_count--;
     if (n->input_count > 0) {
         if (n->input_count != i) {
-            set_input(p, n, n->inputs[n->input_count], i);
+            set_input(f, n, n->inputs[n->input_count], i);
         }
-        set_input(p, n, NULL, n->input_count);
+        set_input(f, n, NULL, n->input_count);
     }
 }
 
@@ -327,16 +333,8 @@ void tb_pass_kill_node(TB_Passes* restrict p, TB_Node* n) {
     // remove from CSE if we're murdering it
     nl_hashset_remove2(&p->gvn_nodes, n, gvn_hash, gvn_compare);
 
-    if (n->type == TB_LOCAL) {
-        // remove from local list
-        dyn_array_for(i, p->locals) if (p->locals[i] == n) {
-            dyn_array_remove(p->locals, i);
-            break;
-        }
-    }
-
     FOREACH_N(i, 0, n->input_count) {
-        remove_user(p, n, i);
+        remove_user(n, i);
         n->inputs[i] = NULL;
     }
 
@@ -345,7 +343,7 @@ void tb_pass_kill_node(TB_Passes* restrict p, TB_Node* n) {
     n->type = TB_NULL;
 }
 
-static User* remove_user(TB_Passes* restrict p, TB_Node* n, int slot) {
+static User* remove_user(TB_Node* n, int slot) {
     // early out: there was no previous input
     if (n->inputs[slot] == NULL) return NULL;
 
@@ -370,19 +368,19 @@ static User* remove_user(TB_Passes* restrict p, TB_Node* n, int slot) {
     tb_panic("Failed to remove non-existent user %p from %p (slot %d)", old, n, slot);
 }
 
-void set_input(TB_Passes* restrict p, TB_Node* n, TB_Node* in, int slot) {
+void set_input(TB_Function* f, TB_Node* n, TB_Node* in, int slot) {
     // recycle the user
-    User* old_use = remove_user(p, n, slot);
+    User* old_use = remove_user(n, slot);
 
     n->inputs[slot] = in;
     if (in != NULL) {
-        add_user(p, n, in, slot, old_use);
+        add_user(f, n, in, slot, old_use);
     }
 }
 
 // we sometimes get the choice to recycle users because we just deleted something
-static void add_user(TB_Passes* restrict p, TB_Node* n, TB_Node* in, int slot, User* recycled) {
-    User* use = recycled ? recycled : TB_ARENA_ALLOC(tmp_arena, User);
+void add_user(TB_Function* f, TB_Node* n, TB_Node* in, int slot, User* recycled) {
+    User* use = recycled ? recycled : TB_ARENA_ALLOC(f->arena, User);
     use->next = in->users;
     use->n = n;
     use->slot = slot;
@@ -390,7 +388,7 @@ static void add_user(TB_Passes* restrict p, TB_Node* n, TB_Node* in, int slot, U
 }
 
 static void tb_pass_mark_users_raw(TB_Passes* restrict p, TB_Node* n) {
-    for (User* use = n->users; use; use = use->next) {
+    FOR_USERS(use, n) {
         tb_pass_mark(p, use->n);
     }
 }
@@ -400,12 +398,12 @@ void tb_pass_mark(TB_Passes* opt, TB_Node* n) {
 }
 
 void tb_pass_mark_users(TB_Passes* restrict p, TB_Node* n) {
-    for (User* use = n->users; use; use = use->next) {
+    FOR_USERS(use, n) {
         tb_pass_mark(p, use->n);
         TB_NodeTypeEnum type = use->n->type;
 
         // tuples changing means their projections did too.
-        if (type == TB_PROJ || type == TB_DEAD) {
+        if (type == TB_PROJ) {
             tb_pass_mark_users(p, use->n);
         }
 
@@ -420,52 +418,37 @@ void tb_pass_mark_users(TB_Passes* restrict p, TB_Node* n) {
 
 static void push_all_nodes(TB_Passes* restrict p, Worklist* restrict ws, TB_Function* f) {
     CUIK_TIMED_BLOCK("push_all_nodes") {
-        DynArray(TB_Node*) stack = p->stack;
-        if (stack == NULL) {
-            stack = dyn_array_create(TB_Node*, 1024);
-        }
+        worklist_test_n_set(ws, f->root_node);
+        dyn_array_put(ws->items, f->root_node);
 
-        // push all nodes using the terminator list
-        DynArray(TB_Node*) terminators = f->terminators;
-        dyn_array_for(i, terminators) {
-            TB_Node* end = terminators[i];
+        for (size_t i = 0; i < dyn_array_length(ws->items); i++) {
+            TB_Node* n = ws->items[i];
 
-            // place endpoint, we'll construct the rest from there
-            if (worklist_test_n_set(ws, end)) {
-                // already processed
-                continue;
-            }
-
-            dyn_array_put(stack, end);
-
-            while (dyn_array_length(stack)) {
-                TB_Node* n = dyn_array_pop(stack);
-
-                // place self first
-                dyn_array_put(ws->items, n);
-
-                // push inputs
-                FOREACH_N(i, 0, n->input_count) {
-                    TB_Node* in = n->inputs[i];
-                    if (in && !worklist_test_n_set(ws, in)) {
-                        dyn_array_put(stack, in);
-                    }
+            FOR_USERS(use, n) {
+                TB_Node* out = use->n;
+                if (!worklist_test_n_set(ws, out)) {
+                    dyn_array_put(ws->items, out);
                 }
             }
         }
 
-        p->stack = stack;
+        CUIK_TIMED_BLOCK("reversing") {
+            size_t last = dyn_array_length(ws->items) - 1;
+            FOREACH_N(i, 0, dyn_array_length(ws->items) / 2) {
+                SWAP(TB_Node*, ws->items[i], ws->items[last - i]);
+            }
+        }
     }
 }
 
 static void cool_print_type(TB_Node* n) {
     TB_DataType dt = n->dt;
-    if (n->type != TB_START && n->type != TB_REGION && !(n->type == TB_BRANCH && n->input_count == 1)) {
+    if (n->type != TB_ROOT && n->type != TB_REGION && !(n->type == TB_BRANCH && n->input_count == 1)) {
         if (n->type == TB_STORE) {
             dt = n->inputs[3]->dt;
         } else if (n->type == TB_BRANCH) {
             dt = n->inputs[1]->dt;
-        } else if (n->type == TB_END) {
+        } else if (n->type == TB_ROOT) {
             dt = n->input_count > 1 ? n->inputs[1]->dt : TB_TYPE_VOID;
         } else if (n->type >= TB_CMP_EQ && n->type <= TB_CMP_FLE) {
             dt = TB_NODE_GET_EXTRA_T(n, TB_NodeCompare)->cmp_dt;
@@ -478,7 +461,11 @@ static void cool_print_type(TB_Node* n) {
 void print_node_sexpr(TB_Node* n, int depth) {
     if (n->type == TB_INTEGER_CONST) {
         TB_NodeInt* num = TB_NODE_GET_EXTRA(n);
-        printf("%"PRId64, num->value);
+        if (n->dt.type == TB_PTR) {
+            printf("%#"PRIx64, num->value);
+        } else {
+            printf("%"PRId64, tb__sxt(num->value, n->dt.data, 64));
+        }
     } else if (n->type == TB_SYMBOL) {
         TB_Symbol* sym = TB_NODE_GET_EXTRA_T(n, TB_NodeSymbol)->sym;
         if (sym->name[0]) {
@@ -519,8 +506,69 @@ void print_node_sexpr(TB_Node* n, int depth) {
     }
 }
 
+static bool is_if_a_goto(TB_Passes* restrict p, TB_Node* proj, TB_Node* n) {
+    FOR_USERS(u, n) {
+        if (u->n == proj || u->n->type != TB_PROJ) continue;
+
+        Lattice* ty = lattice_universe_get(p, u->n);
+        if (ty != &XCTRL_IN_THE_SKY) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static TB_Node* fold_cproj(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* ctrl) {
+    // remove an if
+    if (ctrl->type == TB_PROJ && ctrl->inputs[0]->type == TB_BRANCH) {
+        Lattice* ctrl_ty = lattice_universe_get(p, ctrl);
+        if (ctrl_ty == &CTRL_IN_THE_SKY && is_if_a_goto(p, ctrl, ctrl->inputs[0])) {
+            TB_Node* pre_branch = ctrl->inputs[0]->inputs[0];
+            tb_pass_kill_node(p, ctrl->inputs[0]);
+            return pre_branch;
+        }
+    }
+
+    return NULL;
+}
+
 // Returns NULL or a modified node (could be the same node, we can stitch it back into place)
-static TB_Node* idealize(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_PeepholeFlags flags) {
+static TB_Node* idealize(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    switch (n->type) {
+        case TB_CALL:
+        case TB_TAILCALL:
+        case TB_SYSCALL:
+        case TB_DEBUGBREAK:
+        case TB_TRAP:
+        case TB_BRANCH:
+        case TB_UNREACHABLE:
+        case TB_SAFEPOINT_POLL: {
+            TB_Node* k = fold_cproj(p, f, n, n->inputs[0]);
+            if (k) {
+                set_input(f, n, k, 0);
+                return n;
+            }
+            break;
+        }
+
+        case TB_REGION: {
+            bool progress = false;
+            FOREACH_N(i, 0, n->input_count) {
+                TB_Node* k = n->inputs[i];
+                if (k = fold_cproj(p, f, n, k), k) {
+                    set_input(f, n, k, i);
+                    progress = true;
+                }
+            }
+
+            if (progress) return n;
+            break;
+        }
+
+        default: break;
+    }
+
     switch (n->type) {
         // integer ops
         case TB_AND:
@@ -546,19 +594,19 @@ static TB_Node* idealize(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
 
         // memory
         case TB_LOAD:
-        return (flags & TB_PEEPHOLE_MEMORY) ? ideal_load(p, f, n) : NULL;
+        return ideal_load(p, f, n);
 
         case TB_STORE:
-        return (flags & TB_PEEPHOLE_MEMORY) ? ideal_store(p, f, n) : NULL;
+        return ideal_store(p, f, n);
 
-        case TB_END:
-        return (flags & TB_PEEPHOLE_MEMORY) ? ideal_end(p, f, n) : NULL;
+        case TB_ROOT:
+        return ideal_root(p, f, n);
 
         case TB_MEMCPY:
-        return (flags & TB_PEEPHOLE_MEMORY) ? ideal_memcpy(p, f, n) : NULL;
+        return ideal_memcpy(p, f, n);
 
         case TB_MEMSET:
-        return (flags & TB_PEEPHOLE_MEMORY) ? ideal_memset(p, f, n) : NULL;
+        return ideal_memset(p, f, n);
 
         // division
         case TB_SDIV:
@@ -587,7 +635,7 @@ static TB_Node* idealize(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
 
         // control flow
         case TB_PHI:
-        return (flags & TB_PEEPHOLE_PHI) ? ideal_phi(p, f, n) : NULL;
+        return ideal_phi(p, f, n);
 
         case TB_REGION:
         return ideal_region(p, f, n);
@@ -600,8 +648,8 @@ static TB_Node* idealize(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
     }
 }
 
-// May return one of the inputs, this is used
-static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_PeepholeFlags flags) {
+// May return one of the direct inputs
+static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     switch (n->type) {
         // integer ops
         case TB_AND:
@@ -628,22 +676,59 @@ static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
         return n;
 
         case TB_LOAD:
-        return (flags & TB_PEEPHOLE_MEMORY) ? identity_load(p, f, n) : n;
+        return identity_load(p, f, n);
 
-        case TB_SAFEPOINT_NOP:
-        case TB_SAFEPOINT_POLL:
-        if (n->inputs[0]->type == TB_DEAD) {
-            // dead control? dead node
-            return n->inputs[0];
-        } if (n->inputs[0]->type == TB_SAFEPOINT_POLL || n->inputs[0]->type == TB_SAFEPOINT_NOP) {
-            // (safepoint (safepoint X)) => (safepoint X)
-            return n->inputs[0];
-        } else {
+        case TB_CALL:
+        case TB_TAILCALL:
+        case TB_SYSCALL:
+        case TB_DEBUGBREAK:
+        case TB_TRAP:
+        case TB_UNREACHABLE: {
+            // Dead node? kill
+            Lattice* ctrl = lattice_universe_get(p, n->inputs[0]);
+            return ctrl == &XCTRL_IN_THE_SKY ? dead_node(f, p) : n;
+        }
+
+        case TB_SAFEPOINT_POLL: {
+            // Dead node? kill
+            Lattice* ctrl = lattice_universe_get(p, n->inputs[0]);
+            if (ctrl == &XCTRL_IN_THE_SKY || n->inputs[0]->type == TB_SAFEPOINT_POLL) {
+                // (safepoint (safepoint X)) => (safepoint X)
+                return n->inputs[0];
+            } else {
+                return n;
+            }
+        }
+
+        case TB_REGION: {
+            // fold out diamond shaped patterns
+            TB_Node* same = n->inputs[0];
+            if (same->type == TB_PROJ && same->inputs[0]->type == TB_BRANCH) {
+                same = same->inputs[0];
+
+                // if it has phis... quit
+                FOR_USERS(u, n) {
+                    if (u->n->type == TB_PHI) {
+                        return n;
+                    }
+                }
+
+                FOREACH_N(i, 1, n->input_count) {
+                    if (n->inputs[i]->type != TB_PROJ || n->inputs[i]->inputs[0] != same) {
+                        return n;
+                    }
+                }
+
+                TB_Node* before = same->inputs[0];
+                tb_pass_kill_node(p, same);
+                return before;
+            }
+
             return n;
         }
 
         // dumb phis
-        case TB_PHI: if (flags & TB_PEEPHOLE_PHI) {
+        case TB_PHI: {
             TB_Node* same = NULL;
             FOREACH_N(i, 1, n->input_count) {
                 if (n->inputs[i] == n) continue;
@@ -654,8 +739,6 @@ static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
             assert(same);
             tb_pass_mark_users(p, n->inputs[0]);
             return same;
-        } else {
-            return n;
         }
 
         default:
@@ -664,50 +747,81 @@ static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
 }
 
 // computes the type of a node based on it's inputs
-static Lattice* dataflow(TB_Passes* restrict p, LatticeUniverse* uni, TB_Node* n) {
+static Lattice* dataflow(TB_Passes* restrict p, TB_Node* n) {
     switch (n->type) {
         case TB_INTEGER_CONST: {
             TB_NodeInt* num = TB_NODE_GET_EXTRA(n);
             if (n->dt.type == TB_PTR) {
-                return lattice_intern(&p->universe, (Lattice){ LATTICE_POINTER, ._ptr = { num->value ? LATTICE_KNOWN_NOT_NULL : LATTICE_KNOWN_NULL } });
+                return num->value ? &XNULL_IN_THE_SKY : &NULL_IN_THE_SKY;
             } else {
-                return lattice_intern(&p->universe, (Lattice){ LATTICE_INT, ._int = { num->value, num->value, ~num->value, num->value } });
+                return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = { num->value, num->value, ~num->value, num->value } });
             }
         }
 
-        case TB_LOCAL:
-        case TB_SYMBOL:
-        return lattice_intern(uni, (Lattice){ LATTICE_POINTER, ._ptr = { LATTICE_KNOWN_NOT_NULL } });
+        case TB_PROJ: {
+            if (n->dt.type == TB_CONTROL) {
+                return lattice_universe_get(p, n);
+            } else {
+                return NULL;
+            }
+        }
 
-        case TB_INT2PTR:
-        return dataflow_int2ptr(p, uni, n);
+        case TB_BRANCH:
+        return dataflow_branch(p, n);
+
+        // control nodes just inherit their liveness
+        case TB_SAFEPOINT_POLL:
+        case TB_CALL:
+        case TB_TAILCALL:
+        case TB_SYSCALL:
+        case TB_DEBUGBREAK:
+        case TB_TRAP:
+        case TB_UNREACHABLE:
+        return lattice_universe_get(p, n->inputs[0]);
+
+        case TB_LOCAL:
+        return &XNULL_IN_THE_SKY;
+
+        case TB_SYMBOL:
+        return lattice_intern(p, (Lattice){ LATTICE_PTR, ._ptr = { TB_NODE_GET_EXTRA_T(n, TB_NodeSymbol)->sym } });
+
+        case TB_BITCAST:
+        return dataflow_bitcast(p, n);
 
         case TB_TRUNCATE:
-        return dataflow_trunc(p, uni, n);
+        return dataflow_trunc(p, n);
 
         case TB_ZERO_EXT:
-        return dataflow_zext(p, uni, n);
+        return dataflow_zext(p, n);
 
         case TB_SIGN_EXT:
-        return dataflow_sext(p, uni, n);
+        return dataflow_sext(p, n);
 
         case TB_NEG:
         case TB_NOT:
-        return dataflow_unary(p, uni, n);
+        return dataflow_unary(p, n);
 
         case TB_AND:
         case TB_OR:
         case TB_XOR:
-        return dataflow_bits(p, uni, n);
+        return dataflow_bits(p, n);
 
         case TB_ADD:
         case TB_SUB:
         case TB_MUL:
-        return dataflow_arith(p, uni, n);
+        return dataflow_arith(p, n);
 
         case TB_SHL:
         case TB_SHR:
-        return dataflow_shift(p, uni, n);
+        return dataflow_shift(p, n);
+
+        case TB_CMP_EQ:
+        case TB_CMP_NE:
+        case TB_CMP_SLT:
+        case TB_CMP_SLE:
+        case TB_CMP_ULT:
+        case TB_CMP_ULE:
+        return dataflow_cmp(p, n);
 
         // meet all inputs
         case TB_LOOKUP: {
@@ -718,18 +832,33 @@ static Lattice* dataflow(TB_Passes* restrict p, LatticeUniverse* uni, TB_Node* n
             LatticeInt a = { l->entries[0].val, l->entries[0].val, l->entries[0].val, ~l->entries[0].val };
             FOREACH_N(i, 1, n->input_count) {
                 LatticeInt b = { l->entries[i].val, l->entries[i].val, l->entries[i].val, ~l->entries[i].val };
-                lattice_meet_int(&a, &b, dt);
+                a = lattice_meet_int(a, b, dt);
             }
 
-            return lattice_intern(uni, (Lattice){ LATTICE_INT, ._int = a });
+            return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = a });
+        }
+
+        case TB_SELECT: {
+            Lattice* a = lattice_universe_get(p, n->inputs[2]);
+            Lattice* b = lattice_universe_get(p, n->inputs[3]);
+            return lattice_meet(p, a, b, n->dt);
+        }
+
+        // meet all inputs
+        case TB_REGION: {
+            Lattice* l = lattice_universe_get(p, n->inputs[0]);
+            FOREACH_N(i, 1, n->input_count) {
+                l = lattice_meet(p, l, lattice_universe_get(p, n->inputs[i]), TB_TYPE_CONTROL);
+            }
+            return l;
         }
 
         // meet all inputs
         case TB_PHI: {
-            Lattice* l = lattice_universe_get(uni, n->inputs[1]);
+            Lattice* l = lattice_universe_get(p, n->inputs[1]);
             TB_DataType dt = n->dt;
             FOREACH_N(i, 2, n->input_count) {
-                l = lattice_meet(uni, l, lattice_universe_get(uni, n->inputs[i]), dt);
+                l = lattice_meet(p, l, lattice_universe_get(p, n->inputs[i]), dt);
             }
             return l;
         }
@@ -741,7 +870,7 @@ static Lattice* dataflow(TB_Passes* restrict p, LatticeUniverse* uni, TB_Node* n
 // converts constant Lattice into constant node
 static TB_Node* try_as_const(TB_Passes* restrict p, TB_Node* n, Lattice* l) {
     // already a constant?
-    if (n->type == TB_INTEGER_CONST || n->type == TB_FLOAT32_CONST || n->type == TB_FLOAT64_CONST) {
+    if (n->type == TB_SYMBOL || n->type == TB_INTEGER_CONST || n->type == TB_FLOAT32_CONST || n->type == TB_FLOAT64_CONST) {
         return NULL;
     }
 
@@ -761,25 +890,20 @@ static TB_Node* try_as_const(TB_Passes* restrict p, TB_Node* n, Lattice* l) {
             return NULL;
         }
 
-        case LATTICE_POINTER: {
-            if (l->_ptr.trifecta == LATTICE_KNOWN_NULL) {
-                return make_int_node(p->f, p, n->dt, 0);
-            }
+        case LATTICE_NULL:
+        return make_int_node(p->f, p, n->dt, 0);
 
-            return NULL;
+        case LATTICE_PTR: {
+            return make_int_node(p->f, p, n->dt, 0);
         }
 
         default: return NULL;
     }
 }
 
-static bool is_terminator(TB_Node* n) {
-    return n->type == TB_BRANCH || n->type == TB_END || n->type == TB_TRAP || n->type == TB_UNREACHABLE;
-}
-
 static void validate_node_users(TB_Node* n) {
     if (n != NULL) {
-        for (User* use = n->users; use; use = use->next) {
+        FOR_USERS(use, n) {
             tb_assert(use->n->inputs[use->slot] == n, "Mismatch between def-use and use-def data");
         }
     }
@@ -787,11 +911,25 @@ static void validate_node_users(TB_Node* n) {
 
 static void print_lattice(Lattice* l, TB_DataType dt) {
     switch (l->tag) {
+        case LATTICE_BOT: printf("[bot]"); break;
+        case LATTICE_TOP: printf("[top]"); break;
+
+        case LATTICE_TUPLE: printf("[tuple]"); break;
+        case LATTICE_CTRL:  printf("[ctrl]"); break;
+        case LATTICE_XCTRL: printf("[~ctrl]"); break;
+
+        case LATTICE_NULL:  printf("[null]"); break;
+        case LATTICE_XNULL: printf("[~null]"); break;
+        case LATTICE_PTR:   printf("[%s]", l->_ptr.sym->name); break;
+
         case LATTICE_INT: {
             assert(dt.type == TB_INT);
-            printf("[%"PRId64, tb__sxt(l->_int.min, dt.data, 64));
-            if (l->_int.min != l->_int.max) {
-                printf(",%"PRId64, tb__sxt(l->_int.max, dt.data, 64));
+            if (l->_int.min == l->_int.max) {
+                printf("[%"PRId64, tb__sxt(l->_int.min, dt.data, 64));
+            } else if (l->_int.min > l->_int.max) {
+                printf("[%"PRId64",%"PRId64, tb__sxt(l->_int.min, dt.data, 64), tb__sxt(l->_int.max, dt.data, 64));
+            } else {
+                printf("[%"PRIu64",%"PRIu64, l->_int.min, l->_int.max);
             }
 
             uint64_t known = l->_int.known_zeros | l->_int.known_ones;
@@ -799,12 +937,6 @@ static void print_lattice(Lattice* l, TB_DataType dt) {
                 printf("; zeros=%#"PRIx64", ones=%#"PRIx64, l->_int.known_zeros, l->_int.known_ones);
             }
             printf("]");
-            break;
-        }
-
-        case LATTICE_POINTER: {
-            static const char* tri[] = { "unknown", "null", "~null" };
-            printf("[%s]", tri[l->_ptr.trifecta]);
             break;
         }
 
@@ -816,16 +948,19 @@ static void print_lattice(Lattice* l, TB_DataType dt) {
 // because certain optimizations apply when things are the same
 // we mark ALL users including the ones who didn't get changed
 // when subsuming.
-static TB_Node* peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_PeepholeFlags flags) {
-    // idealize node (in a loop of course)
-    TB_Node* k = idealize(p, f, n, flags);
+TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
+    // idealize can modify the node, make sure it's not in the GVN pool at the time
+    nl_hashset_remove2(&p->gvn_nodes, n, gvn_hash, gvn_compare);
+
+    TB_Function* f = p->f;
+
+    // idealize node (this can technically run an arbitrary number of times
+    // but in practice we should only hit a node like once or twice)
+    TB_Node* k = idealize(p, f, n);
     DO_IF(TB_OPTDEBUG_PEEP)(int loop_count=0);
     while (k != NULL) {
         DO_IF(TB_OPTDEBUG_STATS)(p->stats.rewrites++);
         DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[32m"), print_node_sexpr(k, 0), printf("\x1b[0m"));
-
-        // only the n users actually changed
-        tb_pass_mark_users(p, n);
 
         // transfer users from n -> k
         if (n != k) {
@@ -833,22 +968,26 @@ static TB_Node* peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
             n = k;
         }
 
+        // mark post subsume since previous users of n might have
+        // name equality based opts.
+        tb_pass_mark_users(p, n);
+
         // try again, maybe we get another transformation
-        k = idealize(p, f, n, flags);
-        DO_IF(TB_OPTDEBUG_PEEP)(if (++loop_count > 10) { log_warn("%p: we looping a lil too much dawg...", n); });
+        k = idealize(p, f, n);
+        DO_IF(TB_OPTDEBUG_PEEP)(if (++loop_count > 5) { log_warn("%p: we looping a lil too much dawg...", n); });
     }
 
     // generate fancier type
-    if (n->dt.type >= TB_INT && n->dt.type <= TB_PTR) {
-        //   no type provided? just make a not-so-form fitting TOP
-        Lattice* new_type = dataflow(p, &p->universe, n);
+    if (n->dt.type != TB_CONT && n->dt.type != TB_MEMORY) {
+        Lattice* new_type = dataflow(p, n);
+
+        // no type provided? just make a not-so-form fitting bottom type
         if (new_type == NULL) {
-            new_type = lattice_top(&p->universe, n->dt);
-            DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[93mTOP\x1b[0m"));
-        } else {
-            // print fancy type
-            DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[93m"), print_lattice(new_type, n->dt), printf("\x1b[0m"));
+            new_type = lattice_from_dt(p, n->dt);
         }
+
+        // print fancy type
+        DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[93m"), print_lattice(new_type, n->dt), printf("\x1b[0m"));
 
         // types that consist of one possible value are made into value constants.
         k = try_as_const(p, n, new_type);
@@ -858,13 +997,13 @@ static TB_Node* peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
             subsume_node(p, f, n, k);
             tb_pass_mark_users(p, k);
             return k;
-        } else {
-            lattice_universe_map(&p->universe, n, new_type);
+        } else if (lattice_universe_map_progress(p, n, new_type)) {
+            tb_pass_mark_users(p, n);
         }
     }
 
     // convert into matching identity
-    k = identity(p, f, n, flags);
+    k = identity(p, f, n);
     if (n != k) {
         DO_IF(TB_OPTDEBUG_STATS)(p->stats.identities++);
         DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[33m"), print_node_sexpr(k, 0), printf("\x1b[0m"));
@@ -891,47 +1030,32 @@ static TB_Node* peephole(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_P
 }
 
 static void subsume_node(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* new_n) {
-    User* use = n->users;
-    while (use != NULL) {
-        tb_assert(use->n->inputs[use->slot] == n, "Mismatch between def-use and use-def data");
+    CUIK_TIMED_BLOCK("subsume") {
+        User* use = n->users;
+        while (use != NULL) {
+            tb_assert(use->n->inputs[use->slot] == n, "Mismatch between def-use and use-def data");
 
-        // set_input will delete 'use' so we can't use it afterwards
-        TB_Node* use_n = use->n;
-        User* next = use->next;
+            // set_input will delete 'use' so we can't use it afterwards
+            TB_Node* use_n = use->n;
+            User* next = use->next;
 
-        set_input(p, use->n, new_n, use->slot);
-        use = next;
+            set_input(f, use->n, new_n, use->slot);
+            use = next;
+        }
     }
 
     tb_pass_kill_node(p, n);
 }
 
-static void generate_use_lists(TB_Passes* restrict p, TB_Function* f) {
-    dyn_array_for(i, p->worklist.items) {
-        TB_Node* n = p->worklist.items[i];
-
-        if (n->type == TB_LOCAL) {
-            // we don't need to check for duplicates here, the worklist is uniques
-            dyn_array_put(p->locals, n);
-        }
-
-        FOREACH_N(j, 0, n->input_count) if (n->inputs[j]) {
-            add_user(p, n, n->inputs[j], j, NULL);
-        }
-    }
-}
-
 TB_Passes* tb_pass_enter(TB_Function* f, TB_Arena* arena) {
-    // assert(f->stop_node && "missing return");
+    assert(f->root_node && "missing root node");
+
     TB_Passes* p = tb_platform_heap_alloc(sizeof(TB_Passes));
     *p = (TB_Passes){ .f = f };
 
-    TB_Arena* old_arena = f->arena;
-    f->line_attrib.file = NULL;
     f->arena = arena;
 
     verify_tmp_arena(p);
-
     worklist_alloc(&p->worklist, f->node_count);
 
     // generate work list (put everything)
@@ -943,11 +1067,6 @@ TB_Passes* tb_pass_enter(TB_Function* f, TB_Arena* arena) {
 
     DO_IF(TB_OPTDEBUG_PEEP)(log_debug("%s: starting passes with %d nodes", f->super.name, f->node_count));
 
-    // find all outgoing edges
-    CUIK_TIMED_BLOCK("gen users") {
-        generate_use_lists(p, f);
-    }
-
     return p;
 }
 
@@ -956,25 +1075,240 @@ void tb_pass_sroa(TB_Passes* p) {
         verify_tmp_arena(p);
 
         TB_Function* f = p->f;
+        Worklist* ws = &p->worklist;
 
-        int pointer_size = tb__find_code_generator(f->super.module)->pointer_size;
-        TB_Node* start = f->start_node;
+        int pointer_size = f->super.module->codegen->pointer_size;
+        TB_Node* root = f->root_node;
+
+        // write initial locals
+        FOR_USERS(u, root) {
+            if (u->n->type == TB_LOCAL) {
+                worklist_push(&p->worklist, u->n);
+            }
+        }
+
+        // i think the SROA'd pieces can't themselves split more? that should something we check
+        size_t local_count = dyn_array_length(ws->items);
+        for (size_t i = 0; i < local_count; i++) {
+            assert(ws->items[i]->type == TB_LOCAL);
+            sroa_rewrite(p, pointer_size, root, ws->items[i]);
+        }
+    }
+}
+
+typedef union {
+    uint64_t i;
+    User* ctrl;
+} Value;
+
+typedef struct {
+    Worklist* ws;
+    Value* vals;
+    bool* ready;
+    int phi_i;
+} Interp;
+
+static Value* in_val(Interp* vm, TB_Node* n, int i) { return &vm->vals[n->inputs[i]->gvn]; }
+static Value eval(Interp* vm, TB_Node* n) {
+    printf("  EVAL v%u\n", n->gvn);
+    switch (n->type) {
+        case TB_INTEGER_CONST: return (Value){ .i = TB_NODE_GET_EXTRA_T(n, TB_NodeInt)->value };
+
+        case TB_ADD: {
+            uint64_t a = in_val(vm, n, 1)->i;
+            uint64_t b = in_val(vm, n, 2)->i;
+            return (Value){ .i = a + b };
+        }
+
+        case TB_CMP_SLT: {
+            uint64_t a = in_val(vm, n, 1)->i;
+            uint64_t b = in_val(vm, n, 2)->i;
+            return (Value){ .i = a < b };
+        }
+
+        case TB_BRANCH: {
+            TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
+            uint64_t key = in_val(vm, n, 1)->i;
+            int index = 0;
+
+            FOREACH_N(i, 0, br->succ_count - 1) {
+                if (key == br->keys[i]) {
+                    index = i + 1;
+                    break;
+                }
+            }
+
+            User* ctrl = proj_with_index(n, index);
+            return (Value){ .ctrl = ctrl };
+        }
+
+        case TB_REGION:
+        return (Value){ .ctrl = cfg_next_user(n) };
+
+        case TB_PROJ:
+        if (n->dt.type == TB_MEMORY || n->dt.type == TB_CONT) {
+            return (Value){ .i = 0 };
+        } else if (n->dt.type == TB_CONTROL) {
+            return (Value){ .ctrl = cfg_next_user(n) };
+        } else {
+            tb_todo();
+        }
+
+        // control nodes
+        case TB_ROOT: {
+            uint64_t v = in_val(vm, n, 3)->i;
+
+            printf("END %"PRIu64"\n", v);
+            return (Value){ .ctrl = NULL };
+        }
+
+        default: tb_todo();
+    }
+}
+
+static bool is_ready(Interp* vm, TB_Node* n) {
+    FOREACH_N(i, 1, n->input_count) {
+        if (!vm->ready[n->inputs[i]->gvn]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static void dirty_deps(Interp* vm, TB_Node* n) {
+    printf("    DIRTY v%u\n", n->gvn);
+    vm->ready[n->gvn] = false;
+
+    FOR_USERS(u, n) {
+        if (u->n->type != TB_PHI && vm->ready[u->n->gvn]) {
+            dirty_deps(vm, u->n);
+        }
+    }
+}
+
+void dummy_interp(TB_Passes* p) {
+    TB_Function* f = p->f;
+    TB_Arena* arena = get_temporary_arena(f->super.module);
+
+    TB_Node* ip = cfg_next_control(f->root_node);
+
+    // We need to generate a CFG
+    TB_CFG cfg = tb_compute_rpo(f, p);
+    // And perform global scheduling
+    tb_pass_schedule(p, cfg, false);
+
+    Interp vm = {
+        .ws = &p->worklist,
+        .vals = tb_arena_alloc(arena, f->node_count * sizeof(Value)),
+        .ready = tb_arena_alloc(arena, f->node_count * sizeof(bool))
+    };
+
+    int last_edge = 0;
+    while (ip) {
+        printf("IP = v%u\n", ip->gvn);
+
+        worklist_clear(&p->worklist);
+
+        // push all direct users of the parent's users (our antideps)
+        FOR_USERS(u, ip->inputs[last_edge]) {
+            if (is_ready(&vm, u->n)) {
+                worklist_push(&p->worklist, u->n);
+            }
+        }
+
+        if (ip->type != TB_REGION) {
+            FOREACH_N(i, 1, ip->input_count) {
+                worklist_push(&p->worklist, ip->inputs[i]);
+            }
+        }
+
+        if (is_ready(&vm, ip)) {
+            worklist_push(&p->worklist, ip);
+        }
 
         size_t i = 0;
-        while (i < dyn_array_length(p->locals)) {
-            i += sroa_rewrite(p, pointer_size, start, p->locals[i]);
+        for (; i < dyn_array_length(p->worklist.items); i++) {
+            TB_Node* n = p->worklist.items[i];
+            if (n->type == TB_PHI) continue;
+
+            vm.vals[n->gvn] = eval(&vm, n);
+            vm.ready[n->gvn] = true;
+
+            FOR_USERS(u, n) {
+                if (is_ready(&vm, u->n)) {
+                    worklist_push(&p->worklist, u->n);
+                }
+            }
+
+            // advance now
+            if (n == ip) {
+                dyn_array_set_length(p->worklist.items, i + 1);
+                break;
+            }
+        }
+
+        if (ip->type == TB_REGION) {
+            vm.vals[ip->gvn] = eval(&vm, ip);
+            vm.ready[ip->gvn] = true;
+        } else {
+            assert(is_ready(&vm, ip));
+        }
+
+        User* succ = vm.vals[ip->gvn].ctrl;
+        if (succ == NULL) {
+            break;
+        }
+
+        last_edge = succ->slot;
+        ip = succ->n;
+
+        if (ip->type == TB_REGION) {
+            FOR_USERS(u, ip) {
+                TB_Node* phi = u->n;
+                if (phi->type == TB_PHI) {
+                    TB_Node* in = phi->inputs[1 + last_edge];
+                    if (is_ready(&vm, in)) {
+                        worklist_push(&p->worklist, in);
+                    }
+                }
+            }
+
+            for (; i < dyn_array_length(p->worklist.items); i++) {
+                TB_Node* n = p->worklist.items[i];
+                if (n->type == TB_PHI) continue;
+
+                vm.vals[n->gvn] = eval(&vm, n);
+                vm.ready[n->gvn] = true;
+            }
+
+            FOR_USERS(u, ip) {
+                TB_Node* phi = u->n;
+                if (phi->type == TB_PHI) {
+                    printf("  PHI = v%u (v%u)\n", phi->gvn, phi->inputs[1 + last_edge]->gvn);
+
+                    Value* v = &vm.vals[phi->inputs[1 + last_edge]->gvn];
+                    vm.vals[phi->gvn] = *v;
+
+                    dirty_deps(&vm, phi);
+                    vm.ready[phi->gvn] = true;
+                }
+            }
         }
     }
 }
 
 void tb_pass_optimize(TB_Passes* p) {
-    tb_pass_peephole(p, TB_PEEPHOLE_ALL);
+    tb_pass_peephole(p);
     tb_pass_sroa(p);
-    tb_pass_peephole(p, TB_PEEPHOLE_ALL);
+    tb_pass_peephole(p);
     tb_pass_mem2reg(p);
-    tb_pass_peephole(p, TB_PEEPHOLE_ALL);
+    tb_pass_peephole(p);
     tb_pass_loop(p);
-    tb_pass_peephole(p, TB_PEEPHOLE_ALL);
+    tb_pass_peephole(p);
+
+    // tb_pass_print(p);
+    // dummy_interp(p);
 }
 
 static size_t tb_pass_update_cfg(TB_Passes* p, Worklist* ws, bool preserve) {
@@ -983,19 +1317,6 @@ static size_t tb_pass_update_cfg(TB_Passes* p, Worklist* ws, bool preserve) {
     p->cfg = tb_compute_rpo2(f, ws);
     tb_compute_dominators2(f, ws, p->cfg);
 
-    // mark IDOM for each "BB" node
-    FOREACH_N(i, 0, p->cfg.block_count) {
-        // entry block should be marked as dominated by NULL, to make it easy
-        // to end the iteration of a dom chain.
-        TB_Node* dom = NULL;
-        if (i != 0) {
-            dom = nl_map_get_checked(p->cfg.node_to_block, ws->items[i]).dom->start;
-        }
-
-        Lattice* l = lattice_ctrl(&p->universe, dom);
-        lattice_universe_map(&p->universe, ws->items[i], l);
-    }
-
     if (!preserve) {
         tb_free_cfg(&p->cfg);
     }
@@ -1003,92 +1324,102 @@ static size_t tb_pass_update_cfg(TB_Passes* p, Worklist* ws, bool preserve) {
     return p->cfg.block_count;
 }
 
-void tb_pass_peephole(TB_Passes* p, TB_PeepholeFlags flags) {
-    verify_tmp_arena(p);
-
-    if (p->gvn_nodes.data == NULL) {
-        p->gvn_nodes = nl_hashset_alloc(p->f->node_count);
-    }
-
-    // make sure we have space for the lattice universe
-    if (p->universe.arena == NULL) {
-        TB_Function* f = p->f;
-        TB_ThreadInfo* info = tb_thread_info(f->super.module);
-        if (info->type_arena.chunk_size == 0) {
-            // make new arena
-            tb_arena_create(&info->type_arena, TB_ARENA_LARGE_CHUNK_SIZE);
-        }
-
-        size_t count = f->node_count;
-        p->universe.arena = &info->type_arena;
-        p->universe.pool = nl_hashset_alloc(64);
-        p->universe.type_cap = count;
-        p->universe.types = tb_platform_heap_alloc(count * sizeof(Lattice*));
-        memset(p->universe.types, 0, count * sizeof(Lattice*));
-
-        // generate early doms
-        CUIK_TIMED_BLOCK("doms") {
-            Worklist tmp_ws = { 0 };
-            worklist_alloc(&tmp_ws, (f->node_count / 8) + 4);
-
-            tb_pass_update_cfg(p, &tmp_ws, false);
-
-            worklist_free(&tmp_ws);
-        }
-    }
-
+void tb_pass_prep(TB_Passes* p) {
     TB_Function* f = p->f;
-    CUIK_TIMED_BLOCK("peephole") {
-        TB_Node* n;
-        while ((n = worklist_pop(&p->worklist))) {
-            DO_IF(TB_OPTDEBUG_STATS)(p->stats.peeps++);
-            DO_IF(TB_OPTDEBUG_PEEP)(printf("peep t=%d? ", p->stats.time++), print_node_sexpr(n, 0));
 
-            // must've dead sometime between getting scheduled and getting here.
-            if (!cfg_is_endpoint(n) && n->type != TB_PROJ && n->users == NULL) {
-                DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[196mKILL\x1b[0m\n"));
-                tb_pass_kill_node(p, n);
-                continue;
+    if (p->types == NULL) {
+        TB_ThreadInfo* info = tb_thread_info(f->super.module);
+
+        CUIK_TIMED_BLOCK("allocate type array") {
+            size_t count = (f->node_count + 63ull) & ~63ull;
+            p->type_interner = nl_hashset_alloc(64);
+            p->type_cap = count;
+            p->types = tb_platform_heap_alloc(count * sizeof(Lattice*));
+            FOREACH_N(i, 0, count) {
+                p->types[i] = &TOP_IN_THE_SKY;
             }
 
-            if (peephole(p, f, n, flags)) {
-                DO_IF(TB_OPTDEBUG_PEEP)(printf("\n"));
+            nl_hashset_put2(&p->type_interner, &BOT_IN_THE_SKY,   lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &TOP_IN_THE_SKY,   lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &CTRL_IN_THE_SKY,  lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &XCTRL_IN_THE_SKY, lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &NULL_IN_THE_SKY,  lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &XNULL_IN_THE_SKY, lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &TUP_IN_THE_SKY,   lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &FALSE_IN_THE_SKY, lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &TRUE_IN_THE_SKY,  lattice_hash, lattice_cmp);
+        }
+    }
+
+    if (p->gvn_nodes.data == NULL) {
+        CUIK_TIMED_BLOCK("allocate GVN table") {
+            p->gvn_nodes = nl_hashset_alloc(p->f->node_count);
+        }
+
+        // write initial types for start node:
+        //   guarenteed to fit so we'll just write to the array directly)
+        p->types[f->root_node->gvn] = &TUP_IN_THE_SKY;
+        FOR_USERS(u, f->root_node) {
+            TB_Node* proj = u->n;
+            if (proj->type == TB_PROJ) {
+                p->types[proj->gvn] = lattice_from_dt(p, proj->dt);
             }
         }
     }
 }
 
-void tb_pass_exit(TB_Passes* p) {
+void tb_pass_peephole(TB_Passes* p) {
     verify_tmp_arena(p);
-
     TB_Function* f = p->f;
 
-    // terminators will be made obselete by the optimizer
-    dyn_array_destroy(f->terminators);
+    // allocates shit, imporant shit
+    tb_pass_prep(p);
 
-    #if TB_OPTDEBUG_STATS
-    /* push_all_nodes(p, &p->worklist, f);
-    int final_count = worklist_popcount(&p->worklist);
-    double factor = ((double) final_count / (double) p->stats.initial) * 100.0;*/
+    CUIK_TIMED_BLOCK("peephole") {
+        TB_Node* n;
+        while ((n = worklist_pop(&p->worklist))) {
+            DO_IF(TB_OPTDEBUG_STATS)(p->stats.peeps++);
+            DO_IF(TB_OPTDEBUG_PEEP)(printf("peep t=%d? ", ++p->stats.time), print_node_sexpr(n, 0));
 
-    printf("%s: stats:\n", f->super.name);
-    // printf("  %4d   -> %4d nodes (%.2f%%)\n", p->stats.initial, final_count, factor);
-    printf("  %4d GVN hit    %4d GVN miss\n", p->stats.gvn_hit, p->stats.gvn_miss);
-    printf("  %4d peepholes  %4d rewrites    %4d identities\n", p->stats.peeps, p->stats.rewrites, p->stats.identities);
-    #endif
+            // must've dead sometime between getting scheduled and getting here.
+            if (n->type != TB_PROJ && n->users == NULL) {
+                DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[196mKILL\x1b[0m\n"));
+                tb_pass_kill_node(p, n);
+                continue;
+            }
 
-    nl_map_free(p->scheduled);
-    worklist_free(&p->worklist);
-    nl_hashset_free(p->gvn_nodes);
-    dyn_array_destroy(p->stack);
-    dyn_array_destroy(p->locals);
-
-    if (p->universe.arena != NULL) {
-        tb_arena_clear(p->universe.arena);
-        nl_hashset_free(p->universe.pool);
-        tb_platform_heap_free(p->universe.types);
+            tb_pass_peephole_node(p, n);
+            DO_IF(TB_OPTDEBUG_PEEP)(printf("\n"));
+        }
     }
+}
 
-    tb_arena_clear(tmp_arena);
-    tb_platform_heap_free(p);
+void tb_pass_exit(TB_Passes* p) {
+    CUIK_TIMED_BLOCK("exit") {
+        verify_tmp_arena(p);
+
+        TB_Function* f = p->f;
+
+        #if TB_OPTDEBUG_STATS
+        push_all_nodes(p, &p->worklist, f);
+        int final_count = worklist_popcount(&p->worklist);
+        double factor = ((double) final_count / (double) p->stats.initial) * 100.0;
+
+        printf("%s: stats:\n", f->super.name);
+        printf("  %4d   -> %4d nodes (%.2f%%)\n", p->stats.initial, final_count, factor);
+        printf("  %4d GVN hit    %4d GVN miss\n", p->stats.gvn_hit, p->stats.gvn_miss);
+        printf("  %4d peepholes  %4d rewrites    %4d identities\n", p->stats.peeps, p->stats.rewrites, p->stats.identities);
+        #endif
+
+        worklist_free(&p->worklist);
+        nl_hashset_free(p->gvn_nodes);
+
+        if (p->types != NULL) {
+            nl_hashset_free(p->type_interner);
+            tb_platform_heap_free(p->types);
+        }
+
+        tb_arena_clear(tmp_arena);
+        tb_platform_heap_free(p);
+    }
 }

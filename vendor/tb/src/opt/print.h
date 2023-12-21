@@ -56,7 +56,7 @@ static void print_type2(TB_DataType dt) {
 static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
     if (n == NULL) {
         printf("_");
-    } else if (n->type == TB_START) {
+    } else if (n->type == TB_ROOT) {
         printf("%s", ctx->f->super.name);
 
         if (def) {
@@ -90,7 +90,7 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
         if (def) {
             bool first = true;
             printf("(");
-            for (User* u = n->users; u; u = u->next) {
+            FOR_USERS(u, n) {
                 if (u->n->type == TB_PHI) {
                     if (first) {
                         first = false;
@@ -102,8 +102,8 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
                     print_type2(u->n->dt);
                 }
             }
-            // printf(")");
-            printf(") // v%u", n->gvn);
+            printf(")");
+            //printf(") // v%u", n->gvn);
         }
     } else if (n->type == TB_FLOAT32_CONST) {
         TB_NodeFloat32* f = TB_NODE_GET_EXTRA(n);
@@ -119,14 +119,15 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
             printf("sym%p", sym);
         }
     } else if (n->type == TB_PROJ && n->dt.type == TB_CONTROL) {
-        if (n->inputs[0]->type == TB_START) {
+        if (n->inputs[0]->type == TB_ROOT) {
             print_ref_to_node(ctx, n->inputs[0], def);
         } else {
             ptrdiff_t i = try_find_traversal_index(&ctx->cfg, n);
             if (i >= 0) {
                 printf(".bb%zu", i);
                 if (def) {
-                    printf("() // v%u", n->gvn);
+                    printf("()");
+                    // printf("() // v%u", n->gvn);
                 }
             } else {
                 printf("*DEAD*");
@@ -166,7 +167,7 @@ static void print_branch_edge(PrinterCtx* ctx, TB_Node* n, bool fallthru) {
     printf("(");
     if (target->type == TB_REGION) {
         int phi_i = -1;
-        for (User* u = n->users; u; u = u->next) {
+        FOR_USERS(u, n) {
             if (u->n->type == TB_REGION) {
                 phi_i = 1 + u->slot;
                 break;
@@ -174,7 +175,7 @@ static void print_branch_edge(PrinterCtx* ctx, TB_Node* n, bool fallthru) {
         }
 
         bool first = true;
-        for (User* u = target->users; u; u = u->next) {
+        FOR_USERS(u, target) {
             if (u->n->type == TB_PHI) {
                 if (first) {
                     first = false;
@@ -194,22 +195,12 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
     print_ref_to_node(ctx, bb_start, true);
     printf(":");
 
-    // print predecessors
-    /*if (!(bb_start->type == TB_PROJ && bb_start->inputs[0]->type == TB_START) && bb_start->input_count > 0) {
-        printf(" \x1b[32m# preds: ");
-        FOREACH_N(j, 0, bb_start->input_count) {
-            print_ref_to_node(ctx, get_pred(bb_start, j), false);
-            printf(" ");
-        }
-        printf("\x1b[0m");
-    }*/
-
     if (ctx->opt->error_n == bb_start) {
         printf("\x1b[31m  <-- ERROR\x1b[0m");
     }
     printf("\n");
 
-    TB_BasicBlock* bb = nl_map_get_checked(ctx->opt->scheduled, bb_start);
+    TB_BasicBlock* bb = ctx->opt->scheduled[bb_start->gvn];
     Worklist* ws = &ctx->opt->worklist;
 
     #ifndef NDEBUG
@@ -227,21 +218,20 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
         if (n->type == TB_INTEGER_CONST || n->type == TB_FLOAT32_CONST ||
             n->type == TB_FLOAT64_CONST || n->type == TB_SYMBOL ||
             n->type == TB_SIGN_EXT || n->type == TB_ZERO_EXT ||
-            n->type == TB_PROJ || n->type == TB_START ||
-            n->type == TB_REGION || n->type == TB_NULL ||
+            n->type == TB_PROJ || n->type == TB_REGION ||
+            n->type == TB_NULL ||
             n->type == TB_PHI) {
             continue;
+        }
+
+        TB_NodeLocation* v;
+        if (v = nl_table_get(&ctx->f->locations, n), v) {
+            printf("  # location %s:%d\n", v->file->path, v->line);
         }
 
         switch (n->type) {
             case TB_DEBUGBREAK: printf("  debugbreak"); break;
             case TB_UNREACHABLE: printf("  unreachable"); break;
-
-            case TB_SAFEPOINT_NOP: {
-                TB_NodeSafepoint* s = TB_NODE_GET_EXTRA(n);
-                printf("  # v%u: location %s:%d", n->gvn, s->file->path, s->line);
-                break;
-            }
 
             case TB_BRANCH: {
                 TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
@@ -249,7 +239,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                 TB_Node** restrict succ = tb_arena_alloc(tmp_arena, br->succ_count * sizeof(TB_Node**));
 
                 // fill successors
-                for (User* u = n->users; u; u = u->next) {
+                FOR_USERS(u, n) {
                     if (u->n->type == TB_PROJ) {
                         int index = TB_NODE_GET_EXTRA_T(u->n, TB_NodeProj)->index;
                         succ[index] = u->n;
@@ -299,7 +289,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                 break;
             }
 
-            case TB_END: {
+            case TB_ROOT: {
                 printf("  end ");
                 FOREACH_N(i, 1, n->input_count) {
                     if (i != 1) printf(", ");
@@ -312,7 +302,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                 if (n->dt.type == TB_TUPLE) {
                     // print with multiple returns
                     TB_Node* projs[4] = { 0 };
-                    for (User* use = n->users; use; use = use->next) {
+                    FOR_USERS(use, n) {
                         if (use->n->type == TB_PROJ) {
                             int index = TB_NODE_GET_EXTRA_T(use->n, TB_NodeProj)->index;
                             projs[index] = use->n;
@@ -448,6 +438,9 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                     case TB_LOCAL: {
                         TB_NodeLocal* l = TB_NODE_GET_EXTRA(n);
                         printf("!size(%u) !align(%u)", l->size, l->align);
+                        if (l->type) {
+                            printf(" !var(%s)", l->name);
+                        }
                         break;
                     }
 
@@ -468,16 +461,6 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
             }
         }
 
-        ptrdiff_t search = nl_map_get(ctx->f->attribs, n);
-        if (search >= 0) {
-            DynArray(TB_Attrib) attribs = ctx->f->attribs[search].v;
-            dyn_array_for(i, attribs) {
-                if (attribs[i].tag == TB_ATTRIB_VARIABLE) {
-                    printf(" !var(%s)", attribs[i].var.name);
-                }
-            }
-        }
-
         if (ctx->opt->error_n == n) {
             printf("\x1b[31m  <-- ERROR\x1b[0m");
         }
@@ -494,8 +477,9 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
     }
 }
 
-bool tb_pass_print(TB_Passes* opt) {
+void tb_pass_print(TB_Passes* opt) {
     TB_Function* f = opt->f;
+    cuikperf_region_start("print", NULL);
 
     Worklist old = opt->worklist;
     Worklist tmp_ws = { 0 };
@@ -508,14 +492,16 @@ bool tb_pass_print(TB_Passes* opt) {
     // does the IR printing need smart scheduling lol (yes... when we're testing things)
     ctx.sched = greedy_scheduler;
 
+    TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
+
     // schedule nodes
-    tb_pass_schedule(opt, ctx.cfg);
+    tb_pass_schedule(opt, ctx.cfg, false);
     worklist_clear_visited(&opt->worklist);
 
     TB_Node* end_bb = NULL;
     FOREACH_N(i, 0, ctx.cfg.block_count) {
         TB_Node* end = nl_map_get_checked(ctx.cfg.node_to_block, opt->worklist.items[i]).end;
-        if (end == f->stop_node) {
+        if (end == f->root_node) {
             end_bb = opt->worklist.items[i];
             continue;
         }
@@ -527,9 +513,11 @@ bool tb_pass_print(TB_Passes* opt) {
         print_bb(&ctx, end_bb);
     }
 
+    tb_arena_restore(tmp_arena, sp);
     worklist_free(&opt->worklist);
     tb_free_cfg(&ctx.cfg);
     opt->worklist = old;
+    opt->scheduled = NULL;
     opt->error_n = NULL;
-    return false;
+    cuikperf_region_end();
 }

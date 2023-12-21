@@ -73,7 +73,7 @@ static void generate_unwind_info(COFF_UnwindInfo* restrict u, const ICodeGen* re
         // write pdata
         size_t j = i*3;
         pdata[j+0] = 0;
-        pdata[j+1] = out_f->code_size;
+        pdata[j+1] = out_f->code_size - out_f->nop_pads;
         pdata[j+2] = out_f->unwind_info;
 
         // pdata has relocations
@@ -142,13 +142,16 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
 
     int dbg_section_count = (dbg ? dbg->number_of_debug_sections(m) : 0);
     int section_count = dyn_array_length(sections) + dbg_section_count;
+    const ICodeGen* restrict code_gen = tb__find_code_generator(m);
 
     // mark each with a unique id
     size_t unique_id_counter = section_count * 2;
     CUIK_TIMED_BLOCK("alloc symbol IDs") {
         dyn_array_for(i, sections) {
             // unwind info
-            if (sections[i].funcs) unique_id_counter += 4;
+            if (code_gen->emit_win64eh_unwind_info && sections[i].funcs) {
+                unique_id_counter += 4;
+            }
         }
 
         dyn_array_for(i, sections) {
@@ -169,16 +172,11 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
         }
     }
 
-    const ICodeGen* restrict code_gen = tb__find_code_generator(m);
-    if (code_gen->emit_win64eh_unwind_info == NULL) {
-        tb_panic("write_xdata_section: emit_win64eh_unwind_info is required.");
-    }
-
     dyn_array_for(i, sections) {
         sections[i].section_num = 1 + i;
 
         // make unwind info for each section with functions
-        if (sections[i].funcs) {
+        if (code_gen->emit_win64eh_unwind_info && sections[i].funcs) {
             COFF_UnwindInfo* u = tb_arena_alloc(arena, sizeof(COFF_UnwindInfo));
             generate_unwind_info(u, code_gen, section_count, &sections[i]);
 
@@ -390,17 +388,24 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
                     if (p->internal) continue;
 
                     size_t actual_pos = source_offset + p->pos;
-                    size_t symbol_id = p->target->symbol_id;
+
+                    TB_Symbol* target = p->target;
+                    if (target->tag == TB_SYMBOL_EXTERNAL) {
+                        TB_Symbol* resolved = atomic_load_explicit(&((TB_External*) target)->resolved, memory_order_relaxed);
+                        if (resolved) target = resolved;
+                    }
+
+                    size_t symbol_id = target->symbol_id;
                     assert(symbol_id != 0);
 
-                    if (p->target->tag == TB_SYMBOL_FUNCTION || p->target->tag == TB_SYMBOL_EXTERNAL) {
+                    if (target->tag == TB_SYMBOL_FUNCTION || target->tag == TB_SYMBOL_EXTERNAL) {
                         *relocs++ = (COFF_ImageReloc){
                             .Type = IMAGE_REL_AMD64_REL32,
                             .SymbolTableIndex = symbol_id,
                             .VirtualAddress = actual_pos
                         };
-                    } else if (p->target->tag == TB_SYMBOL_GLOBAL) {
-                        TB_Global* target_global = (TB_Global*) p->target;
+                    } else if (target->tag == TB_SYMBOL_GLOBAL) {
+                        TB_Global* target_global = (TB_Global*) target;
                         bool is_tls = sections[target_global->parent].flags & TB_MODULE_SECTION_TLS;
                         *relocs++ = (COFF_ImageReloc){
                             .Type = is_tls ? IMAGE_REL_AMD64_SECREL : IMAGE_REL_AMD64_REL32,
@@ -448,6 +453,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
                 switch (in_reloc->type) {
                     case TB_OBJECT_RELOC_SECREL:  type = IMAGE_REL_AMD64_SECREL; break;
                     case TB_OBJECT_RELOC_SECTION: type = IMAGE_REL_AMD64_SECTION; break;
+                    case TB_OBJECT_RELOC_ADDR32NB:type = IMAGE_REL_AMD64_ADDR32NB; break;
                     default: tb_todo();
                 }
 

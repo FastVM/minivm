@@ -2,6 +2,24 @@
 #include "host.h"
 #include "opt/passes.h"
 
+static ICodeGen* tb__find_code_generator(TB_Module* m) {
+    // Place all the codegen interfaces down here
+    extern ICodeGen tb__x64_codegen;
+    extern ICodeGen tb__aarch64_codegen;
+
+    switch (m->target_arch) {
+        #ifdef TB_HAS_X64
+        case TB_ARCH_X86_64:  return &tb__x64_codegen;
+        #endif
+
+        #ifdef TB_HAS_AARCH64
+        case TB_ARCH_AARCH64: return &tb__aarch64_codegen;
+        #endif
+
+        default: return NULL;
+    }
+}
+
 TB_ThreadInfo* tb_thread_info(TB_Module* m) {
     static thread_local TB_ThreadInfo* chain;
     static thread_local mtx_t lock;
@@ -26,28 +44,28 @@ TB_ThreadInfo* tb_thread_info(TB_Module* m) {
         info = info->next;
     }
 
-    info = tb_platform_heap_alloc(sizeof(TB_ThreadInfo));
-    *info = (TB_ThreadInfo){ .owner = m, .chain = &chain, .lock = &lock };
+    CUIK_TIMED_BLOCK("alloc thread info") {
+        info = tb_platform_heap_alloc(sizeof(TB_ThreadInfo));
+        *info = (TB_ThreadInfo){ .owner = m, .chain = &chain, .lock = &lock };
 
-    // allocate memory for it
-    tb_arena_create(&info->perm_arena, TB_ARENA_LARGE_CHUNK_SIZE);
-    tb_arena_create(&info->tmp_arena, TB_ARENA_LARGE_CHUNK_SIZE);
+        // allocate memory for it
+        tb_arena_create(&info->perm_arena, TB_ARENA_LARGE_CHUNK_SIZE);
+        tb_arena_create(&info->tmp_arena, TB_ARENA_LARGE_CHUNK_SIZE);
 
-    mtx_init(&info->symbol_lock, mtx_plain);
+        // thread local so it doesn't need to synchronize
+        info->next = chain;
+        if (chain != NULL) {
+            chain->prev = info;
+        }
+        chain = info;
 
-    // thread local so it doesn't need to synchronize
-    info->next = chain;
-    if (chain != NULL) {
-        chain->prev = info;
+        // link to the TB_Module* (we need to this to free later)
+        TB_ThreadInfo* old_top;
+        do {
+            old_top = atomic_load(&m->first_info_in_module);
+            info->next_in_module = old_top;
+        } while (!atomic_compare_exchange_strong(&m->first_info_in_module, &old_top, info));
     }
-    chain = info;
-
-    // link to the TB_Module* (we need to this to free later)
-    TB_ThreadInfo* old_top;
-    do {
-        old_top = atomic_load(&m->first_info_in_module);
-        info->next_in_module = old_top;
-    } while (!atomic_compare_exchange_strong(&m->first_info_in_module, &old_top, info));
 
     done:
     mtx_unlock(&lock);
@@ -55,15 +73,6 @@ TB_ThreadInfo* tb_thread_info(TB_Module* m) {
 }
 
 static thread_local uint8_t* tb_thread_storage;
-
-ICodeGen* tb__find_code_generator(TB_Module* m) {
-    switch (m->target_arch) {
-        case TB_ARCH_X86_64: return &tb__x64_codegen;
-        // case TB_ARCH_AARCH64: return &tb__aarch64_codegen;
-        // case TB_ARCH_WASM32: return &tb__wasm32_codegen;
-        default: return NULL;
-    }
-}
 
 // we don't modify these strings
 char* tb__arena_strdup(TB_Module* m, ptrdiff_t len, const char* src) {
@@ -85,7 +94,7 @@ static TB_CodeRegion* get_or_allocate_code_region(TB_ThreadInfo* info) {
     return info->code;
 }
 
-TB_Module* tb_module_create_for_host(const TB_FeatureSet* features, bool is_jit) {
+TB_Module* tb_module_create_for_host(bool is_jit) {
     #if defined(TB_HOST_X86_64)
     TB_Arch arch = TB_ARCH_X86_64;
     #else
@@ -103,7 +112,7 @@ TB_Module* tb_module_create_for_host(const TB_FeatureSet* features, bool is_jit)
     tb_panic("tb_module_create_for_host: cannot detect host platform");
     #endif
 
-    return tb_module_create(arch, sys, features, is_jit);
+    return tb_module_create(arch, sys, is_jit);
 }
 
 TB_ModuleSectionHandle tb_module_create_section(TB_Module* m, ptrdiff_t len, const char* name, TB_ModuleSectionFlags flags, TB_ComdatType comdat) {
@@ -119,7 +128,7 @@ TB_ModuleSectionHandle tb_module_create_section(TB_Module* m, ptrdiff_t len, con
     return i;
 }
 
-TB_Module* tb_module_create(TB_Arch arch, TB_System sys, const TB_FeatureSet* features, bool is_jit) {
+TB_Module* tb_module_create(TB_Arch arch, TB_System sys, bool is_jit) {
     TB_Module* m = tb_platform_heap_alloc(sizeof(TB_Module));
     if (m == NULL) {
         fprintf(stderr, "tb_module_create: Out of memory!\n");
@@ -132,11 +141,7 @@ TB_Module* tb_module_create(TB_Arch arch, TB_System sys, const TB_FeatureSet* fe
     m->target_abi = (sys == TB_SYSTEM_WINDOWS) ? TB_ABI_WIN64 : TB_ABI_SYSTEMV;
     m->target_arch = arch;
     m->target_system = sys;
-    if (features == NULL) {
-        m->features = (TB_FeatureSet){ 0 };
-    } else {
-        m->features = *features;
-    }
+    m->codegen = tb__find_code_generator(m);
 
     mtx_init(&m->lock, mtx_plain);
 
@@ -167,10 +172,10 @@ TB_Module* tb_module_create(TB_Arch arch, TB_System sys, const TB_FeatureSet* fe
     return m;
 }
 
-TB_FunctionOutput* tb_pass_codegen(TB_Passes* p, bool emit_asm) {
+TB_FunctionOutput* tb_pass_codegen(TB_Passes* p, const TB_FeatureSet* features, bool emit_asm) {
     TB_Function* f = p->f;
     TB_Module* m = f->super.module;
-    ICodeGen* restrict code_gen = tb__find_code_generator(m);
+    ICodeGen* restrict code_gen = m->codegen;
 
     // Machine code gen
     TB_ThreadInfo* info = tb_thread_info(m);
@@ -185,6 +190,7 @@ TB_FunctionOutput* tb_pass_codegen(TB_Passes* p, bool emit_asm) {
 
         new_region->capacity = CODE_REGION_BUFFER_SIZE - sizeof(TB_CodeRegion);
         new_region->prev = region;
+        info->code = region = new_region;
     } else {
         region->size = next_size;
     }
@@ -199,7 +205,7 @@ TB_FunctionOutput* tb_pass_codegen(TB_Passes* p, bool emit_asm) {
         uint8_t* local_buffer = &region->data[region->size];
         size_t local_capacity = region->capacity - region->size;
 
-        code_gen->compile_function(p, func_out, &m->features, local_buffer, local_capacity, emit_asm);
+        code_gen->compile_function(p, func_out, features, local_buffer, local_capacity, emit_asm);
 
         // if the func_out is placed into a different region, let's abide by that
         if (func_out->code_region != region) {
@@ -253,7 +259,6 @@ void tb_module_destroy(TB_Module* m) {
         TB_ThreadInfo* next = info->next_in_module;
 
         // free symbols
-        mtx_destroy(&info->symbol_lock);
         nl_hashset_free(info->symbols);
 
         // free code region
@@ -285,11 +290,15 @@ void tb_module_destroy(TB_Module* m) {
     tb_platform_heap_free(m);
 }
 
-TB_SourceFile* tb_get_source_file(TB_Module* m, const char* path) {
+TB_SourceFile* tb_get_source_file(TB_Module* m, ptrdiff_t len, const char* path) {
     mtx_lock(&m->lock);
 
+    if (len <= 0) {
+        len = path ? strlen(path) : 0;
+    }
+
     NL_Slice key = {
-        .length = strlen(path),
+        .length = len,
         .data = (const uint8_t*) path,
     };
 
@@ -346,10 +355,7 @@ const char* tb_symbol_get_name(TB_Symbol* s) {
 
 void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, TB_FunctionPrototype* p, TB_Arena* arena) {
     assert(f->prototype == NULL);
-    const ICodeGen* restrict code_gen = tb__find_code_generator(f->super.module);
-
     size_t param_count = p->param_count;
-    size_t extra_size = sizeof(TB_NodeRegion) + (param_count * sizeof(TB_Node*));
 
     if (arena == NULL) {
         f->arena = tb_platform_heap_alloc(sizeof(TB_Arena));
@@ -358,30 +364,49 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
         f->arena = arena;
     }
 
+    f->locations = nl_table_alloc(16);
+
     f->section = section;
     f->node_count = 0;
-    f->start_node = tb_alloc_node(f, TB_START, TB_TYPE_TUPLE, 0, extra_size);
-
-    f->terminators = dyn_array_create(TB_Node*, 4);
-
-    TB_NodeRegion* start = TB_NODE_GET_EXTRA(f->start_node);
+    TB_Node* root = f->root_node = tb_alloc_node(f, TB_ROOT, TB_TYPE_TUPLE, 3 + p->return_count, 0);
 
     f->param_count = param_count;
     f->params = tb_arena_alloc(f->arena, (3+param_count) * sizeof(TB_Node*));
 
     // fill in acceleration structure
-    f->params[0] = f->active_control_node = tb__make_proj(f, TB_TYPE_CONTROL, f->start_node, 0);
-    f->params[1] = tb__make_proj(f, TB_TYPE_MEMORY, f->start_node, 1);
-    f->params[2] = tb__make_proj(f, TB_TYPE_CONT, f->start_node, 2);
+    f->params[0] = tb__make_proj(f, TB_TYPE_CONTROL, f->root_node, 0);
+    f->params[1] = tb__make_proj(f, TB_TYPE_MEMORY, f->root_node, 1);
+    f->params[2] = tb__make_proj(f, TB_TYPE_CONT, f->root_node, 2);
 
-    // mark the input memory as both mem_in and mem_out
-    start->mem_in = start->mem_out = f->params[1];
+    // initial trace
+    f->trace.top_ctrl = f->trace.bot_ctrl = f->params[0];
+    f->trace.mem = f->params[1];
 
     // create parameter projections
     TB_PrototypeParam* rets = TB_PROTOTYPE_RETURNS(p);
     FOREACH_N(i, 0, param_count) {
         TB_DataType dt = p->params[i].dt;
-        f->params[3+i] = tb__make_proj(f, dt, f->start_node, 3+i);
+        f->params[3+i] = tb__make_proj(f, dt, f->root_node, 3+i);
+    }
+
+    // fill return crap
+    {
+        TB_Node* region = tb_alloc_node(f, TB_REGION, TB_TYPE_CONTROL, 0, sizeof(TB_NodeRegion));
+        TB_Node* mem_phi = tb_alloc_node(f, TB_PHI, TB_TYPE_MEMORY, 1, 0);
+        set_input(f, mem_phi, region, 0);
+
+        set_input(f, root, region, 0);
+        set_input(f, root, mem_phi, 1);
+        set_input(f, root, f->params[2], 2);
+
+        TB_PrototypeParam* returns = TB_PROTOTYPE_RETURNS(p);
+        FOREACH_N(i, 0, p->return_count) {
+            TB_Node* phi = tb_alloc_node(f, TB_PHI, returns[i].dt, 1, 0);
+            set_input(f, phi, region, 0);
+            set_input(f, root, phi, i + 3);
+        }
+
+        TB_NODE_SET_EXTRA(region, TB_NodeRegion, .freq = 1.0f, .mem_in = mem_phi, .tag = "ret");
     }
 
     f->prototype = p;
@@ -404,7 +429,7 @@ void* tb_global_add_region(TB_Module* m, TB_Global* g, size_t offset, size_t siz
     return ptr;
 }
 
-void tb_global_add_symbol_reloc(TB_Module* m, TB_Global* g, size_t offset, const TB_Symbol* symbol) {
+void tb_global_add_symbol_reloc(TB_Module* m, TB_Global* g, size_t offset, TB_Symbol* symbol) {
     assert(offset == (uint32_t) offset);
     assert(g->obj_count + 1 <= g->obj_capacity);
     assert(symbol != NULL);
@@ -597,7 +622,7 @@ void tb_tls_restore(TB_TemporaryStorage* store, void* ptr) {
     store->used = i;
 }
 
-void tb_emit_symbol_patch(TB_FunctionOutput* func_out, const TB_Symbol* target, size_t pos) {
+void tb_emit_symbol_patch(TB_FunctionOutput* func_out, TB_Symbol* target, size_t pos) {
     TB_Module* m = func_out->parent->super.module;
     TB_SymbolPatch* p = TB_ARENA_ALLOC(get_permanent_arena(m), TB_SymbolPatch);
 
@@ -648,7 +673,8 @@ void* tb_out_grab(TB_Emitter* o, size_t count) {
 }
 
 void* tb_out_get(TB_Emitter* o, size_t pos) {
-    return &o->data[o->count];
+    assert(pos < o->count);
+    return &o->data[pos];
 }
 
 size_t tb_out_grab_i(TB_Emitter* o, size_t count) {
@@ -744,15 +770,6 @@ size_t tb_outstr_nul_UNSAFE(TB_Emitter* o, const char* str) {
     }
 
     o->data[o->count++] = 0;
-    return start;
-}
-
-size_t tb_outstr_nul(TB_Emitter* o, const char* str) {
-    size_t start = o->count;
-    size_t len = strlen(str) + 1;
-    tb_out_reserve(o, len);
-
-    memcpy(&o->data[o->count], str, len);
     return start;
 }
 

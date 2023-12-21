@@ -11,11 +11,9 @@ TB_API void tb_default_print_callback(void* user_data, const char* fmt, ...) {
 TB_API const char* tb_node_get_name(TB_Node* n) {
     switch (n->type) {
         case TB_NULL: return "BAD";
-        case TB_DEAD: return "dead";
         case TB_UNREACHABLE: return "unreachable";
 
-        case TB_START:  return "start";
-        case TB_END:    return "end";
+        case TB_ROOT:   return "root";
         case TB_PROJ:   return "proj";
         case TB_REGION: return "region";
 
@@ -25,6 +23,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_DEBUGBREAK: return "dbgbrk";
 
         case TB_POISON: return "poison";
+        case TB_DEAD: return "dead";
         case TB_INTEGER_CONST: return "int";
         case TB_FLOAT32_CONST: return "float32";
         case TB_FLOAT64_CONST: return "float64";
@@ -36,11 +35,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_ARRAY_ACCESS: return "array";
         case TB_MEMBER_ACCESS: return "member";
 
-        case TB_PTR2INT: return "ptr2int";
-        case TB_INT2PTR: return "int2ptr";
-
         case TB_SAFEPOINT_POLL: return "safepoint.poll";
-        case TB_SAFEPOINT_NOP: return "safepoint";
 
         case TB_MEMSET: return "memset";
         case TB_MEMCPY: return "memcpy";
@@ -101,14 +96,16 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_FMAX: return "fmax";
         case TB_FMIN: return "fmin";
 
-        case TB_MULPAIR: return "mulpair";
-        case TB_LOAD: return "load";
-        case TB_STORE: return "store";
+        case TB_MULPAIR:  return "mulpair";
+        case TB_LOAD:     return "load";
+        case TB_STORE:    return "store";
+        case TB_READ:     return "read";
+        case TB_WRITE:    return "write";
         case TB_MERGEMEM: return "merge";
 
-        case TB_CALL: return "call";
-        case TB_SYSCALL: return "syscall";
-        case TB_BRANCH: return "branch";
+        case TB_CALL:     return "call";
+        case TB_SYSCALL:  return "syscall";
+        case TB_BRANCH:   return "branch";
         case TB_TAILCALL: return "tailcall";
 
         default: tb_todo();return "(unknown)";
@@ -155,7 +152,7 @@ static void tb_print_type(TB_DataType dt, TB_PrintCallback callback, void* user_
 
 static void print_proj(TB_PrintCallback callback, void* user_data, TB_Node* n, int index) {
     switch (n->type) {
-        case TB_START: {
+        case TB_ROOT: {
             if (index == 0) {
                 P("ctrl");
             } else if (index == 1) {
@@ -207,7 +204,7 @@ static void print_proj(TB_PrintCallback callback, void* user_data, TB_Node* n, i
 }
 
 static void print_graph_node(TB_Function* f, TB_PrintCallback callback, void* user_data, size_t bb, TB_Node* restrict n) {
-    P("  r%u [ordering=in; shape=record; label=\"{", n->gvn);
+    P("  r%u [label=\"{", n->gvn);
 
     bool ins = false;
     FOREACH_N(i, 0, n->input_count) if (n->inputs[i]) {
@@ -225,7 +222,7 @@ static void print_graph_node(TB_Function* f, TB_PrintCallback callback, void* us
     if (n->dt.type == TB_TUPLE) {
         TB_Node* projs[128] = { 0 };
         int limit = 0;
-        for (User* use = n->users; use; use = use->next) {
+        FOR_USERS(use, n) {
             if (use->n->type == TB_PROJ) {
                 int index = TB_NODE_GET_EXTRA_T(use->n, TB_NodeProj)->index;
                 if (limit < index+1) limit = index+1;
@@ -337,36 +334,34 @@ TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* u
     Worklist tmp_ws = { 0 };
     worklist_alloc(&tmp_ws, f->node_count);
 
-    P("digraph %s {\n", f->super.name ? f->super.name : "unnamed");
+    P("digraph %s {\n  node [ordering=in; shape=record];\n", f->super.name ? f->super.name : "unnamed");
 
     opt->worklist = tmp_ws;
-    TB_CFG cfg = tb_compute_rpo(f, opt);
-
-    // schedule nodes
-    tb_pass_schedule(opt, cfg);
 
     Worklist* ws = &opt->worklist;
     worklist_clear_visited(ws);
-    FOREACH_N(i, 0, cfg.block_count) {
-        TB_Node* bb_start = opt->worklist.items[i];
-        TB_BasicBlock* bb = nl_map_get_checked(opt->scheduled, bb_start);
 
-        greedy_scheduler(opt, &cfg, ws, NULL, bb, bb->end);
+    worklist_test_n_set(ws, f->root_node);
+    dyn_array_put(ws->items, f->root_node);
 
-        FOREACH_REVERSE_N(j, cfg.block_count, dyn_array_length(ws->items)) {
-            if (ws->items[j]->type == TB_PROJ) {
-                // handled by the tuple nodes
-                continue;
+    for (size_t i = 0; i < dyn_array_length(ws->items); i++) {
+        TB_Node* n = ws->items[i];
+
+        bool has_users = false;
+        FOR_USERS(u, n) {
+            TB_Node* out = u->n;
+            if (!worklist_test_n_set(ws, out)) {
+                dyn_array_put(ws->items, out);
             }
-
-            print_graph_node(f, callback, user_data, i, ws->items[j]);
+            has_users = true;
         }
 
-        dyn_array_set_length(ws->items, cfg.block_count);
+        if (has_users && n->type != TB_PROJ) {
+            print_graph_node(f, callback, user_data, i, n);
+        }
     }
 
     worklist_free(ws);
-    tb_free_cfg(&cfg);
     opt->worklist = old;
 
     P("}\n");
