@@ -15,10 +15,17 @@ static bool get_int_const(TB_Node* n, uint64_t* imm) {
 static TB_Node* ideal_bitcast(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     TB_Node* src = n->inputs[1];
 
+    if (src->type == TB_BITCAST) {
+        set_input(f, n, src->inputs[1], 1);
+        return n;
+    }
+
     // int -> smaller int means truncate
     if (src->dt.type == TB_INT && n->dt.type == TB_INT && src->dt.data > n->dt.data) {
         n->type = TB_TRUNCATE;
         return n;
+    } else if (src->type == TB_INTEGER_CONST) {
+        return make_int_node(f, opt, n->dt, TB_NODE_GET_EXTRA_T(src, TB_NodeInt)->value);
     }
 
     return NULL;
@@ -863,6 +870,21 @@ static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_N
 ////////////////////////////////
 // Pointer idealizations
 ////////////////////////////////
+static TB_Node* ideal_member_ptr(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
+    int64_t offset = TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset;
+    TB_Node* base  = n->inputs[1];
+
+    if (base->type == TB_MEMBER_ACCESS) {
+        offset += TB_NODE_GET_EXTRA_T(base, TB_NodeMember)->offset;
+        set_input(f, n, base->inputs[1], 1);
+
+        TB_NODE_SET_EXTRA(n, TB_NodeMember, .offset = offset);
+        return n;
+    }
+
+    return NULL;
+}
+
 static TB_Node* ideal_array_ptr(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     int64_t stride = TB_NODE_GET_EXTRA_T(n, TB_NodeArray)->stride;
     TB_Node* base  = n->inputs[1];

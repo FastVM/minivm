@@ -447,9 +447,9 @@ static LONG except_handler(EXCEPTION_POINTERS* e) {
 }
 
 // I do love frame pointers
-typedef struct StackFrame StackFrame;
-struct StackFrame {
-    StackFrame* rbp;
+typedef struct X86_StackFrame X86_StackFrame;
+struct X86_StackFrame {
+    X86_StackFrame* rbp;
     void* rip;
 };
 
@@ -484,7 +484,7 @@ void tb_jit_thread_dump_stack(TB_JIT* jit, TB_CPUContext* cpu) {
     // first stack frame might be mid-construction so we
     // need to accomodate when reading the RPC or SP
     TB_Function* f = (TB_Function*) addr.base;
-    StackFrame* stk = (StackFrame*) cpu->state.Rbp;
+    X86_StackFrame* stk = (X86_StackFrame*) cpu->state.Rbp;
     if (addr.offset < f->output->prologue_length) {
         rpc = ((void**) cpu->state.Rsp)[0];
     } else {

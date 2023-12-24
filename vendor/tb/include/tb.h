@@ -1333,8 +1333,6 @@ TB_API void tb_pass_mark_users(TB_Passes* opt, TB_Node* n);
 ////////////////////////////////
 // IR access
 ////////////////////////////////
-TB_API const char* tb_node_get_name(TB_Node* n);
-
 TB_API bool tb_node_is_constant_non_zero(TB_Node* n);
 TB_API bool tb_node_is_constant_zero(TB_Node* n);
 

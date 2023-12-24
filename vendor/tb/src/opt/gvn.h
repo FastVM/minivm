@@ -246,6 +246,7 @@ bool gvn_compare(void* a, void* b) {
         case TB_PHI:
         case TB_CLZ:
         case TB_CTZ:
+        case TB_POISON:
         case TB_MERGEMEM:
         case TB_UNREACHABLE:
         case TB_DEBUGBREAK:

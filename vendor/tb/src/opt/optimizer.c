@@ -589,6 +589,9 @@ static TB_Node* idealize(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
         return ideal_int_binop(p, f, n);
 
         // pointer
+        case TB_MEMBER_ACCESS:
+        return ideal_member_ptr(p, f, n);
+
         case TB_ARRAY_ACCESS:
         return ideal_array_ptr(p, f, n);
 

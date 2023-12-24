@@ -121,10 +121,6 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
     }
 }
 
-static bool clobbers(Ctx* restrict ctx, Tile* t, uint64_t clobbers[MAX_REG_CLASSES]) {
-    return false;
-}
-
 static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* n) {
     // TODO(NeGate): optionally preserve the frame pointer
     // TODO(NeGate): stack allocation

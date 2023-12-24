@@ -42,6 +42,8 @@ typedef struct TB_Arena {
     // top of the allocation space
     char* watermark;
     char* high_point; // &top->data[chunk_size]
+
+    size_t highest_point;
 } TB_Arena;
 
 typedef struct TB_ArenaSavepoint {

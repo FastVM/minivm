@@ -271,7 +271,7 @@ static void print_graph_node(TB_Function* f, TB_PrintCallback callback, void* us
             case TB_BITCAST: {
                 P("bitcast ");
                 tb_print_type(n->inputs[1]->dt, callback, user_data);
-                P(" -> ");
+                P(" to ");
                 tb_print_type(n->dt, callback, user_data);
                 break;
             }

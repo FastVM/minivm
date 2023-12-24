@@ -55,27 +55,12 @@ static bool cfg_is_loop(TB_Node* n) {
     return n->type == TB_REGION && TB_NODE_GET_EXTRA_T(n, TB_NodeRegion)->natty;
 }
 
-// terminator without successors
-static bool cfg_is_endpoint(TB_Node* n) {
-    switch (n->type) {
-        case TB_UNREACHABLE:
-        case TB_TRAP:
-        case TB_ROOT:
-        case TB_TAILCALL:
-        return true;
-
-        default:
-        return false;
-    }
-}
-
 static bool cfg_is_terminator(TB_Node* n) {
     switch (n->type) {
         case TB_BRANCH:
         case TB_UNREACHABLE:
         case TB_TRAP:
         case TB_ROOT:
-        case TB_TAILCALL:
         return true;
 
         default:

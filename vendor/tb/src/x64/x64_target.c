@@ -365,6 +365,8 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
         return ctx->normie_mask[0];
 
         case TB_POISON:
+        return normie_mask(ctx, n->dt);
+
         case TB_BITCAST:
         case TB_TRUNCATE:
         case TB_INT2FLOAT:
@@ -585,7 +587,8 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
             return REGEMPTY;
         }
 
-        case TB_CALL: {
+        case TB_CALL:
+        case TB_TAILCALL: {
             int end_of_reg_params = n->input_count > 7 ? 7 : n->input_count;
 
             const struct ParamDesc* abi = &param_descs[ctx->abi_index];
@@ -597,6 +600,10 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
             int param_count = n->input_count - 3;
             if (ctx->caller_usage < param_count) {
                 ctx->caller_usage = param_count;
+            }
+
+            if (n->type == TB_TAILCALL) {
+                caller_saved_gprs &= ~(1u << RAX);
             }
 
             FOREACH_N(i, 0, param_count > 4 ? 4 : param_count) {
@@ -616,7 +623,13 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
                 // CALL r/m
                 ins = dst->ins = tb_arena_alloc(tmp_arena, input_count * sizeof(TileInput));
                 dst->in_count = input_count;
-                ins[0].mask = ctx->normie_mask[0];
+
+                ins[0].src = get_tile(ctx, n->inputs[2], true)->interval;
+                if (n->type == TB_TAILCALL) {
+                    ins[0].mask = REGMASK(GPR, 1u << RAX);
+                } else {
+                    ins[0].mask = ctx->normie_mask[0];
+                }
                 ins += 1;
             }
 
@@ -639,7 +652,7 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
                 }
             }
 
-            assert(j == input_count);
+            assert(j == input_count - (n->inputs[2]->type != TB_SYMBOL));
             return REGEMPTY;
         }
 
@@ -904,6 +917,7 @@ static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) {
             case TB_PROJ: break;
             case TB_REGION: break;
             case TB_PHI: break;
+            case TB_POISON: break;
             case TB_UNREACHABLE: break;
 
             case TB_READ: {
@@ -1185,28 +1199,36 @@ static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) {
                 inst1(e, is_signed ? IDIV : DIV, &rhs, legalize_int2(dt));
                 break;
             }
-            case TB_CALL: {
+            case TB_CALL:
+            case TB_TAILCALL: {
                 // we've already placed the register params in their slots, now we're missing
-                // stack params which go into [rsp + 0x20 + (i-4)*8] where i is the param index.
+                // stack params which go into [rsp + i*8] where i is the param index.
                 int stack_params = (n->inputs[2]->type == TB_SYMBOL ? 0 : 1) + param_descs[ctx->abi_index].gpr_count;
                 int param_count = n->input_count - 3;
 
                 FOREACH_N(i, stack_params, param_count) {
                     TB_X86_DataType dt = TB_X86_TYPE_QWORD; // legalize_int2(t->ins[i].);
 
-                    Val dst = val_stack(0x20 + (i - 4) * 8);
+                    Val dst = val_stack(i * 8);
                     Val src = op_at(ctx, t->ins[i].src);
                     inst2(e, MOV, &dst, &src, dt);
+                }
+
+                int op = CALL;
+                if (n->type == TB_TAILCALL) {
+                    op = JMP;
+
+                    emit_epilogue(ctx, e, ctx->stack_usage);
                 }
 
                 if (n->inputs[2]->type == TB_SYMBOL) {
                     TB_Symbol* sym = TB_NODE_GET_EXTRA_T(n->inputs[2], TB_NodeSymbol)->sym;
 
                     Val target = val_global(sym, 0);
-                    inst1(e, CALL, &target, TB_X86_TYPE_QWORD);
+                    inst1(e, op, &target, TB_X86_TYPE_QWORD);
                 } else {
                     Val target = op_at(ctx, t->ins[0].src);
-                    inst1(e, CALL, &target, TB_X86_TYPE_QWORD);
+                    inst1(e, op, &target, TB_X86_TYPE_QWORD);
                 }
                 break;
             }
