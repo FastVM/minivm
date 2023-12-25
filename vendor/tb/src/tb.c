@@ -85,15 +85,6 @@ char* tb__arena_strdup(TB_Module* m, ptrdiff_t len, const char* src) {
     return newstr;
 }
 
-static TB_CodeRegion* get_or_allocate_code_region(TB_ThreadInfo* info) {
-    if (info->code == NULL) {
-        info->code = tb_platform_valloc(CODE_REGION_BUFFER_SIZE);
-        info->code->capacity = CODE_REGION_BUFFER_SIZE - sizeof(TB_CodeRegion);
-    }
-
-    return info->code;
-}
-
 TB_Module* tb_module_create_for_host(bool is_jit) {
     #if defined(TB_HOST_X86_64)
     TB_Arch arch = TB_ARCH_X86_64;
@@ -172,52 +163,14 @@ TB_Module* tb_module_create(TB_Arch arch, TB_System sys, bool is_jit) {
     return m;
 }
 
-TB_FunctionOutput* tb_pass_codegen(TB_Passes* p, const TB_FeatureSet* features, bool emit_asm) {
+TB_FunctionOutput* tb_pass_codegen(TB_Passes* p, TB_Arena* arena, const TB_FeatureSet* features, bool emit_asm) {
     TB_Function* f = p->f;
     TB_Module* m = f->super.module;
-    ICodeGen* restrict code_gen = m->codegen;
 
-    // Machine code gen
-    TB_ThreadInfo* info = tb_thread_info(m);
-    TB_CodeRegion* region = get_or_allocate_code_region(info);
-
-    size_t align_mask = _Alignof(TB_FunctionOutput) - 1;
-    size_t next_size = (region->size + align_mask) & ~align_mask;
-    if (next_size + sizeof(TB_FunctionOutput) >= region->capacity) {
-        // append new region
-        TB_CodeRegion* new_region = tb_platform_valloc(CODE_REGION_BUFFER_SIZE);
-        if (new_region == NULL) tb_panic("could not allocate code region!");
-
-        new_region->capacity = CODE_REGION_BUFFER_SIZE - sizeof(TB_CodeRegion);
-        new_region->prev = region;
-        info->code = region = new_region;
-    } else {
-        region->size = next_size;
-    }
-
-    // allocate the TB_FunctionOutput in the code region
-    TB_FunctionOutput* func_out = (TB_FunctionOutput*) &region->data[region->size];
-    region->size += sizeof(TB_FunctionOutput);
-
-    {
-        *func_out = (TB_FunctionOutput){ .parent = f, .section = f->section, .linkage = f->linkage, .code_region = region };
-
-        uint8_t* local_buffer = &region->data[region->size];
-        size_t local_capacity = region->capacity - region->size;
-
-        code_gen->compile_function(p, func_out, features, local_buffer, local_capacity, emit_asm);
-
-        // if the func_out is placed into a different region, let's abide by that
-        if (func_out->code_region != region) {
-            func_out->code_region->prev = region;
-            info->code = func_out->code_region;
-
-            region = func_out->code_region;
-        }
-    }
-
+    TB_FunctionOutput* func_out = tb_arena_alloc(arena, sizeof(TB_FunctionOutput));
+    *func_out = (TB_FunctionOutput){ .parent = f, .section = f->section, .linkage = f->linkage };
+    m->codegen->compile_function(p, func_out, features, arena, emit_asm);
     atomic_fetch_add(&m->compiled_function_count, 1);
-    region->size += func_out->code_size;
 
     f->output = func_out;
     return func_out;
@@ -260,14 +213,6 @@ void tb_module_destroy(TB_Module* m) {
 
         // free symbols
         nl_hashset_free(info->symbols);
-
-        // free code region
-        TB_CodeRegion* code = info->code;
-        while (code != NULL) {
-            TB_CodeRegion* prev = code->prev;
-            tb_platform_vfree(code, CODE_REGION_BUFFER_SIZE);
-            code = prev;
-        }
 
         tb_arena_destroy(&info->tmp_arena);
         tb_arena_destroy(&info->perm_arena);
@@ -554,72 +499,6 @@ void tb_free_thread_resources(void) {
         tb_platform_vfree(tb_thread_storage, TB_TEMPORARY_STORAGE_SIZE);
         tb_thread_storage = NULL;
     }
-}
-
-TB_TemporaryStorage* tb_tls_allocate() {
-    if (tb_thread_storage == NULL) {
-        tb_thread_storage = tb_platform_valloc(TB_TEMPORARY_STORAGE_SIZE);
-        if (tb_thread_storage == NULL) {
-            tb_panic("out of memory");
-        }
-    }
-
-    TB_TemporaryStorage* store = (TB_TemporaryStorage*)tb_thread_storage;
-    store->used = 0;
-    return store;
-}
-
-TB_TemporaryStorage* tb_tls_steal() {
-    if (tb_thread_storage == NULL) {
-        tb_thread_storage = tb_platform_valloc(TB_TEMPORARY_STORAGE_SIZE);
-        if (tb_thread_storage == NULL) {
-            tb_panic("out of memory");
-        }
-    }
-
-    return (TB_TemporaryStorage*)tb_thread_storage;
-}
-
-bool tb_tls_can_fit(TB_TemporaryStorage* store, size_t size) {
-    return (sizeof(TB_TemporaryStorage) + store->used + size < TB_TEMPORARY_STORAGE_SIZE);
-}
-
-void* tb_tls_try_push(TB_TemporaryStorage* store, size_t size) {
-    if (sizeof(TB_TemporaryStorage) + store->used + size >= TB_TEMPORARY_STORAGE_SIZE) {
-        return NULL;
-    }
-
-    void* ptr = &store->data[store->used];
-    store->used += size;
-    return ptr;
-}
-
-void* tb_tls_push(TB_TemporaryStorage* store, size_t size) {
-    assert(sizeof(TB_TemporaryStorage) + store->used + size < TB_TEMPORARY_STORAGE_SIZE);
-
-    void* ptr = &store->data[store->used];
-    store->used += size;
-    return ptr;
-}
-
-void* tb_tls_pop(TB_TemporaryStorage* store, size_t size) {
-    assert(sizeof(TB_TemporaryStorage) + store->used > size);
-
-    store->used -= size;
-    return &store->data[store->used];
-}
-
-void* tb_tls_peek(TB_TemporaryStorage* store, size_t distance) {
-    assert(sizeof(TB_TemporaryStorage) + store->used > distance);
-
-    return &store->data[store->used - distance];
-}
-
-void tb_tls_restore(TB_TemporaryStorage* store, void* ptr) {
-    size_t i = ((uint8_t*)ptr) - store->data;
-    assert(i <= store->used);
-
-    store->used = i;
 }
 
 void tb_emit_symbol_patch(TB_FunctionOutput* func_out, TB_Symbol* target, size_t pos) {

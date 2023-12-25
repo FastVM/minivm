@@ -125,8 +125,8 @@ static uint16_t convert_to_codeview_type(CV_Builder* builder, TB_DebugType* type
                 return type->type_id_fwd;
             }
 
-            TB_TemporaryStorage* tls = tb_tls_steal();
-            CV_Field* list = tb_tls_push(tls, type->record.count * sizeof(CV_Field));
+            TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
+            CV_Field* list = tb_arena_alloc(tmp_arena, type->record.count * sizeof(CV_Field));
             FOREACH_N(i, 0, type->record.count) {
                 const TB_DebugType* f = type->record.members[i];
                 assert(f->tag == TB_DEBUG_TYPE_FIELD);
@@ -137,7 +137,7 @@ static uint16_t convert_to_codeview_type(CV_Builder* builder, TB_DebugType* type
             }
 
             CV_TypeIndex field_list = tb_codeview_builder_add_field_list(builder, type->record.count, list);
-            tb_tls_restore(tls, list);
+            tb_arena_restore(tmp_arena, sp);
 
             return (type->type_id = tb_codeview_builder_add_record(builder, rec_type, type->record.count, field_list, type->record.size, type->record.tag));
         }
@@ -148,9 +148,9 @@ static uint16_t convert_to_codeview_type(CV_Builder* builder, TB_DebugType* type
     }
 }
 
-static TB_Slice gimme_cstr_as_slice(const char* str) {
+static TB_Slice gimme_cstr_as_slice(TB_Arena* arena, const char* str) {
     TB_Slice s = { strlen(str) };
-    s.data = memcpy(tb_platform_heap_alloc(s.length), str, s.length);
+    s.data = memcpy(tb_arena_alloc(arena, s.length), str, s.length);
     return s;
 }
 
@@ -169,25 +169,27 @@ static int codeview_number_of_debug_sections(TB_Module* m) {
 
 // Based on this, it's the only nice CodeView source out there:
 // https://github.com/netwide-assembler/nasm/blob/master/output/codeview.c
-static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporaryStorage* tls) {
-    TB_ObjectSection* sections = tb_platform_heap_alloc(2 * sizeof(TB_ObjectSection));
-    sections[0] = (TB_ObjectSection){ gimme_cstr_as_slice(".debug$S") };
-    sections[1] = (TB_ObjectSection){ gimme_cstr_as_slice(".debug$T") };
+static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_Arena* arena) {
+    TB_ObjectSection* sections = tb_arena_alloc(arena, 2 * sizeof(TB_ObjectSection));
+    sections[0] = (TB_ObjectSection){ gimme_cstr_as_slice(arena, ".debug$S") };
+    sections[1] = (TB_ObjectSection){ gimme_cstr_as_slice(arena, ".debug$T") };
 
     size_t global_count = m->symbol_count[TB_SYMBOL_GLOBAL];
 
     // debug$S does quite a few relocations :P, namely saying that
     // certain things point to specific areas of .text section
     size_t reloc_cap = (2 * global_count) + (4 * m->compiled_function_count);
-    sections[0].relocations = tb_platform_heap_alloc(reloc_cap * sizeof(TB_ObjectReloc));
+    sections[0].relocations = tb_arena_alloc(arena, reloc_cap * sizeof(TB_ObjectReloc));
+
+    TB_ArenaSavepoint sp = tb_arena_save(arena);
 
     // Write type table
     size_t file_count = nl_map__get_header(m->files)->count;
-    uint32_t* file_table_offset = tb_tls_push(tls, file_count * sizeof(uint32_t));
+    uint32_t* file_table_offset = tb_arena_alloc(arena, file_count * sizeof(uint32_t));
 
     TB_Emitter debugs_out = { 0 };
 
-    CV_TypeEntry* lookup_table = tb_tls_push(tls, 1024 * sizeof(CV_TypeEntry));
+    CV_TypeEntry* lookup_table = tb_arena_alloc(arena, 1024 * sizeof(CV_TypeEntry));
     memset(lookup_table, 0, 1024 * sizeof(CV_TypeEntry));
     CV_Builder builder = tb_codeview_builder_create(1024, lookup_table);
 
@@ -426,16 +428,17 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
                     CV_TypeIndex function_type;
                     {
                         const TB_FunctionPrototype* proto = f->prototype;
+                        TB_ArenaSavepoint sp = tb_arena_save(arena);
 
                         // Create argument list
-                        CV_TypeIndex* params = tb_tls_push(tls, proto->param_count * sizeof(CV_TypeIndex));
+                        CV_TypeIndex* params = tb_arena_alloc(arena, proto->param_count * sizeof(CV_TypeIndex));
                         FOREACH_N(i, 0, proto->param_count) {
                             TB_DebugType* t = proto->params[i].debug_type;
                             params[i] = t ? convert_to_codeview_type(&builder, t) : T_VOID;
                         }
 
                         CV_TypeIndex arg_list = tb_codeview_builder_add_arg_list(&builder, proto->param_count, params, proto->has_varargs);
-                        tb_tls_restore(tls, params);
+                        tb_arena_restore(arena, sp);
 
                         // Create return type... if it's multiple returns use a struct
                         CV_TypeIndex return_type = T_VOID;
@@ -534,6 +537,7 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_TemporarySt
         }
     }
     tb_codeview_builder_done(&builder);
+    tb_arena_restore(arena, sp);
 
     sections[0].raw_data = (TB_Slice){ debugs_out.count, debugs_out.data };
     sections[1].raw_data = (TB_Slice){ builder.type_section.count, builder.type_section.data };

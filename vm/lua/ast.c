@@ -271,7 +271,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                     }
                 }
             } else {
-                stop_expr = vm_lang_lua_conv(src, ts_node_child(clause, 6));
+                step_expr = vm_lang_lua_conv(src, ts_node_child(clause, 6));
             }
             vm_ast_node_t step_var = vm_lang_lua_gensym(src);
             vm_ast_node_t stop_var = vm_lang_lua_gensym(src);

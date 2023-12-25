@@ -143,7 +143,7 @@ static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
     }
 
     ctx->normie_mask[0] = REGMASK(GPR, all_gprs);
-    ctx->normie_mask[1] = REGMASK(GPR, (1u << 16) - 1);
+    ctx->normie_mask[1] = REGMASK(XMM, (1u << 16) - 1);
 
     // mark GPR callees (technically includes RSP but since it's
     // never conventionally allocated we should never run into issues)
@@ -184,6 +184,7 @@ static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
 
         }*/
     }
+
     ctx->stack_usage += 8 + (proto->param_count * 8);
 
     if (proto->has_varargs) {
@@ -483,6 +484,17 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
         case TB_INTEGER_CONST:
         return ctx->normie_mask[0];
 
+        case TB_FLOAT32_CONST:
+        case TB_FLOAT64_CONST:
+        return ctx->normie_mask[1];
+
+        case TB_FADD:
+        case TB_FSUB:
+        case TB_FMUL:
+        case TB_FDIV:
+        tile_broadcast_ins(ctx, dst, n, 1, n->input_count, ctx->normie_mask[1]);
+        return ctx->normie_mask[1];
+
         case TB_BRANCH: {
             TB_Node* cmp = n->inputs[1];
             TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
@@ -663,6 +675,9 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
 }
 
 static void emit_epilogue(Ctx* restrict ctx, TB_CGEmitter* e, int stack_usage) {
+    TB_FunctionPrototype* proto = ctx->f->prototype;
+    bool needs_stack = stack_usage > 8 + (proto->param_count * 8);
+
     FOREACH_REVERSE_N(i, 0, dyn_array_length(ctx->callee_spills)) {
         int pos = ctx->spills[ctx->callee_spills[i]->id];
         int rc = ctx->callee_spills[i]->mask.class;
@@ -675,7 +690,7 @@ static void emit_epilogue(Ctx* restrict ctx, TB_CGEmitter* e, int stack_usage) {
     }
 
     // add rsp, N
-    if (stack_usage > 0) {
+    if (stack_usage) {
         if (stack_usage == (int8_t)stack_usage) {
             EMIT1(&ctx->emit, rex(true, 0x00, RSP, 0));
             EMIT1(&ctx->emit, 0x83);
@@ -700,7 +715,7 @@ static Val op_at(Ctx* ctx, LiveInterval* l) {
         return val_stack(ctx->stack_usage - ctx->spills[l->id]);
     } else {
         assert(l->assigned >= 0);
-        return val_gpr(l->assigned);
+        return (Val) { .type = l->mask.class ? VAL_XMM : VAL_GPR, .reg = l->assigned };
     }
 }
 
@@ -738,8 +753,12 @@ static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* root) {
         }
     }
 
-    // Align stack usage to 16bytes + 8 to accommodate for the RIP being pushed by CALL
-    size_t stack_usage = align_up(ctx->stack_usage + (caller_usage * 8), 16) + 8;
+    TB_FunctionPrototype* proto = ctx->f->prototype;
+    size_t stack_usage = 0;
+    if (ctx->stack_usage > 8 + (proto->param_count * 8)) {
+        // Align stack usage to 16bytes + 8 to accommodate for the RIP being pushed by CALL
+        stack_usage = align_up(ctx->stack_usage + (caller_usage * 8), 16) + 8;
+    }
     ctx->stack_usage = stack_usage;
 
     FOR_USERS(u, root) {
@@ -780,7 +799,7 @@ static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* root) {
         inst2(e, MOV, &rax, &imm, TB_X86_TYPE_DWORD);
         inst1(e, CALL, &sym, TB_X86_TYPE_QWORD);
         inst2(e, SUB, &rsp, &rax, TB_X86_TYPE_QWORD);
-    } else if (stack_usage > 0) {
+    } else if (stack_usage) {
         if (stack_usage == (int8_t)stack_usage) {
             // sub rsp, stack_usage
             EMIT1(e, rex(true, 0x00, RSP, 0));
@@ -810,7 +829,6 @@ static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* root) {
     }
 
     // handle unknown parameters (if we have varargs)
-    TB_FunctionPrototype* proto = ctx->f->prototype;
     if (proto->has_varargs) {
         const GPR* parameter_gprs = param_descs[ctx->abi_index].gprs;
 
@@ -977,9 +995,23 @@ static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) {
                 if (x == 0) {
                     // xor reg, reg
                     inst2(e, XOR, &dst, &dst, dt);
+                } else if (!fits_into_int32(x)) {
+                    Val src = val_abs(x);
+                    inst2(e, MOVABS, &dst, &src, dt);
                 } else {
                     Val src = val_imm(x);
                     inst2(e, MOV, &dst, &src, dt);
+                }
+                break;
+            }
+            case TB_FLOAT32_CONST: {
+                uint32_t imm = (Cvt_F32U32) { .f = TB_NODE_GET_EXTRA_T(n, TB_NodeFloat32)->value }.i;
+                Val dst = op_at(ctx, t->interval);
+
+                if (imm == 0) {
+                    inst2sse(e, FP_XOR, &dst, &dst, TB_X86_TYPE_SSE_PS);
+                } else {
+                    tb_todo();
                 }
                 break;
             }

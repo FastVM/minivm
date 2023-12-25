@@ -150,7 +150,7 @@ static LiveInterval* canonical_interval(Ctx* restrict ctx, LiveInterval* interva
     }
 }
 
-static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict func_out, const TB_FeatureSet* features, uint8_t* out, size_t out_capacity, bool emit_asm) {
+static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict func_out, const TB_FeatureSet* features, TB_Arena* code_arena, bool emit_asm) {
     verify_tmp_arena(p);
 
     TB_Arena* arena = tmp_arena;
@@ -165,12 +165,14 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
         .p = p,
         .num_classes = REG_CLASS_COUNT,
         .emit = {
-            .f = f,
             .output = func_out,
-            .data = out,
-            .capacity = out_capacity,
+            .arena = arena,
         }
     };
+
+    // allocate entire top of the code arena (we'll trim it later if possible)
+    ctx.emit.capacity = code_arena->high_point - code_arena->watermark;
+    ctx.emit.data = tb_arena_alloc(code_arena, ctx.emit.capacity);
 
     if (features == NULL) {
         ctx.features = (TB_FeatureSet){ 0 };
@@ -610,6 +612,11 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
         ctx.locations[0].pos = 0;
     }
 
+    // trim code arena (it fits in a single chunk so just arena free the top)
+    code_arena->watermark = (char*) &ctx.emit.data[ctx.emit.count];
+    tb_arena_realign(code_arena);
+
+    // TODO(NeGate): move the assembly output to code arena
     if (emit_asm) CUIK_TIMED_BLOCK("dissassembly") {
         dyn_array_for(i, ctx.debug_stack_slots) {
             TB_StackSlot* s = &ctx.debug_stack_slots[i];
@@ -641,7 +648,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     nl_map_free(ctx.stack_slots);
     tb_free_cfg(&cfg);
 
-    log_debug("%s: tmp arena size = %.1f KiB", f->super.name, tb_arena_current_size(tmp_arena) / 1024.0f);
+    log_debug("%s: arenas (tmp = %.1f KiB, code = %.1f KiB)", f->super.name, tb_arena_current_size(tmp_arena) / 1024.0f, tb_arena_current_size(code_arena) / 1024.0f);
     tb_arena_restore(arena, sp);
     p->scheduled = NULL;
 

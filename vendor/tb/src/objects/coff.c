@@ -119,7 +119,6 @@ static void generate_unwind_info(COFF_UnwindInfo* restrict u, const ICodeGen* re
 #define WRITE(data, size) (memcpy(&output[write_pos], data, size), write_pos += (size))
 TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
     TB_Arena* arena = get_temporary_arena(m);
-    TB_TemporaryStorage* tls = tb_tls_allocate();
 
     ExportList exports;
     CUIK_TIMED_BLOCK("layout section") {
@@ -225,7 +224,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
 
     TB_SectionGroup debug_sections = { 0 };
     if (dbg) CUIK_TIMED_BLOCK("generate debug") {
-        debug_sections = dbg->generate_debug_info(m, tls);
+        debug_sections = dbg->generate_debug_info(m, arena);
     }
 
     FOREACH_N(i, 0, debug_sections.length) {

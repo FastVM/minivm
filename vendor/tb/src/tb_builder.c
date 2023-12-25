@@ -300,6 +300,8 @@ void tb_inst_store(TB_Function* f, TB_DataType dt, TB_Node* addr, TB_Node* val, 
         n = tb_alloc_node(f, TB_STORE, TB_TYPE_MEMORY, 4, sizeof(TB_NodeMemAccess));
         TB_NODE_SET_EXTRA(n, TB_NodeMemAccess, .align = alignment);
     }
+    // printf("store gvn = %zu\n", (size_t) n->gvn);
+    // asm("int3");
     set_input(f, n, f->trace.bot_ctrl, 0);
     set_input(f, n, append_mem(f, n), 1);
     set_input(f, n, addr, 2);

@@ -104,16 +104,18 @@ static size_t write_normie_sym(TB_Emitter* e, TB_ObjectSection* section, int tag
 // there's quite a few places that mark the next field for symbols
 #define MARK_NEXT(patch_pos) (((SDG_Symbol*) tb_out_get(&symtab, patch_pos))->next = symtab.count)
 #define MARK_KIDS(patch_pos, c) (((SDG_Symbol*) tb_out_get(&symtab, patch_pos))->kid_count = c)
-static TB_SectionGroup sdg_generate_debug_info(TB_Module* m, TB_TemporaryStorage* tls) {
+static TB_SectionGroup sdg_generate_debug_info(TB_Module* m, TB_Arena* arena) {
     TB_ObjectSection* sections = tb_platform_heap_alloc(1 * sizeof(TB_ObjectSection));
-    sections[0] = (TB_ObjectSection){ gimme_cstr_as_slice(".sdg$S") };
-    sections[1] = (TB_ObjectSection){ gimme_cstr_as_slice(".sdg$T") };
+    sections[0] = (TB_ObjectSection){ gimme_cstr_as_slice(arena, ".sdg$S") };
+    sections[1] = (TB_ObjectSection){ gimme_cstr_as_slice(arena, ".sdg$T") };
 
     size_t reloc_cap = m->symbol_count[TB_SYMBOL_GLOBAL] + m->compiled_function_count;
     sections[0].relocations = tb_platform_heap_alloc(reloc_cap * sizeof(TB_ObjectReloc));
 
     TB_Emitter symtab = { 0 };
     SDG_Types types = { 0 };
+
+    TB_ArenaSavepoint sp = tb_arena_save(arena);
 
     // we only store one module so we never fill the next
     SDG_Module mod = { { SDG_SYMBOL_MODULE, sizeof(SDG_Module)+sizeof("fallback.o") } };
@@ -203,6 +205,8 @@ static TB_SectionGroup sdg_generate_debug_info(TB_Module* m, TB_TemporaryStorage
     // write type table patch (it'll just follow immediately after the symbols)
     ((SDG_Module*) &symtab.data[0])->type_table = symtab.count;
     ((SDG_Module*) &symtab.data[0])->type_count = types.count;
+
+    tb_arena_restore(arena, sp);
 
     sections[0].raw_data = (TB_Slice){ symtab.count, symtab.data };
     sections[1].raw_data = (TB_Slice){ types.e.count, types.e.data };

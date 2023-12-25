@@ -16,8 +16,8 @@ typedef struct LabelPatch {
 
 typedef struct {
     // technically NULLable, just can't use patches if NULL
-    TB_Function* f;
     TB_FunctionOutput* output;
+    TB_Arena* arena;
 
     TB_Assembly *head_asm, *tail_asm;
 
@@ -111,16 +111,18 @@ static void tb_resolve_rel32(TB_CGEmitter* restrict e, uint32_t* head, uint32_t 
 
 static void* tb_cgemit_reserve(TB_CGEmitter* restrict e, size_t count) {
     if (e->count + count >= e->capacity) {
-        // make new region
-        TB_CodeRegion* new_region = tb_platform_valloc(CODE_REGION_BUFFER_SIZE);
-        if (new_region == NULL) tb_panic("could not allocate code region!");
+        // we don't really want massive code buffers... functions shouldn't really be that big
+        if (e->capacity >= e->arena->chunk_size - sizeof(TB_ArenaChunk)) {
+            tb_panic("could not allocate code buffer (too big lmao)\n");
+        }
 
-        new_region->capacity = CODE_REGION_BUFFER_SIZE - sizeof(TB_CodeRegion);
-        e->output->code_region = new_region;
+        // reallocate arena
+        size_t old_cap = e->capacity;
+        void* old = e->data;
 
-        // copy code into new region
-        memcpy(new_region->data, e->data, e->count);
-        e->data = new_region->data;
+        e->capacity = e->arena->chunk_size - sizeof(TB_ArenaChunk);
+        e->data = tb_arena_alloc(e->arena, e->capacity);
+        memcpy(e->data, old, old_cap);
     }
 
     return &e->data[e->count];

@@ -1323,8 +1323,11 @@ TB_API void tb_pass_print(TB_Passes* opt);
 //   print-dot: prints IR as DOT
 TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* user_data);
 
-// codegen
-TB_API TB_FunctionOutput* tb_pass_codegen(TB_Passes* opt, const TB_FeatureSet* features, bool emit_asm);
+// codegen:
+//   output goes at the top of the code_arena, feel free to place multiple functions
+//   into the same code arena (although arenas aren't thread-safe you'll want one per thread
+//   at least)
+TB_API TB_FunctionOutput* tb_pass_codegen(TB_Passes* opt, TB_Arena* code_arena, const TB_FeatureSet* features, bool emit_asm);
 
 TB_API void tb_pass_kill_node(TB_Passes* opt, TB_Node* n);
 TB_API void tb_pass_mark(TB_Passes* opt, TB_Node* n);

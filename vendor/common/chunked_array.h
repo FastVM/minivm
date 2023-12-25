@@ -36,7 +36,7 @@ NL_ChunkedArr nl_chunked_arr_alloc(TB_Arena* arena) {
 
     ptrdiff_t leftovers = arena->high_point - (arena->watermark + sizeof(NL_ChunkedArr));
     if (leftovers < 64) {
-        leftovers = arena->chunk_size - sizeof(NL_ArrChunk);
+        leftovers = arena->chunk_size - (sizeof(NL_ArrChunk) + sizeof(TB_ArenaChunk));
     }
 
     ptrdiff_t num_elems = leftovers / sizeof(void*);
@@ -52,7 +52,7 @@ void nl_chunked_arr_put(NL_ChunkedArr* arr, void* v) {
     NL_ArrChunk* last = arr->last;
     if (last->cap == last->count) {
         // allocate new chunk
-        ptrdiff_t leftovers = arr->arena->chunk_size - sizeof(NL_ArrChunk);
+        ptrdiff_t leftovers = arr->arena->chunk_size - (sizeof(NL_ArrChunk) + sizeof(TB_ArenaChunk));
         ptrdiff_t num_elems = leftovers / sizeof(void*);
         NL_ArrChunk* new_chk = tb_arena_alloc(arr->arena, sizeof(NL_ChunkedArr) + num_elems*sizeof(void*));
 
@@ -61,6 +61,11 @@ void nl_chunked_arr_put(NL_ChunkedArr* arr, void* v) {
         arr->last = new_chk;
     }
     last->elems[last->count++] = v;
+}
+
+void* nl_chunked_arr_pop(NL_ChunkedArr* arr) {
+    NL_ArrChunk* last = arr->last;
+    return last->elems[--last->count];
 }
 
 void nl_chunked_arr_reset(NL_ChunkedArr* arr) {
