@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     // GC_disable();
     vm_config_t val_config = (vm_config_t){
         .use_tb_opt = false,
-        .use_num = VM_USE_NUM_F64,
+        .use_num = VM_USE_NUM_I64,
     };
     vm_blocks_t val_blocks = {0};
     vm_blocks_t *blocks = &val_blocks;

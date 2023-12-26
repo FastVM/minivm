@@ -254,7 +254,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                         break;
                     }
                     case VM_USE_NUM_I32: {
-                        step_expr = vm_ast_build_literal(i64, 1);
+                        step_expr = vm_ast_build_literal(i32, 1);
                         break;
                     }
                     case VM_USE_NUM_I64: {

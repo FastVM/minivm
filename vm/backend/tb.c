@@ -241,7 +241,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Node **regs, vm_block_t *
     if (block->pass != NULL) {
         return block->pass;
     }
-    TB_Node *old_ctrl = tb_inst_get_control(state->fun);
+    TB_Trace old_ctrl = tb_inst_get_trace(state->fun);
     TB_Node *ret = tb_inst_region(state->fun);
     block->pass = ret;
     char name[24];
@@ -249,7 +249,7 @@ TB_Node *vm_tb_func_body_once(vm_tb_state_t *state, TB_Node **regs, vm_block_t *
     tb_inst_set_region_name(state->fun, ret, -1, name);
     tb_inst_set_control(state->fun, ret);
     vm_tb_func_body_once_as(state, regs, block);
-    tb_inst_set_control(state->fun, old_ctrl);
+    tb_inst_set_trace(state->fun, old_ctrl);
     return ret;
 }
 
@@ -1176,14 +1176,14 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
         branch_uses_reg:;
 
             TB_PrototypeParam next_rets[2] = {
-                {TB_TYPE_PTR},
+                {VM_TB_TYPE_VALUE},
                 {TB_TYPE_I32},
             };
 
             TB_PrototypeParam *next_params = vm_malloc(sizeof(TB_PrototypeParam) * next_nargs);
 
             for (size_t argno = 0; argno < next_nargs; argno++) {
-                next_params[argno] = (TB_PrototypeParam){TB_TYPE_PTR};
+                next_params[argno] = (TB_PrototypeParam){VM_TB_TYPE_VALUE};
             }
 
             TB_FunctionPrototype *next_proto = tb_prototype_create(
@@ -1637,16 +1637,18 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         }
     }
 #endif
+    static bool arena_init = false;
     TB_Arena arena;
-    tb_arena_create(&arena, 1 << 16);
+    TB_Arena *parena = &arena;
+    tb_arena_create(parena, 1 << 16);
     TB_FeatureSet features = (TB_FeatureSet){0};
 #if VM_USE_DUMP
     if (state->config->dump_x86) {
-        TB_FunctionOutput *out = tb_pass_codegen(passes, &arena, &features, true);
+        TB_FunctionOutput *out = tb_pass_codegen(passes, parena, &features, true);
         fprintf(stdout, "\n--- x86asm ---\n");
         tb_output_print_asm(out, stdout);
     } else {
-        tb_pass_codegen(passes, &arena, &features, false);
+        tb_pass_codegen(passes, parena, &features, false);
     }
 #else
     tb_pass_codegen(passes, &arena, &features, false);
@@ -1656,7 +1658,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     TB_JIT *jit = tb_jit_begin(state->module, 1 << 16);
     void *ret = tb_jit_place_function(jit, state->fun);
 
-    tb_arena_destroy(&arena);
+    tb_arena_destroy(parena);
 
     rblock->jit = ret;
 
