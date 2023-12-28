@@ -22,6 +22,7 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
     const char *str = args[0].value.str;
     vm_ast_node_t node = vm_lang_lua_parse(closure->config, str);
     vm_ast_comp_more(node, closure->blocks);
+    vm_ast_free_node(node);
     
     vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * 2);
     vals[0] = (vm_std_value_t) {

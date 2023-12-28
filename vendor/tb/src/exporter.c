@@ -108,41 +108,38 @@ ExportList tb_module_layout_sections(TB_Module* m) {
 
         // unpack symbols
         TB_Symbol** syms = (TB_Symbol**) info->symbols.data;
-        if (syms) {
-            size_t cap = 1ull << info->symbols.exp;
-            for (size_t i = 0; i < cap; i++) {
-                TB_Symbol* s = syms[i];
-                if (s == NULL || s == NL_HASHSET_TOMB) continue;
+        if (syms) FOREACH_N(i, 0, 1ull << info->symbols.exp) {
+            TB_Symbol* s = syms[i];
+            if (s == NULL || s == NL_HASHSET_TOMB) continue;
 
-                switch (atomic_load_explicit(&s->tag, memory_order_relaxed)) {
-                    case TB_SYMBOL_FUNCTION: {
-                        TB_Function* f = (TB_Function*) s;
-                        TB_ModuleSection* sec = &m->sections[f->section];
+            switch (atomic_load_explicit(&s->tag, memory_order_relaxed)) {
+                case TB_SYMBOL_FUNCTION: {
+                    TB_Function* f = (TB_Function*) s;
+                    TB_ModuleSection* sec = &m->sections[f->section];
 
-                        // we only care for compiled functions
-                        TB_FunctionOutput* out_f = f->output;
-                        if (out_f != NULL) {
-                            out_f->ordinal = f->super.ordinal;
-                            dyn_array_put(sec->funcs, out_f);
-                        }
-                        break;
+                    // we only care for compiled functions
+                    TB_FunctionOutput* out_f = f->output;
+                    if (out_f != NULL) {
+                        out_f->ordinal = f->super.ordinal;
+                        dyn_array_put(sec->funcs, out_f);
                     }
-                    case TB_SYMBOL_GLOBAL: {
-                        TB_Global* g = (TB_Global*) s;
-                        TB_ModuleSection* sec = &m->sections[g->parent];
-                        dyn_array_put(sec->globals, g);
-                        break;
-                    }
-                    case TB_SYMBOL_EXTERNAL: {
-                        // resolved externals are just globals or functions, we don't add them here
-                        TB_External* e = (TB_External*) s;
-                        if (atomic_load_explicit(&e->resolved, memory_order_relaxed) == NULL) {
-                            externals[external_count++] = e;
-                        }
-                        break;
-                    }
-                    default: break;
+                    break;
                 }
+                case TB_SYMBOL_GLOBAL: {
+                    TB_Global* g = (TB_Global*) s;
+                    TB_ModuleSection* sec = &m->sections[g->parent];
+                    dyn_array_put(sec->globals, g);
+                    break;
+                }
+                case TB_SYMBOL_EXTERNAL: {
+                    // resolved externals are just globals or functions, we don't add them here
+                    TB_External* e = (TB_External*) s;
+                    if (atomic_load_explicit(&e->resolved, memory_order_relaxed) == NULL) {
+                        externals[external_count++] = e;
+                    }
+                    break;
+                }
+                default: break;
             }
         }
 

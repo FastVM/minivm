@@ -7,7 +7,7 @@
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs);
 void vm_cache_new(vm_cache_t *cache);
 void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock);
-void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value);
+void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_block_t *value);
 vm_tags_t *vm_rblock_regs_empty(size_t nregs);
 vm_tags_t *vm_rblock_regs_dup(vm_tags_t *regs);
 bool vm_rblock_regs_match(vm_tags_t *a, vm_tags_t *b);

@@ -293,6 +293,11 @@ vm_table_t *vm_table_new_size(size_t pow2) {
     return ret;
 }
 
+vm_table_t *vm_free_table(vm_table_t *table) {
+    vm_free(table->pairs);
+    vm_free(table);
+}
+
 vm_table_t *vm_table_new(void) {
     return vm_table_new_size(2);
 }

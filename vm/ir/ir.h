@@ -42,6 +42,7 @@ enum {
     VM_BOP_JUMP,
     VM_BOP_BB,
     VM_BOP_BLT,
+    VM_BOP_BLE,
     VM_BOP_BEQ,
     VM_BOP_RET,
     VM_BOP_BTYPE,
@@ -69,16 +70,18 @@ enum {
 };
 
 struct vm_rblock_t {
+    void *code;
     void *jit;
     vm_tags_t *regs;
     vm_block_t *block;
     vm_block_t *cache;
     void *state;
+    void (*del)(vm_rblock_t *self);
 };
 
 struct vm_cache_t {
     vm_rblock_t **keys;
-    void **values;
+    vm_block_t **values;
     size_t len;
     size_t alloc;
 };
@@ -160,6 +163,9 @@ void vm_io_format_blocks(vm_io_buffer_t *out, vm_blocks_t *val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
 vm_tag_t vm_arg_to_tag(vm_arg_t arg);
+
+void vm_free_block_sub(vm_block_t *block);
+void vm_free_block(vm_block_t *block);
 
 #define vm_arg_nil() ((vm_arg_t) { .type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL) })
 

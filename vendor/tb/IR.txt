@@ -1,6 +1,6 @@
 # Sea of Nodes (SoN)
 
-  https://www.oracle.com/technetwork/java/javase/tech/c2-ir95-150110.pdf)
+  https://www.oracle.com/technetwork/java/javase/tech/c2-ir95-150110.pdf
 
   SoN is an SSA where ordering is relaxed in the form of explicit dependencies
   as opposed to local ordering inside basic blocks, for instance pure operations

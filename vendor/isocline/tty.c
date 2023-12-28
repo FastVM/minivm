@@ -141,7 +141,7 @@ static code_t tty_read_utf8( tty_t* tty, uint8_t c0 ) {
 }
 
 // pop a code from the pushback buffer.
-static bool tty_code_pop(tty_t* tty, code_t* code);
+static inline bool tty_code_pop(tty_t* tty, code_t* code);
 
 
 // read a single char/key 
@@ -275,7 +275,7 @@ ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st,
 // High level code pushback
 //-------------------------------------------------------------
 
-static bool tty_code_pop( tty_t* tty, code_t* code ) {
+static inline bool tty_code_pop( tty_t* tty, code_t* code ) {
   if (tty->push_count <= 0) return false;
   tty->push_count--;
   *code = tty->pushbuf[tty->push_count];
@@ -305,7 +305,7 @@ ic_private bool tty_cpop(tty_t* tty, uint8_t* c) {
   }
 }
 
-static void tty_cpush(tty_t* tty, const char* s) {
+static inline void tty_cpush(tty_t* tty, const char* s) {
   ssize_t len = ic_strlen(s);
   if (tty->push_count + len > TTY_PUSH_MAX) {
     debug_msg("tty: cpush buffer full! (pushing %s)\n", s);
@@ -320,7 +320,7 @@ static void tty_cpush(tty_t* tty, const char* s) {
 }
 
 // convenience function for small sequences
-static void tty_cpushf(tty_t* tty, const char* fmt, ...) {
+static inline void tty_cpushf(tty_t* tty, const char* fmt, ...) {
   va_list args;
   va_start(args,fmt);
   char buf[TTY_PUSH_MAX+1];
@@ -352,17 +352,17 @@ static unsigned csi_mods(code_t mods) {
 }
 
 // Push ESC [ <vtcode> ; <mods> ~
-static void tty_cpush_csi_vt( tty_t* tty, code_t mods, uint32_t vtcode ) {
+static inline void tty_cpush_csi_vt( tty_t* tty, code_t mods, uint32_t vtcode ) {
   tty_cpushf(tty,"\x1B[%u;%u~", vtcode, csi_mods(mods) );
 }
 
 // push ESC [ 1 ; <mods> <xcmd>
-static void tty_cpush_csi_xterm( tty_t* tty, code_t mods, char xcode ) {
+static inline void tty_cpush_csi_xterm( tty_t* tty, code_t mods, char xcode ) {
   tty_cpushf(tty,"\x1B[1;%u%c", csi_mods(mods), xcode );
 }
 
 // push ESC [ <unicode> ; <mods> u
-static void tty_cpush_csi_unicode( tty_t* tty, code_t mods, uint32_t unicode ) {
+static inline void tty_cpush_csi_unicode( tty_t* tty, code_t mods, uint32_t unicode ) {
   if ((unicode < 0x80 && mods == 0) || 
       (mods == KEY_MOD_CTRL && unicode < ' ' && unicode != KEY_TAB && unicode != KEY_ENTER 
                         && unicode != KEY_LINEFEED && unicode != KEY_BACKSP) ||
@@ -378,10 +378,10 @@ static void tty_cpush_csi_unicode( tty_t* tty, code_t mods, uint32_t unicode ) {
 // Init
 //-------------------------------------------------------------
 
-static bool tty_init_raw(tty_t* tty);
-static void tty_done_raw(tty_t* tty);
+static inline bool tty_init_raw(tty_t* tty);
+static inline void tty_done_raw(tty_t* tty);
 
-static bool tty_init_utf8(tty_t* tty) {
+static inline bool tty_init_utf8(tty_t* tty) {
   #ifdef _WIN32
   tty->is_utf8 = true;
   #else
@@ -441,7 +441,7 @@ ic_private void tty_set_esc_delay(tty_t* tty, long initial_delay_ms, long follow
 //-------------------------------------------------------------
 #if !defined(_WIN32)
 
-static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
+static inline bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
   if (tty_cpop(tty,c)) return true;
   *c = 0;
   ssize_t nread = read(tty->fd_in, (char*)c, 1);
@@ -574,12 +574,12 @@ static signal_handler_t sighandlers[] = {
   { 0       , {0} }
 };
 
-static bool sigaction_is_valid( struct sigaction* sa ) {
+static inline bool sigaction_is_valid( struct sigaction* sa ) {
   return (sa->sa_sigaction != NULL && sa->sa_handler != SIG_DFL && sa->sa_handler != SIG_IGN);
 }
 
 // Generic signal handler
-static void sig_handler(int signum, siginfo_t* siginfo, void* uap ) {
+static inline void sig_handler(int signum, siginfo_t* siginfo, void* uap ) {
   if (signum == SIGWINCH) {
     if (sig_tty != NULL) {
       sig_tty->term_resize_event = true;
@@ -602,7 +602,7 @@ static void sig_handler(int signum, siginfo_t* siginfo, void* uap ) {
   }
 }
 
-static void signals_install(tty_t* tty) {
+static inline void signals_install(tty_t* tty) {
   sig_tty = tty;
   // generic signal handler
   struct sigaction handler;
@@ -625,7 +625,7 @@ static void signals_install(tty_t* tty) {
   }
 }
 
-static void signals_restore(void) {
+static inline void signals_restore(void) {
   // restore all signal handlers
   for( signal_handler_t* sh = sighandlers; sh->signum != 0; sh++ ) {
     if (sigaction_is_valid(&sh->action.previous)) {
@@ -636,11 +636,11 @@ static void signals_restore(void) {
 }
 
 #else
-static void signals_install(tty_t* tty) {
+static inline void signals_install(tty_t* tty) {
   ic_unused(tty);
   // nothing
 }
-static void signals_restore(void) {
+static inline void signals_restore(void) {
   // nothing
 }
 
@@ -662,7 +662,7 @@ ic_private void tty_end_raw(tty_t* tty) {
   tty->raw_enabled = false;
 }
 
-static bool tty_init_raw(tty_t* tty) 
+static inline bool tty_init_raw(tty_t* tty) 
 {  
   // Set input to raw mode. See <https://man7.org/linux/man-pages/man3/termios.3.html>.
   if (tcgetattr(tty->fd_in,&tty->orig_ios) == -1) return false;
@@ -683,7 +683,7 @@ static bool tty_init_raw(tty_t* tty)
   return true;
 }
 
-static void tty_done_raw(tty_t* tty) {
+static inline void tty_done_raw(tty_t* tty) {
   ic_unused(tty);
   signals_restore();
 }
@@ -697,7 +697,7 @@ static void tty_done_raw(tty_t* tty) {
 // to the character stream (instead of returning key codes).
 //-------------------------------------------------------------
 
-static void tty_waitc_console(tty_t* tty, long timeout_ms);
+static inline void tty_waitc_console(tty_t* tty, long timeout_ms);
 
 ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {  // don't modify `c` if there is no input
   // in our pushback buffer?
@@ -708,7 +708,7 @@ ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {  //
 }
 
 // Read from the console input events and push escape codes into the tty cbuffer.
-static void tty_waitc_console(tty_t* tty, long timeout_ms) 
+static inline void tty_waitc_console(tty_t* tty, long timeout_ms) 
 {
   //  wait for a key down event
   INPUT_RECORD inp;
@@ -874,13 +874,13 @@ ic_private void tty_end_raw(tty_t* tty) {
   tty->raw_enabled = false;
 }
 
-static bool tty_init_raw(tty_t* tty) {
+static inline bool tty_init_raw(tty_t* tty) {
   tty->hcon = GetStdHandle( STD_INPUT_HANDLE );  
   tty->has_term_resize_event = true;
   return true;
 }
 
-static void tty_done_raw(tty_t* tty) {
+static inline void tty_done_raw(tty_t* tty) {
   ic_unused(tty);
 }
 

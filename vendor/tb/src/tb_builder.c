@@ -6,9 +6,12 @@
 // the machine code output or later analysis stages.
 #include "tb_internal.h"
 
+static void add_input_late(TB_Function* f, TB_Node* n, TB_Node* in);
+
 TB_API void tb_inst_set_trace(TB_Function* f, TB_Trace trace) { f->trace = trace; }
 TB_API TB_Trace tb_inst_get_trace(TB_Function* f) { return f->trace; }
 TB_Node* tb_inst_get_control(TB_Function* f) { return f->trace.bot_ctrl; }
+TB_API TB_Node* tb_inst_root_node(TB_Function* f) { return f->root_node; }
 
 TB_Node* transfer_ctrl(TB_Function* f, TB_Node* n) {
     TB_Node* prev = f->trace.bot_ctrl;
@@ -36,6 +39,7 @@ TB_Trace tb_inst_trace_from_region(TB_Function* f, TB_Node* region) {
     return (TB_Trace){ region, region, r->mem_in };
 }
 
+static TB_Node* get_callgraph(TB_Function* f) { return f->root_node->inputs[3]; }
 static TB_Node* peek_mem(TB_Function* f) { return f->trace.mem; }
 
 // adds memory effect to region
@@ -98,23 +102,21 @@ static void* alloc_from_node_arena(TB_Function* f, size_t necessary_size) {
     return tb_arena_alloc(f->arena, necessary_size);
 }
 
-TB_Node* tb_alloc_node(TB_Function* f, int type, TB_DataType dt, int input_count, size_t extra) {
+TB_Node* tb_alloc_node_dyn(TB_Function* f, int type, TB_DataType dt, int input_count, int input_cap, size_t extra) {
     assert(input_count < UINT16_MAX && "too many inputs!");
 
     TB_Node* n = alloc_from_node_arena(f, sizeof(TB_Node) + extra);
     n->type = type;
+    n->input_cap = input_cap;
+    n->input_count = input_count;
     n->dt = dt;
     n->gvn = f->node_count++;
-    n->input_count = input_count;
     n->users = NULL;
 
-    if (input_count > 0) {
-        n->inputs = alloc_from_node_arena(f, input_count * sizeof(TB_Node*));
+    if (input_cap > 0) {
+        n->inputs = alloc_from_node_arena(f, input_cap * sizeof(TB_Node*));
         memset(n->inputs, 0, input_count * sizeof(TB_Node*));
     } else {
-        // basically only true for START, maybe it's best
-        // we just give it a NULL slot to avoid certain awkward
-        // checks?
         n->inputs = NULL;
     }
 
@@ -123,6 +125,10 @@ TB_Node* tb_alloc_node(TB_Function* f, int type, TB_DataType dt, int input_count
     }
 
     return n;
+}
+
+TB_Node* tb_alloc_node(TB_Function* f, int type, TB_DataType dt, int input_count, size_t extra) {
+    return tb_alloc_node_dyn(f, type, dt, input_count, input_count, extra);
 }
 
 static TB_Node* tb_bin_arith(TB_Function* f, int type, TB_ArithmeticBehavior arith_behavior, TB_Node* a, TB_Node* b) {
@@ -484,6 +490,8 @@ TB_MultiOutput tb_inst_call(TB_Function* f, TB_FunctionPrototype* proto, TB_Node
     c->projs[0] = cproj;
     c->projs[1] = mproj;
 
+    add_input_late(f, get_callgraph(f), n);
+
     if (proto->return_count == 1) {
         return (TB_MultiOutput){ .count = proto->return_count, .single = c->projs[2] };
     } else {
@@ -503,6 +511,7 @@ void tb_inst_tailcall(TB_Function* f, TB_FunctionPrototype* proto, TB_Node* targ
     TB_NodeTailcall* c = TB_NODE_GET_EXTRA(n);
     c->proto = proto;
 
+    add_input_late(f, get_callgraph(f), n);
     tb_inst_ret(f, 0, NULL);
 }
 
@@ -854,7 +863,7 @@ bool tb_inst_add_phi_operand(TB_Function* f, TB_Node* phi, TB_Node* region, TB_N
 TB_Node* tb_inst_phi2(TB_Function* f, TB_Node* region, TB_Node* a, TB_Node* b) {
     assert(TB_DATA_TYPE_EQUALS(a->dt, b->dt));
 
-    TB_Node* n = tb_alloc_node(f, TB_PHI, a->dt, 3, 0);
+    TB_Node* n = tb_alloc_node_dyn(f, TB_PHI, a->dt, 3, 3, 0);
     set_input(f, n, region, 0);
     set_input(f, n, a, 1);
     set_input(f, n, b, 2);
@@ -866,11 +875,11 @@ TB_API TB_Node* tb_inst_region(TB_Function* f) {
 }
 
 TB_API TB_Trace tb_inst_new_trace(TB_Function* f) {
-    TB_Node* n = tb_alloc_node(f, TB_REGION, TB_TYPE_CONTROL, 0, sizeof(TB_NodeRegion));
+    TB_Node* n = tb_alloc_node_dyn(f, TB_REGION, TB_TYPE_CONTROL, 0, 4, sizeof(TB_NodeRegion));
     TB_NodeRegion* r = TB_NODE_GET_EXTRA(n);
     r->freq = 1.0f;
 
-    TB_Node* phi = tb_alloc_node(f, TB_PHI, TB_TYPE_MEMORY, 1, 0);
+    TB_Node* phi = tb_alloc_node_dyn(f, TB_PHI, TB_TYPE_MEMORY, 1, 5, 0);
     set_input(f, phi, n, 0);
     r->mem_in = phi;
     return (TB_Trace){ n, n, phi };
@@ -888,20 +897,22 @@ void tb_inst_set_region_name(TB_Function* f, TB_Node* n, ptrdiff_t len, const ch
 
 // this has to move things which is not nice...
 static void add_input_late(TB_Function* f, TB_Node* n, TB_Node* in) {
-    // detach old predecessor list, make bigger one
-    assert(n->type == TB_REGION || n->type == TB_PHI);
+    assert(n->type == TB_REGION || n->type == TB_PHI || n->type == TB_CALLGRAPH);
 
-    size_t old_count = n->input_count;
-    TB_Node** new_inputs = alloc_from_node_arena(f, (old_count + 1) * sizeof(TB_Node*));
-    if (n->inputs != NULL) {
-        memcpy(new_inputs, n->inputs, old_count * sizeof(TB_Node*));
+    if (n->input_count >= n->input_cap) {
+        size_t new_cap = n->input_count * 2;
+        TB_Node** new_inputs = alloc_from_node_arena(f, new_cap * sizeof(TB_Node*));
+        if (n->inputs != NULL) {
+            memcpy(new_inputs, n->inputs, n->input_count * sizeof(TB_Node*));
+        }
+
+        n->inputs = new_inputs;
+        n->input_cap = new_cap;
     }
 
-    new_inputs[old_count] = in;
-    add_user(f, n, in, old_count, NULL);
-
-    n->inputs = new_inputs;
-    n->input_count = old_count + 1;
+    n->inputs[n->input_count] = in;
+    add_user(f, n, in, n->input_count, NULL);
+    n->input_count += 1;
 }
 
 static void add_memory_edge(TB_Function* f, TB_Node* n, TB_Node* mem_state, TB_Node* target) {
@@ -994,13 +1005,13 @@ void tb_inst_ret(TB_Function* f, size_t count, TB_Node** values) {
     assert(ctrl->type == TB_REGION);
 
     // add to PHIs
-    assert(root->input_count >= 3 + count);
+    assert(root->input_count >= 4 + count);
     add_input_late(f, root->inputs[1], mem_state);
 
-    size_t i = 3;
-    for (; i < count + 3; i++) {
-        assert(root->inputs[i]->dt.raw == values[i - 3]->dt.raw && "datatype mismatch");
-        add_input_late(f, root->inputs[i], values[i - 3]);
+    size_t i = 4;
+    for (; i < count + 4; i++) {
+        assert(root->inputs[i]->dt.raw == values[i - 4]->dt.raw && "datatype mismatch");
+        add_input_late(f, root->inputs[i], values[i - 4]);
     }
 
     size_t phi_count = root->input_count;

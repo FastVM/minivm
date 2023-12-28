@@ -28,3 +28,13 @@ void GC_free(void *ptr) {
     free(ptr);
 }
 #endif
+
+char *vm_strdup(const char *str) {
+    if (str == NULL) {
+        return NULL;
+    }
+    int len = strlen(str);
+    char *buf = vm_malloc(sizeof(char) * (len + 1));
+    memcpy(buf, str, len + 1);
+    return buf;
+}

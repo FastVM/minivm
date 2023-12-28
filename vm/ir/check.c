@@ -49,6 +49,7 @@ const char *vm_check_branch(vm_branch_t branch) {
         case VM_BOP_BEQ: {
             return NULL;
         }
+        case VM_BOP_BLE:
         case VM_BOP_BLT: {
             vm_tag_t a0 = vm_check_get_tag(branch.args[0]);
             vm_tag_t a1 = vm_check_get_tag(branch.args[1]);

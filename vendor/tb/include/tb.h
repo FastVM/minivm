@@ -170,8 +170,6 @@ typedef enum TB_DataTypeEnum {
     TB_CONTROL,
     // represents memory (and I/O)
     TB_MEMORY,
-    // continuation (usually just return addresses :p)
-    TB_CONT,
     // Tuples, these cannot be used in memory ops, just accessed via projections
     TB_TUPLE,
 } TB_DataTypeEnum;
@@ -251,7 +249,7 @@ typedef enum TB_NodeTypeEnum {
     ////////////////////////////////
     //   there's only one ROOT per function, it's inputs are the return values, it's
     //   outputs are the initial params.
-    TB_ROOT,       // (Control, Memory, Data?) -> (Control, Memory, Data...)
+    TB_ROOT,       // (Control, Memory, RPC, Callgraph, Data...) -> (Control, Memory, RPC, Data...)
     //   regions are used to represent paths which have multiple entries.
     //   each input is a predecessor.
     TB_REGION,     // (Control...) -> (Control)
@@ -283,7 +281,7 @@ typedef enum TB_NodeTypeEnum {
     ////////////////////////////////
     //   this special op tracks calls such that we can produce our cool call graph, there's
     //   one call graph node per function that never moves.
-    TB_CALLGRAPH,
+    TB_CALLGRAPH,      // (Call...) -> Void
     //   nothing special, it's just a function call, 3rd argument here is the
     //   target pointer (or syscall number) and the rest are just data args.
     TB_CALL,           // (Control, Memory, Data, Data...) -> (Control, Memory, Data)
@@ -418,6 +416,8 @@ typedef enum TB_NodeTypeEnum {
     TB_X86INTRIN_STMXCSR,
     TB_X86INTRIN_SQRT,
     TB_X86INTRIN_RSQRT,
+
+    TB_NODE_TYPE_MAX,
 } TB_NodeTypeEnum;
 typedef uint8_t TB_NodeType;
 
@@ -529,7 +529,10 @@ struct User {
 
 struct TB_Node {
     TB_NodeType type;
+
+    uint16_t input_cap;
     uint16_t input_count;
+
     TB_DataType dt;
 
     // makes it easier to track in graph walks
@@ -721,7 +724,6 @@ typedef enum {
 #define TB_TYPE_BOOL    TB_DataType{ { TB_INT,   1 } }
 #define TB_TYPE_PTR     TB_DataType{ { TB_PTR,   0 } }
 #define TB_TYPE_MEMORY  TB_DataType{ { TB_MEMORY,0 } }
-#define TB_TYPE_CONT    TB_DataType{ { TB_CONT,  0 } }
 #define TB_TYPE_INTN(N) TB_DataType{ { TB_INT,   (N) } }
 #define TB_TYPE_PTRN(N) TB_DataType{ { TB_PTR,   (N) } }
 
@@ -738,7 +740,6 @@ typedef enum {
 #define TB_TYPE_F64     (TB_DataType){ { TB_FLOAT, TB_FLT_64 } }
 #define TB_TYPE_BOOL    (TB_DataType){ { TB_INT,   1 } }
 #define TB_TYPE_PTR     (TB_DataType){ { TB_PTR,   0 } }
-#define TB_TYPE_CONT    (TB_DataType){ { TB_CONT,  0 } }
 #define TB_TYPE_MEMORY  (TB_DataType){ { TB_MEMORY,0 } }
 #define TB_TYPE_INTN(N) (TB_DataType){ { TB_INT,   (N) } }
 #define TB_TYPE_PTRN(N) (TB_DataType){ { TB_PTR,   (N) } }
@@ -1098,6 +1099,7 @@ TB_API void tb_inst_set_region_name(TB_Function* f, TB_Node* n, ptrdiff_t len, c
 
 TB_API TB_Node* tb_inst_poison(TB_Function* f, TB_DataType dt);
 
+TB_API TB_Node* tb_inst_root_node(TB_Function* f);
 TB_API TB_Node* tb_inst_param(TB_Function* f, int param_id);
 
 TB_API TB_Node* tb_inst_fpxt(TB_Function* f, TB_Node* src, TB_DataType dt);
@@ -1328,6 +1330,10 @@ TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* u
 //   into the same code arena (although arenas aren't thread-safe you'll want one per thread
 //   at least)
 TB_API TB_FunctionOutput* tb_pass_codegen(TB_Passes* opt, TB_Arena* code_arena, const TB_FeatureSet* features, bool emit_asm);
+
+void tb_module_prepare_ipo(TB_Module* m);
+// interprocedural optimizer iter, returns true when it makes progress
+bool tb_module_ipo(TB_Module* m);
 
 TB_API void tb_pass_kill_node(TB_Passes* opt, TB_Node* n);
 TB_API void tb_pass_mark(TB_Passes* opt, TB_Node* n);

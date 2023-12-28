@@ -18,19 +18,20 @@ char *vm_lang_lua_src(vm_lang_lua_t src, TSNode node) {
     uint32_t start = ts_node_start_byte(node);
     uint32_t end = ts_node_end_byte(node);
     uint32_t len = end - start;
-    char *ident = vm_malloc(sizeof(char) * (len + 1));
+    char *str = vm_malloc(sizeof(char) * (len + 1));
     for (size_t i = 0; i < len; i++) {
-        ident[i] = src.src[start + i];
+        str[i] = src.src[start + i];
     }
-    ident[len] = '\0';
-    return ident;
+    str[len] = '\0';
+    // printf("%s\n", str);
+    return str;
 }
 
-vm_ast_node_t vm_lang_lua_gensym(vm_lang_lua_t src) {
+char *vm_lang_lua_gensym(vm_lang_lua_t src) {
     char *buf = vm_malloc(sizeof(char) * 32);
     *src.nsyms += 1;
     snprintf(buf, 31, "gensym.%zu", *src.nsyms);
-    return vm_ast_build_ident(buf);
+    return buf;
 }
 
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
@@ -132,7 +133,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                     }
                 }
                 vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
-                args[0] = vm_ast_build_ident("self");
+                args[0] = vm_ast_build_ident(vm_strdup("self"));
                 size_t write = 1;
                 for (size_t i = 0; i < ts_node_child_count(params); i++) {
                     TSNode arg = ts_node_child(params, i);
@@ -239,8 +240,6 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         const char *clause_type = ts_node_type(clause);
         if (!strcmp(clause_type, "for_numeric_clause")) {
             size_t len = ts_node_child_count(clause);
-            vm_ast_node_t var = vm_lang_lua_conv(src, ts_node_child(clause, 0));
-            vm_ast_node_t start = vm_lang_lua_conv(src, ts_node_child(clause, 2));
             vm_ast_node_t stop_expr = vm_lang_lua_conv(src, ts_node_child(clause, 4));
             vm_ast_node_t step_expr;
             if (len == 5) {
@@ -273,18 +272,30 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             } else {
                 step_expr = vm_lang_lua_conv(src, ts_node_child(clause, 6));
             }
-            vm_ast_node_t step_var = vm_lang_lua_gensym(src);
-            vm_ast_node_t stop_var = vm_lang_lua_gensym(src);
+            const char *step_var = vm_lang_lua_gensym(src);
+            const char *stop_var = vm_lang_lua_gensym(src);
             return vm_ast_build_block(
                 4,
-                vm_ast_build_local(var, start),
-                vm_ast_build_local(step_var, step_expr),
-                vm_ast_build_local(stop_var, stop_expr),
+                vm_ast_build_local(
+                    vm_lang_lua_conv(src, ts_node_child(clause, 0)),
+                    vm_lang_lua_conv(src, ts_node_child(clause, 2))
+                ),
+                vm_ast_build_local(vm_ast_build_ident(vm_strdup(step_var)), step_expr),
+                vm_ast_build_local(vm_ast_build_ident(vm_strdup(stop_var)), stop_expr),
                 vm_ast_build_while(
-                    vm_ast_build_le(var, stop_var),
+                    vm_ast_build_le(
+                        vm_lang_lua_conv(src, ts_node_child(clause, 0)),
+                        vm_ast_build_ident(stop_var)
+                    ),
                     vm_ast_build_do(
                         vm_lang_lua_conv(src, ts_node_child(node, 3)),
-                        vm_ast_build_set(var, vm_ast_build_add(var, step_var))
+                        vm_ast_build_set(
+                            vm_lang_lua_conv(src, ts_node_child(clause, 0)),
+                            vm_ast_build_add(
+                                vm_lang_lua_conv(src, ts_node_child(clause, 0)),
+                                vm_ast_build_ident(step_var)
+                            )
+                        )
                     )
                 )
             );
@@ -404,6 +415,8 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(op, "..")) {
             return vm_ast_build_concat(left, right);
         }
+        vm_ast_free_node(left);
+        vm_ast_free_node(right);
         return vm_ast_build_error(vm_io_format("unknown operator: %s", op));
     }
     if (!strcmp(type, "string")) {
@@ -411,51 +424,64 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         return vm_ast_build_literal(str, vm_lang_lua_src(src, content));
     }
     if (!strcmp(type, "number")) {
+        const char *str = vm_lang_lua_src(src, node);
+        vm_ast_node_t ret;
         switch (src.config->use_num) {
             case VM_USE_NUM_F32: {
                 float n;
-                sscanf(vm_lang_lua_src(src, node), "%f", &n);
-                return vm_ast_build_literal(f32, n);
+                sscanf(str, "%f", &n);
+                ret = vm_ast_build_literal(f32, n);
+                break;
             }
             case VM_USE_NUM_F64: {
                 double n;
-                sscanf(vm_lang_lua_src(src, node), "%lf", &n);
-                return vm_ast_build_literal(f64, n);
+                sscanf(str, "%lf", &n);
+                ret = vm_ast_build_literal(f64, n);
+                break;
             }
             case VM_USE_NUM_I8: {
                 int8_t n;
-                sscanf(vm_lang_lua_src(src, node), "%" SCNi8, &n);
-                return vm_ast_build_literal(i8, n);
+                sscanf(str, "%" SCNi8, &n);
+                ret = vm_ast_build_literal(i8, n);
+                break;
             }
             case VM_USE_NUM_I16: {
                 int16_t n;
-                sscanf(vm_lang_lua_src(src, node), "%" SCNi16, &n);
-                return vm_ast_build_literal(i16, n);
+                sscanf(str, "%" SCNi16, &n);
+                ret = vm_ast_build_literal(i16, n);
+                break;
             }
             case VM_USE_NUM_I32: {
                 int32_t n;
-                sscanf(vm_lang_lua_src(src, node), "%" SCNi32, &n);
-                return vm_ast_build_literal(i32, n);
+                sscanf(str, "%" SCNi32, &n);
+                ret = vm_ast_build_literal(i32, n);
+                break;
             }
             case VM_USE_NUM_I64: {
                 int64_t n;
-                sscanf(vm_lang_lua_src(src, node), "%" SCNi64, &n);
-                return vm_ast_build_literal(i64, n);
+                sscanf(str, "%" SCNi64, &n);
+                ret = vm_ast_build_literal(i64, n);
+                break;
+            }
+            default: {
+                __builtin_trap();
             }
         }
+        vm_free(str);
+        return ret;
     }
     if (!strcmp(type, "function_call")) {
         TSNode func_node = ts_node_child(node, 0);
         if (!strcmp(ts_node_type(func_node), "method_index_expression")) {
-            vm_ast_node_t obj = vm_lang_lua_gensym(src);
-            vm_ast_node_t set_obj = vm_ast_build_local(obj, vm_lang_lua_conv(src, ts_node_child(func_node, 0)));
+            const char *obj = vm_lang_lua_gensym(src);
+            vm_ast_node_t set_obj = vm_ast_build_local(vm_ast_build_ident(obj), vm_lang_lua_conv(src, ts_node_child(func_node, 0)));
             vm_ast_node_t index = vm_ast_build_literal(str, vm_lang_lua_src(src, ts_node_child(func_node, 2)));
-            vm_ast_node_t func = vm_ast_build_load(obj, index);
+            vm_ast_node_t func = vm_ast_build_load(vm_ast_build_ident(vm_strdup(obj)), index);
             TSNode args_node = ts_node_child(node, 1);
             size_t nargs = ts_node_child_count(args_node);
             vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));
             size_t real_nargs = 0;
-            args[real_nargs++] = obj;
+            args[real_nargs++] = vm_ast_build_ident(vm_strdup(obj));
             for (size_t i = 1; i < ts_node_child_count(args_node); i += 1) {
                 TSNode arg = ts_node_child(args_node, i);
                 const char *name = ts_node_type(arg);
@@ -486,9 +512,9 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         return vm_lang_lua_conv(src, ts_node_child(node, 1));
     }
     if (!strcmp(type, "table_constructor")) {
-        vm_ast_node_t var = vm_lang_lua_gensym(src);
+        const char *var = vm_lang_lua_gensym(src);
         size_t nfields = 1;
-        vm_ast_node_t built = vm_ast_build_local(var, vm_ast_build_new());
+        vm_ast_node_t built = vm_ast_build_local(vm_ast_build_ident(var), vm_ast_build_new());
         for (size_t i = 0; i < num_children; i++) {
             TSNode sub = ts_node_child(node, i);
             const char *name = ts_node_type(sub);
@@ -499,7 +525,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             if (!strcmp(name, "field")) {
                 size_t sub_children = ts_node_child_count(sub);
                 if (sub_children == 1) {
-                    vm_ast_node_t target = vm_ast_build_load(var, vm_ast_build_literal(i32, nfields));
+                    vm_ast_node_t target = vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), vm_ast_build_literal(i32, nfields));
                     vm_ast_node_t value = vm_lang_lua_conv(src, ts_node_child(sub, 0));
                     cur = vm_ast_build_set(target, value);
                     nfields += 1;
@@ -507,11 +533,11 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                     char *key_field = vm_lang_lua_src(src, ts_node_child(sub, 0));
                     vm_ast_node_t key = vm_ast_build_literal(str, key_field);
                     vm_ast_node_t value = vm_lang_lua_conv(src, ts_node_child(sub, 2));
-                    cur = vm_ast_build_set(vm_ast_build_load(var, key), value);
+                    cur = vm_ast_build_set(vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), key), value);
                 } else if (sub_children == 5) {
                     vm_ast_node_t key = vm_lang_lua_conv(src, ts_node_child(sub, 1));
                     vm_ast_node_t value = vm_lang_lua_conv(src, ts_node_child(sub, 4));
-                    cur = vm_ast_build_set(vm_ast_build_load(var, key), value);
+                    cur = vm_ast_build_set(vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), key), value);
                 } else {
                     printf("%s\n", ts_node_string(sub));
                 }
@@ -520,7 +546,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             }
             built = vm_ast_build_do(built, cur);
         }
-        return vm_ast_build_do(built, var);
+        return vm_ast_build_do(built, vm_ast_build_ident(vm_strdup(var)));
     }
     if (!strcmp(type, "bracket_index_expression")) {
         vm_ast_node_t table = vm_lang_lua_conv(src, ts_node_child(node, 0));
@@ -570,5 +596,9 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str) {
         res = vm_ast_build_return(res);
     }
 
+    ts_tree_delete(tree);
+
+    ts_parser_delete(parser);
+    
     return vm_ast_build_do(res, vm_ast_build_return(vm_ast_build_nil()));
 }

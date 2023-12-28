@@ -207,7 +207,8 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
         repl = value->val_val.table;
     }
     vm_lang_lua_repl_highlight_walk(henv, repl, &depth, root_node);
-
+    ts_tree_delete(tree);
+    ts_parser_delete(parser);
     // FILE *out = fopen("out.log", "w");
     // fprintf(out, "%s\n", input);
     // fclose(out);
@@ -268,6 +269,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         vm_ast_comp_more(node, blocks);
+        vm_ast_free_node(node);
 
         if (config->dump_ir) {
             vm_io_buffer_t buf = {0};

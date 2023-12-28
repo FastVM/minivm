@@ -4,6 +4,7 @@
 
 #include "ir.h"
 
+void vm_rblock_reset(vm_rblock_t *rblock);
 vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock);
 
 #endif

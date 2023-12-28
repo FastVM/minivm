@@ -35,7 +35,7 @@
 #  define ic_private  
 # endif
 #else
-# define ic_private     static
+# define ic_private     static inline
 # define ic_public      ic_extern_c
 #endif
 

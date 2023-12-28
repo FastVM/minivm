@@ -1,9 +1,24 @@
 
 #include "rblock.h"
 
-#include "check.h"
 #include "ir.h"
 #include "type.h"
+
+void vm_rblock_reset(vm_rblock_t *rblock) {
+    // printf("rblock = %p\n", rblock);
+    if (rblock == NULL) {
+        return;
+    }
+    // printf("rblock->jit = %p\n", rblock->jit);
+    // printf("rblock->code = %p\n", rblock->code);
+    // printf("rblock->del = %p\n", rblock->del);
+    if (rblock->del != NULL) {
+        rblock->del(rblock);
+    }
+    vm_free(rblock->regs->tags);
+    vm_free(rblock->regs);
+    vm_free(rblock);
+}
 
 vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
     if (rblock->cache != NULL) {
@@ -52,10 +67,10 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
     for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
         nargs += 1;
     }
+    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t) * nargs);
+    memcpy(args, branch.args, sizeof(vm_arg_t) * nargs);
+    branch.args = args;
     for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
-        vm_arg_t *args = vm_malloc(sizeof(vm_arg_t) * nargs);
-        memcpy(args, branch.args, sizeof(vm_arg_t) * nargs);
-        branch.args = args;
         if (branch.args[i].type == VM_ARG_REG) {
             branch.args[i].reg_tag = regs->tags[branch.args[i].reg];
         }
@@ -163,20 +178,24 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
         case VM_BOP_JUMP: {
             branch.targets[0] = vm_rblock_version(blocks, vm_rblock_new(branch.targets[0], regs));
             if (branch.targets[0] == NULL) {
-                return NULL;
+                ret = NULL;
+                return ret;
             }
             break;
         }
         case VM_BOP_BB:
         case VM_BOP_BEQ:
-        case VM_BOP_BLT: {
+        case VM_BOP_BLT:
+        case VM_BOP_BLE: {
             branch.targets[0] = vm_rblock_version(blocks, vm_rblock_new(branch.targets[0], regs));
             branch.targets[1] = vm_rblock_version(blocks, vm_rblock_new(branch.targets[1], regs));
             if (branch.targets[0] == NULL) {
-                return NULL;
+                ret = NULL;
+                return ret;
             }
             if (branch.targets[1] == NULL) {
-                return NULL;
+                ret = NULL;
+                return ret;
             }
             break;
         }
@@ -193,6 +212,9 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
             ret->args[i].reg_tag = regs->tags[ret->args[i].reg];
         }
     }
+ret:;
+    vm_free(regs->tags);
+    vm_free(regs);
     // fprintf(stdout, "\n--- version ---\n");
     // vm_io_format_block(stdout, ret);
     return ret;

@@ -16,6 +16,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_ROOT:   return "root";
         case TB_PROJ:   return "proj";
         case TB_REGION: return "region";
+        case TB_CALLGRAPH: return "callgraph";
 
         case TB_LOCAL: return "local";
 
@@ -35,6 +36,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_ARRAY_ACCESS: return "array";
         case TB_MEMBER_ACCESS: return "member";
 
+        case TB_CYCLE_COUNTER: return "cyclecnt";
         case TB_SAFEPOINT_POLL: return "safepoint.poll";
 
         case TB_MEMSET: return "memset";
@@ -142,10 +144,6 @@ static void tb_print_type(TB_DataType dt, TB_PrintCallback callback, void* user_
             P("control");
             break;
         }
-        case TB_CONT: {
-            P("cont");
-            break;
-        }
         default: tb_todo();
     }
 }
@@ -158,7 +156,7 @@ static void print_proj(TB_PrintCallback callback, void* user_data, TB_Node* n, i
             } else if (index == 1) {
                 P("mem");
             } else if (index == 2) {
-                P("cont");
+                P("rpc");
             } else {
                 P("%c", 'a'+(index - 3));
             }
@@ -311,8 +309,6 @@ static void print_graph_node(TB_Function* f, TB_PrintCallback callback, void* us
         const char* color = "black";
         if (in->dt.type == TB_CONTROL) {
             color = "red";
-        } else if (in->dt.type == TB_CONT) {
-            color = "purple";
         } else if (in->dt.type == TB_MEMORY) {
             color = "blue";
         }

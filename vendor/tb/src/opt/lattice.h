@@ -4,7 +4,6 @@ static Lattice TOP_IN_THE_SKY   = { LATTICE_TOP   };
 static Lattice BOT_IN_THE_SKY   = { LATTICE_BOT   };
 static Lattice CTRL_IN_THE_SKY  = { LATTICE_CTRL  };
 static Lattice XCTRL_IN_THE_SKY = { LATTICE_XCTRL };
-static Lattice TUP_IN_THE_SKY   = { LATTICE_TUPLE };
 static Lattice XNULL_IN_THE_SKY = { LATTICE_XNULL };
 static Lattice NULL_IN_THE_SKY  = { LATTICE_NULL  };
 static Lattice FALSE_IN_THE_SKY = { LATTICE_INT, ._int = { 0, 0, 1, 0 } };
@@ -13,12 +12,30 @@ static Lattice TRUE_IN_THE_SKY  = { LATTICE_INT, ._int = { 1, 1, 0, 1 } };
 static Lattice* lattice_from_dt(TB_Passes* p, TB_DataType dt);
 
 static uint32_t lattice_hash(void* a) {
-    return tb__murmur3_32(a, sizeof(Lattice));
+    size_t s = sizeof(Lattice);
+    Lattice* l = a;
+    if (l->tag == LATTICE_TUPLE) {
+        s += l->_tuple.count*sizeof(Lattice*);
+    }
+
+    return tb__murmur3_32(a, s);
 }
 
 static bool lattice_cmp(void* a, void* b) {
     Lattice *aa = a, *bb = b;
-    return aa->tag == bb->tag ? memcmp(aa, bb, sizeof(Lattice)) == 0 : false;
+    if (aa->tag != bb->tag) {
+        return false;
+    }
+
+    if (aa->tag == LATTICE_TUPLE) {
+        if (aa->_tuple.count != bb->_tuple.count) {
+            return false;
+        }
+
+        return memcmp(aa, bb, sizeof(Lattice) + aa->_tuple.count*sizeof(Lattice*)) == 0;
+    } else {
+        return memcmp(aa, bb, sizeof(Lattice)) == 0;
+    }
 }
 
 static bool lattice_is_const_int(Lattice* l) { return l->_int.min == l->_int.max; }
@@ -67,6 +84,7 @@ Lattice* lattice_universe_get(TB_Passes* p, TB_Node* n) {
 }
 
 static Lattice* lattice_intern(TB_Passes* p, Lattice l) {
+    assert(l.tag != LATTICE_TUPLE);
     Lattice* k = nl_hashset_get2(&p->type_interner, &l, lattice_hash, lattice_cmp);
     if (k != NULL) {
         return k;
@@ -120,8 +138,34 @@ static Lattice* lattice_from_dt(TB_Passes* p, TB_DataType dt) {
         }
 
         case TB_CONTROL: return &CTRL_IN_THE_SKY;
-        case TB_TUPLE: return &TUP_IN_THE_SKY;
         default: return &BOT_IN_THE_SKY;
+    }
+}
+
+static Lattice* lattice_tuple_from_node(TB_Passes* p, TB_Node* n) {
+    assert(n->dt.type == TB_TUPLE);
+    // count projs
+    int projs = 0;
+    FOR_USERS(u, n) {
+        if (u->n->type == TB_PROJ) projs++;
+    }
+
+    size_t size = sizeof(Lattice) + projs*sizeof(Lattice*);
+    Lattice* l = tb_arena_alloc(tmp_arena, size);
+    *l = (Lattice){ LATTICE_TUPLE, ._tuple = { projs } };
+    FOR_USERS(u, n) {
+        if (u->n->type != TB_PROJ) continue;
+
+        int index = TB_NODE_GET_EXTRA_T(u->n, TB_NodeProj)->index;
+        l->elems[index] = lattice_from_dt(p, u->n->dt);
+    }
+
+    Lattice* k = nl_hashset_put2(&p->type_interner, l, lattice_hash, lattice_cmp);
+    if (k) {
+        tb_arena_free(tmp_arena, l, size);
+        return k;
+    } else {
+        return l;
     }
 }
 

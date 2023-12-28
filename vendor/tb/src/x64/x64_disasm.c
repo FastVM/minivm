@@ -248,6 +248,8 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
         [0x2C] = OP_RM | OP_SSE,
         // SSE: ucomi
         [0x2E] = OP_RM | OP_SSE,
+        // rdtsc
+        [0x31] = OP_0ARY,
         // nop r/m
         [0x1F] = OP_RM,
         // imul reg, r/m
@@ -433,6 +435,7 @@ const char* tb_x86_mnemonic(TB_X86_Inst* inst) {
 
     switch (inst->opcode) {
         case 0x0F0B: return "ud2";
+        case 0x0F31: return "rdtsc";
         case 0xCC: return "int3";
 
         case 0x0F180: return "prefetchnta";

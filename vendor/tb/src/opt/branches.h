@@ -363,7 +363,35 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
     return NULL;
 }
 
-static Lattice* dataflow_branch(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_call(TB_Passes* restrict opt, TB_Node* n) {
+    TB_NodeCall* c = TB_NODE_GET_EXTRA(n);
+
+    size_t size = sizeof(Lattice) + c->proj_count*sizeof(Lattice*);
+    Lattice* l = tb_arena_alloc(tmp_arena, size);
+    *l = (Lattice){ LATTICE_TUPLE, ._tuple = { c->proj_count } };
+
+    FOR_USERS(u, n) {
+        if (u->n->type == TB_PROJ) {
+            int index = TB_NODE_GET_EXTRA_T(u->n, TB_NodeProj)->index;
+            if (index > 0) {
+                l->elems[index] = lattice_from_dt(opt, u->n->dt);
+            }
+        }
+    }
+
+    // control just flows through
+    l->elems[0] = lattice_universe_get(opt, n->inputs[0]);
+
+    Lattice* k = nl_hashset_put2(&opt->type_interner, l, lattice_hash, lattice_cmp);
+    if (k) {
+        tb_arena_free(tmp_arena, l, size);
+        return k;
+    } else {
+        return l;
+    }
+}
+
+static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* before = lattice_universe_get(opt, n->inputs[0]);
     if (before == &TOP_IN_THE_SKY || before == &XCTRL_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -421,22 +449,77 @@ static Lattice* dataflow_branch(TB_Passes* restrict opt, TB_Node* n) {
         }
     }
 
-    // give all the projections types
+    // construct tuple type
     match:
-    FOR_USERS(u, n) {
-        TB_Node* proj = u->n;
-        if (proj->type != TB_PROJ) continue;
-
-        int index = TB_NODE_GET_EXTRA_T(proj, TB_NodeProj)->index;
-
-        // make proj's type either dead or live
-        Lattice* l = taken < 0 || index == taken ? &CTRL_IN_THE_SKY : &XCTRL_IN_THE_SKY;
-        lattice_universe_map(opt, proj, l);
+    size_t size = sizeof(Lattice) + br->succ_count*sizeof(Lattice*);
+    Lattice* l = tb_arena_alloc(tmp_arena, size);
+    *l = (Lattice){ LATTICE_TUPLE, ._tuple = { br->succ_count } };
+    FOREACH_N(i, 0, br->succ_count) {
+        l->elems[i] = taken < 0 || i == taken ? &CTRL_IN_THE_SKY : &XCTRL_IN_THE_SKY;
     }
 
-    if (taken >= 0) {
-        tb_pass_mark_users(opt, n);
+    Lattice* k = nl_hashset_put2(&opt->type_interner, l, lattice_hash, lattice_cmp);
+    if (k) {
+        tb_arena_free(tmp_arena, l, size);
+        return k;
+    } else {
+        return l;
+    }
+}
+
+static TB_Node* identity_ctrl(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    // Dead node? kill
+    Lattice* ctrl = lattice_universe_get(p, n->inputs[0]);
+    return ctrl == &XCTRL_IN_THE_SKY ? dead_node(f, p) : n;
+}
+
+static TB_Node* identity_safepoint(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    // Dead node? kill
+    Lattice* ctrl = lattice_universe_get(p, n->inputs[0]);
+    if (ctrl == &XCTRL_IN_THE_SKY || n->inputs[0]->type == TB_SAFEPOINT_POLL) {
+        // (safepoint (safepoint X)) => (safepoint X)
+        return n->inputs[0];
+    } else {
+        return n;
+    }
+}
+
+static TB_Node* identity_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    // fold out diamond shaped patterns
+    TB_Node* same = n->inputs[0];
+    if (same->type == TB_PROJ && same->inputs[0]->type == TB_BRANCH) {
+        same = same->inputs[0];
+
+        // if it has phis... quit
+        FOR_USERS(u, n) {
+            if (u->n->type == TB_PHI) {
+                return n;
+            }
+        }
+
+        FOREACH_N(i, 1, n->input_count) {
+            if (n->inputs[i]->type != TB_PROJ || n->inputs[i]->inputs[0] != same) {
+                return n;
+            }
+        }
+
+        TB_Node* before = same->inputs[0];
+        tb_pass_kill_node(p, same);
+        return before;
     }
 
-    return &TUP_IN_THE_SKY;
+    return n;
+}
+
+static TB_Node* identity_phi(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    TB_Node* same = NULL;
+    FOREACH_N(i, 1, n->input_count) {
+        if (n->inputs[i] == n) continue;
+        if (same && same != n->inputs[i]) return n;
+        same = n->inputs[i];
+    }
+
+    assert(same);
+    tb_pass_mark_users(p, n->inputs[0]);
+    return same;
 }

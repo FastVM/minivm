@@ -1,9 +1,7 @@
-#include "../vm/ast/build.h"
 #include "../vm/ast/comp.h"
 #include "../vm/ast/print.h"
 #include "../vm/backend/tb.h"
 #include "../vm/ir/ir.h"
-#include "../vm/std/util.h"
 #include "../vm/std/io.h"
 #include "../vm/std/std.h"
 #include "../vm/config.h"
@@ -14,6 +12,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 // void GC_disable(void);
 
 int main(int argc, char **argv) {
+    int ret_val;
     vm_init_mem();
     // GC_disable();
     vm_config_t val_config = (vm_config_t){
@@ -71,7 +70,8 @@ int main(int argc, char **argv) {
                 config->use_num = VM_USE_NUM_F64;
             } else {
                 fprintf(stderr, "cannot use have as a number type: %s\n", arg);
-                return 1;
+                ret_val = 1;
+                goto ret;
             }
         } else if (!strncmp(arg, "--dump-", 7) || !strncmp(arg, "--dump=", 7)) {
             arg += 7;
@@ -99,7 +99,8 @@ int main(int argc, char **argv) {
                 config->dump_time = true;
             } else {
                 fprintf(stderr, "cannot dump: %s\n", arg);
-                return 1;
+                ret_val = 1;
+                goto ret;
             }
         } else {
             bool last_isrepl = isrepl;
@@ -138,6 +139,7 @@ int main(int argc, char **argv) {
             }
 
             vm_ast_comp_more(node, blocks);
+            vm_ast_free_node(node);
 
             if (config->dump_ir) {
                 vm_io_buffer_t buf = {0};
@@ -167,5 +169,16 @@ int main(int argc, char **argv) {
         vm_lang_lua_repl(config, std, blocks);
     }
 
-    return 0;
+    ret_val = 0;
+    goto ret;
+
+ret:;
+    vm_free_table(std);
+
+    for (size_t i = 0; i < blocks->len; i++) {
+        vm_free_block(blocks->blocks[i]);
+    }
+    vm_free(blocks->blocks);
+
+    return ret_val;
 }

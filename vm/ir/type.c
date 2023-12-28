@@ -7,9 +7,8 @@ vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_tags_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     *rblock = (vm_rblock_t){
         .block = block,
-        .jit = NULL,
+        .regs = vm_rblock_regs_dup(regs),
     };
-    rblock->regs = vm_rblock_regs_dup(regs);
     return rblock;
 }
 
@@ -35,7 +34,7 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
     return NULL;
 }
 
-void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, void *value) {
+void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_block_t *value) {
     // for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
     //     vm_rblock_t *found = cache->keys[i];
     //     if (rblock->block->isfunc == found->block->isfunc &&

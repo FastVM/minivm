@@ -133,6 +133,10 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             vm_io_buffer_format(out, "blt");
             break;
         }
+        case VM_BOP_BLE: {
+            vm_io_buffer_format(out, "ble");
+            break;
+        }
         case VM_BOP_BEQ: {
             vm_io_buffer_format(out, "beq");
             break;
@@ -321,7 +325,6 @@ enum {
 };
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks) {
-    uint8_t **all_regs = vm_malloc(sizeof(uint8_t *) * nblocks);
     for (size_t i = 0; i < nblocks; i++) {
         vm_block_t *block = blocks[i];
         if (block->id < 0) {
@@ -386,7 +389,6 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                 continue;
             }
             uint8_t *regs = vm_malloc(sizeof(uint8_t) * block->nregs);
-            all_regs[i] = regs;
             for (size_t j = 0; j < block->nregs; j++) {
                 regs[j] = VM_INFO_REG_UNK;
             }
@@ -439,6 +441,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
                     };
                 }
             }
+            vm_free(regs);
             if (next_nargs == block->nargs && !redo) {
                 for (size_t a = 0; a < next_nargs; a++) {
                     if (next_args[a].reg != block->args[a].reg) {
@@ -449,6 +452,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             } else {
                 redo = true;
             }
+            vm_free(block->args);
             block->nargs = next_nargs;
             block->args = next_args;
         }
@@ -530,4 +534,28 @@ vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
     } else {
         return VM_TAG_UNK;
     }
+}
+
+void vm_free_block_sub(vm_block_t *block) {
+    for (size_t i = 0; i < block->len; i++) {
+        vm_free(block->instrs[i].args);
+    }
+    vm_free(block->branch.args);
+    vm_free(block->instrs);
+    vm_free(block->args);
+    vm_free(block);
+}
+
+void vm_free_block(vm_block_t *block) {
+    for (size_t i = 0; i < block->len; i++) {
+        vm_free(block->instrs[i].args);
+    }
+    vm_free(block->instrs);
+    vm_free(block->branch.args);
+    vm_free(block->args);
+    vm_free(block->pass);
+    vm_free(block->check);
+    vm_free(block->cache.keys);
+    vm_free(block->cache.values);
+    vm_free(block);
 }

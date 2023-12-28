@@ -64,7 +64,7 @@ typedef struct Val {
     // used by VAL_MEM and VAL_GLOBAL
     int8_t index, scale;
 
-    // memory displacement or signed immediate
+    // for VAL_IMM, memory displacement or signed immediate
     int32_t imm;
 
     union {

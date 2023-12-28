@@ -273,6 +273,8 @@ NL_Table nl_table_arena_alloc(TB_Arena* arena, size_t cap) {
     size_t exp = 64 - __builtin_clzll(cap - 1);
     #endif
 
+    cap = 1ull << exp;
+
     void* data = tb_arena_alloc(arena, cap * sizeof(NL_TableEntry));
     memset(data, 0, cap * sizeof(NL_TableEntry));
     return (NL_Table){ .exp = exp, .data = data };

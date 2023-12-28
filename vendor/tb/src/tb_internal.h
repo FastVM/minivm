@@ -284,7 +284,6 @@ struct TB_Function {
     size_t node_count;
 
     TB_Node* root_node;
-    TB_Node* callgraph;
     TB_Trace trace;
 
     TB_NodeLocation* line_loc;
@@ -539,6 +538,7 @@ inline static bool tb_is_power_of_two(uint64_t x) {
 #define TB_UNLIKELY(x) __builtin_expect(!!(x), 0)
 #endif
 
+TB_Node* tb_alloc_node_dyn(TB_Function* f, int type, TB_DataType dt, int input_count, int input_cap, size_t extra);
 TB_Node* tb_alloc_node(TB_Function* f, int type, TB_DataType dt, int input_count, size_t extra);
 TB_Node* tb__make_proj(TB_Function* f, TB_DataType dt, TB_Node* src, int index);
 

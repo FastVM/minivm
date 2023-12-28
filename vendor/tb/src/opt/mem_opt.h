@@ -160,12 +160,6 @@ static TB_Node* ideal_store(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
 }
 
 static TB_Node* ideal_root(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
-    // remove dead local store
-    if (n->inputs[1]->type == TB_STORE && is_local_ptr(n->inputs[1]->inputs[2])) {
-        set_input(f, n, n->inputs[1]->inputs[1], 1);
-        return n;
-    }
-
     return NULL;
 }
 
@@ -191,5 +185,27 @@ static TB_Node* ideal_memset(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
 }
 
 static TB_Node* ideal_memcpy(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    // convert small memsets into ld+st pairs
+    uint64_t count, val;
+    if (get_int_const(n->inputs[4], &count) && is_cool(count)) {
+        TB_Node* ctrl = n->inputs[0];
+        TB_Node* mem  = n->inputs[1];
+        TB_Node* src  = n->inputs[3];
+
+        TB_DataType dt = TB_TYPE_INTN(count*8);
+        TB_Node* ld = tb_alloc_node(f, TB_LOAD, dt, 3, sizeof(TB_NodeBinopInt));
+        set_input(f, ld, ctrl, 0);
+        set_input(f, ld, mem, 1);
+        set_input(f, ld, src, 2);
+        tb_pass_mark(p, ld);
+
+        // convert to store, remove extra input
+        n->type = TB_STORE;
+        set_input(f, n, ld, 3);
+        set_input(f, n, NULL, 4);
+        n->input_count = 4;
+        return n;
+    }
+
     return NULL;
 }

@@ -65,7 +65,7 @@ struct term_s {
 };
 
 static bool term_write_direct(term_t* term, const char* s, ssize_t n );
-static void term_append_buf(term_t* term, const char* s, ssize_t n);
+static inline void term_append_buf(term_t* term, const char* s, ssize_t n);
 
 //-------------------------------------------------------------
 // Colors
@@ -311,7 +311,7 @@ ic_private buffer_mode_t term_set_buffer_mode(term_t* term, buffer_mode_t mode) 
   return oldmode;
 }
 
-static void term_check_flush(term_t* term, bool contains_nl) {
+static inline void term_check_flush(term_t* term, bool contains_nl) {
   if (term->bufmode == UNBUFFERED || 
       sbuf_len(term->buf) > 4000 ||
       (term->bufmode == LINEBUFFERED && contains_nl)) 
@@ -324,7 +324,7 @@ static void term_check_flush(term_t* term, bool contains_nl) {
 // Init
 //-------------------------------------------------------------
 
-static void term_init_raw(term_t* term);
+static inline void term_init_raw(term_t* term);
 
 ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent, int fd_out ) 
 {
@@ -443,7 +443,7 @@ ic_private void term_free(term_t* term) {
 // is needed for bracketed styles etc.
 //-------------------------------------------------------------
 
-static void term_append_esc(term_t* term, const char* const s, ssize_t len) {
+static inline void term_append_esc(term_t* term, const char* const s, ssize_t len) {
   if (s[1]=='[' && s[len-1] == 'm') {    
     // it is a CSI SGR sequence: ESC[ ... m
     if (term->nocolor) return;       // ignore escape sequences if nocolor is set
@@ -454,7 +454,7 @@ static void term_append_esc(term_t* term, const char* const s, ssize_t len) {
 }
 
 
-static void term_append_utf8(term_t* term, const char* s, ssize_t len) {
+static inline void term_append_utf8(term_t* term, const char* s, ssize_t len) {
   ssize_t nread;
   unicode_t uchr = unicode_from_qutf8((const uint8_t*)s, len, &nread);
   uint8_t c;
@@ -475,7 +475,7 @@ static void term_append_utf8(term_t* term, const char* s, ssize_t len) {
   }
 }
 
-static void term_append_buf( term_t* term, const char* s, ssize_t len ) {
+static inline void term_append_buf( term_t* term, const char* s, ssize_t len ) {
   ssize_t pos = 0;
   bool newline = false;
   while (pos < len) {
@@ -572,7 +572,7 @@ static bool term_get_cursor_pos( term_t* term, ssize_t* row, ssize_t* col) {
   return true;
 }
 
-static void term_move_cursor_to( term_t* term, ssize_t row, ssize_t col ) {
+static inline void term_move_cursor_to( term_t* term, ssize_t row, ssize_t col ) {
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (!GetConsoleScreenBufferInfo( term->hcon, &info )) return;
   if (col > info.dwSize.X) col = info.dwSize.X;
@@ -585,19 +585,19 @@ static void term_move_cursor_to( term_t* term, ssize_t row, ssize_t col ) {
   SetConsoleCursorPosition( term->hcon, coord);
 }
 
-static void term_cursor_save(term_t* term) {
+static inline void term_cursor_save(term_t* term) {
   memset(&term->hcon_save_cursor, 0, sizeof(term->hcon_save_cursor));
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (!GetConsoleScreenBufferInfo(term->hcon, &info)) return;
   term->hcon_save_cursor = info.dwCursorPosition;
 }
 
-static void term_cursor_restore(term_t* term) {
+static inline void term_cursor_restore(term_t* term) {
   if (term->hcon_save_cursor.X == 0) return;
   SetConsoleCursorPosition(term->hcon, term->hcon_save_cursor);
 }
 
-static void term_move_cursor( term_t* term, ssize_t drow, ssize_t dcol, ssize_t n ) {
+static inline void term_move_cursor( term_t* term, ssize_t drow, ssize_t dcol, ssize_t n ) {
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (!GetConsoleScreenBufferInfo( term->hcon, &info )) return;
   COORD cur = info.dwCursorPosition;
@@ -606,14 +606,14 @@ static void term_move_cursor( term_t* term, ssize_t drow, ssize_t dcol, ssize_t 
   term_move_cursor_to( term, row, col );
 }
 
-static void term_cursor_visible( term_t* term, bool visible ) {
+static inline void term_cursor_visible( term_t* term, bool visible ) {
   CONSOLE_CURSOR_INFO info;
   if (!GetConsoleCursorInfo(term->hcon,&info)) return;
   info.bVisible = visible;
   SetConsoleCursorInfo(term->hcon,&info);
 }
 
-static void term_erase_line( term_t* term, ssize_t mode ) {  
+static inline void term_erase_line( term_t* term, ssize_t mode ) {  
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (!GetConsoleScreenBufferInfo( term->hcon, &info )) return;
   DWORD written;
@@ -640,7 +640,7 @@ static void term_erase_line( term_t* term, ssize_t mode ) {
   FillConsoleOutputCharacterA( term->hcon, ' ', (DWORD)length, start, &written );
 }
 
-static void term_clear_screen(term_t* term, ssize_t mode) {
+static inline void term_clear_screen(term_t* term, ssize_t mode) {
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (!GetConsoleScreenBufferInfo(term->hcon, &info)) return;
   COORD start;
@@ -677,7 +677,7 @@ static WORD attr_color[8] = {
   FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE, // light gray
 };
 
-static void term_set_win_attr( term_t* term, attr_t ta ) {
+static inline void term_set_win_attr( term_t* term, attr_t ta ) {
   WORD def_attr = term->hcon_default_attr;
   CONSOLE_SCREEN_BUFFER_INFO info;
   if (!GetConsoleScreenBufferInfo( term->hcon, &info )) return;  
@@ -723,7 +723,7 @@ static ssize_t esc_param( const char* s, ssize_t def ) {
   return n;
 }
 
-static void esc_param2( const char* s, ssize_t* p1, ssize_t* p2, ssize_t def ) {
+static inline void esc_param2( const char* s, ssize_t* p1, ssize_t* p2, ssize_t def ) {
   if (*s == '?') s++; 
   *p1 = def;
   *p2 = def;
@@ -731,7 +731,7 @@ static void esc_param2( const char* s, ssize_t* p1, ssize_t* p2, ssize_t def ) {
 }
 
 // Emulate escape sequences on older windows.
-static void term_write_esc( term_t* term, const char* s, ssize_t len ) {
+static inline void term_write_esc( term_t* term, const char* s, ssize_t len ) {
   ssize_t row;
   ssize_t col;
 
@@ -894,7 +894,7 @@ static bool term_get_cursor_pos( term_t* term, ssize_t* row, ssize_t* col)
   return true;
 }
 
-static void term_set_cursor_pos( term_t* term, ssize_t row, ssize_t col ) {
+static inline void term_set_cursor_pos( term_t* term, ssize_t row, ssize_t col ) {
   term_writef( term, IC_CSI "%zd;%zdH", row, col );
 }
 
@@ -1008,7 +1008,7 @@ static bool term_esc_query_color_raw(term_t* term, int color_idx, uint32_t* colo
 }
 
 // update ansi 16 color palette for better color approximation
-static void term_update_ansi16(term_t* term) {
+static inline void term_update_ansi16(term_t* term) {
   debug_msg("update ansi colors\n");
   #if defined(GIO_CMAP)
   // try ioctl first (on Linux)
@@ -1042,7 +1042,7 @@ static void term_update_ansi16(term_t* term) {
   #endif
 }
 
-static void term_init_raw(term_t* term) {
+static inline void term_init_raw(term_t* term) {
   if (term->palette < ANSIRGB) {
     term_update_ansi16(term);
   }
@@ -1094,7 +1094,7 @@ ic_private void term_end_raw(term_t* term, bool force) {
   }
 }
 
-static void term_init_raw(term_t* term) {
+static inline void term_init_raw(term_t* term) {
   term->hcon = GetStdHandle(STD_OUTPUT_HANDLE);
   GetConsoleMode(term->hcon, &term->hcon_orig_mode);
   CONSOLE_SCREEN_BUFFER_INFOEX info;

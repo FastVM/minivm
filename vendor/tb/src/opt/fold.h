@@ -60,7 +60,7 @@ static bool inverted_cmp(TB_Node* n, TB_Node* n2) {
     }
 }
 
-static Lattice* dataflow_sext(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_sext(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -93,7 +93,7 @@ static Lattice* dataflow_sext(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* dataflow_zext(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_zext(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -109,7 +109,7 @@ static Lattice* dataflow_zext(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* dataflow_trunc(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_trunc(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -128,7 +128,7 @@ static Lattice* dataflow_trunc(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* dataflow_arith(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_arith(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
@@ -168,7 +168,7 @@ static Lattice* dataflow_arith(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static Lattice* dataflow_bitcast(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_bitcast(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -182,7 +182,7 @@ static Lattice* dataflow_bitcast(TB_Passes* restrict opt, TB_Node* n) {
     return NULL;
 }
 
-static Lattice* dataflow_unary(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_unary(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -223,7 +223,7 @@ static Lattice* dataflow_unary(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static Lattice* dataflow_bits(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_bits(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
@@ -268,7 +268,7 @@ static Lattice* dataflow_bits(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* dataflow_shift(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_shift(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
@@ -341,7 +341,7 @@ static Lattice* dataflow_shift(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static Lattice* dataflow_cmp(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* sccp_cmp(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
@@ -581,21 +581,19 @@ static int node_pos(TB_Node* n) {
 
 static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     TB_NodeTypeEnum type = n->type;
-    if (is_commutative(type)) {
-        // if it's commutative: we wanna have a canonical form.
-        if (node_pos(n->inputs[1]) < node_pos(n->inputs[2])) {
-            TB_Node* tmp = n->inputs[1];
-            set_input(f, n, n->inputs[2], 1);
-            set_input(f, n, tmp, 2);
-            return n;
-        }
-    }
-
     TB_Node* a = n->inputs[1];
     TB_Node* b = n->inputs[2];
+    bool less = node_pos(a) < node_pos(b);
+
+    // if it's commutative: we wanna have a canonical form.
+    if (is_commutative(type) && less) {
+        set_input(f, n, b, 1);
+        set_input(f, n, a, 2);
+        return n;
+    }
 
     // (aa + ab) + b => aa + (ab + b)
-    if (is_associative(type) && a->type == type && b->type != type && node_pos(a) < node_pos(b)) {
+    if (is_associative(type) && a->type == type && b->type != type && less) {
         TB_Node* abb = tb_alloc_node(f, type, n->dt, 3, sizeof(TB_NodeBinopInt));
         set_input(f, abb, a->inputs[2], 1);
         set_input(f, abb, b, 2);
@@ -870,6 +868,13 @@ static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_N
 ////////////////////////////////
 // Pointer idealizations
 ////////////////////////////////
+static TB_Node* identity_member_ptr(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
+    if (TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset == 0) {
+        return n->inputs[1];
+    }
+    return n;
+}
+
 static TB_Node* ideal_member_ptr(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     int64_t offset = TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset;
     TB_Node* base  = n->inputs[1];

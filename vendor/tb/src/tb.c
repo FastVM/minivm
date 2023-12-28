@@ -313,15 +313,15 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
 
     f->section = section;
     f->node_count = 0;
-    TB_Node* root = f->root_node = tb_alloc_node(f, TB_ROOT, TB_TYPE_TUPLE, 3 + p->return_count, 0);
+    TB_Node* root = f->root_node = tb_alloc_node(f, TB_ROOT, TB_TYPE_TUPLE, 4 + p->return_count, 0);
 
     f->param_count = param_count;
-    f->params = tb_arena_alloc(f->arena, (3+param_count) * sizeof(TB_Node*));
+    f->params = tb_arena_alloc(f->arena, (4 + param_count) * sizeof(TB_Node*));
 
     // fill in acceleration structure
     f->params[0] = tb__make_proj(f, TB_TYPE_CONTROL, f->root_node, 0);
     f->params[1] = tb__make_proj(f, TB_TYPE_MEMORY, f->root_node, 1);
-    f->params[2] = tb__make_proj(f, TB_TYPE_CONT, f->root_node, 2);
+    f->params[2] = tb__make_proj(f, TB_TYPE_PTR, f->root_node, 2);
 
     // initial trace
     f->trace.top_ctrl = f->trace.bot_ctrl = f->params[0];
@@ -334,21 +334,26 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
         f->params[3+i] = tb__make_proj(f, dt, f->root_node, 3+i);
     }
 
+    // create callgraph node
+    TB_Node* callgraph = tb_alloc_node_dyn(f, TB_CALLGRAPH, TB_TYPE_VOID, 1, 8, sizeof(TB_NodeRegion));
+    set_input(f, callgraph, root, 0);
+
     // fill return crap
     {
-        TB_Node* region = tb_alloc_node(f, TB_REGION, TB_TYPE_CONTROL, 0, sizeof(TB_NodeRegion));
-        TB_Node* mem_phi = tb_alloc_node(f, TB_PHI, TB_TYPE_MEMORY, 1, 0);
+        TB_Node* region = tb_alloc_node_dyn(f, TB_REGION, TB_TYPE_CONTROL, 0, 4, sizeof(TB_NodeRegion));
+        TB_Node* mem_phi = tb_alloc_node_dyn(f, TB_PHI, TB_TYPE_MEMORY, 1, 5, 0);
         set_input(f, mem_phi, region, 0);
 
         set_input(f, root, region, 0);
         set_input(f, root, mem_phi, 1);
         set_input(f, root, f->params[2], 2);
+        set_input(f, root, callgraph, 3);
 
         TB_PrototypeParam* returns = TB_PROTOTYPE_RETURNS(p);
         FOREACH_N(i, 0, p->return_count) {
-            TB_Node* phi = tb_alloc_node(f, TB_PHI, returns[i].dt, 1, 0);
+            TB_Node* phi = tb_alloc_node_dyn(f, TB_PHI, returns[i].dt, 1, 5, 0);
             set_input(f, phi, region, 0);
-            set_input(f, root, phi, i + 3);
+            set_input(f, root, phi, i + 4);
         }
 
         TB_NODE_SET_EXTRA(region, TB_NodeRegion, .freq = 1.0f, .mem_in = mem_phi, .tag = "ret");
