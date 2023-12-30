@@ -101,7 +101,7 @@ static void ssa_replace_phi_arg(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, TB_
         TB_Node* top;
         if (dyn_array_length(stack[var]) == 0) {
             // this is UB land, insert poison
-            top = make_poison(f, c->p, phi_reg->dt);
+            top = make_poison(f, phi_reg->dt);
             log_warn("%s: v%u: generated poison due to read of uninitialized local", f->super.name, top->gvn);
         } else {
             top = stack[var][dyn_array_length(stack[var]) - 1];
@@ -186,7 +186,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
                         if (dyn_array_length(stack[var]) == 0) {
                             // this is UB since it implies we've read before initializing the
                             // stack slot.
-                            val = make_poison(f, p, use->dt);
+                            val = make_poison(f, use->dt);
                             log_warn("v%u: found load-before-init in mem2reg, this is UB", use->gvn);
                         } else {
                             val = stack[var][dyn_array_length(stack[var]) - 1];
@@ -202,7 +202,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
                         }
 
                         set_input(f, use, NULL, 1); // unlink first
-                        subsume_node(p, f, use, val);
+                        subsume_node(f, use, val);
 
                         tb_pass_mark(p, val);
                         tb_pass_mark_users(p, val);
@@ -217,7 +217,7 @@ static void ssa_rename(Mem2Reg_Ctx* c, TB_Function* f, TB_Node* bb, DynArray(TB_
             // we can remove the effect now
             if (kill) {
                 TB_Node* into = n->inputs[1];
-                subsume_node(p, c->f, n, into);
+                subsume_node(c->f, n, into);
 
                 tb_pass_mark(c->p, into);
                 tb_pass_mark_users(p, into);
@@ -494,7 +494,7 @@ void tb_pass_mem2reg(TB_Passes* p) {
     // don't need these anymore
     FOREACH_N(var, 0, c.to_promote_count) {
         assert(c.to_promote[var]->users == NULL);
-        tb_pass_kill_node(c.p, c.to_promote[var]);
+        tb_pass_kill_node(f, c.to_promote[var]);
     }
     tb_arena_restore(tmp_arena, sp);
     tb_free_cfg(&p->cfg);

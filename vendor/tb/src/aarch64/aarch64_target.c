@@ -7,7 +7,7 @@
 
 enum {
     // register classes
-    REG_CLASS_GPR,
+    REG_CLASS_GPR = 1,
     REG_CLASS_COUNT,
 };
 
@@ -45,17 +45,21 @@ static bool try_for_imm12(int bits, TB_Node* n, int32_t* out_x) {
     return true;
 }
 
+static bool _2addr(TB_Node* n) {
+    return false; // n->type >= TB_AND && n->type <= TB_CMP_FLE;
+}
+
 static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
     ctx->sched = greedy_scheduler;
+    ctx->_2addr = _2addr;
     ctx->regalloc = tb__lsra;
-
-    ctx->num_regs[0] = 32;
 
     uint32_t all_gprs = UINT32_MAX & ~(1u << SP);
     if (ctx->features.gen & TB_FEATURE_FRAME_PTR) {
         all_gprs &= ~(1u << FP);
     }
-    ctx->normie_mask[0] = REGMASK(GPR, all_gprs);
+    ctx->num_regs[1] = 32;
+    ctx->normie_mask[1] = REGMASK(GPR, all_gprs);
 
     // x19 - x29 are callee saved
     ctx->callee_saved[0] = ((1u << 10u) - 1) << 19u;
@@ -64,8 +68,8 @@ static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
 static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
     switch (n->type) {
         case TB_ROOT: {
-            TileInput* ins = tile_set_ins(ctx, dst, n, 3, n->input_count);
-            int rets = n->input_count - 3;
+            TileInput* ins = tile_set_ins(ctx, dst, n, 4, n->input_count);
+            int rets = n->input_count - 4;
 
             assert(rets <= 2 && "At most 2 return values :(");
             FOREACH_N(i, 0, rets) {
@@ -89,17 +93,18 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
         }
 
         case TB_ARRAY_ACCESS:
-        tile_broadcast_ins(ctx, dst, n, 1, n->input_count, REGMASK(GPR, ALL_GPRS));
-        return ctx->normie_mask[0];
+        tile_broadcast_ins(ctx, dst, n, 1, n->input_count, ctx->normie_mask[1]);
+        return ctx->normie_mask[1];
 
         case TB_INTEGER_CONST:
-        return ctx->normie_mask[0];
+        return ctx->normie_mask[1];
 
         case TB_MUL:
         case TB_UDIV:
         case TB_SDIV:
-        tile_broadcast_ins(ctx, dst, n, 1, n->input_count, REGMASK(GPR, ALL_GPRS));
-        return ctx->normie_mask[0];
+        case TB_XOR:
+        tile_broadcast_ins(ctx, dst, n, 1, n->input_count, ctx->normie_mask[1]);
+        return ctx->normie_mask[1];
 
         // binary ops
         case TB_SHL:
@@ -108,12 +113,12 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
         case TB_SUB: {
             int32_t x;
             if (try_for_imm12(n->dt.data, n->inputs[2], &x)) {
-                tile_broadcast_ins(ctx, dst, n, 1, 2, REGMASK(GPR, ALL_GPRS));
+                tile_broadcast_ins(ctx, dst, n, 1, 2, ctx->normie_mask[1]);
                 dst->flags |= TILE_HAS_IMM;
             } else {
-                tile_broadcast_ins(ctx, dst, n, 1, n->input_count, REGMASK(GPR, ALL_GPRS));
+                tile_broadcast_ins(ctx, dst, n, 1, n->input_count, ctx->normie_mask[1]);
             }
-            return ctx->normie_mask[0];
+            return ctx->normie_mask[1];
         }
 
         default:
@@ -127,7 +132,7 @@ static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* n) {
     ctx->prologue_length = ctx->emit.count;
 }
 
-static GPR gpr_at(LiveInterval* l) { assert(!l->is_spill); return l->assigned; }
+static GPR gpr_at(LiveInterval* l) { assert(l->class == REG_CLASS_GPR); return l->assigned; }
 static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) {
     if (t->tag == TILE_SPILL_MOVE) {
         GPR dst = gpr_at(t->interval);
@@ -192,12 +197,15 @@ static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) {
                 break;
             }
 
+            case TB_XOR:
             case TB_ADD:
             case TB_SUB: {
+                const static int ops[] = { -1, -1, EOR, ADD, SUB };
+                int op = ops[n->type - TB_AND];
+
                 bool is_64bit = legalize_int(n->dt);
                 GPR dst = gpr_at(t->interval);
                 GPR lhs = gpr_at(t->ins[0].src);
-                int op = n->type == TB_ADD ? ADD : SUB;
 
                 if (t->flags & TILE_HAS_IMM) {
                     assert(n->inputs[2]->type == TB_INTEGER_CONST);
@@ -326,6 +334,7 @@ static void disassemble(TB_CGEmitter* e, Disasm* restrict d, int bb, size_t pos,
             // Data processing (register)
             case 0b0101:
             case 0b1101: {
+                uint32_t sf  = (inst >> 31u) & 1;
                 uint32_t op0 = (inst >> 30u) & 1;
                 uint32_t op1 = (inst >> 28u) & 1;
                 uint32_t op2 = (inst >> 21u) & 0xF;
@@ -333,37 +342,14 @@ static void disassemble(TB_CGEmitter* e, Disasm* restrict d, int bb, size_t pos,
                 uint32_t rn  = (inst >> 5u) & 0x1F;
                 uint32_t rd  = (inst >> 0u) & 0x1F;
 
-                if (op0 == 0 && op1 == 1 && op2 == 0b0110) {
-                    // uint32_t S = (inst >> 29u) & 1;
-                    uint32_t opc  = (inst >> 10u) & 0x3F;
+                __debugbreak();
 
-                    if (opc == 2) {
-                        E("  udiv ");
-                    } else if (opc == 3) {
-                        E("  sdiv ");
-                    } else {
-                        E("ERROR ");
-                    }
-                    print_gpr(e, rd, is_64bit);
-                    E(", ");
-                    print_gpr(e, rn, is_64bit);
-                    E(", ");
-                    print_gpr(e, rm, is_64bit);
-                } else if (op1 == 0 && (op2 & 0b1001) == 0b1000) {
-                    uint32_t opc  = (inst >> 29u) & 3;
-                    uint32_t imm  = (inst >> 10u) & 0x3F;
-                    uint32_t sh   = (inst >> 22u) & 3;
+                const char* mnemonic = NULL;
+                if (op1) { // op1=1
+                    if (op2 == 0b0110) {
 
-                    E("  %s ", dp_strs[opc]);
-                    print_gpr(e, rd, is_64bit);
-                    E(", ");
-                    print_gpr(e, rn, is_64bit);
-                    E(", ");
-                    print_gpr(e, rm, is_64bit);
-                    if (imm) {
-                        E(", %s #%#x", sh_strs[sh], imm);
                     }
-                } else if (op1 == 1 && op2 >> 3) {
+
                     // Data processing (3 source)
                     uint32_t ra = (inst >> 10u) & 0x1F;
 
@@ -384,8 +370,65 @@ static void disassemble(TB_CGEmitter* e, Disasm* restrict d, int bb, size_t pos,
                     print_gpr(e, rm, is_64bit);
                     E(", ");
                     print_gpr(e, ra, is_64bit);
-                } else {
-                    E("  DATA REG ");
+
+                    /*if (op0 == 0 && op2 == 0b0110) {
+                        // uint32_t S = (inst >> 29u) & 1;
+                        uint32_t opc  = (inst >> 10u) & 0x3F;
+
+                        if (opc == 2) {
+                            E("  udiv ");
+                        } else if (opc == 3) {
+                            E("  sdiv ");
+                        } else {
+                            E("ERROR ");
+                        }
+                        print_gpr(e, rd, is_64bit);
+                        E(", ");
+                        print_gpr(e, rn, is_64bit);
+                        E(", ");
+                        print_gpr(e, rm, is_64bit);
+                    } else if (op2 >> 3) {
+                    } else {
+                        E("  DATA REG ");
+                    }*/
+                } else { // op1=0
+                    uint32_t imm  = (inst >> 10u) & 0x3F;
+                    uint32_t sh   = (inst >> 22u) & 3;
+
+                    if (op2 < 0b1000) { // op2=0xxx
+                        static const char* ops[] = {
+                            // Logical (shifted register)
+                            // n=0   n=1      opc
+                            "and",  "bic", // 00
+                            "orr",  "orn", // 01
+                            "eor",  "eon", // 10
+                            "ands", "bics" // 11
+                        };
+
+                        uint32_t opc = (((inst >> 29u) & 3) << 1) | ((inst >> 21) & 1);
+                        mnemonic = ops[opc];
+                    } else if (op2 & 1) { // op2=1xx1
+                        // Add/subtract (extended register)
+                        tb_todo();
+                    } else { // op2=1xx0
+                        // Add/subtract (shifted register)
+                        static const char* ops[] = {
+                            "add", "adds",
+                            "sub", "subs"
+                        };
+                        uint32_t opc = (inst >> 29u) & 3;
+                        mnemonic = ops[opc];
+                    }
+
+                    E("  %s ", mnemonic);
+                    print_gpr(e, rd, is_64bit);
+                    E(", ");
+                    print_gpr(e, rn, is_64bit);
+                    E(", ");
+                    print_gpr(e, rm, is_64bit);
+                    if (imm) {
+                        E(", %s #%#x", sh_strs[sh], imm);
+                    }
                 }
                 break;
             }

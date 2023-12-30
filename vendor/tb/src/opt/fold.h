@@ -783,8 +783,12 @@ static TB_Node* ideal_int_div(TB_Passes* restrict opt, TB_Function* f, TB_Node* 
         set_input(f, mul_node, x, 1);
         set_input(f, mul_node, make_int_node(f, opt, dt, a), 2);
 
-        TB_Node* lo = make_proj_node(f, opt, dt, mul_node, 0);
-        TB_Node* hi = make_proj_node(f, opt, dt, mul_node, 1);
+        TB_Node* lo = make_proj_node(f, dt, mul_node, 0);
+        TB_Node* hi = make_proj_node(f, dt, mul_node, 1);
+
+        tb_pass_mark(opt, mul_node);
+        tb_pass_mark(opt, lo);
+        tb_pass_mark(opt, hi);
 
         TB_Node* sh_node = tb_alloc_node(f, TB_SHR, dt, 3, sizeof(TB_NodeBinopInt));
         set_input(f, sh_node, hi, 1);
@@ -814,6 +818,10 @@ static TB_Node* ideal_int_div(TB_Passes* restrict opt, TB_Function* f, TB_Node* 
 
         TB_Node* trunc_node = tb_alloc_node(f, TB_TRUNCATE, dt, 2, 0);
         set_input(f, trunc_node, sh_node, 1);
+
+        tb_pass_mark(opt, mul_node);
+        tb_pass_mark(opt, sh_node);
+        tb_pass_mark(opt, ext_node);
         return trunc_node;
     }
 }
@@ -846,7 +854,7 @@ static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_N
         case TB_SDIV:
         case TB_UMOD:
         case TB_SMOD:
-        return make_poison(f, opt, n->dt);
+        return make_poison(f, n->dt);
 
         // (cmp.ne a 0) => a
         case TB_CMP_NE: {

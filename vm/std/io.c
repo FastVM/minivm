@@ -208,14 +208,11 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
             for (size_t i = 0; i < len; i++) {
                 vm_pair_t p = tab->pairs[i];
                 switch (p.key_tag) {
-                    case 0:
-                    case VM_TAG_NIL: {
-                        // vm_std_value_t val = (vm_std_value_t){
-                        //     .tag = p.val_tag,
-                        //     .value = p.val_val,
-                        // };
-                        // vm_io_debug(out, indent + 1, "nil = ", val, &next);
+                    case 0: {
                         break;
+                    }
+                    case VM_TAG_NIL: {
+                        __builtin_trap();
                     }
                     case VM_TAG_BOOL: {
                         vm_std_value_t val = (vm_std_value_t){
@@ -294,9 +291,10 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
-                        char buf[64];
-                        snprintf(buf, 63, "%s = ", p.key_val.str);
-                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        vm_io_buffer_t buf = {0};
+                        vm_io_buffer_format(&buf, "%s = ", p.key_val.str);
+                        vm_io_debug(out, indent + 1, buf.buf, val, &next);
+                        vm_free(buf.buf);
                         break;
                     }
                     default: {

@@ -541,14 +541,14 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     if (target.type == VM_AST_NODE_IDENT) {
                         size_t local = vm_ast_comp_get_local(comp->names, target.value.ident);
                         if (local == SIZE_MAX) {
-                            vm_ast_node_t node = vm_ast_build_ident("_ENV");
+                            vm_ast_node_t node = vm_ast_build_ident(vm_strdup("_ENV"));
                             vm_arg_t env_arg = vm_ast_comp_to(comp, node);
                             vm_ast_free_node(node);
                             vm_arg_t key_arg = (vm_arg_t){
                                 .type = VM_ARG_LIT,
                                 .lit = (vm_std_value_t){
                                     .tag = VM_TAG_STR,
-                                    .value.str = target.value.ident,
+                                    .value.str = vm_strdup(target.value.ident),
                                 },
                             };
                             vm_ast_blocks_instr(
@@ -971,18 +971,21 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             } else if (num.tag == VM_TAG_STR) {
                 vm_arg_t str = (vm_arg_t){
                     .type = VM_ARG_LIT,
-                    .lit = num,
+                    .lit = (vm_std_value_t) {
+                        .tag = VM_TAG_STR,
+                        .value.str = vm_strdup(num.value.str),
+                    },
                 };
-                vm_arg_t ret = vm_ast_comp_reg(comp);
-                vm_ast_blocks_instr(
-                    comp,
-                    (vm_instr_t){
-                        .op = VM_IOP_MOVE,
-                        .out = ret,
-                        .args = vm_ast_args(1, str),
-                    }
-                );
-                return ret;
+                // vm_arg_t ret = vm_ast_comp_reg(comp);
+                // vm_ast_blocks_instr(
+                //     comp,
+                //     (vm_instr_t){
+                //         .op = VM_IOP_MOVE,
+                //         .out = ret,
+                //         .args = vm_ast_args(1, str),
+                //     }
+                // );
+                return str;
             } else if (num.tag == VM_TAG_ERROR) {
                 comp->is_error = true;
                 return (vm_arg_t){

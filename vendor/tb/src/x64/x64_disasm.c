@@ -39,7 +39,7 @@ static ptrdiff_t x86_parse_memory_op(TB_X86_Inst* restrict inst, size_t length, 
             //   lea rax, [r13 + rcx*2] or lea rax, [rbp + rcx*2]
             // only
             //   lea rax, [r13 + rcx*2 + 0] or lea rax, [rbp + rcx*2 + 0]
-            if (base_gpr == TB_X86_RSP && index_gpr == TB_X86_RSP) {
+            if (base == TB_X86_RSP && index == TB_X86_RSP) {
                 index_gpr = -1;
             } else if (mod == 0 && base == TB_X86_RBP) {
                 mod = MOD_INDIRECT_DISP32;

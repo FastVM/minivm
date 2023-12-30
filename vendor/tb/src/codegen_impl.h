@@ -152,7 +152,11 @@ static LiveInterval* canonical_interval(Ctx* restrict ctx, LiveInterval* interva
 
 void tb__print_regmask(RegMask mask) {
     if (mask.class == REG_CLASS_STK) {
-        printf("[SP + %"PRId64"]", mask.mask*8);
+        if (mask.mask == 0) {
+            printf("[any spill]");
+        } else {
+            printf("[SP + %"PRId64"]", mask.mask*8);
+        }
     } else {
         int i = 0;
         bool comma = false;
@@ -182,7 +186,7 @@ void tb__print_regmask(RegMask mask) {
         }
 
         if (mask.may_spill) {
-            printf("| SPILL");
+            printf(" | SPILL");
         }
         printf("]");
     }
@@ -195,7 +199,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     TB_ArenaSavepoint sp = tb_arena_save(arena);
 
     TB_Function* restrict f = p->f;
-    // tb_pass_print(p);
+    TB_OPTDEBUG(CODEGEN)(tb_pass_print(p));
 
     Ctx ctx = {
         .module = f->super.module,
@@ -396,7 +400,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
                         LiveInterval* src = get_tile(&ctx, v->n, true)->interval;
 
                         TB_OPTDEBUG(CODEGEN)(printf("  PHI %u: ", v->phi->gvn), print_node_sexpr(v->phi, 0), printf("\n"));
-                        TB_OPTDEBUG(CODEGEN)(printf("    v%d [%#08llx]\n", phi_tile->interval->id, phi_tile->interval->mask.mask));
+                        TB_OPTDEBUG(CODEGEN)(printf("    v%d ", phi_tile->interval->id), tb__print_regmask(phi_tile->interval->mask), printf("\n"));
 
                         Tile* move = TB_ARENA_ALLOC(arena, Tile);
                         *move = (Tile){ .prev = bot, .tag = TILE_SPILL_MOVE, .interval = phi_tile->interval };
@@ -436,6 +440,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
                     .id = ctx.interval_count++,
                     .assigned = -1, .hint = NULL, .reg = j,
                     .mask = { i, 0, 1u << j },
+                    .class = i,
                     .range_cap = 4,
                     .range_count = 1,
                 };
@@ -475,13 +480,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
                 Set* kill = &mbb->kill;
                 for (Tile* t = mbb->start; t; t = t->next) {
                     t->time = timeline;
-
-                    // 2addr ops will reserve some space for the potential move
-                    if (t->n && t->n->type >= TB_AND && t->n->type <= TB_CMP_FLE) {
-                        timeline += 4;
-                    } else {
-                        timeline += 2;
-                    }
+                    timeline += 4;
 
                     FOREACH_N(j, 0, t->in_count) {
                         LiveInterval* in_def = t->ins[j].src;

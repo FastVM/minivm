@@ -145,6 +145,9 @@ static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
     uint16_t all_gprs = 0xFFFF & ~(1 << RSP);
     if (ctx->features.gen & TB_FEATURE_FRAME_PTR) {
         all_gprs &= ~(1 << RBP);
+        ctx->stack_header = 16;
+    } else {
+        ctx->stack_header = 8;
     }
 
     ctx->normie_mask[REG_CLASS_GPR] = REGMASK(GPR, all_gprs);
@@ -181,7 +184,7 @@ static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
             continue;
         }
 
-        int pos = 8 + (i * 8);
+        int pos = ctx->stack_header + (i * 8);
         nl_map_put(ctx->stack_slots, addr, -pos);
 
         /*if (i >= 4 && ctx->abi_index == 0) {
@@ -190,7 +193,7 @@ static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
         }*/
     }
 
-    ctx->stack_usage += 8 + (proto->param_count * 8);
+    ctx->stack_usage += ctx->stack_header + (proto->param_count * 8);
 
     if (proto->has_varargs) {
         const GPR* parameter_gprs = param_descs[ctx->abi_index].gprs;
@@ -403,8 +406,13 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
         return ctx->normie_mask[REG_CLASS_GPR];
 
         case TB_PHI:
-        if (n->dt.type == TB_MEMORY) return REGEMPTY;
-        else return normie_mask(ctx, n->dt);
+        if (n->dt.type == TB_MEMORY) {
+            return REGEMPTY;
+        } else {
+            RegMask rm = normie_mask(ctx, n->dt);
+            rm.may_spill = true;
+            return rm;
+        }
 
         case TB_ROOT: {
             static int ret_gprs[2] = { RAX, RDX };
@@ -472,7 +480,10 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
                 tile_broadcast_ins(ctx, dst, n, 1, 2, ctx->normie_mask[REG_CLASS_GPR]);
                 dst->flags |= TILE_HAS_IMM;
             } else {
-                tile_broadcast_ins(ctx, dst, n, 1, n->input_count, ctx->normie_mask[REG_CLASS_GPR]);
+                TileInput* ins = tile_set_ins(ctx, dst, n, 1, 3);
+                ins[0].mask = ctx->normie_mask[REG_CLASS_GPR];
+                ins[1].mask = ctx->normie_mask[REG_CLASS_GPR];
+                ins[1].mask.may_spill = true;
             }
             return ctx->normie_mask[REG_CLASS_GPR];
         }
@@ -711,18 +722,27 @@ static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) {
     }
 }
 
+static int stk_offset(Ctx* ctx, int reg) {
+    int pos = reg*8;
+    if (reg >= ctx->num_regs[0]) {
+        return ctx->stack_usage - (pos + 8);
+    } else {
+        return pos;
+    }
+}
+
 static void emit_epilogue(Ctx* restrict ctx, TB_CGEmitter* e, int stack_usage) {
     TB_FunctionPrototype* proto = ctx->f->prototype;
-    bool needs_stack = stack_usage > 8 + (proto->param_count * 8);
+    bool needs_stack = stack_usage > ctx->stack_header + (proto->param_count * 8);
 
     FOREACH_REVERSE_N(i, 0, dyn_array_length(ctx->callee_spills)) {
-        int pos = ctx->spills[ctx->callee_spills[i]->id];
-        int rc = ctx->callee_spills[i]->mask.class;
+        int pos = stk_offset(ctx, ctx->callee_spills[i].stk);
+        int rc = ctx->callee_spills[i].class;
 
-        Val reg = val_gpr(ctx->callee_spills[i]->reg);
+        Val reg = val_gpr(ctx->callee_spills[i].reg);
         reg.type = rc == REG_CLASS_XMM ? VAL_XMM : VAL_GPR;
 
-        Val spill = val_base_disp(RSP, stack_usage - pos);
+        Val spill = val_base_disp(RSP, pos);
         inst2(e, MOV, &reg, &spill, TB_X86_TYPE_QWORD);
     }
 
@@ -748,24 +768,17 @@ static void emit_epilogue(Ctx* restrict ctx, TB_CGEmitter* e, int stack_usage) {
 }
 
 static Val op_at(Ctx* ctx, LiveInterval* l) {
-    if (l->is_spill) {
-        return val_stack(ctx->stack_usage - ctx->spills[l->id]);
-    } else if (l->mask.class == REG_CLASS_STK) {
-        return val_stack(l->assigned * 8);
+    if (l->class == REG_CLASS_STK) {
+        return val_stack(stk_offset(ctx, l->assigned));
     } else {
         assert(l->assigned >= 0);
-        return (Val) { .type = l->mask.class == REG_CLASS_XMM ? VAL_XMM : VAL_GPR, .reg = l->assigned };
+        return (Val) { .type = l->class == REG_CLASS_XMM ? VAL_XMM : VAL_GPR, .reg = l->assigned };
     }
 }
 
 static GPR op_gpr_at(LiveInterval* l) {
-    assert(!l->is_spill && l->mask.class == REG_CLASS_GPR);
+    assert(l->class == REG_CLASS_GPR);
     return l->assigned;
-}
-
-static Val op_indirect_at(LiveInterval* l) {
-    assert(!l->is_spill);
-    return val_base_disp(l->assigned, 0);
 }
 
 static Val parse_memory_op(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t, TB_Node* addr) {
@@ -791,12 +804,13 @@ static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* root) {
             caller_usage = 4;
         }
     }
+    ctx->stack_usage += caller_usage * 8;
 
     TB_FunctionPrototype* proto = ctx->f->prototype;
     size_t stack_usage = 0;
-    if (ctx->stack_usage > 8 + (proto->param_count * 8)) {
+    if (ctx->stack_usage > ctx->stack_header + (proto->param_count * 8)) {
         // Align stack usage to 16bytes + 8 to accommodate for the RIP being pushed by CALL
-        stack_usage = align_up(ctx->stack_usage + (caller_usage * 8), 16) + 8;
+        stack_usage = align_up(ctx->stack_usage, 16) + 8;
     }
     ctx->stack_usage = stack_usage;
 
@@ -857,13 +871,13 @@ static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* root) {
     // we don't want this considered in the prologue because then i'd have to encode shit
     // for Win64EH.
     FOREACH_N(i, 0, dyn_array_length(ctx->callee_spills)) {
-        int pos = ctx->spills[ctx->callee_spills[i]->id];
-        int rc = ctx->callee_spills[i]->mask.class;
+        int pos = stk_offset(ctx, ctx->callee_spills[i].stk);
+        int rc = ctx->callee_spills[i].class;
 
-        Val reg = val_gpr(ctx->callee_spills[i]->reg);
+        Val reg = val_gpr(ctx->callee_spills[i].reg);
         reg.type = rc == REG_CLASS_GPR ? VAL_GPR : VAL_XMM;
 
-        Val spill = val_base_disp(RSP, stack_usage - pos);
+        Val spill = val_base_disp(RSP, pos);
         inst2(e, MOV, &spill, &reg, TB_X86_TYPE_QWORD);
     }
 
@@ -876,7 +890,7 @@ static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* root) {
         size_t extra_param_count = proto->param_count > gpr_count ? 0 : gpr_count - proto->param_count;
 
         FOREACH_N(i, proto->param_count, gpr_count) {
-            int dst_pos = 8 + (i * 8);
+            int dst_pos = ctx->stack_header + (i * 8);
             Val src = val_gpr(parameter_gprs[i]);
 
             Val dst = val_base_disp(RSP, stack_usage + dst_pos);
@@ -1052,7 +1066,7 @@ static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) {
                 TB_FunctionPrototype* proto = ctx->f->prototype;
 
                 Val dst = op_at(ctx, t->interval);
-                Val ea = val_stack(ctx->stack_usage + 8 + proto->param_count*8);
+                Val ea = val_stack(ctx->stack_usage + ctx->stack_header + proto->param_count*8);
                 inst2(e, LEA, &dst, &ea, TB_X86_TYPE_QWORD);
                 break;
             }

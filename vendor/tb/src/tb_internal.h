@@ -289,6 +289,10 @@ struct TB_Function {
     TB_NodeLocation* line_loc;
     NL_Table locations; // TB_Node* -> TB_NodeLocation*
 
+    // how we track duplicates for GVN, it's possible to run while optimizing
+    // the IR so we optionally do it.
+    NL_HashSet gvn_nodes;
+
     // Compilation output
     union {
         void* compiled_pos;

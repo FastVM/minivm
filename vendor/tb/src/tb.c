@@ -309,6 +309,7 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
         f->arena = arena;
     }
 
+    f->gvn_nodes = nl_hashset_alloc(16);
     f->locations = nl_table_alloc(16);
 
     f->section = section;

@@ -30,6 +30,7 @@ typedef struct {
 typedef enum {
     ADD,
     SUB,
+    EOR,
     UDIV,
     SDIV,
 } DPOpcode;
@@ -62,6 +63,7 @@ static const DPInst inst_table[] = {
     //         register                     immediate
     [ADD]  = { DPR(0, 0, 0b1000, 0),        DPI(0, 0b010) },
     [SUB]  = { DPR(2, 0, 0b1000, 0),        DPI(1, 0b010) },
+    [EOR]  = { 0b01001010000 << 21u,         0 },
 
     [UDIV] = { DPR(0, 1, 0b0110, 0b000010) },
     [SDIV] = { DPR(0, 1, 0b0110, 0b000011) },

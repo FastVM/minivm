@@ -150,7 +150,7 @@ static TB_Node* ideal_store(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
 
         // make sure to kill the stores to avoid problems
         TB_Node* parent = mem->inputs[1];
-        tb_pass_kill_node(p, mem);
+        tb_pass_kill_node(f, mem);
 
         set_input(f, n, parent, 1);
         return n;

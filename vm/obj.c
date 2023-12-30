@@ -293,7 +293,7 @@ vm_table_t *vm_table_new_size(size_t pow2) {
     return ret;
 }
 
-vm_table_t *vm_free_table(vm_table_t *table) {
+void vm_free_table(vm_table_t *table) {
     vm_free(table->pairs);
     vm_free(table);
 }
@@ -303,9 +303,9 @@ vm_table_t *vm_table_new(void) {
 }
 
 vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag) {
-    if (table->alloc == 0) {
-        return NULL;
-    }
+    // if (table->alloc == 0) {
+    //     return NULL;
+    // }
     vm_std_value_t key = (vm_std_value_t){
         .tag = key_tag,
         .value = key_val,
@@ -351,6 +351,14 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         .tag = key_tag,
         .value = key_val,
     };
+    vm_std_value_t value = (vm_std_value_t){
+        .tag = val_tag,
+        .value = val_val,
+    };
+    // vm_io_buffer_t buf = {0};
+    // vm_io_debug(&buf, 0, "key = ", key, NULL);
+    // vm_io_debug(&buf, 0, "value = ", value, NULL);
+    // printf("%s\n", buf.buf);
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
@@ -382,7 +390,7 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         next += 1;
         next &= and;
     } while (next != stop);
-    if (table->used * 3 >= (2 << table->alloc)) {
+    if ((table->used + 1) * 3 >= 2 * (1 << table->alloc)) {
         vm_table_t *ret = vm_table_new_size(table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
             vm_pair_t *in_pair = &table->pairs[i];
@@ -391,17 +399,21 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
             }
         }
         vm_table_set(ret, key_val, val_val, key_tag, val_tag);
+        // vm_io_buffer_t buf = {0};
+        // vm_io_debug(&buf, 0, "", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = ret}, NULL);
+        // printf("worked %zu / %zu in %s\n", (size_t) ret->used, (size_t) table->used, buf.buf);
         *table = *ret;
         return;
     }
     if (val_tag == VM_TAG_NIL) {
-        table->pairs[next].key_tag = 0;
-        if (vm_value_is_int(key)) {
-            int64_t i64val = vm_value_to_i64(key);
-            if (0 < i64val && i64val < table->len) {
-                table->len = i64val;
-            }
-        }
+        // table->pairs[next].key_tag = 0;
+        // if (vm_value_is_int(key)) {
+        //     int64_t i64val = vm_value_to_i64(key);
+        //     if (0 < i64val && i64val < table->len) {
+        //         table->len = i64val;
+        //     }
+        // }
+        __builtin_trap();
         return;
     }
     table->used += 1;

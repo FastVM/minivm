@@ -25,7 +25,7 @@ static TB_Node* loop_clone_node(TB_Passes* restrict p, TB_Function* f, TB_Node* 
             add_user(f, cloned, in, i, NULL);
         }
 
-        cloned = gvn(p, cloned, extra);
+        cloned = gvn(f, cloned, extra);
     }
 
     #if TB_OPTDEBUG_LOOP
@@ -308,8 +308,8 @@ void tb_pass_loop(TB_Passes* p) {
 
                 // create cprojs
                 assert(bot_cloned->type == TB_BRANCH);
-                TB_Node* proj0 = make_proj_node(f, p, TB_TYPE_CONTROL, bot_cloned, 0);
-                TB_Node* proj1 = make_proj_node(f, p, TB_TYPE_CONTROL, bot_cloned, 1);
+                TB_Node* proj0 = make_proj_node(f, TB_TYPE_CONTROL, bot_cloned, 0);
+                TB_Node* proj1 = make_proj_node(f, TB_TYPE_CONTROL, bot_cloned, 1);
 
                 tb_pass_mark(p, proj0);
                 tb_pass_mark(p, proj1);
@@ -359,8 +359,8 @@ void tb_pass_loop(TB_Passes* p) {
 
                 // create cprojs
                 assert(bot_cloned->type == TB_BRANCH);
-                TB_Node* proj0 = make_proj_node(f, p, TB_TYPE_CONTROL, bot_cloned, 0);
-                TB_Node* proj1 = make_proj_node(f, p, TB_TYPE_CONTROL, bot_cloned, 1);
+                TB_Node* proj0 = make_proj_node(f, TB_TYPE_CONTROL, bot_cloned, 0);
+                TB_Node* proj1 = make_proj_node(f, TB_TYPE_CONTROL, bot_cloned, 1);
                 tb_pass_mark(p, proj0);
                 tb_pass_mark(p, proj1);
 
@@ -375,9 +375,9 @@ void tb_pass_loop(TB_Passes* p) {
                 set_input(f, exit_region, exit_proj_i ? proj1 : proj0, 1);
                 set_input(f, after_next->n, latch->inputs[0], after_next->slot);
 
-                tb_pass_kill_node(p, projs[exit_proj_i]);
-                tb_pass_kill_node(p, projs[1 - exit_proj_i]);
-                tb_pass_kill_node(p, latch);
+                tb_pass_kill_node(f, projs[exit_proj_i]);
+                tb_pass_kill_node(f, projs[1 - exit_proj_i]);
+                tb_pass_kill_node(f, latch);
             }
         }
 

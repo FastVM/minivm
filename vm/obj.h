@@ -64,7 +64,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs);
 bool vm_value_is_int(vm_std_value_t val);
 int64_t vm_value_to_i64(vm_std_value_t arg);
 
-vm_table_t *vm_free_table(vm_table_t *table);
+void vm_free_table(vm_table_t *table);
 vm_table_t *vm_table_new(void);
 vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag);
 void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uint32_t key_tag, uint32_t val_tag);

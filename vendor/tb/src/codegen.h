@@ -43,7 +43,8 @@ enum {
     REG_CLASS_STK = 0,
 };
 
-// represents a set of registers, usually for register constraints
+// represents a set of registers, usually for register constraints.
+// we can also say that a value might fit into the stack with may_spill.
 typedef struct {
     uint64_t class     : 3;
     uint64_t may_spill : 1;
@@ -59,22 +60,8 @@ typedef struct {
 } LiveRange;
 
 typedef struct {
-    int pos;
-
-    // this is used to denote folded reloads
-    //
-    //   # r2 is spilled
-    //   add r0, r1, r2
-    //
-    // when we codegen, we don't need to allocate
-    // a register for r2 here.
-    //
-    //   add r0, r1, [sp - 24]
-    enum {
-        USE_OUT,
-        USE_REG,
-        USE_MEM_OR_REG,
-    } kind;
+    int may_spill : 1;
+    int pos       : 31;
 } UsePos;
 
 typedef enum {
@@ -82,7 +69,7 @@ typedef enum {
     TILE_NORMAL,
     // SoN doesn't have a jump op, this serves that purpose
     TILE_GOTO,
-    // used by regalloc to spill/reload
+    // performs a move operation between two live intervals
     TILE_SPILL_MOVE,
     // debug line
     TILE_LOCATION,
@@ -105,9 +92,9 @@ struct LiveInterval {
 
     Tile* tile;
 
+    int8_t class;
     int8_t reg;
     int8_t assigned;
-    bool is_spill;
 
     LiveInterval* hint;
     LiveInterval* split_kid;
@@ -195,6 +182,11 @@ typedef struct {
     uint32_t target;
 } JumpTablePatch;
 
+typedef struct {
+    int class, reg;
+    int stk;
+} CalleeSpill;
+
 struct Ctx {
     TB_Passes* p;
     TB_CGEmitter emit;
@@ -233,6 +225,7 @@ struct Ctx {
 
     // Regalloc
     int interval_count;
+    int stack_header;
     int stack_usage;
     int num_fixed;
     int num_classes;
@@ -242,9 +235,8 @@ struct Ctx {
     // where scratch registers can go, a mask is used to avoid
     // allocating special regiters.
     RegMask normie_mask[MAX_REG_CLASSES];
-    int* spills;
 
-    DynArray(LiveInterval*) callee_spills;
+    DynArray(CalleeSpill) callee_spills;
     NL_Map(TB_Node*, int) stack_slots;
     DynArray(TB_StackSlot) debug_stack_slots;
     DynArray(JumpTablePatch) jump_table_patches;
@@ -263,7 +255,7 @@ void tb__print_regmask(RegMask mask);
 
 static int fixed_reg_mask(RegMask mask) {
     if (mask.class == REG_CLASS_STK) {
-        return -1;
+        return mask.mask;
     } else {
         return tb_popcount64(mask.mask) == 1 ? 63 - tb_clz64(mask.mask) : -1;
     }

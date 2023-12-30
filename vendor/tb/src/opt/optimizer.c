@@ -20,14 +20,14 @@ thread_local TB_Arena* tmp_arena;
 static User* remove_user(TB_Node* n, int slot);
 static void remove_input(TB_Function* f, TB_Node* n, size_t i);
 
-static void subsume_node(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* new_n);
-static TB_Node* gvn(TB_Passes* restrict p, TB_Node* n, size_t extra);
+static void subsume_node(TB_Function* f, TB_Node* n, TB_Node* new_n);
+static TB_Node* gvn(TB_Function* f, TB_Node* n, size_t extra);
 
 // node creation helpers
-TB_Node* make_poison(TB_Function* f, TB_Passes* restrict p, TB_DataType dt);
+TB_Node* make_poison(TB_Function* f, TB_DataType dt);
 TB_Node* dead_node(TB_Function* f, TB_Passes* restrict p);
 TB_Node* make_int_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, uint64_t x);
-TB_Node* make_proj_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, TB_Node* src, int i);
+TB_Node* make_proj_node(TB_Function* f, TB_DataType dt, TB_Node* src, int i);
 
 static size_t tb_pass_update_cfg(TB_Passes* p, Worklist* ws, bool preserve);
 
@@ -331,23 +331,28 @@ static Lattice* sccp_meetchads(TB_Passes* restrict p, TB_Node* n) {
 // this is where the vtable goes for all peepholes
 #include "peeps.h"
 
-static TB_Node* gvn(TB_Passes* restrict p, TB_Node* n, size_t extra) {
+TB_API TB_Node* tb_pass_gvn_node(TB_Function* f, TB_Node* n) {
+    size_t extra = extra_bytes(n);
+    return gvn(f, n, extra);
+}
+
+static TB_Node* gvn(TB_Function* f, TB_Node* n, size_t extra) {
     // try GVN, if we succeed, just delete the node and use the old copy
-    TB_Node* k = nl_hashset_put2(&p->gvn_nodes, n, gvn_hash, gvn_compare);
+    TB_Node* k = nl_hashset_put2(&f->gvn_nodes, n, gvn_hash, gvn_compare);
     if (k != NULL) {
         // try free
-        tb_arena_free(p->f->arena, n->inputs, sizeof(TB_Node*));
-        tb_arena_free(p->f->arena, n, sizeof(TB_Node) + extra);
+        tb_arena_free(f->arena, n->inputs, n->input_cap * sizeof(TB_Node*));
+        tb_arena_free(f->arena, n, sizeof(TB_Node) + extra);
         return k;
     } else {
         return n;
     }
 }
 
-TB_Node* make_poison(TB_Function* f, TB_Passes* restrict p, TB_DataType dt) {
+TB_Node* make_poison(TB_Function* f, TB_DataType dt) {
     TB_Node* n = tb_alloc_node(f, TB_POISON, dt, 1, 0);
     set_input(f, n, f->root_node, 0);
-    return gvn(p, n, 0);
+    return gvn(f, n, 0);
 }
 
 TB_Node* make_int_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, uint64_t x) {
@@ -367,17 +372,17 @@ TB_Node* make_int_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, ui
         l = x ? &XNULL_IN_THE_SKY : &NULL_IN_THE_SKY;
     }
     lattice_universe_map(p, n, l);
-    return gvn(p, n, sizeof(TB_NodeInt));
+    return gvn(f, n, sizeof(TB_NodeInt));
 }
 
-TB_Node* dead_node(TB_Function* f, TB_Passes* restrict p) {
+TB_Node* dead_node(TB_Function* f, TB_Passes* p) {
     TB_Node* n = tb_alloc_node(f, TB_DEAD, TB_TYPE_CONTROL, 1, 0);
     set_input(f, n, f->root_node, 0);
     lattice_universe_map(p, n, &XCTRL_IN_THE_SKY);
-    return gvn(p, n, 0);
+    return gvn(f, n, 0);
 }
 
-TB_Node* make_proj_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, TB_Node* src, int i) {
+TB_Node* make_proj_node(TB_Function* f, TB_DataType dt, TB_Node* src, int i) {
     TB_Node* n = tb_alloc_node(f, TB_PROJ, dt, 1, sizeof(TB_NodeProj));
     set_input(f, n, src, 0);
     TB_NODE_SET_EXTRA(n, TB_NodeProj, .index = i);
@@ -395,9 +400,9 @@ static void remove_input(TB_Function* f, TB_Node* n, size_t i) {
     }
 }
 
-void tb_pass_kill_node(TB_Passes* restrict p, TB_Node* n) {
+void tb_pass_kill_node(TB_Function* f, TB_Node* n) {
     // remove from CSE if we're murdering it
-    nl_hashset_remove2(&p->gvn_nodes, n, gvn_hash, gvn_compare);
+    nl_hashset_remove2(&f->gvn_nodes, n, gvn_hash, gvn_compare);
 
     FOREACH_N(i, 0, n->input_count) {
         remove_user(n, i);
@@ -639,12 +644,12 @@ static TB_Node* try_as_const(TB_Passes* restrict p, TB_Node* n, Lattice* l) {
                     if (u->n->type == TB_PROJ) {
                         int index = TB_NODE_GET_EXTRA_T(n, TB_NodeProj)->index;
                         TB_Node* in = l->elems[index] == &CTRL_IN_THE_SKY ? ctrl : dead;
-                        subsume_node(p, p->f, u->n, ctrl);
+                        subsume_node(p->f, u->n, ctrl);
                     }
                 }
 
                 // no more projections, kill the branch
-                tb_pass_kill_node(p, n);
+                tb_pass_kill_node(p->f, n);
                 tb_pass_mark_users(p, dead);
                 return ctrl;
             } else {
@@ -715,10 +720,10 @@ static void print_lattice(Lattice* l, TB_DataType dt) {
 // we mark ALL users including the ones who didn't get changed
 // when subsuming.
 TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
-    // idealize can modify the node, make sure it's not in the GVN pool at the time
-    nl_hashset_remove2(&p->gvn_nodes, n, gvn_hash, gvn_compare);
-
     TB_Function* f = p->f;
+
+    // idealize can modify the node, make sure it's not in the GVN pool at the time
+    nl_hashset_remove2(&f->gvn_nodes, n, gvn_hash, gvn_compare);
 
     // idealize node (this can technically run an arbitrary number of times
     // but in practice we should only hit a node like once or twice)
@@ -730,7 +735,7 @@ TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
 
         // transfer users from n -> k
         if (n != k) {
-            subsume_node(p, f, n, k);
+            subsume_node(f, n, k);
             n = k;
         }
 
@@ -761,7 +766,7 @@ TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
         if (k != NULL) {
             DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[96m"), print_node_sexpr(k, 0), printf("\x1b[0m"));
 
-            subsume_node(p, f, n, k);
+            subsume_node(f, n, k);
             tb_pass_mark_users(p, k);
             return k;
         } else if (lattice_universe_map_progress(p, n, new_type)) {
@@ -775,18 +780,18 @@ TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
         DO_IF(TB_OPTDEBUG_STATS)(p->stats.identities++);
         DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[33m"), print_node_sexpr(k, 0), printf("\x1b[0m"));
 
-        subsume_node(p, f, n, k);
+        subsume_node(f, n, k);
         tb_pass_mark_users(p, k);
         return k;
     }
 
     // global value numbering
-    k = nl_hashset_put2(&p->gvn_nodes, n, gvn_hash, gvn_compare);
+    k = nl_hashset_put2(&f->gvn_nodes, n, gvn_hash, gvn_compare);
     if (k && (k != n)) {
         DO_IF(TB_OPTDEBUG_STATS)(p->stats.gvn_hit++);
         DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[31mGVN\x1b[0m"));
 
-        subsume_node(p, f, n, k);
+        subsume_node(f, n, k);
         tb_pass_mark_users(p, k);
         return k;
     } else {
@@ -796,7 +801,7 @@ TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
     return n;
 }
 
-static void subsume_node(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* new_n) {
+static void subsume_node(TB_Function* f, TB_Node* n, TB_Node* new_n) {
     CUIK_TIMED_BLOCK("subsume") {
         User* use = n->users;
         while (use != NULL) {
@@ -811,7 +816,7 @@ static void subsume_node(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_N
         }
     }
 
-    tb_pass_kill_node(p, n);
+    tb_pass_kill_node(f, n);
 }
 
 TB_Passes* tb_pass_enter(TB_Function* f, TB_Arena* arena) {
@@ -1114,15 +1119,10 @@ void tb_pass_prep(TB_Passes* p) {
             nl_hashset_put2(&p->type_interner, &XNULL_IN_THE_SKY, lattice_hash, lattice_cmp);
             nl_hashset_put2(&p->type_interner, &FALSE_IN_THE_SKY, lattice_hash, lattice_cmp);
             nl_hashset_put2(&p->type_interner, &TRUE_IN_THE_SKY,  lattice_hash, lattice_cmp);
-        }
-    }
 
-    if (p->gvn_nodes.data == NULL) {
-        CUIK_TIMED_BLOCK("allocate GVN table") {
-            p->gvn_nodes = nl_hashset_alloc(p->f->node_count);
+            // place ROOT type
+            p->types[f->root_node->gvn] = lattice_tuple_from_node(p, f->root_node);
         }
-
-        p->types[f->root_node->gvn] = lattice_tuple_from_node(p, f->root_node);
     }
 }
 
@@ -1142,7 +1142,7 @@ void tb_pass_peephole(TB_Passes* p) {
             // must've dead sometime between getting scheduled and getting here.
             if (n->type != TB_PROJ && n->users == NULL) {
                 DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[196mKILL\x1b[0m\n"));
-                tb_pass_kill_node(p, n);
+                tb_pass_kill_node(f, n);
             } else {
                 tb_pass_peephole_node(p, n);
                 DO_IF(TB_OPTDEBUG_PEEP)(printf("\n"));
@@ -1169,7 +1169,6 @@ void tb_pass_exit(TB_Passes* p) {
         #endif
 
         worklist_free(&p->worklist);
-        nl_hashset_free(p->gvn_nodes);
 
         if (p->types != NULL) {
             nl_hashset_free(p->type_interner);
@@ -1301,6 +1300,7 @@ void tb_module_prepare_ipo(TB_Module* m) {
             }
         }
     }
+
 }
 
 bool tb_module_ipo(TB_Module* m) {

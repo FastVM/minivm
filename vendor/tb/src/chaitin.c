@@ -1,12 +1,13 @@
 // TODO(NeGate): implement Chaitin-Briggs, if you wanna contribute this would be cool to work
 // with someone else on.
 #include "codegen.h"
+#include <float.h>
 
 typedef struct {
     Ctx* ctx;
     TB_Arena* arena;
 
-    int stack_usage;
+    int spills;
 
     int num_classes;
     int* num_regs;
@@ -31,16 +32,6 @@ static void ifg_remove(Chaitin* ra, int i, int j) {
     printf("remove v%d -- v%d\n", i, j);
     assert(ifg_test(ra, i, j));
     ra->ifg[i*ra->ifg_stride + j/64] &= ~(1ull << (j % 64));
-}
-
-static void ifg_compute_degree(Chaitin* ra) {
-    FOREACH_N(i, 0, ra->ifg_len) {
-        int sum = 0;
-        FOREACH_N(j, 0, ra->ifg_stride) {
-            sum += tb_popcount64(ra->ifg[i*ra->ifg_stride + j]);
-        }
-        ra->degree[i] = sum;
-    }
 }
 
 static void ifg_remove_edges(Chaitin* ra, int i) {
@@ -68,126 +59,186 @@ static bool ifg_empty(Chaitin* ra) {
 }
 
 static bool reg_mask_intersect(RegMask a, RegMask b) {
-    return a.class == b.class && (a.mask & b.mask) != 0;
+    if (a.class > b.class) {
+        SWAP(RegMask, a, b);
+    }
+
+    if (a.class == REG_CLASS_STK && a.mask == 0) {
+        return b.may_spill || (b.class == REG_CLASS_STK && b.mask == 0);
+    } else {
+        return a.class == b.class && (a.mask & b.mask) != 0;
+    }
+}
+
+static bool reg_mask_may_stack(RegMask a) {
+    return a.class == REG_CLASS_STK || a.may_spill;
+}
+
+static void build_ifg(Ctx* restrict ctx, TB_Arena* arena, Chaitin* ra) {
+    size_t normie_nodes = ctx->interval_count - ctx->num_fixed;
+
+    ra->ifg_stride = (normie_nodes + 63) / 64;
+    ra->ifg_len    = normie_nodes;
+    ra->ifg        = tb_arena_alloc(arena, ra->ifg_len * ra->ifg_stride * sizeof(uint64_t));
+    ra->degree     = tb_arena_alloc(arena, ra->ifg_len * sizeof(int));
+
+    memset(ra->ifg,    0, ra->ifg_len * ra->ifg_stride * sizeof(uint64_t));
+    memset(ra->degree, 0, ra->ifg_len * sizeof(int));
+
+    Set live = set_create_in_arena(arena, ctx->interval_count);
+    FOREACH_REVERSE_N(i, 0, ctx->bb_count) {
+        MachineBB* mbb = &ctx->machine_bbs[i];
+
+        Set* live_out = &mbb->live_out;
+        set_copy(&live, live_out);
+
+        for (Tile* t = mbb->end; t; t = t->prev) {
+            LiveInterval* interval = t->interval;
+            if (interval) {
+                set_remove(&live, interval->id);
+
+                // interfere
+                FOREACH_N(j, 0, ra->ifg_len) {
+                    if (!set_get(&live, j)) continue;
+
+                    LiveInterval* other = ctx->id2interval[j];
+                    if (!reg_mask_intersect(interval->mask, other->mask)) continue;
+
+                    printf("v%d -- v%td\n", interval->id, j);
+                    ifg_edge(ra, interval->id, j);
+                    ifg_edge(ra, j, interval->id);
+                }
+
+                // 2 address ops will interfere with their own inputs (except for
+                // shared dst/src)
+                if (t->n && ctx->_2addr(t->n)) {
+                    FOREACH_N(j, 1, t->in_count) {
+                        LiveInterval* in_def = t->ins[j].src;
+                        if (in_def == NULL) continue;
+                        if (!reg_mask_intersect(interval->mask, in_def->mask)) continue;
+
+                        printf("v%d -- v%d\n", interval->id, in_def->id);
+                        ifg_edge(ra, interval->id, in_def->id);
+                        ifg_edge(ra, in_def->id, interval->id);
+                    }
+                }
+            }
+
+            // uses are live now
+            FOREACH_N(j, 0, t->in_count) {
+                LiveInterval* in_def = t->ins[j].src;
+                if (in_def) set_put(&live, in_def->id);
+            }
+        }
+    }
+
+    // compute degree
+    FOREACH_N(i, 0, ra->ifg_len) {
+        int sum = 0;
+        FOREACH_N(j, 0, ra->ifg_stride) {
+            sum += tb_popcount64(ra->ifg[i*ra->ifg_stride + j]);
+        }
+        ra->degree[i] = sum;
+    }
 }
 
 void tb__chaitin(Ctx* restrict ctx, TB_Arena* arena) {
-    Chaitin ra = { .ctx = ctx, .arena = arena, .stack_usage = ctx->stack_usage };
+    Chaitin ra = { .ctx = ctx, .arena = arena, .spills = ctx->num_regs[0] };
 
-    int k_colors[2] = { 16, 16 };
     CUIK_TIMED_BLOCK("build IFG") {
-        size_t normie_nodes = ctx->interval_count - ctx->num_fixed;
-
-        ra.ifg_stride = (normie_nodes + 63) / 64;
-        ra.ifg_len    = normie_nodes;
-        ra.ifg        = tb_arena_alloc(arena, ra.ifg_len * ra.ifg_stride * sizeof(uint64_t));
-        ra.degree     = tb_arena_alloc(arena, ra.ifg_len * sizeof(int));
-
-        memset(ra.ifg,    0, ra.ifg_len * ra.ifg_stride * sizeof(uint64_t));
-        memset(ra.degree, 0, ra.ifg_len * sizeof(int));
-
-        Set live = set_create_in_arena(arena, ctx->interval_count);
-        FOREACH_REVERSE_N(i, 0, ctx->bb_count) {
-            MachineBB* mbb = &ctx->machine_bbs[i];
-
-            Set* live_out = &mbb->live_out;
-            set_copy(&live, live_out);
-
-            for (Tile* t = mbb->end; t; t = t->prev) {
-                LiveInterval* interval = t->interval;
-                if (interval) {
-                    set_remove(&live, interval->id);
-
-                    // interfere
-                    FOREACH_N(j, 0, ra.ifg_len) {
-                        if (!set_get(&live, j)) continue;
-
-                        LiveInterval* other = ctx->id2interval[j];
-                        if (!reg_mask_intersect(interval->mask, other->mask)) continue;
-
-                        printf("v%d -- v%td\n", interval->id, j);
-                        ifg_edge(&ra, interval->id, j);
-                        ifg_edge(&ra, j, interval->id);
-                    }
-
-                    // 2 address ops will interfere with their own inputs (except for
-                    // shared dst/src)
-                    if (t->n && ctx->_2addr(t->n)) {
-                        FOREACH_N(j, 1, t->in_count) {
-                            LiveInterval* in_def = t->ins[j].src;
-                            if (in_def == NULL) continue;
-                            if (!reg_mask_intersect(interval->mask, in_def->mask)) continue;
-
-                            printf("v%d -- v%d\n", interval->id, in_def->id);
-                            ifg_edge(&ra, interval->id, in_def->id);
-                            ifg_edge(&ra, in_def->id, interval->id);
-                        }
-                    }
-                }
-
-                // uses are live now
-                FOREACH_N(j, 0, t->in_count) {
-                    LiveInterval* in_def = t->ins[j].src;
-                    if (in_def) set_put(&live, in_def->id);
-                }
-            }
-        }
-
-        // clone before doing all the fancy node removals
-        uint64_t* ifg_copy = tb_arena_alloc(arena, ra.ifg_len * ra.ifg_stride * sizeof(uint64_t));
-        int* deg_copy      = tb_arena_alloc(arena, ra.ifg_len * sizeof(int));
-        memcpy(ifg_copy, ra.ifg,    ra.ifg_len * ra.ifg_stride * sizeof(uint64_t));
-        memcpy(deg_copy, ra.degree, ra.ifg_len * sizeof(int));
-
         // simplify/select stack
-        int cnt = 0, cap = ra.ifg_len;
-        LiveInterval** stk = tb_arena_alloc(arena, ra.ifg_len * sizeof(LiveInterval*));
+        int cnt, cap;
+        LiveInterval** stk;
 
-        // simplify phase:
-        //   push all nodes with a degree < k
-        FOREACH_N(i, 0, ra.ifg_len) {
-            int class = ctx->id2interval[i]->mask.class;
-            if (ra.degree[i] < k_colors[class]) {
-                assert(cnt < cap);
-                stk[cnt++] = ctx->id2interval[i];
-                ifg_remove_edges(&ra, i);
-            }
-        }
+        bool has_spills;
+        for (;;) {
+            TB_ArenaSavepoint sp = tb_arena_save(arena);
 
-        // split phase
-        if (!ifg_empty(&ra)) {
-            float* weights = tb_arena_alloc(arena, ra.ifg_len * sizeof(float));
-            NL_ChunkedArr spills = nl_chunked_arr_alloc(tmp_arena);
+            // build IFG (and degree table)
+            build_ifg(ctx, arena, &ra);
+
+            // clone before doing all the fancy node removals
+            uint64_t* ifg_copy = tb_arena_alloc(arena, ra.ifg_len * ra.ifg_stride * sizeof(uint64_t));
+            int* deg_copy      = tb_arena_alloc(arena, ra.ifg_len * sizeof(int));
+            memcpy(ifg_copy, ra.ifg,    ra.ifg_len * ra.ifg_stride * sizeof(uint64_t));
+            memcpy(deg_copy, ra.degree, ra.ifg_len * sizeof(int));
 
             // compute spill weights
-            FOREACH_N(i, 0, normie_nodes) {
-                weights[i] = deg_copy[i];
+            float* costs = tb_arena_alloc(arena, ra.ifg_len * sizeof(float));
+            FOREACH_N(i, 1, ra.ifg_len) {
+                float w = deg_copy[i];
+                costs[i] = deg_copy[i];
             }
 
-            do {
-                int spill = ctx->num_fixed;
+            // simplify/select stack
+            cap = ra.ifg_len;
+            stk = tb_arena_alloc(arena, ra.ifg_len * sizeof(LiveInterval*));
 
-                // TODO(NeGate): pick best spill slot
-                FOREACH_N(i, ctx->num_fixed + 1, ra.ifg_len) {
-                    tb_todo();
+            NL_ChunkedArr spills = nl_chunked_arr_alloc(tmp_arena);
+
+            // simplify => split cycle
+            simplify_split: {
+                cnt = 0;
+
+                // simplify phase:
+                //   push all nodes with a degree < k
+                FOREACH_N(i, 0, ra.ifg_len) if (ctx->id2interval[i]) {
+                    RegMask mask = ctx->id2interval[i]->mask;
+                    int class = mask.class;
+                    int k_limit = class != REG_CLASS_STK ? tb_popcount64(mask.mask) : INT_MAX;
+
+                    if (ra.degree[i] < k_limit) {
+                        assert(cnt < cap);
+                        stk[cnt++] = ctx->id2interval[i];
+                        ifg_remove_edges(&ra, i);
+                    }
                 }
 
-                nl_chunked_arr_put(&spills, ctx->id2interval[spill]);
-                ifg_remove_edges(&ra, spill);
-            } while (!ifg_empty(&ra));
+                // split phase:
+                if (!ifg_empty(&ra)) {
+                    int best_spill = -1;
+                    float best_cost = FLT_MAX;
 
-            // insert splitting code
+                    // pick next best spill
+                    FOREACH_N(i, 0, ra.ifg_len) if (ctx->id2interval[i]) {
+                        RegMask mask = ctx->id2interval[i]->mask;
+                        int class = mask.class;
+                        int k_limit = class != REG_CLASS_STK ? tb_popcount64(mask.mask) : INT_MAX;
+
+                        if (ra.degree[i] >= k_limit && costs[i] < best_cost) {
+                            best_cost = costs[i];
+                            best_spill = i;
+                        }
+                    }
+
+                    printf("spill v%d\n", best_spill);
+
+                    nl_chunked_arr_put(&spills, ctx->id2interval[best_spill]);
+                    ifg_remove_edges(&ra, best_spill);
+                    goto simplify_split;
+                }
+            }
+
+            ra.ifg    = ifg_copy;
+            ra.degree = deg_copy;
+
+            // insert spill code
             for (NL_ArrChunk* restrict chk = spills.first; chk; chk = chk->next) {
                 FOREACH_N(i, 0, chk->count) {
                     LiveInterval* spill = chk->elems[i];
-                    tb_todo();
+
+                    spill->class = REG_CLASS_STK;
+                    spill->assigned = ra.spills++;
                 }
             }
-            nl_chunked_arr_trim(&spills);
-        }
 
-        ra.ifg    = ifg_copy;
-        ra.degree = deg_copy;
+            // finally... we're done
+            if (spills.first->count == 0) {
+                break;
+            }
+
+            tb_arena_restore(arena, sp);
+        }
 
         // select phase
         while (cnt) {
@@ -207,10 +258,11 @@ void tb__chaitin(Ctx* restrict ctx, TB_Arena* arena) {
             }
 
             assert(mask != 0 && "couldn't select color :(");
+            interval->class = interval->mask.class;
             interval->assigned = tb_ffs64(mask) - 1;
             printf("v%d = R%d\n", i, interval->assigned);
         }
     }
 
-    ctx->stack_usage = ra.stack_usage;
+    ctx->stack_usage += (ra.spills - ctx->num_regs[0]) * 8;
 }

@@ -106,7 +106,7 @@ static size_t sroa_rewrite(TB_Passes* restrict p, int pointer_size, TB_Node* sta
             TB_NODE_SET_EXTRA(new_n, TB_NodeLocal, .size = configs[i].size, .align = alignment);
 
             // replace old pointer with new fancy
-            subsume_node(p, p->f, configs[i].old_n, new_n);
+            subsume_node(p->f, configs[i].old_n, new_n);
 
             // mark all users, there may be some fun new opts now
             tb_pass_mark(p, new_n);

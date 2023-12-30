@@ -1299,6 +1299,10 @@ TB_API void tb_pass_prep(TB_Passes* p);
 // this is the peephole optimizer in a form you can run during IR construction.
 TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n);
 
+// returns GVN on a new node, returning either the same node or a duplicate node 'k'.
+// does not subsume n -> k.
+TB_API TB_Node* tb_pass_gvn_node(TB_Function* f, TB_Node* n);
+
 // transformation passes:
 //   peephole: 99% of the optimizer, i'm sea of nodes pilled so i
 //     break down most optimizations into local rewrites, it's
@@ -1332,10 +1336,11 @@ TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* u
 TB_API TB_FunctionOutput* tb_pass_codegen(TB_Passes* opt, TB_Arena* code_arena, const TB_FeatureSet* features, bool emit_asm);
 
 void tb_module_prepare_ipo(TB_Module* m);
-// interprocedural optimizer iter, returns true when it makes progress
+
+// interprocedural optimizer iter
 bool tb_module_ipo(TB_Module* m);
 
-TB_API void tb_pass_kill_node(TB_Passes* opt, TB_Node* n);
+TB_API void tb_pass_kill_node(TB_Function* f, TB_Node* n);
 TB_API void tb_pass_mark(TB_Passes* opt, TB_Node* n);
 TB_API void tb_pass_mark_users(TB_Passes* opt, TB_Node* n);
 

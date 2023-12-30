@@ -13,7 +13,7 @@ static TB_Node* ideal_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
             User* next = use->next;
             if (use->n->type == TB_PHI) {
                 assert(use->n->input_count == 2);
-                subsume_node(p, f, use->n, use->n->inputs[1]);
+                subsume_node(f, use->n, use->n->inputs[1]);
             }
             use = next;
         }
@@ -112,7 +112,7 @@ static TB_Node* ideal_phi(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     // degenerate PHI, poison it
     if (n->input_count == 1) {
         log_warn("%s: ir: generated poison due to PHI with no edges", f->super.name);
-        return make_poison(f, opt, n->dt);
+        return make_poison(f, n->dt);
     }
 
     // if branch, both paths are empty => select(cond, t, f)
@@ -175,14 +175,14 @@ static TB_Node* ideal_phi(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
                         // header -> merge
                         {
                             TB_Node* parent = branch->inputs[0];
-                            tb_pass_kill_node(opt, branch);
-                            tb_pass_kill_node(opt, left);
-                            tb_pass_kill_node(opt, right);
+                            tb_pass_kill_node(f, branch);
+                            tb_pass_kill_node(f, left);
+                            tb_pass_kill_node(f, right);
 
                             // attach the header and merge to each other
                             tb_pass_mark(opt, parent);
                             tb_pass_mark_users(opt, region);
-                            subsume_node(opt, f, region, parent);
+                            subsume_node(f, region, parent);
                         }
 
                         TB_Node* selector = tb_alloc_node(f, TB_SELECT, dt, 4, 0);
@@ -246,8 +246,8 @@ static TB_Node* ideal_phi(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
 
             // kill branch, we don't really need it anymore
             TB_Node* before = parent->inputs[0];
-            tb_pass_kill_node(opt, parent);
-            subsume_node(opt, f, region, before);
+            tb_pass_kill_node(f, parent);
+            subsume_node(f, region, before);
 
             return lookup;
         }
@@ -504,7 +504,7 @@ static TB_Node* identity_region(TB_Passes* restrict p, TB_Function* f, TB_Node* 
         }
 
         TB_Node* before = same->inputs[0];
-        tb_pass_kill_node(p, same);
+        tb_pass_kill_node(f, same);
         return before;
     }
 
