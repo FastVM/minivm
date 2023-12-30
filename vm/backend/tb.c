@@ -53,7 +53,7 @@ TB_Node *vm_tb_bitcast_to_value(vm_tb_state_t *state, TB_Node *src) {
     // tb_inst_store(state->fun, VM_TB_TYPE_VALUE, tmp, tb_inst_uint(state->fun, VM_TB_TYPE_VALUE, 0), 8, false);
     // tb_inst_store(state->fun, src->dt, tmp, src, 8, false);
     // return tb_inst_load(state->fun, VM_TB_TYPE_VALUE, tmp, 8, false);
-        if (src->dt.type != VM_TB_TYPE_VALUE.type || src->dt.data != VM_TB_TYPE_VALUE.data) {
+    if (src->dt.type != VM_TB_TYPE_VALUE.type || src->dt.data != VM_TB_TYPE_VALUE.data) {
         return tb_inst_bitcast(state->fun, src, VM_TB_TYPE_VALUE);
     }
     return src;
@@ -1383,7 +1383,7 @@ void vm_tb_func_report_error(vm_tb_state_t *state, const char *str) {
 void vm_tb_print(uint32_t tag, vm_value_t value) {
     vm_std_value_t val = (vm_std_value_t){
         .tag = tag,
-        .value =  *(vm_value_t *)&value,
+        .value =  value,
     };
     vm_io_buffer_t buf = {0};
     vm_io_debug(&buf, 0, "debug: ", val, NULL);
@@ -1567,7 +1567,11 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
                     false
                 );
                 if (state->config->dump_args) {
-                    vm_tb_func_print_value(state, rblock->regs->tags[block->args[i].reg], regs[block->args[i].reg]);
+                    vm_tb_func_print_value(
+                        state,
+                        rblock->regs->tags[block->args[i].reg],
+                        tb_inst_param(state->fun, i)
+                    );
                 }
             }
             TB_Node *main = tb_inst_region(state->fun);
