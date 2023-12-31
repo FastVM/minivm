@@ -26,10 +26,13 @@ VM_SRCS := vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/c
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
+TCC_SRCS := vendor/tcc/libtcc.c
+TCC_OBJS = $(TCC_SRCS:%.c=$(OBJ_DIR)/%.o)
+
 TB_SRCS := vendor/common/common.c vendor/common/perf.c vendor/tb/src/libtb.c vendor/tb/src/x64/x64_target.c
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS)
+OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS) $(TCC_OBJS)
 
 CFLAGS += $(FLAGS)
 LDFLAGS += $(FLAGS)
@@ -79,7 +82,7 @@ $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I vendor/tb/include -I vendor/common -DCUIK_USE_TB -DLOG_SUPPRESS -DTB_HAS_X64
 
-$(PROG_OBJS) $(ALL_OBJS) $(GC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
+$(PROG_OBJS) $(ALL_OBJS) $(GC_OBJS) $(TCC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 

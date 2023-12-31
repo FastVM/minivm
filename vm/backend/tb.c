@@ -5,6 +5,7 @@
 #include "../../vendor/common/arena.h"
 #include "../ir/check.h"
 #include "../ir/rblock.h"
+#include "../../vendor/tcc/libtcc.h"
 
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
@@ -1616,40 +1617,52 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             tb_pass_print_dot(passes, tb_default_print_callback, stdout);
         }
     }
-    if (state->config->dump_js) {
-        printf("\n--- js ---\n%s", tb_pass_js_print(passes));
-    }
 #endif
-    TB_FeatureSet features = (TB_FeatureSet){0};
+    if (state->config->target == VM_TARGET_TB_C) {
+        const char *c_src = tb_pass_c_fmt(passes);
+        if (state->config->dump_asm) {
+            printf("\n--- c ---\n%s", c_src);
+        }
+        TCCState *state = tcc_new();
+        tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
+        tcc_compile_string(state, c_src);
+        void *code = tcc_get_symbol(state, "entry");
+        rblock->code = code;
+        return code;
+    } else if (state->config->target == VM_TARGET_TB) {
+        TB_FeatureSet features = (TB_FeatureSet){0};
 #if VM_USE_DUMP
-    if (state->config->dump_x86) {
-        TB_FunctionOutput *out = tb_pass_codegen(passes, parena, &features, true);
-        fprintf(stdout, "\n--- x86asm ---\n");
-        tb_output_print_asm(out, stdout);
-    } else {
-        tb_pass_codegen(passes, parena, &features, false);
-    }
+        if (state->config->dump_asm) {
+            TB_FunctionOutput *out = tb_pass_codegen(passes, parena, &features, true);
+            fprintf(stdout, "\n--- x86asm ---\n");
+            tb_output_print_asm(out, stdout);
+        } else {
+            tb_pass_codegen(passes, parena, &features, false);
+        }
 #else
-    tb_pass_codegen(passes, &arena, &features, false);
+        tb_pass_codegen(passes, &arena, &features, false);
 #endif
-    tb_pass_exit(passes);
+        tb_pass_exit(passes);
 
-    TB_JIT *jit = tb_jit_begin(state->module, 1 << 16);
-    void *code = tb_jit_place_function(jit, state->fun);
+        TB_JIT *jit = tb_jit_begin(state->module, 1 << 16);
+        void *code = tb_jit_place_function(jit, state->fun);
 
-    tb_arena_destroy(parena);
+        tb_arena_destroy(parena);
 
-    rblock->code = code;
-    rblock->jit = jit;
-    rblock->del = &vm_tb_rblock_del;
+        rblock->code = code;
+        rblock->jit = jit;
+        rblock->del = &vm_tb_rblock_del;
+        
+        // tb_arena_destroy(tb_function_get_arena(state->fun));
 
-    // tb_arena_destroy(tb_function_get_arena(state->fun));
+        // printf("%zi -> %p\n", block->id, rblock->code);
 
-    // printf("%zi -> %p\n", block->id, rblock->code);
-
-    // printf("code buf: %p\n", ret);
-
-    return code;
+        // printf("code buf: %p\n", ret);
+        
+        return code;
+    } else {
+        __builtin_trap();
+    }
 }
 
 void vm_tb_rblock_del(vm_rblock_t *rblock) {

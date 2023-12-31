@@ -40,7 +40,7 @@ void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
     config->dump_tb_opt = vm_lang_lua_repl_table_get_bool(dump, "tb_opt");
     config->dump_tb_dot = vm_lang_lua_repl_table_get_bool(dump, "tb_dot");
     config->dump_tb_opt_dot = vm_lang_lua_repl_table_get_bool(dump, "tb_opt_dot");
-    config->dump_x86 = vm_lang_lua_repl_table_get_bool(dump, "x86");
+    config->dump_asm = vm_lang_lua_repl_table_get_bool(dump, "asm");
     config->dump_args = vm_lang_lua_repl_table_get_bool(dump, "args");
     config->dump_time = vm_lang_lua_repl_table_get_bool(dump, "time");
 }
@@ -57,7 +57,7 @@ void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
     VM_STD_SET_BOOL(dump, "tb_opt", config->dump_tb_opt);
     VM_STD_SET_BOOL(dump, "tb_dot", config->dump_tb_dot);
     VM_STD_SET_BOOL(dump, "tb_opt_dot", config->dump_tb_opt_dot);
-    VM_STD_SET_BOOL(dump, "x86", config->dump_x86);
+    VM_STD_SET_BOOL(dump, "asm", config->dump_asm);
     VM_STD_SET_BOOL(dump, "args", config->dump_args);
     VM_STD_SET_BOOL(dump, "time", config->dump_time);
 }

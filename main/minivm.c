@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t){
         .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
+        .target = VM_TARGET_TB_C,
     };
     vm_blocks_t val_blocks = {0};
     vm_blocks_t *blocks = &val_blocks;
@@ -73,12 +74,21 @@ int main(int argc, char **argv) {
                 ret_val = 1;
                 goto ret;
             }
+        } else if (!strncmp(arg, "--target-", 9) || !strncmp(arg, "--target=", 9)) {
+            arg += 10;
+            if (!strcmp(arg, "tb")) {
+                config->target = VM_TARGET_TB;
+            } else if (!strcmp(arg, "tb-c")) {
+                config->target = VM_TARGET_TB_C;
+            } else {
+                fprintf(stderr, "cannot target: %s\n", arg);
+                ret_val = 1;
+                goto ret;
+            }
         } else if (!strncmp(arg, "--dump-", 7) || !strncmp(arg, "--dump=", 7)) {
             arg += 7;
             if (!strcmp(arg, "src")) {
                 config->dump_src = true;
-            } else if (!strcmp(arg, "js")) {
-                config->dump_js = true;
             } else if (!strcmp(arg, "ast")) {
                 config->dump_ast = true;
             } else if (!strcmp(arg, "ir")) {
@@ -93,8 +103,8 @@ int main(int argc, char **argv) {
                 config->dump_tb_dot = true;
             } else if (!strcmp(arg, "opt-dot")) {
                 config->dump_tb_opt_dot = true;
-            } else if (!strcmp(arg, "x86")) {
-                config->dump_x86 = true;
+            } else if (!strcmp(arg, "asm")) {
+                config->dump_asm = true;
             } else if (!strcmp(arg, "args")) {
                 config->dump_args = true;
             } else if (!strcmp(arg, "time")) {

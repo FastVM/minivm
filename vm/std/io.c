@@ -26,9 +26,11 @@ char *vm_io_buffer_get(vm_io_buffer_t *buf) {
 
 vm_io_buffer_t *vm_io_buffer_new(void) {
     vm_io_buffer_t *ret = vm_malloc(sizeof(vm_io_buffer_t));
+    char *buf = vm_malloc(sizeof(char));
+    *buf = '\0';
     *ret = (vm_io_buffer_t) {
-        .alloc = 0,
-        .buf = NULL,
+        .alloc = 1,
+        .buf = buf,
         .len = 0,
     };
     return ret;
