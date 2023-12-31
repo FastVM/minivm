@@ -347,7 +347,7 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = ");
+                vm_io_buffer_format(ctx->buf, "  v%u = ", n->gvn);
                 c_fmt_ref_to_node(ctx, lhs, false);
                 vm_io_buffer_format(ctx->buf, " + ");
                 c_fmt_ref_to_node(ctx, rhs, false);
@@ -358,7 +358,7 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = ");
+                vm_io_buffer_format(ctx->buf, "  v%u = ", n->gvn);
                 c_fmt_ref_to_node(ctx, lhs, false);
                 vm_io_buffer_format(ctx->buf, " - ");
                 c_fmt_ref_to_node(ctx, rhs, false);
@@ -369,7 +369,7 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = ");
+                vm_io_buffer_format(ctx->buf, "  v%u = ", n->gvn);
                 c_fmt_ref_to_node(ctx, lhs, false);
                 vm_io_buffer_format(ctx->buf, " * ");
                 c_fmt_ref_to_node(ctx, rhs, false);
@@ -428,6 +428,55 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 vm_io_buffer_format(ctx->buf, "  v%u = ", n->gvn);
                 c_fmt_ref_to_node(ctx, lhs, false);
                 vm_io_buffer_format(ctx->buf, " == ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
+                break;
+            }
+
+            case TB_CMP_SLT: {
+                TB_Node *lhs = n->inputs[n->input_count-2];
+                TB_Node *rhs = n->inputs[n->input_count-1];
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (int64_t) ", n->gvn);
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " < (int64_t) ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
+                break;
+            }
+
+            case TB_CMP_SLE: {
+                TB_Node *lhs = n->inputs[n->input_count-2];
+                TB_Node *rhs = n->inputs[n->input_count-1];
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (int64_t) ", n->gvn);
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " <= (int64_t) ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
+                break;
+            }
+            
+
+            case TB_CMP_ULT: {
+                TB_Node *lhs = n->inputs[n->input_count-2];
+                TB_Node *rhs = n->inputs[n->input_count-1];
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (uint64_t) ", n->gvn);
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " < (uint64_t) ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
+                break;
+            }
+
+            case TB_CMP_ULE: {
+                TB_Node *lhs = n->inputs[n->input_count-2];
+                TB_Node *rhs = n->inputs[n->input_count-1];
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (uint64_t) ", n->gvn);
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " <= (uint64_t) ");
                 c_fmt_ref_to_node(ctx, rhs, false);
                 vm_io_buffer_format(ctx->buf, ";\n");
                 break;
