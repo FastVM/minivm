@@ -77,6 +77,8 @@ int main(int argc, char **argv) {
             arg += 7;
             if (!strcmp(arg, "src")) {
                 config->dump_src = true;
+            } else if (!strcmp(arg, "js")) {
+                config->dump_js = true;
             } else if (!strcmp(arg, "ast")) {
                 config->dump_ast = true;
             } else if (!strcmp(arg, "ir")) {

@@ -260,6 +260,7 @@ static bool slow_dommy(TB_CFG* cfg, TB_Node* expected_dom, TB_Node* bb) {
 #include "loop.h"
 #include "branches.h"
 #include "print.h"
+#include "print_js.h"
 #include "mem2reg.h"
 #include "gcm.h"
 #include "libcalls.h"

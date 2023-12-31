@@ -468,7 +468,6 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
         // in a few of the later stages.
         TB_ArenaSavepoint sp = tb_arena_save(arena);
         CUIK_TIMED_BLOCK("local") {
-            int timeline = 4;
             FOREACH_N(i, 0, bb_count) {
                 MachineBB* mbb = &machine_bbs[i];
                 int bbid = mbb->id;
@@ -479,9 +478,6 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
                 Set* gen = &mbb->gen;
                 Set* kill = &mbb->kill;
                 for (Tile* t = mbb->start; t; t = t->next) {
-                    t->time = timeline;
-                    timeline += 4;
-
                     FOREACH_N(j, 0, t->in_count) {
                         LiveInterval* in_def = t->ins[j].src;
                         if (in_def && !set_get(kill, in_def->id)) {
@@ -495,8 +491,6 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
                         ctx.id2interval[interval->id] = interval;
                     }
                 }
-
-                timeline += 4;
             }
         }
 

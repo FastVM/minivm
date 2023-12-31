@@ -41,6 +41,7 @@ struct vm_config_t {
     _Bool dump_x86: 1;
     _Bool dump_args: 1;
     _Bool dump_time: 1;
+    _Bool dump_js: 1;
 
     _Bool is_repl: 1;
 };

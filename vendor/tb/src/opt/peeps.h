@@ -58,9 +58,9 @@ static const NodeVtable vtables[TB_NODE_TYPE_MAX] = {
     [TB_OR]             = { ideal_int_binop,   identity_int_binop, sccp_bits        },
     [TB_XOR]            = { ideal_int_binop,   identity_int_binop, sccp_bits        },
     // shift
-    [TB_SHL]            = { ideal_int_binop,   NULL,               sccp_shift       },
-    [TB_SHR]            = { ideal_int_binop,   NULL,               sccp_shift       },
-    [TB_SAR]            = { ideal_int_binop,   NULL,               sccp_shift       },
+    [TB_SHL]            = { ideal_int_binop,   identity_int_binop, sccp_shift       },
+    [TB_SHR]            = { ideal_int_binop,   identity_int_binop, sccp_shift       },
+    [TB_SAR]            = { ideal_int_binop,   identity_int_binop, sccp_shift       },
     // unary
     [TB_NEG]            = { NULL,              NULL,               sccp_unary       },
     [TB_NOT]            = { NULL,              NULL,               sccp_unary       },

@@ -1616,6 +1616,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             tb_pass_print_dot(passes, tb_default_print_callback, stdout);
         }
     }
+    if (state->config->dump_js) {
+        printf("\n--- js ---\n%s", tb_pass_js_print(passes));
+    }
 #endif
     TB_FeatureSet features = (TB_FeatureSet){0};
 #if VM_USE_DUMP
