@@ -1376,7 +1376,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
 void vm_tb_func_report_error(vm_tb_state_t *state, const char *str) {
     TB_Node *ret_vals[2];
-    ret_vals[0] = vm_tb_ptr_name(state, "<error>", (void *)str);
+    ret_vals[0] = vm_tb_bitcast_to_value(state, vm_tb_ptr_name(state, "<error>", (void *)str));
     ret_vals[1] = tb_inst_uint(state->fun, TB_TYPE_I32, VM_TAG_ERROR);
     tb_inst_ret(state->fun, 2, ret_vals);
 }
@@ -1431,6 +1431,7 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 }
 
 void vm_tb_rblock_del(vm_rblock_t *rblock);
+void vm_tcc_error_func(void * user, const char * msg);
 
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     void *cache = rblock->code;
@@ -1624,8 +1625,11 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             printf("\n--- c ---\n%s", c_src);
         }
         TCCState *state = tcc_new();
+        tcc_set_error_func(state, 0, vm_tcc_error_func);
+        tcc_set_options(state, "-nostdlib");
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
-        tcc_compile_string(state, c_src);
+        int cres = tcc_compile_string(state, c_src);
+        int rres = tcc_relocate(state, TCC_RELOCATE_AUTO);
         void *code = tcc_get_symbol(state, "entry");
         rblock->code = code;
         return code;
@@ -1663,6 +1667,11 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     } else {
         __builtin_trap();
     }
+}
+
+void vm_tcc_error_func(void *user, const char *msg) {
+    printf("%s\n", msg);
+    asm("int3");
 }
 
 void vm_tb_rblock_del(vm_rblock_t *rblock) {

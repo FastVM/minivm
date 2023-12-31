@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
                 goto ret;
             }
         } else if (!strncmp(arg, "--target-", 9) || !strncmp(arg, "--target=", 9)) {
-            arg += 10;
+            arg += 9;
             if (!strcmp(arg, "tb")) {
                 config->target = VM_TARGET_TB;
             } else if (!strcmp(arg, "tb-c")) {

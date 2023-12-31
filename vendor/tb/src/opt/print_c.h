@@ -21,6 +21,7 @@ static const char *c_fmt_type_name(CFmtState* ctx, TB_DataType dt) {
     switch (dt.type) {
         case TB_INT: {
             if (dt.data == 0) return  "void";
+            if (dt.data == 1) return  "char";
             if (dt.data == 8) return  "uint8_t";
             if (dt.data == 16) return  "uint16_t";
             if (dt.data == 32) return  "uint32_t";
@@ -62,72 +63,42 @@ static void c_fmt_ref_to_node(CFmtState* ctx, TB_Node* n, bool def) {
         vm_io_buffer_format(ctx->buf, "_");
     } else if (n->type == TB_ROOT) {
         if (def) {
-            vm_io_buffer_format(ctx->buf, "\nv%u:;\n", n->gvn);
-            TB_Node** params = ctx->f->params;
-            size_t count = 0;
-            FOREACH_N(i, 1, 3 + ctx->f->param_count) {
-                if (params[i] != NULL && params[i]->dt.type != TB_MEMORY && params[i]->dt.type != TB_CONTROL && params[i]->dt.type != TB_TUPLE) {
-                    // vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, params[i]->dt), params[i]->gvn);
-                    // vm_io_buffer_format(ctx->pre, "  %s v%ua%zu;\n", c_fmt_type_name(ctx, params[i]->dt), params[i]->gvn, count);
-                    if (count != 0) {
-                        vm_io_buffer_format(ctx->args, ", ");
-                    }
-                    vm_io_buffer_format(ctx->args, "  %s v%u\n", c_fmt_type_name(ctx, params[i]->dt), params[i]->gvn);
-                    count += 1;
-                }
-            }
-            if (count == 0) {
-                vm_io_buffer_format(ctx->args, "void");
-            }
+            vm_io_buffer_format(ctx->buf, "\nbb%u:;\n", n->gvn);
             // vm_io_buffer_format(ctx->buf, "}\n", n->gvn);
         } else {
-            vm_io_buffer_format(ctx->buf, "v%u", n->gvn);
+            vm_io_buffer_format(ctx->buf, "bb%u", n->gvn);
         }
     } else if (n->type == TB_PROJ && n->dt.type == TB_CONTROL) {
         if (def) {
-            vm_io_buffer_format(ctx->buf, "\nv%u:;\n", n->gvn);
+            vm_io_buffer_format(ctx->buf, "\nbb%u:;\n", n->gvn);
             size_t count = 0;
             FOR_USERS(u, n) {
-                if (u->n != NULL && u->n->dt.type != TB_MEMORY && u->n->dt.type != TB_CONTROL && u->n->dt.type != TB_TUPLE) {
+                if (u->n != NULL && u->n->type == TB_PHI && u->n->dt.type != TB_MEMORY && u->n->dt.type != TB_CONTROL && u->n->dt.type != TB_TUPLE) {
                     vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, u->n->dt), u->n->gvn);
-                    vm_io_buffer_format(ctx->pre, "  %s v%ua%zu;\n", c_fmt_type_name(ctx, u->n->dt), u->n->gvn, count);
+                    vm_io_buffer_format(ctx->pre, "  %s v%ua%zu;\n", c_fmt_type_name(ctx, u->n->dt), n->gvn, count);
                     vm_io_buffer_format(ctx->buf, "  v%u = v%ua%zu;\n", u->n->gvn, n->gvn, count);
                     count += 1;
                 }
             }
             // vm_io_buffer_format(ctx->buf, "}\n", n->gvn);
         } else {
-            vm_io_buffer_format(ctx->buf, "v%u", n->gvn);
+            vm_io_buffer_format(ctx->buf, "bb%u", n->gvn);
         }
     } else if (n->type == TB_REGION || (n->type == TB_PROJ && n->dt.type == TB_CONTROL)) {
         TB_NodeRegion* r = TB_NODE_GET_EXTRA(n);
         if (def) {
-            vm_io_buffer_format(ctx->buf, "\nv%u:;\n", n->gvn);
+            vm_io_buffer_format(ctx->buf, "\nbb%u:;\n", n->gvn);
             size_t count = 0;
             FOR_USERS(u, n) {
-                if (u->n != NULL && u->n->dt.type != TB_MEMORY && u->n->dt.type != TB_CONTROL && u->n->dt.type != TB_TUPLE) {
+                if (u->n != NULL && u->n->type == TB_PHI && u->n->dt.type != TB_MEMORY && u->n->dt.type != TB_CONTROL && u->n->dt.type != TB_TUPLE) {
                     vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, u->n->dt), u->n->gvn);
-                    vm_io_buffer_format(ctx->pre, "  %s v%ua%zu;\n", c_fmt_type_name(ctx, u->n->dt), u->n->gvn, count);
+                    vm_io_buffer_format(ctx->pre, "  %s v%ua%zu;\n", c_fmt_type_name(ctx, u->n->dt), n->gvn, count);
                     vm_io_buffer_format(ctx->buf, "  v%u = v%ua%zu;\n", u->n->gvn, n->gvn, count);
                     count += 1;
                 }
             }
-            // bool first = true;
-            // FOR_USERS(u, n) {
-            //     if (u->n->type == TB_PHI) {
-            //         if (u->n->gvn != 0 && u->n->dt.type != TB_CONTROL && u->n->dt.type != TB_MEMORY) {
-            //             if (!first) {
-            //                 vm_io_buffer_format(ctx->buf, ", ");
-            //             }
-
-            //             vm_io_buffer_format(ctx->buf, "v%u", u->n->gvn);
-            //             first = false;
-            //         }
-            //     }
-            // }
-            // vm_io_buffer_format(ctx->buf, "}\n");
         } else {
-            vm_io_buffer_format(ctx->buf, "v%zu", n->gvn);
+            vm_io_buffer_format(ctx->buf, "bb%zu", n->gvn);
         }
     } else if (n->type == TB_FLOAT32_CONST) {
         TB_NodeFloat32* f = TB_NODE_GET_EXTRA(n);
@@ -138,10 +109,9 @@ static void c_fmt_ref_to_node(CFmtState* ctx, TB_Node* n, bool def) {
     } else if (n->type == TB_SYMBOL) {
         TB_Symbol* sym = TB_NODE_GET_EXTRA_T(n, TB_NodeSymbol)->sym;
         if (sym->name[0]) {
-            vm_io_buffer_format(ctx->buf, "%s", sym->name);
-        } else {
-            vm_io_buffer_format(ctx->buf, "sym%p", sym);
+            vm_io_buffer_format(ctx->buf, "/* %s */", sym->name);
         }
+        vm_io_buffer_format(ctx->buf, "(void *) %p", TB_NODE_GET_EXTRA_T(n, TB_NodeSymbol)->sym->address);
     } else if (n->type == TB_ZERO_EXT) {
         vm_io_buffer_format(ctx->buf, "(zxt.???");
         // c_fmt_type2(ctx, n->dt);
@@ -157,10 +127,11 @@ static void c_fmt_ref_to_node(CFmtState* ctx, TB_Node* n, bool def) {
     } else if (n->type == TB_INTEGER_CONST) {
         TB_NodeInt* num = TB_NODE_GET_EXTRA(n);
 
+        vm_io_buffer_format(ctx->buf, "(%s)", c_fmt_type_name(ctx, n->dt));
         if (num->value < 0xFFFF) {
-            vm_io_buffer_format(ctx->buf, "%"PRId64, num->value);
+            vm_io_buffer_format(ctx->buf, "%"PRId64"llu", num->value);
         } else {
-            vm_io_buffer_format(ctx->buf, "%#0"PRIx64, num->value);
+            vm_io_buffer_format(ctx->buf, "%#0"PRIx64"llu", num->value);
         }
     } else {
         vm_io_buffer_format(ctx->buf, "v%u", n->gvn);
@@ -265,9 +236,9 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                         c_fmt_ref_to_node(ctx, n->inputs[i], false);
                     }
                     if (br->keys[0] == 0) {
-                        vm_io_buffer_format(ctx->buf, " !== 0");
+                        vm_io_buffer_format(ctx->buf, " != 0");
                     } else {
-                        vm_io_buffer_format(ctx->buf, " !== %"PRId64, br->keys[0]);
+                        vm_io_buffer_format(ctx->buf, " != %"PRId64, br->keys[0]);
                     }
                     vm_io_buffer_format(ctx->buf, ") {\n");
                     c_fmt_branch_edge(ctx, succ[0], false);
@@ -333,22 +304,29 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 // vm_io_buffer_format(ctx->buf, "  v%u = (void*)&(char[0x%X]){0}", n->gvn, l->size);
                 TB_Node *dest = n->inputs[n->input_count-2];
                 TB_Node *src = n->inputs[n->input_count-1];
-                vm_io_buffer_format(ctx->buf, "  (%s*) v%u = v%u;\n", c_fmt_type_name(ctx, n->dt), dest->gvn, src->gvn);
+                vm_io_buffer_format(ctx->buf, "  *(%s*) ", c_fmt_type_name(ctx, src->dt));
+                c_fmt_ref_to_node(ctx, dest, false);
+                vm_io_buffer_format(ctx->buf, " = ", c_fmt_type_name(ctx, src->dt));
+                c_fmt_ref_to_node(ctx, src, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
 
             case TB_LOAD: {
                 // vm_io_buffer_format(ctx->buf, "  v%u = (void*)&(char[0x%X]){0}", n->gvn, l->size);
                 TB_Node *src = n->inputs[n->input_count-1];
-                vm_io_buffer_format(ctx->buf, "  v%u = *(%s*) v%u;\n", n->gvn, c_fmt_type_name(ctx, n->dt), src->gvn);
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = *(%s*) ", n->gvn, c_fmt_type_name(ctx, n->dt));
+                c_fmt_ref_to_node(ctx, src, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
             
             case TB_LOCAL: {
                 TB_NodeLocal* l = TB_NODE_GET_EXTRA(n);
-                vm_io_buffer_format(ctx->pre, "  uint8_t v%u_data[0x%x];\n", n->gvn, l->size);
+                vm_io_buffer_format(ctx->pre, "  uint8_t v%ud[0x%x];\n", n->gvn, l->size);
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = (void *) &l%u[0];\n", n->gvn, n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (void *) &v%ud[0];\n", n->gvn, n->gvn);
                 break;
             }
             
@@ -357,7 +335,9 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
                 vm_io_buffer_format(ctx->buf, "  if (1) {\n");
                 vm_io_buffer_format(ctx->buf, "    union {%s src; %s dest;} tmp;\n", c_fmt_type_name(ctx, src->dt), c_fmt_type_name(ctx, n->dt));
-                vm_io_buffer_format(ctx->buf, "    tmp.src = v%u;\n", src->gvn);
+                vm_io_buffer_format(ctx->buf, "    tmp.src = ");
+                c_fmt_ref_to_node(ctx, src, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 vm_io_buffer_format(ctx->buf, "    v%u = tmp.dest;\n", n->gvn);
                 vm_io_buffer_format(ctx->buf, "  }\n");
                 break;
@@ -367,53 +347,187 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = v%u + v%u;\n", n->gvn, lhs->gvn, rhs->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = ");
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " + ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
             case TB_SUB: {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = v%u - v%u;\n", n->gvn, lhs->gvn, rhs->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = ");
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " - ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
             case TB_MUL: {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = v%u * v%u;\n", n->gvn, lhs->gvn, rhs->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = ");
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " * ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
             case TB_SDIV: {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = (int64_t) v%u / (int64_t) v%u;\n", n->gvn, lhs->gvn, rhs->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (int64_t) ");
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " / (int64_t) ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
             case TB_UDIV: {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = (uint64_t) v%u / (uint64_t) v%u;\n", n->gvn, lhs->gvn, rhs->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (uint64_t) ");
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " / (uint64_t) ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
             case TB_SMOD: {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = (int64_t) v%u %% (int64_t) v%u;\n", n->gvn, lhs->gvn, rhs->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (int64_t) ");
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " %% (int64_t) ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
                 break;
             }
             case TB_UMOD: {
                 TB_Node *lhs = n->inputs[n->input_count-2];
                 TB_Node *rhs = n->inputs[n->input_count-1];
                 vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
-                vm_io_buffer_format(ctx->buf, "  v%u = (uint64_t) v%u %% (uint64_t) v%u;\n", n->gvn, lhs->gvn, rhs->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (uint64_t) ");
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " %% (uint64_t) ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
+                break;
+            }
+
+            case TB_CMP_EQ: {
+                TB_Node *lhs = n->inputs[n->input_count-2];
+                TB_Node *rhs = n->inputs[n->input_count-1];
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = ", n->gvn);
+                c_fmt_ref_to_node(ctx, lhs, false);
+                vm_io_buffer_format(ctx->buf, " == ");
+                c_fmt_ref_to_node(ctx, rhs, false);
+                vm_io_buffer_format(ctx->buf, ";\n");
+                break;
+            }
+            
+            case TB_MEMBER_ACCESS: {
+                TB_Node *ptr = n->inputs[n->input_count-1];
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (void*) ((size_t) ", n->gvn);
+                c_fmt_ref_to_node(ctx, ptr, false);
+                vm_io_buffer_format(ctx->buf, " + %"PRId64, TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset);
+                vm_io_buffer_format(ctx->buf, ");\n");
+                break;
+            }
+
+            
+            case TB_ARRAY_ACCESS: {
+                TB_Node *ptr = n->inputs[n->input_count-2];
+                TB_Node *index = n->inputs[n->input_count-1];
+                vm_io_buffer_format(ctx->pre, "  %s v%u;\n", c_fmt_type_name(ctx, n->dt), n->gvn);
+                vm_io_buffer_format(ctx->buf, "  v%u = (void*) ((size_t) ", n->gvn);
+                c_fmt_ref_to_node(ctx, ptr, false);
+                vm_io_buffer_format(ctx->buf, " + ");
+                c_fmt_ref_to_node(ctx, index, false);
+                vm_io_buffer_format(ctx->buf, " * %"PRId64, TB_NODE_GET_EXTRA_T(n, TB_NodeArray)->stride);
+                vm_io_buffer_format(ctx->buf, ");\n");
+                break;
+            }
+            case TB_CALL: {
+                TB_Node *func = n->inputs[2];
+                
+                TB_Node* projs[4] = { 0 };
+                FOR_USERS(use, n) {
+                    if (use->n->type == TB_PROJ) {
+                        int index = TB_NODE_GET_EXTRA_T(use->n, TB_NodeProj)->index;
+                        projs[index] = use->n;
+                    }
+                }
+
+                if (projs[2] == NULL) {
+                    vm_io_buffer_format(ctx->globals, "typedef void v%u_ret_t;\n", n->gvn);
+                } else {
+                    vm_io_buffer_format(ctx->globals, "typedef struct {\n");
+                    FOREACH_N(i, 2, 4) {
+                        if (projs[i] == NULL) break;
+                        vm_io_buffer_format(ctx->globals, "  %s v%u;\n", c_fmt_type_name(ctx, projs[i]->dt), projs[i]->gvn);
+                    }
+                    vm_io_buffer_format(ctx->globals, "} v%u_ret_t;\n", n->gvn);
+                }
+                vm_io_buffer_format(ctx->globals, "typedef v%u_ret_t(*v%u_t)(", n->gvn, n->gvn);
+                {
+                    bool first = true;
+                    FOREACH_N(i, 3, n->input_count) {
+                        if (n->inputs[i]->dt.type != TB_CONTROL && n->inputs[i]->dt.type != TB_MEMORY) {
+                            if (!first) {
+                                vm_io_buffer_format(ctx->globals, ", ");
+                            }
+                            vm_io_buffer_format(ctx->globals, "%s", c_fmt_type_name(ctx, n->inputs[i]->dt));
+                            first = false;
+                        }
+                    }
+                    if (first) {
+                            vm_io_buffer_format(ctx->globals, "void");
+                    }
+                }
+                vm_io_buffer_format(ctx->globals, ");\n");
+                vm_io_buffer_format(ctx->buf, "  {\n");
+                if (projs[2] != NULL) {
+                    vm_io_buffer_format(ctx->buf, "    v%u_ret_t ret = ", n->gvn);
+                }
+                vm_io_buffer_format(ctx->buf, "((v%u_t) ", n->gvn);
+                c_fmt_ref_to_node(ctx, func, false);
+                vm_io_buffer_format(ctx->buf, ")(");
+                {
+                    bool first = true;
+                    FOREACH_N(i, 3, n->input_count) {
+                        if (n->inputs[i]->dt.type != TB_CONTROL && n->inputs[i]->dt.type != TB_MEMORY) {
+                            if (!first) {
+                                vm_io_buffer_format(ctx->buf, ", ");
+                            }
+                            c_fmt_ref_to_node(ctx, n->inputs[i], false);
+                            first = false;
+                        }
+                    }
+                }
+                vm_io_buffer_format(ctx->buf, ");\n");
+                if (projs[2] != NULL) {
+                    FOREACH_N(i, 2, 4) {
+                        if (projs[i] == NULL) break;
+                        vm_io_buffer_format(ctx->pre, "    %s v%u;\n", c_fmt_type_name(ctx, projs[i]->dt), projs[i]->gvn);
+                        vm_io_buffer_format(ctx->buf, "    v%u = ret.v%u;\n", projs[i]->gvn, projs[i]->gvn);
+                    }
+                }
+                vm_io_buffer_format(ctx->buf, "  }\n");
                 break;
             }
 
             default: {
+                fprintf(stderr, "internal unimplemented node type: %s\n", tb_node_get_name(n));
+                fflush(stderr);
                 __builtin_trap();
                 // if (n->dt.type == TB_TUPLE) {
                 //     // print with multiple returns
@@ -619,13 +733,32 @@ char *tb_pass_c_fmt(TB_Passes* opt) {
 
     struct vm_io_buffer_t *buf = vm_io_buffer_new();
 
+    vm_io_buffer_format(buf, "typedef unsigned char uint8_t;\n");
+    vm_io_buffer_format(buf, "typedef unsigned short uint16_t;\n");
+    vm_io_buffer_format(buf, "typedef unsigned int uint32_t;\n");
+    vm_io_buffer_format(buf, "typedef unsigned long long uint64_t;\n");
+    vm_io_buffer_format(buf, "typedef signed char int8_t;\n");
+    vm_io_buffer_format(buf, "typedef signed short int16_t;\n");
+    vm_io_buffer_format(buf, "typedef signed int int32_t;\n");
+    vm_io_buffer_format(buf, "typedef signed long long int64_t;\n");
+    vm_io_buffer_format(buf, "typedef __SIZE_TYPE__ size_t;\n");
     vm_io_buffer_format(buf, "%s\n", vm_io_buffer_get(ctx.globals));
-    char *arg_str = vm_io_buffer_get(ctx.args);
-    if (arg_str == NULL || arg_str[0] == '\0') {
-        vm_io_buffer_format(buf, "ret_t entry(void) {\n");
-    } else {
-        vm_io_buffer_format(buf, "ret_t entry(%s) {\n", arg_str);
+    vm_io_buffer_format(buf, "ret_t entry(");
+    TB_Node** params = f->params;
+    size_t count = 0;
+    FOREACH_N(i, 3, 3 + f->param_count) {
+        if (params[i] != NULL && params[i]->dt.type != TB_MEMORY && params[i]->dt.type != TB_CONTROL && params[i]->dt.type != TB_TUPLE) {
+            if (count != 0) {
+                vm_io_buffer_format(buf, ", ");
+            }
+            vm_io_buffer_format(buf, "%s v%u", c_fmt_type_name(&ctx, params[i]->dt), params[i]->gvn);
+            count += 1;
+        }
     }
+    if (count == 0) {
+        vm_io_buffer_format(buf, "void");
+    }
+    vm_io_buffer_format(buf, ") {\n");
     vm_io_buffer_format(buf, "%s", vm_io_buffer_get(ctx.pre));
     vm_io_buffer_format(buf, "%s", vm_io_buffer_get(ctx.buf));
     vm_io_buffer_format(buf, "}\n");
