@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t){
         .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
-        .target = VM_TARGET_TB_C,
+        .target = VM_TARGET_TB,
     };
     vm_blocks_t val_blocks = {0};
     vm_blocks_t *blocks = &val_blocks;
@@ -78,8 +78,14 @@ int main(int argc, char **argv) {
             arg += 9;
             if (!strcmp(arg, "tb")) {
                 config->target = VM_TARGET_TB;
-            } else if (!strcmp(arg, "tb-c")) {
-                config->target = VM_TARGET_TB_C;
+            } else if (!strcmp(arg, "tb-cc")) {
+                config->target = VM_TARGET_TB_CC;
+            } else if (!strcmp(arg, "tb-tcc")) {
+                config->target = VM_TARGET_TB_TCC;
+            } else if (!strcmp(arg, "tb-gcc")) {
+                config->target = VM_TARGET_TB_GCC;
+            } else if (!strcmp(arg, "tb-clang")) {
+                config->target = VM_TARGET_TB_CLANG;
             } else {
                 fprintf(stderr, "cannot target: %s\n", arg);
                 ret_val = 1;
@@ -134,7 +140,7 @@ int main(int argc, char **argv) {
             }
 
             if (src == NULL) {
-                fprintf(stderr, "error: no such file: %s\n", src);
+                fprintf(stderr, "error: no such file: %s\n", arg);
             }
 
             if (config->dump_src) {

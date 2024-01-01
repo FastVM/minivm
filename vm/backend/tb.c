@@ -7,6 +7,8 @@
 #include "../ir/rblock.h"
 #include "../../vendor/tcc/libtcc.h"
 
+void *vm_cache_comp(const char *comp, const char *src);
+
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
@@ -914,7 +916,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, nargs, call_proto_params, 2, call_proto_rets, false);
 
-                    vm_free(call_proto);
+                    // vm_free(call_proto);
 
                     tb_inst_if(
                         state->fun,
@@ -1598,6 +1600,13 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     TB_Arena *parena = tb_function_get_arena(state->fun);
 #endif
     TB_Passes *passes = tb_pass_enter(state->fun, parena);
+    if (state->config->target != VM_TARGET_TB) {
+        tb_pass_peephole(passes);
+        tb_pass_sroa(passes);
+        tb_pass_peephole(passes);
+        tb_pass_mem2reg(passes);
+        tb_pass_peephole(passes);
+    }
 #if VM_USE_DUMP
     if (state->config->dump_tb) {
         fprintf(stdout, "\n--- tb ---\n");
@@ -1619,8 +1628,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         }
     }
 #endif
-    if (state->config->target == VM_TARGET_TB_C) {
+    if (state->config->target == VM_TARGET_TB_TCC) {
         const char *c_src = tb_pass_c_fmt(passes);
+        tb_pass_exit(passes);
         if (state->config->dump_asm) {
             printf("\n--- c ---\n%s", c_src);
         }
@@ -1628,9 +1638,24 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         tcc_set_error_func(state, 0, vm_tcc_error_func);
         tcc_set_options(state, "-nostdlib");
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
-        int cres = tcc_compile_string(state, c_src);
-        int rres = tcc_relocate(state, TCC_RELOCATE_AUTO);
+        tcc_compile_string(state, c_src);
+        tcc_relocate(state, TCC_RELOCATE_AUTO);
         void *code = tcc_get_symbol(state, "entry");
+        rblock->code = code;
+        return code;
+    } else if (state->config->target == VM_TARGET_TB_GCC) {
+        const char *c_src = tb_pass_c_fmt(passes);
+        void *code = vm_cache_comp("gcc", c_src);
+        rblock->code = code;
+        return code;
+    } else if (state->config->target == VM_TARGET_TB_CLANG) {
+        const char *c_src = tb_pass_c_fmt(passes);
+        void *code = vm_cache_comp("clang", c_src);
+        rblock->code = code;
+        return code;
+    } else if (state->config->target == VM_TARGET_TB_CC) {
+        const char *c_src = tb_pass_c_fmt(passes);
+        void *code = vm_cache_comp("cc", c_src);
         rblock->code = code;
         return code;
     } else if (state->config->target == VM_TARGET_TB) {

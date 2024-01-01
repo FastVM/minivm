@@ -11,6 +11,7 @@ libminivm.a
 libminivm.lib
 minivm
 minivm.exe
+.minivm-cache
 .minivm-history
 *.o
 *.obj

@@ -20,7 +20,10 @@ enum {
 
 enum {
     VM_TARGET_TB,
-    VM_TARGET_TB_C,
+    VM_TARGET_TB_CC,
+    VM_TARGET_TB_TCC,
+    VM_TARGET_TB_GCC,
+    VM_TARGET_TB_CLANG,
 };
 
 enum {
