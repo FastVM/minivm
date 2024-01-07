@@ -47,6 +47,11 @@ static bool is_zero(TB_Node* n) {
     return n->type == TB_INTEGER_CONST && i->value == 0;
 }
 
+static bool is_one(TB_Node* n) {
+    TB_NodeInt* i = TB_NODE_GET_EXTRA(n);
+    return n->type == TB_INTEGER_CONST && i->value == 1;
+}
+
 static bool inverted_cmp(TB_Node* n, TB_Node* n2) {
     switch (n->type) {
         case TB_CMP_EQ: return n2->type == TB_CMP_NE && n2->inputs[1] == n->inputs[1] && n2->inputs[2] == n->inputs[2];
@@ -835,41 +840,50 @@ static TB_Node* ideal_int_div(TB_Passes* restrict opt, TB_Function* f, TB_Node* 
 // a * 0 => 0
 // a / 0 => poison
 static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
-    if (!is_zero(n->inputs[2])) return n;
+    uint64_t b;
+    if (!get_int_const(n->inputs[2], &b)) {
+        return n;
+    }
 
-    switch (n->type) {
-        default: return n;
-
-        case TB_SHL:
-        case TB_SHR:
-        case TB_ADD:
-        case TB_SUB:
-        case TB_XOR:
+    if (n->type == TB_MUL && b == 1) {
         return n->inputs[1];
+    } else if (b == 0) {
+        switch (n->type) {
+            default: return n;
 
-        case TB_MUL:
-        return n->inputs[0];
+            case TB_SHL:
+            case TB_SHR:
+            case TB_ADD:
+            case TB_SUB:
+            case TB_XOR:
+            return n->inputs[1];
 
-        case TB_UDIV:
-        case TB_SDIV:
-        case TB_UMOD:
-        case TB_SMOD:
-        return make_poison(f, n->dt);
+            case TB_MUL:
+            return n->inputs[0];
 
-        // (cmp.ne a 0) => a
-        case TB_CMP_NE: {
-            // walk up extension
-            TB_Node* src = n->inputs[1];
-            if (src->type == TB_ZERO_EXT) {
-                src = src->inputs[1];
+            case TB_UDIV:
+            case TB_SDIV:
+            case TB_UMOD:
+            case TB_SMOD:
+            return make_poison(f, n->dt);
+
+            // (cmp.ne a 0) => a
+            case TB_CMP_NE: {
+                // walk up extension
+                TB_Node* src = n->inputs[1];
+                if (src->type == TB_ZERO_EXT) {
+                    src = src->inputs[1];
+                }
+
+                if (src->dt.type == TB_INT && src->dt.data == 1) {
+                    return src;
+                }
+
+                return n;
             }
-
-            if (src->dt.type == TB_INT && src->dt.data == 1) {
-                return src;
-            }
-
-            return n;
         }
+    } else {
+        return n;
     }
 }
 

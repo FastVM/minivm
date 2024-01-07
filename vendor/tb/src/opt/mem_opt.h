@@ -23,56 +23,44 @@ static KnownPointer known_pointer(TB_Node* n) {
     }
 }
 
-static TB_Node* data_phi_from_memory_phi(TB_Passes* restrict p, TB_Function* f, TB_DataType dt, TB_Node* n, TB_Node* addr, TB_CharUnits* out_align) {
-    assert(n->type == TB_PHI);
-    assert(n->dt.type == TB_MEMORY && "memory input should be memory");
+static TB_Node* data_phi_from_memory_phi(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* addr, TB_Node* mem, int steps) {
+    // convert memory phis into data phis
+    assert(mem->type == TB_PHI);
+    assert(mem->dt.type == TB_MEMORY && "memory input should be memory");
 
-    TB_Arena* func_arena = p->f->arena;
-    TB_ArenaSavepoint sp = tb_arena_save(func_arena);
+    TB_DataType dt = n->dt;
 
-    size_t path_count = n->input_count - 1;
-    TB_Node** paths = tb_arena_alloc(func_arena, path_count * sizeof(TB_Node*));
+    size_t path_count = mem->input_count - 1;
+    TB_Node** paths = tb_arena_alloc(tmp_arena, path_count * sizeof(TB_Node*));
 
-    // walk each path to find relevant STOREs
-    TB_CharUnits align = 0;
-    TB_Node** phi_ins = n->inputs;
+    bool fail = false;
     FOREACH_N(i, 0, path_count) {
-        TB_Node* head = phi_ins[1 + i];
-        TB_Node* ctrl = head->inputs[0];
-        TB_Node* path = NULL;
-
-        do {
-            if (head->type == TB_STORE && addr == head->inputs[2]) {
-                TB_CharUnits st_align = TB_NODE_GET_EXTRA_T(head, TB_NodeMemAccess)->align;
-                path = head->inputs[3];
-
-                // alignment should be the lowest common alignment
-                if (align == 0 || align > st_align) {
-                    align = st_align;
-                }
+        TB_Node* st = mem->inputs[1+i];
+        if (st->type == TB_PHI && steps > 0) {
+            TB_Node* k = data_phi_from_memory_phi(p, f, n, addr, st, steps - 1);
+            if (k == NULL) {
+                fail = true;
                 break;
             }
 
-            // previous memory effect
-            head = head->inputs[1];
-        } while (head->inputs[0] == ctrl);
-
-        if (path == NULL) {
-            // we have a path with an unknown value... sadge
-            tb_arena_restore(func_arena, sp);
-            return NULL;
+            paths[i] = k;
+        } else if (st->type != TB_STORE || st->inputs[2] != addr || st->inputs[3]->dt.raw != dt.raw) {
+            fail = true;
+            break;
+        } else {
+            paths[i] = st->inputs[3];
         }
-        paths[i] = path;
     }
 
-    // convert to PHI
+    if (fail) {
+        return NULL;
+    }
+
     TB_Node* phi = tb_alloc_node(f, TB_PHI, dt, 1 + path_count, 0);
-    set_input(f, phi, phi_ins[0], 0);
+    set_input(f, phi, mem->inputs[0], 0);
     FOREACH_N(i, 0, path_count) {
         set_input(f, phi, paths[i], 1+i);
     }
-
-    if (out_align) *out_align = align;
     return phi;
 }
 
@@ -80,6 +68,12 @@ static TB_Node* ideal_load(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     TB_Node* ctrl = n->inputs[0];
     TB_Node* mem = n->inputs[1];
     TB_Node* addr = n->inputs[2];
+
+    if (mem->type == TB_PHI) {
+        TB_Node* k = data_phi_from_memory_phi(p, f, n, addr, mem, 1);
+        if (k) return k;
+    }
+
     if (ctrl != NULL) {
         // we've dependent on code which must always be run (ROOT.mem)
         if (n->inputs[0]->type == TB_PROJ && n->inputs[0]->inputs[0]->type == TB_ROOT) {
@@ -128,11 +122,15 @@ static TB_Node* identity_load(TB_Passes* restrict p, TB_Function* f, TB_Node* n)
     //   (load (store X A Y) A) => Y
     TB_Node *mem = n->inputs[1], *addr = n->inputs[2];
     if (mem->type == TB_STORE && mem->inputs[2] == addr &&
-        n->dt.raw == mem->inputs[3]->dt.raw && is_same_align(n, mem)) {
+        n->dt.raw == mem->inputs[3]->dt.raw) {
         return mem->inputs[3];
     }
 
     return n;
+}
+
+static TB_Node* ideal_merge_mem(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    return NULL;
 }
 
 static TB_Node* ideal_store(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
@@ -142,7 +140,7 @@ static TB_Node* ideal_store(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     // if a store has only one user in this chain it means it's only job was
     // to facilitate the creation of that user store... if we can detect that
     // user store is itself dead, everything in the middle is too.
-    if (mem->type == TB_STORE && single_use(p, mem) && mem->inputs[2] == addr && mem->inputs[3]->dt.raw == dt.raw) {
+    if (mem->type == TB_STORE && single_use(mem) && mem->inputs[2] == addr && mem->inputs[3]->dt.raw == dt.raw) {
         // choose the bigger alignment (we wanna keep this sort of info)
         TB_NodeMemAccess* a = TB_NODE_GET_EXTRA(mem);
         TB_NodeMemAccess* b = TB_NODE_GET_EXTRA(n);
@@ -208,4 +206,32 @@ static TB_Node* ideal_memcpy(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
     }
 
     return NULL;
+}
+
+static Lattice* sccp_split_mem(TB_Passes* restrict p, TB_Node* n) {
+    TB_NodeMemSplit* s = TB_NODE_GET_EXTRA(n);
+
+    size_t size = sizeof(Lattice) + s->alias_cnt*sizeof(Lattice*);
+    Lattice* l = tb_arena_alloc(tmp_arena, size);
+    *l = (Lattice){ LATTICE_TUPLE, ._tuple = { s->alias_cnt } };
+    FOREACH_N(i, 0, s->alias_cnt) {
+        l->elems[i] = lattice_alias(p, s->alias_idx[i]);
+    }
+
+    Lattice* k = nl_hashset_put2(&p->type_interner, l, lattice_hash, lattice_cmp);
+    if (k) {
+        tb_arena_free(tmp_arena, l, size);
+        return k;
+    } else {
+        return l;
+    }
+}
+
+static Lattice* sccp_merge_mem(TB_Passes* restrict p, TB_Node* n) {
+    return &BOT_IN_THE_SKY;
+}
+
+static Lattice* sccp_mem(TB_Passes* restrict p, TB_Node* n) {
+    // just inherit memory from parent
+    return lattice_universe_get(p, n->inputs[1]);
 }

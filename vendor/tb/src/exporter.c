@@ -95,7 +95,7 @@ static void layout_section(TB_ModuleSection* restrict section) {
 }
 
 ExportList tb_module_layout_sections(TB_Module* m) {
-    TB_Arena* arena = &tb_thread_info(m)->tmp_arena;
+    TB_Arena* arena = tb_thread_info(m)->tmp_arena;
 
     size_t external_count = 0;
     TB_External** externals = tb_arena_alloc(arena, m->symbol_count[TB_SYMBOL_EXTERNAL] * sizeof(TB_External*));

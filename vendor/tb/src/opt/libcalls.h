@@ -10,6 +10,17 @@ static TB_Node* ideal_libcall(TB_Passes* restrict passes, TB_Function* f, TB_Nod
     bool is_memcpy = strcmp(sym->name, "memcpy") == 0;
     bool is_memset = strcmp(sym->name, "memset") == 0;
     if (is_memcpy || is_memset) {
+        // remove from callgraph
+        FOR_USERS(u, n) {
+            if (u->n->type == TB_CALLGRAPH) {
+                TB_Node* last = u->n->inputs[u->n->input_count - 1];
+                set_input(f, u->n, NULL, u->n->input_count);
+                set_input(f, u->n, last, u->slot);
+                u->n->input_count--;
+                break;
+    	    }
+        }
+
         TB_Node* n2 = tb_alloc_node(f, is_memset ? TB_MEMSET : TB_MEMCPY, TB_TYPE_MEMORY, 5, sizeof(TB_NodeMemAccess));
         set_input(f, n2, n->inputs[0], 0); // ctrl
         set_input(f, n2, n->inputs[1], 1); // mem
@@ -27,6 +38,7 @@ static TB_Node* ideal_libcall(TB_Passes* restrict passes, TB_Function* f, TB_Nod
         subsume_node(f, c->projs[0], ctrl);
         subsume_node(f, c->projs[1], n2);
         subsume_node(f, c->projs[2], dst_ptr);
+
         return dst_ptr;
     }
 

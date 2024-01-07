@@ -222,6 +222,9 @@ static const char* COND_NAMES[] = {
 #define INST2(op, a, b, dt)       inst2(&ctx->emit, op, a, b, dt)
 #define INST2SSE(op, a, b, dt)    inst2sse(&ctx->emit, op, a, b, dt)
 
+#define __(mnemonic, ...) x86_ ## mnemonic(e, __VA_ARGS__)
+#define COMMENT(...) (e->has_comments ? tb_emit_comment(e, tmp_arena, __VA_ARGS__) : (void)0)
+
 typedef enum {
     UNWIND_OP_PUSH_NONVOL = 0, /* info == register number */
     UNWIND_OP_ALLOC_LARGE,     /* no info, alloc size in next 2 slots */

@@ -155,6 +155,7 @@ typedef struct {
     TB_SymbolPatch* patch;
     TB_Location* loc;
     TB_Location* end;
+    Comment* comment;
 } Disasm;
 
 // Static-sized hash map
@@ -260,3 +261,39 @@ static int fixed_reg_mask(RegMask mask) {
         return tb_popcount64(mask.mask) == 1 ? 63 - tb_clz64(mask.mask) : -1;
     }
 }
+
+static uint32_t node_to_bb_hash(void* ptr) { return (((uintptr_t) ptr) * 11400714819323198485ull) >> 32ull; }
+static MachineBB* node_to_bb(Ctx* restrict ctx, TB_Node* n) {
+    uint32_t h = node_to_bb_hash(n);
+
+    size_t mask = (1 << ctx->node_to_bb.exp) - 1;
+    size_t first = h & mask, i = first;
+    do {
+        if (ctx->node_to_bb.entries[i].k == n) {
+            return ctx->node_to_bb.entries[i].v;
+        }
+
+        i = (i + 1) & mask;
+    } while (i != first);
+
+    abort();
+}
+
+static void node_to_bb_put(Ctx* restrict ctx, TB_Node* n, MachineBB* bb) {
+    uint32_t h = node_to_bb_hash(n);
+
+    size_t mask = (1 << ctx->node_to_bb.exp) - 1;
+    size_t first = h & mask, i = first;
+    do {
+        if (ctx->node_to_bb.entries[i].k == NULL) {
+            ctx->node_to_bb.entries[i].k = n;
+            ctx->node_to_bb.entries[i].v = bb;
+            return;
+        }
+
+        i = (i + 1) & mask;
+    } while (i != first);
+
+    abort();
+}
+

@@ -231,8 +231,8 @@ struct TB_LinkerThreadInfo {
     TB_LinkerThreadInfo* prev;
     TB_LinkerThreadInfo* next;
 
-    TB_Arena perm_arena;
-    TB_Arena tmp_arena;
+    TB_Arena* perm_arena;
+    TB_Arena* tmp_arena;
 
     // commands
     //   these are generated in object files and such but won't get

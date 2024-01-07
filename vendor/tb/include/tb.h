@@ -67,7 +67,8 @@ typedef enum TB_Arch {
     TB_ARCH_UNKNOWN,
 
     TB_ARCH_X86_64,
-    TB_ARCH_AARCH64, // unsupported but planned
+    TB_ARCH_AARCH64,
+    TB_ARCH_MIPS64,
     TB_ARCH_WASM32,
 } TB_Arch;
 
@@ -279,9 +280,6 @@ typedef enum TB_NodeTypeEnum {
     ////////////////////////////////
     // CONTROL + MEMORY
     ////////////////////////////////
-    //   this special op tracks calls such that we can produce our cool call graph, there's
-    //   one call graph node per function that never moves.
-    TB_CALLGRAPH,      // (Call...) -> Void
     //   nothing special, it's just a function call, 3rd argument here is the
     //   target pointer (or syscall number) and the rest are just data args.
     TB_CALL,           // (Control, Memory, Data, Data...) -> (Control, Memory, Data)
@@ -292,13 +290,18 @@ typedef enum TB_NodeTypeEnum {
     //   says to (platform specific but almost always just the page being made
     //   unmapped/guard), 3rd argument is the poll site.
     TB_SAFEPOINT_POLL, // (Control, Memory, Ptr?, Data...) -> (Control)
+    //   this special op tracks calls such that we can produce our cool call graph, there's
+    //   one call graph node per function that never moves.
+    TB_CALLGRAPH,      // (Call...) -> Void
 
     ////////////////////////////////
     // MEMORY
     ////////////////////////////////
+    //   produces a set of non-aliasing memory effects
+    TB_SPLITMEM,    // (Memory) -> (Memory...)
     //   MERGEMEM will join multiple non-aliasing memory effects, because
     //   they don't alias there's no ordering guarentee.
-    TB_MERGEMEM,    // (Memory...) -> Memory
+    TB_MERGEMEM,    // (Split, Memory...) -> Memory
     //   LOAD and STORE are standard memory accesses, they can be folded away.
     TB_LOAD,        // (Control?, Memory, Ptr)       -> Data
     TB_STORE,       // (Control, Memory, Ptr, Data) -> Memory
@@ -621,6 +624,11 @@ typedef struct {
 } TB_NodeMember;
 
 typedef struct {
+    int alias_cnt;
+    int alias_idx[];
+} TB_NodeMemSplit;
+
+typedef struct {
     TB_Symbol* sym;
 } TB_NodeSymbol;
 
@@ -752,7 +760,7 @@ typedef void (*TB_PrintCallback)(void* user_data, const char* fmt, ...);
 typedef struct TB_Arena TB_Arena;
 
 // 0 for default
-TB_API void tb_arena_create(TB_Arena* restrict arena, size_t chunk_size);
+TB_API TB_Arena* tb_arena_create(size_t chunk_size);
 TB_API void tb_arena_destroy(TB_Arena* restrict arena);
 TB_API bool tb_arena_is_empty(TB_Arena* restrict arena);
 TB_API void tb_arena_clear(TB_Arena* restrict arena);

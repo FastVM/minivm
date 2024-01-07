@@ -91,14 +91,19 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg, bool renumber) {
                         do {
                             bb = p->scheduled[curr->gvn];
                             curr = curr->inputs[0];
+                            if (curr == NULL) {
+                                break;
+                            }
                         } while (!bb);
                     }
 
-                    nl_hashset_put(&bb->items, n);
-                    p->scheduled[n->gvn] = bb;
-                    nl_chunked_arr_put(&pins, n);
+                    if (bb) {
+                        nl_hashset_put(&bb->items, n);
+                        p->scheduled[n->gvn] = bb;
+                        nl_chunked_arr_put(&pins, n);
 
-                    DO_IF(TB_OPTDEBUG_GCM)(printf("%s: v%u pinned to .bb%d\n", f->super.name, n->gvn, bb->id));
+                        DO_IF(TB_OPTDEBUG_GCM)(printf("%s: v%u pinned to .bb%d\n", f->super.name, n->gvn, bb->id));
+                    }
                 }
 
                 FOR_USERS(u, n) {

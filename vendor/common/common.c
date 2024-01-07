@@ -76,7 +76,7 @@ void cuik__vfree(void* ptr, size_t size) {
 ////////////////////////////////
 // TB_Arenas
 ////////////////////////////////
-void tb_arena_create(TB_Arena* restrict arena, size_t chunk_size) {
+TB_Arena* tb_arena_create(size_t chunk_size) {
     if (chunk_size == 0) {
         chunk_size = TB_ARENA_LARGE_CHUNK_SIZE;
     }
@@ -85,10 +85,12 @@ void tb_arena_create(TB_Arena* restrict arena, size_t chunk_size) {
     TB_ArenaChunk* c = cuik__valloc(chunk_size);
     c->next = NULL;
 
+    TB_Arena* arena = (TB_Arena*) c->data;
     arena->chunk_size = chunk_size;
-    arena->watermark  = c->data;
+    arena->watermark  = &c->data[sizeof(TB_Arena)];
     arena->high_point = &c->data[chunk_size - sizeof(TB_ArenaChunk)];
     arena->base = arena->top = c;
+    return arena;
 }
 
 void tb_arena_destroy(TB_Arena* restrict arena) {
@@ -194,7 +196,7 @@ void tb_arena_clear(TB_Arena* arena) {
     TB_ArenaChunk* c = arena->base;
     if (c == NULL) return;
 
-    arena->watermark = c->data;
+    arena->watermark = &c->data[sizeof(TB_Arena)];
     arena->high_point = &c->data[arena->chunk_size - sizeof(TB_ArenaChunk)];
     arena->base = arena->top = c;
 
