@@ -425,6 +425,8 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                     case TB_TAILCALL:
                     case TB_SYSCALL:
                     case TB_SAFEPOINT_POLL:
+                    case TB_MERGEMEM:
+                    case TB_SPLITMEM:
                     break;
 
                     case TB_LOCAL: {

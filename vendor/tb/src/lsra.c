@@ -44,7 +44,7 @@ static const char* GPR_NAMES[] = { "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RS
 // static const char* GPR_NAMES[] = { "X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8",  "X9", "X10", "X11", "X12", "X13", "X14", "X15" };
 static void print_reg_name(int rg, int num) {
     if (rg == 1) {
-        printf("W%d", num);
+        printf("R%d", num);
         // printf("%s", GPR_NAMES[num]);
     } else if (rg == 2) {
         printf("XMM%d", num);
@@ -172,6 +172,121 @@ static Tile* tile_at_time(LSRA* restrict ra, int t) {
 
 void tb__lsra(Ctx* restrict ctx, TB_Arena* arena) {
     LSRA ra = { .ctx = ctx, .arena = arena, .spills = ctx->num_regs[0] };
+    int initial_spills = ctx->num_regs[0];
+
+    // create timeline & insert moves
+    CUIK_TIMED_BLOCK("insert legalizing moves") {
+        int timeline = 4;
+        FOREACH_N(i, 0, ctx->bb_count) {
+            MachineBB* mbb = &ctx->machine_bbs[i];
+
+            for (Tile* t = mbb->start; t; t = t->next) {
+                LiveInterval* interval = t->interval;
+
+                // insert input copies
+                FOREACH_N(j, 0, t->in_count) {
+                    LiveInterval* in_def = t->ins[j].src;
+                    RegMask in_mask = t->ins[j].mask;
+                    int hint = fixed_reg_mask(in_mask);
+
+                    if (in_def == NULL) {
+                        continue;
+                    }
+
+                    RegMask in_def_mask = in_def->mask;
+                    if (hint >= 0) {
+                        in_def->hint = &ctx->fixed[in_mask.class][hint];
+                    }
+
+                    bool both_fixed = hint >= 0 && in_def_mask.mask == in_mask.mask;
+
+                    // we resolve def-use conflicts with a spill move, either when:
+                    //   * the use and def classes don't match.
+                    //   * the use mask is more constrained than the def.
+                    //   * it's on both ends to avoid stretching fixed intervals.
+                    if (in_def_mask.class != in_mask.class || (in_def_mask.mask & in_mask.mask) != in_def_mask.mask || both_fixed) {
+                        if (both_fixed) {
+                            in_def_mask = ctx->normie_mask[in_def_mask.class];
+                        }
+
+                        TB_OPTDEBUG(REGALLOC)(printf("  TEMP "), tb__print_regmask(in_def_mask), printf(" -> "), tb__print_regmask(in_mask), printf("\n"));
+
+                        // construct copy (either to a fixed interval or a new masked interval)
+                        Tile* tmp = tb_arena_alloc(arena, sizeof(Tile));
+                        *tmp = (Tile){
+                            .prev = t->prev,
+                            .next = t,
+                            .tag = TILE_SPILL_MOVE,
+                            .time = timeline
+                        };
+                        assert(in_def->dt.raw);
+                        tmp->spill_dt = in_def->dt;
+                        tmp->ins = tb_arena_alloc(tmp_arena, sizeof(Tile*));
+                        tmp->in_count = 1;
+                        tmp->ins[0].src  = in_def;
+                        tmp->ins[0].mask = in_def_mask;
+                        t->prev->next = tmp;
+                        t->prev = tmp;
+
+                        // replace use site with temporary that legalized the constraint
+                        tmp->interval = gimme_interval_for_mask(ctx, arena, &ra, in_mask, in_def->dt);
+                        t->ins[j].src = tmp->interval;
+
+                        timeline += 2;
+                    }
+                }
+
+                // place on timeline
+                t->time = timeline;
+                // 2addr ops will have a bit of room for placing the hypothetical copy
+                timeline += t->n && ctx->_2addr(t->n) ? 4 : 2;
+
+                // insert copy if we're writing to a fixed interval
+                if (interval && interval->mask.mask) {
+                    // if we're writing to a fixed interval, insert copy
+                    // such that we only guarentee a fixed location at the
+                    // def site.
+                    int reg = fixed_reg_mask(interval->mask);
+                    if (reg >= 0 && t->tag != TILE_SPILL_MOVE) {
+                        RegMask rm = interval->mask;
+                        LiveInterval* fixed = &ctx->fixed[rm.class][reg];
+
+                        // interval: FIXED(t) => NORMIE_MASK
+                        interval->mask = ctx->normie_mask[rm.class];
+                        interval->hint = fixed;
+
+                        // insert copy such that the def site is the only piece which "requires"
+                        // the fixed range.
+                        Tile* tmp = tb_arena_alloc(arena, sizeof(Tile));
+                        *tmp = (Tile){
+                            .prev = t,
+                            .next = t->next,
+                            .tag = TILE_SPILL_MOVE,
+                            .time = timeline,
+                        };
+                        assert(interval->dt.raw);
+                        tmp->spill_dt = interval->dt;
+                        tmp->ins = tb_arena_alloc(tmp_arena, sizeof(Tile*));
+                        tmp->in_count = 1;
+                        tmp->ins[0].src  = fixed;
+                        tmp->ins[0].mask = rm;
+                        t->next->prev = tmp;
+                        t->next = tmp;
+
+                        // replace def site with fixed interval
+                        tmp->interval = interval;
+                        t->interval = fixed;
+
+                        // skip this move op
+                        t = tmp;
+                        timeline += 2;
+                    }
+                }
+            }
+
+            timeline += 2;
+        }
+    }
 
     // create timeline & insert moves
     CUIK_TIMED_BLOCK("insert legalizing moves") {
@@ -465,7 +580,8 @@ void tb__lsra(Ctx* restrict ctx, TB_Arena* arena) {
 
                     // add new stack slot
                     if (reg < 0) {
-                        if (ctx->num_regs[0] == ra.stack_slot_cap) {
+                        int next_stk_regs = ra.num_regs[0]++;
+                        if (next_stk_regs == ra.stack_slot_cap) {
                             size_t old_cap = ra.stack_slot_cap;
                             ra.stack_slot_cap *= 2;
 
@@ -477,10 +593,10 @@ void tb__lsra(Ctx* restrict ctx, TB_Arena* arena) {
 
                             ra.active_set[REG_CLASS_STK] = new_set;
                             ra.active[REG_CLASS_STK] = new_active;
-                            ra.active[REG_CLASS_STK][ra.spills] = NULL;
+                            ra.active[REG_CLASS_STK][next_stk_regs] = NULL;
                         }
 
-                        reg = ctx->num_regs[0]++;
+                        reg = ra.spills++;
                     }
 
                     TB_OPTDEBUG(REGALLOC)(printf("  #   assign to [SP + %"PRId64"]\n", reg*8));
@@ -517,6 +633,40 @@ void tb__lsra(Ctx* restrict ctx, TB_Arena* arena) {
     // move resolver:
     //   when a split happens, all indirect paths that cross the split will have
     //   moves inserted.
+    CUIK_TIMED_BLOCK("move resolver") {
+        FOREACH_N(i, 0, ctx->bb_count) {
+            MachineBB* mbb = &ctx->machine_bbs[i];
+            TB_Node* end_node = mbb->end_n;
+            int terminator = mbb->end->time;
+
+            for (User* u = end_node->users; u; u = u->next) {
+                if (cfg_is_control(u->n)) {
+                    TB_Node* succ = end_node->type == TB_BRANCH ? cfg_next_bb_after_cproj(u->n) : u->n;
+                    MachineBB* target = node_to_bb(ctx, succ);
+                    int start_time = target->start->time;
+
+                    // for all live-ins, we should check if we need to insert a move
+                    FOREACH_SET(k, target->live_in) {
+                        LiveInterval* interval = ctx->id2interval[k];
+
+                        // if the value changes across the edge, insert move
+                        LiveInterval* start = split_interval_at(interval, terminator);
+                        LiveInterval* end = split_interval_at(interval, start_time);
+
+                        if (start != end) {
+                            __debugbreak();
+                            /* if (start->spill > 0) {
+                                assert(end->spill == start->spill && "TODO: both can't be spills yet");
+                                insert_split_move(&ra, start_time, start, end);
+                            } else {
+                                insert_split_move(&ra, terminator - 1, start, end);
+                            } */
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // resolve all split interval references
     CUIK_TIMED_BLOCK("split resolver") {
@@ -534,7 +684,7 @@ void tb__lsra(Ctx* restrict ctx, TB_Arena* arena) {
         }
     }
 
-    ctx->stack_usage += (ra.spills - ctx->num_regs[0]) * 8;
+    ctx->stack_usage += (ra.spills - initial_spills) * 8;
     ctx->callee_spills = ra.callee_spills;
 }
 

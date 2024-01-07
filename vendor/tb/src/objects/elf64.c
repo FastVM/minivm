@@ -71,8 +71,9 @@ TB_ExportBuffer tb_elf64obj_write_output(TB_Module* m, const IDebugFormat* dbg) 
 
     uint16_t machine = 0;
     switch (m->target_arch) {
-        case TB_ARCH_X86_64: machine = TB_EM_X86_64; break;
+        case TB_ARCH_X86_64:  machine = TB_EM_X86_64;  break;
         case TB_ARCH_AARCH64: machine = TB_EM_AARCH64; break;
+        case TB_ARCH_MIPS64:  machine = TB_EM_MIPS;    break;
         default: tb_todo();
     }
 

@@ -1,10 +1,17 @@
 
+#include "../lib.h"
+#include "../std/io.h"
+
+#ifdef _WIN32
+// unsupported
+void *vm_cache_comp(const char *comp, const char *src) {
+    return NULL;
+}
+#else
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dlfcn.h>
-#include "../lib.h"
-#include "../std/io.h"
 
 void *vm_cache_comp(const char *comp, const char *src) {
     struct stat st = {0};
@@ -31,3 +38,4 @@ void *vm_cache_comp(const char *comp, const char *src) {
     // printf("%p\n", sym);
     return sym;
 }
+#endif

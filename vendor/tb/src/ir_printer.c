@@ -41,6 +41,8 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
 
         case TB_MEMSET: return "memset";
         case TB_MEMCPY: return "memcpy";
+        case TB_SPLITMEM: return "split";
+        case TB_MERGEMEM: return "merge";
 
         case TB_ZERO_EXT: return "zxt";
         case TB_SIGN_EXT: return "sxt";
@@ -103,7 +105,6 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_STORE:    return "store";
         case TB_READ:     return "read";
         case TB_WRITE:    return "write";
-        case TB_MERGEMEM: return "merge";
 
         case TB_CALL:     return "call";
         case TB_SYSCALL:  return "syscall";
@@ -195,6 +196,10 @@ static void print_proj(TB_PrintCallback callback, void* user_data, TB_Node* n, i
         } else {
             P("val");
         }
+        break;
+
+        case TB_SPLITMEM:
+        P("mem");
         break;
 
         default: tb_todo();
@@ -343,7 +348,7 @@ TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* u
     for (size_t i = 0; i < dyn_array_length(ws->items); i++) {
         TB_Node* n = ws->items[i];
 
-        bool has_users = false;
+        bool has_users = true;
         FOR_USERS(u, n) {
             TB_Node* out = u->n;
             if (!worklist_test_n_set(ws, out)) {

@@ -1,0 +1,23 @@
+This is *sorta* the tutorial on writing codegen targets.
+
+Section 1: stubbing out the necessary functions.
+  codegen_impl.h acts as the glue code for a target, copy them
+  into your code to get started.
+
+```
+// in your cpu_target.c
+#include "../tb_internal.h"
+
+#include "../codegen_impl.h"
+
+// stubbed out
+static void init_ctx(Ctx* restrict ctx, TB_ABI abi) { tb_todo(); }
+static RegMask isel_node(Ctx* restrict ctx, Tile* dst, TB_Node* n) { tb_todo(); }
+static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) { tb_todo(); }
+static void pre_emit(Ctx* restrict ctx, TB_CGEmitter* e, TB_Node* n) { tb_todo(); }
+static void post_emit(Ctx* restrict ctx, TB_CGEmitter* e) { tb_todo(); }
+static void disassemble(TB_CGEmitter* e, Disasm* restrict d, int bb, size_t pos, size_t end) { tb_todo(); }
+```
+
+
+

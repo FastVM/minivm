@@ -5,7 +5,10 @@ struct SchedNode {
 
     TB_Node* n;
     int index;
-    User* antis;
+
+    int anti_i;
+    int anti_count;
+    User* antis[];
 };
 
 typedef struct {
@@ -14,11 +17,22 @@ typedef struct {
 } SchedPhi;
 
 static SchedNode* sched_make_node(TB_Arena* arena, SchedNode* parent, TB_Node* n) {
-    SchedNode* s = TB_ARENA_ALLOC(arena, SchedNode);
-    *s = (SchedNode){ .parent = parent, .n = n, .index = 0 };
+    int anti_count = 0;
+    if (n->type == TB_MERGEMEM) {
+        anti_count = n->input_count - 2;
+    } else if (is_mem_out_op(n) && n->type != TB_PHI && n->type != TB_PROJ) {
+        anti_count = 1;
+    }
 
-    if (is_mem_out_op(n) && n->type != TB_PHI && n->type != TB_PROJ) {
-        s->antis = n->inputs[1]->users;
+    SchedNode* s = tb_arena_alloc(arena, sizeof(SchedNode) + anti_count*sizeof(User*));
+    *s = (SchedNode){ .parent = parent, .n = n, .index = 0, .anti_count = anti_count };
+
+    if (n->type == TB_MERGEMEM) {
+        FOREACH_N(i, 2, n->input_count) {
+            s->antis[i - 2] = n->inputs[i]->users;
+        }
+    } else if (anti_count == 1) {
+        s->antis[0] = n->inputs[1]->users;
     }
 
     return s;
@@ -108,16 +122,20 @@ void greedy_scheduler(TB_Passes* passes, TB_CFG* cfg, Worklist* ws, DynArray(Phi
         }
 
         // resolve anti-deps
-        if (top->antis != NULL) {
-            User* next = top->antis->next;
-            TB_Node* anti = top->antis->n;
+        if (top->anti_i < top->anti_count) {
+            if (top->antis[top->anti_i] != NULL) {
+                User* next = top->antis[top->anti_i]->next;
+                TB_Node* anti = top->antis[top->anti_i]->n;
+                int slot = top->antis[top->anti_i]->slot;
 
-            if (anti != n && top->antis->slot == 1 && sched_in_bb(passes, ws, bb, anti)) {
-                top = sched_make_node(arena, top, anti);
+                if (anti != n && slot == 1 && sched_in_bb(passes, ws, bb, anti)) {
+                    top = sched_make_node(arena, top, anti);
+                }
+
+                top->antis[top->anti_i] = next;
+                if (next == NULL) { top->anti_i++; }
+                continue;
             }
-
-            top->antis = next;
-            continue;
         }
 
         // resolve phi edges & leftovers when we're at the endpoint

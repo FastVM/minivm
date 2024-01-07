@@ -30,6 +30,16 @@ struct vm_tb_state_t {
     vm_config_t *config;
     vm_blocks_t *blocks;
 
+    void *jit;
+
+    // code arena
+    void *arena;
+
+    // jit caller (for windows)
+#ifdef _WIN32
+    void (*vm_caller)(vm_std_value_t*, void*);
+#endif
+
     // externals
     void *vm_tb_rfunc_comp;
     void *vm_table_new;

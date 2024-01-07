@@ -20,7 +20,7 @@ static void jcc(TB_CGEmitter* restrict e, Cond cc, int label) {
     tb_emit_rel32(e, &e->labels[label], GET_CODE_POS(e) - 4);
 }
 
-static void emit_memory_operand(TB_CGEmitter* restrict e, uint8_t rx, const Val* restrict a) {
+static void emit_memory_operand(TB_CGEmitter* restrict e, uint8_t rx, const Val* a) {
     // Operand encoding
     if (a->type == VAL_GPR || a->type == VAL_XMM) {
         EMIT1(e, mod_rx_rm(MOD_DIRECT, rx, a->reg));
@@ -317,3 +317,20 @@ static void inst2sse(TB_CGEmitter* restrict e, InstType type, const Val* a, cons
     EMIT1(e, inst->op + (supports_mem_dst ? dir : 0));
     emit_memory_operand(e, rx, b);
 }
+
+static void x86_jmp(TB_CGEmitter* restrict e, Val label) {
+    if (label.type == VAL_LABEL) {
+        EMIT1(e, 0xE9); EMIT4(e, 0);
+        tb_emit_rel32(e, &e->labels[label.label], GET_CODE_POS(e) - 4);
+    } else {
+        EMIT1(e, 0xFF);
+        emit_memory_operand(e, 4, &label);
+    }
+}
+
+static void x86_jcc(TB_CGEmitter* restrict e, int cc, Val label) {
+    assert(label.type == VAL_LABEL);
+    EMIT1(e, 0x0F); EMIT1(e, 0x80 + cc); EMIT4(e, 0);
+    tb_emit_rel32(e, &e->labels[label.label], GET_CODE_POS(e) - 4);
+}
+

@@ -125,6 +125,9 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
     if (op == 0x0F) {
         ext = true;
         op = data[current++];
+        inst->opcode = 0x0F00;
+    } else {
+        inst->opcode = 0;
     }
 
     ////////////////////////////////
@@ -196,7 +199,8 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
         // int3
         [0xCC] = OP_0ARY,
         // movabs
-        [0xB8 ... 0xBF] = OP_PLUSR | OP_64BIT,
+        [0xB0 ... 0xB7] = OP_PLUSR | OP_8BIT,
+        [0xB8 ... 0xBF] = OP_PLUSR,
         // mov r/m, imm
         [0xC6] = OP_MI | OP_FAKERX | OP_8BIT,
         [0xC7] = OP_MI | OP_FAKERX,
@@ -227,7 +231,8 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
         // idiv r/m8
         [0xF6] = OP_M | OP_FAKERX | OP_8BIT,
         [0xF7] = OP_M | OP_FAKERX,
-        // jmp r/m
+        // dec/call/jmp r/m
+        [0xFE] = OP_M | OP_FAKERX | OP_64BIT,
         [0xFF] = OP_M | OP_FAKERX | OP_64BIT,
     };
     #undef NORMIE_BINOP
@@ -266,7 +271,7 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
         [0x90 ... 0x9F] = OP_M,
     };
 
-    inst->opcode = (ext ? 0x0F00 : 0) | op;
+    inst->opcode |= op;
 
     uint16_t first = ext ? ext_table[op] : first_table[op];
     uint16_t flags = first & 0xFFF;
@@ -333,10 +338,10 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
         return true;
     } else if (enc == OP_PLUSR) {
         // bottom 8bits of the opcode are the base reg
-        inst->regs[0] = (rex & 1 ? 1 : 0) | (inst->opcode & 7);
+        inst->regs[0] = (rex & 1 ? 8 : 0) | (inst->opcode & 7);
         inst->opcode &= ~7;
 
-        if (op >= 0xB8 && op <= 0xBF) {
+        if ((rex & 8) && op >= 0xB8 && op <= 0xBF) {
             // movabs (pre-APX) is the only instruction with a 64bit immediate so i'm finna
             // special case it.
             ABC(8);
@@ -369,11 +374,10 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
         }
 
         if (flags & OP_2DT) {
+            inst->flags |= TB_X86_INSTR_TWO_DATA_TYPES;
             if (inst->opcode == 0x0FB6 || inst->opcode == 0x0FB7 || inst->opcode == 0x0FBE || inst->opcode == 0x0FBF) {
-                inst->flags |= TB_X86_INSTR_TWO_DATA_TYPES;
                 inst->data_type2 = (inst->opcode == 0x0FB6 || inst->opcode == 0x0FBE) ? TB_X86_TYPE_BYTE : TB_X86_TYPE_WORD;
             } else {
-                inst->flags |= TB_X86_INSTR_TWO_DATA_TYPES;
                 inst->data_type2 = TB_X86_TYPE_DWORD;
             }
         }
@@ -387,7 +391,7 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
                 int8_t real_rx = ((rex & 4 ? 8 : 0) | rx);
                 if (rex == 0 && inst->data_type == TB_X86_TYPE_BYTE && real_rx >= 4) {
                     // use high registers
-                    real_rx += 16;
+                    real_rx += 8;
                 }
                 inst->regs[rx_slot] = real_rx;
             }
@@ -443,13 +447,13 @@ const char* tb_x86_mnemonic(TB_X86_Inst* inst) {
         case 0x0F182: return "prefetch1";
         case 0x0F183: return "prefetch2";
 
-        case 0x00 ... 0x03: return "add";
-        case 0x08 ... 0x0B: return "or";
-        case 0x20 ... 0x23: return "and";
-        case 0x28 ... 0x2B: return "sub";
-        case 0x30 ... 0x33: return "xor";
-        case 0x38 ... 0x3B: return "cmp";
-        case 0x88 ... 0x8B: return "mov";
+        case 0x00 ... 0x03: case 0x810: case 0x800: case 0x830: return "add";
+        case 0x08 ... 0x0B: case 0x811: case 0x801: case 0x831: return "or";
+        case 0x20 ... 0x23: case 0x814: case 0x804: case 0x834: return "and";
+        case 0x28 ... 0x2B: case 0x815: case 0x805: case 0x835: return "sub";
+        case 0x30 ... 0x33: case 0x816: case 0x806: case 0x836: return "xor";
+        case 0x38 ... 0x3B: case 0x817: case 0x807: case 0x837: return "cmp";
+        case 0x88 ... 0x8B: case 0xC60: case 0xC70: return "mov";
 
         case 0xA4: case 0xA5: return "movs";
         case 0xAA: case 0xAB: return "stos";
@@ -466,13 +470,6 @@ const char* tb_x86_mnemonic(TB_X86_Inst* inst) {
         case 0xF66: case 0xF76: return "div";
         case 0xF67: case 0xF77: return "idiv";
 
-        case 0x810: case 0x800: case 0x830: return "add";
-        case 0x811: case 0x801: case 0x831: return "or";
-        case 0x814: case 0x804: case 0x834: return "and";
-        case 0x815: case 0x805: case 0x835: return "sub";
-        case 0x816: case 0x806: case 0x836: return "xor";
-        case 0x817: case 0x807: case 0x837: return "cmp";
-        case 0xC60: case 0xC70: return "mov";
         case 0x84: case 0x85: return "test";
 
         case 0x0F10: case 0x0F11: return "mov";
@@ -483,6 +480,8 @@ const char* tb_x86_mnemonic(TB_X86_Inst* inst) {
         case 0x0F5E: return "div";
         case 0x0F5F: return "max";
         case 0x0FC2: return "cmp";
+        case 0x0F2A: return "___";
+        case 0x0F2C: return "___";
         case 0x0F2E: return "ucomi";
         case 0x0F51: return "sqrt";
         case 0x0F52: return "rsqrt";
@@ -490,7 +489,7 @@ const char* tb_x86_mnemonic(TB_X86_Inst* inst) {
         case 0x0F56: return "or";
         case 0x0F57: return "xor";
 
-        case 0xB8 ... 0xBF: return "mov";
+        case 0xB0 ... 0xBF: return "mov";
         case 0x0FB6: case 0x0FB7: return "movzx";
         case 0x0FBE: case 0x0FBF: return "movsx";
 
@@ -501,8 +500,11 @@ const char* tb_x86_mnemonic(TB_X86_Inst* inst) {
         case 0x50: return "push";
         case 0x58: return "pop";
 
-        case 0xE8: case 0xFF2: return "call";
-        case 0xEB: case 0xE9: case 0xFF4: return "jmp";
+        case 0xFF0: return "inc";
+        case 0xFF1: return "dec";
+
+        case 0xE8: case 0xFF2: case 0xFF3: return "call";
+        case 0xEB: case 0xE9: case 0xFF4: case 0xFF5: return "jmp";
 
         case 0x0F1F: return "nop";
         case 0x68: return "push";

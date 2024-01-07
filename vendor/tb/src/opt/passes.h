@@ -17,6 +17,9 @@ enum {
 #define TB_OPTDEBUG_INLINE   0
 #define TB_OPTDEBUG_REGALLOC 0
 
+// for toggling ANSI colors
+#define TB_OPTDEBUG_ANSI     1
+
 #define TB_OPTDEBUG(cond) CONCAT(DO_IF_, CONCAT(TB_OPTDEBUG_, cond))
 
 #define DO_IF(cond) CONCAT(DO_IF_, cond)
@@ -65,6 +68,10 @@ typedef struct {
     size_t count;
 } LatticeTuple;
 
+typedef struct {
+    int alias_idx;
+} LatticeMem;
+
 // Represents the fancier type system within the optimizer, it's
 // all backed by my shitty understanding of lattice theory
 struct Lattice {
@@ -79,18 +86,28 @@ struct Lattice {
 
         // pointers:
         //      top
-        //      /  \
-        //     /    \
-        //    /    /|\
-        //    |   / | \
-        //    |  a  b  ...
-        //    |   \ | /
+        //     /   \
+        //    /     \
+        //   /     /|\
+        //   |    / | \
+        //   |   a  b  ...
+        //   |    \ | /
         // null   ~null
         //     \  /
         //      bot
         LATTICE_NULL,
         LATTICE_XNULL,
         LATTICE_PTR,
+
+        // memory:
+        //    top
+        //   / | \
+        //  a  b  ...
+        //   \ | /
+        //    bot
+        //
+        // alias idx on each memory type.
+        LATTICE_MEM,
 
         // control tokens
         LATTICE_CTRL,
@@ -102,6 +119,7 @@ struct Lattice {
         LatticeFloat _float;
         LatticePtrConst _ptr;
         LatticeTuple _tuple;
+        LatticeMem _mem;
     };
     Lattice* elems[];
 };
@@ -140,7 +158,6 @@ struct TB_BasicBlock {
     TB_Node* end;
     int id, dom_depth;
 
-    TB_Node* mem_in;
     NL_HashSet items;
 };
 
@@ -177,6 +194,10 @@ struct TB_Passes {
     struct {
         NL_HashSet type_interner;
 
+        // for memory alias indices
+        int alias_n;
+        Lattice* root_mem;
+
         // track a lattice per node (basically all get one so a compact array works)
         size_t type_cap;
         Lattice** types;
@@ -211,6 +232,10 @@ static uint64_t tb__mask(uint64_t bits) {
 
 static bool ctrl_out_as_cproj_but_not_branch(TB_Node* n) {
     return n->type == TB_CALL || n->type == TB_TAILCALL || n->type == TB_SYSCALL || n->type == TB_READ || n->type == TB_WRITE;
+}
+
+static bool cfg_is_mproj(TB_Node* n) {
+    return n->type == TB_PROJ && n->dt.type == TB_MEMORY;
 }
 
 // includes tuples which have control flow
@@ -250,7 +275,7 @@ static bool cfg_underneath(TB_CFG* cfg, TB_Node* a, TB_BasicBlock* bb) {
 }
 
 static bool is_mem_out_op(TB_Node* n) {
-    return n->dt.type == TB_MEMORY || (n->type >= TB_STORE && n->type <= TB_ATOMIC_CAS) || (n->type >= TB_CALL && n->type <= TB_TAILCALL);
+    return n->dt.type == TB_MEMORY || (n->type >= TB_STORE && n->type <= TB_ATOMIC_CAS) || (n->type >= TB_CALL && n->type <= TB_TAILCALL) || n->type == TB_SPLITMEM || n->type == TB_MERGEMEM;
 }
 
 static bool is_pinned(TB_Node* n) {
@@ -259,6 +284,10 @@ static bool is_pinned(TB_Node* n) {
 
 static bool is_mem_in_op(TB_Node* n) {
     return is_mem_out_op(n) || n->type == TB_SAFEPOINT_POLL || n->type == TB_LOAD;
+}
+
+static bool is_mem_only_in_op(TB_Node* n) {
+    return n->type == TB_SAFEPOINT_POLL || n->type == TB_LOAD;
 }
 
 static bool cfg_critical_edge(TB_Node* proj, TB_Node* n) {

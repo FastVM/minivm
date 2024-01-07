@@ -183,10 +183,10 @@ void pe_append_object(TB_Linker* l, TB_LinkerThreadInfo* info, TB_Slice obj_name
     }
 
     // Append all symbols
-    TB_ArenaSavepoint sp = tb_arena_save(&info->tmp_arena);
+    TB_ArenaSavepoint sp = tb_arena_save(info->tmp_arena);
 
     size_t sym_count = 0;
-    TB_ObjectSymbol* syms = tb_arena_alloc(&info->tmp_arena, sizeof(TB_ObjectSymbol) * parser.symbol_count);
+    TB_ObjectSymbol* syms = tb_arena_alloc(info->tmp_arena, sizeof(TB_ObjectSymbol) * parser.symbol_count);
 
     COFF_AuxSectionSymbol* comdat_aux = NULL;
     CUIK_TIMED_BLOCK("apply symbols") {
@@ -335,7 +335,7 @@ void pe_append_object(TB_Linker* l, TB_LinkerThreadInfo* info, TB_Slice obj_name
         }
     }
 
-    tb_arena_restore(&info->tmp_arena, sp);
+    tb_arena_restore(info->tmp_arena, sp);
     tb_platform_heap_free(sections);
 }
 
@@ -347,8 +347,8 @@ static void pe_append_library(TB_Linker* l, TB_LinkerThreadInfo* info, TB_Slice 
         return;
     }
 
-    TB_Arena* perm_arena = &info->perm_arena;
-    TB_Arena* arena = &info->tmp_arena;
+    TB_Arena* perm_arena = info->perm_arena;
+    TB_Arena* arena = info->tmp_arena;
     TB_ArenaSavepoint sp = tb_arena_save(arena);
 
     TB_ArchiveEntry* entries = tb_arena_alloc(arena, ar_parser.member_count * sizeof(TB_ArchiveEntry));

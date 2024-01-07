@@ -6,6 +6,7 @@ static ICodeGen* tb__find_code_generator(TB_Module* m) {
     // Place all the codegen interfaces down here
     extern ICodeGen tb__x64_codegen;
     extern ICodeGen tb__aarch64_codegen;
+    extern ICodeGen tb__mips64_codegen;
 
     switch (m->target_arch) {
         #ifdef TB_HAS_X64
@@ -14,6 +15,10 @@ static ICodeGen* tb__find_code_generator(TB_Module* m) {
 
         #ifdef TB_HAS_AARCH64
         case TB_ARCH_AARCH64: return &tb__aarch64_codegen;
+        #endif
+
+        #ifdef TB_HAS_MIPS
+        case TB_ARCH_MIPS64: return &tb__mips64_codegen;
         #endif
 
         default: return NULL;
@@ -49,8 +54,8 @@ TB_ThreadInfo* tb_thread_info(TB_Module* m) {
         *info = (TB_ThreadInfo){ .owner = m, .chain = &chain, .lock = &lock };
 
         // allocate memory for it
-        tb_arena_create(&info->perm_arena, TB_ARENA_LARGE_CHUNK_SIZE);
-        tb_arena_create(&info->tmp_arena, TB_ARENA_LARGE_CHUNK_SIZE);
+        info->perm_arena = tb_arena_create(TB_ARENA_LARGE_CHUNK_SIZE);
+        info->tmp_arena = tb_arena_create(TB_ARENA_LARGE_CHUNK_SIZE);
 
         // thread local so it doesn't need to synchronize
         info->next = chain;
@@ -214,8 +219,8 @@ void tb_module_destroy(TB_Module* m) {
         // free symbols
         nl_hashset_free(info->symbols);
 
-        tb_arena_destroy(&info->tmp_arena);
-        tb_arena_destroy(&info->perm_arena);
+        tb_arena_destroy(info->tmp_arena);
+        tb_arena_destroy(info->perm_arena);
 
         // unlink, this needs to be synchronized in case another thread is
         // accessing while we're freeing.
@@ -303,13 +308,12 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
     size_t param_count = p->param_count;
 
     if (arena == NULL) {
-        f->arena = tb_platform_heap_alloc(sizeof(TB_Arena));
-        tb_arena_create(f->arena, TB_ARENA_SMALL_CHUNK_SIZE);
+        f->arena = tb_arena_create(TB_ARENA_SMALL_CHUNK_SIZE);
     } else {
         f->arena = arena;
     }
 
-    f->gvn_nodes = nl_hashset_alloc(16);
+    f->gvn_nodes = nl_hashset_alloc(32);
     f->locations = nl_table_alloc(16);
 
     f->section = section;

@@ -56,7 +56,7 @@ typedef struct TB_ArenaSavepoint {
 #define TB_ARENA_ALLOC(arena, T) tb_arena_alloc(arena, sizeof(T))
 #define TB_ARENA_ARR_ALLOC(arena, count, T) tb_arena_alloc(arena, (count) * sizeof(T))
 
-TB_API void tb_arena_create(TB_Arena* restrict arena, size_t chunk_size);
+TB_API TB_Arena* tb_arena_create(size_t chunk_size);
 TB_API void tb_arena_destroy(TB_Arena* restrict arena);
 
 TB_API void* tb_arena_unaligned_alloc(TB_Arena* restrict arena, size_t size);
@@ -70,8 +70,6 @@ TB_API void tb_arena_pop(TB_Arena* restrict arena, void* ptr, size_t size);
 
 // in case you wanna mix unaligned and aligned arenas
 TB_API void tb_arena_realign(TB_Arena* restrict arena);
-
-TB_API bool tb_arena_is_empty(TB_Arena* arena);
 
 TB_API size_t tb_arena_current_size(TB_Arena* arena);
 

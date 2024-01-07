@@ -24,8 +24,8 @@ TB_LinkerThreadInfo* linker_thread_info(TB_Linker* l) {
     *info = (TB_LinkerThreadInfo){ .owner = l };
 
     // allocate memory for it
-    tb_arena_create(&info->perm_arena, TB_ARENA_LARGE_CHUNK_SIZE);
-    tb_arena_create(&info->tmp_arena, TB_ARENA_LARGE_CHUNK_SIZE);
+    info->perm_arena = tb_arena_create(TB_ARENA_LARGE_CHUNK_SIZE);
+    info->tmp_arena = tb_arena_create(TB_ARENA_LARGE_CHUNK_SIZE);
 
     // thread local so it doesn't need to synchronize
     info->next = chain;

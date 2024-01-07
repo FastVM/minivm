@@ -45,10 +45,7 @@ static bool try_for_imm12(int bits, TB_Node* n, int32_t* out_x) {
     return true;
 }
 
-static bool _2addr(TB_Node* n) {
-    return false; // n->type >= TB_AND && n->type <= TB_CMP_FLE;
-}
-
+static bool _2addr(TB_Node* n) { return false; }
 static void init_ctx(Ctx* restrict ctx, TB_ABI abi) {
     ctx->sched = greedy_scheduler;
     ctx->_2addr = _2addr;
@@ -157,8 +154,7 @@ static void emit_tile(Ctx* restrict ctx, TB_CGEmitter* e, Tile* t) {
                 GPR dst = gpr_at(t->interval);
                 uint64_t imm = TB_NODE_GET_EXTRA_T(n, TB_NodeInt)->value;
 
-                int shift = 0;
-                bool first = true;
+                int shift = 0; bool first = true;
                 while (imm) {
                     if (imm & 0xFFFF) {
                         emit_movimm(e, dst, imm & 0xFFFF, shift / 16, is_64bit, first);

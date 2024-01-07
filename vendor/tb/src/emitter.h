@@ -14,12 +14,20 @@ typedef struct LabelPatch {
     int target_lbl;
 } LabelPatch;
 
+typedef struct Comment {
+    struct Comment* next;
+    uint32_t pos;
+    uint32_t line_len;
+    char line[];
+} Comment;
+
 typedef struct {
     // technically NULLable, just can't use patches if NULL
     TB_FunctionOutput* output;
     TB_Arena* arena;
 
     TB_Assembly *head_asm, *tail_asm;
+    uint64_t total_asm;
 
     // this is mapped to a giant buffer and is technically
     // allow to use the entire rest of said buffer
@@ -28,6 +36,10 @@ typedef struct {
 
     size_t label_count;
     uint32_t* labels;
+
+    bool has_comments;
+    Comment* comment_head;
+    Comment* comment_tail;
 } TB_CGEmitter;
 
 // Helper macros
@@ -36,6 +48,7 @@ typedef struct {
 #define EMIT2(e, b) do { uint16_t _b = (b); memcpy(tb_cgemit_reserve(e, 2), &_b, 2); (e)->count += 2; } while (0)
 #define EMIT4(e, b) do { uint32_t _b = (b); memcpy(tb_cgemit_reserve(e, 4), &_b, 4); (e)->count += 4; } while (0)
 #define EMIT8(e, b) do { uint64_t _b = (b); memcpy(tb_cgemit_reserve(e, 8), &_b, 8); (e)->count += 8; } while (0)
+#define PATCH2(e, p, b) do { uint16_t _b = (b); memcpy(&(e)->data[p], &_b, 2); } while (0)
 #define PATCH4(e, p, b) do { uint32_t _b = (b); memcpy(&(e)->data[p], &_b, 4); } while (0)
 #define GET_CODE_POS(e) ((e)->count)
 #define RELOC4(e, p, b) tb_reloc4(e, p, b)
@@ -61,6 +74,24 @@ static int tb_emit_get_label(TB_CGEmitter* restrict e, uint32_t pos) {
     return 0;
 }
 
+static void tb_emit_comment(TB_CGEmitter* restrict e, TB_Arena* arena, const char* fmt, ...) {
+    Comment* comment = tb_arena_alloc(arena, sizeof(Comment) + 100);
+    comment->next = NULL;
+    comment->pos = e->count;
+
+    va_list ap;
+    va_start(ap, fmt);
+    comment->line_len = vsnprintf(comment->line, 100, fmt, ap);
+    va_end(ap);
+
+    if (e->comment_tail) {
+        e->comment_tail->next = comment;
+        e->comment_tail = comment;
+    } else {
+        e->comment_head = e->comment_tail = comment;
+    }
+}
+
 static void tb_asm_print(TB_CGEmitter* restrict e, const char* fmt, ...) {
     // make sure we have enough bytes for the operation
     TB_Assembly* new_head = e->tail_asm;
@@ -79,8 +110,11 @@ static void tb_asm_print(TB_CGEmitter* restrict e, const char* fmt, ...) {
 
     va_list ap;
     va_start(ap, fmt);
-    new_head->length += vsnprintf(&new_head->data[new_head->length], 100, fmt, ap);
+    int len = vsnprintf(&new_head->data[new_head->length], 100, fmt, ap);
     va_end(ap);
+
+    new_head->length += len;
+    e->total_asm += len;
 }
 
 static void tb_emit_rel32(TB_CGEmitter* restrict e, uint32_t* head, uint32_t pos) {

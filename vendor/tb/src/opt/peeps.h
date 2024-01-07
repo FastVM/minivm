@@ -6,7 +6,7 @@
 //
 // * Identity: replace a node with it's direct inputs (one step).
 //
-// * Dataflow: runs SCCP on a node.
+// * SCCP:     runs SCCP on a node.
 //
 // * GVN:      if a node has some identical copy, it will be replaced with it.
 //
@@ -29,9 +29,11 @@ static const NodeVtable vtables[TB_NODE_TYPE_MAX] = {
     [TB_ROOT]           = { ideal_root,        NULL,               NULL             },
     // memory
     [TB_LOAD]           = { ideal_load,        identity_load,      NULL             },
-    [TB_STORE]          = { ideal_store,       NULL,               NULL             },
-    [TB_MEMSET]         = { ideal_memset,      NULL,               NULL             },
-    [TB_MEMCPY]         = { ideal_memcpy,      NULL,               NULL             },
+    [TB_STORE]          = { ideal_store,       NULL,               sccp_mem         },
+    [TB_MEMSET]         = { ideal_memset,      NULL,               sccp_mem         },
+    [TB_MEMCPY]         = { ideal_memcpy,      NULL,               sccp_mem         },
+    [TB_SPLITMEM]       = { NULL,              NULL,               sccp_split_mem   },
+    [TB_MERGEMEM]       = { ideal_merge_mem,   NULL,               sccp_merge_mem   },
     // ptr values
     [TB_LOCAL]          = { NULL,              NULL,               sccp_ptr_vals    },
     [TB_SYMBOL]         = { NULL,              NULL,               sccp_ptr_vals    },

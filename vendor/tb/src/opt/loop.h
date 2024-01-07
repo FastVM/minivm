@@ -1,4 +1,8 @@
 
+typedef struct {
+    TB_Node* n;
+} IVUser;
+
 // clone anything except control edges and phis to region
 static TB_Node* loop_clone_node(TB_Passes* restrict p, TB_Function* f, TB_Node* region, TB_Node* n, int phi_index) {
     TB_Node* cloned = n;
@@ -25,7 +29,7 @@ static TB_Node* loop_clone_node(TB_Passes* restrict p, TB_Function* f, TB_Node* 
             add_user(f, cloned, in, i, NULL);
         }
 
-        cloned = gvn(f, cloned, extra);
+        cloned = tb__gvn(f, cloned, extra);
     }
 
     #if TB_OPTDEBUG_LOOP
@@ -103,9 +107,9 @@ void tb_pass_loop(TB_Passes* p) {
         }
 
         // if it's already rotated don't do it again
-        if (header->inputs[single_backedge]->type == TB_PROJ && header->inputs[single_backedge]->inputs[0]->type == TB_BRANCH) {
+        /*if (header->inputs[single_backedge]->type == TB_PROJ && header->inputs[single_backedge]->inputs[0]->type == TB_BRANCH) {
             continue;
-        }
+        }*/
 
         // if we don't have the latch in the header BB... ngmi
         TB_BasicBlock* header_info = &nl_map_get_checked(p->cfg.node_to_block, header);
@@ -118,13 +122,11 @@ void tb_pass_loop(TB_Passes* p) {
         TB_Node* ind_var = NULL;
         TB_Node* cond = latch->inputs[1];
         TB_Node* end_cond = NULL;
-        TB_Node* phi = NULL;
+        TB_Node* phi = cond;
 
         if (cond->type >= TB_CMP_EQ && cond->type <= TB_CMP_SLE && cond->inputs[1]->type == TB_PHI) {
             phi = cond->inputs[1];
             end_cond = cond->inputs[2];
-        } else if (cond->type == TB_PHI) {
-            phi = cond;
         }
 
         // affine loop's induction var should loop like:
@@ -151,15 +153,23 @@ void tb_pass_loop(TB_Passes* p) {
 
                 int keys[4] = { -1, -1, -1, -1 };
                 int uses[4];
+                TB_DataType use_dt[4];
 
                 FOR_USERS(u, phi) {
                     if (u->n == op) continue;
                     if (u->n == cond) continue;
+                    if (u->n == latch) continue;
 
                     ptrdiff_t stride = 0;
+                    TB_DataType dt = phi->dt;
                     if (u->n->type == TB_ARRAY_ACCESS) {
                         stride = TB_NODE_GET_EXTRA_T(u->n, TB_NodeArray)->stride;
+                    } else if (u->n->type == TB_SIGN_EXT || u->n->type == TB_ZERO_EXT) {
+                        stride = 1;
+                        dt = u->n->dt;
                     } else {
+                        TB_OPTDEBUG(LOOP)(printf("  * cannot scale because we don't understand %s\n", tb_node_get_name(u->n)));
+
                         legal_scale = false;
                         break;
                     }
@@ -179,6 +189,8 @@ void tb_pass_loop(TB_Passes* p) {
                         if (cnt == 4) break;
                         keys[cnt++] = stride;
                     }
+
+                    use_dt[i] = u->n->dt;
                     uses[i] += node_uses;
                 }
 

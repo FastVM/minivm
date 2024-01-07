@@ -191,32 +191,38 @@ static bool vm_tb_str_lt(const char *str1, const char *str2) {
     return strcmp(str1, str2) < 0;
 }
 
-void vm_tb_func_reset_pass(vm_block_t *block) {
+static void vm_tb_func_reset_pass(vm_block_t *block);
+
+static void vm_tb_func_reset_pass_internal(vm_block_t *block) {
     if (block->pass == NULL) {
         return;
     }
+    vm_tb_func_reset_pass(block);
+}
+
+static void vm_tb_func_reset_pass(vm_block_t *block) {
     block->pass = NULL;
     vm_branch_t branch = block->branch;
     switch (branch.op) {
         case VM_BOP_JUMP: {
-            vm_tb_func_reset_pass(branch.targets[0]);
+            vm_tb_func_reset_pass_internal(branch.targets[0]);
             break;
         }
         case VM_BOP_BB:
         case VM_BOP_BLT:
         case VM_BOP_BLE: {
-            vm_tb_func_reset_pass(branch.targets[0]);
-            vm_tb_func_reset_pass(branch.targets[1]);
+            vm_tb_func_reset_pass_internal(branch.targets[0]);
+            vm_tb_func_reset_pass_internal(branch.targets[1]);
             break;
         }
         case VM_BOP_BEQ: {
             if (vm_arg_to_tag(branch.args[0]) != vm_arg_to_tag(branch.args[1])) {
-                vm_tb_func_reset_pass(branch.targets[1]);
+                vm_tb_func_reset_pass_internal(branch.targets[1]);
             } else if (branch.tag == VM_TAG_NIL) {
-                vm_tb_func_reset_pass(branch.targets[0]);
+                vm_tb_func_reset_pass_internal(branch.targets[0]);
             } else {
-                vm_tb_func_reset_pass(branch.targets[0]);
-                vm_tb_func_reset_pass(branch.targets[1]);
+                vm_tb_func_reset_pass_internal(branch.targets[0]);
+                vm_tb_func_reset_pass_internal(branch.targets[1]);
             }
             break;
         }
@@ -604,7 +610,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         0,
                         NULL
                     )
-                        .single,
+                    .single,
                     8,
                     false
                 );
@@ -916,8 +922,6 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, nargs, call_proto_params, 2, call_proto_rets, false);
 
-                    // vm_free(call_proto);
-
                     tb_inst_if(
                         state->fun,
                         tb_inst_cmp_eq(state->fun, global, vm_tb_ptr_name(state, "0", NULL)),
@@ -956,13 +960,13 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         }
 
                         TB_Node *call_func = vm_tb_inst_call(
-                                                 state,
-                                                 comp_proto,
-                                                 tb_inst_get_symbol_address(state->fun, state->vm_tb_rfunc_comp),
-                                                 1,
-                                                 &rblock
+                            state,
+                            comp_proto,
+                            tb_inst_get_symbol_address(state->fun, state->vm_tb_rfunc_comp),
+                            1,
+                            &rblock
                         )
-                                                 .single;
+                            .single;
 
                         tb_inst_store(
                             state->fun,
@@ -980,13 +984,13 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         }
 
                         TB_Node **got = vm_tb_inst_call(
-                                            state,
-                                            call_proto,
-                                            call_func,
-                                            nargs,
-                                            call_args
+                            state,
+                            call_proto,
+                            call_func,
+                            nargs,
+                            call_args
                         )
-                                            .multiple;
+                            .multiple;
 
                         vm_free(call_args);
 
@@ -1021,14 +1025,14 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         }
 
                         TB_Node **got = vm_tb_inst_call(
-                                            state,
-                                            call_proto,
-                                            global,
-                                            nargs,
-                                            call_args
+                            state,
+                            call_proto,
+                            global,
+                            nargs,
+                            call_args
                         )
-                                            .multiple;
-                        
+                            .multiple;
+
                         vm_free(call_args);
 
                         tb_inst_store(
@@ -1201,7 +1205,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                 tb_inst_set_control(state->fun, after_err_check);
             }
 
-        branch_uses_reg:;
+            branch_uses_reg:;
 
             TB_PrototypeParam next_rets[2] = {
                 {VM_TB_TYPE_VALUE},
@@ -1250,7 +1254,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
             // tb_inst_set_region_name(state->fun, has_cache_region, -1, "no_cache_typecheck");
 
             // tb_inst_if(state->fun, func_nonzero, has_cache_region, no_cache_region);
-            
+
             {
                 // tb_inst_set_control(state->fun, no_cache_region);
 
@@ -1430,6 +1434,43 @@ void vm_tb_new_module(vm_tb_state_t *state) {
     tb_symbol_bind_ptr(state->vm_table_set, (void *)&vm_table_set);
     tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
     tb_symbol_bind_ptr(state->vm_tb_print, (void *)&vm_tb_print);
+
+    state->arena = tb_arena_create(1 << 16);
+    state->jit = tb_jit_begin(state->module, 1 << 16);
+
+    // on windows we don't have access to multiple returns from C so we'll
+    // just make a dumb caller for such a pattern
+#ifdef _WIN32
+    {
+        TB_PrototypeParam call_proto_rets[2] = { {VM_TB_TYPE_VALUE}, {TB_TYPE_I32} };
+        TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, call_proto_rets, false);
+
+        TB_PrototypeParam proto_params[2] = { { TB_TYPE_PTR }, { TB_TYPE_PTR } };
+        TB_Function* fun = tb_function_create(state->module, -1, "caller", TB_LINKAGE_PRIVATE);
+        TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_params, 0, NULL, false);
+        tb_function_set_prototype(fun, -1, proto, NULL);
+
+        // tb_inst_debugbreak(fun);
+        TB_MultiOutput out = tb_inst_call(fun, call_proto, tb_inst_param(fun, 1), 0, NULL);
+
+        // store into struct
+        TB_Node* dst  = tb_inst_param(fun, 0);
+        tb_inst_store(fun, VM_TB_TYPE_VALUE, dst, out.multiple[0], _Alignof(vm_value_t), false);
+        TB_Node* dst2 = tb_inst_member_access(fun, dst, offsetof(vm_std_value_t, tag));
+        tb_inst_store(fun, TB_TYPE_I32, dst2, out.multiple[1], _Alignof(uint32_t), false);
+
+        tb_inst_ret(fun, 0, NULL);
+
+        // compile it
+        TB_FeatureSet features = (TB_FeatureSet){ 0 };
+        TB_Passes *passes = tb_pass_enter(fun, tb_function_get_arena(fun));
+        tb_pass_codegen(passes, state->arena, &features, false);
+        tb_pass_exit(passes);
+
+        state->vm_caller = tb_jit_place_function(state->jit, fun);
+        tb_arena_clear(state->arena);
+    }
+#endif
 }
 
 void vm_tb_rblock_del(vm_rblock_t *rblock);
@@ -1496,7 +1537,14 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     }
 
     vm_block_t *block = vm_rblock_version(state->blocks, rblock);
-    state->fun = tb_function_create(state->module, -1, "block", TB_LINKAGE_PRIVATE);
+
+    char name[24];
+    if (block) {
+        snprintf(name, 23, "block.%zi", block->id);
+    } else {
+        snprintf(name, 23, "block.unknown");
+    }
+    state->fun = tb_function_create(state->module, -1, name, TB_LINKAGE_PRIVATE);
 
     if (block == NULL) {
         TB_PrototypeParam proto_rets[2] = {
@@ -1583,7 +1631,6 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             tb_inst_goto(state->fun, main);
             tb_inst_set_control(state->fun, main);
 
-            // tb_inst_debugbreak(state->fun);
             vm_tb_func_reset_pass(block);
             vm_tb_func_body_once_as(state, regs, block);
             vm_tb_func_reset_pass(block);
@@ -1592,20 +1639,10 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         }
     }
 
-#if 1
-    TB_Arena arena;
-    tb_arena_create(&arena, 1 << 16);
-    TB_Arena *parena = &arena;
-#else
-    TB_Arena *parena = tb_function_get_arena(state->fun);
-#endif
-    TB_Passes *passes = tb_pass_enter(state->fun, parena);
+    TB_Arena *parena = state->arena;
+    TB_Passes *passes = tb_pass_enter(state->fun, tb_function_get_arena(state->fun));
     if (state->config->target != VM_TARGET_TB) {
-        tb_pass_peephole(passes);
-        tb_pass_sroa(passes);
-        tb_pass_peephole(passes);
-        tb_pass_mem2reg(passes);
-        tb_pass_peephole(passes);
+        tb_pass_optimize(passes);
     }
 #if VM_USE_DUMP
     if (state->config->dump_tb) {
@@ -1662,32 +1699,28 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         TB_FeatureSet features = (TB_FeatureSet){0};
 #if VM_USE_DUMP
         if (state->config->dump_asm) {
-            TB_FunctionOutput *out = tb_pass_codegen(passes, parena, &features, true);
+            TB_FunctionOutput *out = tb_pass_codegen(passes, state->arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");
             tb_output_print_asm(out, stdout);
         } else {
-            tb_pass_codegen(passes, parena, &features, false);
+            tb_pass_codegen(passes, state->arena, &features, false);
         }
 #else
-        tb_pass_codegen(passes, &arena, &features, false);
+        tb_pass_codegen(passes, state->arena, &features, false);
 #endif
         tb_pass_exit(passes);
 
-        TB_JIT *jit = tb_jit_begin(state->module, 1 << 16);
-        void *code = tb_jit_place_function(jit, state->fun);
-
-        tb_arena_destroy(parena);
+        void *code = tb_jit_place_function(state->jit, state->fun);
+        tb_arena_clear(state->arena);
 
         rblock->code = code;
-        rblock->jit = jit;
+        rblock->jit = state->jit;
         rblock->del = &vm_tb_rblock_del;
-        
-        // tb_arena_destroy(tb_function_get_arena(state->fun));
 
         // printf("%zi -> %p\n", block->id, rblock->code);
 
         // printf("code buf: %p\n", ret);
-        
+
         return code;
     } else {
         __builtin_trap();
@@ -1702,7 +1735,6 @@ void vm_tcc_error_func(void *user, const char *msg) {
 void vm_tb_rblock_del(vm_rblock_t *rblock) {
     TB_JIT *jit = rblock->jit;
     // printf("%p\n", jit);
-    tb_jit_end(jit);
 }
 
 void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
@@ -1729,9 +1761,15 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
     state->blocks = blocks;
 
     vm_tb_new_module(state);
-
     vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, entry);
+
+#ifdef _WIN32
+    vm_std_value_t value;
+    state->vm_caller(&value, fn);
+#else
     vm_std_value_t value = fn();
+#endif
+
     for (size_t i = 0; i < blocks->len; i++) {
         vm_block_t *block = blocks->blocks[i];
         for (size_t j = 0; j < block->cache.len; j++) {
@@ -1741,6 +1779,8 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         block->cache.len = 0;
     }
 
+    tb_arena_destroy(state->arena);
+    tb_jit_end(state->jit);
     tb_module_destroy(state->module);
 
     vm_free(state);
