@@ -5,6 +5,7 @@
 #include "ast.h"
 #include "build.h"
 #include "print.h"
+#include "print.h"
 #include "../ir/rblock.h"
 
 struct vm_ast_comp_t;

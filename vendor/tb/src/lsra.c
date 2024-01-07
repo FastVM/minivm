@@ -288,6 +288,120 @@ void tb__lsra(Ctx* restrict ctx, TB_Arena* arena) {
         }
     }
 
+    // create timeline & insert moves
+    CUIK_TIMED_BLOCK("insert legalizing moves") {
+        int timeline = 4;
+        FOREACH_N(i, 0, ctx->bb_count) {
+            MachineBB* mbb = &ctx->machine_bbs[i];
+
+            for (Tile* t = mbb->start; t; t = t->next) {
+                LiveInterval* interval = t->interval;
+
+                // insert input copies
+                FOREACH_N(j, 0, t->in_count) {
+                    LiveInterval* in_def = t->ins[j].src;
+                    RegMask in_mask = t->ins[j].mask;
+                    int hint = fixed_reg_mask(in_mask);
+
+                    if (in_def == NULL) {
+                        continue;
+                    }
+
+                    RegMask in_def_mask = in_def->mask;
+                    if (hint >= 0) {
+                        in_def->hint = &ctx->fixed[in_mask.class][hint];
+                    }
+
+                    bool both_fixed = hint >= 0 && in_def_mask.mask == in_mask.mask;
+
+                    // we resolve def-use conflicts with a spill move, either when:
+                    //   * the use and def classes don't match.
+                    //   * the use mask is more constrained than the def.
+                    //   * it's on both ends to avoid stretching fixed intervals.
+                    if (in_def_mask.class != in_mask.class || (in_def_mask.mask & in_mask.mask) != in_def_mask.mask || both_fixed) {
+                        if (both_fixed) {
+                            in_def_mask = ctx->normie_mask[in_def_mask.class];
+                        }
+
+                        TB_OPTDEBUG(REGALLOC)(printf("  TEMP "), tb__print_regmask(in_def_mask), printf(" -> "), tb__print_regmask(in_mask), printf("\n"));
+
+                        // construct copy (either to a fixed interval or a new masked interval)
+                        Tile* tmp = tb_arena_alloc(arena, sizeof(Tile));
+                        *tmp = (Tile){
+                            .prev = t->prev,
+                            .next = t,
+                            .tag = TILE_SPILL_MOVE,
+                            .time = timeline
+                        };
+                        assert(in_def->dt.raw);
+                        tmp->spill_dt = in_def->dt;
+                        tmp->ins = tb_arena_alloc(tmp_arena, sizeof(Tile*));
+                        tmp->in_count = 1;
+                        tmp->ins[0].src  = in_def;
+                        tmp->ins[0].mask = in_def_mask;
+                        t->prev->next = tmp;
+                        t->prev = tmp;
+
+                        // replace use site with temporary that legalized the constraint
+                        tmp->interval = gimme_interval_for_mask(ctx, arena, &ra, in_mask, in_def->dt);
+                        t->ins[j].src = tmp->interval;
+
+                        timeline += 2;
+                    }
+                }
+
+                // place on timeline
+                t->time = timeline;
+                // 2addr ops will have a bit of room for placing the hypothetical copy
+                timeline += t->n && ctx->_2addr(t->n) ? 4 : 2;
+
+                // insert copy if we're writing to a fixed interval
+                if (interval && interval->mask.mask) {
+                    // if we're writing to a fixed interval, insert copy
+                    // such that we only guarentee a fixed location at the
+                    // def site.
+                    int reg = fixed_reg_mask(interval->mask);
+                    if (reg >= 0 && t->tag != TILE_SPILL_MOVE) {
+                        RegMask rm = interval->mask;
+                        LiveInterval* fixed = &ctx->fixed[rm.class][reg];
+
+                        // interval: FIXED(t) => NORMIE_MASK
+                        interval->mask = ctx->normie_mask[rm.class];
+                        interval->hint = fixed;
+
+                        // insert copy such that the def site is the only piece which "requires"
+                        // the fixed range.
+                        Tile* tmp = tb_arena_alloc(arena, sizeof(Tile));
+                        *tmp = (Tile){
+                            .prev = t,
+                            .next = t->next,
+                            .tag = TILE_SPILL_MOVE,
+                            .time = timeline,
+                        };
+                        assert(interval->dt.raw);
+                        tmp->spill_dt = interval->dt;
+                        tmp->ins = tb_arena_alloc(tmp_arena, sizeof(Tile*));
+                        tmp->in_count = 1;
+                        tmp->ins[0].src  = fixed;
+                        tmp->ins[0].mask = rm;
+                        t->next->prev = tmp;
+                        t->next = tmp;
+
+                        // replace def site with fixed interval
+                        tmp->interval = interval;
+                        t->interval = fixed;
+
+                        // skip this move op
+                        t = tmp;
+                        timeline += 2;
+                    }
+                }
+            }
+
+            timeline += 2;
+        }
+    }
+
     // build intervals from dataflow
     CUIK_TIMED_BLOCK("build intervals") {
         Set visited = set_create_in_arena(arena, ctx->interval_count);

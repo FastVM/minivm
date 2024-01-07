@@ -3,7 +3,7 @@
 
 #include "./util.h"
 
-void vm_io_buffer_vformat(vm_io_buffer_t *buf, char *fmt, va_list ap) {
+void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap) {
     while (true) {
         int avail = buf->alloc - buf->len;
         va_list ap_copy;
@@ -20,20 +20,36 @@ void vm_io_buffer_vformat(vm_io_buffer_t *buf, char *fmt, va_list ap) {
     }
 }
 
-void vm_io_buffer_format(vm_io_buffer_t *buf, char *fmt, ...) {
+char *vm_io_buffer_get(vm_io_buffer_t *buf) {
+    return buf->buf;
+}
+
+vm_io_buffer_t *vm_io_buffer_new(void) {
+    vm_io_buffer_t *ret = vm_malloc(sizeof(vm_io_buffer_t));
+    char *buf = vm_malloc(sizeof(char));
+    *buf = '\0';
+    *ret = (vm_io_buffer_t) {
+        .alloc = 1,
+        .buf = buf,
+        .len = 0,
+    };
+    return ret;
+}
+
+void vm_io_buffer_format(vm_io_buffer_t *buf, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vm_io_buffer_vformat(buf, fmt, ap);
     va_end(ap);
 }
 
-char *vm_io_vformat(char *fmt, va_list ap) {
+char *vm_io_vformat(const char *fmt, va_list ap) {
     vm_io_buffer_t buf = (vm_io_buffer_t) {0};
     vm_io_buffer_vformat(&buf, fmt, ap);
     return buf.buf;
 }
 
-char *vm_io_format(char *fmt, ...) {
+char *vm_io_format(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     char *r = vm_io_vformat(fmt, ap);

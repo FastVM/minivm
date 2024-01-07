@@ -19,12 +19,21 @@ enum {
 };
 
 enum {
+    VM_TARGET_TB,
+    VM_TARGET_TB_CC,
+    VM_TARGET_TB_TCC,
+    VM_TARGET_TB_GCC,
+    VM_TARGET_TB_CLANG,
+};
+
+enum {
     VM_USE_VERSION_COUNT_NONE,
     VM_USE_VERSION_COUNT_GLOBAL,
     VM_USE_VERSION_COUNT_FINE,
 };
 
 struct vm_config_t {
+    unsigned int target: 4;
     unsigned int use_num: 3;
     unsigned int use_ver_count: 2;
     _Bool use_tb_opt: 1;
@@ -38,7 +47,7 @@ struct vm_config_t {
     _Bool dump_tb_opt: 1;
     _Bool dump_tb_dot: 1;
     _Bool dump_tb_opt_dot: 1;
-    _Bool dump_x86: 1;
+    _Bool dump_asm: 1;
     _Bool dump_args: 1;
     _Bool dump_time: 1;
 
