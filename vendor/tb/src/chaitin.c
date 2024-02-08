@@ -93,27 +93,27 @@ static void build_ifg(Ctx* restrict ctx, TB_Arena* arena, Chaitin* ra) {
         set_copy(&live, live_out);
 
         for (Tile* t = mbb->end; t; t = t->prev) {
-            LiveInterval* interval = t->interval;
-            if (interval) {
+            FOREACH_N(j, 0, t->out_count) {
+                LiveInterval* interval = t->outs[j];
                 set_remove(&live, interval->id);
 
                 // interfere
-                FOREACH_N(j, 0, ra->ifg_len) {
-                    if (!set_get(&live, j)) continue;
+                FOREACH_N(k, 0, ra->ifg_len) {
+                    if (!set_get(&live, k)) continue;
 
-                    LiveInterval* other = ctx->id2interval[j];
+                    LiveInterval* other = ctx->id2interval[k];
                     if (!reg_mask_intersect(interval->mask, other->mask)) continue;
 
-                    printf("v%d -- v%td\n", interval->id, j);
-                    ifg_edge(ra, interval->id, j);
-                    ifg_edge(ra, j, interval->id);
+                    printf("v%d -- v%td\n", interval->id, k);
+                    ifg_edge(ra, interval->id, k);
+                    ifg_edge(ra, k, interval->id);
                 }
 
                 // 2 address ops will interfere with their own inputs (except for
                 // shared dst/src)
                 if (t->n && ctx->_2addr(t->n)) {
-                    FOREACH_N(j, 1, t->in_count) {
-                        LiveInterval* in_def = t->ins[j].src;
+                    FOREACH_N(k, 1, t->in_count) {
+                        LiveInterval* in_def = t->ins[k].src;
                         if (in_def == NULL) continue;
                         if (!reg_mask_intersect(interval->mask, in_def->mask)) continue;
 

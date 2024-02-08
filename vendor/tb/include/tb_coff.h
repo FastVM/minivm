@@ -220,11 +220,11 @@ bool tb_coff_parse_section(TB_COFF_Parser* restrict parser, size_t i, TB_ObjectS
         }
 
         const uint8_t* data = &parser->string_table.data[offset];
-        out_sec->name = (TB_Slice){ strlen((const char*) data), data };
+        out_sec->name = (TB_Slice){ data, strlen((const char*) data) };
     } else {
         // normal inplace string
         size_t len = strlen(sec->name);
-        out_sec->name = (TB_Slice){ len, (uint8_t*) sec->name };
+        out_sec->name = (TB_Slice){ (uint8_t*) sec->name, len };
     }
 
     // Parse relocations
@@ -272,7 +272,7 @@ bool tb_coff_parse_section(TB_COFF_Parser* restrict parser, size_t i, TB_ObjectS
     // Read raw data (if applies)
     if (sec->raw_data_size) {
         assert(sec->raw_data_pos + sec->raw_data_size < file.length);
-        out_sec->raw_data = (TB_Slice){ sec->raw_data_size, &file.data[sec->raw_data_pos] };
+        out_sec->raw_data = (TB_Slice){ &file.data[sec->raw_data_pos], sec->raw_data_size };
     }
 
     return true;
@@ -310,7 +310,7 @@ size_t tb_coff_parse_symbol(TB_COFF_Parser* restrict parser, size_t i, TB_Object
         // string table access (read a cstring)
         // TODO(NeGate): bounds check this
         const uint8_t* data = &parser->string_table.data[sym->long_name[1]];
-        out_sym->name = (TB_Slice){ strlen((const char*) data), data };
+        out_sym->name = (TB_Slice){ data, strlen((const char*) data) };
     } else {
         // normal inplace string
         size_t len = 1;
@@ -318,7 +318,7 @@ size_t tb_coff_parse_symbol(TB_COFF_Parser* restrict parser, size_t i, TB_Object
         while (len < 8 && name[len] != 0) {
             len++;
         }
-        out_sym->name = (TB_Slice){ len, sym->short_name };
+        out_sym->name = (TB_Slice){ sym->short_name, len };
     }
 
     // TODO(NeGate): Process aux symbols

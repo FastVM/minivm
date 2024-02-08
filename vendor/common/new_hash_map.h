@@ -56,12 +56,12 @@ NL_Table nl_table_alloc(size_t cap);
 NL_Table nl_table_arena_alloc(TB_Arena* arena, size_t cap);
 void nl_table_free(NL_Table tbl);
 
-bool nl_table_put(NL_Table* restrict tbl, void* k, void* v);
+void* nl_table_put(NL_Table* restrict tbl, void* k, void* v);
 void* nl_table_get(NL_Table* restrict tbl, void* k);
 size_t nl_table_lookup(NL_Table* restrict tbl, void* k);
 
 #define nl_table_capacity(tbl) (1ull << (tbl)->exp)
-#define nl_table_for(it, tbl)  for (NL_TableEntry *it = (tbl)->data, *_end_ = &it[nl_table_capacity(tbl)]; it != _end_; it++) if (it->k != NULL && it->k != NL_HASHSET_TOMB)
+#define  nl_table_for(it, tbl)  for (NL_TableEntry *it = (tbl)->data, *_end_ = &it[nl_table_capacity(tbl)]; it != _end_; it++) if (it->k != NULL && it->k != NL_HASHSET_TOMB)
 
 #endif /* NL_HASH_SET_H */
 
@@ -288,7 +288,7 @@ void nl_table_free(NL_Table tbl) {
     }
 }
 
-bool nl_table_put(NL_Table* restrict tbl, void* k, void* v) {
+void* nl_table_put(NL_Table* restrict tbl, void* k, void* v) {
     uint32_t post_load_factor = ((1ull << tbl->exp) * 3) / 4;
     if (tbl->count >= post_load_factor) {
         // rehash
@@ -311,15 +311,16 @@ bool nl_table_put(NL_Table* restrict tbl, void* k, void* v) {
             tbl->count++;
             tbl->data[i].k = k;
             tbl->data[i].v = v;
-            return true;
+            return NULL;
         } else if (tbl->data[i].k == NL_HASHSET_TOMB) {
             // recycle tombstone
             tbl->data[i].k = k;
             tbl->data[i].v = v;
-            return true;
+            return NULL;
         } else if (tbl->data[i].k == k) {
+            void* old = tbl->data[i].v;
             tbl->data[i].v = v;
-            return true;
+            return old;
         }
 
         i = (i + 1) & mask;

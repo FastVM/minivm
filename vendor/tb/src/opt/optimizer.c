@@ -22,6 +22,7 @@ static void remove_input(TB_Function* f, TB_Node* n, size_t i);
 
 static void subsume_node(TB_Function* f, TB_Node* n, TB_Node* new_n);
 static void subsume_node2(TB_Function* f, TB_Node* n, TB_Node* new_n);
+static void print_lattice(Lattice* l, TB_DataType dt);
 
 // node creation helpers
 TB_Node* make_poison(TB_Function* f, TB_DataType dt);
@@ -259,8 +260,9 @@ static bool slow_dommy(TB_CFG* cfg, TB_Node* expected_dom, TB_Node* bb) {
 #include "sroa.h"
 #include "loop.h"
 #include "branches.h"
-#include "print.h"
 #include "print_c.h"
+#include "print.h"
+#include "print_dumb.h"
 #include "mem2reg.h"
 #include "gcm.h"
 #include "libcalls.h"
@@ -299,7 +301,7 @@ static Lattice* sccp_ptr_vals(TB_Passes* restrict p, TB_Node* n) {
         return &XNULL_IN_THE_SKY;
     } else {
         assert(n->type == TB_SYMBOL);
-        return lattice_intern(p, (Lattice){ LATTICE_PTR, ._ptr = { TB_NODE_GET_EXTRA_T(n, TB_NodeSymbol)->sym } });
+        return lattice_intern(p, (Lattice){ LATTICE_PTRCON, ._ptr = { TB_NODE_GET_EXTRA_T(n, TB_NodeSymbol)->sym } });
     }
 }
 
@@ -317,15 +319,31 @@ static Lattice* sccp_lookup(TB_Passes* restrict p, TB_Node* n) {
     return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = a });
 }
 
+static Lattice* sccp_region(TB_Passes* restrict p, TB_Node* n) {
+    assert(n->type == TB_REGION);
+    Lattice* l = lattice_universe_get(p, n->inputs[1]);
+    FOREACH_N(i, 1, n->input_count) {
+        Lattice* edge = lattice_universe_get(p, n->inputs[i]);
+        if (edge == &CTRL_IN_THE_SKY || edge == &TOP_IN_THE_SKY) {
+            return edge;
+        }
+    }
+
+    return &XCTRL_IN_THE_SKY;
+}
+
 static Lattice* sccp_meetchads(TB_Passes* restrict p, TB_Node* n) {
-    assert(n->type == TB_REGION || n->type == TB_SELECT || n->type == TB_PHI);
-    int start = n->type == TB_REGION ? 0 : 1;
-    if (n->type == TB_SELECT) start = 2 ;
+    assert(n->type == TB_SELECT || n->type == TB_PHI);
+    int start = n->type == TB_SELECT ? 2 : 1;
 
     Lattice* l = lattice_universe_get(p, n->inputs[start]);
     FOREACH_N(i, start+1, n->input_count) {
-        l = lattice_meet(p, l, lattice_universe_get(p, n->inputs[i]), n->dt);
+        Lattice* edge = lattice_universe_get(p, n->inputs[i]);
+        if (edge == &TOP_IN_THE_SKY) { return &TOP_IN_THE_SKY; }
+
+        l = lattice_meet(p, l, edge, n->dt);
     }
+
     return l;
 }
 
@@ -340,7 +358,7 @@ TB_Node* tb_pass_gvn_node(TB_Function* f, TB_Node* n) {
 TB_Node* tb__gvn(TB_Function* f, TB_Node* n, size_t extra) {
     // try GVN, if we succeed, just delete the node and use the old copy
     TB_Node* k = nl_hashset_put2(&f->gvn_nodes, n, gvn_hash, gvn_compare);
-    if (k != NULL) {
+    if (k && k != n) {
         // remove users
         FOREACH_REVERSE_N(i, 0, n->input_count) {
             User* u = remove_user(n, i);
@@ -385,7 +403,7 @@ TB_Node* make_int_node(TB_Function* f, TB_Passes* restrict p, TB_DataType dt, ui
 }
 
 TB_Node* dead_node(TB_Function* f, TB_Passes* p) {
-    TB_Node* n = tb_alloc_node(f, TB_DEAD, TB_TYPE_CONTROL, 1, 0);
+    TB_Node* n = tb_alloc_node(f, TB_DEAD, TB_TYPE_VOID, 1, 0);
     set_input(f, n, f->root_node, 0);
     lattice_universe_map(p, n, &XCTRL_IN_THE_SKY);
     return tb__gvn(f, n, 0);
@@ -410,7 +428,7 @@ static void remove_input(TB_Function* f, TB_Node* n, size_t i) {
 }
 
 void tb_pass_kill_node(TB_Function* f, TB_Node* n) {
-    // remove from CSE if we're murdering it
+    // remove from GVN if we're murdering it
     nl_hashset_remove2(&f->gvn_nodes, n, gvn_hash, gvn_compare);
 
     FOREACH_N(i, 0, n->input_count) {
@@ -628,10 +646,6 @@ static TB_Node* try_as_const(TB_Passes* restrict p, TB_Node* n, Lattice* l) {
         case LATTICE_NULL:
         return make_int_node(p->f, p, n->dt, 0);
 
-        case LATTICE_PTR: {
-            return make_int_node(p->f, p, n->dt, 0);
-        }
-
         case LATTICE_TUPLE: {
             if (n->type != TB_BRANCH) return NULL;
 
@@ -649,13 +663,22 @@ static TB_Node* try_as_const(TB_Passes* restrict p, TB_Node* n, Lattice* l) {
                 TB_Node* dead = dead_node(p->f, p);
                 TB_Node* ctrl = n->inputs[0];
 
+                NL_ChunkedArr projs = nl_chunked_arr_alloc(tmp_arena);
                 FOR_USERS(u, n) {
                     if (u->n->type == TB_PROJ) {
-                        int index = TB_NODE_GET_EXTRA_T(n, TB_NodeProj)->index;
-                        TB_Node* in = l->elems[index] == &CTRL_IN_THE_SKY ? ctrl : dead;
-                        subsume_node(p->f, u->n, ctrl);
+                        nl_chunked_arr_put(&projs, u->n);
                     }
                 }
+
+                for (NL_ArrChunk* restrict chk = projs.first; chk; chk = chk->next) {
+                    FOREACH_N(i, 0, chk->count) {
+                        TB_Node* proj = chk->elems[i];
+                        int index = TB_NODE_GET_EXTRA_T(proj, TB_NodeProj)->index;
+                        TB_Node* in = l->elems[index] == &CTRL_IN_THE_SKY ? ctrl : dead;
+                        subsume_node(p->f, proj, in);
+                    }
+                }
+                nl_chunked_arr_reset(&projs);
 
                 // no more projections, kill the branch
                 tb_pass_kill_node(p->f, n);
@@ -680,20 +703,21 @@ static void validate_node_users(TB_Node* n) {
 
 static void print_lattice(Lattice* l, TB_DataType dt) {
     switch (l->tag) {
-        case LATTICE_BOT: printf("[bot]"); break;
-        case LATTICE_TOP: printf("[top]"); break;
+        case LATTICE_BOT: printf("bot"); break;
+        case LATTICE_TOP: printf("top"); break;
 
-        case LATTICE_CTRL:  printf("[ctrl]"); break;
-        case LATTICE_XCTRL: printf("[~ctrl]"); break;
+        case LATTICE_CTRL:  printf("ctrl"); break;
+        case LATTICE_XCTRL: printf("~ctrl"); break;
 
-        case LATTICE_FLOAT32: printf("[f32]"); break;
-        case LATTICE_FLOAT64: printf("[f64]"); break;
+        case LATTICE_FLOAT32: printf("f32"); break;
+        case LATTICE_FLOAT64: printf("f64"); break;
 
-        case LATTICE_NULL:  printf("[null]"); break;
-        case LATTICE_XNULL: printf("[~null]"); break;
-        case LATTICE_PTR:   printf("[%s]", l->_ptr.sym->name); break;
+        case LATTICE_NULL:   printf("null"); break;
+        case LATTICE_XNULL:  printf("~null"); break;
+        case LATTICE_ALLPTR: printf("ptr"); break;
+        case LATTICE_PTRCON: printf("%s", l->_ptr.sym->name); break;
 
-        case LATTICE_MEM:   printf("mem[%d]", l->_mem.alias_idx); break;
+        case LATTICE_MEM:   printf("$mem%d", l->_mem.alias_idx); break;
 
         case LATTICE_TUPLE: {
             printf("[");
@@ -707,18 +731,28 @@ static void print_lattice(Lattice* l, TB_DataType dt) {
         case LATTICE_INT: {
             assert(dt.type == TB_INT);
             if (l->_int.min == l->_int.max) {
-                printf("[%"PRId64, tb__sxt(l->_int.min, dt.data, 64));
-            } else if (l->_int.min > l->_int.max) {
-                printf("[%"PRId64",%"PRId64, tb__sxt(l->_int.min, dt.data, 64), tb__sxt(l->_int.max, dt.data, 64));
+                printf("%"PRId64, tb__sxt(l->_int.min, dt.data, 64));
+            } else if (l->_int.min == 0 && l->_int.max == UINT8_MAX) {
+                printf("u8");
+            } else if (l->_int.min == 0 && l->_int.max == UINT16_MAX) {
+                printf("u16");
+            } else if (l->_int.min == 0 && l->_int.max == UINT32_MAX) {
+                printf("u32");
+            } else if (l->_int.min == 0 && l->_int.max == UINT64_MAX) {
+                printf("u64");
             } else {
-                printf("[%"PRIu64",%"PRIu64, l->_int.min, l->_int.max);
-            }
+                if (l->_int.min > l->_int.max) {
+                    printf("[%"PRId64",%"PRId64, tb__sxt(l->_int.min, dt.data, 64), tb__sxt(l->_int.max, dt.data, 64));
+                } else {
+                    printf("[%"PRIu64",%"PRIu64, l->_int.min, l->_int.max);
+                }
 
-            uint64_t known = l->_int.known_zeros | l->_int.known_ones;
-            if (known && known != UINT64_MAX) {
-                printf("; zeros=%#"PRIx64", ones=%#"PRIx64, l->_int.known_zeros, l->_int.known_ones);
+                uint64_t known = l->_int.known_zeros | l->_int.known_ones;
+                if (known && known != UINT64_MAX) {
+                    printf("; zeros=%#"PRIx64", ones=%#"PRIx64, l->_int.known_zeros, l->_int.known_ones);
+                }
+                printf("]");
             }
-            printf("]");
             break;
         }
 
@@ -760,7 +794,7 @@ TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
     }
 
     // generate fancier type (SCCP)
-    if (n->dt.type != TB_MEMORY) {
+    {
         Lattice* new_type = sccp(p, n);
 
         // no type provided? just make a not-so-form fitting bottom type
@@ -770,7 +804,7 @@ TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
         }
 
         // print fancy type
-        DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[93m"), print_lattice(new_type, n->dt), printf("\x1b[0m"));
+        DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[93m["), print_lattice(new_type, n->dt), printf("]\x1b[0m"));
 
         // types that consist of one possible value are made into value constants.
         k = try_as_const(p, n, new_type);
@@ -1087,9 +1121,11 @@ void dummy_interp(TB_Passes* p) {
 void tb_pass_optimize(TB_Passes* p) {
     tb_pass_peephole(p);
     tb_pass_split_locals(p);
-    tb_pass_peephole(p);
     tb_pass_loop(p);
     tb_pass_peephole(p);
+
+    /* tb_pass_peephole(p);
+    tb_pass_peephole(p); */
 
     // tb_pass_print(p);
     // dummy_interp(p);
@@ -1129,6 +1165,7 @@ void tb_pass_prep(TB_Passes* p) {
             nl_hashset_put2(&p->type_interner, &XCTRL_IN_THE_SKY, lattice_hash, lattice_cmp);
             nl_hashset_put2(&p->type_interner, &NULL_IN_THE_SKY,  lattice_hash, lattice_cmp);
             nl_hashset_put2(&p->type_interner, &XNULL_IN_THE_SKY, lattice_hash, lattice_cmp);
+            nl_hashset_put2(&p->type_interner, &PTR_IN_THE_SKY,   lattice_hash, lattice_cmp);
             nl_hashset_put2(&p->type_interner, &FALSE_IN_THE_SKY, lattice_hash, lattice_cmp);
             nl_hashset_put2(&p->type_interner, &TRUE_IN_THE_SKY,  lattice_hash, lattice_cmp);
 
@@ -1266,11 +1303,16 @@ static SCCNode* scc_walk(SCC* restrict scc, TB_Function* f) {
 }
 
 void tb_module_prepare_ipo(TB_Module* m) {
+}
+
+static void inline_into(TB_Arena* arena, TB_Function* f, TB_Node* call_site, TB_Function* kid);
+bool tb_module_ipo(TB_Module* m) {
     SCC scc = { 0 };
     scc.arena    = get_temporary_arena(m);
     scc.fn_count = m->symbol_count[TB_SYMBOL_FUNCTION];
     scc.ws       = tb_arena_alloc(scc.arena, scc.fn_count * sizeof(TB_Function*));
 
+    #if 0
     CUIK_TIMED_BLOCK("build SCC") {
         TB_ArenaSavepoint sp = tb_arena_save(scc.arena);
         scc.stk      = tb_arena_alloc(scc.arena, scc.fn_count * sizeof(TB_Function*));
@@ -1298,6 +1340,8 @@ void tb_module_prepare_ipo(TB_Module* m) {
     }
 
     // we've got our bottom up ordering on the worklist... start trying to inline callsites
+    bool progress = false;
+
     TB_OPTDEBUG(INLINE)(printf("BOTTOM-UP ORDER:\n"));
     FOREACH_N(i, 0, scc.ws_cnt) {
         TB_Function* f = scc.ws[i];
@@ -1308,14 +1352,105 @@ void tb_module_prepare_ipo(TB_Module* m) {
         FOREACH_N(i, 1, callgraph->input_count) {
             TB_Node* call = callgraph->inputs[i];
             TB_Function* target = static_call_site(call);
-            if (target != NULL) {
-                TB_OPTDEBUG(INLINE)(printf("  -> %s (from v%u)\n", target->super.name, call->gvn));
+            if (target == NULL) {
+                continue;
+            }
+
+            // TODO(NeGate): do some heuristics on inlining
+            TB_OPTDEBUG(INLINE)(printf("  -> %s (from v%u)\n", target->super.name, call->gvn));
+            /* inline_into(scc.arena, f, call, target);
+            progress = true; */
+        }
+    }
+    return progress;
+    #else
+    return false;
+    #endif
+}
+
+static TB_Node* inline_clone_node(TB_Function* f, TB_Node* call_site, TB_Node** clones, TB_Node* n) {
+    // special case
+    if (n->type == TB_PROJ && n->inputs[0]->type == TB_ROOT) {
+        // this is a parameter, just hook it directly to the inputs of
+        // the callsite.
+        int index = TB_NODE_GET_EXTRA_T(n, TB_NodeProj)->index;
+        if (index >= 3) {
+            clones[n->gvn] = call_site->inputs[index + 1];
+        } else {
+            clones[n->gvn] = call_site->inputs[index];
+        }
+
+        assert(clones[n->gvn]);
+        return clones[n->gvn];
+    } else if (clones[n->gvn] != NULL) {
+        return clones[n->gvn];
+    }
+
+    size_t extra = extra_bytes(n);
+    TB_Node* cloned = tb_alloc_node(f, n->type, n->dt, n->input_count, extra);
+
+    // clone extra data (i hope it's that easy lol)
+    memcpy(cloned->extra, n->extra, extra);
+    clones[n->gvn] = cloned;
+
+    // fill cloned edges
+    FOREACH_N(i, 0, n->input_count) if (n->inputs[i]) {
+        TB_Node* in = inline_clone_node(f, call_site, clones, n->inputs[i]);
+
+        cloned->inputs[i] = in;
+        add_user(f, cloned, in, i, NULL);
+    }
+
+    #if TB_OPTDEBUG_INLINE
+    printf("CLONE: ");
+    print_node_sexpr(n, 0);
+    printf(" => ");
+    print_node_sexpr(cloned, 0);
+    printf("\n");
+    #endif
+
+    return cloned;
+
+    /*TB_Node* k = tb__gvn(f, cloned, extra);
+    if (k != cloned) {
+        #if TB_OPTDEBUG_INLINE
+        printf(" => GVN");
+        #endif
+    }
+    printf("\n");
+    return  = cloned;*/
+}
+
+static void inline_into(TB_Arena* arena, TB_Function* f, TB_Node* call_site, TB_Function* kid) {
+    TB_ArenaSavepoint sp = tb_arena_save(arena);
+    TB_Node** clones = tb_arena_alloc(arena, kid->node_count * sizeof(TB_Node*));
+    memset(clones, 0, kid->node_count * sizeof(TB_Node*));
+
+    // find all nodes
+    Worklist ws = { 0 };
+    worklist_alloc(&ws, kid->node_count);
+    {
+        worklist_test_n_set(&ws, kid->root_node);
+        dyn_array_put(ws.items, kid->root_node);
+
+        for (size_t i = 0; i < dyn_array_length(ws.items); i++) {
+            TB_Node* n = ws.items[i];
+
+            FOR_USERS(u, n) {
+                TB_Node* out = u->n;
+                if (!worklist_test_n_set(&ws, out)) {
+                    dyn_array_put(ws.items, out);
+                }
             }
         }
     }
 
+    // clone all nodes in kid into f (GVN while we're at it)
+    FOREACH_REVERSE_N(i, 0, dyn_array_length(ws.items)) {
+        inline_clone_node(f, call_site, clones, ws.items[i]);
+    }
+
+    tb_todo();
+    tb_arena_restore(arena, sp);
 }
 
-bool tb_module_ipo(TB_Module* m) {
-    return false;
-}

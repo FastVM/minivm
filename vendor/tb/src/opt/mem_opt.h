@@ -157,10 +157,6 @@ static TB_Node* ideal_store(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     return NULL;
 }
 
-static TB_Node* ideal_root(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
-    return NULL;
-}
-
 static bool is_cool(uint64_t x) { return x == 1 || x == 2 || x == 4 || x == 8; }
 static TB_Node* ideal_memset(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     // convert small memsets into stores

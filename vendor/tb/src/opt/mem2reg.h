@@ -287,7 +287,7 @@ static void expunge(TB_Function* f, TB_Node* n) {
     tb_pass_kill_node(f, n);
 }
 
-void tb_pass_split_locals(TB_Passes* p) {
+bool tb_pass_split_locals(TB_Passes* p) {
     TB_Function* f = p->f;
 
     assert(dyn_array_length(p->worklist.items) == 0);
@@ -314,7 +314,7 @@ void tb_pass_split_locals(TB_Passes* p) {
     }
 
     if (dyn_array_length(p->worklist.items) == 0) {
-        return;
+        return false;
     }
 
     // locals + root mem
@@ -335,7 +335,7 @@ void tb_pass_split_locals(TB_Passes* p) {
 
     // new final memory node
     TB_Node* merge = tb_alloc_node(f, TB_MERGEMEM, TB_TYPE_MEMORY, 2 + ctx.alias_cnt, 0);
-    set_input(f, merge, f->root_node->inputs[0], 0);
+    set_input(f, merge, f->ret_node->inputs[0], 0);
 
     // new initial memory node
     TB_Node* split = tb_alloc_node(f, TB_SPLITMEM, TB_TYPE_TUPLE, 2, sizeof(TB_NodeMemSplit) + ctx.alias_cnt*sizeof(int));
@@ -358,8 +358,8 @@ void tb_pass_split_locals(TB_Passes* p) {
     // stitch memory effects
     subsume_node2(f, f->params[1], ctx.projs[0]);
     set_input(f, split, f->params[1], 1);
-    set_input(f, merge, f->root_node->inputs[1], 2);
-    set_input(f, f->root_node, merge, 1);
+    set_input(f, merge, f->ret_node->inputs[1], 2);
+    set_input(f, f->ret_node, merge, 1);
 
     // walk from the last memory effect until the next phi node.
     TB_Node* first_mem = next_mem_user(ctx.projs[0]);
@@ -390,4 +390,10 @@ void tb_pass_split_locals(TB_Passes* p) {
         expunge(f, addr);
         set_input(f, merge, ctx.projs[i], 2+i);
     }
+
+    tb_pass_mark(p, merge);
+    tb_pass_mark_users(p, merge);
+
+    tb_pass_peephole(p);
+    return true;
 }

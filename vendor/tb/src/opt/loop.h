@@ -29,7 +29,9 @@ static TB_Node* loop_clone_node(TB_Passes* restrict p, TB_Function* f, TB_Node* 
             add_user(f, cloned, in, i, NULL);
         }
 
-        cloned = tb__gvn(f, cloned, extra);
+        if (n->inputs[0]) {
+            cloned = tb__gvn(f, cloned, extra);
+        }
     }
 
     #if TB_OPTDEBUG_LOOP

@@ -208,8 +208,8 @@ static TB_SectionGroup sdg_generate_debug_info(TB_Module* m, TB_Arena* arena) {
 
     tb_arena_restore(arena, sp);
 
-    sections[0].raw_data = (TB_Slice){ symtab.count, symtab.data };
-    sections[1].raw_data = (TB_Slice){ types.e.count, types.e.data };
+    sections[0].raw_data = (TB_Slice){ symtab.data, symtab.count };
+    sections[1].raw_data = (TB_Slice){ types.e.data, types.e.count };
     return (TB_SectionGroup) { 2, sections };
 }
 

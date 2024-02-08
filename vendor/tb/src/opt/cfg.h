@@ -37,7 +37,7 @@ static Block* create_block(TB_Arena* arena, TB_Node* bb) {
 
     TB_Node* end = end_of_bb(bb);
     size_t succ_count = end->type == TB_BRANCH ? TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->succ_count : 1;
-    if (end->type == TB_ROOT) {
+    if (cfg_is_endpoint(end)) {
         succ_count = 0;
     }
 
@@ -56,9 +56,7 @@ static Block* create_block(TB_Arena* arena, TB_Node* bb) {
                 top->succ[index] = cfg_next_bb_after_cproj(u->n);
             }
         }
-    } else if (end->type == TB_ROOT) {
-        // no successors
-    } else {
+    } else if (!cfg_is_endpoint(end)) {
         top->succ[0] = cfg_next_user(end)->n;
     }
 

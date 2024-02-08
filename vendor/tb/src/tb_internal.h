@@ -69,13 +69,6 @@ for (uint64_t _bits_ = (bits), it = (start); _bits_; _bits_ >>= 1, ++it) if (_bi
 #include <threads.h>
 #include <stdatomic.h>
 
-// Per-thread
-#ifndef TB_TEMPORARY_STORAGE_SIZE
-#define TB_TEMPORARY_STORAGE_SIZE (1 << 20)
-#endif
-
-#define CODE_REGION_BUFFER_SIZE (32 * 1024 * 1024)
-
 typedef struct TB_Emitter {
     size_t capacity, count;
     uint8_t* data;
@@ -283,6 +276,8 @@ struct TB_Function {
     TB_Arena* arena;
     size_t node_count;
 
+    TB_Node* ret_node; // ir building crap
+
     TB_Node* root_node;
     TB_Trace trace;
 
@@ -333,7 +328,7 @@ typedef struct {
 
 // only next_in_module is ever mutated on multiple threads (when first attached)
 struct TB_ThreadInfo {
-    TB_Module* owner;
+    void* owner;
     _Atomic(TB_ThreadInfo*) next_in_module;
 
     TB_ThreadInfo* prev;
@@ -361,6 +356,7 @@ typedef struct {
 
 struct TB_Module {
     bool is_jit;
+    bool visited; // used by the linker
     ICodeGen* codegen;
 
     atomic_flag is_tls_defined;
@@ -387,6 +383,7 @@ struct TB_Module {
     TB_Symbol* tls_index_extern;
     TB_Symbol* chkstk_extern;
 
+    _Atomic uint32_t uses_chkstk;
     _Atomic uint32_t compiled_function_count;
     _Atomic uint32_t symbol_count[TB_SYMBOL_MAX];
 
@@ -582,10 +579,10 @@ static bool is_same_location(TB_Location* a, TB_Location* b) {
     return a->file == b->file && a->line == b->line && a->column == b->column;
 }
 
-static TB_Arena* get_temporary_arena(TB_Module* m) {
-    return tb_thread_info(m)->tmp_arena;
+static TB_Arena* get_temporary_arena(TB_Module* key) {
+    return tb_thread_info(key)->tmp_arena;
 }
 
-static TB_Arena* get_permanent_arena(TB_Module* m) {
-    return tb_thread_info(m)->perm_arena;
+static TB_Arena* get_permanent_arena(TB_Module* key) {
+    return tb_thread_info(key)->perm_arena;
 }

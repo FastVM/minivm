@@ -14,6 +14,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_UNREACHABLE: return "unreachable";
 
         case TB_ROOT:   return "root";
+        case TB_RETURN: return "return";
         case TB_PROJ:   return "proj";
         case TB_REGION: return "region";
         case TB_CALLGRAPH: return "callgraph";

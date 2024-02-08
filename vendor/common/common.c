@@ -22,6 +22,9 @@
 #define LOG_USE_COLOR
 #include "log.c"
 
+#define NL_BUFFER_IMPL
+#include <buffer.h>
+
 #include "perf.h"
 
 uint64_t cuik__page_size = 0;
@@ -94,11 +97,13 @@ TB_Arena* tb_arena_create(size_t chunk_size) {
 }
 
 void tb_arena_destroy(TB_Arena* restrict arena) {
-    TB_ArenaChunk* c = arena->base;
-    while (c != NULL) {
-        TB_ArenaChunk* next = c->next;
-        cuik__vfree(c, arena->chunk_size);
-        c = next;
+    if (arena) {
+        TB_ArenaChunk* c = arena->base;
+        while (c != NULL) {
+            TB_ArenaChunk* next = c->next;
+            cuik__vfree(c, arena->chunk_size);
+            c = next;
+        }
     }
 }
 

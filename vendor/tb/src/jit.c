@@ -39,6 +39,7 @@ struct TB_JIT {
     size_t capacity;
     mtx_t lock;
     NL_Strmap(void*) loaded_funcs;
+
     DynArray(TB_Breakpoint) breakpoints;
     DynArray(Tag) tags;
 
@@ -49,7 +50,7 @@ static const char* prot_names[] = {
     "RO", "RW", "RX", "RXW",
 };
 
-static void tb_jit_insert_sym(TB_JIT* jit, void* ptr, void* tag) {
+void tb_jit_tag_object(TB_JIT* jit, void* ptr, void* tag) {
     assert(tag);
     uint32_t offset = (char*) ptr - (char*) jit;
 
@@ -64,9 +65,10 @@ static void tb_jit_insert_sym(TB_JIT* jit, void* ptr, void* tag) {
     jit->tags[i] = (Tag){ offset, tag };
 }
 
-TB_ResolvedAddr tb_jit_addr2sym(TB_JIT* jit, void* ptr) {
+void* tb_jit_resolve_addr(TB_JIT* jit, void* ptr, uint32_t* out_offset) {
     mtx_lock(&jit->lock);
-    uint32_t offset = (char*) ptr - (char*) jit;
+    ptrdiff_t offset = (char*) ptr - (char*) jit;
+    if (offset < 0 || offset >= jit->capacity) goto bad;
 
     size_t left = 0;
     size_t right = dyn_array_length(jit->tags);
@@ -83,60 +85,15 @@ TB_ResolvedAddr tb_jit_addr2sym(TB_JIT* jit, void* ptr) {
     }
 
     size_t i = right - 1;
-    TB_Symbol* s = tags[i].v;
-    if (s->tag == TB_SYMBOL_FUNCTION) {
-        // check if we're in bounds for the leftmost option
-        TB_Function* f = (TB_Function*) s;
-        uint32_t end = tags[i].k + f->output->code_size;
-        if (offset >= end) goto bad;
-
-        mtx_unlock(&jit->lock);
-        return (TB_ResolvedAddr){ s, offset - tags[i].k };
-    }
+    *out_offset = offset - tags[i].k;
+    return tags[i].v;
 
     bad:
     mtx_unlock(&jit->lock);
-    return (TB_ResolvedAddr){ 0 };
+    return NULL;
 }
 
-static TB_ResolvedLine jit__addr2line(TB_JIT* jit, TB_ResolvedAddr addr) {
-    TB_Function* f = (TB_Function*) addr.base;
-    DynArray(TB_Location) locs = f->output->locations;
-    if (dyn_array_length(locs) == 0) {
-        return (TB_ResolvedLine){ 0 };
-    }
-
-    // find cool line
-    size_t left = 0;
-    size_t right = dyn_array_length(locs);
-    while (left < right) {
-        size_t middle = (left + right) / 2;
-        if (locs[middle].pos > addr.offset) {
-            right = middle;
-        } else {
-            left = middle + 1;
-        }
-    }
-
-    uint32_t start = locs[right - 1].pos;
-    uint32_t end = f->output->code_size;
-    if (right < dyn_array_length(locs)) {
-        end = locs[right].pos;
-    }
-
-    return (TB_ResolvedLine){ f, &locs[right - 1], start, end };
-}
-
-TB_ResolvedLine tb_jit_addr2line(TB_JIT* jit, void* ptr) {
-    TB_ResolvedAddr addr = tb_jit_addr2sym(jit, ptr);
-    if (addr.base == NULL || addr.base->tag != TB_SYMBOL_FUNCTION) {
-        return (TB_ResolvedLine){ 0 };
-    }
-
-    return jit__addr2line(jit, addr);
-}
-
-static void* tb_jit_alloc_obj(TB_JIT* jit, void* tag, size_t size, size_t align) {
+void* tb_jit_alloc_obj(TB_JIT* jit, size_t size, size_t align) {
     mtx_lock(&jit->lock);
     size = (size + ALLOC_GRANULARITY - 1) & ~(ALLOC_GRANULARITY - 1);
 
@@ -161,10 +118,6 @@ static void* tb_jit_alloc_obj(TB_JIT* jit, void* tag, size_t size, size_t align)
             } else {
                 // take entire piece
                 l->size |= 1;
-            }
-
-            if (tag) {
-                tb_jit_insert_sym(jit, l->data, tag);
             }
 
             mtx_unlock(&jit->lock);
@@ -192,6 +145,12 @@ static void* tb_jit_alloc_obj(TB_JIT* jit, void* tag, size_t size, size_t align)
     return NULL;
 }
 
+void tb_jit_free_obj(TB_JIT* jit, void* ptr) {
+    FreeList* obj = ((FreeList*) ptr) - 1;
+    assert(obj->cookie == ALLOC_COOKIE);
+    obj->size &= ~1;
+}
+
 void tb_jit_dump_heap(TB_JIT* jit) {
     mtx_lock(&jit->lock);
 
@@ -207,10 +166,8 @@ void tb_jit_dump_heap(TB_JIT* jit) {
             printf("* ALLOC [%p %u", l->data, l->size >> 1);
 
             // found the next tag here
-            TB_Symbol* s = NULL;
             if (tag < tag_count && l->data == &base[jit->tags[tag].k]) {
-                s = jit->tags[tag].v;
-                printf(" TAG=%s", s->name);
+                printf(" TAG=%p", jit->tags[tag].v);
                 tag += 1;
             }
 
@@ -224,10 +181,6 @@ void tb_jit_dump_heap(TB_JIT* jit) {
         l = next;
     }
     mtx_unlock(&jit->lock);
-}
-
-void tb_jit_free_obj(TB_JIT* jit, void* ptr, size_t s) {
-    tb_todo();
 }
 
 static void* get_proc(TB_JIT* jit, const char* name) {
@@ -277,7 +230,7 @@ void* tb_jit_place_function(TB_JIT* jit, TB_Function* f) {
     }
 
     // copy machine code
-    char* dst = tb_jit_alloc_obj(jit, f, func_out->code_size, 16);
+    char* dst = tb_jit_alloc_obj(jit, func_out->code_size, 16);
     memcpy(dst, func_out->code, func_out->code_size);
     f->compiled_pos = dst;
 
@@ -312,7 +265,7 @@ void* tb_jit_place_function(TB_JIT* jit, TB_Function* f) {
                 memcpy(dst + actual_pos, &rel32, sizeof(int32_t));
             } else {
                 // generate thunk to make far call
-                char* thunk = tb_jit_alloc_obj(jit, NULL, 6 + sizeof(void*), 1);
+                char* thunk = tb_jit_alloc_obj(jit, 6 + sizeof(void*), 1);
                 thunk[0] = 0xFF; // jmp qword [rip]
                 thunk[1] = 0x25;
                 thunk[2] = 0x00;
@@ -347,7 +300,7 @@ void* tb_jit_place_global(TB_JIT* jit, TB_Global* g) {
         return g->address;
     }
 
-    char* data = tb_jit_alloc_obj(jit, g, g->size, g->align);
+    char* data = tb_jit_alloc_obj(jit, g->size, g->align);
     g->address = data;
 
     log_debug("jit: apply global %s (%p)", g->super.name ? g->super.name : "<unnamed>", data);
@@ -401,178 +354,116 @@ void* tb_jit_get_code_ptr(TB_Function* f) {
 ////////////////////////////////
 #if defined(CUIK__IS_X64) && defined(_WIN32)
 struct TB_CPUContext {
-    // we'll need this to track breakpoints once we hit
-    // them (not all INT3s are breakpoints, some are user
-    // made)
+    // used for stack crawling
+    void* pc;
+    void* sp;
+
+    void* old_sp;
+    void* except;
+
     TB_JIT* jit;
-    volatile bool done;
+    size_t ud_size;
+
+    volatile bool interrupted;
     volatile bool running;
 
     CONTEXT cont;
     CONTEXT state;
+
+    // safepoint page
+    _Alignas(4096) char poll_site[4096];
+
+    char user_data[];
 };
 
-TB_CPUContext* tb_jit_thread_create(void* entry, void* arg) {
-    void* stack = tb_jit_stack_create();
+typedef struct {
+    // win64: rcx rdx r8  r9
+    // sysv:  rdi rsi rdx rcx r8 r9
+    uint64_t gprs[6];
+} X64Params;
 
-    CONTEXT base;
-    RtlCaptureContext(&base);
+// win64 trampoline ( sp pc params ctx -- rax )
+__declspec(allocate(".text")) __declspec(align(16))
+static const uint8_t tb_jit__trampoline[] = {
+    // save old SP, we'll come back for it later
+    0x49, 0x89, 0x61, 0x10,                   // mov [r9 + 0x10], rsp
+    // use new SP
+    0x48, 0x89, 0xCC,                         // mov rsp, rcx
+    // shuffle some params into win64 volatile regs
+    0x48, 0x89, 0xD0,                         // mov rax, rdx
+    0x4D, 0x89, 0xC2,                         // mov r10, r8
+    // fill GPR params
+    0x49, 0x8B, 0x4A, 0x00,                   // mov rcx, [r10 + 0x00]
+    0x49, 0x8B, 0x52, 0x08,                   // mov rdx, [r10 + 0x08]
+    0x4D, 0x8B, 0x42, 0x10,                   // mov r8,  [r10 + 0x10]
+    0x4D, 0x8B, 0x4A, 0x18,                   // mov r9,  [r10 + 0x18]
+    0xFF, 0xD0,                               // call rax
+    // restore stack & return normally
+    0x48, 0x81, 0xE4, 0x00, 0x00, 0xE0, 0xFF, // and rsp, -0x200000
+    0x48, 0x8B, 0x64, 0x24, 0x10,             // mov rsp, [rsp + 0x10]
+    0xC3,                                     // ret
+};
 
-    TB_CPUContext* cpu = stack;
-    cpu->state = base;
-    cpu->state.Rip = (uint64_t) entry;
-    // enough room for a retaddr and the shadow space
-    cpu->state.Rsp = ((uint64_t) stack) + (STACK_SIZE - 40);
-    cpu->state.Rbp = 0;
-    cpu->state.Rcx = (uint64_t) arg;
+static LONG except_handler(EXCEPTION_POINTERS* e) {
+    TB_CPUContext* cpu = (TB_CPUContext*) (e->ContextRecord->Rsp & -STACK_SIZE);
+
+    // necessary for stack crawling later
+    cpu->pc = (void*) e->ContextRecord->Rip;
+    cpu->sp = (void*) e->ContextRecord->Rsp;
+    cpu->interrupted = true;
+    cpu->running = false;
+
+    switch (e->ExceptionRecord->ExceptionCode) {
+        case EXCEPTION_GUARD_PAGE: {
+            if (e->ExceptionRecord->ExceptionInformation[1] == (uintptr_t) &cpu->poll_site[0]) {
+                return EXCEPTION_CONTINUE_SEARCH;
+            }
+
+            // we hit a safepoint poll
+            void* pc = (void*) e->ContextRecord->Rip;
+            // TB_* sp = nl_table_get(cpu->safepoints, pc);
+
+            // TODO(NeGate): copy values out of the regs/stk
+            break;
+        }
+
+        case EXCEPTION_ACCESS_VIOLATION: {
+            // TODO(NeGate): NULLchk segv
+            // void* accessed = (void*) e->ExceptionRecord->ExceptionInformation[1];
+            printf("PAUSE RIP=%p\n", cpu->pc);
+            break;
+        }
+
+        case EXCEPTION_BREAKPOINT:
+        case EXCEPTION_SINGLE_STEP:
+        cpu->state = *e->ContextRecord;
+        break;
+
+        default:
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+
+    // jump out of the JIT
+    *e->ContextRecord = cpu->cont;
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+
+TB_CPUContext* tb_jit_thread_create(TB_JIT* jit, size_t ud_size) {
+    TB_CPUContext* cpu = tb_jit_stack_create();
+    cpu->ud_size = ud_size;
+    cpu->jit = jit;
+    cpu->except = AddVectoredExceptionHandler(1, except_handler);
+    memset(cpu->user_data, 0, ud_size);
     return cpu;
 }
 
-static LONG except_handler(EXCEPTION_POINTERS* e) {
-    // find breakpoints
-    if (e->ExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT ||
-        e->ExceptionRecord->ExceptionCode == EXCEPTION_ILLEGAL_INSTRUCTION ||
-        e->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP) {
-        TB_CPUContext* cpu = (TB_CPUContext*) (e->ContextRecord->Rsp & -(STACK_SIZE));
-        if (e->ExceptionRecord->ExceptionCode == EXCEPTION_ILLEGAL_INSTRUCTION) {
-            cpu->done = true;
-        }
-        cpu->running = false;
-        cpu->state = *e->ContextRecord;
-        *e->ContextRecord = cpu->cont;
-        return EXCEPTION_CONTINUE_EXECUTION;
-    }
+void* tb_jit_thread_pc(TB_CPUContext* cpu) { return cpu->pc; }
+void* tb_jit_thread_sp(TB_CPUContext* cpu) { return cpu->sp; }
 
-    return EXCEPTION_CONTINUE_SEARCH;
-}
+size_t tb_jit_thread_pollsite(void) { return offsetof(TB_CPUContext, poll_site); }
 
-// I do love frame pointers
-typedef struct X86_StackFrame X86_StackFrame;
-struct X86_StackFrame {
-    X86_StackFrame* rbp;
-    void* rip;
-};
-
-static void tb_dump_stack_entry(TB_JIT* jit, TB_CPUContext* cpu, TB_ResolvedAddr addr, void* rpc) {
-    if (addr.base != NULL) {
-        assert(addr.base->tag == TB_SYMBOL_FUNCTION);
-
-        TB_ResolvedLine loc = jit__addr2line(jit, addr);
-        if (loc.loc) {
-            printf("* %s -- %s:%d", addr.base->name, loc.loc->file->path, loc.loc->line);
-        } else {
-            printf("* %s", addr.base->name);
-        }
-    } else {
-        printf("* UNKNOWN? %p", rpc);
-    }
-    printf("\n");
-}
-
-void tb_jit_thread_dump_stack(TB_JIT* jit, TB_CPUContext* cpu) {
-    void* rpc = tb_jit_thread_pc(cpu);
-    TB_ResolvedAddr addr = tb_jit_addr2sym(jit, rpc);
-    if (addr.base == NULL) {
-        return;
-    }
-
-    assert(addr.base->tag == TB_SYMBOL_FUNCTION);
-
-    printf("== CALL STACK ==\n");
-    tb_dump_stack_entry(jit, cpu, addr, rpc);
-
-    // first stack frame might be mid-construction so we
-    // need to accomodate when reading the RPC or SP
-    TB_Function* f = (TB_Function*) addr.base;
-    X86_StackFrame* stk = (X86_StackFrame*) cpu->state.Rbp;
-    if (addr.offset < f->output->prologue_length) {
-        rpc = ((void**) cpu->state.Rsp)[0];
-    } else {
-        rpc = stk->rip;
-        stk = stk->rbp;
-    }
-
-    while (stk) {
-        TB_ResolvedAddr addr = tb_jit_addr2sym(jit, rpc);
-        tb_dump_stack_entry(jit, cpu, addr, rpc);
-
-        // previous frame
-        rpc = stk->rip;
-        stk = stk->rbp;
-    }
-}
-
-static void jit__step(TB_JIT* jit, TB_CPUContext* cpu, bool step) {
-    // install breakpoints
-    const uint8_t* rip = (const uint8_t*) cpu->state.Rip;
-    dyn_array_for(i, jit->breakpoints) {
-        uint8_t* code = jit->breakpoints[i].pos;
-        if (code != rip) {
-            jit->breakpoints[i].prev_byte = *code;
-            *code = 0xCC;
-        }
-    }
-
-    // enable trap flag for single-stepping
-    if (step) {
-        cpu->state.EFlags |= 0x100;
-    } else {
-        cpu->state.EFlags &= ~0x100;
-    }
-
-    // save our precious restore point
-    cpu->running = true;
-    cpu->state.ContextFlags = 0x10000f;
-    RtlCaptureContext(&cpu->cont);
-    if (cpu->running) {
-        RtlRestoreContext(&cpu->state, NULL);
-    }
-
-    // uninstall breakpoints
-    dyn_array_for(i, jit->breakpoints) {
-        uint8_t* code = jit->breakpoints[i].pos;
-        *code = jit->breakpoints[i].prev_byte;
-    }
-}
-
-bool tb_jit_thread_resume(TB_JIT* jit, TB_CPUContext* cpu, TB_DbgStep step) {
-    // install exception handler, then we can run code
-    void* handle = AddVectoredExceptionHandler(1, except_handler);
-    if (step == TB_DBG_LINE) {
-        TB_ResolvedLine l = tb_jit_addr2line(jit, tb_jit_thread_pc(cpu));
-
-        // make sure we skip all non-user code first, this is slow and annoying
-        while (l.f == NULL) {
-            jit__step(jit, cpu, true);
-            if (cpu->done) goto leave;
-
-            l = tb_jit_addr2line(jit, tb_jit_thread_pc(cpu));
-        }
-
-        uintptr_t start = ((uintptr_t) l.f->compiled_pos) + l.start;
-        uintptr_t range = l.end - l.start;
-
-        // keep stepping until we're out of the line
-        for (;;) {
-            jit__step(jit, cpu, true);
-            if (cpu->done) goto leave;
-
-            uintptr_t rip = (uintptr_t) tb_jit_thread_pc(cpu);
-            if (rip - start >= range) {
-                break;
-            }
-        }
-    } else {
-        jit__step(jit, cpu, step == TB_DBG_INST);
-    }
-
-    leave:
-    RemoveVectoredExceptionHandler(handle);
-    return !cpu->done;
-}
-
-void* tb_jit_thread_pc(TB_CPUContext* cpu) {
-    return (void*) cpu->state.Rip;
+void* tb_jit_thread_get_userdata(TB_CPUContext* cpu) {
+    return cpu->user_data;
 }
 
 void tb_jit_breakpoint(TB_JIT* jit, void* addr) {
@@ -584,5 +475,110 @@ void tb_jit_breakpoint(TB_JIT* jit, void* addr) {
     }
 
     dyn_array_put(jit->breakpoints, bp);
+}
+
+bool tb_jit_thread_step(TB_CPUContext* cpu, uint64_t* ret, uintptr_t pc_start, uintptr_t pc_end) {
+    // step until we're out of the current PC region
+    DynArray(TB_Breakpoint) bp = cpu->jit->breakpoints;
+    uintptr_t rip = cpu->state.Rip;
+    while (rip >= pc_start && rip < pc_end) {
+        // printf("step %#"PRIxPTR" [%#"PRIxPTR" %#"PRIxPTR"]\n", rip, pc_start, pc_end);
+
+        // install breakpoints
+        dyn_array_for(i, bp) {
+            uint8_t* code = bp[i].pos;
+            if (code != (uint8_t*) rip) {
+                bp[i].prev_byte = *code;
+                *code = 0xCC;
+            }
+        }
+
+        // enable trap flag for single-stepping
+        cpu->state.EFlags |= 0x100;
+
+        // save our precious restore point
+        cpu->running = true;
+        cpu->state.ContextFlags = 0x10000f;
+        RtlCaptureContext(&cpu->cont);
+        if (cpu->running) {
+            RtlRestoreContext(&cpu->state, NULL);
+        }
+
+        // uninstall breakpoints
+        dyn_array_for(i, bp) {
+            uint8_t* code = bp[i].pos;
+            *code = bp[i].prev_byte;
+        }
+
+        rip = cpu->state.Rip;
+    }
+
+    uintptr_t t = (uintptr_t) &tb_jit__trampoline;
+    if ((rip - t) < sizeof(tb_jit__trampoline)) {
+        // we in the trampoline, read RAX for the return
+        *ret = cpu->state.Rax;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool tb_jit_thread_call(TB_CPUContext* cpu, void* pc, uint64_t* ret, size_t arg_count, void** args) {
+    // save our precious restore point
+    cpu->interrupted = false;
+    cpu->running = true;
+    RtlCaptureContext(&cpu->cont);
+
+    if (cpu->running) {
+        // continue in JITted code
+        X64Params params;
+
+        #ifdef _WIN32
+        enum { ABI_GPR_COUNT = 4 };
+        #else
+        enum { ABI_GPR_COUNT = 6 };
+        #endif
+
+        size_t i = 0;
+        for (; i < arg_count && i < ABI_GPR_COUNT; i++) {
+            memcpy(&params.gprs[i], &args[i], sizeof(uint64_t));
+        }
+
+        size_t stack_usage = 8 + align_up((arg_count > 0 && arg_count < 4 ? 4 : arg_count) * 8, 16);
+
+        // go to stack top (minus whatever alloc'd param space)
+        uint8_t* sp = (uint8_t*) cpu;
+        sp += 2*1024*1024;
+        sp -= stack_usage;
+
+        // fill param slots
+        for (; i < arg_count; i++) {
+            memcpy(&sp[i*8], &args[i], sizeof(uint64_t));
+        }
+
+        // install breakpoints
+        DynArray(TB_Breakpoint) bp = cpu->jit->breakpoints;
+        dyn_array_for(i, bp) {
+            uint8_t* code = bp[i].pos;
+            if (code != pc) {
+                bp[i].prev_byte = *code;
+                *code = 0xCC;
+            }
+        }
+
+        typedef uint64_t (*Trampoline)(void* sp, void* pc, X64Params* params, TB_CPUContext* cpu);
+        uint64_t r = ((Trampoline)tb_jit__trampoline)(sp, pc, &params, cpu);
+        if (ret) { *ret = r; }
+
+        // uninstall breakpoints
+        dyn_array_for(i, bp) {
+            uint8_t* code = bp[i].pos;
+            *code = bp[i].prev_byte;
+        }
+
+        cpu->running = false;
+    }
+
+    return cpu->interrupted;
 }
 #endif

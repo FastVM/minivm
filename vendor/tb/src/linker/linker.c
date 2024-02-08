@@ -59,74 +59,18 @@ TB_API TB_Linker* tb_linker_create(TB_ExecutableType exe, TB_Arch arch) {
     TB_Linker* l = tb_platform_heap_alloc(sizeof(TB_Linker));
     memset(l, 0, sizeof(TB_Linker));
     l->target_arch = arch;
-    l->messages = tb_platform_heap_alloc((1u << QEXP) * sizeof(TB_LinkerMsg));
 
-    l->symtab.exp = 24;
-    CUIK_TIMED_BLOCK("tb_platform_valloc") {
-        l->symtab.ht = tb_platform_valloc((1u << l->symtab.exp) * sizeof(TB_LinkerSymbol));
-    }
-
-    TB_LinkerInput null_entry = { 0 };
-    dyn_array_put(l->inputs, null_entry);
+    l->symbols = nl_table_alloc(256);
+    l->sections = nl_table_alloc(16);
 
     switch (exe) {
         case TB_EXECUTABLE_PE:  l->vtbl = tb__linker_pe;  break;
-        case TB_EXECUTABLE_ELF: l->vtbl = tb__linker_elf; break;
+        // case TB_EXECUTABLE_ELF: l->vtbl = tb__linker_elf; break;
         default: break;
     }
 
     l->vtbl.init(l);
     return l;
-}
-
-void tb_linker_send_msg(TB_Linker* l, TB_LinkerMsg* msg) {
-    ptrdiff_t i = 0;
-    for (;;) {
-        // might wanna change the memory order on this atomic op
-        uint32_t r = l->queue;
-
-        uint32_t mask = (1u << QEXP) - 1;
-        uint32_t head = r & mask;
-        uint32_t tail = (r >> 16) & mask;
-        uint32_t next = (head + 1u) & mask;
-        if (r & 0x8000) { // avoid overflow on commit
-            l->queue &= ~0x8000;
-        }
-
-        // it don't fit...
-        if (next != tail) {
-            i = head;
-            break;
-        }
-    }
-
-    l->messages[i] = *msg;
-    l->queue_count += 1;
-    l->queue += 1;
-}
-
-TB_API bool tb_linker_get_msg(TB_Linker* l, TB_LinkerMsg* out_msg) {
-    // pop work off the queue
-    uint32_t r;
-    TB_LinkerMsg* msg = NULL;
-    do {
-        r = l->queue;
-        uint32_t mask = (1u << QEXP) - 1;
-        uint32_t head = r & mask;
-        uint32_t tail = (r >> 16) & mask;
-
-        if (head == tail) {
-            return false;
-        }
-
-        // copy out before we commit
-        *out_msg = l->messages[tail];
-
-        // don't continue until we successfully commited the queue pop
-    } while (!atomic_compare_exchange_strong(&l->queue, &r, r + 0x10000));
-
-    l->queue_count -= 1;
-    return true;
 }
 
 TB_API void tb_linker_set_subsystem(TB_Linker* l, TB_WindowsSubsystem subsystem) {
@@ -166,7 +110,11 @@ TB_API void tb_linker_destroy(TB_Linker* l) {
     tb_platform_heap_free(l);
 }
 
-TB_LinkerSectionPiece* tb__get_piece(TB_Linker* l, TB_LinkerSymbol* restrict sym) {
+void tb_linker_unresolved_sym(TB_Linker* l, TB_LinkerInternStr name) {
+    fprintf(stderr, "\x1b[31merror\x1b[0m: unresolved external: %s\n", name);
+}
+
+TB_LinkerSectionPiece* tb_linker_get_piece(TB_Linker* l, TB_LinkerSymbol* restrict sym) {
     if (sym && (sym->tag == TB_LINKER_SYMBOL_NORMAL || sym->tag == TB_LINKER_SYMBOL_TB)) {
         return sym->normal.piece;
     }
@@ -240,7 +188,7 @@ size_t tb__pad_file(uint8_t* output, size_t write_pos, char pad, size_t align) {
     return write_pos;
 }
 
-void tb__merge_sections(TB_Linker* linker, TB_LinkerSection* from, TB_LinkerSection* to) {
+void tb_linker_merge_sections(TB_Linker* linker, TB_LinkerSection* from, TB_LinkerSection* to) {
     if (from == NULL || to == NULL) return;
     if (from->generic_flags & TB_LINKER_SECTION_DISCARD) return;
 
@@ -251,7 +199,6 @@ void tb__merge_sections(TB_Linker* linker, TB_LinkerSection* from, TB_LinkerSect
     else to->first = from->first;
     to->last = from->last;
 
-    #if 1
     // we don't care about fixing up the offsets because they'll be properly laid out
     // after this is all done
     to->total_size += from->total_size;
@@ -260,188 +207,171 @@ void tb__merge_sections(TB_Linker* linker, TB_LinkerSection* from, TB_LinkerSect
     for (TB_LinkerSectionPiece* p = from->first; p != NULL; p = p->next) {
         p->parent = to;
     }
-    #else
-    if (from->last) {
-        size_t offset = to->total_size;
-
-        for (TB_LinkerSectionPiece* p = from->first; p != NULL; p = p->next) {
-            p->parent = to;
-            p->offset = offset;
-            offset += p->size;
-        }
-
-        to->total_size += from->total_size;
-        to->piece_count += from->piece_count;
-        assert(offset == to->total_size);
-    }
-    #endif
 }
 
-void tb__append_module_section(TB_Linker* l, TB_LinkerInputHandle mod, TB_ModuleSection* section, const char* name, uint32_t flags) {
+void tb_linker_append_module_section(TB_Linker* l, TB_LinkerThreadInfo* info, TB_LinkerObject* mod, TB_ModuleSection* section, uint32_t flags) {
+    assert(mod->module != NULL && "not a TB_Module's section?");
     if (section->total_size > 0) {
-        TB_LinkerSection* ls = tb__find_or_create_section(l, name, flags);
-        section->piece = tb__append_piece(ls, PIECE_MODULE_SECTION, section->total_size, section, mod);
+        TB_LinkerInternStr name = tb_linker_intern_string(l, strlen(section->name), section->name);
+
+        TB_LinkerSection* ls = tb_linker_find_or_create_section(l, name, flags);
+        section->piece = tb_linker_append_piece(info, ls, PIECE_MODULE_SECTION, section->total_size, section, mod);
     }
+}
+
+void tb_linker_associate(TB_Linker* l, TB_LinkerSectionPiece* a, TB_LinkerSectionPiece* b) {
+    assert(a->assoc == NULL);
+    a->assoc = b;
 }
 
 size_t tb__apply_section_contents(TB_Linker* l, uint8_t* output, size_t write_pos, TB_LinkerSection* text, TB_LinkerSection* data, TB_LinkerSection* rdata, size_t section_alignment, size_t image_base) {
     // write section contents
     // TODO(NeGate): we can actually parallelize this part of linking
-    CUIK_TIMED_BLOCK("write sections") nl_map_for_str(i, l->sections) {
-        TB_LinkerSection* s = l->sections[i].v;
-        if (s->generic_flags & TB_LINKER_SECTION_DISCARD) continue;
+    CUIK_TIMED_BLOCK("write sections") {
+        nl_table_for(e, &l->sections) {
+            TB_LinkerSection* s = e->v;
+            if (s->generic_flags & TB_LINKER_SECTION_DISCARD) continue;
 
-        assert(s->offset == write_pos);
-        for (TB_LinkerSectionPiece* p = s->first; p != NULL; p = p->next) {
-            uint8_t* p_out = &output[write_pos];
-            TB_LinkerInput in = l->inputs[p->input];
+            assert(s->offset == write_pos);
+            for (TB_LinkerSectionPiece* p = s->first; p != NULL; p = p->next) {
+                uint8_t* p_out = &output[write_pos];
+                TB_LinkerObject* obj = p->obj;
 
-            switch (p->kind) {
-                case PIECE_NORMAL: {
-                    if (p->data == NULL) goto skip;
+                switch (p->kind) {
+                    case PIECE_NORMAL: {
+                        if (p->data == NULL) goto skip;
 
-                    memcpy(p_out, p->data, p->size);
-                    break;
-                }
-                case PIECE_MODULE_SECTION: {
-                    tb_helper_write_section(in.module, 0, (TB_ModuleSection*) p->data, p_out, 0);
-                    break;
-                }
-                case PIECE_PDATA: {
-                    uint32_t* p_out32 = (uint32_t*) p_out;
-                    TB_Module* m = in.module;
+                        memcpy(p_out, p->data, p->size);
+                        break;
+                    }
+                    case PIECE_MODULE_SECTION: {
+                        tb_helper_write_section(obj->module, 0, (TB_ModuleSection*) p->data, p_out, 0);
+                        break;
+                    }
+                    case PIECE_PDATA: {
+                        uint32_t* p_out32 = (uint32_t*) p_out;
+                        TB_Module* m = obj->module;
 
-                    uint32_t rdata_rva = m->xdata->parent->address + m->xdata->offset;
+                        uint32_t rdata_rva = m->xdata->parent->address + m->xdata->offset;
 
-                    dyn_array_for(i, m->sections) {
-                        DynArray(TB_FunctionOutput*) funcs = m->sections[i].funcs;
-                        TB_LinkerSectionPiece* piece = m->sections[i].piece;
-                        if (piece == NULL) {
-                            continue;
-                        }
+                        dyn_array_for(i, m->sections) {
+                            DynArray(TB_FunctionOutput*) funcs = m->sections[i].funcs;
+                            TB_LinkerSectionPiece* piece = m->sections[i].piece;
+                            if (piece == NULL) {
+                                continue;
+                            }
 
-                        uint32_t rva = piece->parent->address + piece->offset;
-                        dyn_array_for(j, funcs) {
-                            TB_FunctionOutput* out_f = funcs[j];
-                            if (out_f != NULL) {
-                                // both into the text section
-                                *p_out32++ = rva + out_f->code_pos;
-                                *p_out32++ = rva + out_f->code_pos + out_f->code_size;
+                            uint32_t rva = piece->parent->address + piece->offset;
+                            dyn_array_for(j, funcs) {
+                                TB_FunctionOutput* out_f = funcs[j];
+                                if (out_f != NULL) {
+                                    // both into the text section
+                                    *p_out32++ = rva + out_f->code_pos;
+                                    *p_out32++ = rva + out_f->code_pos + out_f->code_size;
 
-                                // refers to rdata section
-                                *p_out32++ = rdata_rva + out_f->unwind_info;
+                                    // refers to rdata section
+                                    *p_out32++ = rdata_rva + out_f->unwind_info;
+                                }
                             }
                         }
+                        break;
                     }
-                    break;
-                }
-                case PIECE_RELOC: {
-                    TB_Module* m = in.module;
+                    case PIECE_RELOC: {
+                        TB_Module* m = obj->module;
+                        assert(m != NULL);
 
-                    dyn_array_for(i, m->sections) {
-                        DynArray(TB_Global*) globals = m->sections[i].globals;
-                        TB_LinkerSectionPiece* piece = m->sections[i].piece;
+                        dyn_array_for(i, m->sections) {
+                            DynArray(TB_Global*) globals = m->sections[i].globals;
+                            TB_LinkerSectionPiece* piece = m->sections[i].piece;
 
-                        uint32_t data_rva = piece->parent->address + piece->offset;
-                        uint32_t data_file = piece->parent->offset + piece->offset;
+                            uint32_t data_rva = piece->parent->address + piece->offset;
+                            uint32_t data_file = piece->parent->offset + piece->offset;
 
-                        uint32_t last_page = 0xFFFFFFFF;
-                        uint32_t* last_block = NULL;
+                            uint32_t last_page = 0xFFFFFFFF;
+                            uint32_t* last_block = NULL;
 
-                        dyn_array_for(j, globals) {
-                            TB_Global* g = globals[j];
-                            FOREACH_N(k, 0, g->obj_count) {
-                                size_t actual_pos  = g->pos + g->objects[k].offset;
-                                size_t actual_page = actual_pos & ~4095;
-                                size_t page_offset = actual_pos - actual_page;
+                            dyn_array_for(j, globals) {
+                                TB_Global* g = globals[j];
+                                FOREACH_N(k, 0, g->obj_count) {
+                                    size_t actual_pos  = g->pos + g->objects[k].offset;
+                                    size_t actual_page = actual_pos & ~4095;
+                                    size_t page_offset = actual_pos - actual_page;
 
-                                if (g->objects[k].type != TB_INIT_OBJ_RELOC) {
-                                    continue;
+                                    if (g->objects[k].type != TB_INIT_OBJ_RELOC) {
+                                        continue;
+                                    }
+
+                                    const TB_Symbol* s = g->objects[k].reloc;
+                                    if (last_page != actual_page) {
+                                        last_page  = data_rva + actual_page;
+                                        last_block = (uint32_t*) p_out;
+
+                                        last_block[0] = data_rva + actual_page;
+                                        last_block[1] = 8; // block size field (includes RVA field and itself)
+                                        p_out += 8;
+                                    }
+
+                                    // compute RVA
+                                    uint32_t file_pos = data_file + actual_pos;
+                                    *((uint64_t*) &output[file_pos]) = tb__compute_rva(l, m, s) + image_base;
+
+                                    // emit relocation
+                                    uint16_t payload = (10 << 12) | page_offset; // (IMAGE_REL_BASED_DIR64 << 12) | offset
+                                    *((uint16_t*) p_out) = payload, p_out += sizeof(uint16_t);
+                                    last_block[1] += 2;
                                 }
-
-                                const TB_Symbol* s = g->objects[k].reloc;
-                                if (last_page != actual_page) {
-                                    last_page  = data_rva + actual_page;
-                                    last_block = (uint32_t*) p_out;
-
-                                    last_block[0] = data_rva + actual_page;
-                                    last_block[1] = 8; // block size field (includes RVA field and itself)
-                                    p_out += 8;
-                                }
-
-                                // compute RVA
-                                uint32_t file_pos = data_file + actual_pos;
-                                *((uint64_t*) &output[file_pos]) = tb__compute_rva(l, m, s) + image_base;
-
-                                // emit relocation
-                                uint16_t payload = (10 << 12) | page_offset; // (IMAGE_REL_BASED_DIR64 << 12) | offset
-                                *((uint16_t*) p_out) = payload, p_out += sizeof(uint16_t);
-                                last_block[1] += 2;
                             }
                         }
+                        break;
                     }
-                    break;
+                    default: tb_todo();
                 }
-                default: tb_todo();
+
+                write_pos += p->size;
+                skip:;
             }
 
-            write_pos += p->size;
-            skip:;
+            write_pos = tb__pad_file(output, write_pos, 0x00, section_alignment);
         }
-
-        write_pos = tb__pad_file(output, write_pos, 0x00, section_alignment);
     }
 
     return write_pos;
 }
 
-TB_LinkerSection* tb__find_section(TB_Linker* linker, const char* name) {
-    ptrdiff_t search = nl_map_get_cstr(linker->sections, name);
-    return search >= 0 ? linker->sections[search].v : NULL;
+TB_LinkerSection* tb_linker_find_section(TB_Linker* l, TB_LinkerInternStr name) {
+    return nl_table_get(&l->sections, name);
 }
 
-TB_LinkerSection* tb__find_or_create_section(TB_Linker* linker, const char* name, uint32_t flags) {
-    // allocate new section if one doesn't exist already
-    ptrdiff_t search = nl_map_get_cstr(linker->sections, name);
-    if (search >= 0) {
-        // assert(linker->sections[search]->flags == flags);
-        return linker->sections[search].v;
-    }
-
-    TB_LinkerSection* s = tb_platform_heap_alloc(sizeof(TB_LinkerSection));
-    *s = (TB_LinkerSection){ .name = { strlen(name), (const uint8_t*) name }, .flags = flags };
-    nl_map_put_cstr(linker->sections, name, s);
-    return s;
+TB_LinkerSection* tb_linker_find_section2(TB_Linker* l, const char* name) {
+    return nl_table_get(&l->sections, tb_linker_intern_cstring(l, name));
 }
 
-TB_LinkerSection* tb__find_or_create_section2(TB_Linker* linker, size_t name_len, const uint8_t* name_str, uint32_t flags) {
+TB_LinkerSection* tb_linker_find_or_create_section(TB_Linker* l, TB_LinkerInternStr name, uint32_t flags) {
     // allocate new section if one doesn't exist already
-    NL_Slice name = { name_len, name_str };
-    ptrdiff_t search = nl_map_get(linker->sections, name);
-
-    if (search >= 0) {
-        // assert(linker->sections[search]->flags == flags);
-        return linker->sections[search].v;
+    TB_LinkerSection* s = nl_table_get(&l->sections, name);
+    if (s) {
+        return s;
     }
 
-    TB_LinkerSection* s = tb_platform_heap_alloc(sizeof(TB_LinkerSection));
+    TB_LinkerThreadInfo* info = linker_thread_info(l);
+    s = tb_arena_alloc(info->perm_arena, sizeof(TB_LinkerSection));
     *s = (TB_LinkerSection){ .name = name, .flags = flags };
 
-    nl_map_put(linker->sections, name, s);
+    nl_table_put(&l->sections, name, s);
     return s;
 }
 
-TB_LinkerSectionPiece* tb__append_piece(TB_LinkerSection* section, int kind, size_t size, const void* data, TB_LinkerInputHandle input) {
+TB_LinkerSectionPiece* tb_linker_append_piece(TB_LinkerThreadInfo* info, TB_LinkerSection* section, int kind, size_t size, const void* data, TB_LinkerObject* obj) {
     // allocate some space for it, we might wanna make the total_size increment atomic
-    TB_LinkerSectionPiece* piece = tb_platform_heap_alloc(sizeof(TB_LinkerSectionPiece));
+    TB_LinkerSectionPiece* piece = tb_arena_alloc(info->perm_arena, sizeof(TB_LinkerSectionPiece));
     *piece = (TB_LinkerSectionPiece){
         .kind   = kind,
         .parent = section,
+        .obj    = obj,
         .offset = section->total_size,
         .size   = size,
         .vsize  = size,
         .data   = data,
-        .input  = input
     };
     section->total_size += size;
     section->piece_count += 1;
@@ -455,155 +385,88 @@ TB_LinkerSectionPiece* tb__append_piece(TB_LinkerSection* section, int kind, siz
     return piece;
 }
 
-TB_LinkerInputHandle tb__track_module(TB_Linker* l, TB_LinkerInputHandle parent, TB_Module* mod) {
-    log_debug("%p: track module %p", l, mod);
-    TB_LinkerInput entry = { TB_LINKER_INPUT_MODULE, parent, .module = mod };
-
-    size_t i = dyn_array_length(l->inputs);
-    assert(i < 0xFFFF);
-
-    dyn_array_put(l->inputs, entry);
-    return i;
+TB_LinkerSymbol* tb_linker_find_symbol(TB_Linker* l, TB_LinkerInternStr name) {
+    return nl_table_get(&l->symbols, name);
 }
 
-TB_LinkerInputHandle tb__track_object(TB_Linker* l, TB_LinkerInputHandle parent, TB_Slice name) {
-    log_debug("%p: track object %.*s", l, (int) name.length, name.data);
-    TB_LinkerInput entry = { TB_LINKER_INPUT_OBJECT, parent, .name = name };
-
-    size_t i = dyn_array_length(l->inputs);
-    assert(i < 0xFFFF);
-
-    dyn_array_put(l->inputs, entry);
-    return i;
+TB_LinkerSymbol* tb_linker_find_symbol2(TB_Linker* l, const char* name) {
+    return nl_table_get(&l->symbols, tb_linker_intern_cstring(l, name));
 }
 
-// murmur3 32-bit without UB unaligned accesses
-// https://github.com/demetri/scribbles/blob/master/hashing/ub_aware_hash_functions.c
-static uint32_t murmur(const void* key, size_t len) {
-    uint32_t h = 0;
-
-    // main body, work on 32-bit blocks at a time
-    for (size_t i=0;i<len/4;i++) {
-        uint32_t k;
-        memcpy(&k, &((char*) key)[i * 4], sizeof(k));
-
-        k *= 0xcc9e2d51;
-        k = ((k << 15) | (k >> 17))*0x1b873593;
-        h = (((h^k) << 13) | ((h^k) >> 19))*5 + 0xe6546b64;
-    }
-
-    // load/mix up to 3 remaining tail bytes into a tail block
-    uint32_t t = 0;
-    const uint8_t *tail = ((const uint8_t*) key) + 4*(len/4);
-    switch(len & 3) {
-        case 3: t ^= tail[2] << 16;
-        case 2: t ^= tail[1] <<  8;
-        case 1: {
-            t ^= tail[0] <<  0;
-            h ^= ((0xcc9e2d51*t << 15) | (0xcc9e2d51*t >> 17))*0x1b873593;
-        }
-    }
-
-    // finalization mix, including key length
-    h = ((h^len) ^ ((h^len) >> 16))*0x85ebca6b;
-    h = (h ^ (h >> 13))*0xc2b2ae35;
-    return (h ^ (h >> 16));
-}
-
-ImportThunk* tb__find_or_create_import(TB_Linker* l, TB_LinkerSymbol* restrict sym) {
-    assert(sym->tag == TB_LINKER_SYMBOL_IMPORT);
-    TB_Slice sym_name = { sym->name.length - (sizeof("__imp_") - 1), sym->name.data + sizeof("__imp_") - 1 };
-
-    ImportTable* table = &l->imports[sym->import.id];
-    dyn_array_for(i, table->thunks) {
-        if (table->thunks[i].name.length == sym_name.length &&
-            memcmp(table->thunks[i].name.data, sym_name.data, sym_name.length) == 0) {
-            return &table->thunks[i];
-        }
-    }
-
-    ImportThunk t = { .name = sym_name, .ordinal = sym->import.ordinal };
-    dyn_array_put(table->thunks, t);
-    return &table->thunks[dyn_array_length(table->thunks) - 1];
-}
-
-TB_LinkerSymbol* tb__find_symbol_cstr(TB_SymbolTable* restrict symtab, const char* name) {
-    return tb__find_symbol(symtab, (TB_Slice){ strlen(name), (const uint8_t*) name });
-}
-
-TB_LinkerSymbol* tb__find_symbol(TB_SymbolTable* restrict symtab, TB_Slice name) {
-    uint32_t mask = (1u << symtab->exp) - 1;
-    uint32_t hash = murmur(name.data, name.length);
-    uint32_t first = hash & mask, i = first;
-    do {
-        if (symtab->ht[i].name.length == 0) {
-            return NULL;
-        } else if (name.length == symtab->ht[i].name.length && memcmp(name.data, symtab->ht[i].name.data, name.length) == 0) {
-            return &symtab->ht[i];
-        }
-
-        i = (i + 1) & mask;
-    } while (i != first);
-
-    return NULL;
-}
-
-TB_LinkerSymbol* tb__append_symbol(TB_SymbolTable* restrict symtab, const TB_LinkerSymbol* sym) {
+TB_LinkerSymbol* tb_linker_new_symbol(TB_Linker* l, TB_LinkerInternStr name) {
     cuikperf_region_start("append sym", NULL);
-    TB_Slice name = sym->name;
 
-    uint32_t mask = (1u << symtab->exp) - 1;
-    uint32_t hash = murmur(name.data, name.length);
-    uint32_t first = hash & mask, i = first;
+    TB_LinkerThreadInfo* info = linker_thread_info(l);
+    TB_LinkerSymbol* sym = tb_arena_alloc(info->perm_arena, sizeof(TB_LinkerSymbol));
+
+    TB_LinkerSymbol* old;
+    if (old = nl_table_put(&l->symbols, name, sym), old) {
+        tb_arena_free(info->perm_arena, sym, sizeof(TB_LinkerSymbol));
+        sym = old;
+
+        if (old->tag != TB_LINKER_SYMBOL_UNKNOWN) {
+            // symbol collision if we're overriding something that's
+            // not a forward ref.
+            // __debugbreak();
+        }
+    } else {
+        *sym = (TB_LinkerSymbol){ .name = name };
+    }
+
+    cuikperf_region_end();
+    return sym;
+}
+
+TB_LinkerInternStr tb_linker_intern_string(TB_Linker* l, size_t len, const char* str) {
+    if (l->interner.arr == NULL) {
+        CUIK_TIMED_BLOCK("alloc atoms") {
+            l->interner.exp = 20;
+            l->interner.cnt = 0;
+            l->interner.arr = cuik__valloc((1u << 20) * sizeof(TB_LinkerInternStr));
+        }
+    }
+
+    uint32_t mask = (1 << l->interner.exp) - 1;
+    uint32_t hash = tb__murmur3_32(str, len);
+    size_t first = hash & mask, i = first;
+
     do {
-        if (symtab->ht[i].name.length == 0) {
-            // empty slot
-            symtab->len++;
-            memcpy(&symtab->ht[i], sym, sizeof(TB_LinkerSymbol));
-            cuikperf_region_end();
-            return &symtab->ht[i];
-        } else if (name.length == symtab->ht[i].name.length && memcmp(name.data, symtab->ht[i].name.data, name.length) == 0) {
-            // proper collision... this is a linker should we throw warnings?
-            // memcpy(&symtab->ht[i], sym, sizeof(TB_LinkerSymbol));
-            cuikperf_region_end();
-            return &symtab->ht[i];
+        // linear probe
+        if (LIKELY(l->interner.arr[i] == NULL)) {
+            TB_LinkerThreadInfo* info = linker_thread_info(l);
+            TB_LinkerInternStr newstr = tb_arena_alloc(info->perm_arena, len + 5);
+            uint32_t len32 = len;
+            memcpy(newstr, &len32, 4);
+            memcpy(newstr + 4, str, len);
+            newstr[len + 4] = 0;
+
+            l->interner.arr[i] = newstr + 4;
+            l->interner.cnt++;
+            return &newstr[4];
+        } else if (len == tb_linker_intern_len(l, l->interner.arr[i]) && memcmp(str, l->interner.arr[i], len) == 0) {
+            return l->interner.arr[i];
         }
 
         i = (i + 1) & mask;
     } while (i != first);
 
-    printf("Symbol table: out of memory!\n");
+    log_error("atoms arena: out of memory!\n");
     abort();
 }
 
-TB_UnresolvedSymbol* tb__unresolved_symbol(TB_Linker* l, TB_Slice name) {
-    TB_UnresolvedSymbol* d = tb_platform_heap_alloc(sizeof(TB_UnresolvedSymbol));
-    *d = (TB_UnresolvedSymbol){ .name = name };
-
-    // mtx_lock(&parser->diag_mutex);
-    NL_Slice name2 = { name.length, name.data };
-    ptrdiff_t search = nl_map_get(l->unresolved_symbols, name2);
-    if (search < 0) {
-        nl_map_puti(l->unresolved_symbols, name2, search);
-        l->unresolved_symbols[search].v = d;
-    } else {
-        TB_UnresolvedSymbol* old = l->unresolved_symbols[search].v;
-        while (old->next != NULL) old = old->next;
-
-        old->next = d;
-    }
-    // mtx_unlock(&parser->diag_mutex);
-
-    return d;
+TB_LinkerInternStr tb_linker_intern_cstring(TB_Linker* l, const char* str) {
+    return tb_linker_intern_string(l, strlen(str), str);
 }
 
-static void tb__append_module_symbols(TB_Linker* l, TB_Module* m) {
+size_t tb_linker_intern_len(TB_Linker* l, TB_LinkerInternStr str) {
+    return ((uint32_t*) str)[-1];
+}
+
+void tb_linker_append_module_symbols(TB_Linker* l, TB_Module* m) {
     DynArray(TB_ModuleSection) sections = m->sections;
+    TB_LinkerThreadInfo* info = linker_thread_info(l);
 
     CUIK_TIMED_BLOCK("apply symbols") {
-        static const TB_SymbolTag tags[] = { TB_SYMBOL_FUNCTION, TB_SYMBOL_GLOBAL };
-        TB_Slice obj_name = { sizeof("<tb module>")-1, (const uint8_t*) "<tb module>" };
-
         dyn_array_for(i, sections) {
             DynArray(TB_FunctionOutput*) funcs = sections[i].funcs;
             DynArray(TB_Global*) globals = sections[i].globals;
@@ -611,39 +474,34 @@ static void tb__append_module_symbols(TB_Linker* l, TB_Module* m) {
 
             dyn_array_for(i, funcs) {
                 const char* name = funcs[i]->parent->super.name;
-                TB_LinkerSymbol ls = {
-                    .name = { strlen(name), (const uint8_t*) name },
-                    .tag = TB_LINKER_SYMBOL_TB,
-                    .object_name = obj_name,
-                    .tb = { piece, &funcs[i]->parent->super }
-                };
+                TB_LinkerInternStr interned = tb_linker_intern_string(l, strlen(name), name);
 
-                tb__append_symbol(&l->symtab, &ls);
+                TB_LinkerSymbol* ls = tb_linker_new_symbol(l, interned);
+                ls->tag = TB_LINKER_SYMBOL_TB;
+                ls->tb.piece = piece;
+                ls->tb.sym = &funcs[i]->parent->super;
             }
 
             dyn_array_for(i, globals) {
                 const char* name = globals[i]->super.name;
-                TB_LinkerSymbol ls = {
-                    .name = { strlen(name), (const uint8_t*) name },
-                    .tag = TB_LINKER_SYMBOL_TB,
-                    .object_name = obj_name,
-                    .tb = { piece, &globals[i]->super }
-                };
+                TB_LinkerInternStr interned = tb_linker_intern_string(l, strlen(name), name);
 
-                tb__append_symbol(&l->symtab, &ls);
+                TB_LinkerSymbol* ls = NULL;
+                if (globals[i]->linkage == TB_LINKAGE_PRIVATE) {
+                    ls = tb_arena_alloc(info->perm_arena, sizeof(TB_LinkerSymbol));
+                    *ls = (TB_LinkerSymbol){ .name = interned };
+                } else {
+                    ls = tb_linker_new_symbol(l, interned);
+                }
+                ls->tag = TB_LINKER_SYMBOL_TB;
+                ls->tb.piece = piece;
+                ls->tb.sym = &globals[i]->super;
             }
         }
     }
-
-    dyn_array_put(l->ir_modules, m);
 }
 
-void tb__apply_module_relocs(TB_Linker* l, TB_Module* m, uint8_t* output) {
-    TB_LinkerSection* text = tb__find_section(l, ".text");
-    if (text == NULL) {
-        return;
-    }
-
+void tb_linker_apply_module_relocs(TB_Linker* l, TB_Module* m, TB_LinkerSection* text, uint8_t* output) {
     uint64_t trampoline_rva = text->address + l->trampoline_pos;
 
     dyn_array_for(i, m->sections) {
@@ -664,16 +522,19 @@ void tb__apply_module_relocs(TB_Linker* l, TB_Module* m, uint8_t* output) {
 
                 int32_t p = 0;
                 if (patch->target->tag == TB_SYMBOL_EXTERNAL) {
-                    uintptr_t thunk_p = (uintptr_t) patch->target->address;
-                    if (thunk_p & 1) {
-                        TB_LinkerSymbol* sym = (TB_LinkerSymbol*) (thunk_p & ~1);
-                        p = tb__get_symbol_rva(l, sym);
+                    TB_LinkerSymbol* sym = patch->target->address;
+                    if (sym->tag == TB_LINKER_SYMBOL_UNKNOWN) {
+                        // TODO(NeGate): error for unresolved symbol
+                        tb_todo();
+                    } else if (sym->tag == TB_LINKER_SYMBOL_THUNK) {
+                        p = trampoline_rva + (sym->thunk->import.thunk_id * 6);
+                    } else if (sym->tag == TB_LINKER_SYMBOL_IMPORT) {
+                        p = trampoline_rva + (sym->import.thunk_id * 6);
                     } else {
-                        ImportThunk* thunk = (ImportThunk*) thunk_p;
-                        assert(thunk != NULL);
-
-                        p = (trampoline_rva + (thunk->thunk_id * 6)) - actual_pos;
+                        p = tb__get_symbol_rva(l, sym);
                     }
+
+                    p -= actual_pos;
                 } else if (patch->target->tag == TB_SYMBOL_FUNCTION) {
                     // internal patching has already handled this
                 } else if (patch->target->tag == TB_SYMBOL_GLOBAL) {
@@ -709,7 +570,7 @@ static TB_Slice as_filename(TB_Slice s) {
         }
     }
 
-    return (TB_Slice){ s.length - last, s.data + last };
+    return (TB_Slice){ s.data + last, s.length - last };
 }
 
 static int compare_linker_sections(const void* a, const void* b) {
@@ -720,7 +581,7 @@ static int compare_linker_sections(const void* a, const void* b) {
 }
 
 bool tb__finalize_sections(TB_Linker* l) {
-    if (nl_map_get_capacity(l->unresolved_symbols) > 0) {
+    /*if (nl_map_get_capacity(l->unresolved_symbols) > 0) {
         nl_map_for_str(i, l->unresolved_symbols) {
             TB_UnresolvedSymbol* u = l->unresolved_symbols[i].v;
 
@@ -765,15 +626,17 @@ bool tb__finalize_sections(TB_Linker* l) {
 
         nl_map_free(l->unresolved_symbols);
         return false;
-    }
+    }*/
 
     CUIK_TIMED_BLOCK("sort sections") {
         TB_LinkerSectionPiece** array_form = NULL;
         size_t num = 0;
 
-        nl_map_for_str(i, l->sections) {
-            TB_LinkerSection* s = l->sections[i].v;
-            if (s->generic_flags & TB_LINKER_SECTION_DISCARD) continue;
+        nl_table_for(e, &l->sections) {
+            TB_LinkerSection* s = e->v;
+            if (s->generic_flags & TB_LINKER_SECTION_DISCARD) {
+                continue;
+            }
 
             size_t piece_count = s->piece_count;
 
@@ -834,50 +697,101 @@ bool tb__finalize_sections(TB_Linker* l) {
     return true;
 }
 
-static void gc_mark(TB_Linker* l, TB_LinkerSectionPiece* p) {
-    if (p == NULL || p->size == 0 || (p->flags & TB_LINKER_PIECE_LIVE) || (p->parent->generic_flags & TB_LINKER_SECTION_DISCARD)) {
-        return;
-    }
-
-    p->flags |= TB_LINKER_PIECE_LIVE;
-
-    // mark module content
-    if (l->inputs[p->input].tag == TB_LINKER_INPUT_MODULE) {
-        TB_Module* m = l->inputs[p->input].module;
-
-        dyn_array_for(i, m->sections) {
-            gc_mark(l, m->sections[i].piece);
-        }
-    }
-
-    // mark any kid symbols
-    for (TB_LinkerSymbol* sym = p->first_sym; sym != NULL; sym = sym->next) {
-        gc_mark(l, tb__get_piece(l, sym));
-    }
-
-    // mark any relocations
-    dyn_array_for(i, p->abs_refs) {
-        TB_LinkerRelocAbs* r = &p->abs_refs[i].info->absolutes[p->abs_refs[i].index];
-
-        // resolve symbol
-        r->target = l->resolve_sym(l, r->target, r->name, r->alt, r->input);
-        gc_mark(l, tb__get_piece(l, r->target));
-    }
-
-    dyn_array_for(i, p->rel_refs) {
-        TB_LinkerRelocRel* r = &p->rel_refs[i].info->relatives[p->rel_refs[i].index];
-
-        // resolve symbol
-        r->target = l->resolve_sym(l, r->target, r->name, r->alt, r->input);
-        gc_mark(l, tb__get_piece(l, r->target));
-    }
-
-    if (p->associate) {
-        gc_mark(l, p->associate);
+TB_LinkerSymbol* tb_linker_get_target(TB_LinkerReloc* r) {
+    if (r->target->tag == TB_LINKER_SYMBOL_UNKNOWN) {
+        return r->alt && r->alt->tag != TB_LINKER_SYMBOL_UNKNOWN ? r->alt : NULL;
+    } else {
+        return r->target;
     }
 }
 
-static void gc_mark_root(TB_Linker* l, const char* name) {
-    TB_LinkerSectionPiece* p = tb__get_piece(l, tb__find_symbol_cstr(&l->symtab, name));
-    gc_mark(l, p);
+void tb_linker_push_piece(TB_Linker* l, TB_LinkerSectionPiece* p) {
+    if (p->size == 0 || (p->flags & TB_LINKER_PIECE_LIVE) || (p->parent->generic_flags & TB_LINKER_SECTION_DISCARD)) {
+        return;
+    }
+
+    dyn_array_put(l->worklist, p);
+}
+
+void tb_linker_push_named(TB_Linker* l, const char* name) {
+    TB_LinkerInternStr str = tb_linker_intern_string(l, strlen(name), name);
+    TB_LinkerSymbol* sym   = tb_linker_find_symbol(l, str);
+    if (sym != NULL) {
+        tb_linker_push_piece(l, tb_linker_get_piece(l, sym));
+    }
+}
+
+static TB_LinkerSymbol* resolve_external(TB_Linker* l, TB_External* ext) {
+    TB_LinkerInternStr str = tb_linker_intern_cstring(l, ext->super.name);
+    TB_LinkerSymbol* sym = tb_linker_find_symbol2(l, str);
+    if (sym == NULL) {
+        tb_todo();
+    } else if (sym->tag == TB_LINKER_SYMBOL_THUNK) {
+        sym->thunk->flags |= TB_LINKER_SYMBOL_USED;
+    }
+
+    ext->super.address = sym;
+    sym->flags |= TB_LINKER_SYMBOL_USED;
+    return sym;
+}
+
+void tb_linker_mark_live(TB_Linker* l) {
+    while (dyn_array_length(l->worklist)) {
+        TB_LinkerSectionPiece* p = dyn_array_pop(l->worklist);
+        p->flags |= TB_LINKER_PIECE_LIVE;
+
+        // associated section
+        if (p->assoc) {
+            tb_linker_push_piece(l, p->assoc);
+        }
+
+        // mark module content
+        if (p->obj->module && !p->obj->module->visited) {
+            p->obj->module->visited = true;
+
+            TB_Module* m = p->obj->module;
+            dyn_array_for(i, m->sections) {
+                if (m->sections[i].piece) {
+                    tb_linker_push_piece(l, m->sections[i].piece);
+                }
+            }
+
+            // associate TB externals with linker symbols
+            FOREACH_N(i, 0, m->exports.count) {
+                if (&m->exports.data[i]->super == m->chkstk_extern && m->uses_chkstk == 0) {
+                    continue;
+                }
+
+                TB_LinkerSymbol* sym = resolve_external(l, m->exports.data[i]);
+                TB_LinkerSectionPiece* piece = tb_linker_get_piece(l, sym);
+                if (piece) {
+                    tb_linker_push_piece(l, piece);
+                }
+            }
+        }
+
+        // mark any kid symbols
+        for (TB_LinkerSymbol* sym = p->first_sym; sym != NULL; sym = sym->next) {
+            if (sym) {
+                sym->flags |= TB_LINKER_SYMBOL_USED;
+                if (sym->tag == TB_LINKER_SYMBOL_NORMAL || sym->tag == TB_LINKER_SYMBOL_TB) {
+                    tb_linker_push_piece(l, sym->normal.piece);
+                }
+            }
+        }
+
+        // mark any relocations
+        TB_LinkerThreadInfo* info = p->info;
+        dyn_array_for(i, p->inputs) {
+            size_t j = p->inputs[i];
+            TB_LinkerSymbol* sym = tb_linker_get_target(&info->relocs[j]);
+
+            if (sym) {
+                sym->flags |= TB_LINKER_SYMBOL_USED;
+                if (sym->tag == TB_LINKER_SYMBOL_NORMAL || sym->tag == TB_LINKER_SYMBOL_TB) {
+                    tb_linker_push_piece(l, sym->normal.piece);
+                }
+            }
+        }
+    }
 }

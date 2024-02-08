@@ -77,7 +77,7 @@ bool tb_archive_parse(TB_Slice file, TB_ArchiveFileParser* restrict out_parser) 
     COFF_ArchiveMemberHeader* longnames = (COFF_ArchiveMemberHeader*) &file.data[file_offset];
     if (memcmp(longnames->name, (char[16]) { "//              " }, 16) == 0) {
         size_t longname_content_length = tb__parse_decimal_int(sizeof(second->size), second->size);
-        out_parser->strtbl = (TB_Slice){ longname_content_length, longnames->contents };
+        out_parser->strtbl = (TB_Slice){ longnames->contents, longname_content_length };
 
         // Advance
         file_offset += sizeof(COFF_ArchiveMemberHeader) + longname_content_length;
@@ -97,11 +97,11 @@ size_t tb_archive_parse_entries(TB_ArchiveFileParser* restrict parser, size_t st
         COFF_ArchiveMemberHeader* restrict sym = (COFF_ArchiveMemberHeader*) &file.data[parser->members[i]];
         size_t len = tb__parse_decimal_int(sizeof(sym->size), sym->size);
 
-        TB_Slice sym_name = { strchr(sym->name, ' ') - sym->name, (uint8_t*) sym->name };
+        TB_Slice sym_name = { (uint8_t*) sym->name, strchr(sym->name, ' ') - sym->name };
         if (sym_name.data[0] == '/') {
             // name is actually just an index into the long names table
             size_t num = tb__parse_decimal_int(sym_name.length - 1, (char*)sym_name.data + 1);
-            sym_name = (TB_Slice){ strlen((const char*) &strtbl.data[num]), &strtbl.data[num] };
+            sym_name = (TB_Slice){ &strtbl.data[num], strlen((const char*) &strtbl.data[num]) };
         }
 
         uint32_t short_form_header = *(uint32_t*)sym->contents;
@@ -131,9 +131,9 @@ size_t tb_archive_parse_entries(TB_ArchiveFileParser* restrict parser, size_t st
             }
 
             // printf("%s : %s : %d\n", dll_path, imported_symbol, import->name_type);
-            out_entry[entry_count++] = (TB_ArchiveEntry){ { strlen(dll_path), (const uint8_t*) dll_path }, .import_name = import_name, .ordinal = import->ordinal_hint };
+            out_entry[entry_count++] = (TB_ArchiveEntry){ { (const uint8_t*) dll_path, strlen(dll_path) }, .import_name = import_name, .ordinal = import->ordinal_hint };
         } else {
-            out_entry[entry_count++] = (TB_ArchiveEntry){ sym_name, .content = { len, sym->contents } };
+            out_entry[entry_count++] = (TB_ArchiveEntry){ sym_name, .content = { sym->contents, len } };
         }
 
         skip:;

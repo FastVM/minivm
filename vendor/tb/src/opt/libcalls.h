@@ -14,7 +14,7 @@ static TB_Node* ideal_libcall(TB_Passes* restrict passes, TB_Function* f, TB_Nod
         FOR_USERS(u, n) {
             if (u->n->type == TB_CALLGRAPH) {
                 TB_Node* last = u->n->inputs[u->n->input_count - 1];
-                set_input(f, u->n, NULL, u->n->input_count);
+                set_input(f, u->n, NULL, u->n->input_count - 1);
                 set_input(f, u->n, last, u->slot);
                 u->n->input_count--;
                 break;

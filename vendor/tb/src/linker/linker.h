@@ -4,29 +4,16 @@
 typedef struct TB_LinkerSymbol TB_LinkerSymbol;
 typedef struct TB_LinkerThreadInfo TB_LinkerThreadInfo;
 
-// this is our packed object file handle (0 is a null entry)
-typedef uint16_t TB_LinkerInputHandle;
+typedef char* TB_LinkerInternStr;
 
-typedef enum {
-    TB_LINKER_INPUT_NULL,
-
-    TB_LINKER_INPUT_ARCHIVE, // .lib .a
-    TB_LINKER_INPUT_OBJECT,  // .obj .o
-    TB_LINKER_INPUT_MODULE,  // TB_Module*
-} TB_LinkerInputTag;
-
-// usually it's object files
+// basically an object file
 typedef struct {
-    uint16_t tag;
-    uint16_t parent;
+    size_t len;
+    char* name;
 
-    union {
-        TB_Module* module;
-
-        // compress into string handle
-        TB_Slice name;
-    };
-} TB_LinkerInput;
+    // if not-NULL, the sections for the are in a TB_Module.
+    TB_Module* module;
+} TB_LinkerObject;
 
 typedef enum {
     TB_LINKER_PIECE_IMMUTABLE = 1,
@@ -35,11 +22,6 @@ typedef enum {
     // assume any pieces without this set are dead.
     TB_LINKER_PIECE_LIVE      = 2,
 } TB_LinkerPieceFlags;
-
-typedef struct {
-    TB_LinkerThreadInfo* info;
-    size_t index;
-} TB_LinkerRelocRef;
 
 // we use a linked list to store these because i couldn't be bothered to allocate
 // one giant sequential region for the entire linker.
@@ -57,16 +39,16 @@ struct TB_LinkerSectionPiece {
         PIECE_RELOC,
     } kind;
 
-    TB_LinkerInputHandle input;
+    TB_LinkerObject*  obj;
     TB_LinkerSection* parent;
 
     TB_LinkerSymbol* first_sym;
-    DynArray(TB_LinkerRelocRef) abs_refs;
-    DynArray(TB_LinkerRelocRef) rel_refs;
 
-    // NULL if doesn't apply.
-    //   for a COFF .text section, this is the .pdata
-    TB_LinkerSectionPiece* associate;
+    TB_LinkerThreadInfo* info;
+    DynArray(uint32_t) inputs;
+
+    // mostly for .pdata crap
+    TB_LinkerSectionPiece* assoc;
 
     // vsize is the virtual size
     size_t offset, vsize, size;
@@ -82,7 +64,7 @@ typedef enum {
 } TB_LinkerSectionFlags;
 
 struct TB_LinkerSection {
-    NL_Slice name;
+    TB_LinkerInternStr name;
 
     TB_LinkerSectionFlags generic_flags;
     uint32_t flags;
@@ -101,6 +83,8 @@ struct TB_LinkerSection {
 typedef enum TB_LinkerSymbolTag {
     TB_LINKER_SYMBOL_ABSOLUTE = 0,
 
+    TB_LINKER_SYMBOL_UNKNOWN,
+
     // external linkage
     TB_LINKER_SYMBOL_NORMAL,
 
@@ -117,34 +101,25 @@ typedef enum TB_LinkerSymbolTag {
     TB_LINKER_SYMBOL_IMPORT,
 } TB_LinkerSymbolTag;
 
-typedef struct {
-    TB_Slice name;
-    // this is the location the thunk will call
-    uint32_t ds_address;
-    // this is the ID of the thunk
-    uint32_t thunk_id;
-    uint16_t ordinal;
-} ImportThunk;
-
 typedef enum TB_LinkerSymbolFlags {
     TB_LINKER_SYMBOL_WEAK   = 1,
     TB_LINKER_SYMBOL_COMDAT = 2,
+    TB_LINKER_SYMBOL_USED   = 4,
 } TB_LinkerSymbolFlags;
 
 // all symbols appended to the linker are converted into
 // these and used for all kinds of relocation resolution.
 struct TB_LinkerSymbol {
-    // key
-    TB_Slice name;
-
-    // value
-    TB_LinkerSymbolTag tag;
+    TB_LinkerSymbolTag   tag;
     TB_LinkerSymbolFlags flags;
+
+    TB_LinkerInternStr name;
+
+    // next symbol in the section
     TB_LinkerSymbol* next;
-    TB_Slice object_name;
 
     union {
-        // for normal symbols,
+        // for normal symbols
         struct {
             TB_LinkerSectionPiece* piece;
             uint32_t secrel;
@@ -159,66 +134,41 @@ struct TB_LinkerSymbol {
             TB_Symbol* sym;
         } tb;
 
-        // for imports, refers to the imports array in TB_Linker
+        // for PE imports
         struct {
+            // this is the location the thunk will call
+            uint32_t ds_address;
+            // this is the ID of the thunk
+            uint32_t thunk_id;
+            // import table ID
             uint32_t id;
+            // TODO(NeGate): i don't remember rn
             uint16_t ordinal;
-            ImportThunk* thunk;
         } import;
 
-        struct {
-            TB_LinkerSymbol* import_sym;
-        } thunk;
+        TB_LinkerSymbol* thunk;
     };
 };
 
-// MSI hash table
-typedef struct TB_SymbolTable {
-    size_t exp, len;
-    TB_LinkerSymbol* ht; // [1 << exp]
-} TB_SymbolTable;
-
 typedef struct {
     TB_Slice libpath;
-    DynArray(ImportThunk) thunks;
+    DynArray(TB_LinkerSymbol*) thunks;
 
     uint64_t *iat, *ilt;
 } ImportTable;
 
-typedef struct TB_LinkerRelocRel TB_LinkerRelocRel;
-struct TB_LinkerRelocRel {
-    // within the same piece
-    TB_LinkerRelocRel* next;
+typedef struct TB_LinkerReloc {
+    uint8_t type;
+    uint8_t addend;
 
-    // if target is NULL, check name
-    TB_LinkerSymbol* target;
-    TB_Slice name;
-    TB_Slice* alt;
-
+    // source
     TB_LinkerSectionPiece* src_piece;
     uint32_t src_offset;
 
-    TB_LinkerInputHandle input;
-
-    uint16_t addend;
-    uint16_t type;
-};
-
-typedef struct TB_LinkerRelocAbs TB_LinkerRelocAbs;
-struct TB_LinkerRelocAbs {
-    // within the same piece
-    TB_LinkerRelocAbs* next;
-
-    // if target is NULL, check name
+    // target
     TB_LinkerSymbol* target;
-    TB_Slice name;
-    TB_Slice* alt;
-
-    TB_LinkerSectionPiece* src_piece;
-    uint32_t src_offset;
-
-    TB_LinkerInputHandle input;
-};
+    TB_LinkerSymbol* alt;
+} TB_LinkerReloc;
 
 typedef struct {
     TB_Slice from, to;
@@ -240,11 +190,8 @@ struct TB_LinkerThreadInfo {
     DynArray(TB_LinkerCmd) merges;
     DynArray(TB_LinkerCmd) alternates;
 
-    // relocations
-    //   we store different kinds of relocations in different arrays
-    //   to simplify.
-    DynArray(TB_LinkerRelocRel) relatives;
-    DynArray(TB_LinkerRelocAbs) absolutes;
+    DynArray(TB_LinkerReloc) relocs;
+    DynArray(TB_Module*) ir_modules;
 };
 
 // Format-specific vtable:
@@ -256,52 +203,34 @@ typedef struct TB_LinkerVtbl {
     TB_ExportBuffer (*export)(TB_Linker* l);
 } TB_LinkerVtbl;
 
-typedef struct TB_UnresolvedSymbol TB_UnresolvedSymbol;
-struct TB_UnresolvedSymbol {
-    TB_UnresolvedSymbol* next;
-
-    TB_Slice name;
-    uint32_t reloc;
-};
-
-typedef TB_LinkerSymbol* TB_SymbolResolver(TB_Linker* l, TB_LinkerSymbol* sym, TB_Slice name, TB_Slice* alt, uint32_t reloc_i);
-
-// 1 << QEXP is the size of the queue
-#define QEXP 6
-
 typedef struct TB_Linker {
     TB_Arch target_arch;
 
     const char* entrypoint;
     TB_WindowsSubsystem subsystem;
-    TB_SymbolResolver* resolve_sym;
 
-    NL_Strmap(TB_LinkerSection*) sections;
+    TB_LinkerVtbl vtbl;
 
-    // we keep track of which object files exist in a
-    // compact form, it's not like there's any dudplicate
-    // entries so we don't need a hash map or something.
-    DynArray(TB_LinkerInput) inputs;
+    // we intern symbol strings to make the rest of the
+    // hash table work easier, it's easier to write a giant
+    // dumb interner.
+    struct {
+        size_t exp, cnt;
+        TB_LinkerInternStr* arr;
+    } interner;
 
-    // for relocations
-    _Atomic(TB_LinkerThreadInfo*) first_thread_info;
+    // we track which symbols have not been resolved yet
+    DynArray(TB_LinkerSectionPiece*) worklist;
 
-    DynArray(TB_Module*) ir_modules;
-    TB_SymbolTable symtab;
+    // both use intern str keys
+    NL_Table symbols;
+    NL_Table sections;
 
     size_t trampoline_pos;  // relative to the .text section
     TB_Emitter trampolines; // these are for calling imported functions
 
-    NL_Strmap(TB_UnresolvedSymbol*) unresolved_symbols;
-
-    // Message pump:
-    //   this is how the user and linker communicate
-    //
-    // both head and tail exist in the queue field, it's a skeeto trick:
-    //    https://github.com/skeeto/scratch/blob/master/misc/queue.c
-    _Atomic uint32_t queue;
-    _Atomic uint32_t queue_count;
-    TB_LinkerMsg* messages;
+    // for relocations
+    _Atomic(TB_LinkerThreadInfo*) first_thread_info;
 
     // Windows specific:
     //   on windows, we use DLLs to interact with the OS so
@@ -312,47 +241,49 @@ typedef struct TB_Linker {
     TB_LinkerSectionPiece* main_reloc;
     uint32_t iat_pos;
     DynArray(ImportTable) imports;
-
-    TB_LinkerVtbl vtbl;
 } TB_Linker;
-
-void tb_linker_send_msg(TB_Linker* l, TB_LinkerMsg* msg);
 
 TB_LinkerThreadInfo* linker_thread_info(TB_Linker* l);
 
-// Error handling
-TB_UnresolvedSymbol* tb__unresolved_symbol(TB_Linker* l, TB_Slice name);
+void tb_linker_unresolved_sym(TB_Linker* l, TB_LinkerInternStr name);
 
-TB_LinkerSectionPiece* tb__get_piece(TB_Linker* l, TB_LinkerSymbol* restrict sym);
+TB_LinkerSectionPiece* tb_linker_get_piece(TB_Linker* l, TB_LinkerSymbol* restrict sym);
+void tb_linker_associate(TB_Linker* l, TB_LinkerSectionPiece* a, TB_LinkerSectionPiece* b);
 
 // TB helpers
 size_t tb__get_symbol_pos(TB_Symbol* s);
-void tb__append_module_section(TB_Linker* l, TB_LinkerInputHandle mod, TB_ModuleSection* section, const char* name, uint32_t flags);
-
-ImportThunk* tb__find_or_create_import(TB_Linker* l, TB_LinkerSymbol* restrict sym);
-
-// Inputs
-TB_LinkerInputHandle tb__track_module(TB_Linker* l, TB_LinkerInputHandle parent, TB_Module* mod);
-TB_LinkerInputHandle tb__track_object(TB_Linker* l, TB_LinkerInputHandle parent, TB_Slice name);
 
 // Symbol table
-TB_LinkerSymbol* tb__find_symbol_cstr(TB_SymbolTable* restrict symtab, const char* name);
-TB_LinkerSymbol* tb__find_symbol(TB_SymbolTable* restrict symtab, TB_Slice name);
-TB_LinkerSymbol* tb__append_symbol(TB_SymbolTable* restrict symtab, const TB_LinkerSymbol* sym);
+TB_LinkerInternStr tb_linker_intern_string(TB_Linker* l, size_t len, const char* str);
+TB_LinkerInternStr tb_linker_intern_cstring(TB_Linker* l, const char* str);
+size_t tb_linker_intern_len(TB_Linker* l, TB_LinkerInternStr str);
+
+TB_LinkerSymbol* tb_linker_new_symbol(TB_Linker* l, TB_LinkerInternStr name);
+TB_LinkerSymbol* tb_linker_find_symbol(TB_Linker* l, TB_LinkerInternStr name);
+TB_LinkerSymbol* tb_linker_find_symbol2(TB_Linker* l, const char* name);
+
+// Sections
+TB_LinkerSection* tb_linker_find_section(TB_Linker* linker, TB_LinkerInternStr name);
+TB_LinkerSection* tb_linker_find_section2(TB_Linker* linker, const char* name);
+
+TB_LinkerSection* tb_linker_find_or_create_section(TB_Linker* linker, TB_LinkerInternStr name, uint32_t flags);
+TB_LinkerSectionPiece* tb_linker_append_piece(TB_LinkerThreadInfo* info, TB_LinkerSection* section, int kind, size_t size, const void* data, TB_LinkerObject* obj);
+void tb_linker_merge_sections(TB_Linker* linker, TB_LinkerSection* from, TB_LinkerSection* to);
+void tb_linker_append_module_section(TB_Linker* l, TB_LinkerThreadInfo* info, TB_LinkerObject* mod, TB_ModuleSection* section, uint32_t flags);
+void tb_linker_append_module_symbols(TB_Linker* l, TB_Module* m);
+
 uint64_t tb__compute_rva(TB_Linker* l, TB_Module* m, const TB_Symbol* s);
 uint64_t tb__get_symbol_rva(TB_Linker* l, TB_LinkerSymbol* sym);
 
-// Section management
-void tb__merge_sections(TB_Linker* linker, TB_LinkerSection* from, TB_LinkerSection* to);
-
-TB_LinkerSection* tb__find_section(TB_Linker* linker, const char* name);
-TB_LinkerSection* tb__find_or_create_section(TB_Linker* linker, const char* name, uint32_t flags);
-TB_LinkerSection* tb__find_or_create_section2(TB_Linker* linker, size_t name_len, const uint8_t* name_str, uint32_t flags);
-TB_LinkerSectionPiece* tb__append_piece(TB_LinkerSection* section, int kind, size_t size, const void* data, TB_LinkerInputHandle input);
-
 size_t tb__pad_file(uint8_t* output, size_t write_pos, char pad, size_t align);
-void tb__apply_module_relocs(TB_Linker* l, TB_Module* m, uint8_t* output);
+void tb_linker_apply_module_relocs(TB_Linker* l, TB_Module* m, TB_LinkerSection* text, uint8_t* output);
 size_t tb__apply_section_contents(TB_Linker* l, uint8_t* output, size_t write_pos, TB_LinkerSection* text, TB_LinkerSection* data, TB_LinkerSection* rdata, size_t section_alignment, size_t image_base);
+
+TB_LinkerSymbol* tb_linker_get_target(TB_LinkerReloc* r);
+
+void tb_linker_push_piece(TB_Linker* l, TB_LinkerSectionPiece* p);
+void tb_linker_push_named(TB_Linker* l, const char* name);
+void tb_linker_mark_live(TB_Linker* l);
 
 // do layouting (requires GC step to complete)
 bool tb__finalize_sections(TB_Linker* l);

@@ -15,47 +15,30 @@ static void elf_append_module(TB_Linker* l, TB_LinkerThreadInfo* info, TB_Module
         tb_module_layout_sections(m);
     }
 
-    TB_LinkerInputHandle mod_index = tb__track_module(l, 0, m);
+    // We don't *really* care about this info beyond nicer errors
+    TB_LinkerObject* obj_file = tb_arena_alloc(info->perm_arena, sizeof(TB_LinkerObject));
+    *obj_file = (TB_LinkerObject){ .module = m };
 
     DynArray(TB_ModuleSection) sections = m->sections;
     dyn_array_for(i, sections) {
         uint32_t flags = TB_PF_R;
         if (sections[i].flags & TB_MODULE_SECTION_WRITE) flags |= TB_PF_W;
         if (sections[i].flags & TB_MODULE_SECTION_EXEC)  flags |= TB_PF_X;
-        tb__append_module_section(l, mod_index, &sections[i], sections[i].name, flags);
+        tb_linker_append_module_section(l, info, obj_file, &sections[i], flags);
     }
 
-    tb__append_module_symbols(l, m);
-}
-
-static TB_LinkerSymbol* elf_resolve_sym(TB_Linker* l, TB_LinkerSymbol* sym, TB_Slice name, TB_Slice* alt, uint32_t reloc_i) {
-    // resolve any by-name symbols
-    if (sym == NULL) {
-        sym = tb__find_symbol(&l->symtab, name);
-        if (sym != NULL) goto done;
-
-        if (alt) {
-            sym = tb__find_symbol(&l->symtab, *alt);
-            if (sym != NULL) goto done;
-        }
-
-        tb__unresolved_symbol(l, name)->reloc = reloc_i;
-        return NULL;
-    }
-
-    done:
-    return sym;
+    tb_linker_append_module_symbols(l, m);
 }
 
 static void elf_init(TB_Linker* l) {
     l->entrypoint = "_start";
-    l->resolve_sym = elf_resolve_sym;
 }
 
 #define WRITE(data, size) (memcpy(&output[write_pos], data, size), write_pos += (size))
 static TB_ExportBuffer elf_export(TB_Linker* l) {
     CUIK_TIMED_BLOCK("GC sections") {
-        gc_mark_root(l, l->entrypoint);
+        tb_linker_push_named(l, l->entrypoint);
+        tb_linker_mark_live(l);
     }
 
     if (!tb__finalize_sections(l)) {
@@ -67,12 +50,12 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
     tb_out1b(&strtbl, 0); // null string in the table
 
     size_t final_section_count = 0;
-    nl_map_for_str(i, l->sections) {
-        if (l->sections[i].v->generic_flags & TB_LINKER_SECTION_DISCARD) continue;
+    nl_table_for(e, &l->sections) {
+        TB_LinkerSection* sec = e->v;
+        if (sec->generic_flags & TB_LINKER_SECTION_DISCARD) continue;
 
         // reserve space for names
-        NL_Slice name = l->sections[i].v->name;
-        l->sections[i].v->name_pos = tb_outs(&strtbl, name.length + 1, name.data);
+        sec->name_pos = tb_outs(&strtbl, tb_linker_intern_len(l, sec->name) + 1, sec->name);
         tb_out1b_UNSAFE(&strtbl, 0);
 
         // we're keeping it for export
@@ -94,8 +77,8 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
     size_t section_content_size = 0;
     uint64_t virt_addr = size_of_headers;
     CUIK_TIMED_BLOCK("layout sections") {
-        nl_map_for_str(i, l->sections) {
-            TB_LinkerSection* s = l->sections[i].v;
+        nl_table_for(e, &l->sections) {
+            TB_LinkerSection* s = e->v;
             if (s->generic_flags & TB_LINKER_SECTION_DISCARD) continue;
 
             s->offset = size_of_headers + section_content_size;
@@ -155,8 +138,8 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
     };
 
     // text section crap
-    TB_LinkerSection* text = tb__find_section(l, ".text");
-    TB_LinkerSymbol* sym = tb__find_symbol_cstr(&l->symtab, l->entrypoint);
+    TB_LinkerSection* text = tb_linker_find_section2(l, ".text");
+    TB_LinkerSymbol* sym = tb_linker_find_symbol2(l, l->entrypoint);
     if (text && sym) {
         if (sym->tag == TB_LINKER_SYMBOL_NORMAL) {
             header.entry = text->address + sym->normal.piece->offset + sym->normal.secrel;
@@ -171,8 +154,8 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
     WRITE(&header, sizeof(header));
 
     // write program headers
-    nl_map_for_str(i, l->sections) {
-        TB_LinkerSection* s = l->sections[i].v;
+    nl_table_for(e, &l->sections) {
+        TB_LinkerSection* s = e->v;
         TB_Elf64_Phdr sec = {
             .type   = TB_PT_LOAD,
             .flags  = s->flags,
@@ -188,8 +171,8 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
     // write section headers
     memset(&output[write_pos], 0, sizeof(TB_Elf64_Shdr)), write_pos += sizeof(TB_Elf64_Shdr);
     WRITE(&strtab, sizeof(strtab));
-    nl_map_for_str(i, l->sections) {
-        TB_LinkerSection* s = l->sections[i].v;
+    nl_table_for(e, &l->sections) {
+        TB_LinkerSection* s = e->v;
         TB_Elf64_Shdr sec = {
             .name = s->name_pos,
             .type = TB_SHT_PROGBITS,
@@ -202,8 +185,8 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
         WRITE(&sec, sizeof(sec));
     }
 
-    TB_LinkerSection* data  = tb__find_section(l, ".data");
-    TB_LinkerSection* rdata = tb__find_section(l, ".rdata");
+    TB_LinkerSection* data  = tb_linker_find_section2(l, ".data");
+    TB_LinkerSection* rdata = tb_linker_find_section2(l, ".rdata");
 
     // write section contents
     write_pos = tb__apply_section_contents(l, output, write_pos, text, data, rdata, 1, 0);
@@ -211,13 +194,13 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
     assert(write_pos == output_size);
 
     // TODO(NeGate): multithread this too
-    CUIK_TIMED_BLOCK("apply final relocations") {
+    /*CUIK_TIMED_BLOCK("apply final relocations") {
         dyn_array_for(i, l->ir_modules) {
             tb__apply_module_relocs(l, l->ir_modules[i], output);
         }
 
         // tb__apply_external_relocs(l, output, opt_header.image_base);
-    }
+    }*/
 
     // write section contents
     return (TB_ExportBuffer){ .total = output_size, .head = chunk, .tail = chunk };

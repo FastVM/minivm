@@ -381,7 +381,7 @@ SPALL_FN SPALL_FORCEINLINE bool spall_buffer_begin_args(SpallProfile *ctx, Spall
     return true;
 }
 
-SPALL_FN SPALL_FORCEINLINE bool spall_buffer_begin_ex(SpallProfile *ctx, SpallBuffer *wb, const char *name, signed long name_len, double when, uint32_t tid, uint32_t pid) {
+SPALL_FN bool spall_buffer_begin_ex(SpallProfile *ctx, SpallBuffer *wb, const char *name, signed long name_len, double when, uint32_t tid, uint32_t pid) {
     return spall_buffer_begin_args(ctx, wb, name, name_len, "", 0, when, tid, pid);
 }
 
@@ -389,7 +389,7 @@ SPALL_FN bool spall_buffer_begin(SpallProfile *ctx, SpallBuffer *wb, const char 
     return spall_buffer_begin_args(ctx, wb, name, name_len, "", 0, when, 0, 0);
 }
 
-SPALL_FN SPALL_FORCEINLINE bool spall_buffer_end_ex(SpallProfile *ctx, SpallBuffer *wb, double when, uint32_t tid, uint32_t pid) {
+SPALL_FN bool spall_buffer_end_ex(SpallProfile *ctx, SpallBuffer *wb, double when, uint32_t tid, uint32_t pid) {
 #ifdef SPALL_DEBUG
     if (!ctx) return false;
     if (!wb) return false;

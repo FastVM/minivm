@@ -149,7 +149,7 @@ static uint16_t convert_to_codeview_type(CV_Builder* builder, TB_DebugType* type
 }
 
 static TB_Slice gimme_cstr_as_slice(TB_Arena* arena, const char* str) {
-    TB_Slice s = { strlen(str) };
+    TB_Slice s = { .length = strlen(str) };
     s.data = memcpy(tb_arena_alloc(arena, s.length), str, s.length);
     return s;
 }
@@ -539,8 +539,8 @@ static TB_SectionGroup codeview_generate_debug_info(TB_Module* m, TB_Arena* aren
     tb_codeview_builder_done(&builder);
     tb_arena_restore(arena, sp);
 
-    sections[0].raw_data = (TB_Slice){ debugs_out.count, debugs_out.data };
-    sections[1].raw_data = (TB_Slice){ builder.type_section.count, builder.type_section.data };
+    sections[0].raw_data = (TB_Slice){ debugs_out.data, debugs_out.count };
+    sections[1].raw_data = (TB_Slice){ builder.type_section.data, builder.type_section.count };
 
     return (TB_SectionGroup) { 2, sections };
 }

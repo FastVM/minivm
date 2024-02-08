@@ -86,12 +86,12 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg, bool renumber) {
                     TB_BasicBlock* bb = NULL;
                     if (n->type == TB_PROJ && n->inputs[0]->type == TB_ROOT) {
                         bb = start_bb;
-                    } else {
+                    } else if (n->type != TB_ROOT) {
                         TB_Node* curr = n;
                         do {
                             bb = p->scheduled[curr->gvn];
                             curr = curr->inputs[0];
-                            if (curr == NULL) {
+                            if (curr == NULL || curr->type == TB_ROOT) {
                                 break;
                             }
                         } while (!bb);

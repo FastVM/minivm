@@ -16,6 +16,7 @@ void* tb_jit_stack_create(void);
 
 // Optimizer
 #include "opt/optimizer.c"
+#include "new_builder.c"
 
 // Regalloc
 #include "lsra.c"

@@ -148,16 +148,19 @@ static Lattice* sccp_arith(TB_Passes* restrict opt, TB_Node* n) {
         case TB_ADD:
         overflow |= l_add_overflow(a->_int.min, b->_int.min, mask, &min);
         overflow |= l_add_overflow(a->_int.max, b->_int.max, mask, &max);
+        if (min > max) { overflow = true; }
         break;
 
         case TB_SUB:
         overflow |= l_sub_overflow(a->_int.min, b->_int.min, mask, &min);
         overflow |= l_sub_overflow(a->_int.max, b->_int.max, mask, &max);
+        if (min > max) { overflow = true; }
         break;
 
         case TB_MUL:
         overflow |= l_mul_overflow(a->_int.min, b->_int.min, mask, &min);
         overflow |= l_mul_overflow(a->_int.max, b->_int.max, mask, &max);
+        if (min > max) { overflow = true; }
         break;
     }
 
@@ -310,6 +313,7 @@ static Lattice* sccp_shift(TB_Passes* restrict opt, TB_Node* n) {
             }
             break;
 
+            case TB_SAR:
             case TB_SHR:
             // perform shift logic as unsigned
             min = a->_int.min;
@@ -480,7 +484,7 @@ static TB_Node* ideal_select(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
     return NULL;
 }
 
-static bool nice_ass_trunc(TB_NodeTypeEnum t) { return t == TB_ADD || t == TB_AND || t == TB_XOR || t == TB_OR || t == TB_MUL || t == TB_SHL || t == TB_SHR || t == TB_SMOD || t == TB_UMOD; }
+static bool nice_ass_trunc(TB_NodeTypeEnum t) { return t == TB_ADD || t == TB_AND || t == TB_XOR || t == TB_OR || t == TB_MUL || t == TB_SHL || t == TB_SHR || t == TB_SAR || t == TB_SMOD || t == TB_UMOD; }
 static TB_Node* ideal_truncate(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
     TB_Node* src = n->inputs[1];
 
@@ -614,7 +618,7 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
         int bits = n->dt.data;
 
         // (or (shl a 24) (shr a 40)) => (rol a 24)
-        if (a->type == TB_SHL && b->type == TB_SHR) {
+        if (a->type == TB_SHL && (b->type == TB_SHR || b->type == TB_SAR)) {
             uint64_t shl_amt, shr_amt;
             if (a->inputs[1] == b->inputs[1] &&
                 get_int_const(a->inputs[2], &shl_amt) &&
@@ -665,11 +669,11 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
             set_input(f, n, cmp->inputs[1], 2);
             return n;
         }
-    } else if (type == TB_SHL || type == TB_SHR) {
+    } else if (type == TB_SHL || type == TB_SHR || type == TB_SAR) {
         // (a << b) >> c = (a << (b - c)) & (ALL >> b)
         // (a >> b) << c = (a >> (b - c)) & ((1 << b) - 1)
         uint64_t b, c;
-        if ((n->inputs[1]->type == TB_SHL || n->inputs[1]->type == TB_SHR) &&
+        if ((n->inputs[1]->type == TB_SHL || n->inputs[1]->type == TB_SHR || n->inputs[1]->type == TB_SAR) &&
             get_int_const(n->inputs[2], &c) && get_int_const(n->inputs[1]->inputs[2], &b)) {
             TB_NodeTypeEnum inner_shift = n->inputs[1]->type;
 
@@ -853,6 +857,7 @@ static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_N
 
             case TB_SHL:
             case TB_SHR:
+            case TB_SAR:
             case TB_ADD:
             case TB_SUB:
             case TB_XOR:

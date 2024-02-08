@@ -13,7 +13,7 @@ TB_API TB_Trace tb_inst_get_trace(TB_Function* f) { return f->trace; }
 TB_Node* tb_inst_get_control(TB_Function* f) { return f->trace.bot_ctrl; }
 TB_API TB_Node* tb_inst_root_node(TB_Function* f) { return f->root_node; }
 
-TB_Node* transfer_ctrl(TB_Function* f, TB_Node* n) {
+static TB_Node* transfer_ctrl(TB_Function* f, TB_Node* n) {
     TB_Node* prev = f->trace.bot_ctrl;
     f->trace.bot_ctrl = n;
     if (f->line_loc) {
@@ -23,10 +23,16 @@ TB_Node* transfer_ctrl(TB_Function* f, TB_Node* n) {
 }
 
 void tb_inst_set_control(TB_Function* f, TB_Node* control) {
-    assert(control->type == TB_REGION);
-    f->trace.top_ctrl = control;
-    f->trace.bot_ctrl = control;
-    f->trace.mem = TB_NODE_GET_EXTRA_T(control, TB_NodeRegion)->mem_in;
+    if (control == NULL) {
+        f->trace.top_ctrl = NULL;
+        f->trace.bot_ctrl = NULL;
+        f->trace.mem = NULL;
+    } else {
+        assert(control->type == TB_REGION);
+        f->trace.top_ctrl = control;
+        f->trace.bot_ctrl = control;
+        f->trace.mem = TB_NODE_GET_EXTRA_T(control, TB_NodeRegion)->mem_in;
+    }
 }
 
 TB_Node* tb_inst_region_mem_in(TB_Function* f, TB_Node* region) {
@@ -39,7 +45,7 @@ TB_Trace tb_inst_trace_from_region(TB_Function* f, TB_Node* region) {
     return (TB_Trace){ region, region, r->mem_in };
 }
 
-static TB_Node* get_callgraph(TB_Function* f) { return f->root_node->inputs[3]; }
+static TB_Node* get_callgraph(TB_Function* f) { return f->root_node->inputs[0]; }
 static TB_Node* peek_mem(TB_Function* f) { return f->trace.mem; }
 
 // adds memory effect to region
@@ -240,7 +246,8 @@ void tb_get_data_type_size(TB_Module* mod, TB_DataType dt, size_t* size, size_t*
 void tb_inst_unreachable(TB_Function* f) {
     TB_Node* n = tb_alloc_node(f, TB_UNREACHABLE, TB_TYPE_CONTROL, 1, 0);
     set_input(f, n, transfer_ctrl(f, n), 0);
-    tb_inst_ret(f, 0, NULL);
+    add_input_late(f, f->root_node, n);
+    f->trace.bot_ctrl = NULL;
 }
 
 void tb_inst_debugbreak(TB_Function* f) {
@@ -251,7 +258,8 @@ void tb_inst_debugbreak(TB_Function* f) {
 void tb_inst_trap(TB_Function* f) {
     TB_Node* n = tb_alloc_node(f, TB_TRAP, TB_TYPE_CONTROL, 1, 0);
     set_input(f, n, transfer_ctrl(f, n), 0);
-    tb_inst_ret(f, 0, NULL);
+    add_input_late(f, f->root_node, n);
+    f->trace.bot_ctrl = NULL;
 }
 
 TB_Node* tb_inst_local(TB_Function* f, TB_CharUnits size, TB_CharUnits alignment) {
@@ -512,7 +520,7 @@ void tb_inst_tailcall(TB_Function* f, TB_FunctionPrototype* proto, TB_Node* targ
     c->proto = proto;
 
     add_input_late(f, get_callgraph(f), n);
-    tb_inst_ret(f, 0, NULL);
+    add_input_late(f, f->root_node, n);
 }
 
 TB_Node* tb_inst_poison(TB_Function* f, TB_DataType dt) {
@@ -897,7 +905,7 @@ void tb_inst_set_region_name(TB_Function* f, TB_Node* n, ptrdiff_t len, const ch
 
 // this has to move things which is not nice...
 static void add_input_late(TB_Function* f, TB_Node* n, TB_Node* in) {
-    assert(n->type == TB_REGION || n->type == TB_PHI || n->type == TB_CALLGRAPH);
+    assert(n->type == TB_REGION || n->type == TB_PHI || n->type == TB_ROOT || n->type == TB_CALLGRAPH);
 
     if (n->input_count >= n->input_cap) {
         size_t new_cap = n->input_count * 2;
@@ -1000,28 +1008,30 @@ void tb_inst_ret(TB_Function* f, size_t count, TB_Node** values) {
     TB_Node* mem_state = peek_mem(f);
 
     // allocate return node
-    TB_Node* root = f->root_node;
-    TB_Node* ctrl = root->inputs[0];
+    TB_Node* ret = f->ret_node;
+    TB_Node* ctrl = ret->inputs[0];
     assert(ctrl->type == TB_REGION);
 
     // add to PHIs
-    assert(root->input_count >= 4 + count);
-    add_input_late(f, root->inputs[1], mem_state);
+    assert(ret->input_count >= 3 + count);
+    add_input_late(f, ret->inputs[1], mem_state);
 
-    size_t i = 4;
-    for (; i < count + 4; i++) {
-        assert(root->inputs[i]->dt.raw == values[i - 4]->dt.raw && "datatype mismatch");
-        add_input_late(f, root->inputs[i], values[i - 4]);
+    size_t i = 3;
+    for (; i < count + 3; i++) {
+        assert(ret->inputs[i]->dt.raw == values[i - 3]->dt.raw && "datatype mismatch");
+        add_input_late(f, ret->inputs[i], values[i - 3]);
     }
 
-    size_t phi_count = root->input_count;
+    size_t phi_count = ret->input_count;
     for (; i < phi_count; i++) {
         // put poison in the leftovers?
         log_warn("%s: ir: generated poison due to inconsistent number of returned values", f->super.name);
 
-        TB_Node* poison = tb_alloc_node(f, TB_POISON, root->inputs[i]->dt, 1, 0);
-        set_input(f, poison, f->root_node, 0);
-        add_input_late(f, root->inputs[i], poison);
+        TB_Node* poison = tb_alloc_node(f, TB_POISON, ret->inputs[i]->dt, 1, 0);
+        set_input(f, poison, f->ret_node, 0);
+
+        poison = tb__gvn(f, poison, 0);
+        add_input_late(f, ret->inputs[i], poison);
     }
 
     // basically just tb_inst_goto without the memory PHI (we did it earlier)

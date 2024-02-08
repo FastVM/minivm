@@ -1,11 +1,12 @@
 #include <hashes.h>
 
-static Lattice TOP_IN_THE_SKY   = { LATTICE_TOP   };
-static Lattice BOT_IN_THE_SKY   = { LATTICE_BOT   };
-static Lattice CTRL_IN_THE_SKY  = { LATTICE_CTRL  };
-static Lattice XCTRL_IN_THE_SKY = { LATTICE_XCTRL };
-static Lattice XNULL_IN_THE_SKY = { LATTICE_XNULL };
-static Lattice NULL_IN_THE_SKY  = { LATTICE_NULL  };
+static Lattice TOP_IN_THE_SKY   = { LATTICE_TOP    };
+static Lattice BOT_IN_THE_SKY   = { LATTICE_BOT    };
+static Lattice CTRL_IN_THE_SKY  = { LATTICE_CTRL   };
+static Lattice XCTRL_IN_THE_SKY = { LATTICE_XCTRL  };
+static Lattice XNULL_IN_THE_SKY = { LATTICE_XNULL  };
+static Lattice NULL_IN_THE_SKY  = { LATTICE_NULL   };
+static Lattice PTR_IN_THE_SKY   = { LATTICE_ALLPTR };
 static Lattice FALSE_IN_THE_SKY = { LATTICE_INT, ._int = { 0, 0, 1, 0 } };
 static Lattice TRUE_IN_THE_SKY  = { LATTICE_INT, ._int = { 1, 1, 0, 1 } };
 
@@ -129,12 +130,20 @@ static Lattice* lattice_from_dt(TB_Passes* p, TB_DataType dt) {
     switch (dt.type) {
         case TB_INT: {
             assert(dt.data <= 64);
+            if (dt.data == 0) {
+                return &BOT_IN_THE_SKY;
+            }
+
             return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = { 0, lattice_uint_max(dt.data) } });
         }
 
         case TB_FLOAT: {
             assert(dt.data == TB_FLT_32 || dt.data == TB_FLT_64);
             return lattice_intern(p, (Lattice){ dt.data == TB_FLT_64 ? LATTICE_FLOAT64 : LATTICE_FLOAT32, ._float = { LATTICE_UNKNOWN } });
+        }
+
+        case TB_PTR: {
+            return &PTR_IN_THE_SKY;
         }
 
         case TB_MEMORY: {
@@ -177,7 +186,7 @@ static Lattice* lattice_tuple_from_node(TB_Passes* p, TB_Node* n) {
 // known X ^ unknown => unknown (commutative btw)
 #define TRIFECTA_MEET(a, b) ((a).trifecta == (b).trifecta ? (a).trifecta : LATTICE_UNKNOWN)
 
-#define MASK_UPTO(pos) (~UINT64_C(0) >> (64 - pos))
+#define MASK_UPTO(pos) (UINT64_MAX >> (64 - pos))
 #define BEXTR(src,pos) (((src) >> (pos)) & 1)
 uint64_t tb__sxt(uint64_t src, uint64_t src_bits, uint64_t dst_bits) {
     uint64_t sign_bit = BEXTR(src, src_bits-1);
@@ -261,7 +270,8 @@ static Lattice* lattice_meet(TB_Passes* p, Lattice* a, Lattice* b, TB_DataType d
     // a ^ a = a
     if (a == b) return a;
 
-    // it's commutative, so let's simplify later code this way
+    // it's commutative, so let's simplify later code this way.
+    // now a will always be smaller tag than b.
     if (a->tag > b->tag) {
         SWAP(Lattice*, a, b);
     }
@@ -298,11 +308,13 @@ static Lattice* lattice_meet(TB_Passes* p, Lattice* a, Lattice* b, TB_DataType d
         }
 
         // all cases that reached down here are bottoms
-        case LATTICE_NULL: return &BOT_IN_THE_SKY;
+        case LATTICE_ALLPTR:
+        case LATTICE_NULL:
+        return &PTR_IN_THE_SKY;
 
         // ~null ^ sym = ~null
         case LATTICE_XNULL: {
-            if (b->tag == LATTICE_PTR) {
+            if (b->tag == LATTICE_PTRCON) {
                 return a;
             } else {
                 return &BOT_IN_THE_SKY;
@@ -310,8 +322,8 @@ static Lattice* lattice_meet(TB_Passes* p, Lattice* a, Lattice* b, TB_DataType d
         }
 
         // symA ^ symB = ~null
-        case LATTICE_PTR: {
-            if (b->tag == LATTICE_PTR) {
+        case LATTICE_PTRCON: {
+            if (b->tag == LATTICE_PTRCON) {
                 assert(a->_ptr.sym != b->_ptr.sym);
                 return &XNULL_IN_THE_SKY;
             } else {

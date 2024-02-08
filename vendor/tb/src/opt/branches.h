@@ -268,60 +268,86 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
             // if (a && b) A else B => if (a ? b : 0) A else B
             //
             // TODO(NeGate): implement form which works on an arbitrary falsey
-            /*if (n->inputs[0]->type == TB_REGION && n->inputs[0]->input_count == 2 && is_empty_bb(opt, n)) {
-                TB_Node* bb = n->inputs[0];
-
+            if (n->inputs[0]->type == TB_PROJ && n->inputs[0]->inputs[0]->type == TB_BRANCH && is_empty_bb(opt, n)) {
                 uint64_t falsey = br->keys[0];
-                TB_Node* pred_branch = bb->inputs[0]->inputs[0];
+                TB_Node* pred_branch = n->inputs[0]->inputs[0];
+
+                int index = TB_NODE_GET_EXTRA_T(n->inputs[0], TB_NodeProj)->index;
 
                 // needs one pred
                 uint64_t pred_falsey;
-                if (bb->input_count == 1 && is_if_branch(pred_branch, &pred_falsey)) {
+                if (is_if_branch(pred_branch, &pred_falsey) && pred_falsey == 0) {
                     TB_NodeBranch* pred_br_info = TB_NODE_GET_EXTRA(pred_branch);
 
-                    bool bb_on_false = pred_br_info->succ[0] == bb;
-                    TB_Node* shared_edge = pred_br_info->succ[!bb_on_false];
+                    // check our parent's aux path
+                    User* other_proj      = proj_with_index(pred_branch, 1 - index);
+                    TB_Node* shared_edge  = cfg_next_bb_after_cproj(other_proj->n);
 
-                    int shared_i = -1;
-                    if (shared_edge == br->succ[0]) shared_i = 0;
-                    if (shared_edge == br->succ[1]) shared_i = 1;
+                    // check our aux path
+                    User* other_proj2     = proj_with_index(n, 1 - index);
+                    TB_Node* shared_edge2 = cfg_next_bb_after_cproj(other_proj2->n);
 
-                    if (shared_i >= 0) {
-                        TB_Node* pred_cmp = pred_branch->inputs[1];
+                    // if they're the same then we've got a shortcircuit eval setup
+                    if (shared_edge == shared_edge2) {
+                        assert(shared_edge->type == TB_REGION);
+                        int shared_i  = other_proj->n->users->slot;
+                        int shared_i2 = other_proj2->n->users->slot;
 
-                        // convert first branch into an unconditional into bb
-                        transmute_goto(opt, f, pred_branch, bb);
-
-                        // we wanna normalize into a comparison (not a boolean -> boolean)
-                        if (!(pred_cmp->dt.type == TB_INT && pred_cmp->dt.data == 1)) {
-                            assert(pred_cmp->dt.type != TB_FLOAT && "TODO");
-                            TB_Node* imm = make_int_node(f, opt, pred_cmp->dt, pred_falsey);
-                            tb_pass_mark(opt, imm);
-
-                            TB_Node* new_node = tb_alloc_node(f, TB_CMP_NE, TB_TYPE_BOOL, 3, sizeof(TB_NodeCompare));
-                            set_input(f, new_node, pred_cmp, 1);
-                            set_input(f, new_node, imm, 2);
-                            TB_NODE_SET_EXTRA(new_node, TB_NodeCompare, .cmp_dt = pred_cmp->dt);
-
-                            tb_pass_mark(opt, new_node);
-                            pred_cmp = new_node;
+                        bool match = true;
+                        FOR_USERS(phis, shared_edge) if (phis->n->type == TB_PHI) {
+                            if (phis->n->inputs[1+shared_i] != phis->n->inputs[1+shared_i2]) {
+                                match = false;
+                                break;
+                            }
                         }
 
-                        TB_Node* false_node = make_int_node(f, opt, n->inputs[1]->dt, falsey);
-                        tb_pass_mark(opt, false_node);
+                        if (match) {
+                            // remove pred from shared edge
+                            remove_input(f, shared_edge, shared_i);
+                            FOR_USERS(use, shared_edge) {
+                                if (use->n->type == TB_PHI && use->slot == 0) {
+                                    remove_input(f, use->n, shared_i + 1);
+                                    tb_pass_mark(opt, use->n);
+                                }
+                            }
 
-                        // a ? b : 0
-                        TB_Node* selector = tb_alloc_node(f, TB_SELECT, n->inputs[1]->dt, 4, 0);
-                        set_input(f, selector, pred_cmp, 1);
-                        set_input(f, selector, n->inputs[1], 2 + bb_on_false);
-                        set_input(f, selector, false_node, 2 + !bb_on_false);
+                            TB_Node* before = pred_branch->inputs[0];
+                            TB_Node* cmp = pred_branch->inputs[1];
 
-                        set_input(f, n, selector, 1);
-                        tb_pass_mark(opt, selector);
-                        return n;
+                            // remove first branch
+                            tb_pass_kill_node(f, pred_branch);
+                            set_input(f, n, before, 0);
+
+                            // we wanna normalize into a comparison (not a boolean -> boolean)
+                            if (!(cmp->dt.type == TB_INT && cmp->dt.data == 1)) {
+                                assert(cmp->dt.type != TB_FLOAT && "TODO");
+                                TB_Node* imm = make_int_node(f, opt, cmp->dt, pred_falsey);
+
+                                TB_Node* new_node = tb_alloc_node(f, TB_CMP_NE, TB_TYPE_BOOL, 3, sizeof(TB_NodeCompare));
+                                set_input(f, new_node, cmp, 1);
+                                set_input(f, new_node, imm, 2);
+                                TB_NODE_SET_EXTRA(new_node, TB_NodeCompare, .cmp_dt = cmp->dt);
+
+                                tb_pass_mark(opt, new_node);
+                                cmp = new_node;
+                            }
+
+                            // construct branchless merge
+                            TB_Node* false_node = make_int_node(f, opt, n->inputs[1]->dt, 0);
+
+                            // a ? b : 0
+                            TB_Node* selector = tb_alloc_node(f, TB_SELECT, n->inputs[1]->dt, 4, 0);
+                            set_input(f, selector, cmp,          1);
+                            set_input(f, selector, n->inputs[1], 2);
+                            set_input(f, selector, false_node,   3);
+
+                            set_input(f, n, selector, 1);
+                            tb_pass_mark(opt, selector);
+                            return n;
+                        }
                     }
                 }
-            }*/
+            }
 
             // br ((y <= x)) => br (x < y) flipped conditions
             if (cmp_type == TB_CMP_SLE || cmp_type == TB_CMP_ULE) {
@@ -369,6 +395,10 @@ static Lattice* sccp_call(TB_Passes* restrict opt, TB_Node* n) {
     size_t size = sizeof(Lattice) + c->proj_count*sizeof(Lattice*);
     Lattice* l = tb_arena_alloc(tmp_arena, size);
     *l = (Lattice){ LATTICE_TUPLE, ._tuple = { c->proj_count } };
+
+    FOREACH_N(i, 1, c->proj_count) {
+        l->elems[i] = &BOT_IN_THE_SKY;
+    }
 
     FOR_USERS(u, n) {
         if (u->n->type == TB_PROJ) {
@@ -421,7 +451,6 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
         int64_t* primary_keys = br->keys;
 
         // check for redundant conditions in the doms.
-        TB_Node* initial_bb = get_block_begin(n->inputs[0]);
         FOR_USERS(u, n->inputs[1]) {
             if (u->n->type != TB_BRANCH || u->slot != 1 || u->n == n) {
                 continue;
@@ -429,7 +458,7 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
 
             TB_Node* end = u->n;
             int64_t* keys = TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->keys;
-            if (TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->succ_count != 2 && keys[0] != primary_keys[0]) {
+            if (TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->succ_count != 2 || keys[0] != primary_keys[0]) {
                 continue;
             }
 
@@ -439,7 +468,7 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
                 TB_Node* succ = cfg_next_bb_after_cproj(succ_user->n);
 
                 // we must be dominating for this to work
-                if (!fast_dommy(succ, initial_bb)) {
+                if (!fast_dommy(succ, n)) {
                     continue;
                 }
 
@@ -450,7 +479,7 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
     }
 
     // construct tuple type
-    match:
+    match:;
     size_t size = sizeof(Lattice) + br->succ_count*sizeof(Lattice*);
     Lattice* l = tb_arena_alloc(tmp_arena, size);
     *l = (Lattice){ LATTICE_TUPLE, ._tuple = { br->succ_count } };
@@ -470,7 +499,34 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
 static TB_Node* identity_ctrl(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     // Dead node? kill
     Lattice* ctrl = lattice_universe_get(p, n->inputs[0]);
-    return ctrl == &XCTRL_IN_THE_SKY ? dead_node(f, p) : n;
+    if (n->dt.type == TB_TUPLE && ctrl == &XCTRL_IN_THE_SKY) {
+        TB_Node* dead = dead_node(f, p);
+        while (n->users) {
+            TB_Node* use_n = n->users->n;
+            int use_i = n->users->slot;
+
+            if (use_n->type == TB_CALLGRAPH) {
+                TB_Node* last = use_n->inputs[use_n->input_count - 1];
+                set_input(f, use_n, NULL, use_n->input_count - 1);
+                if (use_i != use_n->input_count - 1) {
+                    set_input(f, use_n, last, use_i);
+                }
+                use_n->input_count--;
+            } else if (use_n->type == TB_PROJ) {
+                TB_Node* replacement = use_n->dt.type == TB_CONTROL
+                    ? dead
+                    : make_poison(f, use_n->dt);
+
+                subsume_node(f, use_n, replacement);
+            } else {
+                tb_todo();
+            }
+        }
+
+        return dead;
+    } else {
+        return ctrl == &XCTRL_IN_THE_SKY ? dead_node(f, p) : n;
+    }
 }
 
 static TB_Node* identity_safepoint(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
@@ -520,6 +576,9 @@ static TB_Node* identity_phi(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
     }
 
     assert(same);
-    tb_pass_mark_users(p, n->inputs[0]);
+    if (p) {
+        tb_pass_mark_users(p, n->inputs[0]);
+    }
+
     return same;
 }

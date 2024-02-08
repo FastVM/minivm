@@ -116,9 +116,6 @@ struct Tile {
 
     int time;
 
-    TB_Node* n;
-    LiveInterval* interval;
-
     union {
         // tag = TILE_GOTO, this is the successor
         TB_Node* succ;
@@ -133,8 +130,12 @@ struct Tile {
         TB_NodeLocation* loc;
     };
 
+    int out_count;
     int in_count;
     TileInput* ins;
+
+    TB_Node* n;
+    LiveInterval* outs[];
 };
 
 typedef struct {
@@ -178,6 +179,11 @@ typedef struct Ctx Ctx;
 typedef void (*TB_RegAlloc)(Ctx* restrict ctx, TB_Arena* arena);
 typedef bool (*TB_2Addr)(TB_Node* n);
 
+// how many live intervals do we need to allocate to actually store
+// this register, usually 0 or 1 but occassionally (especially on 32bit
+// platforms when doing 64bit arithmetic) we'll get 2.
+typedef int (*TB_RegCount)(Ctx* restrict ctx, TB_Node* n);
+
 typedef struct {
     uint32_t* pos;
     uint32_t target;
@@ -199,6 +205,7 @@ struct Ctx {
     // user-provided details
     TB_Scheduler sched;
     TB_RegAlloc regalloc;
+    TB_RegCount regcnt;
     TB_2Addr _2addr;
 
     // target-dependent index
@@ -225,9 +232,12 @@ struct Ctx {
     LiveInterval* fixed[MAX_REG_CLASSES];
 
     // Regalloc
+    int initial_spills;
+    int stack_slot_size;
     int interval_count;
     int stack_header;
     int stack_usage;
+    int call_usage;
     int num_fixed;
     int num_classes;
     int num_regs[MAX_REG_CLASSES];

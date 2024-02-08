@@ -68,7 +68,11 @@ typedef enum TB_Arch {
 
     TB_ARCH_X86_64,
     TB_ARCH_AARCH64,
+
+    // they're almost identical so might as well do both.
+    TB_ARCH_MIPS32,
     TB_ARCH_MIPS64,
+
     TB_ARCH_WASM32,
 } TB_Arch;
 
@@ -236,7 +240,7 @@ typedef enum TB_NodeTypeEnum {
     // projections just extract a single field of a tuple
     TB_PROJ,          // Tuple & Int -> Any
     // this is a simple way to embed machine code into the code
-    TB_MACHINE_OP,    // (Control, Memory) & Buffer -> (Control, Memory)
+    TB_INLINE_ASM,    // (Control, Memory) & InlineAsm -> (Control, Memory)
     // reads the TSC on x64
     TB_CYCLE_COUNTER, // (Control) -> Int64
     // prefetches data for reading. The number next to the
@@ -250,7 +254,9 @@ typedef enum TB_NodeTypeEnum {
     ////////////////////////////////
     //   there's only one ROOT per function, it's inputs are the return values, it's
     //   outputs are the initial params.
-    TB_ROOT,       // (Control, Memory, RPC, Callgraph, Data...) -> (Control, Memory, RPC, Data...)
+    TB_ROOT,       // (Callgraph, Exits...) -> (Control, Memory, RPC, Data...)
+    //   return nodes feed into ROOT, jumps through the RPC out of this stack frame.
+    TB_RETURN,     // (Control, Memory, RPC, Data...) -> ()
     //   regions are used to represent paths which have multiple entries.
     //   each input is a predecessor.
     TB_REGION,     // (Control...) -> (Control)
@@ -273,7 +279,7 @@ typedef enum TB_NodeTypeEnum {
     //   trap will not be continuable but will stop execution.
     TB_TRAP,        // (Control) -> (Control)
     //   unreachable means it won't trap or be continuable.
-    TB_UNREACHABLE, // (Control) -> ()
+    TB_UNREACHABLE, // (Control) -> (Control)
     //   all dead paths are stitched here
     TB_DEAD,        // (Control) -> (Control)
 
@@ -426,8 +432,8 @@ typedef uint8_t TB_NodeType;
 
 // just represents some region of bytes, usually in file parsing crap
 typedef struct {
-    size_t length;
     const uint8_t* data;
+    size_t length;
 } TB_Slice;
 
 // represents byte counts
@@ -598,16 +604,6 @@ typedef struct {
 } TB_NodeLocal;
 
 typedef struct {
-    // this is the raw buffer
-    size_t length;
-    const uint8_t* data;
-
-    // represents the outputs, inputs and temporaries in that order
-    size_t outs, ins, tmps;
-    TB_PhysicalReg regs[];
-} TB_NodeMachineOp;
-
-typedef struct {
     float value;
 } TB_NodeFloat32;
 
@@ -651,6 +647,7 @@ typedef struct {
 
 typedef struct {
     void* tag;
+    int param_start;
 } TB_NodeSafepoint;
 
 typedef struct {
@@ -714,6 +711,17 @@ typedef enum {
     TB_MODULE_SECTION_EXEC  = 2,
     TB_MODULE_SECTION_TLS   = 4,
 } TB_ModuleSectionFlags;
+
+typedef void (*TB_InlineAsmRA)(TB_Node* n, void* ctx);
+
+// This is the function that'll emit bytes from a TB_INLINE_ASM node
+typedef size_t (*TB_InlineAsmEmit)(TB_Node* n, void* ctx, size_t out_cap, uint8_t* out);
+
+typedef struct {
+    void* ctx;
+    TB_InlineAsmRA   ra;
+    TB_InlineAsmEmit emit;
+} TB_NodeInlineAsm;
 
 // *******************************
 // Public macros
@@ -834,44 +842,42 @@ typedef struct TB_CPUContext TB_CPUContext;
 TB_API TB_JIT* tb_jit_begin(TB_Module* m, size_t jit_heap_capacity);
 TB_API void* tb_jit_place_function(TB_JIT* jit, TB_Function* f);
 TB_API void* tb_jit_place_global(TB_JIT* jit, TB_Global* g);
+TB_API void* tb_jit_alloc_obj(TB_JIT* jit, size_t size, size_t align);
+TB_API void tb_jit_free_obj(TB_JIT* jit, void* ptr);
 TB_API void tb_jit_dump_heap(TB_JIT* jit);
 TB_API void tb_jit_end(TB_JIT* jit);
 
 typedef struct {
-    TB_Symbol* base;
+    void* tag;
     uint32_t offset;
 } TB_ResolvedAddr;
 
-typedef struct {
-    TB_Function* f;
-    TB_Location* loc;
-    uint32_t start, end;
-} TB_ResolvedLine;
-
-TB_API TB_ResolvedAddr tb_jit_addr2sym(TB_JIT* jit, void* ptr);
-TB_API TB_ResolvedLine tb_jit_addr2line(TB_JIT* jit, void* ptr);
+TB_API void* tb_jit_resolve_addr(TB_JIT* jit, void* ptr, uint32_t* offset);
 TB_API void* tb_jit_get_code_ptr(TB_Function* f);
 
-typedef enum {
-    // just keeps running
-    TB_DBG_NONE,
-    // stops after one instruction
-    TB_DBG_INST,
-    // stops once the line changes
-    TB_DBG_LINE,
-} TB_DbgStep;
+// you can take an tag an allocation, fresh space for random userdata :)
+TB_API void tb_jit_tag_object(TB_JIT* jit, void* ptr, void* tag);
 
 // Debugger stuff
 //   creates a new context we can run JIT code in, you don't
 //   technically need this but it's a nice helper for writing
 //   JITs especially when it comes to breakpoints (and eventually
 //   safepoints)
-TB_API TB_CPUContext* tb_jit_thread_create(void* entry, void* arg);
-//   runs until TB_DbgStep condition is met
-TB_API bool tb_jit_thread_resume(TB_JIT* jit, TB_CPUContext* cpu, TB_DbgStep step);
-TB_API void* tb_jit_thread_pc(TB_CPUContext* cpu);
+TB_API TB_CPUContext* tb_jit_thread_create(TB_JIT* jit, size_t ud_size);
+TB_API void* tb_jit_thread_get_userdata(TB_CPUContext* cpu);
 TB_API void tb_jit_breakpoint(TB_JIT* jit, void* addr);
-TB_API void tb_jit_thread_dump_stack(TB_JIT* jit, TB_CPUContext* cpu);
+
+// offsetof pollsite in the CPUContext
+TB_API size_t tb_jit_thread_pollsite(void);
+
+// Only relevant when you're pausing the thread
+TB_API void* tb_jit_thread_pc(TB_CPUContext* cpu);
+TB_API void* tb_jit_thread_sp(TB_CPUContext* cpu);
+
+TB_API bool tb_jit_thread_call(TB_CPUContext* cpu, void* pc, uint64_t* ret, size_t arg_count, void** args);
+
+// returns true if we stepped off the end and returned through the trampoline
+TB_API bool tb_jit_thread_step(TB_CPUContext* cpu, uint64_t* ret, uintptr_t pc_start, uintptr_t pc_end);
 
 ////////////////////////////////
 // Disassembler
@@ -1078,9 +1084,6 @@ TB_API TB_Global* tb_symbol_as_global(TB_Symbol* s);
 // Function IR Generation
 ////////////////////////////////
 TB_API void tb_get_data_type_size(TB_Module* mod, TB_DataType dt, size_t* size, size_t* align);
-
-// the user_data is expected to be a valid FILE*
-TB_API void tb_default_print_callback(void* user_data, const char* fmt, ...);
 
 TB_API void tb_inst_location(TB_Function* f, TB_SourceFile* file, int line, int column);
 
@@ -1291,6 +1294,101 @@ TB_API void tb_inst_if2(TB_Function* f, TB_Node* cond, TB_Node* projs[2]);
 TB_API void tb_inst_ret(TB_Function* f, size_t count, TB_Node** values);
 
 ////////////////////////////////
+// Cooler IR building
+////////////////////////////////
+typedef struct TB_GraphBuilder TB_GraphBuilder;
+enum { TB_GRAPH_BUILDER_PARAMS = 0 };
+
+// arena isn't for the function, it's for the builder
+TB_API TB_GraphBuilder* tb_builder_enter(TB_Function* f, TB_Arena* arena);
+TB_API void tb_builder_exit(TB_GraphBuilder* g);
+
+// sometimes you wanna make a scope and have some shit in there... use this
+TB_API int tb_builder_save(TB_GraphBuilder* g);
+TB_API void tb_builder_restore(TB_GraphBuilder* g, int v);
+
+TB_API void tb_builder_push(TB_GraphBuilder* g, TB_Node* n);
+TB_API TB_Node* tb_builder_pop(TB_GraphBuilder* g);
+
+TB_API void tb_builder_debugbreak(TB_GraphBuilder* g);
+
+// ( -- a )
+TB_API void tb_builder_uint(TB_GraphBuilder* g, TB_DataType dt, uint64_t x);
+TB_API void tb_builder_sint(TB_GraphBuilder* g, TB_DataType dt, int64_t x);
+TB_API void tb_builder_float32(TB_GraphBuilder* g, float imm);
+TB_API void tb_builder_float64(TB_GraphBuilder* g, double imm);
+TB_API void tb_builder_string(TB_GraphBuilder* g, ptrdiff_t len, const char* str);
+
+// ( a b -- c )
+//
+// works with type: AND, OR, XOR, ADD, SUB, MUL, SHL, SHR, SAR, ROL, ROR, UDIV, SDIV, UMOD, SMOD.
+// note that arithmetic behavior is irrelevant for some of the operations (but 0 is always a good default).
+TB_API void tb_builder_binop_int(TB_GraphBuilder* g, int type, TB_ArithmeticBehavior ab);
+
+TB_API void tb_builder_cast(TB_GraphBuilder* g, TB_DataType dt, int type);
+
+// ( a b -- c )
+TB_API void tb_builder_cmp(TB_GraphBuilder* g, int type, bool flip, TB_DataType dt);
+
+// pointer arithmetic
+//   ( a b -- c )   =>   a + b*stride
+TB_API void tb_builder_array(TB_GraphBuilder* g, int64_t stride);
+//   ( a -- c )     =>   a + offset
+TB_API void tb_builder_member(TB_GraphBuilder* g, int64_t offset);
+
+// memory
+//   ( addr -- val )
+TB_API void tb_builder_load(TB_GraphBuilder* g, int mem_var, bool ctrl_dep, TB_DataType dt, int32_t offset, TB_CharUnits align);
+//   ( addr val -- )
+TB_API void tb_builder_store(TB_GraphBuilder* g, int mem_var, int32_t offset, TB_CharUnits align);
+
+// function call
+//   ( ... -- ... )
+TB_API void tb_builder_static_call(TB_GraphBuilder* g, TB_FunctionPrototype* proto, TB_Symbol* target, int mem_var, int nargs);
+
+// locals (variables but as stack vars)
+TB_API TB_Node* tb_builder_local(TB_GraphBuilder* g, TB_CharUnits size, TB_CharUnits align);
+TB_API void tb_builder_push(TB_GraphBuilder* g, TB_Node* n);
+TB_API TB_Node* tb_builder_pop(TB_GraphBuilder* g);
+
+// variables (these are just named stack slots)
+//   ( a -- )
+//
+//   we take the top item in the stack and treat it as a
+//   variable we'll might later fiddle with, the control
+//   flow primitives will diff changes to insert phis.
+TB_API int tb_builder_decl(TB_GraphBuilder* g);
+//   ( -- a )
+TB_API void tb_builder_get_var(TB_GraphBuilder* g, int id);
+//   ( a -- )
+TB_API void tb_builder_set_var(TB_GraphBuilder* g, int id);
+
+// control flow primitives
+//   ( a -- )
+TB_API void tb_builder_if(TB_GraphBuilder* g);
+//   ( -- )
+TB_API void tb_builder_else(TB_GraphBuilder* g);
+//   ( -- )
+TB_API void tb_builder_endif(TB_GraphBuilder* g);
+//   ( ... -- )
+//
+//   technically TB has multiple returns, in practice it's like 2 regs before
+//   ABI runs out of shit.
+TB_API void tb_builder_ret(TB_GraphBuilder* g, int count);
+//   ( a -- )
+TB_API void tb_builder_br(TB_GraphBuilder* g, int depth);
+//   ( a -- )
+TB_API void tb_builder_br_if(TB_GraphBuilder* g, int depth);
+//   ( -- )
+TB_API void tb_builder_loop(TB_GraphBuilder* g);
+//   ( -- )
+TB_API void tb_builder_endloop(TB_GraphBuilder* g);
+//   ( -- )
+TB_API void tb_builder_block(TB_GraphBuilder* g);
+//   ( -- )
+TB_API void tb_builder_endblock(TB_GraphBuilder* g);
+
+////////////////////////////////
 // Passes
 ////////////////////////////////
 // Function analysis, optimizations, and codegen are all part of this
@@ -1316,16 +1414,8 @@ TB_API TB_Node* tb_pass_gvn_node(TB_Function* f, TB_Node* n);
 //     break down most optimizations into local rewrites, it's
 //     incremental and recommended to run after any non-peephole
 //     pass.
-//
-//   mem2reg: lowers TB_LOCALs into SoN values, this makes more
-//     data flow analysis possible on the code and allows to codegen
-//     to place variables into registers.
-//
-//   SROA: splits LOCALs into multiple to allow for more dataflow
-//     analysis later on.
 TB_API void tb_pass_peephole(TB_Passes* p);
-TB_API void tb_pass_sroa(TB_Passes* p);
-TB_API void tb_pass_mem2reg(TB_Passes* p);
+TB_API bool tb_pass_split_locals(TB_Passes* p);
 TB_API void tb_pass_loop(TB_Passes* p);
 
 // this just runs the optimizer in the default configuration
@@ -1334,6 +1424,7 @@ TB_API void tb_pass_optimize(TB_Passes* p);
 // analysis
 //   print: prints IR in a flattened text form.
 TB_API void tb_pass_print(TB_Passes* opt);
+TB_API char *tb_pass_c_prelude(TB_Module *mod);
 TB_API char *tb_pass_c_fmt(TB_Passes* opt);
 //   print-dot: prints IR as DOT
 TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* user_data);
@@ -1352,6 +1443,15 @@ bool tb_module_ipo(TB_Module* m);
 TB_API void tb_pass_kill_node(TB_Function* f, TB_Node* n);
 TB_API void tb_pass_mark(TB_Passes* opt, TB_Node* n);
 TB_API void tb_pass_mark_users(TB_Passes* opt, TB_Node* n);
+
+////////////////////////////////
+// Helpers
+////////////////////////////////
+// the user_data is expected to be a valid FILE*
+TB_API void tb_default_print_callback(void* user_data, const char* fmt, ...);
+
+// p is optional
+TB_API void tb_dumb_print(TB_Function* f, TB_Passes* p);
 
 ////////////////////////////////
 // IR access

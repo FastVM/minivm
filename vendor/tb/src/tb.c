@@ -6,6 +6,7 @@ static ICodeGen* tb__find_code_generator(TB_Module* m) {
     // Place all the codegen interfaces down here
     extern ICodeGen tb__x64_codegen;
     extern ICodeGen tb__aarch64_codegen;
+    extern ICodeGen tb__mips32_codegen;
     extern ICodeGen tb__mips64_codegen;
 
     switch (m->target_arch) {
@@ -18,6 +19,7 @@ static ICodeGen* tb__find_code_generator(TB_Module* m) {
         #endif
 
         #ifdef TB_HAS_MIPS
+        case TB_ARCH_MIPS32: return &tb__mips32_codegen;
         case TB_ARCH_MIPS64: return &tb__mips64_codegen;
         #endif
 
@@ -76,8 +78,6 @@ TB_ThreadInfo* tb_thread_info(TB_Module* m) {
     mtx_unlock(&lock);
     return info;
 }
-
-static thread_local uint8_t* tb_thread_storage;
 
 // we don't modify these strings
 char* tb__arena_strdup(TB_Module* m, ptrdiff_t len, const char* src) {
@@ -318,10 +318,10 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
 
     f->section = section;
     f->node_count = 0;
-    TB_Node* root = f->root_node = tb_alloc_node(f, TB_ROOT, TB_TYPE_TUPLE, 4 + p->return_count, 0);
+    TB_Node* root = f->root_node = tb_alloc_node_dyn(f, TB_ROOT, TB_TYPE_TUPLE, 2, 4, 0);
 
     f->param_count = param_count;
-    f->params = tb_arena_alloc(f->arena, (4 + param_count) * sizeof(TB_Node*));
+    f->params = tb_arena_alloc(f->arena, (3 + param_count) * sizeof(TB_Node*));
 
     // fill in acceleration structure
     f->params[0] = tb__make_proj(f, TB_TYPE_CONTROL, f->root_node, 0);
@@ -342,6 +342,11 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
     // create callgraph node
     TB_Node* callgraph = tb_alloc_node_dyn(f, TB_CALLGRAPH, TB_TYPE_VOID, 1, 8, sizeof(TB_NodeRegion));
     set_input(f, callgraph, root, 0);
+    set_input(f, root, callgraph, 0);
+
+    // create return node
+    TB_Node* ret = f->ret_node = tb_alloc_node(f, TB_RETURN, TB_TYPE_CONTROL, 3 + p->return_count, 0);
+    set_input(f, root, ret, 1);
 
     // fill return crap
     {
@@ -349,16 +354,15 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
         TB_Node* mem_phi = tb_alloc_node_dyn(f, TB_PHI, TB_TYPE_MEMORY, 1, 5, 0);
         set_input(f, mem_phi, region, 0);
 
-        set_input(f, root, region, 0);
-        set_input(f, root, mem_phi, 1);
-        set_input(f, root, f->params[2], 2);
-        set_input(f, root, callgraph, 3);
+        set_input(f, ret, region, 0);
+        set_input(f, ret, mem_phi, 1);
+        set_input(f, ret, f->params[2], 2);
 
         TB_PrototypeParam* returns = TB_PROTOTYPE_RETURNS(p);
         FOREACH_N(i, 0, p->return_count) {
             TB_Node* phi = tb_alloc_node_dyn(f, TB_PHI, returns[i].dt, 1, 5, 0);
             set_input(f, phi, region, 0);
-            set_input(f, root, phi, i + 4);
+            set_input(f, ret, phi, i + 3);
         }
 
         TB_NODE_SET_EXTRA(region, TB_NodeRegion, .freq = 1.0f, .mem_in = mem_phi, .tag = "ret");
@@ -505,10 +509,6 @@ TB_External* tb_extern_create(TB_Module* m, ptrdiff_t len, const char* name, TB_
 // block per thread that can run TB.
 //
 void tb_free_thread_resources(void) {
-    if (tb_thread_storage != NULL) {
-        tb_platform_vfree(tb_thread_storage, TB_TEMPORARY_STORAGE_SIZE);
-        tb_thread_storage = NULL;
-    }
 }
 
 void tb_emit_symbol_patch(TB_FunctionOutput* func_out, TB_Symbol* target, size_t pos) {

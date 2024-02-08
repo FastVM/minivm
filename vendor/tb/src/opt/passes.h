@@ -90,14 +90,15 @@ struct Lattice {
         //    /     \
         //   /     /|\
         //   |    / | \
-        //   |   a  b  ...
+        //   |   a  b  ... # ptrcon
         //   |    \ | /
         // null   ~null
         //     \  /
-        //      bot
+        //    allptr
+        LATTICE_ALLPTR,
         LATTICE_NULL,
         LATTICE_XNULL,
-        LATTICE_PTR,
+        LATTICE_PTRCON,
 
         // memory:
         //    top
@@ -248,7 +249,7 @@ static bool cfg_is_control(TB_Node* n) {
     // checking which is annoying and slow)
     //
     //     branch, debugbreak, trap, unreachable, dead  OR  call, syscall, safepoint
-    return n->type == TB_ROOT || (n->type >= TB_BRANCH && n->type <= TB_DEAD) || (n->type >= TB_CALL && n->type <= TB_SAFEPOINT_POLL);
+    return n->type == TB_ROOT || (n->type >= TB_BRANCH && n->type <= TB_UNREACHABLE) || (n->type >= TB_CALL && n->type <= TB_SAFEPOINT_POLL);
 }
 
 static bool cfg_is_bb_entry(TB_Node* n) {
@@ -302,7 +303,9 @@ static bool cfg_critical_edge(TB_Node* proj, TB_Node* n) {
     TB_Node* r = proj->users->n;
     if (r->type == TB_REGION) {
         FOR_USERS(u, r) {
-            if (u->n->type == TB_PHI) return true;
+            if (u->n->type == TB_PHI && u->n->dt.type != TB_MEMORY) {
+                return true;
+            }
         }
     }
 
