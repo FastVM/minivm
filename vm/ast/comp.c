@@ -73,8 +73,8 @@ static void vm_ast_names_free(vm_ast_comp_names_t *names) {
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
 
-void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args);
-void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args);
+extern void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args);
+extern void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args);
 
 static vm_arg_t *vm_ast_args(size_t nargs, ...) {
     va_list ap;

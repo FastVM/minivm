@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@babel/preset-env": "^7.23.9",
+    "babel-loader": "^9.1.3",
+    "compression-webpack-plugin": "^11.0.0",
+    "copy-webpack-plugin": "^12.0.2",
+    "emception": "^1.0.11",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "type": "module"
+}

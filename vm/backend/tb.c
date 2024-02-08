@@ -7,7 +7,7 @@
 #include "../ir/check.h"
 #include "../ir/rblock.h"
 
-void *vm_cache_comp(const char *comp, const char **src, const char *entry);
+#include "./exec.h"
 
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
@@ -147,7 +147,7 @@ TB_Node *vm_tb_func_read_arg(vm_tb_state_t *state, TB_Node **regs, vm_arg_t arg)
                     return tb_inst_uint(state->fun, TB_TYPE_PTR, (uint64_t)(size_t)arg.lit.value.str);
                 }
                 case VM_TAG_FFI: {
-                    return vm_tb_ptr_name(state, "<ffi>", arg.lit.value.ffi);
+                    return vm_tb_ptr_name(state, NULL, arg.lit.value.ffi);
                 }
                 default: {
                     __builtin_trap();
@@ -1444,7 +1444,7 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 
     // on windows we don't have access to multiple returns from C so we'll
     // just make a dumb caller for such a pattern
-#ifdef _WIN32
+#if defined(_WIN32)
     TB_PrototypeParam call_proto_rets[2] = {{VM_TB_TYPE_VALUE}, {TB_TYPE_I32}};
     TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, call_proto_rets, false);
 
@@ -1477,13 +1477,14 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 }
 
 void vm_tb_rblock_del(vm_rblock_t *rblock);
-void vm_tcc_error_func(void *user, const char *msg);
 
 void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     void *cache = rblock->code;
     if (cache != NULL) {
         return cache;
     }
+
+    printf("id = %zi\n", rblock->block->id);
 
     vm_tb_state_t *state = rblock->state;
 
@@ -1646,9 +1647,6 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     TB_Arena *parena = state->arena;
     TB_Passes *passes = tb_pass_enter(state->fun, tb_function_get_arena(state->fun));
-    if (state->config->target != VM_TARGET_TB) {
-        tb_pass_optimize(passes);
-    }
 #if VM_USE_DUMP
     if (state->config->dump_tb) {
         fprintf(stdout, "\n--- tb ---\n");
@@ -1670,6 +1668,16 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         }
     }
 #endif
+#if defined(EMSCRIPTEN)
+    const char *cs[] = {
+        tb_pass_c_prelude(state->module),
+        tb_pass_c_fmt(passes),
+        NULL
+    };
+    void *code = vm_cache_comp("emcc", cs, name);
+    rblock->code = code;
+    return code;
+#else
     if (state->config->target == VM_TARGET_TB_TCC) {
         const char *c_header = tb_pass_c_prelude(state->module);
         const char *c_src = tb_pass_c_fmt(passes);
@@ -1751,12 +1759,15 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     } else {
         __builtin_trap();
     }
+#endif
 }
 
+#if !defined(EMSCRIPTEN)
 void vm_tcc_error_func(void *user, const char *msg) {
     printf("%s\n", msg);
-    asm("int3");
+    exit(1);
 }
+#endif
 
 void vm_tb_rblock_del(vm_rblock_t *rblock) {
     TB_JIT *jit = rblock->jit;
@@ -1770,7 +1781,7 @@ void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
     return vm_tb_rfunc_comp(rblock);
 }
 
-typedef vm_std_value_t VM_CDECL vm_tb_func_t(void);
+typedef vm_std_value_t VM_CDECL vm_tb_func_t();
 
 vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_std_value_t val = vm_tb_run_repl(config, entry, blocks, std);
@@ -1789,7 +1800,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, entry);
 
-#ifdef _WIN32
+#if defined(_WIN32)
     vm_std_value_t value;
     state->vm_caller(&value, fn);
 #else
@@ -1806,10 +1817,10 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
     }
 
     // tb_arena_destroy(state->arena);
-    tb_jit_end(state->jit);
-    tb_module_destroy(state->module);
+    // tb_jit_end(state->jit);
+    // tb_module_destroy(state->module);
 
-    vm_free(state);
+    // vm_free(state);
 
     return value;
 }

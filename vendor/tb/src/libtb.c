@@ -105,4 +105,21 @@ bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {
 
     return mprotect(ptr, size, protect) == 0;
 }
+
+#elif defined(EMSCRIPTEN)
+void* tb_platform_valloc(size_t size) {
+    return aligned_alloc(size, 256);
+}
+
+void* tb_platform_valloc_guard(size_t size) {
+    return aligned_alloc(size, 256);
+}
+
+void tb_platform_vfree(void* ptr, size_t size) {
+    free(ptr);
+}
+
+bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {
+    return true;
+}
 #endif

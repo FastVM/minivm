@@ -19,11 +19,15 @@ enum {
 };
 
 enum {
+#if defined(EMSCRIPTEN)
+    VM_TARGET_TB_EMCC,
+#else
     VM_TARGET_TB,
     VM_TARGET_TB_CC,
     VM_TARGET_TB_TCC,
     VM_TARGET_TB_GCC,
     VM_TARGET_TB_CLANG,
+#endif
 };
 
 enum {

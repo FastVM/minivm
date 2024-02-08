@@ -12,18 +12,20 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 // void GC_disable(void);
 
 int main(int argc, char **argv) {
-    int ret_val;
     vm_init_mem();
     // GC_disable();
     vm_config_t val_config = (vm_config_t){
         .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
+#if defined(EMSCRIPTEN)
+        .target = VM_TARGET_TB_EMCC,
+#else
         .target = VM_TARGET_TB,
+#endif
     };
     vm_blocks_t val_blocks = {0};
     vm_blocks_t *blocks = &val_blocks;
     vm_config_t *config = &val_config;
-    bool dry_run = false;
     bool echo = false;
     bool isrepl = true;
     vm_table_t *std = vm_std_new();
@@ -53,8 +55,6 @@ int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--repl")) {
             vm_lang_lua_repl(config, std, blocks);
             isrepl = false;
-        } else if (!strcmp(arg, "--dry-run")) {
-            dry_run = true;
         } else if (!strncmp(arg, "--number=", 9)) {
             arg += 9;
             if (!strcmp(arg, "i8")) {
@@ -71,25 +71,7 @@ int main(int argc, char **argv) {
                 config->use_num = VM_USE_NUM_F64;
             } else {
                 fprintf(stderr, "cannot use have as a number type: %s\n", arg);
-                ret_val = 1;
-                goto ret;
-            }
-        } else if (!strncmp(arg, "--target-", 9) || !strncmp(arg, "--target=", 9)) {
-            arg += 9;
-            if (!strcmp(arg, "tb")) {
-                config->target = VM_TARGET_TB;
-            } else if (!strcmp(arg, "tb-cc")) {
-                config->target = VM_TARGET_TB_CC;
-            } else if (!strcmp(arg, "tb-tcc")) {
-                config->target = VM_TARGET_TB_TCC;
-            } else if (!strcmp(arg, "tb-gcc")) {
-                config->target = VM_TARGET_TB_GCC;
-            } else if (!strcmp(arg, "tb-clang")) {
-                config->target = VM_TARGET_TB_CLANG;
-            } else {
-                fprintf(stderr, "cannot target: %s\n", arg);
-                ret_val = 1;
-                goto ret;
+                return 1;
             }
         } else if (!strncmp(arg, "--dump-", 7) || !strncmp(arg, "--dump=", 7)) {
             arg += 7;
@@ -117,11 +99,9 @@ int main(int argc, char **argv) {
                 config->dump_time = true;
             } else {
                 fprintf(stderr, "cannot dump: %s\n", arg);
-                ret_val = 1;
-                goto ret;
+                return 1;
             }
         } else {
-            bool last_isrepl = isrepl;
             isrepl = false;
 
             clock_t start = clock();
@@ -157,7 +137,6 @@ int main(int argc, char **argv) {
             }
 
             vm_ast_comp_more(node, blocks);
-            vm_ast_free_node(node);
 
             if (config->dump_ir) {
                 vm_io_buffer_t buf = {0};
@@ -165,13 +144,11 @@ int main(int argc, char **argv) {
                 printf("\n--- ir ---\n%.*s", (int) buf.len, buf.buf);
             }
 
-            if (!dry_run) {
-                vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
-                if (echo) {
-                    vm_io_buffer_t buf = {0};
-                    vm_io_debug(&buf, 0, "", value, NULL);
-                    printf("%.*s", (int) buf.len, buf.buf);
-                }
+            vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
+            if (echo) {
+                vm_io_buffer_t buf = {0};
+                vm_io_debug(&buf, 0, "", value, NULL);
+                printf("%.*s", (int) buf.len, buf.buf);
             }
 
             if (config->dump_time) {
@@ -187,16 +164,5 @@ int main(int argc, char **argv) {
         vm_lang_lua_repl(config, std, blocks);
     }
 
-    ret_val = 0;
-    goto ret;
-
-ret:;
-    vm_free_table(std);
-
-    for (size_t i = 0; i < blocks->len; i++) {
-        vm_free_block(blocks->blocks[i]);
-    }
-    vm_free(blocks->blocks);
-
-    return ret_val;
+    return 0;
 }

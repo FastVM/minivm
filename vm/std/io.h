@@ -30,5 +30,6 @@ void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap);
 void vm_io_buffer_format(vm_io_buffer_t *buf, const char *fmt, ...);
 char *vm_io_vformat(const char *fmt, va_list ap);
 char *vm_io_format(const char *fmt, ...);
+void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value);
 
 #endif

@@ -36,7 +36,7 @@ struct vm_tb_state_t {
     void *arena;
 
     // jit caller (for windows)
-#ifdef _WIN32
+#if defined(_WIN32)
     void (*vm_caller)(vm_std_value_t*, void*);
 #endif
 
@@ -57,5 +57,9 @@ struct vm_tb_comp_state_t {
 
 vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std);
 vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std);
+
+#if !defined(EMSCRIPTEN)
+void vm_tcc_error_func(void *user, const char *msg);
+#endif
 
 #endif

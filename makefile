@@ -18,21 +18,21 @@ PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 # GC_SRCS = vendor/bdwgc/alloc.c vendor/bdwgc/allchblk.c vendor/bdwgc/blacklst.c vendor/bdwgc/dbg_mlc.c vendor/bdwgc/dyn_load.c vendor/bdwgc/finalize.c vendor/bdwgc/headers.c vendor/bdwgc/malloc.c vendor/bdwgc/mallocx.c vendor/bdwgc/mark.c vendor/bdwgc/mach_dep.c vendor/bdwgc/mark_rts.c vendor/bdwgc/misc.c vendor/bdwgc/new_hblk.c vendor/bdwgc/obj_map.c vendor/bdwgc/os_dep.c vendor/bdwgc/ptr_chck.c vendor/bdwgc/reclaim.c
 GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TREES_SRCS := vendor/trees/alloc.c vendor/trees/get_changed_ranges.c vendor/trees/language.c vendor/trees/lexer.c vendor/trees/node.c vendor/trees/parser.c vendor/trees/query.c vendor/trees/stack.c vendor/trees/subtree.c vendor/trees/tree_cursor.c vendor/trees/tree.c
+TREES_SRCS = vendor/trees/alloc.c vendor/trees/get_changed_ranges.c vendor/trees/language.c vendor/trees/lexer.c vendor/trees/node.c vendor/trees/parser.c vendor/trees/query.c vendor/trees/stack.c vendor/trees/subtree.c vendor/trees/tree_cursor.c vendor/trees/tree.c
 
-STD_SRCS := vm/std/io.c vm/std/std.c
-VM_SRCS := vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/backend/exec.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser.c vm/lua/scan.c vm/lua/ast.c vm/lua/repl.c vendor/isocline/isocline.c
+STD_SRCS = vm/std/io.c vm/std/std.c
+VM_SRCS = vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/backend/exec.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser.c vm/lua/scan.c vm/lua/ast.c vm/lua/repl.c vendor/isocline/isocline.c
 
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TCC_SRCS := vendor/tcc/libtcc.c
+TCC_SRCS ?= vendor/tcc/libtcc.c
 TCC_OBJS = $(TCC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TB_SRCS := vendor/common/common.c vendor/common/perf.c vendor/tb/src/libtb.c vendor/tb/src/x64/x64_target.c
+TB_SRCS = vendor/common/common.c vendor/common/perf.c vendor/tb/src/libtb.c vendor/tb/src/x64/x64_target.c
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS) $(TCC_OBJS)
+BASE_OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS) $(TCC_OBJS)
 
 CFLAGS += $(FLAGS)
 LDFLAGS += $(FLAGS)
@@ -41,7 +41,7 @@ RUNNER ?= $(BIN_DIR)/minivm
 
 OBJS_FreeBSD = 
 
-OBJS := $(OBJS) $(OBJS_$(UNAME_S))
+OBJS = $(BASE_OBJS) $(OBJS_$(UNAME_S))
 
 LDFLAGS_S_Darwin = -w -Wl,-pagezero_size,0x4000
 LDFLAGS_S_Linux = -lm -ldl

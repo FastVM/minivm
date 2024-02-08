@@ -1,8 +1,6 @@
 
 #include "./io.h"
 
-#include "./util.h"
-
 void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap) {
     while (true) {
         int avail = buf->alloc - buf->len;
@@ -344,6 +342,63 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
             vm_indent(out, indent, prefix);
             vm_io_buffer_format(out, "<0x%zx: %p>\n", (size_t)value.tag, value.value.all);
             // __builtin_trap();
+            break;
+        }
+    }
+}
+
+void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value) {
+    switch (value.tag) {
+        case VM_TAG_NIL: {
+            vm_io_buffer_format(buf, "nil");
+            break;
+        }
+        case VM_TAG_BOOL: {
+            vm_io_buffer_format(buf, "%s", value.value.b ? "true" : "false");
+            break;
+        }
+        case VM_TAG_I8: {
+            vm_io_buffer_format(buf, "%" PRIi8, value.value.i8);
+            break;
+        }
+        case VM_TAG_I16: {
+            vm_io_buffer_format(buf, "%" PRIi16, value.value.i16);
+            break;
+        }
+        case VM_TAG_I32: {
+            vm_io_buffer_format(buf, "%" PRIi32, value.value.i32);
+            break;
+        }
+        case VM_TAG_I64: {
+            vm_io_buffer_format(buf, "%" PRIi64, value.value.i64);
+            break;
+        }
+        case VM_TAG_F32: {
+            vm_io_buffer_format(buf, VM_FORMAT_FLOAT, value.value.f32);
+            break;
+        }
+        case VM_TAG_F64: {
+            vm_io_buffer_format(buf, VM_FORMAT_FLOAT, value.value.f64);
+            break;
+        }
+        case VM_TAG_STR: {
+            vm_io_buffer_format(buf, "%s", value.value.str);
+            break;
+        }
+        case VM_TAG_CLOSURE: {
+            vm_io_buffer_format(buf, "<function: %p>", value.value.closure);
+            break;
+        }
+        case VM_TAG_FUN: {
+            vm_io_buffer_format(buf, "<code: %p>", value.value.all);
+            break;
+        }
+        case VM_TAG_TAB: {
+            vm_io_buffer_format(buf, "<table: %p>", value.value.table);
+            break;
+        }
+        case VM_TAG_FFI: {
+            vm_io_buffer_format(buf, "<function: %p>", value.value.all);
             break;
         }
     }

@@ -1,0 +1,10 @@
+
+EXE ?= .js
+CC = emcc
+TCC_SRCS = 
+
+CFLAGS := -fPIC $(CFLAGS)
+LDFLAGS := -s SINGLE_FILE=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s ENVIRONMENT=web -s ASYNCIFY=1 -s ALLOW_MEMORY_GROWTH=1 -s MAIN_MODULE=1 $(LDFLAGS) 
+
+include makefile
+

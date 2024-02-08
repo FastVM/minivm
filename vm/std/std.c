@@ -5,12 +5,12 @@
 #include "./util.h"
 #include "../ast/ast.h"
 
+vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
+void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks);
+
 void vm_std_os_exit(vm_std_closure_t *closure, vm_std_value_t *args) {
     exit((int)vm_value_to_i64(args[0]));
 }
-
-vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
-void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks);
 
 void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_STR) {
@@ -181,63 +181,6 @@ void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
         .tag = VM_TAG_STR,
         .value.str = ret,
     };
-}
-
-void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value) {
-    switch (value.tag) {
-        case VM_TAG_NIL: {
-            vm_io_buffer_format(buf, "nil");
-            break;
-        }
-        case VM_TAG_BOOL: {
-            vm_io_buffer_format(buf, "%s", value.value.b ? "true" : "false");
-            break;
-        }
-        case VM_TAG_I8: {
-            vm_io_buffer_format(buf, "%" PRIi8, value.value.i8);
-            break;
-        }
-        case VM_TAG_I16: {
-            vm_io_buffer_format(buf, "%" PRIi16, value.value.i16);
-            break;
-        }
-        case VM_TAG_I32: {
-            vm_io_buffer_format(buf, "%" PRIi32, value.value.i32);
-            break;
-        }
-        case VM_TAG_I64: {
-            vm_io_buffer_format(buf, "%" PRIi64, value.value.i64);
-            break;
-        }
-        case VM_TAG_F32: {
-            vm_io_buffer_format(buf, VM_FORMAT_FLOAT, value.value.f32);
-            break;
-        }
-        case VM_TAG_F64: {
-            vm_io_buffer_format(buf, VM_FORMAT_FLOAT, value.value.f64);
-            break;
-        }
-        case VM_TAG_STR: {
-            vm_io_buffer_format(buf, "%s", value.value.str);
-            break;
-        }
-        case VM_TAG_CLOSURE: {
-            vm_io_buffer_format(buf, "<function: %p>", value.value.closure);
-            break;
-        }
-        case VM_TAG_FUN: {
-            vm_io_buffer_format(buf, "<code: %p>", value.value.all);
-            break;
-        }
-        case VM_TAG_TAB: {
-            vm_io_buffer_format(buf, "<table: %p>", value.value.table);
-            break;
-        }
-        case VM_TAG_FFI: {
-            vm_io_buffer_format(buf, "<function: %p>", value.value.all);
-            break;
-        }
-    }
 }
 
 void vm_std_tostring(vm_std_closure_t *closure, vm_std_value_t *args) {

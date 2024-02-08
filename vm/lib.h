@@ -37,7 +37,7 @@
 
 char *vm_strdup(const char *str);
 
-#if 1
+#if 0
 void GC_init();
 void *GC_malloc(size_t size);
 void *GC_realloc(void *ptr, size_t size);
@@ -49,11 +49,11 @@ void GC_free(void *ptr);
 #define vm_free(x) (GC_free((void*)(x)))
 #endif
 
-#if 0
+#if 1
 #define vm_init_mem() ((void)0)
 #define vm_malloc(x) (malloc((x)))
-#define vm_realloc(x, y) (realloc((x), (y)))
-#define vm_free(x, y) (free((x)))
+#define vm_realloc(x, y) (realloc((void *) (x), (y)))
+#define vm_free(x) ((void)((x)))
 #endif
 #endif
 
