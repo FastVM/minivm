@@ -19,9 +19,9 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
         mkdir(".minivm-cache", 0700);
     }
     vm_io_buffer_t *c_buf = vm_io_buffer_new();
-    vm_io_buffer_format(c_buf, ".minivm-cache/src-%zu.c", getpid());
+    vm_io_buffer_format(c_buf, ".minivm-cache/src-%s-%zu.c", entry, getpid());
     vm_io_buffer_t *so_buf = vm_io_buffer_new();
-    vm_io_buffer_format(so_buf, ".minivm-cache/out-%zu.so", getpid());
+    vm_io_buffer_format(so_buf, ".minivm-cache/out-%s-%zu.so", entry, getpid());
     const char *c_file = c_buf->buf;
     const char *so_file = so_buf->buf;
     FILE *out = fopen(c_file, "w");

@@ -41,6 +41,7 @@ typedef struct {
     TB_Scheduler sched;
     NL_HashSet completed_blocks;
     NL_HashSet needed_blocks;
+    NL_HashSet declared_types;
     DynArray(size_t) declared_vars;
     nl_buffer_t *globals;
     nl_buffer_t *pre;
@@ -1289,20 +1290,20 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                     }
                 }
 
-                if (projs[2] == NULL) {
-                    nl_buffer_format(ctx->globals, "typedef void(*tb2c_%s_v%u_t)(", ctx->name, n->gvn);
-                } else if (projs[3] == NULL) {
-                    nl_buffer_format(ctx->globals, "typedef %s(*tb2c_%s_v%u_t)(", c_fmt_type_name(projs[2]->dt), ctx->name, n->gvn);
-                } else {
-                    nl_buffer_format(ctx->globals, "typedef struct {\n");
-                    FOREACH_N(i, 2, 4) {
-                        if (projs[i] == NULL) break;
-                        nl_buffer_format(ctx->globals, "  %s v%u;\n", c_fmt_type_name(projs[i]->dt), projs[i]->gvn);
+                if (nl_hashset_put(&ctx->declared_types, n)) {
+                    if (projs[2] == NULL) {
+                        nl_buffer_format(ctx->globals, "typedef void(*tb2c_%s_v%u_t)(", ctx->name, n->gvn);
+                    } else if (projs[3] == NULL) {
+                        nl_buffer_format(ctx->globals, "typedef %s(*tb2c_%s_v%u_t)(", c_fmt_type_name(projs[2]->dt), ctx->name, n->gvn);
+                    } else {
+                        nl_buffer_format(ctx->globals, "typedef struct {\n");
+                        FOREACH_N(i, 2, 4) {
+                            if (projs[i] == NULL) break;
+                            nl_buffer_format(ctx->globals, "  %s v%u;\n", c_fmt_type_name(projs[i]->dt), projs[i]->gvn);
+                        }
+                        nl_buffer_format(ctx->globals, "} tb2c_%s_v%u_ret_t;\n", ctx->name, n->gvn);
+                        nl_buffer_format(ctx->globals, "typedef tb2c_%s_v%u_ret_t(*tb2c_%s_v%u_t)(", ctx->name, n->gvn, ctx->name, n->gvn);
                     }
-                    nl_buffer_format(ctx->globals, "} tb2c_%s_v%u_ret_t;\n", ctx->name, n->gvn);
-                    nl_buffer_format(ctx->globals, "typedef tb2c_%s_v%u_ret_t(*tb2c_%s_v%u_t)(", ctx->name, n->gvn, ctx->name, n->gvn);
-                }
-                {
                     bool first = true;
                     FOREACH_N(i, 3, n->input_count) {
                         if (n->inputs[i]->dt.type != TB_CONTROL && n->inputs[i]->dt.type != TB_MEMORY) {
@@ -1316,8 +1317,8 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                     if (first) {
                             nl_buffer_format(ctx->globals, "void");
                     }
+                    nl_buffer_format(ctx->globals, ");\n");
                 }
-                nl_buffer_format(ctx->globals, ");\n");
                 if (projs[2] == NULL || projs[3] == NULL) {
                     if (projs[2] != NULL) {
                         c_fmt_output(ctx, projs[2]);
@@ -1591,6 +1592,7 @@ TB_API char *tb_pass_c_fmt(TB_Passes* opt) {
     ctx.visited_blocks = dyn_array_create(size_t, 8);
     ctx.declared_vars = dyn_array_create(size_t, 16);
     ctx.needed_blocks = nl_hashset_alloc(ctx.cfg.block_count);
+    ctx.declared_types = nl_hashset_alloc(4);
     ctx.completed_blocks = nl_hashset_alloc(ctx.cfg.block_count);
     ctx.block_ranges = nl_table_alloc(ctx.cfg.block_count);
 

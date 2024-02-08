@@ -1420,6 +1420,10 @@ void vm_tb_func_print_value(vm_tb_state_t *state, vm_tag_t tag, TB_Node *value) 
 }
 
 void vm_tb_new_module(vm_tb_state_t *state) {
+    if (state->module != NULL) {
+        tb_module_destroy(state->module);
+    }
+
     TB_Module *mod = tb_module_create_for_host(true);
 
     state->module = mod;
@@ -1482,6 +1486,8 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     }
 
     vm_tb_state_t *state = rblock->state;
+
+    vm_tb_new_module(state);
 
     if (state->config->use_ver_count >= VM_USE_VERSION_COUNT_GLOBAL) {
         vm_table_t *vm_tab = vm_table_lookup(state->std, (vm_value_t){.str = "vm"}, VM_TAG_STR)->val_val.table;
@@ -1694,6 +1700,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             NULL
         };
         void *code = vm_cache_comp("gcc", cs, name);
+        printf("%s -> %p\n", name, code);
         rblock->code = code;
         return code;
     } else if (state->config->target == VM_TARGET_TB_CLANG) {
@@ -1703,6 +1710,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             NULL
         };
         void *code = vm_cache_comp("clang", cs, name);
+        printf("%s -> %p\n", name, code);
         rblock->code = code;
         return code;
     } else if (state->config->target == VM_TARGET_TB_CC) {
@@ -1712,6 +1720,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             NULL
         };
         void *code = vm_cache_comp("cc", cs, name);
+        printf("%s -> %p\n", name, code);
         rblock->code = code;
         return code;
     } else if (state->config->target == VM_TARGET_TB) {
@@ -1776,8 +1785,8 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
     state->std = std;
     state->config = config;
     state->blocks = blocks;
+    state->module = NULL;
 
-    vm_tb_new_module(state);
     vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, entry);
 
 #ifdef _WIN32
