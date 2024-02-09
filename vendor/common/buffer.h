@@ -15,7 +15,7 @@ struct nl_buffer_t {
 nl_buffer_t *nl_buffer_new(void *arena);
 void nl_buffer_alloc(nl_buffer_t *buf);
 
-void nl_buffer_format(nl_buffer_t *buf, const char *fmt, ...);
+void nl_buffer_format(nl_buffer_t *buf, const char *fmt, ...) __attribute__ (( format( printf, 2, 3 ) )) ;
 char *nl_buffer_get(nl_buffer_t *buf);
 char *nl_buffer_copy(nl_buffer_t *buf);
 

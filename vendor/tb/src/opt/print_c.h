@@ -7,7 +7,7 @@ typedef struct nl_buffer_t nl_buffer_t;
 
 nl_buffer_t *nl_buffer_new(void *arena);
 
-void nl_buffer_format(nl_buffer_t *buf, const char *fmt, ...);
+void nl_buffer_format(nl_buffer_t *buf, const char *fmt, ...) __attribute__ (( format( printf, 2, 3 ) ));
 char *nl_buffer_get(nl_buffer_t *buf);
 char *nl_buffer_copy(nl_buffer_t *buf);
 
@@ -874,7 +874,7 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                     c_fmt_spaces(ctx);
                     nl_buffer_format(ctx->buf, "  tb2c_%s_ret_t ret;\n", ctx->name);
                     
-                    bool index = 0;
+                    size_t index = 0;
                     FOREACH_N(i, 3, n->input_count) {
                         c_fmt_spaces(ctx);
                         nl_buffer_format(ctx->buf, "  ret.v%zu = ", index);
@@ -900,7 +900,7 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 c_fmt_spaces(ctx);
                 nl_buffer_format(ctx->buf, "*(%s*) ", c_fmt_type_name(src->dt));
                 c_fmt_ref_to_node(ctx, dest);
-                nl_buffer_format(ctx->buf, " = ", c_fmt_type_name(src->dt));
+                nl_buffer_format(ctx->buf, " = ");
                 c_fmt_ref_to_node(ctx, src);
                 nl_buffer_format(ctx->buf, ";\n");
                 break;
@@ -1533,7 +1533,7 @@ TB_API char *tb_pass_c_prelude(TB_Module *mod) {
                 } else {
                     nl_buffer_format(buf, "typedef struct {\n");
                     
-                    bool index = 0;
+                    size_t index = 0;
                     FOREACH_N(i, 0, p->return_count) {
                         nl_buffer_format(buf, "  %s v%zu;\n", c_fmt_type_name(p->params[p->param_count + i].dt), index);
                         index += 1;

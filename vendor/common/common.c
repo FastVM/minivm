@@ -139,7 +139,7 @@ TB_API void* tb_arena_realloc(TB_Arena* restrict arena, void* old, size_t size) 
 
     char* dst = tb_arena_unaligned_alloc(arena, size);
     if (dst != p && old) {
-        memcpy(dst, old, size);
+        memmove(dst, old, size);
     }
     return dst;
 }

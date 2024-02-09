@@ -1808,15 +1808,15 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     printf("fn = %p\n", fn);
     if (sizeof(vm_std_value_alias_t) != sizeof(vm_std_value_t)) {
-        printf("bad value size!\n");
+        fprintf(stderr, "bad value size!\n");
     }
 
 #if defined(_WIN32)
     vm_std_value_t value;
     state->vm_caller(&value, fn);
 #else
-    // vm_std_value_alias_t value = fn();
-    fn();
+    vm_std_value_alias_t value = fn();
+    // fn();
 #endif
 
     printf("run fn()\n");
@@ -1831,8 +1831,8 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         block->cache.len = 0;
     }
 
-    vm_std_value_t ret = (vm_std_value_t) {.tag = VM_TAG_NIL};
-    return ret;
+    // vm_std_value_t ret = (vm_std_value_t) {.tag = VM_TAG_NIL};
+    // return ret;
 
-    // return *(vm_std_value_t*) &value;
+    return *(vm_std_value_t*) &value;
 }

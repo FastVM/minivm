@@ -1,11 +1,11 @@
-import FileSystem from "../emception/FileSystem.mjs";
+import FileSystem from "emception/FileSystem.mjs";
 
-import LlvmBoxProcess from "../emception/LlvmBoxProcess.mjs";
-import BinaryenBoxProcess from "../emception/BinaryenBoxProcess.mjs";
-import Python3Process from "../emception/Python3Process.mjs";
-import NodeProcess from "../emception/QuickNodeProcess.mjs";
+import LlvmBoxProcess from "emception/LlvmBoxProcess.mjs";
+import BinaryenBoxProcess from "emception/BinaryenBoxProcess.mjs";
+import Python3Process from "emception/Python3Process.mjs";
+import NodeProcess from "emception/QuickNodeProcess.mjs";
 
-import packs from "../emception/packs.mjs";
+import packs from "emception/packs.mjs";
 
 const tools_info = {
     "/usr/bin/clang":                    "llvm-box",
@@ -137,6 +137,7 @@ class Emception {
             argv = [
                 "/usr/bin/python",
                 // "-c","import os; os.environ['EMCC_SKIP_SANITY_CHECKS'] = '1'",
+                // "-c","import os; os.environ['EMCC_FORCE_STDLIBS'] = '1'",
                 "-E", `${emscripten_script}.py`,
                 ...argv.slice(1)
             ];

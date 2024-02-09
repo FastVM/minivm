@@ -81,7 +81,7 @@ minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 
 $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
-	$(CC) -w -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I vendor/tb/include -I vendor/common -DCUIK_USE_TB -DLOG_SUPPRESS -DTB_HAS_X64
+	$(CC) -Wno-unused-value -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) -I vendor/tb/include -I vendor/common -DCUIK_USE_TB -DLOG_SUPPRESS -DTB_HAS_X64
 
 $(PROG_OBJS) $(ALL_OBJS) $(GC_OBJS) $(TCC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	@mkdir -p $$(dirname $(@))
