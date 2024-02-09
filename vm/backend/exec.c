@@ -18,8 +18,18 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
 
-EM_ASYNC_JS(void, vm_compile_c_to_wasm, (int n), {
-    await window.vm_compile_c_to_wasm(n);
+// EM_ASYNC_JS(void, vm_compile_c_to_wasm, (int n), {
+//     await window.vm_compile_c_to_wasm(n);
+// });
+
+// EM_JS(void, vm_compile_c_to_wasm, (int n), {
+//     Asyncify.handleAsync(async () => {
+//         await window.vm_compile_c_to_wasm(n);
+//     })
+// });
+
+EM_JS(void, vm_compile_c_to_wasm, (int n), {
+    window.vm_compile_c_to_wasm(n);
 });
 
 void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {

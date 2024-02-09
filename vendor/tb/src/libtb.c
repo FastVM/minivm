@@ -108,15 +108,15 @@ bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {
 
 #elif defined(EMSCRIPTEN)
 void* tb_platform_valloc(size_t size) {
-    return aligned_alloc(size, 256);
+    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
 
 void* tb_platform_valloc_guard(size_t size) {
-    return aligned_alloc(size, 256);
+    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
 
 void tb_platform_vfree(void* ptr, size_t size) {
-    free(ptr);
+    munmap(ptr, size);
 }
 
 bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {

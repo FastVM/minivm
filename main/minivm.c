@@ -27,7 +27,11 @@ int main(int argc, char **argv) {
     vm_blocks_t *blocks = &val_blocks;
     vm_config_t *config = &val_config;
     bool echo = false;
+#if defined(EMSCRIPTEN)
+    bool isrepl = false;
+#else
     bool isrepl = true;
+#endif
     vm_table_t *std = vm_std_new();
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
@@ -146,6 +150,7 @@ int main(int argc, char **argv) {
 
             vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
             if (echo) {
+                printf("tag = %zu\n", (size_t) value.tag);
                 vm_io_buffer_t buf = {0};
                 vm_io_debug(&buf, 0, "", value, NULL);
                 printf("%.*s", (int) buf.len, buf.buf);
@@ -161,7 +166,7 @@ int main(int argc, char **argv) {
     }
 
     if (isrepl) {
-        vm_lang_lua_repl(config, std, blocks);
+        // vm_lang_lua_repl(config, std, blocks);
     }
 
     return 0;

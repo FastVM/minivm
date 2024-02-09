@@ -60,11 +60,6 @@ void* cuik__valloc(size_t size) {
     size = (size + cuik__page_mask) & ~cuik__page_mask;
 
     return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    #elif defined(EMSCRIPTEN)
-    cuik__page_size = 4096;
-    cuik__page_mask = 4095;
-
-    return aligned_alloc(size, cuik__page_size);
     #else
     cuik__page_size = 4096;
     cuik__page_mask = 4095;
@@ -76,8 +71,6 @@ void* cuik__valloc(size_t size) {
 void cuik__vfree(void* ptr, size_t size) {
     #ifdef _WIN32
     VirtualFree(ptr, 0, MEM_RELEASE);
-    #elif defined(EMSCRIPTEN)
-    free(ptr);
     #else
     munmap(ptr, size);
     #endif

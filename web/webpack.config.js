@@ -1,4 +1,3 @@
-import CompressionPlugin from 'compression-webpack-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
 import path from 'path';
 
@@ -40,9 +39,6 @@ export default {
                         presets: [
                             [
                                 '@babel/preset-env',
-                                {
-                                    targets: "chrome 60"
-                                },
                             ],
                             // [
                             //     'minify',
@@ -52,6 +48,11 @@ export default {
                             //         mangle: false,
                             //     },
                             // ],
+                        ],
+                        plugins: [
+                            "@babel/plugin-proposal-private-methods",
+                            "@babel/plugin-proposal-class-properties",
+                            "@babel/plugin-proposal-object-rest-spread",
                         ],
                     },
                 },

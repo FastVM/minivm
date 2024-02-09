@@ -1,11 +1,11 @@
-import FileSystem from "emception/FileSystem.mjs";
+import FileSystem from "../emception/FileSystem.mjs";
 
-import LlvmBoxProcess from "emception/LlvmBoxProcess.mjs";
-import BinaryenBoxProcess from "emception/BinaryenBoxProcess.mjs";
-import Python3Process from "emception/Python3Process.mjs";
-import NodeProcess from "emception/QuickNodeProcess.mjs";
+import LlvmBoxProcess from "../emception/LlvmBoxProcess.mjs";
+import BinaryenBoxProcess from "../emception/BinaryenBoxProcess.mjs";
+import Python3Process from "../emception/Python3Process.mjs";
+import NodeProcess from "../emception/QuickNodeProcess.mjs";
 
-import packs from "emception/packs.mjs";
+import packs from "../emception/packs.mjs";
 
 const tools_info = {
     "/usr/bin/clang":                    "llvm-box",

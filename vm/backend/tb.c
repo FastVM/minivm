@@ -1421,7 +1421,9 @@ void vm_tb_func_print_value(vm_tb_state_t *state, vm_tag_t tag, TB_Node *value) 
 
 void vm_tb_new_module(vm_tb_state_t *state) {
     if (state->module != NULL) {
+#if !defined(EMSCRIPTEN)
         tb_module_destroy(state->module);
+#endif
     }
 
     TB_Module *mod = tb_module_create_for_host(true);
@@ -1484,12 +1486,10 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         return cache;
     }
 
-    printf("id = %zi\n", rblock->block->id);
-
     vm_tb_state_t *state = rblock->state;
 
     vm_tb_new_module(state);
-
+    
     if (state->config->use_ver_count >= VM_USE_VERSION_COUNT_GLOBAL) {
         vm_table_t *vm_tab = vm_table_lookup(state->std, (vm_value_t){.str = "vm"}, VM_TAG_STR)->val_val.table;
         vm_table_t *vm_ver_tab = vm_table_lookup(vm_tab, (vm_value_t){.str = "version"}, VM_TAG_STR)->val_val.table;
@@ -1544,6 +1544,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     vm_block_t *block = vm_rblock_version(state->blocks, rblock);
 
+
     char name[24];
     if (block) {
         snprintf(name, 23, "block_%zi", block->id);
@@ -1551,7 +1552,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         snprintf(name, 23, "block_unk");
     }
     state->fun = tb_function_create(state->module, -1, name, TB_LINKAGE_PUBLIC);
-
+    
     if (block == NULL) {
         TB_PrototypeParam proto_rets[2] = {
             {VM_TB_TYPE_VALUE},
@@ -1781,7 +1782,12 @@ void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {
     return vm_tb_rfunc_comp(rblock);
 }
 
-typedef vm_std_value_t VM_CDECL vm_tb_func_t();
+typedef struct {
+    uint64_t value;
+    uint32_t type;
+} vm_std_value_alias_t;
+
+typedef vm_std_value_alias_t VM_CDECL vm_tb_func_t();
 
 vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_std_value_t val = vm_tb_run_repl(config, entry, blocks, std);
@@ -1800,12 +1806,21 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, entry);
 
+    printf("fn = %p\n", fn);
+    if (sizeof(vm_std_value_alias_t) != sizeof(vm_std_value_t)) {
+        printf("bad value size!\n");
+    }
+
 #if defined(_WIN32)
     vm_std_value_t value;
     state->vm_caller(&value, fn);
 #else
-    vm_std_value_t value = fn();
+    // vm_std_value_alias_t value = fn();
+    fn();
 #endif
+
+    printf("run fn()\n");
+    // printf("value.tag = %zu\n", (size_t) value.type);
 
     for (size_t i = 0; i < blocks->len; i++) {
         vm_block_t *block = blocks->blocks[i];
@@ -1816,11 +1831,8 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         block->cache.len = 0;
     }
 
-    // tb_arena_destroy(state->arena);
-    // tb_jit_end(state->jit);
-    // tb_module_destroy(state->module);
+    vm_std_value_t ret = (vm_std_value_t) {.tag = VM_TAG_NIL};
+    return ret;
 
-    // vm_free(state);
-
-    return value;
+    // return *(vm_std_value_t*) &value;
 }
