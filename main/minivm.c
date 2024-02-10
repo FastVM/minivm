@@ -10,16 +10,48 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks);
 
 // void GC_disable(void);
+#if defined(EMSCRIPTEN)
+#include <emscripten.h>
+
+typedef struct {
+    vm_table_t *std;
+    vm_blocks_t blocks;
+    vm_config_t config;
+} vm_main_t;
+
+EMSCRIPTEN_KEEPALIVE vm_main_t *vm_main_new(void) {
+    vm_main_t *ret = vm_malloc(sizeof(vm_main_t));
+    ret->std = vm_std_new();
+    ret->config = (vm_config_t){
+        .use_tb_opt = false,
+        .use_num = VM_USE_NUM_I64,
+        .target = VM_TARGET_TB_EMCC,
+    };
+    ret->blocks = (vm_blocks_t) {0};
+    return ret;
+}
+
+EMSCRIPTEN_KEEPALIVE const char *vm_main_lua_eval(vm_main_t *main, const char *src) {
+    vm_ast_node_t node = vm_lang_lua_parse(&main->config, src);
+    vm_ast_comp_more(node, &main->blocks);
+    vm_std_value_t value = vm_tb_run_main(&main->config, main->blocks.entry, &main->blocks, main->std);
+    vm_io_buffer_t buf = {0};
+    vm_io_debug(&buf, 0, "", value, NULL);
+    return buf.buf;
+}
+
+#endif
 
 int main(int argc, char **argv) {
     vm_init_mem();
     // GC_disable();
     vm_config_t val_config = (vm_config_t){
         .use_tb_opt = false,
-        .use_num = VM_USE_NUM_I64,
 #if defined(EMSCRIPTEN)
+        .use_num = VM_USE_NUM_I64,
         .target = VM_TARGET_TB_EMCC,
 #else
+        .use_num = VM_USE_NUM_I64,
         .target = VM_TARGET_TB,
 #endif
     };
@@ -150,7 +182,6 @@ int main(int argc, char **argv) {
 
             vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
             if (echo) {
-                printf("tag = %zu\n", (size_t) value.tag);
                 vm_io_buffer_t buf = {0};
                 vm_io_debug(&buf, 0, "", value, NULL);
                 printf("%.*s", (int) buf.len, buf.buf);
@@ -166,7 +197,7 @@ int main(int argc, char **argv) {
     }
 
     if (isrepl) {
-        // vm_lang_lua_repl(config, std, blocks);
+        vm_lang_lua_repl(config, std, blocks);
     }
 
     return 0;

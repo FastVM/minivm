@@ -1544,12 +1544,12 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
     vm_block_t *block = vm_rblock_version(state->blocks, rblock);
 
-
-    char name[24];
+    static size_t comps = 0;
+    char name[64];
     if (block) {
-        snprintf(name, 23, "block_%zi", block->id);
+        snprintf(name, 23, "block_%zi_%zu", block->id, comps++);
     } else {
-        snprintf(name, 23, "block_unk");
+        snprintf(name, 23, "block_unk_%zu", comps++);
     }
     state->fun = tb_function_create(state->module, -1, name, TB_LINKAGE_PUBLIC);
     
@@ -1806,7 +1806,6 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     vm_tb_func_t *fn = (vm_tb_func_t *)vm_tb_full_comp(state, entry);
 
-    printf("fn = %p\n", fn);
     if (sizeof(vm_std_value_alias_t) != sizeof(vm_std_value_t)) {
         fprintf(stderr, "bad value size!\n");
     }
@@ -1818,9 +1817,6 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
     vm_std_value_alias_t value = fn();
     // fn();
 #endif
-
-    printf("run fn()\n");
-    // printf("value.tag = %zu\n", (size_t) value.type);
 
     for (size_t i = 0; i < blocks->len; i++) {
         vm_block_t *block = blocks->blocks[i];

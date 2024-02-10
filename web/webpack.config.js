@@ -1,3 +1,4 @@
+import CompressionPlugin from 'compression-webpack-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
 import path from 'path';
 
@@ -40,14 +41,6 @@ export default {
                             [
                                 '@babel/preset-env',
                             ],
-                            // [
-                            //     'minify',
-                            //     {
-                            //         builtIns: false,
-                            //         // evaluate: false,
-                            //         mangle: false,
-                            //     },
-                            // ],
                         ],
                         plugins: [
                             "@babel/plugin-proposal-private-methods",
@@ -70,14 +63,17 @@ export default {
                 { from: "src/index.html", to: "index.html" },
             ],
         }),
-        // new CompressionPlugin({
-        //     exclude: /\.br$/,
-        // }),
+        new CompressionPlugin({
+            exclude: /\.br$/,
+        }),
     ],
     devServer: {
         headers: {
             "Cross-Origin-Embedder-Policy": "require-corp",
             "Cross-Origin-Opener-Policy": "same-origin",
-        }
+        },
+    },
+    experiments: {
+        topLevelAwait: true,
     },
 };

@@ -31,6 +31,10 @@ EM_ASYNC_JS(void, vm_compile_c_to_wasm, (int n), {
 // });
 
 #if 1
+void vm_compile_c_to_wasm(int n);
+#endif
+
+#if 0
 EM_JS(void, vm_compile_c_to_wasm, (int n), {
     window.vm_compile_c_to_wasm(n);
 });
