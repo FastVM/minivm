@@ -29,7 +29,7 @@ export const spawn = (...args) => new Promise((ok, err) => {
                 break;
             }
         }
-    }
+    };
 });
 
 export const run = (lua) => {
