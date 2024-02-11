@@ -1670,14 +1670,29 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     }
 #endif
 #if defined(EMSCRIPTEN)
-    const char *cs[] = {
-        tb_pass_c_prelude(state->module),
-        tb_pass_c_fmt(passes),
-        NULL
-    };
-    void *code = vm_cache_comp("emcc", cs, name);
-    rblock->code = code;
-    return code;
+    if (state->config->target == VM_TARGET_TB_EMCC) {
+        const char *cs[] = {
+            tb_pass_c_prelude(state->module),
+            tb_pass_c_fmt(passes),
+            NULL,
+        };
+        void *code = vm_cache_comp("emcc", cs, name);
+        rblock->code = code;
+        return code;
+    } else if (state->config->target == VM_TARGET_TB_JS) {
+        const char *js1 = tb_pass_js_prelude(state->module);
+        const char *js2 = tb_pass_js_fmt(passes);
+        size_t len1 = strlen(js1);
+        size_t len2 = strlen(js2);
+        char *buf = vm_malloc(len1 + len2 + 1);
+        memcpy(buf, js1, len1);
+        memcpy(buf + len1, js2, len2);
+        buf[len1 + len2] = '\0';
+        rblock->code = buf;
+        return buf;
+    } else {
+        __builtin_trap();
+    }
 #else
     if (state->config->target == VM_TARGET_TB_TCC) {
         const char *c_header = tb_pass_c_prelude(state->module);

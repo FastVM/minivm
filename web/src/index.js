@@ -1,5 +1,14 @@
-import {run} from './lua.js';
 
-window.run = run;
+// import {run} from './lib/spawn.js';
 
-console.log('installed: run');
+// window.lua = async (src) => {
+//     const {stdout, stderr} = await run(src);
+//     stdout;
+// };
+
+import './app/global.css';
+import App from './app/App.svelte';
+
+new App({
+    target: document.body,
+});

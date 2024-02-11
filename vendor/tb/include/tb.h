@@ -1426,6 +1426,8 @@ TB_API void tb_pass_optimize(TB_Passes* p);
 TB_API void tb_pass_print(TB_Passes* opt);
 TB_API char *tb_pass_c_prelude(TB_Module *mod);
 TB_API char *tb_pass_c_fmt(TB_Passes* opt);
+TB_API char *tb_pass_js_prelude(TB_Module *mod);
+TB_API char *tb_pass_js_fmt(TB_Passes* opt);
 //   print-dot: prints IR as DOT
 TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* user_data);
 

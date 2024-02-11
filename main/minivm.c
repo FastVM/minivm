@@ -109,6 +109,33 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "cannot use have as a number type: %s\n", arg);
                 return 1;
             }
+        } else if (!strncmp(arg, "--target-", 9) || !strncmp(arg, "--target=", 9)) {
+            arg += 9;
+#if defined(EMSCRIPTEN)
+            if (!strcmp(arg, "emcc")) {
+                config->target = VM_TARGET_TB_EMCC;
+            } else if (!strcmp(arg, "js")) {
+                config->target = VM_TARGET_TB_JS;
+            } else {
+                fprintf(stderr, "cannot target: %s\n", arg);
+                return 1;
+            }
+#else
+            if (!strcmp(arg, "tb")) {
+                config->target = VM_TARGET_TB;
+            } else if (!strcmp(arg, "tb-cc")) {
+                config->target = VM_TARGET_TB_CC;
+            } else if (!strcmp(arg, "tb-tcc")) {
+                config->target = VM_TARGET_TB_TCC;
+            } else if (!strcmp(arg, "tb-gcc")) {
+                config->target = VM_TARGET_TB_GCC;
+            } else if (!strcmp(arg, "tb-clang")) {
+                config->target = VM_TARGET_TB_CLANG;
+            } else {
+                fprintf(stderr, "cannot target: %s\n", arg);
+                return 1;
+            }
+#endif
         } else if (!strncmp(arg, "--dump-", 7) || !strncmp(arg, "--dump=", 7)) {
             arg += 7;
             if (!strcmp(arg, "src")) {

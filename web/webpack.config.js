@@ -1,5 +1,6 @@
 import CompressionPlugin from 'compression-webpack-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import path from 'path';
 
 export default {
@@ -24,6 +25,19 @@ export default {
     },
     module: {
         rules: [
+            {
+                test: /\.svelte$/,
+                use: {
+                    loader: 'svelte-loader',
+                },
+            },
+			{
+				test: /\.(css|style)$/,
+				use: [
+					MiniCssExtractPlugin.loader,
+                    'css-loader',
+				]
+			},
             {
                 test: /\.wasm$/,
                 type: "asset/resource",
@@ -58,6 +72,9 @@ export default {
         maxAssetSize: 512000
     },
     plugins: [
+        new MiniCssExtractPlugin({
+            filename: '[name].css',
+        }),
         new CopyPlugin({
             patterns: [
                 { from: "src/index.html", to: "index.html" },

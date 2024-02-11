@@ -4,7 +4,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler, test
 
 class CORSRequestHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory="clang", **kwargs)
+        super().__init__(*args, directory="public", **kwargs)
 
     def end_headers(self):
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")

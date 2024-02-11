@@ -21,6 +21,7 @@ enum {
 enum {
 #if defined(EMSCRIPTEN)
     VM_TARGET_TB_EMCC,
+    VM_TARGET_TB_JS,
 #else
     VM_TARGET_TB,
     VM_TARGET_TB_CC,
