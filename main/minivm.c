@@ -48,11 +48,12 @@ int main(int argc, char **argv) {
     vm_init_mem();
     // GC_disable();
     vm_config_t val_config = (vm_config_t){
-        .use_tb_opt = false,
 #if defined(EMSCRIPTEN)
+        .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
         .target = VM_TARGET_TB_EMCC,
 #else
+        .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
         .target = VM_TARGET_TB,
 #endif

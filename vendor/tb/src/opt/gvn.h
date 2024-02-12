@@ -144,17 +144,22 @@ uint32_t gvn_hash(void* a) {
             h += (uintptr_t) n->gvn;
         }
 
-        // fib hashing amirite
-        h = ((uint64_t) h * 11400714819323198485llu) >> 32llu;
-
         FOREACH_N(i, 0, n->input_count) {
-            h ^= ((uintptr_t) n->inputs[i] * 11400714819323198485llu) >> 32llu;
+            h += n->inputs[i] ? n->inputs[i]->gvn : 0;
         }
 
         // fnv1a the extra space
-        FOREACH_N(i, 0, extra) {
-            h = (n->extra[i] ^ h) * 0x01000193;
+        uint32_t* extra_arr = (uint32_t*) n->extra;
+        FOREACH_N(i, 0, extra / 4) {
+            h += extra_arr[i];
         }
+
+        FOREACH_N(i, extra & ~0x7, extra) {
+            h += n->extra[i];
+        }
+
+        // fib hashing amirite
+        h = ((uint64_t) h * 11400714819323198485llu) >> 32llu;
     }
 
     return h;

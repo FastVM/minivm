@@ -70,6 +70,10 @@ size_t nl_table_lookup(NL_Table* restrict tbl, void* k);
 
 #define NL_HASHSET_HASH(ptr) ((((uintptr_t) ptr) * 11400714819323198485ull) >> 32ull)
 
+NL_HashSet nl_hashset_alloc_exp(size_t exp) {
+    return (NL_HashSet){ .exp = exp, .data = cuik_calloc(1u << exp, sizeof(void*)) };
+}
+
 NL_HashSet nl_hashset_alloc(size_t cap) {
     cap = (cap * 4) / 3;
     if (cap < 4) cap = 4;
@@ -132,10 +136,9 @@ size_t nl_hashset_lookup(NL_HashSet* restrict hs, void* ptr) {
 }
 
 bool nl_hashset_put(NL_HashSet* restrict hs, void* ptr) {
-    size_t index = nl_hashset_lookup(hs, ptr);
-
-    // rehash (ideally only once? statistically not impossible for two?)
-    while (index == SIZE_MAX) {
+    // rehash
+    uint32_t threshold = ((1 << hs->exp) * 3) / 4;
+    if (hs->count >= threshold) {
         assert(hs->allocator == NULL && "arena hashsets can't be resized!");
         NL_HashSet new_hs = nl_hashset_alloc(nl_hashset_capacity(hs));
         nl_hashset_for(p, hs) {
@@ -143,11 +146,9 @@ bool nl_hashset_put(NL_HashSet* restrict hs, void* ptr) {
         }
         nl_hashset_free(*hs);
         *hs = new_hs;
-
-        // "tail" calls amirite
-        index = nl_hashset_lookup(hs, ptr);
     }
 
+    size_t index = nl_hashset_lookup(hs, ptr);
     if (index & NL_HASHSET_HIGH_BIT) {
         // slot is already filled
         return false;
@@ -179,6 +180,7 @@ void nl_hashset_remove2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL
         if (hs->data[i] == NULL) {
             break;
         } else if (hs->data[i] == ptr) {
+            hs->count--;
             hs->data[i] = NL_HASHSET_TOMB;
             break;
         }
@@ -212,6 +214,16 @@ void* nl_hashset_get2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL_C
 void* nl_hashset_put2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL_CompareFunc cmp) {
     uint32_t h = hash(ptr);
 
+    uint32_t threshold = ((1 << hs->exp) * 3) / 4;
+    if (hs->count >= threshold) {
+        NL_HashSet new_hs = nl_hashset_alloc(nl_hashset_capacity(hs) + 16);
+        nl_hashset_for(p, hs) {
+            nl_hashset_put2(&new_hs, *p, hash, cmp);
+        }
+        nl_hashset_free(*hs);
+        *hs = new_hs;
+    }
+
     size_t mask = (1 << hs->exp) - 1;
     size_t first = h & mask, i = first;
 
@@ -229,15 +241,13 @@ void* nl_hashset_put2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL_C
         i = (i + 1) & mask;
     } while (i != first);
 
-    NL_HashSet new_hs = nl_hashset_alloc(nl_hashset_capacity(hs));
+    NL_HashSet new_hs = nl_hashset_alloc_exp(hs->exp + 2);
     nl_hashset_for(p, hs) {
         nl_hashset_put2(&new_hs, *p, hash, cmp);
     }
     nl_hashset_free(*hs);
     *hs = new_hs;
-
-    // "tail" calls amirite
-    return nl_hashset_put2(hs, ptr, hash, cmp);
+    return NULL;
 }
 
 void nl_hashset_clear(NL_HashSet* restrict hs) {

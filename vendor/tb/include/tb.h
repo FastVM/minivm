@@ -1406,16 +1406,17 @@ TB_API void tb_pass_prep(TB_Passes* p);
 TB_API TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n);
 
 // returns GVN on a new node, returning either the same node or a duplicate node 'k'.
-// does not subsume n -> k.
+// it deletes 'n' if it's a duplicate btw.
 TB_API TB_Node* tb_pass_gvn_node(TB_Function* f, TB_Node* n);
 
 // transformation passes:
-//   peephole: 99% of the optimizer, i'm sea of nodes pilled so i
+//   peephole: 90% of the optimizer, i'm sea of nodes pilled so i
 //     break down most optimizations into local rewrites, it's
-//     incremental and recommended to run after any non-peephole
-//     pass.
+//     also incremental so spamming it doesn't really do anything and
+//     if placing all the nodes back onto the worklist caused progress
+//     that's a bug that should be reported.
 TB_API void tb_pass_peephole(TB_Passes* p);
-TB_API bool tb_pass_split_locals(TB_Passes* p);
+TB_API void tb_pass_locals(TB_Passes* p);
 TB_API void tb_pass_loop(TB_Passes* p);
 
 // this just runs the optimizer in the default configuration
@@ -1426,8 +1427,6 @@ TB_API void tb_pass_optimize(TB_Passes* p);
 TB_API void tb_pass_print(TB_Passes* opt);
 TB_API char *tb_pass_c_prelude(TB_Module *mod);
 TB_API char *tb_pass_c_fmt(TB_Passes* opt);
-TB_API char *tb_pass_js_prelude(TB_Module *mod);
-TB_API char *tb_pass_js_fmt(TB_Passes* opt);
 //   print-dot: prints IR as DOT
 TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* user_data);
 

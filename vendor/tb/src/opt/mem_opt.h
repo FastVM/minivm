@@ -23,24 +23,43 @@ static KnownPointer known_pointer(TB_Node* n) {
     }
 }
 
-static TB_Node* data_phi_from_memory_phi(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* addr, TB_Node* mem, int steps) {
+typedef struct FoundPhis {
+    struct FoundPhis* prev;
+    TB_Node* old;
+    TB_Node* new;
+} FoundPhis;
+
+static TB_Node* data_phi_from_memory_phi(TB_Passes* restrict p, TB_Function* f, TB_Node* n, TB_Node* addr, TB_Node* mem, FoundPhis* prev, int steps) {
     // convert memory phis into data phis
     assert(mem->type == TB_PHI);
     assert(mem->dt.type == TB_MEMORY && "memory input should be memory");
 
     TB_DataType dt = n->dt;
 
+    TB_ArenaSavepoint sp = tb_arena_save(tmp_arena);
     size_t path_count = mem->input_count - 1;
     TB_Node** paths = tb_arena_alloc(tmp_arena, path_count * sizeof(TB_Node*));
+
+    TB_Node* phi = tb_alloc_node(f, TB_PHI, dt, 1 + path_count, 0);
 
     bool fail = false;
     FOREACH_N(i, 0, path_count) {
         TB_Node* st = mem->inputs[1+i];
         if (st->type == TB_PHI && steps > 0) {
-            TB_Node* k = data_phi_from_memory_phi(p, f, n, addr, st, steps - 1);
+            TB_Node* k = NULL;
+
+            // if we've already seen this phi before, let's just reference the OG
+            for (FoundPhis* p = prev; p; p = p->prev) {
+                if (p->old == st) k = p->new;
+            }
+
             if (k == NULL) {
-                fail = true;
-                break;
+                FoundPhis next = { prev, mem, phi };
+                k = data_phi_from_memory_phi(p, f, n, addr, st, &next, steps - 1);
+                if (k == NULL) {
+                    fail = true;
+                    break;
+                }
             }
 
             paths[i] = k;
@@ -53,14 +72,16 @@ static TB_Node* data_phi_from_memory_phi(TB_Passes* restrict p, TB_Function* f, 
     }
 
     if (fail) {
+        violent_kill(f, phi);
         return NULL;
     }
 
-    TB_Node* phi = tb_alloc_node(f, TB_PHI, dt, 1 + path_count, 0);
     set_input(f, phi, mem->inputs[0], 0);
     FOREACH_N(i, 0, path_count) {
         set_input(f, phi, paths[i], 1+i);
     }
+    tb_arena_restore(tmp_arena, sp);
+
     return phi;
 }
 
@@ -70,7 +91,7 @@ static TB_Node* ideal_load(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     TB_Node* addr = n->inputs[2];
 
     if (mem->type == TB_PHI) {
-        TB_Node* k = data_phi_from_memory_phi(p, f, n, addr, mem, 1);
+        TB_Node* k = data_phi_from_memory_phi(p, f, n, addr, mem, NULL, 2);
         if (k) return k;
     }
 
@@ -129,8 +150,64 @@ static TB_Node* identity_load(TB_Passes* restrict p, TB_Function* f, TB_Node* n)
     return n;
 }
 
+static Lattice* sccp_split_mem(TB_Passes* restrict p, TB_Node* n) {
+    TB_NodeMemSplit* s = TB_NODE_GET_EXTRA(n);
+
+    size_t size = sizeof(Lattice) + s->alias_cnt*sizeof(Lattice*);
+    Lattice* l = tb_arena_alloc(tmp_arena, size);
+    *l = (Lattice){ LATTICE_TUPLE, ._tuple = { s->alias_cnt } };
+    FOREACH_N(i, 0, s->alias_cnt) {
+        l->elems[i] = lattice_alias(p, s->alias_idx[i]);
+    }
+
+    Lattice* k = nl_hashset_put2(&p->type_interner, l, lattice_hash, lattice_cmp);
+    if (k) {
+        tb_arena_free(tmp_arena, l, size);
+        return k;
+    } else {
+        return l;
+    }
+}
+
 static TB_Node* ideal_merge_mem(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
-    return NULL;
+    bool progress = false;
+    TB_Node* split_node = n->inputs[1];
+    TB_NodeMemSplit* split = TB_NODE_GET_EXTRA(split_node);
+
+    // remove useless split edges
+    size_t i = 2;
+    while (i < n->input_count) {
+        if (n->inputs[i]->type == TB_PROJ && n->inputs[i]->inputs[0] == split_node && single_use(n->inputs[i])) {
+            int j = i - 2;
+            progress = true;
+
+            assert(split->alias_cnt > 0);
+            assert(split->alias_cnt + 2 == n->input_count);
+
+            split->alias_cnt -= 1;
+            split->alias_idx[j] = split->alias_idx[split->alias_cnt];
+
+            User* proj = proj_with_index(split_node, split->alias_cnt);
+            assert(proj->n);
+            TB_NODE_SET_EXTRA(proj->n, TB_NodeProj, .index = j);
+
+            tb_pass_kill_node(f, n->inputs[i]);
+
+            // simple remove-swap
+            set_input(f, n, n->inputs[n->input_count - 1], i);
+            set_input(f, n, NULL, n->input_count - 1);
+            n->input_count -= 1;
+
+            // we didn't *really* change the memory type, just reordered it (all the live projs
+            // are the same so we don't need to push them onto the worklist)
+            Lattice* new_split_type = sccp_split_mem(p, split_node);
+            lattice_universe_map(p, split_node, new_split_type);
+        } else {
+            i += 1;
+        }
+    }
+
+    return progress ? n : NULL;
 }
 
 static TB_Node* ideal_store(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
@@ -178,6 +255,10 @@ static TB_Node* ideal_memset(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
     return NULL;
 }
 
+static TB_Node* ideal_return(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    return NULL;
+}
+
 static TB_Node* ideal_memcpy(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     // convert small memsets into ld+st pairs
     uint64_t count, val;
@@ -202,25 +283,6 @@ static TB_Node* ideal_memcpy(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
     }
 
     return NULL;
-}
-
-static Lattice* sccp_split_mem(TB_Passes* restrict p, TB_Node* n) {
-    TB_NodeMemSplit* s = TB_NODE_GET_EXTRA(n);
-
-    size_t size = sizeof(Lattice) + s->alias_cnt*sizeof(Lattice*);
-    Lattice* l = tb_arena_alloc(tmp_arena, size);
-    *l = (Lattice){ LATTICE_TUPLE, ._tuple = { s->alias_cnt } };
-    FOREACH_N(i, 0, s->alias_cnt) {
-        l->elems[i] = lattice_alias(p, s->alias_idx[i]);
-    }
-
-    Lattice* k = nl_hashset_put2(&p->type_interner, l, lattice_hash, lattice_cmp);
-    if (k) {
-        tb_arena_free(tmp_arena, l, size);
-        return k;
-    } else {
-        return l;
-    }
 }
 
 static Lattice* sccp_merge_mem(TB_Passes* restrict p, TB_Node* n) {

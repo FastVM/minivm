@@ -91,14 +91,14 @@ char* tb__arena_strdup(TB_Module* m, ptrdiff_t len, const char* src) {
 }
 
 TB_Module* tb_module_create_for_host(bool is_jit) {
-#if defined(EMSCRIPTEN)
+    #if defined(EMSCRIPTEN)
     TB_Arch arch = TB_ARCH_WASM32;
-#elif defined(TB_HOST_X86_64)
+    #elif defined(TB_HOST_X86_64)
     TB_Arch arch = TB_ARCH_X86_64;
-#else
+    #else
     TB_Arch arch = TB_ARCH_UNKNOWN;
     tb_panic("tb_module_create_for_host: cannot detect host platform");
-#endif
+    #endif
 
     #if defined(TB_HOST_WINDOWS)
     TB_System sys = TB_SYSTEM_WINDOWS;

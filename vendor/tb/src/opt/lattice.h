@@ -6,7 +6,7 @@ static Lattice CTRL_IN_THE_SKY  = { LATTICE_CTRL   };
 static Lattice XCTRL_IN_THE_SKY = { LATTICE_XCTRL  };
 static Lattice XNULL_IN_THE_SKY = { LATTICE_XNULL  };
 static Lattice NULL_IN_THE_SKY  = { LATTICE_NULL   };
-static Lattice PTR_IN_THE_SKY   = { LATTICE_ALLPTR };
+static Lattice PTR_IN_THE_SKY   = { LATTICE_BOTPTR };
 static Lattice FALSE_IN_THE_SKY = { LATTICE_INT, ._int = { 0, 0, 1, 0 } };
 static Lattice TRUE_IN_THE_SKY  = { LATTICE_INT, ._int = { 1, 1, 0, 1 } };
 
@@ -48,7 +48,7 @@ static void lattice_universe_grow(TB_Passes* p, size_t top) {
 
     // clear new space
     FOREACH_N(i, p->type_cap, new_cap) {
-        p->types[i] = &TOP_IN_THE_SKY;
+        p->types[i] = NULL;
     }
 
     p->type_cap = new_cap;
@@ -72,16 +72,6 @@ static void lattice_universe_map(TB_Passes* p, TB_Node* n, Lattice* l) {
     }
 
     p->types[n->gvn] = l;
-}
-
-Lattice* lattice_universe_get(TB_Passes* p, TB_Node* n) {
-    // reserve cap, slow path :p
-    if (UNLIKELY(n->gvn >= p->type_cap)) {
-        lattice_universe_grow(p, n->gvn);
-    }
-
-    assert(p->types[n->gvn] != NULL);
-    return p->types[n->gvn];
 }
 
 static Lattice* lattice_intern(TB_Passes* p, Lattice l) {
@@ -155,6 +145,19 @@ static Lattice* lattice_from_dt(TB_Passes* p, TB_DataType dt) {
     }
 }
 
+Lattice* lattice_universe_get(TB_Passes* p, TB_Node* n) {
+    // reserve cap, slow path :p
+    if (UNLIKELY(n->gvn >= p->type_cap)) {
+        lattice_universe_grow(p, n->gvn);
+    }
+
+    if (p->types[n->gvn] == NULL) {
+        p->types[n->gvn] = lattice_from_dt(p, n->dt);
+    }
+
+    return p->types[n->gvn];
+}
+
 static Lattice* lattice_tuple_from_node(TB_Passes* p, TB_Node* n) {
     assert(n->dt.type == TB_TUPLE);
     // count projs
@@ -198,9 +201,14 @@ uint64_t tb__sxt(uint64_t src, uint64_t src_bits, uint64_t dst_bits) {
 
 static bool lattice_signed(LatticeInt* l) { return l->min > l->max; }
 
-static LatticeInt lattice_into_unsigned(LatticeInt i) {
-    if (i.min > i.max) { SWAP(uint64_t, i.min, i.max); }
-    return i;
+static LatticeInt lattice_into_unsigned(LatticeInt i, int bits) {
+    if (i.min > i.max) {
+        i.min = 0;
+        i.max = lattice_uint_max(bits);
+        return i;
+    } else {
+        return i;
+    }
 }
 
 static Lattice* lattice_gimme_int(TB_Passes* p, int64_t min, int64_t max) {
@@ -251,10 +259,8 @@ static LatticeInt lattice_meet_int(LatticeInt a, LatticeInt b, TB_DataType dt) {
         if (wrapped_int_lt(b.min, a.min, bits)) a.min = b.min;
         if (wrapped_int_lt(a.max, b.max, bits)) a.max = b.max;
     } else {
-        if (!aas && !bbs) {
-            a = lattice_into_unsigned(a);
-            b = lattice_into_unsigned(b);
-        }
+        if (aas) a = lattice_into_unsigned(a, bits);
+        if (bbs) b = lattice_into_unsigned(b, bits);
 
         if (b.min < a.min) a.min = b.min;
         if (a.max < b.max) a.max = b.max;
@@ -263,6 +269,22 @@ static LatticeInt lattice_meet_int(LatticeInt a, LatticeInt b, TB_DataType dt) {
     a.known_zeros &= b.known_zeros;
     a.known_ones &= b.known_ones;
     return a;
+}
+
+static Lattice* lattice_dual(TB_Passes* p, Lattice* type) {
+    switch (type->tag) {
+        case LATTICE_BOT: {
+            return &TOP_IN_THE_SKY;
+        }
+
+        case LATTICE_INT: {
+            LatticeInt i = type->_int;
+            return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = { i.max, i.min, i.known_ones, i.known_zeros } });
+        }
+
+        default:
+        return type;
+    }
 }
 
 // generates the greatest lower bound between a and b
@@ -278,15 +300,7 @@ static Lattice* lattice_meet(TB_Passes* p, Lattice* a, Lattice* b, TB_DataType d
 
     switch (a->tag) {
         case LATTICE_BOT: return &BOT_IN_THE_SKY;
-        case LATTICE_TOP: return &TOP_IN_THE_SKY;
-
-        case LATTICE_CTRL:
-        case LATTICE_XCTRL: {
-            // ctrl  ^ ctrl   = ctrl
-            // ctrl  ^ xctrl  = bot
-            // xctrl ^ xctrl  = xctrl
-            return a == b ? a : &BOT_IN_THE_SKY;
-        }
+        case LATTICE_TOP: return b;
 
         case LATTICE_INT: {
             if (b->tag != LATTICE_INT) {
@@ -308,7 +322,7 @@ static Lattice* lattice_meet(TB_Passes* p, Lattice* a, Lattice* b, TB_DataType d
         }
 
         // all cases that reached down here are bottoms
-        case LATTICE_ALLPTR:
+        case LATTICE_BOTPTR:
         case LATTICE_NULL:
         return &PTR_IN_THE_SKY;
 
@@ -330,6 +344,18 @@ static Lattice* lattice_meet(TB_Passes* p, Lattice* a, Lattice* b, TB_DataType d
                 return &BOT_IN_THE_SKY;
             }
         }
+
+        case LATTICE_CTRL:
+        case LATTICE_XCTRL: {
+            // ctrl  ^ ctrl   = ctrl
+            // ctrl  ^ xctrl  = bot
+            // xctrl ^ xctrl  = xctrl
+            return a == b ? a : &BOT_IN_THE_SKY;
+        }
+
+        // if we make it here, they're not the same mem
+        case LATTICE_MEM:
+        return &BOT_IN_THE_SKY;
 
         default: tb_todo();
     }

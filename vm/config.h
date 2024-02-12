@@ -6,6 +6,14 @@
 #define VM_NO_TAILCALL 1
 #define VM_FORMAT_FLOAT "%.14g"
 
+#if defined(EMSCRIPTEN)
+#undef VM_NO_TAILCALL
+#define VM_NO_TAILCALL 1
+#define VM_USE_CACHE 0
+#else
+#define VM_USE_CACHE 1
+#endif
+
 struct vm_config_t;
 typedef struct vm_config_t vm_config_t;
 

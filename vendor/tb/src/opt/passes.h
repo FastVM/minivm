@@ -8,6 +8,7 @@ enum {
 
 #define TB_OPTDEBUG_STATS    0
 #define TB_OPTDEBUG_PEEP     0
+#define TB_OPTDEBUG_SCCP     0
 #define TB_OPTDEBUG_LOOP     0
 #define TB_OPTDEBUG_SROA     0
 #define TB_OPTDEBUG_GCM      0
@@ -16,6 +17,8 @@ enum {
 #define TB_OPTDEBUG_DATAFLOW 0
 #define TB_OPTDEBUG_INLINE   0
 #define TB_OPTDEBUG_REGALLOC 0
+
+#define TB_OPTDEBUG_GVN      0
 
 // for toggling ANSI colors
 #define TB_OPTDEBUG_ANSI     1
@@ -94,8 +97,8 @@ struct Lattice {
         //   |    \ | /
         // null   ~null
         //     \  /
-        //    allptr
-        LATTICE_ALLPTR,
+        //    botptr
+        LATTICE_BOTPTR,
         LATTICE_NULL,
         LATTICE_XNULL,
         LATTICE_PTRCON,
@@ -438,7 +441,7 @@ static TB_Node* get_pred(TB_Node* n, int i) {
     return n;
 }
 
-static TB_Node* get_pred_cfg(TB_CFG* cfg, TB_Node* n, int i) {
+static TB_Node* cfg_get_pred(TB_CFG* cfg, TB_Node* n, int i) {
     n = n->inputs[i];
     for (;;) {
         ptrdiff_t search = nl_map_get(cfg->node_to_block, n);

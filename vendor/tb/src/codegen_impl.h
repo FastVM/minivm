@@ -521,7 +521,7 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
                 // if we have changes, mark the predeccesors
                 if (changes && !(bb->type == TB_PROJ && bb->inputs[0]->type == TB_ROOT)) {
                     FOREACH_N(i, 0, bb->input_count) {
-                        TB_Node* pred = get_pred_cfg(&cfg, bb, i);
+                        TB_Node* pred = cfg_get_pred(&cfg, bb, i);
                         if (pred->input_count > 0) {
                             MachineBB* pred_mbb = node_to_bb(&ctx, pred);
                             if (!set_get(&visited, pred_mbb - machine_bbs)) {

@@ -300,7 +300,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
             default: {
                 if (n->dt.type == TB_TUPLE) {
                     // print with multiple returns
-                    TB_Node* projs[4] = { 0 };
+                    TB_Node* projs[32] = { 0 };
                     FOR_USERS(use, n) {
                         if (use->n->type == TB_PROJ) {
                             int index = TB_NODE_GET_EXTRA_T(use->n, TB_NodeProj)->index;
@@ -311,13 +311,13 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                     printf("  ");
 
                     size_t first = projs[0] && projs[0]->dt.type == TB_CONTROL ? 1 : 0;
-                    FOREACH_N(i, first, 4) {
+                    FOREACH_N(i, first, 32) {
                         if (projs[i] == NULL) break;
                         if (i > first) printf(", ");
                         printf("v%u", projs[i]->gvn);
                     }
                     printf(" = %s.(", tb_node_get_name(n));
-                    FOREACH_N(i, first, 4) {
+                    FOREACH_N(i, first, 32) {
                         if (projs[i] == NULL) break;
                         if (i > first) printf(", ");
                         print_type2(projs[i]->dt);

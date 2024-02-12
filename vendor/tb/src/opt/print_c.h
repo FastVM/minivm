@@ -1232,9 +1232,9 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
             case TB_MEMBER_ACCESS: {
                 TB_Node *ptr = n->inputs[n->input_count-1];
                 c_fmt_output(ctx, n);
-                nl_buffer_format(ctx->buf, "(void*) ((char *) ");
+                nl_buffer_format(ctx->buf, "(void*) ((size_t) ");
                 c_fmt_ref_to_node(ctx, ptr);
-                nl_buffer_format(ctx->buf, " + %"PRIi64, TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset);
+                nl_buffer_format(ctx->buf, " + (size_t) %"PRIi64, TB_NODE_GET_EXTRA_T(n, TB_NodeMember)->offset);
                 nl_buffer_format(ctx->buf, ");\n");
                 break;
             }
@@ -1271,9 +1271,9 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 TB_Node *ptr = n->inputs[n->input_count-2];
                 TB_Node *index = n->inputs[n->input_count-1];
                 c_fmt_output(ctx, n);
-                nl_buffer_format(ctx->buf, "(void*) ((char *) ");
+                nl_buffer_format(ctx->buf, "(void*) ((size_t) ");
                 c_fmt_ref_to_node(ctx, ptr);
-                nl_buffer_format(ctx->buf, " + ");
+                nl_buffer_format(ctx->buf, " + (size_t) ");
                 c_fmt_ref_to_node(ctx, index);
                 nl_buffer_format(ctx->buf, " * %"PRIi64, TB_NODE_GET_EXTRA_T(n, TB_NodeArray)->stride);
                 nl_buffer_format(ctx->buf, ");\n");
@@ -1484,7 +1484,7 @@ TB_API char *tb_pass_c_prelude(TB_Module *mod) {
         switch ((int) sym->tag) {
             case TB_SYMBOL_EXTERNAL: {
                 if (mod->is_jit) {
-                    nl_buffer_format(buf, "void *%s = (void *) 0x%zx;\n", sym->name, (size_t) sym->address);
+                    nl_buffer_format(buf, "static void *%s = (void *) 0x%zx;\n", sym->name, (size_t) sym->address);
                 } else {
                     nl_buffer_format(buf, "extern void %s(void);\n", sym->name);
                 }

@@ -16,10 +16,15 @@ typedef TB_Node* (*NodeIdealize)(TB_Passes* restrict p, TB_Function* f, TB_Node*
 typedef TB_Node* (*NodeIdentity)(TB_Passes* restrict p, TB_Function* f, TB_Node* n);
 typedef Lattice* (*NodeConstprop)(TB_Passes* restrict p, TB_Node* n);
 
+enum {
+    NODE_IS_CTRL = 1,
+};
+
 typedef struct {
     NodeIdealize  idealize;
     NodeIdentity  identity;
     NodeConstprop constprop;
+    uint32_t      flags;
 } NodeVtable;
 
 static const NodeVtable vtables[TB_NODE_TYPE_MAX] = {
@@ -72,16 +77,18 @@ static const NodeVtable vtables[TB_NODE_TYPE_MAX] = {
     // misc
     [TB_LOOKUP]         = { NULL,              NULL,               sccp_lookup      },
     [TB_PROJ]           = { NULL,              NULL,               sccp_proj        },
-    [TB_SELECT]         = { ideal_select,      NULL,               sccp_meetchads   },
-    [TB_PHI]            = { ideal_phi,         identity_phi,       sccp_meetchads   },
+    [TB_SELECT]         = { ideal_select,      NULL,               sccp_select      },
+    [TB_PHI]            = { ideal_phi,         identity_phi,       sccp_phi         },
     // control flow
-    [TB_REGION]         = { ideal_region,      identity_region,    sccp_region      },
-    [TB_BRANCH]         = { ideal_branch,      NULL,               sccp_branch      },
-    [TB_SAFEPOINT_POLL] = { NULL,              identity_safepoint, sccp_ctrl        },
-    [TB_CALL]           = { ideal_libcall,     identity_ctrl,      sccp_call        },
-    [TB_TAILCALL]       = { NULL,              identity_ctrl,      sccp_ctrl        },
-    [TB_SYSCALL]        = { NULL,              identity_ctrl,      sccp_call        },
-    [TB_DEBUGBREAK]     = { NULL,              identity_ctrl,      sccp_ctrl        },
-    [TB_TRAP]           = { NULL,              identity_ctrl,      sccp_ctrl        },
-    [TB_UNREACHABLE]    = { NULL,              identity_ctrl,      sccp_ctrl        },
+    [TB_RETURN]         = { ideal_return,      NULL,               sccp_ctrl,       NODE_IS_CTRL },
+    [TB_REGION]         = { ideal_region,      identity_region,    sccp_region,     NODE_IS_CTRL },
+    [TB_BRANCH]         = { ideal_branch,      NULL,               sccp_branch,     NODE_IS_CTRL },
+    [TB_SAFEPOINT_POLL] = { NULL,              identity_safepoint, sccp_ctrl,       NODE_IS_CTRL },
+    [TB_CALL]           = { ideal_libcall,     NULL,               sccp_call,       NODE_IS_CTRL },
+    [TB_TAILCALL]       = { NULL,              NULL,               sccp_ctrl,       NODE_IS_CTRL },
+    [TB_SYSCALL]        = { NULL,              NULL,               sccp_call,       NODE_IS_CTRL },
+    [TB_DEBUGBREAK]     = { NULL,              NULL,               sccp_ctrl,       NODE_IS_CTRL },
+    [TB_TRAP]           = { NULL,              NULL,               sccp_ctrl,       NODE_IS_CTRL },
+    [TB_UNREACHABLE]    = { NULL,              NULL,               sccp_ctrl,       NODE_IS_CTRL },
 };
+

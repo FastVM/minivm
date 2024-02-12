@@ -376,7 +376,7 @@ static Lattice* sccp_cmp(TB_Passes* restrict opt, TB_Node* n) {
             break;
 
             case TB_CMP_NE:
-            if (a_cst && b_cst) cmp = a->_int.min == b->_int.min;
+            if (a_cst && b_cst) cmp = a->_int.min != b->_int.min;
             break;
 
             case TB_CMP_SLE:
@@ -588,7 +588,8 @@ static int node_pos(TB_Node* n) {
     }
 }
 
-static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
+static bool is_iconst(TB_Passes* p, TB_Node* n) { return lattice_is_const(lattice_universe_get(p, n)); }
+static TB_Node* ideal_int_binop(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     TB_NodeTypeEnum type = n->type;
     TB_Node* a = n->inputs[1];
     TB_Node* b = n->inputs[2];
@@ -601,15 +602,20 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
         return n;
     }
 
-    // (aa + ab) + b => aa + (ab + b)
-    if (is_associative(type) && a->type == type && b->type != type && less) {
+    // (aa + ab) + b => aa + (ab + b) where ab and b are constant
+    if (is_associative(type) && a->type == type && is_iconst(p, a->inputs[2]) && is_iconst(p, b)) {
         TB_Node* abb = tb_alloc_node(f, type, n->dt, 3, sizeof(TB_NodeBinopInt));
         set_input(f, abb, a->inputs[2], 1);
         set_input(f, abb, b, 2);
-        tb_pass_mark(opt, abb);
 
+        Lattice* l = sccp_arith(p, abb);
+        assert(l->tag == LATTICE_INT && l->_int.min == l->_int.max);
+
+        violent_kill(f, abb);
+
+        TB_Node* con = make_int_node(f, p, n->dt, l->_int.min);
         set_input(f, n, a->inputs[1], 1);
-        set_input(f, n, abb,          2);
+        set_input(f, n, con,          2);
         return n;
     }
 
@@ -638,10 +644,10 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
             if (rhs == (UINT64_C(1) << log2)) {
                 TB_Node* shl_node = tb_alloc_node(f, TB_SHL, n->dt, 3, sizeof(TB_NodeBinopInt));
                 set_input(f, shl_node, a, 1);
-                set_input(f, shl_node, make_int_node(f, opt, n->dt, log2), 2);
+                set_input(f, shl_node, make_int_node(f, p, n->dt, log2), 2);
 
-                tb_pass_mark(opt, shl_node->inputs[1]);
-                tb_pass_mark(opt, shl_node->inputs[2]);
+                tb_pass_mark(p, shl_node->inputs[1]);
+                tb_pass_mark(p, shl_node->inputs[2]);
                 return shl_node;
             }
         }
@@ -687,18 +693,18 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node
 
             TB_Node* shift = n->inputs[1]->inputs[1];
             if (amt) {
-                TB_Node* imm = make_int_node(f, opt, n->dt, b - c);
-                tb_pass_mark(opt, imm);
+                TB_Node* imm = make_int_node(f, p, n->dt, b - c);
+                tb_pass_mark(p, imm);
 
                 // if we have a negative shift amount, that's a right shift
                 shift = tb_alloc_node(f, amt < 0 ? TB_SHR : TB_SHL, n->dt, 3, sizeof(TB_NodeBinopInt));
                 set_input(f, shift, n->inputs[1]->inputs[1], 1);
                 set_input(f, shift, imm, 2);
 
-                tb_pass_mark(opt, shift);
+                tb_pass_mark(p, shift);
             }
 
-            TB_Node* mask_node = make_int_node(f, opt, n->dt, mask);
+            TB_Node* mask_node = make_int_node(f, p, n->dt, mask);
             TB_Node* and_node = tb_alloc_node(f, TB_AND, n->dt, 3, sizeof(TB_NodeBinopInt));
             set_input(f, and_node, shift,     1);
             set_input(f, and_node, mask_node, 2);

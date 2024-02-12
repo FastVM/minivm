@@ -21,14 +21,12 @@ static TB_Node* ideal_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
         // we might want this as an identity
         return n->inputs[0];
     } else {
-        // remove dead predeccessors
         bool changes = false;
 
         size_t i = 0, extra_edges = 0;
         while (i < n->input_count) {
-            Lattice* pred_ty = lattice_universe_get(p, n->inputs[i]);
-            if (pred_ty == &XCTRL_IN_THE_SKY) {
-                changes = true;
+            Lattice* ty = lattice_universe_get(p, n->inputs[i]);
+            if (n->inputs[i]->type == TB_DEAD || ty == &XCTRL_IN_THE_SKY) {
                 remove_input(f, n, i);
 
                 // update PHIs
@@ -37,7 +35,6 @@ static TB_Node* ideal_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
                         remove_input(f, use->n, i + 1);
                     }
                 }
-                continue;
             } else if (n->inputs[i]->type == TB_REGION) {
                 #if 1
                 // pure regions can be collapsed into direct edges
@@ -61,6 +58,7 @@ static TB_Node* ideal_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
                         memcpy(new_inputs, n->inputs, old_count * sizeof(TB_Node*));
                         n->inputs = new_inputs;
                         n->input_count = new_count;
+                        n->input_cap = new_count;
 
                         FOREACH_N(j, 0, pred->input_count - 1) {
                             new_inputs[old_count + j] = pred->inputs[j + 1];
@@ -83,6 +81,7 @@ static TB_Node* ideal_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
                             memcpy(new_inputs, phi->inputs, phi_ins * sizeof(TB_Node*));
                             phi->inputs = new_inputs;
                             phi->input_count = new_phi_ins;
+                            phi->input_cap = new_phi_ins;
 
                             FOREACH_N(j, 0, pred->input_count - 1) {
                                 new_inputs[phi_ins + j] = phi_val;
@@ -423,7 +422,7 @@ static Lattice* sccp_call(TB_Passes* restrict opt, TB_Node* n) {
 
 static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* before = lattice_universe_get(opt, n->inputs[0]);
-    if (before == &TOP_IN_THE_SKY || before == &XCTRL_IN_THE_SKY) {
+    if (before == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
     }
 
@@ -432,6 +431,9 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
     // constant fold branch
     assert(n->input_count == 2);
     Lattice* key = lattice_universe_get(opt, n->inputs[1]);
+    if (key == &TOP_IN_THE_SKY) {
+        return &TOP_IN_THE_SKY;
+    }
 
     ptrdiff_t taken = -1;
     if (key->tag == LATTICE_INT && key->_int.min == key->_int.max) {
@@ -496,43 +498,8 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static TB_Node* identity_ctrl(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
-    // Dead node? kill
-    Lattice* ctrl = lattice_universe_get(p, n->inputs[0]);
-    if (n->dt.type == TB_TUPLE && ctrl == &XCTRL_IN_THE_SKY) {
-        TB_Node* dead = dead_node(f, p);
-        while (n->users) {
-            TB_Node* use_n = n->users->n;
-            int use_i = n->users->slot;
-
-            if (use_n->type == TB_CALLGRAPH) {
-                TB_Node* last = use_n->inputs[use_n->input_count - 1];
-                set_input(f, use_n, NULL, use_n->input_count - 1);
-                if (use_i != use_n->input_count - 1) {
-                    set_input(f, use_n, last, use_i);
-                }
-                use_n->input_count--;
-            } else if (use_n->type == TB_PROJ) {
-                TB_Node* replacement = use_n->dt.type == TB_CONTROL
-                    ? dead
-                    : make_poison(f, use_n->dt);
-
-                subsume_node(f, use_n, replacement);
-            } else {
-                tb_todo();
-            }
-        }
-
-        return dead;
-    } else {
-        return ctrl == &XCTRL_IN_THE_SKY ? dead_node(f, p) : n;
-    }
-}
-
 static TB_Node* identity_safepoint(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
-    // Dead node? kill
-    Lattice* ctrl = lattice_universe_get(p, n->inputs[0]);
-    if (ctrl == &XCTRL_IN_THE_SKY || n->inputs[0]->type == TB_SAFEPOINT_POLL) {
+    if (n->inputs[0]->type == TB_SAFEPOINT_POLL) {
         // (safepoint (safepoint X)) => (safepoint X)
         return n->inputs[0];
     } else {

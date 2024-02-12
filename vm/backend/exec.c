@@ -92,7 +92,7 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
     remove(c_file);
     remove(so_file);
     // dlclose(handle);
-    // printf("<raw function: %p>\n", sym);
+    printf("<funcptr: %p>\n", sym);
     return sym;
 }
 #endif

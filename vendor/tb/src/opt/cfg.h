@@ -168,7 +168,7 @@ TB_DominanceFrontiers* tb_get_dominance_frontiers(TB_Function* f, TB_Passes* res
 
         if (bb->type == TB_REGION && bb->input_count >= 2) {
             FOREACH_N(k, 0, bb->input_count) {
-                TB_Node* runner = get_pred_cfg(&cfg, bb, k);
+                TB_Node* runner = cfg_get_pred(&cfg, bb, k);
 
                 while (!(runner->type == TB_PROJ && runner->inputs[0]->type == TB_ROOT) && runner != idom(&cfg, bb)) {
                     // add to frontier set
@@ -188,11 +188,12 @@ TB_API void tb_free_dominance_frontiers(TB_DominanceFrontiers* df) {
     tb_platform_heap_free(df);
 }
 
-// https://www.cs.rice.edu/~keith/EMBED/dom.pdf
 void tb_compute_dominators(TB_Function* f, TB_Passes* restrict p, TB_CFG cfg) {
     tb_compute_dominators2(f, &p->worklist, cfg);
 }
 
+// Cooper, Keith D., Harvey, Timothy J. and Kennedy, Ken. "A simple, fast dominance algorithm." (2006)
+//   https://repository.rice.edu/items/99a574c3-90fe-4a00-adf9-ce73a21df2ed
 void tb_compute_dominators2(TB_Function* f, Worklist* ws, TB_CFG cfg) {
     TB_Node** blocks = ws->items;
 
@@ -211,7 +212,7 @@ void tb_compute_dominators2(TB_Function* f, Worklist* ws, TB_CFG cfg) {
             // pick first "processed" pred
             size_t j = 0, pred_count = b->input_count;
             for (; j < pred_count; j++) {
-                TB_Node* p = get_pred(b, j);
+                TB_Node* p = cfg_get_pred(&cfg, b, j);
                 if (idom(&cfg, p) != NULL) {
                     new_idom = p;
                     break;
@@ -220,7 +221,7 @@ void tb_compute_dominators2(TB_Function* f, Worklist* ws, TB_CFG cfg) {
 
             // for all other predecessors, p, of b
             for (; j < pred_count; j++) {
-                TB_Node* p = get_pred(b, j);
+                TB_Node* p = cfg_get_pred(&cfg, b, j);
 
                 // if doms[p] already calculated
                 TB_Node* idom_p = idom(&cfg, p);

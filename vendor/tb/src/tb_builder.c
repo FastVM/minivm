@@ -905,7 +905,7 @@ void tb_inst_set_region_name(TB_Function* f, TB_Node* n, ptrdiff_t len, const ch
 
 // this has to move things which is not nice...
 static void add_input_late(TB_Function* f, TB_Node* n, TB_Node* in) {
-    assert(n->type == TB_REGION || n->type == TB_PHI || n->type == TB_ROOT || n->type == TB_CALLGRAPH);
+    assert(n->type == TB_REGION || n->type == TB_PHI || n->type == TB_ROOT || n->type == TB_CALLGRAPH || n->type == TB_MERGEMEM);
 
     if (n->input_count >= n->input_cap) {
         size_t new_cap = n->input_count * 2;

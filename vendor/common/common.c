@@ -1,3 +1,7 @@
+#if defined(EMSCRIPTEN)
+#define NDEBUG 1
+#endif
+
 // Common is just a bunch of crap i want accessible to all projects in the Cuik repo
 #include "arena.h"
 #include "futex.h"
@@ -212,6 +216,8 @@ void tb_arena_clear(TB_Arena* arena) {
         cuik__vfree(c, arena->chunk_size);
         c = next;
     }
+
+    arena->top->next = NULL;
 }
 
 bool tb_arena_is_empty(TB_Arena* arena) {
@@ -238,11 +244,7 @@ void futex_dec(Futex* f) {
     }
 }
 
-#if defined(EMSCRIPTEN)
-void futex_signal(Futex* addr) {}
-void futex_broadcast(Futex* addr) {}
-void futex_wait(Futex* addr, Futex val) {}
-#elif defined(__linux__) || defined(EMSCRIPTEN)
+#ifdef __linux__
 #include <errno.h>
 #include <linux/futex.h>
 #include <sys/syscall.h>
@@ -253,14 +255,14 @@ void futex_wait(Futex* addr, Futex val) {}
 #define futex(...) syscall(SYS_futex, __VA_ARGS__)
 
 void futex_signal(Futex* addr) {
-    int ret = futex(addr, FUTEX_WAKE, 1, NULL, NULL, 0);
+    int ret = futex(addr, FUTEX_WAKE | FUTEX_PRIVATE_FLAG, 1, NULL, NULL, 0);
     if (ret == -1) {
         __builtin_trap();
     }
 }
 
 void futex_broadcast(Futex* addr) {
-    int ret = futex(addr, FUTEX_WAKE, INT32_MAX, NULL, NULL, 0);
+    int ret = futex(addr, FUTEX_WAKE | FUTEX_PRIVATE_FLAG, INT32_MAX, NULL, NULL, 0);
     if (ret == -1) {
         __builtin_trap();
     }
@@ -268,7 +270,7 @@ void futex_broadcast(Futex* addr) {
 
 void futex_wait(Futex* addr, Futex val) {
     for (;;) {
-        int ret = futex(addr, FUTEX_WAIT, val, NULL, NULL, 0);
+        int ret = futex(addr, FUTEX_WAIT | FUTEX_PRIVATE_FLAG, val, NULL, NULL, 0);
 
         if (ret == -1) {
             if (errno != EAGAIN) {

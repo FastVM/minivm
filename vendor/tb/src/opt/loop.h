@@ -69,7 +69,7 @@ void tb_pass_loop(TB_Passes* p) {
         // find all backedges
         dyn_array_clear(backedges);
         FOREACH_N(j, 0, header->input_count) {
-            TB_Node* pred = get_pred_cfg(&p->cfg, header, j);
+            TB_Node* pred = cfg_get_pred(&p->cfg, header, j);
             if (slow_dommy(&p->cfg, header, pred)) {
                 dyn_array_put(backedges, j);
             }
@@ -252,7 +252,7 @@ void tb_pass_loop(TB_Passes* p) {
         }
 
         if (0) {
-            TB_Node* backedge_bb = get_pred_cfg(&p->cfg, header, single_backedge);
+            TB_Node* backedge_bb = cfg_get_pred(&p->cfg, header, single_backedge);
 
             // check which paths lead to exitting the loop (don't dominate the single backedge)
             int exit_proj_i = -1;
