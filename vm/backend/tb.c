@@ -588,7 +588,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                 vm_tb_inst_call(
                     state,
                     proto,
-                    tb_inst_get_symbol_address(state->fun, state->vm_table_set),
+                    tb_inst_get_symbol_address(state->fun, state->vm_table_iset),
                     5,
                     args
                 );
@@ -1432,12 +1432,12 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 
     state->vm_tb_rfunc_comp = tb_extern_create(mod, -1, "vm_tb_rfunc_comp", TB_EXTERNAL_SO_LOCAL);
     state->vm_table_new = tb_extern_create(mod, -1, "vm_table_new", TB_EXTERNAL_SO_LOCAL);
-    state->vm_table_set = tb_extern_create(mod, -1, "vm_table_set", TB_EXTERNAL_SO_LOCAL);
+    state->vm_table_iset = tb_extern_create(mod, -1, "vm_table_iset", TB_EXTERNAL_SO_LOCAL);
     state->vm_table_get_pair = tb_extern_create(mod, -1, "vm_table_get_pair", TB_EXTERNAL_SO_LOCAL);
     state->vm_tb_print = tb_extern_create(mod, -1, "vm_tb_print", TB_EXTERNAL_SO_LOCAL);
     tb_symbol_bind_ptr(state->vm_tb_rfunc_comp, (void *)&vm_tb_rfunc_comp);
     tb_symbol_bind_ptr(state->vm_table_new, (void *)&vm_table_new);
-    tb_symbol_bind_ptr(state->vm_table_set, (void *)&vm_table_set);
+    tb_symbol_bind_ptr(state->vm_table_iset, (void *)&vm_table_iset);
     tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
     tb_symbol_bind_ptr(state->vm_tb_print, (void *)&vm_tb_print);
 

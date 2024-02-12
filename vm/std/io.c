@@ -201,7 +201,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
         }
         case VM_TAG_CLOSURE: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<closure: %p>\n", value.value.all);
+            vm_io_buffer_format(out, "<function: %p>\n", value.value.all);
             break;
         }
         case VM_TAG_FUN: {

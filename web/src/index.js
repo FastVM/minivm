@@ -1,18 +1,7 @@
 
-// import {run} from './lib/spawn.js';
-
-// window.lua = async (src) => {
-//     const {stdout, stderr} = await run(src);
-//     stdout;
-// };
-
-import {lua} from './lib/spawn.js';
-
-
-import {load} from 'fengari-web';
-
-
 import './app/global.css';
+import {lua} from './lib/spawn.js';
+import {load} from 'fengari-web';
 import App from './app/App.svelte';
 
 new App({
@@ -35,6 +24,4 @@ window.bench = (func, ...args) => {
     console.timeEnd(func.name);
     return ret;
 };
-console.log('window.{minvim, fengari, time} available');
-
-minivm('return print');
+// console.log('window.{minvim, fengari, time} available');

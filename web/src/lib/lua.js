@@ -9,26 +9,6 @@ export const run = (args, opts) => {
         return opts.stdin();
     };
 
-    // let stdout = '';
-    // const stdoutFunc = (c) => {
-    //     if (c == 10) {
-    //         opts.stdout(stdout);
-    //         stdout = '';
-    //     } else {
-    //         stdout += String.fromCharCode(c);
-    //     }
-    // };
-    
-    // let stderr = '';
-    // const stderrFunc = (c) => {
-    //     if (c == 10) {
-    //         opts.stdout(stdout);
-    //         stderr = '';
-    //     } else {
-    //         stderr += String.fromCharCode(c);
-    //     }
-    // };
-
     const stdoutFunc = (c) => {
         opts.stdout(String.fromCharCode(c));
     };

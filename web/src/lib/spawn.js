@@ -6,12 +6,23 @@ const stdin = () => {
     return null;
 };
 
+let buf = '';
 const stdout = (str) => {
-    console.log(str);
+    if (str == '\n') {
+        console.log(buf);
+        buf = '';
+    } else {
+        buf += str;
+    }
 };
 
 const stderr = (str) => {
-    console.error();(str);
+    if (str == '\n') {
+        console.log(buf);
+        buf = '';
+    } else {
+        buf += str;
+    }
 };
 
 export const lua = (lua) => {

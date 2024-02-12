@@ -343,6 +343,10 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_t
     return NULL;
 }
 
+void vm_table_iset(vm_table_t *restrict table, uint64_t key_ival, uint64_t val_ival, uint32_t key_tag, uint32_t val_tag) {
+    vm_table_set(table, *(vm_value_t *)&key_ival, *(vm_value_t *)&val_ival, key_tag, val_tag);
+}
+
 void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val_val, uint32_t key_tag, uint32_t val_tag) {
     if (table->alloc == 0) {
         return;

@@ -43,7 +43,7 @@ struct vm_tb_state_t {
     // externals
     void *vm_tb_rfunc_comp;
     void *vm_table_new;
-    void *vm_table_set;
+    void *vm_table_iset;
     void *vm_table_get_pair;
     void *vm_tb_print;
     void *std;

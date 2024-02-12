@@ -10,7 +10,7 @@ emception.onstderr = (s) => console.error(s);
 // emception.run('emcc --check -Wno-version-check');
 
 let flags1 = '-target wasm32-unknown-emscripten -fignore-exceptions -fPIC -fvisibility=default -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr -DEMSCRIPTEN  -Wno-incompatible-library-redeclaration -Wno-parentheses-equality'
-let flags2 = '-L/lazy/emscripten/cache/sysroot/lib/wasm32-emscripten/pic --no-whole-archive -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr --import-undefined --import-memory --strip-debug --export-dynamic --export-if-defined=main --export-if-defined=__start_em_asm --export-if-defined=__stop_em_asm --export-if-defined=__start_em_lib_deps --export-if-defined=__stop_em_lib_deps --export-if-defined=__start_em_js --export-if-defined=__stop_em_js --export-if-defined=__main_argc_argv --export-if-defined=__wasm_apply_data_relocs --export=__wasm_call_ctors --experimental-pic -shared'
+let flags2 = '-L/lazy/emscripten/cache/sysroot/lib/wasm32-emscripten/pic --no-whole-archive -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr --import-undefined --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --experimental-pic -shared'
 
 let comps = 0;
 export const comp = (cBuf) => {

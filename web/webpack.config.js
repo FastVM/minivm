@@ -3,8 +3,10 @@ import CopyPlugin from 'copy-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import path from 'path';
 
+const dev = true;
+
 export default {
-    mode: 'development',
+    mode: dev ? 'development' : 'production',
     entry: {
         'minivm': './src/index.js',
     },
@@ -33,6 +35,12 @@ export default {
                 test: /\.svelte$/,
                 use: {
                     loader: 'svelte-loader',
+                    options: {
+                        compilerOptions: {
+                            dev: dev,
+                        },
+                        hotReload: dev,
+                    },
                 },
             },
 			{
@@ -63,11 +71,6 @@ export default {
                                 '@babel/preset-env',
                             ],
                         ],
-                        // plugins: [
-                        //     "@babel/plugin-proposal-private-methods",
-                        //     "@babel/plugin-proposal-class-properties",
-                        //     "@babel/plugin-proposal-object-rest-spread",
-                        // ],
                     },
                 },
             },

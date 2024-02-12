@@ -13,4 +13,4 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    test(CORSRequestHandler, HTTPServer, port=8000)
+    test(CORSRequestHandler, HTTPServer, port=8080)

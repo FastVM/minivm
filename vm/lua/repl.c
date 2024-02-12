@@ -239,6 +239,12 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         .std = std,
     };
 
+    #if defined(EMSCRIPTEN)
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+    #endif
+
     while (true) {
         #if !defined(EMSCRIPTEN)
         char *input = ic_readline_ex(
@@ -252,9 +258,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             break;
         }
         #else
-        setvbuf(stdin, NULL, _IONBF, 0);
-        setvbuf(stdout, NULL, _IONBF, 0);
-        setvbuf(stderr, NULL, _IONBF, 0);
         printf("lua> ");
         char input[256];
         size_t head = 0;
