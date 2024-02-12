@@ -6,9 +6,31 @@
 //     stdout;
 // };
 
+import {lua} from './lib/spawn.js';
+
+
+import {load} from 'fengari-web';
+
+
 import './app/global.css';
 import App from './app/App.svelte';
 
 new App({
     target: document.body,
 });
+
+const fengari = (str) => {
+    load(str)();
+};
+
+window.minivm = lua;
+window.fengari = fengari;
+window.bench = (func, ...args) => {
+    console.time(func.name);
+    const ret = func(...args);
+    console.timeEnd(func.name);
+    return ret;
+};
+console.log('window.{minvim, fengari, time} available');
+
+minivm('return print');

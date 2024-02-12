@@ -5,11 +5,13 @@ import path from 'path';
 
 export default {
     mode: 'development',
-    entry: './src/index.js',
+    entry: {
+        'minivm': './src/index.js',
+    },
     output: {
         clean: true,
         path: path.resolve('public'),
-        filename: 'index.js',
+        filename: '[name].js',
     },
     resolve: {
         modules: [path.resolve('..', '..', 'node_modules'), 'node_modules'],
@@ -20,7 +22,9 @@ export default {
             "quicknode.wasm": false,
             "path": false,
             "node-fetch": false,
-            "vm": false
+            "vm": false,
+            fs: false,
+            process: false,
         },
     },
     module: {
@@ -45,6 +49,9 @@ export default {
             {
                 test: /\.(pack|br|a)$/,
                 type: "asset/resource",
+                generator: {
+                    filename: 'res/[name][ext]',
+                },
             },
             {
                 test: /\.m?js$/,
@@ -88,6 +95,9 @@ export default {
         headers: {
             "Cross-Origin-Embedder-Policy": "require-corp",
             "Cross-Origin-Opener-Policy": "same-origin",
+        },
+        client: {
+            logging: 'warn',
         },
     },
     experiments: {

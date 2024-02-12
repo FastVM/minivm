@@ -1,37 +1,19 @@
 
-export const spawn = (...args) => new Promise((ok, err) => {
-    const worker = new Worker(new URL('./worker.js', import.meta.url));
-    let stdout = '';
-    let stderr = '';
-    worker.onmessage = ({data}) => {
-        switch (data.type) {
-            case 'stdout': {
-                stdout += data.stdout;
-                break;
-            }
-            case 'stderr': {
-                stderr += data.stderr;
-                break;
-            }
-            case 'exit-err': {
-                err();
-                break;
-            }
-            case 'exit-ok': {
-                ok({ stdout, stderr });
-                break;
-            }
-            case 'ready': {
-                worker.postMessage({
-                    type: 'args',
-                    args: args,
-                });
-                break;
-            }
-        }
-    };
-});
+import {run} from './lua.js';
+import {comp} from './comp.js';
 
-export const run = (lua) => {
-    return spawn('-e', lua);
+const stdin = () => {
+    return null;
+};
+
+const stdout = (str) => {
+    console.log(str);
+};
+
+const stderr = (str) => {
+    console.error();(str);
+};
+
+export const lua = (lua) => {
+    return run(['-e', lua], {stdin, stdout, stderr, comp});
 }

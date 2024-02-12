@@ -31,13 +31,15 @@ EMSCRIPTEN_KEEPALIVE vm_main_t *vm_main_new(void) {
     return ret;
 }
 
-EMSCRIPTEN_KEEPALIVE const char *vm_main_lua_eval(vm_main_t *main, const char *src) {
+EMSCRIPTEN_KEEPALIVE void vm_main_lua_eval(vm_main_t *main, const char *src) {
     vm_ast_node_t node = vm_lang_lua_parse(&main->config, src);
     vm_ast_comp_more(node, &main->blocks);
     vm_std_value_t value = vm_tb_run_main(&main->config, main->blocks.entry, &main->blocks, main->std);
-    vm_io_buffer_t buf = {0};
-    vm_io_debug(&buf, 0, "", value, NULL);
-    return buf.buf;
+    if (value.tag != VM_TAG_NIL) {
+        vm_io_buffer_t buf = {0};
+        vm_io_debug(&buf, 0, "", value, NULL);
+        printf("%.*s", (int) buf.len, buf.buf);
+    }
 }
 
 #endif
@@ -59,11 +61,7 @@ int main(int argc, char **argv) {
     vm_blocks_t *blocks = &val_blocks;
     vm_config_t *config = &val_config;
     bool echo = false;
-#if defined(EMSCRIPTEN)
-    bool isrepl = false;
-#else
     bool isrepl = true;
-#endif
     vm_table_t *std = vm_std_new();
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
