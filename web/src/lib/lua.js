@@ -6,27 +6,35 @@ const wasmBuffer = await (await fetch(wasmBinary)).arrayBuffer();
 
 export const run = (args, opts) => {
     const stdinFunc = () => {
-        return null;
+        return opts.stdin();
     };
 
-    let stdout = '';
-    const stdoutFunc = (c) => {
-        if (c == 10) {
-            opts.stdout(stdout);
-            stdout = '';
-        } else {
-            stdout += String.fromCharCode(c);
-        }
-    };
+    // let stdout = '';
+    // const stdoutFunc = (c) => {
+    //     if (c == 10) {
+    //         opts.stdout(stdout);
+    //         stdout = '';
+    //     } else {
+    //         stdout += String.fromCharCode(c);
+    //     }
+    // };
     
-    let stderr = '';
+    // let stderr = '';
+    // const stderrFunc = (c) => {
+    //     if (c == 10) {
+    //         opts.stdout(stdout);
+    //         stderr = '';
+    //     } else {
+    //         stderr += String.fromCharCode(c);
+    //     }
+    // };
+
+    const stdoutFunc = (c) => {
+        opts.stdout(String.fromCharCode(c));
+    };
+
     const stderrFunc = (c) => {
-        if (c == 10) {
-            opts.stdout(stdout);
-            stderr = '';
-        } else {
-            stderr += String.fromCharCode(c);
-        }
+        opts.stderr(String.fromCharCode(c));
     };
 
     const comp = (n) => {

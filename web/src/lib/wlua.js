@@ -1,6 +1,16 @@
 
 import {run} from './lua.js';
 
+let inbuf;
+const stdin = () => {
+    const i32 = new Int32Array(inbuf);
+    i32[0] = 0;
+    Atomics.wait(i32, 0, 0);
+    console.log(i32[0]);
+    Atomics.notify(i32, 0, 1);
+    return i32[0];
+};
+
 const stdout = (msg) => {
     self.postMessage({
         type: 'stdout',
@@ -34,7 +44,7 @@ const comp = (input) => {
 };
 
 const onArgs = (args) => {
-    run(args, {stdout, stderr, comp});
+    run(args, {stdin, stdout, stderr, comp});
     self.postMessage({
         type: 'exit-ok',
     });
@@ -46,6 +56,11 @@ self.onmessage = ({data}) => {
             self.postMessage({type: 'get-args'});
             wait = data.wait;
             ret = data.ret;
+            inbuf = data.inbuf;
+            break;
+        }
+        case 'stdin': {
+            
             break;
         }
         case 'args': {

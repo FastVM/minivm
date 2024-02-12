@@ -130,9 +130,6 @@ class Emception {
             ...opts,
             cwd: opts.cwd || "/",
             path: ["/emscripten"],
-            preRun: (mod) => {
-                console.log(mod);
-            },
         });
 
         this.fileSystem.push();

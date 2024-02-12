@@ -23,7 +23,11 @@ const fengari = (str) => {
     load(str)();
 };
 
-window.minivm = lua;
+const minivm = (str) => {
+    lua(str);
+};
+
+window.minivm = minivm;
 window.fengari = fengari;
 window.bench = (func, ...args) => {
     console.time(func.name);

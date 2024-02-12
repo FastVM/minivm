@@ -3,17 +3,25 @@
 	import { onMount } from 'svelte';
 	import * as xterm from 'xterm';
 	import * as fit from 'xterm-addon-fit';
-	import { Readline } from 'xterm-readline';
-	import parse from 'bash-parser';
 	
 	let terminalElement;
 	let terminalController;
 	let termFit;
-	
+
 	const thens = [];
 	const comp = new Worker(new URL('../lib/wcomp.js', import.meta.url));
 	
-	const lua = (args) => new Promise((ok, err) => {
+	const unmap = (c) => {
+		if (c === '\n') {
+			return '\r\n';
+		} else {
+			return c;
+		}
+	};
+
+	const lua = (args) => new Promise(async (ok, err) => {
+		const inexists = new SharedArrayBuffer(4);
+		const inbuf = new SharedArrayBuffer(4);
 		const wait = new SharedArrayBuffer(4);
 		const ret = new SharedArrayBuffer(65536);
 		const worker = new Worker(new URL('../lib/wlua.js', import.meta.url));
@@ -27,12 +35,16 @@
 		});
 		worker.onmessage = async ({data}) => {
 			switch (data.type) {
+				case 'got-stdin': {
+					Atomics.notify()
+					break;
+				}
 				case 'stdout': {
-					rl.println(data.stdout);
+					terminalController.write(unmap(data.stdout));
 					break;
 				}
 				case 'stderr': {
-					rl.println(data.stdout);
+					terminalController.write(unmap(data.stdout));
 					break;
 				}
 				case 'exit-err': {
@@ -56,6 +68,7 @@
 						type: 'buffer',
 						ret: ret,
 						wait: wait,
+						inbuf: inbuf,
 					});
 					break;
 				}
@@ -68,38 +81,56 @@
 				}
 			}
 		};
+		const inArray = [];
+		const i32buf = new Int32Array(inbuf);
+		const i32exists = new Int32Array(inexists);
+		terminalController.onData((data) => {
+			for (const c of data) {
+				inArray.push(c.charCodeAt(0));
+				Atomics.notify(i32exists, 0, 1);
+			}
+		});
+		while (true) {
+			if (inArray.length === 0) {
+				await Atomics.waitAsync(i32exists, 0, 0).value;
+			}
+			i32buf[0] = inArray.shift();
+			Atomics.notify(i32buf, 0, 1);
+			await Atomics.waitAsync(i32buf, 0, i32buf[0]).value;
+		}
 	});
 
-	const loop = async (rl) => {
-		while (true) {
-			const res = await rl.read('$ ');
-			for (const {type, name, suffix} of parse(res).commands) {
-				if (type === 'SimpleCommand') {
-					switch (name) {
-						case 'lua': {
-							const args = [];
-							for (const obj of suffix) {
-								if (obj.type == 'Word') {
-									args.push(obj.text);
-								} else {
-									console.log(obj);
-								}
-							}
-							await lua(args);
-							break;
-						}
-					}
-				}
-			}
-		}
+	const loop = async () => {
+		await lua(['--repl']);
+		// while (true) {
+		// 	const res = await rl.read('$ ');
+		// 	for (const {type, name, suffix} of parse(res).commands) {
+		// 		if (type === 'SimpleCommand') {
+		// 			switch (name) {
+		// 				case 'lua': {
+		// 					const args = [];
+		// 					for (const obj of suffix) {
+		// 						if (obj.type == 'Word') {
+		// 							args.push(obj.text);
+		// 						} else {
+		// 							console.log(obj);
+		// 						}
+		// 					}
+		// 					await lua(args);
+		// 					break;
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
 	};
 
 	const initalizeXterm = async() => {
-		const rl = new Readline();
+		// const rl = new Readline();
 		
 		terminalController = new xterm.Terminal();
 		termFit = new fit.FitAddon();
-		terminalController.loadAddon(rl);
+		// terminalController.loadAddon(rl);
 		terminalController.loadAddon(termFit);
 		terminalController.open(terminalElement);
 		termFit.fit();
@@ -119,7 +150,7 @@
 			};
 		});
 	
-		loop(rl);
+		loop();
 	};
 
 	onMount(async () => {

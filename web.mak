@@ -2,7 +2,6 @@
 EXE ?= .js
 CC = emcc
 TCC_SRCS = 
-ISOCLINE_SRCS = 
 
 GLOBAL := -s EXPORT_ALL=1
 CFLAGS := -fPIC -DNDEBUG $(GLOBLAL) $(CFLAGS)

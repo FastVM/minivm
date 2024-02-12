@@ -1679,17 +1679,17 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         void *code = vm_cache_comp("emcc", cs, name);
         rblock->code = code;
         return code;
-    } else if (state->config->target == VM_TARGET_TB_JS) {
-        const char *js1 = tb_pass_js_prelude(state->module);
-        const char *js2 = tb_pass_js_fmt(passes);
-        size_t len1 = strlen(js1);
-        size_t len2 = strlen(js2);
-        char *buf = vm_malloc(len1 + len2 + 1);
-        memcpy(buf, js1, len1);
-        memcpy(buf + len1, js2, len2);
-        buf[len1 + len2] = '\0';
-        rblock->code = buf;
-        return buf;
+    // } else if (state->config->target == VM_TARGET_TB_JS) {
+        // const char *js1 = tb_pass_js_prelude(state->module);
+        // const char *js2 = tb_pass_js_fmt(passes);
+        // size_t len1 = strlen(js1);
+        // size_t len2 = strlen(js2);
+        // char *buf = vm_malloc(len1 + len2 + 1);
+        // memcpy(buf, js1, len1);
+        // memcpy(buf + len1, js2, len2);
+        // buf[len1 + len2] = '\0';
+        // rblock->code = buf;
+        // return buf;
     } else {
         __builtin_trap();
     }
