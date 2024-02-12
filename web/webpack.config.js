@@ -3,7 +3,7 @@ import CopyPlugin from 'copy-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import path from 'path';
 
-const dev = true;
+const dev = false;
 
 export default {
     mode: dev ? 'development' : 'production',

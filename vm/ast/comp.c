@@ -92,7 +92,6 @@ static vm_arg_t *vm_ast_args(size_t nargs, ...) {
 
 static vm_block_t *vm_ast_comp_new_block(vm_ast_comp_t *comp) {
     if (comp->blocks->len + 1 >= comp->blocks->alloc) {
-        // comp->blocks.alloc = (comp->blocks->len + 1) * 4;
         comp->blocks->alloc = (comp->blocks->len + 1) * 128;
         comp->blocks->blocks = vm_realloc(comp->blocks->blocks, sizeof(vm_block_t *) * comp->blocks->alloc);
     }
@@ -743,8 +742,6 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             break;
                         }
                     }
-                    // printf("block %zi\n", comp->cur->id);
-                    // printf("op: %i\n", (int) op);
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
@@ -901,18 +898,8 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_WHILE: {
-                    // vm_block_t *cond = vm_ast_comp_new_block(comp);
                     vm_block_t *body = vm_ast_comp_new_block(comp);
                     vm_block_t *after = vm_ast_comp_new_block(comp);
-                    // vm_ast_blocks_branch(
-                    //     comp,
-                    //     (vm_branch_t){
-                    //         .op = VM_BOP_JUMP,
-                    //         .args = vm_ast_args(0),
-                    //         .targets[0] = cond,
-                    //     }
-                    // );
-                    // comp->cur = cond;
                     vm_ast_comp_br(comp, form.args[0], body, after);
                     comp->cur = body;
                     vm_block_t *old_break = comp->on_break;
@@ -920,14 +907,6 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_comp_to(comp, form.args[1]);
                     comp->on_break = old_break;
                     vm_ast_comp_br(comp, form.args[0], body, after);
-                    // vm_ast_blocks_branch(
-                    //     comp,
-                    //     (vm_branch_t){
-                    //         .op = VM_BOP_JUMP,
-                    //         .args = vm_ast_args(0),
-                    //         .targets[0] = cond,
-                    //     }
-                    // );
                     comp->cur = after;
                     return vm_arg_nil();
                 }
@@ -977,15 +956,6 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         .value.str = vm_strdup(num.value.str),
                     },
                 };
-                // vm_arg_t ret = vm_ast_comp_reg(comp);
-                // vm_ast_blocks_instr(
-                //     comp,
-                //     (vm_instr_t){
-                //         .op = VM_IOP_MOVE,
-                //         .out = ret,
-                //         .args = vm_ast_args(1, str),
-                //     }
-                // );
                 return str;
             } else if (num.tag == VM_TAG_ERROR) {
                 comp->is_error = true;
@@ -1087,5 +1057,4 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks) {
     vm_ast_names_free(names);
     comp.blocks->entry->isfunc = true;
     vm_block_info(comp.blocks->len - start, comp.blocks->blocks + start);
-    // vm_block_info(comp.blocks->len, comp.blocks->blocks);
 }

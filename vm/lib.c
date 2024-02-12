@@ -14,10 +14,7 @@ void GC_init() {
 }
 
 void *GC_malloc(size_t size) {
-    // void *ptr = calloc(1, size);
     return calloc(1, size);
-    // printf("%p: %zu\n", ptr, size);
-    // return ptr;
 }
 
 void *GC_realloc(void *ptr, size_t size) {

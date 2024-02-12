@@ -303,9 +303,6 @@ vm_table_t *vm_table_new(void) {
 }
 
 vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag) {
-    // if (table->alloc == 0) {
-    //     return NULL;
-    // }
     vm_std_value_t key = (vm_std_value_t){
         .tag = key_tag,
         .value = key_val,
@@ -323,20 +320,9 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_t
         if (value.tag == 0) {
             return NULL;
         }
-        // vm_io_buffer_t buf = {0};
-        // vm_io_debug(&buf, 0, "key = ", key, NULL);
-        // vm_io_debug(&buf, 0, "val = ", value, NULL);
         if (vm_value_eq(key, value)) {
-            // vm_std_value_t val = (vm_std_value_t) {
-            //     .tag = pair->val_tag,
-            //     .value = pair->val_val,
-            // };
-            // vm_io_buffer_t buf = {0};
-            // vm_io_debug(&buf, 0, "res = ", val, NULL);
-            // printf("%s\n", buf.buf);
             return pair;
         }
-        // printf("%s\n", buf.buf);
         next += 1;
         next &= and;
     } while (next != stop);
@@ -359,10 +345,6 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uin
         .tag = val_tag,
         .value = val_val,
     };
-    // vm_io_buffer_t buf = {0};
-    // vm_io_debug(&buf, 0, "key = ", key, NULL);
-    // vm_io_debug(&buf, 0, "value = ", value, NULL);
-    // printf("%s\n", buf.buf);
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
@@ -403,20 +385,10 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uin
             }
         }
         vm_table_set(ret, key_val, val_val, key_tag, val_tag);
-        // vm_io_buffer_t buf = {0};
-        // vm_io_debug(&buf, 0, "", (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = ret}, NULL);
-        // printf("worked %zu / %zu in %s\n", (size_t) ret->used, (size_t) table->used, buf.buf);
         *table = *ret;
         return;
     }
     if (val_tag == VM_TAG_NIL) {
-        // table->pairs[next].key_tag = 0;
-        // if (vm_value_is_int(key)) {
-        //     int64_t i64val = vm_value_to_i64(key);
-        //     if (0 < i64val && i64val < table->len) {
-        //         table->len = i64val;
-        //     }
-        // }
         __builtin_trap();
         return;
     }

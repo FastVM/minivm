@@ -34,9 +34,6 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
         .tag = VM_TAG_FUN,
         .value.i32 = (int32_t) closure->blocks->entry->id,
     };
-    // vm_io_buffer_t buf = {0};
-    // vm_io_format_blocks(&buf, closure->blocks);
-    // printf("%s\n", buf.buf);
     *args = (vm_std_value_t) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = vals,

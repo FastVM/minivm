@@ -5,13 +5,9 @@
 #include "type.h"
 
 void vm_rblock_reset(vm_rblock_t *rblock) {
-    // printf("rblock = %p\n", rblock);
     if (rblock == NULL) {
         return;
     }
-    // printf("rblock->jit = %p\n", rblock->jit);
-    // printf("rblock->code = %p\n", rblock->code);
-    // printf("rblock->del = %p\n", rblock->del);
     if (rblock->del != NULL) {
         rblock->del(rblock);
     }
@@ -215,7 +211,5 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
 ret:;
     vm_free(regs->tags);
     vm_free(regs);
-    // fprintf(stdout, "\n--- version ---\n");
-    // vm_io_format_block(stdout, ret);
     return ret;
 }

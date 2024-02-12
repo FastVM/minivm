@@ -27,8 +27,6 @@
 
 #include "config.h"
 
-// this is only used for clock()
-
 #if 0
 #define __builtin_trap()                                       \
     printf("file %s, line %zu\n", __FILE__, (size_t)__LINE__); \

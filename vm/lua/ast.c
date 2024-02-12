@@ -2,9 +2,7 @@
 #include "../ast/ast.h"
 #include "../../vendor/trees/api.h"
 #include "../ast/build.h"
-#include "../ast/print.h"
 #include "../std/io.h"
-#include "./parser.h"
 
 const TSLanguage *tree_sitter_lua(void);
 
@@ -23,7 +21,6 @@ char *vm_lang_lua_src(vm_lang_lua_t src, TSNode node) {
         str[i] = src.src[start + i];
     }
     str[len] = '\0';
-    // printf("%s\n", str);
     return str;
 }
 
@@ -37,7 +34,6 @@ char *vm_lang_lua_gensym(vm_lang_lua_t src) {
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     const char *type = ts_node_type(node);
     size_t num_children = ts_node_child_count(node);
-    // printf("\n---\n%s\n", ts_node_string(node));
     if (!strcmp(type, "comment")) {
         return vm_ast_build_nil();
     }
@@ -300,7 +296,6 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
                 )
             );
         }
-        // vm_ast_node_type_t node = vm_ast_build_while(less, body);
     }
     if (!strcmp(type, "while_statement")) {
         return vm_ast_build_while(

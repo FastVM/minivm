@@ -1,7 +1,5 @@
 <script>
-    import New from "./New.svelte";
-    import Term from "./Term.svelte";
+    import NewTerm from "./NewTerm.svelte";
 </script>
 
-<!-- <Term/> -->
-<New/>
+<NewTerm/>

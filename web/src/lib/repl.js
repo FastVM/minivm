@@ -39,7 +39,7 @@ export const repl = ({putchar}) => {
         for (const c of str) {
             await Atomics.waitAsync(i32want, 0, 0).value;
             i32want[0] = 0;
-            i32buf[0] = c.charCodeAt(0);
+            i32buf[0] = typeof c === 'number' ? c : c.charCodeAt(0);
             Atomics.notify(i32buf, 0, 1);
         }
     };

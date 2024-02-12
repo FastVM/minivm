@@ -19,22 +19,6 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
 #include <emscripten.h>
 
 #if 0
-EM_ASYNC_JS(void, vm_compile_c_to_wasm, (int n), {
-    await window.vm_compile_c_to_wasm(n);
-});
-#endif
-
-// EM_JS(void, vm_compile_c_to_wasm, (int n), {
-//     Asyncify.handleAsync(async () => {
-//         await window.vm_compile_c_to_wasm(n);
-//     })
-// });
-
-#if 0
-void vm_compile_c_to_wasm(int n);
-#endif
-
-#if 0
 void vm_compile_c_to_wasm(int n);
 #endif
 
@@ -91,7 +75,6 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
     void *sym = dlsym(handle, entry);
     remove(c_file);
     remove(so_file);
-    // dlclose(handle);
     printf("<funcptr: %p>\n", sym);
     return sym;
 }
