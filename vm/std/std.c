@@ -1,9 +1,10 @@
 
 #include "./std.h"
 
+#include "../ast/ast.h"
 #include "./io.h"
 #include "./util.h"
-#include "../ast/ast.h"
+
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks);
@@ -14,7 +15,7 @@ void vm_std_os_exit(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_STR) {
-        *args = (vm_std_value_t) {
+        *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = "cannot load non-string value",
         };
@@ -23,18 +24,18 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_ast_node_t node = vm_lang_lua_parse(closure->config, str);
     vm_ast_comp_more(node, closure->blocks);
     vm_ast_free_node(node);
-    
+
     vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * 2);
-    vals[0] = (vm_std_value_t) {
+    vals[0] = (vm_std_value_t){
         .tag = VM_TAG_I32,
         .value.i32 = 1,
     };
     vals += 1;
-    vals[0] = (vm_std_value_t) {
+    vals[0] = (vm_std_value_t){
         .tag = VM_TAG_FUN,
-        .value.i32 = (int32_t) closure->blocks->entry->id,
+        .value.i32 = (int32_t)closure->blocks->entry->id,
     };
-    *args = (vm_std_value_t) {
+    *args = (vm_std_value_t){
         .tag = VM_TAG_CLOSURE,
         .value.closure = vals,
     };
@@ -69,9 +70,9 @@ void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
         return;
     }
     vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * (nargs + 1));
-    vals[0] = (vm_std_value_t) {
+    vals[0] = (vm_std_value_t){
         .tag = VM_TAG_I32,
-        .value.i32 = (int32_t) nargs,
+        .value.i32 = (int32_t)nargs,
     };
     vals += 1;
     for (size_t i = 0; args[i].tag != 0; i++) {
@@ -88,7 +89,7 @@ void vm_std_vm_print(vm_std_closure_t *closure, vm_std_value_t *args) {
     for (size_t i = 0; args[i].tag; i++) {
         vm_io_buffer_t buf = {0};
         vm_io_debug(&buf, 0, "", args[i], NULL);
-        printf("%.*s", (int) buf.len, buf.buf);
+        printf("%.*s", (int)buf.len, buf.buf);
     }
 }
 
@@ -107,8 +108,8 @@ void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
         memcpy(&buf[head], args[i].value.str, len);
         head += len;
     }
-    buf[len-1] = '\0';
-    *args = (vm_std_value_t) {
+    buf[len - 1] = '\0';
+    *args = (vm_std_value_t){
         .tag = VM_TAG_STR,
         .value.str = buf,
     };
@@ -174,7 +175,7 @@ void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
             break;
         }
     }
-    *args = (vm_std_value_t) {
+    *args = (vm_std_value_t){
         .tag = VM_TAG_STR,
         .value.str = ret,
     };
@@ -183,7 +184,7 @@ void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
 void vm_std_tostring(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_io_buffer_t out = {0};
     vm_value_buffer_tostring(&out, *args);
-    *args = (vm_std_value_t) {
+    *args = (vm_std_value_t){
         .tag = VM_TAG_STR,
         .value.str = out.buf,
     };
@@ -200,9 +201,232 @@ void vm_std_print(vm_std_closure_t *closure, vm_std_value_t *args) {
         vm_value_buffer_tostring(&out, *args++);
         first = false;
     }
-    fprintf(stdout, "%.*s\n", (int) out.len, out.buf);
+    fprintf(stdout, "%.*s\n", (int)out.len, out.buf);
     *ret = (vm_std_value_t){
         .tag = VM_TAG_NIL,
+    };
+}
+
+void vm_std_io_write(vm_std_closure_t *closure, vm_std_value_t *args) {
+    vm_std_value_t *ret = args;
+    vm_io_buffer_t out = {0};
+    while (args->tag != 0) {
+        vm_value_buffer_tostring(&out, *args++);
+    }
+    fprintf(stdout, "%.*s", (int)out.len, out.buf);
+    *ret = (vm_std_value_t){
+        .tag = VM_TAG_NIL,
+    };
+}
+
+void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
+    vm_std_value_t *ret = args;
+    vm_io_buffer_t *out = vm_io_buffer_new();
+    vm_std_value_t fmt = *args++;
+    if (fmt.tag != VM_TAG_STR) {
+        *ret = (vm_std_value_t){
+            .tag = VM_TAG_ERROR,
+            .value.str = "invalid format (not a string)",
+        };
+        return;
+    }
+    const char *str = fmt.value.str;
+    while (*str != '\0') {
+        const char *head = str;
+        char got = *str++;
+        if (got != '%') {
+            vm_io_buffer_format(out, "%c", got);
+            continue;
+        }
+        if (*str == '%') {
+            str++;
+            vm_io_buffer_format(out, "%%");
+            continue;
+        }
+        while (true) {
+            char p = *str;
+            if (p == '-' || p == '+' || p == ' ' || p == '#' || p == '0') {
+                str++;
+                continue;
+            }
+            break;
+        }
+        if ('0' < *str && *str <= '9') {
+            str++;
+        }
+        if ('0' < *str && *str <= '9') {
+            str++;
+        }
+        if ('0' < *str && *str <= '9') {
+            *ret = (vm_std_value_t){
+                .tag = VM_TAG_ERROR,
+                .value.str = "invalid format (width > 99)",
+            };
+            return;
+        }
+        bool format_has_dot = *str == '.';
+        if (format_has_dot) {
+            if ('0' < *str && *str <= '9') {
+                str++;
+            }
+            if ('0' < *str && *str <= '9') {
+                str++;
+            }
+        }
+        if ('0' < *str && *str <= '9') {
+            *ret = (vm_std_value_t){
+                .tag = VM_TAG_ERROR,
+                .value.str = "invalid format (precision > 99)",
+            };
+            return;
+        }
+        ptrdiff_t len = str - head;
+        if (!(0 < len || len < 48)) {
+            *ret = (vm_std_value_t){
+                .tag = VM_TAG_ERROR,
+                .value.str = "invalid format (too long to handle)",
+            };
+            return;
+        }
+        char format[64];
+        strncpy(format, head, str - head);
+        vm_std_value_t arg = *args++;
+        if (arg.tag == 0) {
+            *ret = (vm_std_value_t){
+                .tag = VM_TAG_ERROR,
+                .value.str = "too few args",
+            };
+            return;
+        }
+        char fc = *str++;
+        switch (fc) {
+            case 'c': {
+                if (!vm_value_can_to_n64(arg)) {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "expected a number for %c format",
+                    };
+                    return;
+                }
+                strcpy(&format[len], "c");
+                vm_io_buffer_format(out, format, (int)vm_value_to_i64(arg));
+                break;
+            }
+            case 'd':
+            case 'i': {
+                if (!vm_value_can_to_n64(arg)) {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "expected a number for integer format",
+                    };
+                    return;
+                }
+                strcpy(&format[len], PRIi64);
+                vm_io_buffer_format(out, format, vm_value_to_i64(arg));
+                break;
+            }
+            case 'o': {
+                if (!vm_value_can_to_n64(arg)) {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "expected a number for %o format",
+                    };
+                    return;
+                }
+                strcpy(&format[len], PRIo64);
+                vm_io_buffer_format(out, format, vm_value_to_i64(arg));
+                break;
+            }
+            case 'u': {
+                if (!vm_value_can_to_n64(arg)) {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "expected a number for %u format",
+                    };
+                    return;
+                }
+                strcpy(&format[len], PRIu64);
+                vm_io_buffer_format(out, format, (uint64_t)vm_value_to_i64(arg));
+                break;
+            }
+            case 'x': {
+                if (!vm_value_can_to_n64(arg)) {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "expected a number for %x format",
+                    };
+                    return;
+                }
+                strcpy(&format[len], PRIx64);
+                vm_io_buffer_format(out, format, vm_value_to_i64(arg));
+                break;
+            }
+            case 'X': {
+                if (!vm_value_can_to_n64(arg)) {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "expected a number for %X format",
+                    };
+                    return;
+                }
+                strcpy(&format[len], PRIX64);
+                vm_io_buffer_format(out, format, vm_value_to_i64(arg));
+                break;
+            }
+            case 'e':
+            case 'E':
+            case 'f':
+            case 'F':
+            case 'g':
+            case 'G': {
+                if (!vm_value_can_to_n64(arg)) {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "expected a number for float format",
+                    };
+                    return;
+                }
+                format[len] = fc;
+                format[len+1] = '\0';
+                vm_io_buffer_format(out, format, vm_value_to_f64(arg));
+                break;
+            }
+            case 'q': {
+                *ret = (vm_std_value_t){
+                    .tag = VM_TAG_ERROR,
+                    .value.str = "unimplemented %q",
+                };
+                return;
+            }
+            case 's': {
+                if (arg.tag == VM_TAG_STR) {
+                    strcpy(&format[len],"s");
+                    vm_io_buffer_format(out, format, arg.value.str);
+                } else if (vm_value_can_to_n64(arg)) {
+                    strcpy(&format[len], "f");
+                    vm_io_buffer_format(out, format, vm_value_to_f64(arg));
+                } else {
+                    *ret = (vm_std_value_t){
+                        .tag = VM_TAG_ERROR,
+                        .value.str = "unimplemented %s for a type",
+                    };
+                    return;
+                }
+                break;
+            }
+            default: {
+                *ret = (vm_std_value_t){
+                    .tag = VM_TAG_ERROR,
+                    .value.str = "unknown format type",
+                };
+                __builtin_trap();
+                return;
+            }
+        }
+    }
+    *ret = (vm_std_value_t){
+        .tag = VM_TAG_STR,
+        .value.str = vm_io_buffer_get(out),
     };
 }
 
@@ -212,6 +436,13 @@ vm_table_t *vm_std_new(void) {
     {
         vm_table_t *io = vm_table_new();
         VM_STD_SET_TAB(std, "io", io);
+        VM_STD_SET_FFI(io, "write", &vm_std_io_write);
+    }
+
+    {
+        vm_table_t *string = vm_table_new();
+        VM_STD_SET_TAB(std, "string", string);
+        VM_STD_SET_FFI(string, "format", &vm_std_string_format);
     }
 
     {

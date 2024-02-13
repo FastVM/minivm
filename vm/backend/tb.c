@@ -1370,7 +1370,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                     }
                 }
 
-                if (next_nargs > 6 || VM_NO_TAILCALL) {
+                if (VM_NO_TAILCALL) {
                     TB_MultiOutput out = vm_tb_inst_call(
                         state,
                         next_proto,
@@ -1396,7 +1396,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                 TB_Node **next_args = vm_malloc(sizeof(TB_Node *) * next_nargs);
                 for (size_t argno = 0; argno < next_nargs; argno++) {
-                    vm_arg_t arg = branch.args[argno];
+                    vm_arg_t arg = branch.targets[0]->args[argno];
                     if (arg.type == VM_ARG_REG && arg.reg == branch.out.reg) {
                         next_args[argno] = val_val;
                     } else {
@@ -1471,7 +1471,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                     }
                 }
 
-                if (next_nargs > 6 || VM_NO_TAILCALL) {
+                if (VM_NO_TAILCALL) {
                     TB_MultiOutput out = vm_tb_inst_call(
                         state,
                         next_proto,
@@ -1919,7 +1919,7 @@ typedef vm_std_value_t VM_CDECL vm_tb_func_t();
 vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_std_value_t val = vm_tb_run_repl(config, entry, blocks, std);
     if (val.tag == VM_TAG_ERROR) {
-        printf("error: %s\n", val.value.str);
+        fprintf(stderr, "error: %s\n", val.value.str);
     }
     return val;
 }
@@ -1942,10 +1942,10 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     for (size_t i = 0; i < blocks->len; i++) {
         vm_block_t *block = blocks->blocks[i];
-        for (size_t j = 0; j < block->cache.len; j++) {
-            vm_rblock_reset(block->cache.keys[j]);
-            vm_free_block_sub(block->cache.values[j]);
-        }
+        // for (size_t j = 0; j < block->cache.len; j++) {
+        //     vm_rblock_reset(block->cache.keys[j]);
+        //     vm_free_block_sub(block->cache.values[j]);
+        // }
         block->cache.len = 0;
     }
 

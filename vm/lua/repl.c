@@ -315,7 +315,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
         vm_std_value_t value = vm_tb_run_repl(config, blocks->entry, blocks, std);
         if (value.tag == VM_TAG_ERROR) {
-            printf("error: %s\n", value.value.str);
+            fprintf(stderr, "error: %s\n", value.value.str);
         } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);

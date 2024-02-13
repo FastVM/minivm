@@ -1,7 +1,5 @@
 #include "./obj.h"
 
-#include "./std/io.h"
-
 int64_t vm_value_to_i64(vm_std_value_t arg) {
     switch (arg.tag) {
         case VM_TAG_I8: {
@@ -26,6 +24,41 @@ int64_t vm_value_to_i64(vm_std_value_t arg) {
             return -1;
         }
     }
+}
+
+double vm_value_to_f64(vm_std_value_t arg) {
+    switch (arg.tag) {
+        case VM_TAG_I8: {
+            return (double)arg.value.i8;
+        }
+        case VM_TAG_I16: {
+            return (double)arg.value.i16;
+        }
+        case VM_TAG_I32: {
+            return (double)arg.value.i32;
+        }
+        case VM_TAG_I64: {
+            return (double)arg.value.i64;
+        }
+        case VM_TAG_F32: {
+            return (double)arg.value.f32;
+        }
+        case VM_TAG_F64: {
+            return (double)arg.value.f64;
+        }
+        default: {
+            return -1;
+        }
+    }
+}
+
+bool vm_value_can_to_n64(vm_std_value_t val) {
+    return val.tag == VM_TAG_I8
+        || val.tag == VM_TAG_I16
+        || val.tag == VM_TAG_I32
+        || val.tag == VM_TAG_I64
+        || val.tag == VM_TAG_F32
+        || val.tag == VM_TAG_F64;
 }
 
 bool vm_value_is_int(vm_std_value_t val) {

@@ -1372,6 +1372,102 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 break;
             }
 
+            case TB_TAILCALL: {
+                TB_Node *func = n->inputs[2];
+                
+                TB_FunctionPrototype *proto = ctx->f->prototype;
+                size_t nrets = proto->return_count;
+                TB_PrototypeParam *rets = &proto->params[proto->param_count];
+
+                if (nl_hashset_put(&ctx->declared_types, n)) {
+                    if (nrets == 0) {
+                        nl_buffer_format(ctx->globals, "typedef void(*tb2c_%s_v%u_t)(", ctx->name, n->gvn);
+                    } else if (nrets == 1) {
+                        nl_buffer_format(ctx->globals, "typedef %s(*tb2c_%s_v%u_t)(", c_fmt_type_name(rets[0].dt), ctx->name, n->gvn);
+                    } else {
+                        nl_buffer_format(ctx->globals, "typedef struct {\n");
+                        size_t index = 0;
+                        FOREACH_N(i, 0, nrets) {
+                            nl_buffer_format(ctx->globals, "  %s v%zu;\n", c_fmt_type_name(rets[i].dt), index);
+                            index += 1;
+                        }
+                        nl_buffer_format(ctx->globals, "} tb2c_%s_v%u_ret_t;\n", ctx->name, n->gvn);
+                        nl_buffer_format(ctx->globals, "typedef tb2c_%s_v%u_ret_t(*tb2c_%s_v%u_t)(", ctx->name, n->gvn, ctx->name, n->gvn);
+                    }
+                    bool first = true;
+                    FOREACH_N(i, 3, n->input_count) {
+                        if (n->inputs[i]->dt.type != TB_CONTROL && n->inputs[i]->dt.type != TB_MEMORY) {
+                            if (!first) {
+                                nl_buffer_format(ctx->globals, ", ");
+                            }
+                            nl_buffer_format(ctx->globals, "%s", c_fmt_type_name(n->inputs[i]->dt));
+                            first = false;
+                        }
+                    }
+                    if (first) {
+                            nl_buffer_format(ctx->globals, "void");
+                    }
+                    nl_buffer_format(ctx->globals, ");\n");
+                }
+                if (nrets == 0 || nrets == 1) {
+                    c_fmt_spaces(ctx);
+                    if (nrets == 1) {
+                        nl_buffer_format(ctx->buf, "return (tb2c_%s_ret_t) ", ctx->name);
+                    }
+                    nl_buffer_format(ctx->buf, "((tb2c_%s_v%u_t) ", ctx->name, n->gvn);
+                    c_fmt_ref_to_node(ctx, func);
+                    nl_buffer_format(ctx->buf, ")");
+                    nl_buffer_format(ctx->buf, "(");
+                    {
+                        bool first = true;
+                        FOREACH_N(i, 3, n->input_count) {
+                            if (n->inputs[i]->dt.type != TB_CONTROL && n->inputs[i]->dt.type != TB_MEMORY) {
+                                if (!first) {
+                                    nl_buffer_format(ctx->buf, ", ");
+                                }
+                                c_fmt_ref_to_node(ctx, n->inputs[i]);
+                                first = false;
+                            }
+                        }
+                    }
+                    nl_buffer_format(ctx->buf, ");\n");
+                    if (nrets == 0) {
+                        c_fmt_spaces(ctx);
+                        nl_buffer_format(ctx->buf, "return;\n");
+                    }
+                } else {
+                    c_fmt_spaces(ctx);
+                    nl_buffer_format(ctx->buf, "tb2c_%s_v%u_ret_t v%u_ret = ", ctx->name, n->gvn, n->gvn);
+                    nl_buffer_format(ctx->buf, "((tb2c_%s_v%u_t) ", ctx->name, n->gvn);
+                    c_fmt_ref_to_node(ctx, func);
+                    nl_buffer_format(ctx->buf, ")(");
+                    {
+                        bool first = true;
+                        FOREACH_N(i, 3, n->input_count) {
+                            if (n->inputs[i]->dt.type != TB_CONTROL && n->inputs[i]->dt.type != TB_MEMORY) {
+                                if (!first) {
+                                    nl_buffer_format(ctx->buf, ", ");
+                                }
+                                c_fmt_ref_to_node(ctx, n->inputs[i]);
+                                first = false;
+                            }
+                        }
+                    }
+                    nl_buffer_format(ctx->buf, ");\n");
+                    c_fmt_spaces(ctx);
+                    nl_buffer_format(ctx->buf, "tb2c_%s_ret_t ret;\n", ctx->name);
+                    size_t index = 0;
+                    FOREACH_N(i, 0, nrets) {
+                        c_fmt_spaces(ctx);
+                        nl_buffer_format(ctx->buf, "ret.v%zu = v%u_ret.v%zu;\n", index, n->gvn, index);
+                        index += 1;
+                    }
+                    c_fmt_spaces(ctx);
+                    nl_buffer_format(ctx->buf, "return (tb2c_%s_ret_t) ret;\n", ctx->name);
+                }
+                break;
+            }
+
             case TB_MEMCPY: {
                 TB_Node *dest = n->inputs[n->input_count-3];
                 TB_Node *src = n->inputs[n->input_count-2];

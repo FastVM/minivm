@@ -416,7 +416,40 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     }
     if (!strcmp(type, "string")) {
         TSNode content = ts_node_child(node, 1);
-        return vm_ast_build_literal(str, vm_lang_lua_src(src, content));
+        char *val = vm_lang_lua_src(src, content);
+        size_t alloc = strlen(val);
+        char *buf = vm_malloc(sizeof(char) * (alloc + 1));
+        const char *ret = buf;
+        while (*val != '\0') {
+            char got = *val++;
+            if (got == '\\') {
+                switch (*val++) {
+                    case '\\': {
+                        *buf++ = '\\';
+                        break;
+                    }
+                    case 'n': {
+                        *buf++ = '\n';
+                        break;
+                    }
+                    case 't': {
+                        *buf++ = '\t';
+                        break;
+                    }
+                    case 'r': {
+                        *buf++ = '\r';
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+            } else {
+                *buf++ = got;
+            }
+        }
+        *buf++ = '\0';
+        return vm_ast_build_literal(str, ret);
     }
     if (!strcmp(type, "number")) {
         const char *str = vm_lang_lua_src(src, node);

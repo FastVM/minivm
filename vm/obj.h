@@ -63,6 +63,8 @@ struct vm_std_closure_t {
 bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs);
 bool vm_value_is_int(vm_std_value_t val);
 int64_t vm_value_to_i64(vm_std_value_t arg);
+double vm_value_to_f64(vm_std_value_t arg);
+bool vm_value_can_to_n64(vm_std_value_t val);
 
 void vm_free_table(vm_table_t *table);
 vm_table_t *vm_table_new(void);

@@ -69,13 +69,16 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
     }
     fclose(out);
     vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
-    vm_io_buffer_format(cmd_buf, "%s -shared -O1 -fPIC %s -o %s -pipe", comp, c_file, so_file);
-    system(cmd_buf->buf);
+    vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s -o %s -w", comp, c_file, so_file);
+    int res = system(cmd_buf->buf);
+    if (res) {
+        return NULL;
+    }
     void *handle = dlopen(so_file, RTLD_LAZY);
     void *sym = dlsym(handle, entry);
     remove(c_file);
     remove(so_file);
-    printf("<funcptr: %p>\n", sym);
+    // printf("<funcptr: %p>\n", sym);
     return sym;
 }
 #endif

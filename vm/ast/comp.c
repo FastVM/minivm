@@ -44,6 +44,58 @@ struct vm_ast_comp_names_t {
     vm_ast_comp_names_t *next;
 };
 
+static void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args) {
+    vm_std_value_t *ret = args;
+    double v = vm_value_to_f64(*args++);
+    while (args->tag != 0) {
+        v = pow(v, vm_value_to_f64(*args++));
+    }
+    switch (closure->config->use_num) {
+        case VM_USE_NUM_I8: {
+            *ret = (vm_std_value_t) {
+                .tag = VM_TAG_I8,
+                .value.i8 = (int8_t) v,
+            };
+            return;
+        }
+        case VM_USE_NUM_I16: {
+            *ret = (vm_std_value_t) {
+                .tag = VM_TAG_I16,
+                .value.i16 = (int16_t) v,
+            };
+            return;
+        }
+        case VM_USE_NUM_I32: {
+            *ret = (vm_std_value_t) {
+                .tag = VM_TAG_I32,
+                .value.i32 = (int32_t) v,
+            };
+            return;
+        }
+        case VM_USE_NUM_I64: {
+            *ret = (vm_std_value_t) {
+                .tag = VM_TAG_I64,
+                .value.i64 = (int64_t) v,
+            };
+            return;
+        }
+        case VM_USE_NUM_F32: {
+            *ret = (vm_std_value_t) {
+                .tag = VM_TAG_F32,
+                .value.f32 = (float) v,
+            };
+            return;
+        }
+        case VM_USE_NUM_F64: {
+            *ret = (vm_std_value_t) {
+                .tag = VM_TAG_F64,
+                .value.f64 = (double) v,
+            };
+            return;
+        }
+    }
+}
+
 static void vm_ast_comp_names_push(vm_ast_comp_t *comp) {
     vm_ast_comp_names_t *names = vm_malloc(sizeof(vm_ast_comp_names_t));
     *names = (vm_ast_comp_names_t){
@@ -684,6 +736,39 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         .lit = (vm_std_value_t){
                             .tag = VM_TAG_FFI,
                             .value.ffi = &vm_std_vm_concat,
+                        },
+                    };
+                    call_args[1] = arg1;
+                    call_args[2] = arg2;
+                    call_args[3] = (vm_arg_t){
+                        .type = VM_ARG_NONE,
+                    };
+                    vm_arg_t out = vm_ast_comp_reg(comp);
+
+                    vm_ast_blocks_branch(
+                        comp,
+                        (vm_branch_t){
+                            .op = VM_BOP_CALL,
+                            .out = out,
+                            .args = call_args,
+                            .targets[0] = with_result,
+                        }
+                    );
+
+                    comp->cur = with_result;
+                    return out;
+                }
+                case VM_AST_FORM_POW: {
+                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_block_t *with_result = vm_ast_comp_new_block(comp);
+
+                    vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
+                    call_args[0] = (vm_arg_t){
+                        .type = VM_ARG_LIT,
+                        .lit = (vm_std_value_t){
+                            .tag = VM_TAG_FFI,
+                            .value.ffi = &vm_lua_comp_op_std_pow,
                         },
                     };
                     call_args[1] = arg1;
