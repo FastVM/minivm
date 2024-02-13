@@ -2,8 +2,10 @@ import CompressionPlugin from 'compression-webpack-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import webpack from 'webpack';
 
-const dev = false;
+const dev = true;
 
 export default {
     mode: dev ? 'development' : 'production',
@@ -29,6 +31,10 @@ export default {
             process: false,
         },
     },
+    externals: {
+        'brotli.mjs': false,
+        'brotli.wasm': false,
+    },
     module: {
         rules: [
             {
@@ -53,6 +59,9 @@ export default {
             {
                 test: /\.wasm$/,
                 type: "asset/resource",
+                generator: {
+                    filename: 'wasm/[name].wasm',
+                },
             },
             {
                 test: /\.(pack|br|a)$/,
@@ -90,9 +99,13 @@ export default {
                 { from: "src/index.html", to: "index.html" },
             ],
         }),
-        new CompressionPlugin({
-            exclude: /\.br$/,
-        }),
+        new webpack.NormalModuleReplacementPlugin(
+            /emception\/brotli\/brotli\.mjs$/,
+            path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/empty.js'),
+        ),
+        // new CompressionPlugin({
+        //     exclude: /\.br$/,
+        // }),
     ],
     devServer: {
         headers: {

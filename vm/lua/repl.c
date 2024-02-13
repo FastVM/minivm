@@ -1,24 +1,24 @@
 #include "./repl.h"
-#include "./parser.h"
-#include "../ir/ir.h"
+#include "../../vendor/trees/api.h"
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../ast/print.h"
 #include "../backend/tb.h"
+#include "../ir/ir.h"
 #include "../std/io.h"
 #include "../std/util.h"
-#include "../../vendor/trees/api.h"
+#include "./parser.h"
 
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 
 vm_std_value_t vm_lang_lua_repl_table_get(vm_table_t *table, const char *key) {
-    vm_pair_t pair = (vm_pair_t) {
+    vm_pair_t pair = (vm_pair_t){
         .key_tag = VM_TAG_STR,
         .key_val.str = key,
     };
     vm_table_get_pair(table, &pair);
-    return (vm_std_value_t) {
+    return (vm_std_value_t){
         .value = pair.val_val,
         .tag = pair.val_tag,
     };
@@ -62,11 +62,12 @@ void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
     VM_STD_SET_BOOL(dump, "time", config->dump_time);
 }
 
+#if !defined(EMSCRIPTEN)
 void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     vm_lang_lua_repl_complete_state_t *state = cenv->arg;
     ptrdiff_t len = strlen(prefix);
     ptrdiff_t head = len - 1;
-    while (head >= 0 &&(iswalnum(prefix[head]) || prefix[head] == '.')) {
+    while (head >= 0 && (iswalnum(prefix[head]) || prefix[head] == '.')) {
         head -= 1;
     }
     head += 1;
@@ -81,7 +82,7 @@ with_new_std:;
             while (got[i] != '\0') {
                 if (last_word[i] == '\0') {
                     const char *completions[2];
-                    completions[0] = got+i;
+                    completions[0] = got + i;
                     completions[1] = NULL;
                     if (!ic_add_completions(cenv, "", completions)) {
                         goto ret;
@@ -97,7 +98,7 @@ with_new_std:;
             if (pair->val_tag == VM_TAG_TAB) {
                 if (last_word[i] == '.') {
                     std = pair->val_val.table;
-                    last_word = &last_word[i+1];
+                    last_word = &last_word[i + 1];
                     goto with_new_std;
                 }
                 if (!strcmp(last_word, got)) {
@@ -129,7 +130,7 @@ const char *vm_lang_lua_repl_highlight_bracket_color(vm_table_t *repl, size_t de
         return "";
     }
     vm_table_t *tab = value->val_val.table;
-    vm_pair_t *sub = vm_table_lookup(tab, (vm_value_t) {.i32 = (int32_t) depth % (int32_t) tab->len + 1}, VM_TAG_I32);
+    vm_pair_t *sub = vm_table_lookup(tab, (vm_value_t){.i32 = (int32_t)depth % (int32_t)tab->len + 1}, VM_TAG_I32);
     if (sub == NULL || sub->val_tag != VM_TAG_STR) {
         return "";
     }
@@ -214,6 +215,7 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     // fclose(out);
     // ic_highlight(henv, 1, strlen(input) - 2, "keyword");
 }
+#endif
 
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks) {
     config->is_repl = true;
@@ -222,13 +224,15 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
     vm_lang_lua_repl_table_set_config(repl, config);
     VM_STD_SET_BOOL(repl, "echo", true);
     vm_table_t *parens = vm_table_new();
-    vm_table_set(parens, (vm_value_t) {.i32 = 1}, (vm_value_t) {.str = "yellow"}, VM_TAG_I32, VM_TAG_STR);
-    vm_table_set(parens, (vm_value_t) {.i32 = 2}, (vm_value_t) {.str = "magenta"}, VM_TAG_I32, VM_TAG_STR);
-    vm_table_set(parens, (vm_value_t) {.i32 = 3}, (vm_value_t) {.str = "blue"}, VM_TAG_I32, VM_TAG_STR);
+    vm_table_set(parens, (vm_value_t){.i32 = 1}, (vm_value_t){.str = "yellow"}, VM_TAG_I32, VM_TAG_STR);
+    vm_table_set(parens, (vm_value_t){.i32 = 2}, (vm_value_t){.str = "magenta"}, VM_TAG_I32, VM_TAG_STR);
+    vm_table_set(parens, (vm_value_t){.i32 = 3}, (vm_value_t){.str = "blue"}, VM_TAG_I32, VM_TAG_STR);
     VM_STD_SET_TAB(repl, "parens", parens);
     VM_STD_SET_TAB(std, "config", repl);
 
+#if !defined(EMSCRIPTEN)
     ic_set_history(".minivm-history", 2000);
+#endif
 
     vm_lang_lua_repl_complete_state_t complete_state = (vm_lang_lua_repl_complete_state_t){
         .config = config,
@@ -239,25 +243,25 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         .std = std,
     };
 
-    #if defined(EMSCRIPTEN)
+#if defined(EMSCRIPTEN)
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
-    #endif
+#endif
 
     while (true) {
-        #if !defined(EMSCRIPTEN)
+#if !defined(EMSCRIPTEN)
         char *input = ic_readline_ex(
-            "lua", 
+            "lua",
             vm_lang_lua_repl_completer,
             &complete_state,
-            vm_lang_lua_repl_highlight, 
+            vm_lang_lua_repl_highlight,
             &highlight_state
         );
         if (input == NULL) {
             break;
         }
-        #else
+#else
         printf("lua> ");
         char input[256];
         size_t head = 0;
@@ -270,16 +274,18 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
                 printf("\x1B[D \x1B[D");
                 head -= 1;
             } else {
-                printf("%c", (int) c);
+                printf("%c", (int)c);
             }
             input[head++] = c;
             if (c == '\0') {
                 break;
             }
         }
-        #endif
+#endif
         vm_lang_lua_repl_table_get_config(repl, config);
+#if !defined(EMSCRIPTEN)
         ic_history_add(input);
+#endif
         clock_t start = clock();
 
         if (config->dump_src) {
@@ -288,14 +294,14 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         vm_ast_node_t node = vm_lang_lua_parse(config, input);
-        #if !defined(EMSCRIPTEN)
+#if !defined(EMSCRIPTEN)
         free(input);
-        #endif
+#endif
 
         if (config->dump_ast) {
             vm_io_buffer_t buf = {0};
             vm_ast_print_node(&buf, 0, "", node);
-            printf("\n--- ast ---\n%.*s", (int) buf.len, buf.buf);
+            printf("\n--- ast ---\n%.*s", (int)buf.len, buf.buf);
         }
 
         vm_ast_comp_more(node, blocks);
@@ -304,7 +310,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         if (config->dump_ir) {
             vm_io_buffer_t buf = {0};
             vm_io_format_blocks(&buf, blocks);
-            printf("%.*s", (int) buf.len, buf.buf);
+            printf("%.*s", (int)buf.len, buf.buf);
         }
 
         vm_std_value_t value = vm_tb_run_repl(config, blocks->entry, blocks, std);
@@ -313,7 +319,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && value.tag != VM_TAG_NIL) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);
-            printf("%.*s", (int) buf.len, buf.buf);
+            printf("%.*s", (int)buf.len, buf.buf);
         }
 
         if (config->dump_time) {

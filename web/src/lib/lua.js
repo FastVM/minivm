@@ -23,7 +23,7 @@ export const run = (args, opts) => {
         mod.FS.writeFile(`/out${n}.so`, soBuf);
     };
 
-    globalThis.vm_compile_c_to_wasm = comp;
+    self.vm_compile_c_to_wasm = comp;
     
     const mod = Module({
         noInitialRun: true,

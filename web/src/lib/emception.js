@@ -31,8 +31,8 @@ class Emception {
         }
 
         fileSystem.mkdirTree("/usr/local");
-        fileSystem.symlink("/lazy/emscripten", "/emscripten");
-        fileSystem.symlink("/lazy/cpython", "/usr/local/lib");
+        // fileSystem.symlink("/lazy/emscripten", "/emscripten");
+        // fileSystem.symlink("/lazy/cpython", "/usr/local/lib");
         fileSystem.symlink("/lazy/wasm", "/wasm");
 
         for (const preload of preloads) {
