@@ -4,8 +4,10 @@ import './app/global.css';
 // import {load} from 'fengari-web';
 import App from './app/App.svelte';
 
-new App({
-    target: document.body,
+document.addEventListener('DOMContentLoaded', () => {
+    new App({
+        target: document.body,
+    });
 });
 
 // const fengari = (str) => {

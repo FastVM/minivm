@@ -1,24 +1,27 @@
 
-const comp = new Worker(new URL('../lib/wcomp.js', import.meta.url));
+let comp;
 
 const thens = [];
 
-const waitForComp = await new Promise((ok, err) => {
-    comp.onmessage = ({data}) => {
-        switch (data.type) {
-            case 'result': {
-                if (data.number != null) {
-                    thens[data.number](data.output);
+const waitForComp = () => {
+    comp = new Worker(new URL(/* webpackChunkName: "wcomp" */ '../lib/wcomp.js', import.meta.url));
+    return new Promise((ok, err) => {
+        comp.onmessage = ({data}) => {
+            switch (data.type) {
+                case 'result': {
+                    if (data.number != null) {
+                        thens[data.number](data.output);
+                    }
+                    break;
                 }
-                break;
+                case 'ready': {
+                    ok();
+                    break;
+                }
             }
-            case 'ready': {
-                ok();
-                break;
-            }
-        }
-    };
-});
+        };
+    });
+};
 
 const unmap = (c) => {
     if (c === '\n') {
@@ -29,6 +32,7 @@ const unmap = (c) => {
 };
 
 export const repl = ({putchar}) => {
+    const hasComp = waitForComp();
     const obj = {};
     obj.putchar = putchar;
     const want = new SharedArrayBuffer(4);
@@ -44,9 +48,9 @@ export const repl = ({putchar}) => {
         }
     };
     obj.start = async() => {
+        const worker = new Worker(new URL(/* webpackChunkName: "wlua" */ '../lib/wlua.js', import.meta.url));
         const wait = new SharedArrayBuffer(4);
         const ret = new SharedArrayBuffer(65536);
-        const worker = new Worker(new URL('../lib/wlua.js', import.meta.url));
         const number = thens.length;
         thens.push((buf) => {
             const len = buf.byteLength;
@@ -74,7 +78,7 @@ export const repl = ({putchar}) => {
                     break;
                 }
                 case 'comp': {
-                    await waitForComp;
+                    await hasComp;
                     comp.postMessage({
                         type: 'comp',
                         number: number,

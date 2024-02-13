@@ -5,10 +5,24 @@
     <meta charset="utf-8">
     <title>MiniVM</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <link rel="stylesheet" href="minivm.css">
+    <link rel="icon" href="data://">
+    <style>
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            height: 100%;
+            background-color: black;
+        }
+    </style>
 </head>
 
 <body>
+    <link rel="prefetch" as="wasm-package" href="wasm/minivm.wasm">
+    <link rel="prefetch" as="wasm-package" href="wasm/wasm-package.wasm">
+    <link rel="prefetch" as="wasm-package" href="wasm/empty.wasm">
     <script type="module" src="minivm.js"></script>
 </body>
 

@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import webpack from 'webpack';
 
-const dev = true;
+const dev = false;
 
 export default {
     mode: dev ? 'development' : 'production',
@@ -31,10 +31,6 @@ export default {
             process: false,
         },
     },
-    externals: {
-        'brotli.mjs': false,
-        'brotli.wasm': false,
-    },
     module: {
         rules: [
             {
@@ -45,7 +41,7 @@ export default {
                         compilerOptions: {
                             dev: dev,
                         },
-                        hotReload: dev,
+                        hotReload: false,
                     },
                 },
             },
@@ -99,13 +95,13 @@ export default {
                 { from: "src/index.html", to: "index.html" },
             ],
         }),
-        new webpack.NormalModuleReplacementPlugin(
-            /emception\/brotli\/brotli\.mjs$/,
-            path.resolve(fileURLToPath(new URL('.', import.meta.url)), './src/empty.js'),
-        ),
         // new CompressionPlugin({
         //     exclude: /\.br$/,
         // }),
+        new webpack.NormalModuleReplacementPlugin(
+            /brotli\.m?js$/,
+            fileURLToPath(new URL('./src/empty/empty.js', import.meta.url)),
+        ),
     ],
     devServer: {
         headers: {
@@ -115,6 +111,7 @@ export default {
         client: {
             logging: 'warn',
         },
+        hot: dev,
     },
     experiments: {
         topLevelAwait: true,

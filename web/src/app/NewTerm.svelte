@@ -1,6 +1,6 @@
 <script>
-    import { onMount } from "svelte";
 	import { repl } from '../lib/repl.js';
+    import { onMount } from 'svelte';
 
     let data = '';
     let src = '';
@@ -18,9 +18,7 @@
         }
     };
 
-    onMount(() => {
-        obj.start();
-    });
+    obj.start();
 </script>
 
 <style>
@@ -46,7 +44,6 @@
         padding: 1em;
         padding-top: 0em;
         outline: none;
-        height: min-content;
         flex-grow: 1;
     }
 
@@ -54,10 +51,11 @@
         display: flex;
         flex-direction: column;
         background-color: #111;
-        width: 100%;
         padding: 0em;
         border: 0em;
+        width: 100%;
         height: 100%;
+        overflow: auto;
     }
 </style>
 

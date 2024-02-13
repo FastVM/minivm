@@ -2,7 +2,7 @@ import FileSystem from "emception/FileSystem.mjs";
 
 import LlvmBoxProcess from "emception/LlvmBoxProcess.mjs";
 
-import wasm from "emception/packages/wasm.pack.br";
+import wasm from "emception/packages/wasm.pack";
 
 const packs = {
     "wasm": wasm,
