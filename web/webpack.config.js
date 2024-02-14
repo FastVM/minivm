@@ -98,10 +98,6 @@ export default {
         // new CompressionPlugin({
         //     exclude: /\.br$/,
         // }),
-        new webpack.NormalModuleReplacementPlugin(
-            /brotli\.m?js$/,
-            fileURLToPath(new URL('./src/empty/empty.js', import.meta.url)),
-        ),
     ],
     devServer: {
         headers: {

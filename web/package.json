@@ -16,8 +16,8 @@
     "worker-loader": "^3.0.8"
   },
   "scripts": {
-    "build": "sh empty.sh && npx webpack",
-    "serve": "sh empty.sh && npx webpack serve"
+    "build": "npx webpack",
+    "serve": "webpack serve"
   },
   "type": "module"
 }
