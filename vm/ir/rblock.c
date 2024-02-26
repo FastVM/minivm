@@ -208,7 +208,6 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
             ret->args[i].reg_tag = regs->tags[ret->args[i].reg];
         }
     }
-ret:;
     vm_free(regs->tags);
     vm_free(regs);
     return ret;

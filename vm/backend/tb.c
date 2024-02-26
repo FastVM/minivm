@@ -36,6 +36,9 @@ TB_Node *vm_tb_ptr_name(vm_tb_state_t *state, const char *name, const void *valu
 
 TB_Node *vm_tb_make_type(vm_tb_state_t *state, vm_type_t type) {
     switch (vm_type_tag(type)) {
+        case VM_TAG_UNK: {
+            return vm_tb_ptr_name(state, "VM_TYPE_UNK", VM_TYPE_UNK);
+        }
         case VM_TAG_NIL: {
             return vm_tb_ptr_name(state, "VM_TYPE_NIL", VM_TYPE_NIL);
         }
@@ -816,7 +819,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         vm_arg_t arg = branch.args[i];
                         TB_Node *head = tb_inst_member_access(state->fun, call_arg, sizeof(vm_std_value_t) * (i - 1));
                         vm_type_t tag = vm_arg_to_tag(arg);
-                        if (vm_type_eq(tag, VM_TYPE_NIL)) {
+                        if (!vm_type_eq(tag, VM_TYPE_NIL)) {
                             tb_inst_store(
                                 state->fun,
                                 VM_TB_TYPE_VALUE,
@@ -830,7 +833,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                             state->fun,
                             TB_TYPE_PTR,
                             tb_inst_member_access(state->fun, head, offsetof(vm_std_value_t, tag)),
-                            vm_tb_make_type(state->fun, tag),
+                            vm_tb_make_type(state, tag),
                             8,
                             false
                         );
@@ -842,7 +845,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         state->fun,
                         TB_TYPE_PTR,
                         tb_inst_member_access(state->fun, end_head, offsetof(vm_std_value_t, tag)),
-                        vm_tb_make_type(state->fun, VM_TYPE_UNK),
+                        vm_tb_make_type(state, VM_TYPE_UNK),
                         4,
                         false
                     );
@@ -1205,6 +1208,14 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                 }
             }
 
+            TB_Node *val_tag_tag = tb_inst_load(
+                state->fun,
+                TB_TYPE_I8,
+                tb_inst_member_access(state->fun, val_tag, offsetof(vm_type_value_t, tag)),
+                1,
+                false
+            );
+
             size_t next_nargs = branch.targets[0]->nargs;
 
             // for (size_t argno = 0; argno < next_nargs; argno++) {
@@ -1216,7 +1227,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
             {
                 TB_Node *report_err = tb_inst_region(state->fun);
                 TB_Node *after_err_check = tb_inst_region(state->fun);
-                TB_Node *is_err = tb_inst_cmp_eq(state->fun, val_tag, vm_tb_make_type(state, VM_TYPE_ERROR));
+                TB_Node *is_err = tb_inst_cmp_eq(state->fun, val_tag_tag, tb_inst_uint(state->fun, TB_TYPE_I8, VM_TAG_ERROR));
                 tb_inst_if(state->fun, is_err, report_err, after_err_check);
                 tb_inst_set_control(state->fun, report_err);
                 TB_Node *ret_args[2] = {
@@ -1259,7 +1270,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
             TB_Node *func_ref = tb_inst_array_access(
                 state->fun,
                 vm_tb_ptr_name(state, "<rtargets>", mem),
-                val_tag,
+                val_tag_tag,
                 sizeof(void *)
             );
             TB_Node *func = tb_inst_load(
@@ -1301,7 +1312,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                     tb_inst_array_access(
                         state->fun,
                         vm_tb_ptr_name(state, "<rtargets>", &block->branch.rtargets[0]),
-                        val_tag,
+                        val_tag_tag,
                         sizeof(vm_rblock_t *)
                     ),
                     1,
@@ -1463,8 +1474,8 @@ void vm_tb_new_module(vm_tb_state_t *state) {
     tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
     tb_symbol_bind_ptr(state->vm_tb_print, (void *)&vm_tb_print);
 
-    state->arena = tb_arena_create(1 << 16);
-    state->jit = tb_jit_begin(state->module, 1 << 16);
+    state->arena = tb_arena_create(1 << 20);
+    state->jit = tb_jit_begin(state->module, 1 << 20);
 
     // on windows we don't have access to multiple returns from C so we'll
     // just make a dumb caller for such a pattern
@@ -1622,7 +1633,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
                 if (arg.type == VM_ARG_REG && vm_type_eq(rblock->regs->tags[arg.reg], VM_TYPE_ERROR)) {
                     TB_Node *rets[2];
                     rets[0] = tb_inst_param(state->fun, i);
-                    rets[1] = vm_tb_make_type(state->fun, VM_TYPE_ERROR);
+                    rets[1] = vm_tb_make_type(state, VM_TYPE_ERROR);
                     tb_inst_ret(state->fun, 2, rets);
                     block = NULL;
                 }
@@ -1668,7 +1679,6 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         }
     }
 
-    TB_Arena *parena = state->arena;
     TB_Passes *passes = tb_pass_enter(state->fun, tb_function_get_arena(state->fun));
 #if VM_USE_DUMP
     if (state->config->dump_tb) {
@@ -1802,7 +1812,7 @@ void vm_tcc_error_func(void *user, const char *msg) {
 #endif
 
 void vm_tb_rblock_del(vm_rblock_t *rblock) {
-    TB_JIT *jit = rblock->jit;
+    // TB_JIT *jit = rblock->jit;
 }
 
 void *vm_tb_full_comp(vm_tb_state_t *state, vm_block_t *block) {

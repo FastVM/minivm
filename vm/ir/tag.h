@@ -30,7 +30,7 @@ typedef struct vm_type_value_t vm_type_value_t;
 typedef const vm_type_value_t *vm_type_t;
 
 struct vm_type_value_t {
-    vm_tag_t tag: 8;
+    uint8_t tag;
 };
 extern const vm_type_value_t vm_type_base[VM_TAG_MAX];
 
@@ -64,7 +64,7 @@ static uint32_t vm_type_tag(vm_type_t type) {
     return type->tag;
 }
 
-static bool vm_type_eq(vm_type_t a, vm_type_t b) {
+static inline bool vm_type_eq(vm_type_t a, vm_type_t b) {
     if (a == NULL || b == NULL) {
         return a == NULL && b == NULL;
     }
