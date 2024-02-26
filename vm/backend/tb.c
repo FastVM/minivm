@@ -30,8 +30,59 @@ TB_Node *vm_tb_make_type(vm_tb_state_t *state, vm_type_t key_tag);
     ret;                                                      \
 })
 
-TB_Node *vm_tb_ptr_name(vm_tb_state_t *state, const char *name, void *value) {
+TB_Node *vm_tb_ptr_name(vm_tb_state_t *state, const char *name, const void *value) {
     return tb_inst_uint(state->fun, TB_TYPE_PTR, (uint64_t)value);
+}
+
+TB_Node *vm_tb_make_type(vm_tb_state_t *state, vm_type_t type) {
+    switch (vm_type_tag(type)) {
+        case VM_TAG_NIL: {
+            return vm_tb_ptr_name(state, "VM_TYPE_NIL", VM_TYPE_NIL);
+        }
+        case VM_TAG_BOOL: {
+            return vm_tb_ptr_name(state, "VM_TYPE_BOOL", VM_TYPE_BOOL);
+        }
+        case VM_TAG_I8: {
+            return vm_tb_ptr_name(state, "VM_TYPE_I8", VM_TYPE_I8);
+        }
+        case VM_TAG_I16: {
+            return vm_tb_ptr_name(state, "VM_TYPE_I16", VM_TYPE_I16);
+        }
+        case VM_TAG_I32: {
+            return vm_tb_ptr_name(state, "VM_TYPE_I32", VM_TYPE_I32);
+        }
+        case VM_TAG_I64: {
+            return vm_tb_ptr_name(state, "VM_TYPE_I64", VM_TYPE_I64);
+        }
+        case VM_TAG_F32: {
+            return vm_tb_ptr_name(state, "VM_TYPE_F32", VM_TYPE_F32);
+        }
+        case VM_TAG_F64: {
+            return vm_tb_ptr_name(state, "VM_TYPE_F64", VM_TYPE_F64);
+        }
+        case VM_TAG_STR: {
+            return vm_tb_ptr_name(state, "VM_TYPE_STR", VM_TYPE_STR);
+        }
+        case VM_TAG_FUN: {
+            return vm_tb_ptr_name(state, "VM_TYPE_FUN", VM_TYPE_FUN);
+        }
+        case VM_TAG_CLOSURE: {
+            return vm_tb_ptr_name(state, "VM_TYPE_CLOSURE", VM_TYPE_CLOSURE);
+        }
+        case VM_TAG_TAB: {
+            return vm_tb_ptr_name(state, "VM_TYPE_TAB", VM_TYPE_TAB);
+        }
+        case VM_TAG_FFI: {
+            return vm_tb_ptr_name(state, "VM_TYPE_FFI", VM_TYPE_FFI);
+        }
+        case VM_TAG_ERROR: {
+            return vm_tb_ptr_name(state, "VM_TYPE_ERROR", VM_TYPE_ERROR);
+        }
+        default: {
+            fprintf(stderr, "\nunhandled type.tag #%zu\n", (size_t) vm_type_tag(type));
+            __builtin_trap();
+        }
+    }
 }
 
 TB_Node *vm_tb_bitcast_from_value(vm_tb_state_t *state, TB_Node *src, TB_DataType dt) {
@@ -777,10 +828,10 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         }
                         tb_inst_store(
                             state->fun,
-                            TB_TYPE_I32,
+                            TB_TYPE_PTR,
                             tb_inst_member_access(state->fun, head, offsetof(vm_std_value_t, tag)),
                             vm_tb_make_type(state->fun, tag),
-                            4,
+                            8,
                             false
                         );
                     }
@@ -789,9 +840,9 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     tb_inst_store(
                         state->fun,
-                        TB_TYPE_I32,
+                        TB_TYPE_PTR,
                         tb_inst_member_access(state->fun, end_head, offsetof(vm_std_value_t, tag)),
-                        tb_inst_uint(state->fun, TB_TYPE_I32, 0),
+                        vm_tb_make_type(state->fun, VM_TYPE_UNK),
                         4,
                         false
                     );
@@ -813,13 +864,13 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     val_tag = tb_inst_load(
                         state->fun,
-                        TB_TYPE_I32,
+                        TB_TYPE_PTR,
                         tb_inst_member_access(
                             state->fun,
                             call_arg,
                             offsetof(vm_std_value_t, tag)
                         ),
-                        4,
+                        8,
                         false
                     );
 
@@ -881,7 +932,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     TB_PrototypeParam call_proto_rets[2] = {
                         {VM_TB_TYPE_VALUE},
-                        {TB_TYPE_I32},
+                        {TB_TYPE_PTR},
                     };
 
                     TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, nargs, call_proto_params, 2, call_proto_rets, false);
@@ -1016,10 +1067,10 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         );
                         tb_inst_store(
                             state->fun,
-                            TB_TYPE_I32,
+                            TB_TYPE_PTR,
                             val_tag,
                             got[1],
-                            4,
+                            8,
                             false
                         );
 
@@ -1038,9 +1089,9 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     val_tag = tb_inst_load(
                         state->fun,
-                        TB_TYPE_I32,
+                        TB_TYPE_PTR,
                         val_tag,
-                        4,
+                            8,
                         false
                     );
                 } else {
@@ -1072,14 +1123,14 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                     );
                     tb_inst_store(
                         state->fun,
-                        TB_TYPE_I32,
+                        TB_TYPE_PTR,
                         tb_inst_member_access(
                             state->fun,
                             arg2,
                             offsetof(vm_pair_t, key_tag)
                         ),
                         vm_tb_make_type(state, tag),
-                        4,
+                        8,
                         false
                     );
                     TB_Node *get_args[2] = {
@@ -1096,7 +1147,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     val_tag = tb_inst_load(
                         state->fun,
-                        TB_TYPE_I32,
+                        TB_TYPE_PTR,
                         tb_inst_member_access(
                             state->fun,
                             arg2,
@@ -1127,7 +1178,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                     val_tag = tb_inst_load(
                         state->fun,
-                        TB_TYPE_I32,
+                        TB_TYPE_PTR,
                         tb_inst_member_access(
                             state->fun,
                             std_val_ref,
@@ -1180,7 +1231,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
             TB_PrototypeParam next_rets[2] = {
                 {VM_TB_TYPE_VALUE},
-                {TB_TYPE_I32},
+                {TB_TYPE_PTR},
             };
 
             TB_PrototypeParam *next_params = vm_malloc(sizeof(TB_PrototypeParam) * next_nargs);
@@ -1370,7 +1421,7 @@ void vm_tb_print(vm_type_t tag, uint64_t ivalue) {
 
 void vm_tb_func_print_value(vm_tb_state_t *state, vm_type_t tag, TB_Node *value) {
     TB_PrototypeParam proto_args[2] = {
-        {TB_TYPE_I32},
+        {TB_TYPE_PTR},
         {VM_TB_TYPE_VALUE},
     };
 
@@ -1418,7 +1469,7 @@ void vm_tb_new_module(vm_tb_state_t *state) {
     // on windows we don't have access to multiple returns from C so we'll
     // just make a dumb caller for such a pattern
 #if defined(_WIN32)
-    TB_PrototypeParam call_proto_rets[2] = {{VM_TB_TYPE_VALUE}, {TB_TYPE_I32}};
+    TB_PrototypeParam call_proto_rets[2] = {{VM_TB_TYPE_VALUE}, {TB_TYPE_PTR}};
     TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, call_proto_rets, false);
 
     TB_PrototypeParam proto_params[2] = {{TB_TYPE_PTR}, {TB_TYPE_PTR}};
@@ -1433,7 +1484,7 @@ void vm_tb_new_module(vm_tb_state_t *state) {
     TB_Node *dst = tb_inst_param(fun, 0);
     tb_inst_store(fun, VM_TB_TYPE_VALUE, dst, out.multiple[0], _Alignof(vm_value_t), false);
     TB_Node *dst2 = tb_inst_member_access(fun, dst, offsetof(vm_std_value_t, tag));
-    tb_inst_store(fun, TB_TYPE_I32, dst2, out.multiple[1], _Alignof(uint32_t), false);
+    tb_inst_store(fun, TB_TYPE_PTR, dst2, out.multiple[1], _Alignof(uint32_t), false);
 
     tb_inst_ret(fun, 0, NULL);
 
@@ -1527,7 +1578,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     if (block == NULL) {
         TB_PrototypeParam proto_rets[2] = {
             {VM_TB_TYPE_VALUE},
-            {TB_TYPE_I32},
+            {TB_TYPE_PTR},
         };
 
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, proto_rets, false);
@@ -1551,7 +1602,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
         TB_PrototypeParam proto_rets[2] = {
             {VM_TB_TYPE_VALUE},
-            {TB_TYPE_I32},
+            {TB_TYPE_PTR},
         };
 
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, block->nargs, proto_args, 2, proto_rets, false);

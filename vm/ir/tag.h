@@ -3,17 +3,7 @@
 
 #include "../lib.h"
 
-struct vm_type_value_t;
-
-typedef struct vm_type_value_t vm_type_value_t;
-
-typedef const vm_type_value_t *vm_type_t;
-
-struct vm_type_value_t {
-    uint32_t tag;
-};
-
-enum {
+enum vm_tag_t {
     VM_TAG_UNK,
     VM_TAG_NIL,
     VM_TAG_BOOL,
@@ -32,9 +22,19 @@ enum {
     VM_TAG_MAX,
 };
 
+typedef enum vm_tag_t vm_tag_t;
+
+struct vm_type_value_t;
+typedef struct vm_type_value_t vm_type_value_t;
+
+typedef const vm_type_value_t *vm_type_t;
+
+struct vm_type_value_t {
+    vm_tag_t tag: 8;
+};
 extern const vm_type_value_t vm_type_base[VM_TAG_MAX];
 
-#define VM_TYPE_UNK (&vm_type_base[VM_TAG_UNK])
+#define VM_TYPE_UNK (NULL)
 #define VM_TYPE_NIL (&vm_type_base[VM_TAG_NIL])
 #define VM_TYPE_BOOL (&vm_type_base[VM_TAG_BOOL])
 #define VM_TYPE_I8 (&vm_type_base[VM_TAG_I8])
@@ -58,10 +58,16 @@ struct vm_types_t {
 typedef struct vm_types_t vm_types_t;
 
 static uint32_t vm_type_tag(vm_type_t type) {
+    if (type == NULL) {
+        return VM_TAG_UNK;
+    }
     return type->tag;
 }
 
 static bool vm_type_eq(vm_type_t a, vm_type_t b) {
+    if (a == NULL || b == NULL) {
+        return a == NULL && b == NULL;
+    }
     return vm_type_tag(a) == vm_type_tag(b);
 }
 

@@ -6,19 +6,19 @@
 const vm_type_value_t vm_type_base[VM_TAG_MAX] = {
     [VM_TAG_UNK] = {VM_TAG_UNK},
     [VM_TAG_NIL] = {VM_TAG_NIL},
-    [VM_TAG_BOOL] = {VM_TAG_CLOSURE},
-    [VM_TAG_I8] = {VM_TAG_CLOSURE},
-    [VM_TAG_I16] = {VM_TAG_CLOSURE},
-    [VM_TAG_I32] = {VM_TAG_CLOSURE},
-    [VM_TAG_I64] = {VM_TAG_CLOSURE},
-    [VM_TAG_F32] = {VM_TAG_CLOSURE},
-    [VM_TAG_F64] = {VM_TAG_CLOSURE},
-    [VM_TAG_STR] = {VM_TAG_CLOSURE},
+    [VM_TAG_BOOL] = {VM_TAG_BOOL},
+    [VM_TAG_I8] = {VM_TAG_I8},
+    [VM_TAG_I16] = {VM_TAG_I16},
+    [VM_TAG_I32] = {VM_TAG_I32},
+    [VM_TAG_I64] = {VM_TAG_I64},
+    [VM_TAG_F32] = {VM_TAG_F32},
+    [VM_TAG_F64] = {VM_TAG_F64},
+    [VM_TAG_STR] = {VM_TAG_STR},
     [VM_TAG_CLOSURE] = {VM_TAG_CLOSURE},
-    [VM_TAG_FUN] = {VM_TAG_CLOSURE},
-    [VM_TAG_TAB] = {VM_TAG_CLOSURE},
-    [VM_TAG_FFI] = {VM_TAG_CLOSURE},
-    [VM_TAG_ERROR] = {VM_TAG_CLOSURE},
+    [VM_TAG_FUN] = {VM_TAG_FUN},
+    [VM_TAG_TAB] = {VM_TAG_TAB},
+    [VM_TAG_FFI] = {VM_TAG_FFI},
+    [VM_TAG_ERROR] = {VM_TAG_ERROR},
 };
 
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_types_t *regs) {
@@ -156,7 +156,7 @@ ret:;
 }
 
 vm_branch_t vm_rblock_type_specialize_branch(vm_types_t *types, vm_branch_t branch) {
-    if (vm_type_eq(branch.tag, VM_TYPE_UNK)) {
+    if (!vm_type_eq(branch.tag, VM_TYPE_UNK)) {
         __builtin_trap();
     }
     if (branch.op == VM_BOP_GET) {
