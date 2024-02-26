@@ -42,7 +42,7 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
     }
 }
 void vm_io_format_type(vm_io_buffer_t *out, vm_type_t type) {
-    switch (type.tag) {
+    switch (vm_type_tag(type)) {
         case VM_TAG_UNK: {
             vm_io_buffer_format(out, "unk");
             break;

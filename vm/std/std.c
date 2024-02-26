@@ -117,7 +117,7 @@ void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
     const char *ret = "unknown";
-    switch (args[0].tag.tag) {
+    switch (vm_type_tag(args[0].tag)) {
         case VM_TAG_NIL: {
             ret = "nil";
             break;

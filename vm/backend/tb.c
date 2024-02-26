@@ -49,7 +49,7 @@ TB_Node *vm_tb_bitcast_to_value(vm_tb_state_t *state, TB_Node *src) {
 }
 
 TB_DataType vm_type_to_tb_type(vm_type_t type) {
-    switch (type.tag) {
+    switch (vm_type_tag(type)) {
         case VM_TAG_NIL: {
             return TB_TYPE_PTR;
         }
@@ -93,7 +93,7 @@ TB_DataType vm_type_to_tb_type(vm_type_t type) {
             return TB_TYPE_PTR;
         }
         default: {
-            fprintf(stderr, "\nunhandled type.tag #%zu\n", (size_t)type.tag);
+            fprintf(stderr, "\nunhandled type.tag #%zu\n", (size_t) vm_type_tag(type));
             __builtin_trap();
         }
     }
@@ -102,7 +102,7 @@ TB_DataType vm_type_to_tb_type(vm_type_t type) {
 TB_Node *vm_tb_func_read_arg(vm_tb_state_t *state, TB_Node **regs, vm_arg_t arg) {
     switch (arg.type) {
         case VM_ARG_LIT: {
-            switch (arg.lit.tag.tag) {
+            switch (vm_type_tag(arg.lit.tag)) {
                 case VM_TAG_NIL: {
                     return vm_tb_ptr_name(state, "0", NULL);
                 }
@@ -1358,7 +1358,7 @@ void vm_tb_func_report_error(vm_tb_state_t *state, const char *str) {
     tb_inst_ret(state->fun, 2, ret_vals);
 }
 
-void vm_tb_print(uint32_t tag, uint64_t ivalue) {
+void vm_tb_print(vm_type_t tag, uint64_t ivalue) {
     vm_std_value_t val = (vm_std_value_t){
         .tag = tag,
         .value = *(vm_value_t *) &ivalue,

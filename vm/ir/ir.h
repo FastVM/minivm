@@ -167,6 +167,6 @@ vm_type_t vm_arg_to_tag(vm_arg_t arg);
 void vm_free_block_sub(vm_block_t *block);
 void vm_free_block(vm_block_t *block);
 
-#define vm_arg_nil() ((vm_arg_t) { .type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL) })
+#define vm_arg_nil() ((vm_arg_t) { .type = (VM_ARG_LIT), .lit.tag = (VM_TYPE_NIL) })
 
 #endif

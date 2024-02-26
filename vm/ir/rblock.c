@@ -88,7 +88,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
                 }
             }
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                regs->tags[branch.out.reg] = (vm_type_t) {i};
+                regs->tags[branch.out.reg] = &vm_type_base[i];
                 branch.rtargets[i] = vm_rblock_new(from, regs);
             }
             break;
@@ -166,7 +166,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
                 }
             }
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                regs->tags[branch.out.reg] = (vm_type_t) {i};
+                regs->tags[branch.out.reg] = &vm_type_base[i];
                 branch.rtargets[i] = vm_rblock_new(from, regs);
             }
             break;
