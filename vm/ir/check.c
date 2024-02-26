@@ -4,18 +4,23 @@
 #include "rblock.h"
 #include "../std/io.h"
 
-static vm_tag_t vm_check_get_tag(vm_arg_t arg) {
+static vm_type_t vm_check_get_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_LIT) {
         return arg.lit.tag;
     }
     if (arg.type == VM_ARG_REG) {
         return arg.reg_tag;
     }
-    return VM_TAG_UNK;
+    return VM_TYPE_UNK;
 }
 
-bool vm_check_is_math(vm_tag_t arg) {
-    return arg == VM_TAG_I8 || arg == VM_TAG_I16 || arg == VM_TAG_I32 || arg == VM_TAG_I64 || arg == VM_TAG_F32 || arg == VM_TAG_F64;
+bool vm_check_is_math(vm_type_t type) {
+    return vm_type_eq(type, VM_TYPE_I8)
+        || vm_type_eq(type, VM_TYPE_I16)
+        || vm_type_eq(type, VM_TYPE_I32)
+        || vm_type_eq(type, VM_TYPE_I64)
+        || vm_type_eq(type, VM_TYPE_F32)
+        || vm_type_eq(type, VM_TYPE_F64);
 }
 
 const char *vm_check_instr(vm_instr_t instr) {
@@ -31,9 +36,9 @@ const char *vm_check_instr(vm_instr_t instr) {
         case VM_IOP_MUL:
         case VM_IOP_DIV:
         case VM_IOP_MOD: {
-            vm_tag_t a0 = vm_check_get_tag(instr.args[0]);
-            vm_tag_t a1 = vm_check_get_tag(instr.args[1]);
-            if (vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1) {
+            vm_type_t a0 = vm_check_get_tag(instr.args[0]);
+            vm_type_t a1 = vm_check_get_tag(instr.args[1]);
+            if (vm_check_is_math(a0) && vm_check_is_math(a1) && vm_type_eq(a0, a1)) {
                 return NULL;
             }
             return "bad math";
@@ -51,12 +56,12 @@ const char *vm_check_branch(vm_branch_t branch) {
         }
         case VM_BOP_BLE:
         case VM_BOP_BLT: {
-            vm_tag_t a0 = vm_check_get_tag(branch.args[0]);
-            vm_tag_t a1 = vm_check_get_tag(branch.args[1]);
-            if (vm_check_is_math(a0) && vm_check_is_math(a1) && a0 == a1) {
+            vm_type_t a0 = vm_check_get_tag(branch.args[0]);
+            vm_type_t a1 = vm_check_get_tag(branch.args[1]);
+            if (vm_check_is_math(a0) && vm_check_is_math(a1) && vm_type_eq(a0, a1)) {
                 return NULL;
             }
-            if (a0 == VM_TAG_BOOL && a1 == VM_TAG_BOOL) {
+            if (vm_type_eq(a0, VM_TYPE_BOOL) && vm_type_eq(a1, VM_TYPE_BOOL)) {
                 return NULL;
             }
             vm_io_buffer_t buf = {0};
@@ -70,25 +75,25 @@ const char *vm_check_branch(vm_branch_t branch) {
                     return NULL;
                 }
             }
-            if (vm_check_get_tag(branch.args[0]) == VM_TAG_FFI) {
+            if (vm_type_eq(vm_check_get_tag(branch.args[0]), VM_TYPE_FFI)) {
                 return NULL;
             }
-            if (vm_check_get_tag(branch.args[0]) == VM_TAG_FUN) {
+            if (vm_type_eq(vm_check_get_tag(branch.args[0]), VM_TYPE_FUN)) {
                 return NULL;
             }
-            if (vm_check_get_tag(branch.args[0]) == VM_TAG_CLOSURE) {
+            if (vm_type_eq(vm_check_get_tag(branch.args[0]), VM_TYPE_CLOSURE)) {
                 return NULL;
             }
             vm_io_buffer_t buf = {0};
             vm_io_buffer_format(&buf, "can't call type ");
-            vm_io_format_tag(&buf, vm_arg_to_tag(branch.args[0]));
+            vm_io_format_type(&buf, vm_arg_to_tag(branch.args[0]));
             return buf.buf;
         }
         case VM_BOP_GET: {
-            if (vm_check_get_tag(branch.args[0]) == VM_TAG_TAB) {
+            if (vm_type_eq(vm_check_get_tag(branch.args[0]), VM_TYPE_TAB)) {
                 return NULL;
             }
-            if (vm_check_get_tag(branch.args[0]) == VM_TAG_CLOSURE) {
+            if (vm_type_eq(vm_check_get_tag(branch.args[0]), VM_TYPE_CLOSURE)) {
                 return NULL;
             }
             return "can't index value: not a table";

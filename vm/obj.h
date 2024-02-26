@@ -36,14 +36,14 @@ union vm_value_t {
 
 struct vm_std_value_t {
     vm_value_t value;
-    uint32_t tag;
+    vm_type_t tag;
 };
 
 struct vm_pair_t {
     vm_value_t key_val;
     vm_value_t val_val;
-    uint32_t key_tag;
-    uint32_t val_tag;
+    vm_type_t key_tag;
+    vm_type_t val_tag;
 };
 
 struct vm_table_t {
@@ -68,12 +68,12 @@ bool vm_value_can_to_n64(vm_std_value_t val);
 
 void vm_free_table(vm_table_t *table);
 vm_table_t *vm_table_new(void);
-vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, uint32_t key_tag);
-void vm_table_iset(vm_table_t *table, uint64_t key_ival, uint64_t val_ival, uint32_t key_tag, uint32_t val_tag);
-void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, uint32_t key_tag, uint32_t val_tag);
+vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_type_t key_tag);
+void vm_table_iset(vm_table_t *table, uint64_t key_ival, uint64_t val_ival, vm_type_t key_tag, vm_type_t val_tag);
+void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_type_t key_tag, vm_type_t val_tag);
 void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair);
 void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
 
-#define vm_table_lookup_str(TABLE_, STR_) (vm_table_lookup((TABLE_), (vm_value_t) {.str = (STR_)}, VM_TAG_STR))
+#define vm_table_lookup_str(TABLE_, STR_) (vm_table_lookup((TABLE_), (vm_value_t) {.str = (STR_)}, VM_TYPE_STR))
 
 #endif

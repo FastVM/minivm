@@ -16,17 +16,14 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
     switch (val.type) {
         case VM_ARG_LIT: {
             vm_io_print_lit(out, val.lit);
-            if (val.lit.tag != VM_TAG_NIL && val.lit.tag != VM_TAG_STR && val.lit.tag != VM_TAG_FFI && val.lit.tag != VM_TAG_BOOL) {
-                vm_io_format_tag(out, val.lit.tag);
-            }
             break;
         }
         case VM_ARG_REG: {
-            if (val.reg_tag == VM_TAG_UNK) {
+            if (vm_type_eq(val.reg_tag, VM_TYPE_UNK)) {
                 vm_io_buffer_format(out, "%%%zu", (size_t)val.reg);
             } else {
                 vm_io_buffer_format(out, "%%%zu:", (size_t)val.reg);
-                vm_io_format_tag(out, val.reg_tag);
+                vm_io_format_type(out, val.reg_tag);
             }
             break;
         }
@@ -44,8 +41,8 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
         };
     }
 }
-void vm_io_format_tag(vm_io_buffer_t *out, vm_tag_t tag) {
-    switch (tag) {
+void vm_io_format_type(vm_io_buffer_t *out, vm_type_t type) {
+    switch (type.tag) {
         case VM_TAG_UNK: {
             vm_io_buffer_format(out, "unk");
             break;
@@ -154,9 +151,9 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             break;
         }
     }
-    if (val.tag != VM_TAG_UNK) {
+    if (!vm_type_eq(val.tag, VM_TYPE_UNK)) {
         vm_io_buffer_format(out, ".");
-        vm_io_format_tag(out, val.tag);
+        vm_io_format_type(out, val.tag);
     }
     if (val.op == VM_BOP_CALL) {
         vm_io_buffer_format(out, " ");
@@ -269,9 +266,9 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
             break;
         }
     }
-    if (val.tag != VM_TAG_UNK) {
+    if (!vm_type_eq(val.tag, VM_TYPE_UNK)) {
         vm_io_buffer_format(out, ".");
-        vm_io_format_tag(out, val.tag);
+        vm_io_format_type(out, val.tag);
     }
     for (size_t i = 0; val.args[i].type != VM_ARG_NONE; i++) {
         vm_io_buffer_format(out, " ");
@@ -459,15 +456,15 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
     }
 }
 
-vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
+vm_type_t vm_arg_to_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_REG) {
         return arg.reg_tag;
     } else if (arg.type == VM_ARG_LIT) {
         return arg.lit.tag;
     } else if (arg.type == VM_ARG_FUN) {
-        return VM_TAG_FUN;
+        return VM_TYPE_FUN;
     } else {
-        return VM_TAG_UNK;
+        return VM_TYPE_UNK;
     }
 }
 
