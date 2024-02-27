@@ -65,7 +65,7 @@ static bool inverted_cmp(TB_Node* n, TB_Node* n2) {
     }
 }
 
-static Lattice* sccp_sext(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_sext(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -98,7 +98,7 @@ static Lattice* sccp_sext(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* sccp_zext(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_zext(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -114,7 +114,7 @@ static Lattice* sccp_zext(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* sccp_trunc(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_trunc(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -133,7 +133,7 @@ static Lattice* sccp_trunc(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* sccp_arith(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_arith(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
@@ -176,7 +176,7 @@ static Lattice* sccp_arith(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static Lattice* sccp_bitcast(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_bitcast(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -190,7 +190,7 @@ static Lattice* sccp_bitcast(TB_Passes* restrict opt, TB_Node* n) {
     return NULL;
 }
 
-static Lattice* sccp_unary(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_unary(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     if (a == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -231,7 +231,7 @@ static Lattice* sccp_unary(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static Lattice* sccp_bits(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_bits(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
@@ -276,11 +276,15 @@ static Lattice* sccp_bits(TB_Passes* restrict opt, TB_Node* n) {
     return lattice_intern(opt, (Lattice){ LATTICE_INT, ._int = { min, max, zeros, ones } });
 }
 
-static Lattice* sccp_shift(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_shift(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
+    }
+
+    if (b->tag == LATTICE_INT && b->_int.max > b->_int.min) {
+        return NULL;
     }
 
     uint64_t bits = n->dt.data;
@@ -337,7 +341,8 @@ static Lattice* sccp_shift(TB_Passes* restrict opt, TB_Node* n) {
             // if we know how many bits we shifted then we know where
             // our known ones ones went
             if (b->_int.min == b->_int.max) {
-                ones >>= b->_int.min;
+                ones  = 0;
+                zeros = ~(mask >> b->_int.min) & mask;
             }
             break;
 
@@ -350,7 +355,7 @@ static Lattice* sccp_shift(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static Lattice* sccp_cmp(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_cmp(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* a = lattice_universe_get(opt, n->inputs[1]);
     Lattice* b = lattice_universe_get(opt, n->inputs[2]);
     if (a == &TOP_IN_THE_SKY || b == &TOP_IN_THE_SKY) {
@@ -588,18 +593,26 @@ static int node_pos(TB_Node* n) {
     }
 }
 
+static bool is_shift_op(TB_Node* n) {
+    return n->type == TB_SHL || n->type == TB_SHR || n->type == TB_SAR;
+}
+
 static bool is_iconst(TB_Passes* p, TB_Node* n) { return lattice_is_const(lattice_universe_get(p, n)); }
 static TB_Node* ideal_int_binop(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     TB_NodeTypeEnum type = n->type;
     TB_Node* a = n->inputs[1];
     TB_Node* b = n->inputs[2];
-    bool less = node_pos(a) < node_pos(b);
 
     // if it's commutative: we wanna have a canonical form.
-    if (is_commutative(type) && less) {
-        set_input(f, n, b, 1);
-        set_input(f, n, a, 2);
-        return n;
+    if (is_commutative(type)) {
+        // if they're the same rank, then we'll just shuffle for smaller gvn on the right
+        int ap = node_pos(a);
+        int bp = node_pos(b);
+        if (ap < bp || (ap == bp && a->gvn < b->gvn)) {
+            set_input(f, n, b, 1);
+            set_input(f, n, a, 2);
+            return n;
+        }
     }
 
     // (aa + ab) + b => aa + (ab + b) where ab and b are constant
@@ -608,7 +621,7 @@ static TB_Node* ideal_int_binop(TB_Passes* restrict p, TB_Function* f, TB_Node* 
         set_input(f, abb, a->inputs[2], 1);
         set_input(f, abb, b, 2);
 
-        Lattice* l = sccp_arith(p, abb);
+        Lattice* l = value_arith(p, abb);
         assert(l->tag == LATTICE_INT && l->_int.min == l->_int.max);
 
         violent_kill(f, abb);
@@ -849,7 +862,23 @@ static TB_Node* ideal_int_div(TB_Passes* restrict opt, TB_Function* f, TB_Node* 
 // a ^ 0 => a
 // a * 0 => 0
 // a / 0 => poison
-static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
+static TB_Node* identity_int_binop(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
+    if (n->type == TB_AND) {
+        Lattice* aa = lattice_universe_get(p, n->inputs[1]);
+        Lattice* bb = lattice_universe_get(p, n->inputs[2]);
+        uint64_t mask = tb__mask(n->dt.data);
+
+        if (aa != &TOP_IN_THE_SKY && bb->tag == LATTICE_INT && bb->_int.min == bb->_int.max) {
+            uint32_t src = aa->_int.known_zeros;
+            uint32_t chopped = ~bb->_int.min & mask;
+
+            // if the known zeros is more than those chopped then the mask is useless
+            if ((src & chopped) == chopped) {
+                return n->inputs[1];
+            }
+        }
+    }
+
     uint64_t b;
     if (!get_int_const(n->inputs[2], &b)) {
         return n;
@@ -882,7 +911,7 @@ static TB_Node* identity_int_binop(TB_Passes* restrict opt, TB_Function* f, TB_N
             case TB_CMP_NE: {
                 // walk up extension
                 TB_Node* src = n->inputs[1];
-                if (src->type == TB_ZERO_EXT) {
+                if (src->type == TB_ZERO_EXT || src->type == TB_SIGN_EXT) {
                     src = src->inputs[1];
                 }
 
@@ -955,13 +984,13 @@ static TB_Node* ideal_array_ptr(TB_Passes* restrict opt, TB_Function* f, TB_Node
         return n;
     }
 
-    // (array A (add B C) D) => (member (array A B D) C*D)
     if (index->type == TB_ADD) {
         TB_Node* new_index = index->inputs[1];
         TB_Node* add_rhs   = index->inputs[2];
 
         uint64_t offset;
         if (get_int_const(add_rhs, &offset)) {
+            // (array A (add B C) D) => (member (array A B D) C*D)
             offset *= stride;
 
             TB_Node* new_n = tb_alloc_node(f, TB_ARRAY_ACCESS, TB_TYPE_PTR, 3, sizeof(TB_NodeArray));
@@ -976,6 +1005,20 @@ static TB_Node* ideal_array_ptr(TB_Passes* restrict opt, TB_Function* f, TB_Node
             tb_pass_mark(opt, new_n);
             tb_pass_mark(opt, new_member);
             return new_member;
+        } else if (add_rhs->type == TB_SHL && add_rhs->inputs[2]->type == TB_INTEGER_CONST) {
+            // (array A (add B (shl C D)) E) => (array (array A B 1<<D) B E)
+            TB_Node* second_index = add_rhs->inputs[1];
+            uint64_t amt = 1ull << TB_NODE_GET_EXTRA_T(n, TB_NodeInt)->value;
+
+            TB_Node* new_n = tb_alloc_node(f, TB_ARRAY_ACCESS, TB_TYPE_PTR, 3, sizeof(TB_NodeArray));
+            set_input(f, new_n, base, 1);
+            set_input(f, new_n, second_index, 2);
+            TB_NODE_SET_EXTRA(new_n, TB_NodeArray, .stride = amt);
+
+            tb_pass_mark(opt, new_n);
+            set_input(f, n, new_n,     1);
+            set_input(f, n, new_index, 2);
+            return n;
         }
     }
 

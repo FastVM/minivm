@@ -1,7 +1,7 @@
 #include "macho.h"
 
 #define WRITE(data, size) (memcpy(&output[write_pos], data, size), write_pos += (size))
-TB_ExportBuffer tb_macho_write_output(TB_Module* m, const IDebugFormat* dbg) {
+TB_ExportBuffer tb_macho_write_output(TB_Module* m, TB_Arena* dst_arena, const IDebugFormat* dbg) {
     const ICodeGen* code_gen = tb__find_code_generator(m);
 
     //TB_TemporaryStorage* tls = tb_tls_allocate();
@@ -87,7 +87,7 @@ TB_ExportBuffer tb_macho_write_output(TB_Module* m, const IDebugFormat* dbg) {
 
     // Allocate memory now
     size_t write_pos = 0;
-    TB_ExportChunk* chunk = tb_export_make_chunk(output_size);
+    TB_ExportChunk* chunk = tb_export_make_chunk(dst_arena, output_size);
     uint8_t* restrict output = chunk->data;
 
     // General layout is:

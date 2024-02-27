@@ -12,7 +12,7 @@
 // system
 #if defined(__APPLE__) && defined(__MACH__)
 #define TB_HOST_OSX 1
-#elif defined(__gnu_linux__) || defined(__linux__) || defined(EMSCRIPTEN)
+#elif defined(__gnu_linux__) || defined(__linux__)
 #define TB_HOST_LINUX 2
 #elif defined(_WIN32)
 #define TB_HOST_WINDOWS 3

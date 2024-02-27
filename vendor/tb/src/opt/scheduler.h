@@ -82,13 +82,13 @@ void greedy_scheduler(TB_Passes* passes, TB_CFG* cfg, Worklist* ws, DynArray(Phi
             if (search >= 0) continue;
 
             User* succ = cfg_next_user(end);
-            if (succ->n->type == TB_REGION) {
+            if (cfg_is_region(succ->n)) {
                 fill_phis(arena, &phis, succ->n, succ->slot);
             }
         }
-    } else {
+    } else if (!cfg_is_endpoint(end)) {
         User* succ = cfg_next_user(end);
-        if (succ && succ->n->type == TB_REGION) {
+        if (cfg_is_region(succ->n)) {
             fill_phis(arena, &phis, succ->n, succ->slot);
         }
     }

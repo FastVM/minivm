@@ -200,7 +200,7 @@ typedef struct TB_LinkerVtbl {
     void (*append_object)(TB_Linker* l, TB_LinkerThreadInfo* info, TB_Slice obj_name, TB_Slice content);
     void (*append_library)(TB_Linker* l, TB_LinkerThreadInfo* info, TB_Slice ar_name, TB_Slice ar_file);
     void (*append_module)(TB_Linker* l, TB_LinkerThreadInfo* info, TB_Module* m);
-    TB_ExportBuffer (*export)(TB_Linker* l);
+    TB_ExportBuffer (*export)(TB_Linker* l, TB_Arena* dst_arena);
 } TB_LinkerVtbl;
 
 typedef struct TB_Linker {

@@ -1,9 +1,9 @@
 #include "tb_internal.h"
 
-TB_ExportBuffer tb_coff_write_output(TB_Module* restrict m, const IDebugFormat* dbg);
-TB_ExportBuffer tb_macho_write_output(TB_Module* restrict m, const IDebugFormat* dbg);
-TB_ExportBuffer tb_elf64obj_write_output(TB_Module* restrict m, const IDebugFormat* dbg);
-TB_ExportBuffer tb_wasm_write_output(TB_Module* restrict m, const IDebugFormat* dbg);
+TB_ExportBuffer tb_coff_write_output(TB_Module* restrict m, TB_Arena* dst_arena, const IDebugFormat* dbg);
+TB_ExportBuffer tb_macho_write_output(TB_Module* restrict m, TB_Arena* dst_arena, const IDebugFormat* dbg);
+TB_ExportBuffer tb_elf64obj_write_output(TB_Module* restrict m, TB_Arena* dst_arena, const IDebugFormat* dbg);
+TB_ExportBuffer tb_wasm_write_output(TB_Module* restrict m, TB_Arena* dst_arena, const IDebugFormat* dbg);
 
 static const IDebugFormat* find_debug_format(TB_DebugFormat debug_fmt) {
     // Place all debug formats here
@@ -17,20 +17,21 @@ static const IDebugFormat* find_debug_format(TB_DebugFormat debug_fmt) {
     }
 }
 
-TB_API TB_ExportBuffer tb_module_object_export(TB_Module* m, TB_DebugFormat debug_fmt){
-    typedef TB_ExportBuffer ExporterFn(TB_Module* restrict m, const IDebugFormat* dbg);
+TB_API TB_ExportBuffer tb_module_object_export(TB_Module* m, TB_Arena* dst_arena, TB_DebugFormat debug_fmt){
+    typedef TB_ExportBuffer ExporterFn(TB_Module* restrict m, TB_Arena* dst_arena, const IDebugFormat* dbg);
 
     // map target systems to exporters (maybe we wanna decouple this later)
     static ExporterFn* const fn[TB_SYSTEM_MAX] = {
         [TB_SYSTEM_WINDOWS] = tb_coff_write_output,
         [TB_SYSTEM_MACOS]   = tb_macho_write_output,
         [TB_SYSTEM_LINUX]   = tb_elf64obj_write_output,
+        [TB_SYSTEM_WASM]    = tb_wasm_write_output,
     };
 
     assert(fn[m->target_system] != NULL && "TODO");
     TB_ExportBuffer e;
     CUIK_TIMED_BLOCK("export") {
-        e = fn[m->target_system](m, find_debug_format(debug_fmt));
+        e = fn[m->target_system](m, dst_arena, find_debug_format(debug_fmt));
     }
     return e;
 }
@@ -56,15 +57,6 @@ TB_API bool tb_export_buffer_to_file(TB_ExportBuffer buffer, const char* path) {
 
     fclose(file);
     return true;
-}
-
-TB_API void tb_export_buffer_free(TB_ExportBuffer buffer) {
-    TB_ExportChunk* c = buffer.head;
-    while (c != NULL) {
-        TB_ExportChunk* next = c->next;
-        tb_platform_heap_free(c);
-        c = next;
-    }
 }
 
 static int compare_symbols(const void* a, const void* b) {
@@ -233,8 +225,8 @@ size_t tb__layout_relocations(TB_Module* m, DynArray(TB_ModuleSection) sections,
     return output_size;
 }
 
-TB_ExportChunk* tb_export_make_chunk(size_t size) {
-    TB_ExportChunk* c = tb_platform_heap_alloc(sizeof(TB_ExportChunk) + size);
+TB_ExportChunk* tb_export_make_chunk(TB_Arena* arena, size_t size) {
+    TB_ExportChunk* c = tb_arena_alloc(arena, sizeof(TB_ExportChunk) + size);
     c->next = NULL;
     c->pos  = 0;
     c->size = size;

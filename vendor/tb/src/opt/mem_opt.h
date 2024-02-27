@@ -150,7 +150,7 @@ static TB_Node* identity_load(TB_Passes* restrict p, TB_Function* f, TB_Node* n)
     return n;
 }
 
-static Lattice* sccp_split_mem(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_split_mem(TB_Passes* restrict p, TB_Node* n) {
     TB_NodeMemSplit* s = TB_NODE_GET_EXTRA(n);
 
     size_t size = sizeof(Lattice) + s->alias_cnt*sizeof(Lattice*);
@@ -200,7 +200,7 @@ static TB_Node* ideal_merge_mem(TB_Passes* restrict p, TB_Function* f, TB_Node* 
 
             // we didn't *really* change the memory type, just reordered it (all the live projs
             // are the same so we don't need to push them onto the worklist)
-            Lattice* new_split_type = sccp_split_mem(p, split_node);
+            Lattice* new_split_type = value_split_mem(p, split_node);
             lattice_universe_map(p, split_node, new_split_type);
         } else {
             i += 1;
@@ -285,11 +285,11 @@ static TB_Node* ideal_memcpy(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
     return NULL;
 }
 
-static Lattice* sccp_merge_mem(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_merge_mem(TB_Passes* restrict p, TB_Node* n) {
     return &BOT_IN_THE_SKY;
 }
 
-static Lattice* sccp_mem(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_mem(TB_Passes* restrict p, TB_Node* n) {
     // just inherit memory from parent
     return lattice_universe_get(p, n->inputs[1]);
 }

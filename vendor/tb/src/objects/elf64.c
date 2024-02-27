@@ -61,7 +61,7 @@ static void put_section_symbols(DynArray(TB_ModuleSection) sections, TB_Emitter*
 }
 
 #define WRITE(data, size) (memcpy(&output[write_pos], data, size), write_pos += (size))
-TB_ExportBuffer tb_elf64obj_write_output(TB_Module* m, const IDebugFormat* dbg) {
+TB_ExportBuffer tb_elf64obj_write_output(TB_Module* m, TB_Arena* dst_arena, const IDebugFormat* dbg) {
     ExportList exports;
     CUIK_TIMED_BLOCK("layout section") {
         exports = tb_module_layout_sections(m);
@@ -192,7 +192,7 @@ TB_ExportBuffer tb_elf64obj_write_output(TB_Module* m, const IDebugFormat* dbg) 
     // write output
     ////////////////////////////////
     size_t write_pos = 0;
-    TB_ExportChunk* chunk = tb_export_make_chunk(output_size);
+    TB_ExportChunk* chunk = tb_export_make_chunk(dst_arena, output_size);
     uint8_t* restrict output = chunk->data;
 
     WRITE(&header, sizeof(header));

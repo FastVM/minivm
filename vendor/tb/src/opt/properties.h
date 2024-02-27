@@ -51,8 +51,12 @@ static bool is_effect_tuple(TB_Node* n) {
     }
 }
 
-static bool cfg_is_loop(TB_Node* n) {
-    return n->type == TB_REGION && TB_NODE_GET_EXTRA_T(n, TB_NodeRegion)->natty;
+static bool cfg_is_region(TB_Node* n) {
+    return n->type >= TB_REGION && n->type <= TB_AFFINE_LOOP;
+}
+
+static bool cfg_is_natural_loop(TB_Node* n) {
+    return n->type >= TB_NATURAL_LOOP && n->type <= TB_AFFINE_LOOP;
 }
 
 static bool cfg_is_terminator(TB_Node* n) {

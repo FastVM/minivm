@@ -65,6 +65,7 @@ static size_t extra_bytes(TB_Node* n) {
         case TB_PHI:
         case TB_CLZ:
         case TB_CTZ:
+        case TB_ADC:
         case TB_VA_START:
         case TB_POISON:
         case TB_SELECT:
@@ -74,7 +75,6 @@ static size_t extra_bytes(TB_Node* n) {
         case TB_UNREACHABLE:
         case TB_DEBUGBREAK:
         case TB_CYCLE_COUNTER:
-        case TB_ADDPAIR:
         case TB_MULPAIR:
         case TB_READ:
         case TB_WRITE:
@@ -86,13 +86,13 @@ static size_t extra_bytes(TB_Node* n) {
         return sizeof(TB_NodeMemSplit);
 
         case TB_REGION:
+        case TB_NATURAL_LOOP:
+        case TB_AFFINE_LOOP:
         return sizeof(TB_NodeRegion);
 
         case TB_CALL:
-        case TB_SYSCALL: {
-            TB_NodeCall* c = TB_NODE_GET_EXTRA(n);
-            return sizeof(TB_NodeCall) + (sizeof(TB_Node*) * c->proj_count);
-        }
+        case TB_SYSCALL:
+        return sizeof(TB_NodeCall);
 
         case TB_TAILCALL:
         return sizeof(TB_NodeTailcall);

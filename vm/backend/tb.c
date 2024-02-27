@@ -885,7 +885,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                             call_arg,
                             offsetof(vm_std_value_t, value)
                         ),
-                        4,
+                        8,
                         false
                     );
                 } else if (vm_type_eq(vm_arg_to_tag(branch.args[0]), VM_TYPE_CLOSURE)) {
@@ -916,8 +916,8 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                     TB_Node *after = tb_inst_region(state->fun);
                     tb_inst_set_region_name(state->fun, after, -1, "after_cache");
 
-                    val_val = tb_inst_local(state->fun, 8, 8);
-                    val_tag = tb_inst_local(state->fun, 4, 4);
+                    val_val = tb_inst_local(state->fun, sizeof(vm_value_t), 8);
+                    val_tag = tb_inst_local(state->fun, sizeof(vm_type_t), 8);
 
                     size_t nargs = 1;
                     for (size_t arg = 1; branch.args[arg].type != VM_ARG_NONE; arg++) {
@@ -1030,10 +1030,10 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
                         tb_inst_store(
                             state->fun,
-                            TB_TYPE_I32,
+                            TB_TYPE_PTR,
                             val_tag,
                             got[1],
-                            4,
+                            8,
                             false
                         );
 
@@ -1215,6 +1215,8 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                 1,
                 false
             );
+
+            // tb_inst_debugbreak(state->fun);
 
             size_t next_nargs = branch.targets[0]->nargs;
 
@@ -1474,8 +1476,8 @@ void vm_tb_new_module(vm_tb_state_t *state) {
     tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
     tb_symbol_bind_ptr(state->vm_tb_print, (void *)&vm_tb_print);
 
-    state->arena = tb_arena_create(1 << 20);
-    state->jit = tb_jit_begin(state->module, 1 << 20);
+    state->arena = tb_arena_create(1 << 16);
+    state->jit = tb_jit_begin(state->module, 1 << 16);
 
     // on windows we don't have access to multiple returns from C so we'll
     // just make a dumb caller for such a pattern
@@ -1507,7 +1509,6 @@ void vm_tb_new_module(vm_tb_state_t *state) {
 
     state->vm_caller = tb_jit_place_function(state->jit, fun);
     tb_arena_clear(state->arena);
-}
 #endif
 }
 
@@ -1645,8 +1646,6 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
 
             for (size_t i = 0; i < block->nregs; i++) {
                 regs[i] = tb_inst_local(state->fun, 8, 8);
-                // tb_inst_store(state->fun, VM_TB_TYPE_VALUE, regs[i], tb_inst_uint(state->fun, VM_TB_TYPE_VALUE, 0), 8, false);
-                // tb_inst_store(state->fun, VM_TB_TYPE_VALUE, regs[i], tb_inst_load(state->fun, VM_TB_TYPE_VALUE, regs[i], 8, false), 8, false);
             }
 
             for (size_t i = 0; i < block->nargs; i++) {

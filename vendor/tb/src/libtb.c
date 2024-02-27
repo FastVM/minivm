@@ -34,6 +34,7 @@ void* tb_jit_stack_create(void);
 #include "objects/coff.c"
 #include "objects/elf64.c"
 #include "objects/macho.c"
+#include "objects/wasm_obj.c"
 
 // Linker
 #include "linker/linker.c"
@@ -104,22 +105,5 @@ bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {
     }
 
     return mprotect(ptr, size, protect) == 0;
-}
-
-#elif defined(EMSCRIPTEN)
-void* tb_platform_valloc(size_t size) {
-    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-}
-
-void* tb_platform_valloc_guard(size_t size) {
-    return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-}
-
-void tb_platform_vfree(void* ptr, size_t size) {
-    munmap(ptr, size);
-}
-
-bool tb_platform_vprotect(void* ptr, size_t size, TB_MemProtect prot) {
-    return true;
 }
 #endif

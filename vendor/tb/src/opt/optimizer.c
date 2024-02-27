@@ -211,7 +211,7 @@ static bool is_empty_bb(TB_Passes* restrict p, TB_Node* end) {
 
 static bool is_if_branch(TB_Node* n, uint64_t* falsey) {
     if (n->type == TB_BRANCH && n->input_count == 2 && TB_NODE_GET_EXTRA_T(n, TB_NodeBranch)->succ_count == 2) {
-        *falsey = TB_NODE_GET_EXTRA_T(n, TB_NodeBranch)->keys[0];
+        *falsey = TB_NODE_GET_EXTRA_T(n, TB_NodeBranch)->keys[0].key;
         return true;
     }
 
@@ -222,6 +222,9 @@ static bool is_if_branch(TB_Node* n, uint64_t* falsey) {
 // a limited walk of 20 steps.
 static TB_Node* fast_idom(TB_Node* bb) {
     int steps = 0;
+
+    // note that "subtypes" of region like TB_NATURAL_LOOP and TB_AFFINE_LOOP are
+    // valid for fast doms since they guarentee they're dominated by inputs[0]
     while (steps < FAST_IDOM_LIMIT && bb->type != TB_REGION && bb->type != TB_ROOT) {
         bb = bb->inputs[0];
         steps++;
@@ -232,24 +235,15 @@ static TB_Node* fast_idom(TB_Node* bb) {
 
 static bool fast_dommy(TB_Node* expected_dom, TB_Node* bb) {
     int steps = 0;
+
+    // note that "subtypes" of region like TB_NATURAL_LOOP and TB_AFFINE_LOOP are
+    // valid for fast doms since they guarentee they're dominated by inputs[0]
     while (steps < FAST_IDOM_LIMIT && bb != expected_dom && bb->type != TB_REGION && bb->type != TB_ROOT) {
         bb = bb->inputs[0];
         steps++;
     }
 
     return bb == expected_dom;
-}
-
-static bool slow_dommy(TB_CFG* cfg, TB_Node* expected_dom, TB_Node* bb) {
-    while (bb != NULL && expected_dom != bb) {
-        TB_Node* new_bb = idom(cfg, bb);
-        if (new_bb == NULL || new_bb == bb) {
-            return false;
-        }
-        bb = new_bb;
-    }
-
-    return true;
 }
 
 // unity build with all the passes
@@ -268,6 +262,7 @@ static bool slow_dommy(TB_CFG* cfg, TB_Node* expected_dom, TB_Node* bb) {
 #include "libcalls.h"
 #include "mem2reg.h"
 #include "scheduler.h"
+#include "legalizer.h"
 
 static void violent_kill(TB_Function* f, TB_Node* n) {
     // remove from GVN if we're murdering it
@@ -290,7 +285,7 @@ static void violent_kill(TB_Function* f, TB_Node* n) {
     n->type = TB_NULL;
 }
 
-static Lattice* sccp_int(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_int(TB_Passes* restrict p, TB_Node* n) {
     assert(n->type == TB_INTEGER_CONST);
     TB_NodeInt* num = TB_NODE_GET_EXTRA(n);
     if (n->dt.type == TB_PTR) {
@@ -300,13 +295,13 @@ static Lattice* sccp_int(TB_Passes* restrict p, TB_Node* n) {
     }
 }
 
-static Lattice* sccp_proj(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_proj(TB_Passes* restrict p, TB_Node* n) {
     assert(n->type == TB_PROJ);
     Lattice* l = lattice_universe_get(p, n->inputs[0]);
     if (l == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
     } else if (l == &BOT_IN_THE_SKY) {
-        return &BOT_IN_THE_SKY;
+        return lattice_from_dt(p, n->dt);
     } else {
         assert(l->tag == LATTICE_TUPLE);
         int index = TB_NODE_GET_EXTRA_T(n, TB_NodeProj)->index;
@@ -314,11 +309,11 @@ static Lattice* sccp_proj(TB_Passes* restrict p, TB_Node* n) {
     }
 }
 
-static Lattice* sccp_ctrl(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_ctrl(TB_Passes* restrict p, TB_Node* n) {
     return lattice_universe_get(p, n->inputs[0]);
 }
 
-static Lattice* sccp_ptr_vals(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_ptr_vals(TB_Passes* restrict p, TB_Node* n) {
     if (n->type == TB_LOCAL) {
         return &XNULL_IN_THE_SKY;
     } else {
@@ -327,7 +322,7 @@ static Lattice* sccp_ptr_vals(TB_Passes* restrict p, TB_Node* n) {
     }
 }
 
-static Lattice* sccp_lookup(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_lookup(TB_Passes* restrict p, TB_Node* n) {
     TB_NodeLookup* l = TB_NODE_GET_EXTRA(n);
     TB_DataType dt = n->dt;
     assert(dt.type == TB_INT);
@@ -341,8 +336,8 @@ static Lattice* sccp_lookup(TB_Passes* restrict p, TB_Node* n) {
     return lattice_intern(p, (Lattice){ LATTICE_INT, ._int = a });
 }
 
-static Lattice* sccp_region(TB_Passes* restrict p, TB_Node* n) {
-    assert(n->type == TB_REGION);
+static Lattice* value_region(TB_Passes* restrict p, TB_Node* n) {
+    assert(cfg_is_region(n));
     FOREACH_N(i, 0, n->input_count) {
         Lattice* edge = lattice_universe_get(p, n->inputs[i]);
         if (edge == &CTRL_IN_THE_SKY) {
@@ -353,7 +348,7 @@ static Lattice* sccp_region(TB_Passes* restrict p, TB_Node* n) {
     return &TOP_IN_THE_SKY;
 }
 
-static Lattice* sccp_phi(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_phi(TB_Passes* restrict p, TB_Node* n) {
     // wait for region to check first
     TB_Node* r = n->inputs[0];
     if (lattice_universe_get(p, r) == &TOP_IN_THE_SKY) return &TOP_IN_THE_SKY;
@@ -372,7 +367,7 @@ static Lattice* sccp_phi(TB_Passes* restrict p, TB_Node* n) {
     return l;
 }
 
-static Lattice* sccp_select(TB_Passes* restrict p, TB_Node* n) {
+static Lattice* value_select(TB_Passes* restrict p, TB_Node* n) {
     Lattice* a = lattice_universe_get(p, n->inputs[2]);
     Lattice* b = lattice_universe_get(p, n->inputs[3]);
     return lattice_meet(p, a, b, n->dt);
@@ -584,7 +579,7 @@ static void push_all_nodes(TB_Passes* restrict p, Worklist* restrict ws, TB_Func
 
 static void cool_print_type(TB_Node* n) {
     TB_DataType dt = n->dt;
-    if (n->type != TB_ROOT && n->type != TB_REGION && !(n->type == TB_BRANCH && n->input_count == 1)) {
+    if (n->type != TB_ROOT && !cfg_is_region(n) && !(n->type == TB_BRANCH && n->input_count == 1)) {
         if (n->type == TB_STORE) {
             dt = n->inputs[3]->dt;
         } else if (n->type == TB_BRANCH) {
@@ -658,9 +653,9 @@ static TB_Node* identity(TB_Passes* restrict p, TB_Function* f, TB_Node* n) {
     return identity ? identity(p, f, n) : n;
 }
 
-static Lattice* sccp(TB_Passes* restrict p, TB_Node* n, bool optimistic) {
-    NodeConstprop constprop = vtables[n->type].constprop;
-    Lattice* type = constprop ? constprop(p, n) : NULL;
+static Lattice* value_of(TB_Passes* restrict p, TB_Node* n, bool optimistic) {
+    NodeValueOf value = vtables[n->type].value;
+    Lattice* type = value ? value(p, n) : NULL;
 
     // no type provided? just make a not-so-form fitting bottom type
     if (type == NULL) {
@@ -693,7 +688,7 @@ static TB_Node* try_as_const(TB_Passes* restrict p, TB_Node* n, Lattice* l, bool
 
     // Dead node? kill
     TB_Function* f = p->f;
-    if (n->type == TB_REGION) {
+    if (cfg_is_region(n)) {
         // remove dead predeccessors
         bool changes = false;
 
@@ -871,31 +866,39 @@ static void print_lattice(Lattice* l, TB_DataType dt) {
         }
         case LATTICE_INT: {
             assert(dt.type == TB_INT);
+
+            printf("[");
             if (l->_int.min == l->_int.max) {
                 printf("%"PRId64, tb__sxt(l->_int.min, dt.data, 64));
             } else if (l->_int.min == 0 && l->_int.max == 1) {
                 printf("bool");
+            } else if (l->_int.min == INT16_MIN && l->_int.max == INT16_MAX) {
+                printf("i8");
             } else if (l->_int.min == 0 && l->_int.max == UINT8_MAX) {
                 printf("u8");
+            } else if (l->_int.min == INT16_MIN && l->_int.max == INT16_MAX) {
+                printf("i16");
             } else if (l->_int.min == 0 && l->_int.max == UINT16_MAX) {
                 printf("u16");
+            } else if (l->_int.min == INT32_MIN && l->_int.max == INT32_MAX) {
+                printf("i32");
             } else if (l->_int.min == 0 && l->_int.max == UINT32_MAX) {
                 printf("u32");
+            } else if (l->_int.min == INT64_MIN && l->_int.max == INT64_MAX) {
+                printf("i64");
             } else if (l->_int.min == 0 && l->_int.max == UINT64_MAX) {
                 printf("u64");
+            } else if (l->_int.min > l->_int.max) {
+                printf("%"PRId64",%"PRId64, tb__sxt(l->_int.min, dt.data, 64), tb__sxt(l->_int.max, dt.data, 64));
             } else {
-                if (l->_int.min > l->_int.max) {
-                    printf("[%"PRId64",%"PRId64, tb__sxt(l->_int.min, dt.data, 64), tb__sxt(l->_int.max, dt.data, 64));
-                } else {
-                    printf("[%"PRIu64",%"PRIu64, l->_int.min, l->_int.max);
-                }
-
-                uint64_t known = l->_int.known_zeros | l->_int.known_ones;
-                if (known && known != UINT64_MAX) {
-                    printf("; zeros=%#"PRIx64", ones=%#"PRIx64, l->_int.known_zeros, l->_int.known_ones);
-                }
-                printf("]");
+                printf("%"PRIu64",%"PRIu64, l->_int.min, l->_int.max);
             }
+
+            uint64_t known = l->_int.known_zeros | l->_int.known_ones;
+            if (known && known != UINT64_MAX) {
+                printf("; zeros=%#"PRIx64", ones=%#"PRIx64, l->_int.known_zeros, l->_int.known_ones);
+            }
+            printf("]");
             break;
         }
 
@@ -944,7 +947,7 @@ TB_Node* tb_pass_peephole_node(TB_Passes* p, TB_Node* n) {
 
     // pessimistic constant prop
     {
-        Lattice* new_type = sccp(p, n, false);
+        Lattice* new_type = value_of(p, n, false);
 
         // print fancy type
         DO_IF(TB_OPTDEBUG_PEEP)(printf(" => \x1b[93m["), print_lattice(new_type, n->dt), printf("]\x1b[0m"));
@@ -1111,7 +1114,7 @@ static Value eval(Interp* vm, TB_Node* n) {
             int index = 0;
 
             FOREACH_N(i, 0, br->succ_count - 1) {
-                if (key == br->keys[i]) {
+                if (key == br->keys[i].key) {
                     index = i + 1;
                     break;
                 }
@@ -1122,6 +1125,8 @@ static Value eval(Interp* vm, TB_Node* n) {
         }
 
         case TB_REGION:
+        case TB_NATURAL_LOOP:
+        case TB_AFFINE_LOOP:
         return (Value){ .ctrl = cfg_next_user(n) };
 
         case TB_PROJ:
@@ -1191,7 +1196,7 @@ void dummy_interp(TB_Passes* p) {
             }
         }
 
-        if (ip->type != TB_REGION) {
+        if (!cfg_is_region(ip)) {
             FOREACH_N(i, 1, ip->input_count) {
                 worklist_push(&p->worklist, ip->inputs[i]);
             }
@@ -1222,7 +1227,7 @@ void dummy_interp(TB_Passes* p) {
             }
         }
 
-        if (ip->type == TB_REGION) {
+        if (cfg_is_region(ip)) {
             vm.vals[ip->gvn] = eval(&vm, ip);
             vm.ready[ip->gvn] = true;
         } else {
@@ -1237,7 +1242,7 @@ void dummy_interp(TB_Passes* p) {
         last_edge = succ->slot;
         ip = succ->n;
 
-        if (ip->type == TB_REGION) {
+        if (cfg_is_region(ip)) {
             FOR_USERS(u, ip) {
                 TB_Node* phi = u->n;
                 if (phi->type == TB_PHI) {
@@ -1287,8 +1292,7 @@ static void push_non_bottom_users(TB_Passes* restrict p, TB_Node* n) {
     FOR_USERS(use, n) {
         push_non_bottoms(p, use->n);
 
-        TB_NodeTypeEnum type = use->n->type;
-        if (type == TB_REGION) {
+        if (cfg_is_region(use->n)) {
             FOR_USERS(phi, use->n) if (phi->n->type == TB_PHI) {
                 push_non_bottoms(p, phi->n);
             }
@@ -1317,7 +1321,7 @@ static void tb_pass_const(TB_Passes* p) {
         TB_Node* n;
         while ((n = worklist_pop(&p->worklist))) {
             Lattice* old_type = lattice_universe_get(p, n);
-            Lattice* new_type = sccp(p, n, true);
+            Lattice* new_type = value_of(p, n, true);
             if (old_type != new_type) {
                 DO_IF(TB_OPTDEBUG_SCCP)(printf("TYPE t=%d? ", ++p->stats.time), print_node_sexpr(n, 0), printf(" => \x1b[93m["), print_lattice(new_type, n->dt), printf("]\x1b[0m\n"));
 
@@ -1372,7 +1376,10 @@ void tb_pass_optimize(TB_Passes* p) {
     tb_pass_const(p);
     tb_pass_peephole(p);
 
-    // tb_pass_loop(p);
+    tb_pass_loop(p);
+    tb_pass_peephole(p);
+
+    // tb_dumb_print(p->f, p);
     // dummy_interp(p);
 }
 
@@ -1499,9 +1506,6 @@ typedef struct {
     size_t stk_cnt;
     TB_Function** stk;
 
-    size_t ws_cnt;
-    TB_Function** ws;
-
     int index;
 } SCC;
 
@@ -1516,7 +1520,7 @@ static TB_Function* static_call_site(TB_Node* n) {
     return (TB_Function*) target;
 }
 
-static SCCNode* scc_walk(SCC* restrict scc, TB_Function* f) {
+static SCCNode* scc_walk(SCC* restrict scc, IPOSolver* ipo, TB_Function* f) {
     SCCNode* n = tb_arena_alloc(scc->arena, sizeof(SCCNode));
     n->index = scc->index;
     n->low_link = scc->index;
@@ -1527,14 +1531,15 @@ static SCCNode* scc_walk(SCC* restrict scc, TB_Function* f) {
     scc->stk[scc->stk_cnt++] = f;
 
     // consider the successors
-    TB_Node* callgraph = f->root_node->inputs[3];
+    TB_Node* callgraph = f->root_node->inputs[0];
+    assert(callgraph->type == TB_CALLGRAPH);
     FOREACH_N(i, 1, callgraph->input_count) {
         TB_Node* call = callgraph->inputs[i];
         TB_Function* target = static_call_site(call);
         if (target != NULL) {
             SCCNode* succ = nl_table_get(&scc->nodes, target);
             if (succ == NULL) {
-                succ = scc_walk(scc, target);
+                succ = scc_walk(scc, ipo, target);
                 if (n->low_link > succ->low_link) { n->low_link = succ->low_link; }
             } else if (succ->on_stack) {
                 if (n->low_link > succ->index) { n->low_link = succ->index; }
@@ -1551,24 +1556,27 @@ static SCCNode* scc_walk(SCC* restrict scc, TB_Function* f) {
 
             SCCNode* kid_n = nl_table_get(&scc->nodes, kid_f);
             kid_n->on_stack = false;
-            scc->ws[scc->ws_cnt++] = kid_f;
+            ipo->ws[ipo->ws_cnt++] = kid_f;
         } while (kid_f != f);
     }
 
     return n;
 }
 
-void tb_module_prepare_ipo(TB_Module* m) {
-}
-
 static void inline_into(TB_Arena* arena, TB_Function* f, TB_Node* call_site, TB_Function* kid);
 bool tb_module_ipo(TB_Module* m) {
+    // fill initial worklist with all external function calls :)
+    //
+    // two main things we wanna know are if something is alive and when to inline (eventually
+    // we can incorporate IPSCCP)
     SCC scc = { 0 };
     scc.arena    = get_temporary_arena(m);
     scc.fn_count = m->symbol_count[TB_SYMBOL_FUNCTION];
-    scc.ws       = tb_arena_alloc(scc.arena, scc.fn_count * sizeof(TB_Function*));
 
-    #if 0
+    IPOSolver ipo = { 0 };
+    ipo.ws_cap = scc.fn_count;
+    ipo.ws = tb_arena_alloc(scc.arena, scc.fn_count * sizeof(TB_Function*));
+
     CUIK_TIMED_BLOCK("build SCC") {
         TB_ArenaSavepoint sp = tb_arena_save(scc.arena);
         scc.stk      = tb_arena_alloc(scc.arena, scc.fn_count * sizeof(TB_Function*));
@@ -1586,7 +1594,7 @@ bool tb_module_ipo(TB_Module* m) {
                 if (atomic_load_explicit(&s->tag, memory_order_relaxed) != TB_SYMBOL_FUNCTION) continue;
 
                 if (nl_table_get(&scc.nodes, s) == NULL) {
-                    scc_walk(&scc, (TB_Function*) s);
+                    scc_walk(&scc, &ipo, (TB_Function*) s);
                 }
             }
 
@@ -1599,12 +1607,13 @@ bool tb_module_ipo(TB_Module* m) {
     bool progress = false;
 
     TB_OPTDEBUG(INLINE)(printf("BOTTOM-UP ORDER:\n"));
-    FOREACH_N(i, 0, scc.ws_cnt) {
-        TB_Function* f = scc.ws[i];
+    FOREACH_N(i, 0, ipo.ws_cnt) {
+        TB_Function* f = ipo.ws[i];
 
         TB_OPTDEBUG(INLINE)(printf("* FUNCTION: %s\n", f->super.name));
 
-        TB_Node* callgraph = f->root_node->inputs[3];
+        TB_Node* callgraph = f->root_node->inputs[0];
+        assert(callgraph->type == TB_CALLGRAPH);
         FOREACH_N(i, 1, callgraph->input_count) {
             TB_Node* call = callgraph->inputs[i];
             TB_Function* target = static_call_site(call);
@@ -1613,28 +1622,24 @@ bool tb_module_ipo(TB_Module* m) {
             }
 
             // TODO(NeGate): do some heuristics on inlining
-            TB_OPTDEBUG(INLINE)(printf("  -> %s (from v%u)\n", target->super.name, call->gvn));
-            /* inline_into(scc.arena, f, call, target);
-            progress = true; */
+            // TB_OPTDEBUG(INLINE)(printf("  -> %s (from v%u)\n", target->super.name, call->gvn));
+            // inline_into(scc.arena, f, call, target);
+            // progress = true;
         }
     }
+
     return progress;
-    #else
-    return false;
-    #endif
 }
 
 static TB_Node* inline_clone_node(TB_Function* f, TB_Node* call_site, TB_Node** clones, TB_Node* n) {
-    // special case
+    // special cases
     if (n->type == TB_PROJ && n->inputs[0]->type == TB_ROOT) {
         // this is a parameter, just hook it directly to the inputs of
         // the callsite.
+        //
+        // 0:ctrl, 1:mem, 2:rpc, 3... params
         int index = TB_NODE_GET_EXTRA_T(n, TB_NodeProj)->index;
-        if (index >= 3) {
-            clones[n->gvn] = call_site->inputs[index + 1];
-        } else {
-            clones[n->gvn] = call_site->inputs[index];
-        }
+        clones[n->gvn] = call_site->inputs[index];
 
         assert(clones[n->gvn]);
         return clones[n->gvn];
@@ -1667,14 +1672,14 @@ static TB_Node* inline_clone_node(TB_Function* f, TB_Node* call_site, TB_Node** 
 
     return cloned;
 
-    /*TB_Node* k = tb__gvn(f, cloned, extra);
+    /* TB_Node* k = tb__gvn(f, cloned, extra);
     if (k != cloned) {
         #if TB_OPTDEBUG_INLINE
         printf(" => GVN");
         #endif
     }
     printf("\n");
-    return  = cloned;*/
+    return  = cloned; */
 }
 
 static void inline_into(TB_Arena* arena, TB_Function* f, TB_Node* call_site, TB_Function* kid) {
@@ -1705,8 +1710,48 @@ static void inline_into(TB_Arena* arena, TB_Function* f, TB_Node* call_site, TB_
     FOREACH_REVERSE_N(i, 0, dyn_array_length(ws.items)) {
         inline_clone_node(f, call_site, clones, ws.items[i]);
     }
+    worklist_free(&ws);
 
-    tb_todo();
+    tb_pass_kill_node(f, call_site);
+
+    {
+        // TODO(NeGate): region-ify the exit point
+        TB_Node* kid_root = clones[kid->root_node->gvn];
+        assert(kid_root->type == TB_ROOT);
+        assert(kid_root->input_count == 2);
+
+        TB_Node* ret = kid_root->inputs[1];
+        assert(ret->type == TB_RETURN);
+
+        User* users = call_site->users;
+        while (users) {
+            User* next     = users->next;
+            TB_Node* use_n = users->n;
+            int use_i      = users->slot;
+
+            // replace returning projection with one of our return vals
+            if (use_n->type == TB_PROJ) {
+                int index = TB_NODE_GET_EXTRA_T(use_n, TB_NodeProj)->index;
+                subsume_node(f, use_n, ret->inputs[index]);
+            }
+            users = next;
+        }
+
+        subsume_node(f, kid_root, f->root_node);
+    }
+
+    // kill edge in callgraph
+    TB_Node* callgraph = f->root_node->inputs[0];
+    assert(callgraph->type == TB_CALLGRAPH);
+
+    FOREACH_N(i, 1, callgraph->input_count) {
+        if (callgraph->inputs[i] == call_site) {
+            set_input(f, callgraph, callgraph->inputs[callgraph->input_count - 1], i);
+            callgraph->input_count--;
+            break;
+        }
+    }
+
     tb_arena_restore(arena, sp);
 }
 

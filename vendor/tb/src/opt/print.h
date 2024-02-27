@@ -70,7 +70,7 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
             }
             printf(")");
         }
-    } else if (n->type == TB_REGION) {
+    } else if (cfg_is_region(n)) {
         TB_NodeRegion* r = TB_NODE_GET_EXTRA(n);
         if (r->tag != NULL) {
             printf(".%s", r->tag);
@@ -100,6 +100,8 @@ static void print_ref_to_node(PrinterCtx* ctx, TB_Node* n, bool def) {
             }
             // printf(")");
             printf(") // v%u", n->gvn);
+            if (n->type == TB_NATURAL_LOOP) printf(" !natural");
+            if (n->type == TB_AFFINE_LOOP) printf(" !affine");
         }
     } else if (n->type == TB_FLOAT32_CONST) {
         TB_NodeFloat32* f = TB_NODE_GET_EXTRA(n);
@@ -162,10 +164,10 @@ static void print_branch_edge(PrinterCtx* ctx, TB_Node* n, bool fallthru) {
 
     // print phi args
     printf("(");
-    if (target->type == TB_REGION) {
+    if (cfg_is_region(target)) {
         int phi_i = -1;
         FOR_USERS(u, n) {
-            if (u->n->type == TB_REGION) {
+            if (cfg_is_region(u->n)) {
                 phi_i = 1 + u->slot;
                 break;
             }
@@ -206,7 +208,6 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
 
     ctx->sched(ctx->opt, &ctx->cfg, ws, NULL, bb, bb->end);
 
-    TB_Node* prev_effect = NULL;
     FOREACH_N(i, ctx->cfg.block_count, dyn_array_length(ws->items)) {
         TB_Node* n = ws->items[i];
 
@@ -215,8 +216,8 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
             n->type == TB_FLOAT64_CONST || n->type == TB_SYMBOL ||
             n->type == TB_SIGN_EXT || n->type == TB_ZERO_EXT ||
             n->type == TB_PROJ || n->type == TB_REGION ||
-            n->type == TB_NULL ||
-            n->type == TB_PHI) {
+            n->type == TB_NATURAL_LOOP || n->type == TB_AFFINE_LOOP ||
+            n->type == TB_NULL || n->type == TB_PHI) {
             continue;
         }
 
@@ -253,10 +254,10 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                         if (i != 1) printf(", ");
                         print_ref_to_node(ctx, n->inputs[i], false);
                     }
-                    if (br->keys[0] == 0) {
+                    if (br->keys[0].key == 0) {
                         printf(" then ");
                     } else {
-                        printf(" != %"PRId64" then ", tb__sxt(br->keys[0], bits, 64));
+                        printf(" != %"PRId64" then ", tb__sxt(br->keys[0].key, bits, 64));
                     }
                     print_branch_edge(ctx, succ[0], false);
                     printf(" else ");
@@ -270,7 +271,7 @@ static void print_bb(PrinterCtx* ctx, TB_Node* bb_start) {
                     printf("%s=> {\n", n->input_count > 1 ? " " : "");
 
                     FOREACH_N(i, 0, br->succ_count) {
-                        if (i != 0) printf("    %"PRId64": ", br->keys[i - 1]);
+                        if (i != 0) printf("    %"PRId64": ", br->keys[i - 1].key);
                         else printf("    default: ");
 
                         print_branch_edge(ctx, succ[i], false);

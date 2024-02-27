@@ -102,8 +102,8 @@ TB_API void tb_linker_append_library(TB_Linker* l, TB_Slice ar_name, TB_Slice ar
     }
 }
 
-TB_API TB_ExportBuffer tb_linker_export(TB_Linker* l) {
-    return l->vtbl.export(l);
+TB_API TB_ExportBuffer tb_linker_export(TB_Linker* l, TB_Arena* arena) {
+    return l->vtbl.export(l, arena);
 }
 
 TB_API void tb_linker_destroy(TB_Linker* l) {

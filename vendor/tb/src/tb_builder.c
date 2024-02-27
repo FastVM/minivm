@@ -663,7 +663,7 @@ static TB_Node* atomic_op(TB_Function* f, int op, TB_DataType dt, TB_Node* addr,
 
     TB_Node* mproj = tb__make_proj(f, TB_TYPE_MEMORY, n, 0);
     TB_Node* dproj = tb__make_proj(f, dt, n, 1);
-    TB_NODE_SET_EXTRA(n, TB_NodeAtomic, .order = order, .order2 = TB_MEM_ORDER_SEQ_CST, .proj0 = mproj, .proj1 = dproj);
+    TB_NODE_SET_EXTRA(n, TB_NodeAtomic, .order = order, .order2 = TB_MEM_ORDER_SEQ_CST);
 
     // memory proj
     set_input(f, n, append_mem(f, mproj), 1);
@@ -716,7 +716,7 @@ TB_Node* tb_inst_atomic_cmpxchg(TB_Function* f, TB_Node* addr, TB_Node* expected
 
     TB_Node* mproj = tb__make_proj(f, TB_TYPE_MEMORY, n, 0);
     TB_Node* dproj = tb__make_proj(f, dt, n, 1);
-    TB_NODE_SET_EXTRA(n, TB_NodeAtomic, .order = succ, .order2 = fail, .proj0 = mproj, .proj1 = dproj);
+    TB_NODE_SET_EXTRA(n, TB_NodeAtomic, .order = succ, .order2 = fail);
 
     // memory proj
     set_input(f, n, append_mem(f, mproj), 1);
@@ -884,12 +884,10 @@ TB_API TB_Node* tb_inst_region(TB_Function* f) {
 
 TB_API TB_Trace tb_inst_new_trace(TB_Function* f) {
     TB_Node* n = tb_alloc_node_dyn(f, TB_REGION, TB_TYPE_CONTROL, 0, 4, sizeof(TB_NodeRegion));
-    TB_NodeRegion* r = TB_NODE_GET_EXTRA(n);
-    r->freq = 1.0f;
 
     TB_Node* phi = tb_alloc_node_dyn(f, TB_PHI, TB_TYPE_MEMORY, 1, 5, 0);
     set_input(f, phi, n, 0);
-    r->mem_in = phi;
+    TB_NODE_SET_EXTRA(n, TB_NodeRegion, .mem_in = phi);
     return (TB_Trace){ n, n, phi };
 }
 
@@ -943,7 +941,7 @@ void tb_inst_goto(TB_Function* f, TB_Node* target) {
     add_memory_edge(f, n, mem_state, target);
 }
 
-void tb_inst_if(TB_Function* f, TB_Node* cond, TB_Node* if_true, TB_Node* if_false) {
+TB_Node* tb_inst_if(TB_Function* f, TB_Node* cond, TB_Node* if_true, TB_Node* if_false) {
     TB_Node* mem_state = peek_mem(f);
 
     // generate control projections
@@ -960,11 +958,14 @@ void tb_inst_if(TB_Function* f, TB_Node* cond, TB_Node* if_true, TB_Node* if_fal
     }
 
     TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
-    br->succ_count = 2;
-    br->keys[0] = 0;
+    br->total_hits = 100;
+    br->succ_count  = 2;
+    br->keys[0].key = 0;
+    br->keys[0].taken = 50;
+    return n;
 }
 
-void tb_inst_if2(TB_Function* f, TB_Node* cond, TB_Node* projs[2]) {
+TB_Node* tb_inst_if2(TB_Function* f, TB_Node* cond, TB_Node* projs[2]) {
     TB_Node* mem_state = peek_mem(f);
 
     // generate control projections
@@ -977,11 +978,22 @@ void tb_inst_if2(TB_Function* f, TB_Node* cond, TB_Node* projs[2]) {
     }
 
     TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
+    br->total_hits = 100;
     br->succ_count = 2;
-    br->keys[0] = 0;
+    br->keys[0].key = 0;
+    br->keys[0].taken = 50;
+    return n;
 }
 
-void tb_inst_branch(TB_Function* f, TB_DataType dt, TB_Node* key, TB_Node* default_label, size_t entry_count, const TB_SwitchEntry* entries) {
+// n is a TB_BRANCH with two successors, taken is the number of times it's true
+void tb_inst_set_branch_freq(TB_Function* f, TB_Node* n, int total_hits, int taken) {
+    TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
+    assert(br->succ_count == 2 && "only works on if-branches");
+    br->total_hits = total_hits;
+    br->keys[0].taken = total_hits - taken;
+}
+
+TB_Node* tb_inst_branch(TB_Function* f, TB_DataType dt, TB_Node* key, TB_Node* default_label, size_t entry_count, const TB_SwitchEntry* entries) {
     TB_Node* mem_state = peek_mem(f);
 
     // generate control projections
@@ -998,10 +1010,13 @@ void tb_inst_branch(TB_Function* f, TB_DataType dt, TB_Node* key, TB_Node* defau
     }
 
     TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
+    br->total_hits = (1 + entry_count) * 10;
     br->succ_count = 1 + entry_count;
     FOREACH_N(i, 0, entry_count) {
-        br->keys[i] = entries[i].key;
+        br->keys[i].key = entries[i].key;
+        br->keys[i].taken = 10;
     }
+    return n;
 }
 
 void tb_inst_ret(TB_Function* f, size_t count, TB_Node** values) {

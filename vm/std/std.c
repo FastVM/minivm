@@ -63,7 +63,7 @@ void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
     for (size_t i = 0; !vm_type_eq(args[i].tag, VM_TYPE_UNK); i++) {
         nargs += 1;
     }
-    if (nargs == 0 || vm_type_eq(args[0].tag, VM_TYPE_FUN)) {
+    if (nargs == 0 || !vm_type_eq(args[0].tag, VM_TYPE_FUN)) {
         *args = (vm_std_value_t){
             .tag = VM_TYPE_NIL,
         };

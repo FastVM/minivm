@@ -17,6 +17,8 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_RETURN: return "return";
         case TB_PROJ:   return "proj";
         case TB_REGION: return "region";
+        case TB_NATURAL_LOOP: return "loop";
+        case TB_AFFINE_LOOP: return "loop.affine";
         case TB_CALLGRAPH: return "callgraph";
 
         case TB_LOCAL: return "local";
@@ -93,6 +95,7 @@ TB_API const char* tb_node_get_name(TB_Node* n) {
         case TB_ROL: return "rol";
         case TB_ROR: return "ror";
         case TB_SAR: return "sar";
+        case TB_ADC: return "adc";
 
         case TB_FADD: return "fadd";
         case TB_FSUB: return "fsub";
@@ -167,7 +170,7 @@ static void print_proj(TB_PrintCallback callback, void* user_data, TB_Node* n, i
 
         case TB_BRANCH: {
             TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
-            if (br->succ_count == 2 && br->keys[0] == 0) {
+            if (br->succ_count == 2 && br->keys[0].key == 0) {
                 P("%s", index ? "false" : "true");
             } else if (index == 0) {
                 P("default");

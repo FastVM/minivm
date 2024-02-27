@@ -4,7 +4,6 @@
 #include "ir.h"
 
 const vm_type_value_t vm_type_base[VM_TAG_MAX] = {
-    [VM_TAG_UNK] = {VM_TAG_UNK},
     [VM_TAG_NIL] = {VM_TAG_NIL},
     [VM_TAG_BOOL] = {VM_TAG_BOOL},
     [VM_TAG_I8] = {VM_TAG_I8},
@@ -41,7 +40,7 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
             rblock->block == found->block) {
             for (size_t j = 0; j < rblock->block->nargs; j++) {
                 vm_arg_t arg = rblock->block->args[j];
-                if (vm_type_eq(rblock->regs->tags[arg.reg], found->regs->tags[arg.reg])) {
+                if (!vm_type_eq(rblock->regs->tags[arg.reg], found->regs->tags[arg.reg])) {
                     goto next;
                 }
             }
@@ -53,22 +52,22 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 }
 
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_block_t *value) {
-    // for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
-    //     vm_rblock_t *found = cache->keys[i];
-    //     if (rblock->block->isfunc == found->block->isfunc &&
-    //         rblock->block == found->block) {
-    //         for (size_t j = 0; j < rblock->block->nargs; j++) {
-    //             vm_arg_t arg = rblock->block->args[j];
-    //             if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
-    //                 goto next;
-    //             }
-    //         }
-    //         __builtin_trap();
-    //         // cache->values[i] = value;
-    //         // return;
-    //     }
-    // next:;
-    // }
+    for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
+        vm_rblock_t *found = cache->keys[i];
+        if (rblock->block->isfunc == found->block->isfunc &&
+            rblock->block == found->block) {
+            for (size_t j = 0; j < rblock->block->nargs; j++) {
+                vm_arg_t arg = rblock->block->args[j];
+                if (rblock->regs->tags[arg.reg] != found->regs->tags[arg.reg]) {
+                    goto next;
+                }
+            }
+            // __builtin_trap();
+            // cache->values[i] = value;
+            // return;
+        }
+    next:;
+    }
     if (cache->len + 1 >= cache->alloc) {
         cache->alloc = (cache->len + 1) * 2;
         cache->keys = vm_realloc(cache->keys, sizeof(vm_rblock_t *) * cache->alloc);
@@ -133,7 +132,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_types_t *types, vm_instr_t instr) 
         goto ret;
     }
     if (instr.op == VM_IOP_LEN) {
-        instr.tag = VM_TYPE_F64;
+        instr.tag = VM_TYPE_I32;
         goto ret;
     }
     if (vm_type_eq(instr.tag, VM_TYPE_UNK)) {

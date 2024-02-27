@@ -2,16 +2,21 @@
 #include "host.h"
 #include "opt/passes.h"
 
+static bool has_divrem(TB_Module* m) {
+    return m->target_arch != TB_ARCH_WASM32;
+}
+
 static ICodeGen* tb__find_code_generator(TB_Module* m) {
     // Place all the codegen interfaces down here
     extern ICodeGen tb__x64_codegen;
     extern ICodeGen tb__aarch64_codegen;
     extern ICodeGen tb__mips32_codegen;
     extern ICodeGen tb__mips64_codegen;
+    extern ICodeGen tb__wasm32_codegen;
 
     switch (m->target_arch) {
         #ifdef TB_HAS_X64
-        case TB_ARCH_X86_64:  return &tb__x64_codegen;
+        case TB_ARCH_X86_64: return &tb__x64_codegen;
         #endif
 
         #ifdef TB_HAS_AARCH64
@@ -21,6 +26,10 @@ static ICodeGen* tb__find_code_generator(TB_Module* m) {
         #ifdef TB_HAS_MIPS
         case TB_ARCH_MIPS32: return &tb__mips32_codegen;
         case TB_ARCH_MIPS64: return &tb__mips64_codegen;
+        #endif
+
+        #ifdef TB_HAS_WASM
+        case TB_ARCH_WASM32: return &tb__wasm32_codegen;
         #endif
 
         default: return NULL;
@@ -91,9 +100,7 @@ char* tb__arena_strdup(TB_Module* m, ptrdiff_t len, const char* src) {
 }
 
 TB_Module* tb_module_create_for_host(bool is_jit) {
-    #if defined(EMSCRIPTEN)
-    TB_Arch arch = TB_ARCH_WASM32;
-    #elif defined(TB_HOST_X86_64)
+    #if defined(TB_HOST_X86_64)
     TB_Arch arch = TB_ARCH_X86_64;
     #else
     TB_Arch arch = TB_ARCH_UNKNOWN;
@@ -367,7 +374,7 @@ void tb_function_set_prototype(TB_Function* f, TB_ModuleSectionHandle section, T
             set_input(f, ret, phi, i + 3);
         }
 
-        TB_NODE_SET_EXTRA(region, TB_NodeRegion, .freq = 1.0f, .mem_in = mem_phi, .tag = "ret");
+        TB_NODE_SET_EXTRA(region, TB_NodeRegion, .mem_in = mem_phi, .tag = "ret");
     }
 
     f->prototype = p;

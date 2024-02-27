@@ -1,7 +1,3 @@
-#if defined(EMSCRIPTEN)
-#define NDEBUG 1
-#endif
-
 // Common is just a bunch of crap i want accessible to all projects in the Cuik repo
 #include "arena.h"
 #include "futex.h"
@@ -89,42 +85,37 @@ TB_Arena* tb_arena_create(size_t chunk_size) {
     }
 
     // allocate initial chunk
-    TB_ArenaChunk* c = cuik__valloc(chunk_size);
-    c->next = NULL;
-
-    TB_Arena* arena = (TB_Arena*) c->data;
-    arena->chunk_size = chunk_size;
-    arena->watermark  = &c->data[sizeof(TB_Arena)];
-    arena->high_point = &c->data[chunk_size - sizeof(TB_ArenaChunk)];
-    arena->base = arena->top = c;
+    TB_Arena* arena = cuik__valloc(chunk_size);
+    arena->watermark  = arena->data;
+    arena->high_point = &arena->data[chunk_size - sizeof(TB_Arena)];
+    arena->top = arena;
     return arena;
 }
 
 void tb_arena_destroy(TB_Arena* restrict arena) {
-    if (arena) {
-        TB_ArenaChunk* c = arena->base;
-        while (c != NULL) {
-            TB_ArenaChunk* next = c->next;
-            cuik__vfree(c, arena->chunk_size);
-            c = next;
-        }
+    TB_Arena* c = arena;
+    while (c != NULL) {
+        TB_Arena* next = c->next;
+        cuik__vfree(c, tb_arena_chunk_size(c));
+        c = next;
     }
 }
 
 void* tb_arena_unaligned_alloc(TB_Arena* restrict arena, size_t size) {
-    if (LIKELY(arena->watermark + size <= arena->high_point)) {
-        char* ptr = arena->watermark;
-        arena->watermark += size;
+    TB_Arena* top = arena->top;
+    if (LIKELY(top->watermark + size <= top->high_point)) {
+        char* ptr = top->watermark;
+        top->watermark += size;
         return ptr;
     } else {
-        assert(size < arena->chunk_size - sizeof(TB_ArenaChunk));
+        // slow path, we need to allocate more pages
+        size_t chunk_size = tb_arena_chunk_size(arena);
+        assert(size < chunk_size - sizeof(TB_Arena));
 
-        // slow path, we need to allocate more
-        TB_ArenaChunk* c = cuik__valloc(arena->chunk_size);
+        TB_Arena* c = cuik__valloc(chunk_size);
         c->next = NULL;
-
-        arena->watermark  = c->data + size;
-        arena->high_point = &c->data[arena->chunk_size - sizeof(TB_ArenaChunk)];
+        c->watermark  = c->data + size;
+        c->high_point = &c->data[chunk_size - sizeof(TB_Arena)];
 
         // append to top
         arena->top->next = c;
@@ -143,7 +134,7 @@ TB_API void* tb_arena_realloc(TB_Arena* restrict arena, void* old, size_t size) 
 
     char* dst = tb_arena_unaligned_alloc(arena, size);
     if (dst != p && old) {
-        memmove(dst, old, size);
+        memcpy(dst, old, size);
     }
     return dst;
 }
@@ -180,17 +171,16 @@ TB_ArenaSavepoint tb_arena_save(TB_Arena* arena) {
 
 void tb_arena_restore(TB_Arena* arena, TB_ArenaSavepoint sp) {
     // kill any chunks which are ahead of the top
-    TB_ArenaChunk* c = sp.top->next;
+    TB_Arena* c = sp.top->next;
     while (c != NULL) {
-        TB_ArenaChunk* next = c->next;
-        cuik__vfree(c, arena->chunk_size);
+        TB_Arena* next = c->next;
+        cuik__vfree(c, tb_arena_chunk_size(c));
         c = next;
     }
 
     arena->top = sp.top;
     arena->top->next = NULL;
     arena->watermark = sp.watermark;
-    arena->high_point = &sp.top->data[arena->chunk_size - sizeof(TB_ArenaChunk)];
 }
 
 void* tb_arena_alloc(TB_Arena* restrict arena, size_t size) {
@@ -202,37 +192,38 @@ void* tb_arena_alloc(TB_Arena* restrict arena, size_t size) {
 }
 
 void tb_arena_clear(TB_Arena* arena) {
-    TB_ArenaChunk* c = arena->base;
-    if (c == NULL) return;
+    if (arena != NULL) {
+        arena->watermark = arena->data;
+        arena->top = arena;
 
-    arena->watermark = &c->data[sizeof(TB_Arena)];
-    arena->high_point = &c->data[arena->chunk_size - sizeof(TB_ArenaChunk)];
-    arena->base = arena->top = c;
+        // remove extra chunks
+        TB_Arena* c = arena->next;
+        while (c != NULL) {
+            TB_Arena* next = c->next;
+            cuik__vfree(c, tb_arena_chunk_size(c));
+            c = next;
+        }
 
-    // remove extra chunks
-    c = c->next;
-    while (c != NULL) {
-        TB_ArenaChunk* next = c->next;
-        cuik__vfree(c, arena->chunk_size);
-        c = next;
+        arena->next = NULL;
     }
-
-    arena->top->next = NULL;
 }
 
 bool tb_arena_is_empty(TB_Arena* arena) {
-    return arena->base == NULL;
+    return arena->top != arena || (arena->watermark - arena->data) > 0;
+}
+
+size_t tb_arena_chunk_size(TB_Arena* arena) {
+    return arena->high_point - (char*) arena;
 }
 
 size_t tb_arena_current_size(TB_Arena* arena) {
     size_t total = 0;
-    TB_ArenaChunk* c = arena->base;
-    while (c != arena->top) {
-        total += arena->chunk_size;
+    TB_Arena* c = arena;
+    while (c != NULL) {
+        total += arena->watermark - (char*) arena;
         c = c->next;
     }
-
-    return total + (arena->watermark - (char*) arena->top);
+    return total;
 }
 
 ////////////////////////////////

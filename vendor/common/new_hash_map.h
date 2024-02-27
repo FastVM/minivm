@@ -26,8 +26,7 @@ void nl_hashset_free(NL_HashSet hs);
 
 void nl_hashset_clear(NL_HashSet* restrict hs);
 bool nl_hashset_remove(NL_HashSet* restrict hs, void* ptr);
-bool nl_hashset_put(NL_HashSet* restrict hs, void* ptr);
-size_t nl_hashset_lookup(NL_HashSet* restrict hs, void* ptr);
+void* nl_hashset_put(NL_HashSet* restrict hs, void* ptr);
 
 void* nl_hashset_get2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL_CompareFunc cmp);
 
@@ -114,28 +113,7 @@ void nl_hashset_free(NL_HashSet hs) {
     }
 }
 
-// lookup into hash map for ptr, it's also used to put things in
-size_t nl_hashset_lookup(NL_HashSet* restrict hs, void* ptr) {
-    assert(ptr);
-    uint32_t h = NL_HASHSET_HASH(ptr);
-
-    size_t mask = (1 << hs->exp) - 1;
-    size_t first = h & mask, i = first;
-
-    do {
-        if (hs->data[i] == NULL) {
-            return i;
-        } else if (hs->data[i] == ptr) {
-            return ~(SIZE_MAX >> ((size_t) 1)) | i; // highest bit set
-        }
-
-        i = (i + 1) & mask;
-    } while (i != first);
-
-    return SIZE_MAX;
-}
-
-bool nl_hashset_put(NL_HashSet* restrict hs, void* ptr) {
+void* nl_hashset_put(NL_HashSet* restrict hs, void* ptr) {
     // rehash
     uint32_t threshold = ((1 << hs->exp) * 3) / 4;
     if (hs->count >= threshold) {
@@ -148,26 +126,45 @@ bool nl_hashset_put(NL_HashSet* restrict hs, void* ptr) {
         *hs = new_hs;
     }
 
-    size_t index = nl_hashset_lookup(hs, ptr);
-    if (index & NL_HASHSET_HIGH_BIT) {
-        // slot is already filled
-        return false;
-    } else {
-        hs->count++;
-        hs->data[index] = ptr;
-        return true;
-    }
+    assert(ptr);
+    uint32_t h = NL_HASHSET_HASH(ptr);
+
+    size_t mask = (1 << hs->exp) - 1;
+    size_t first = h & mask, i = first;
+    do {
+        if (hs->data[i] == NULL) {
+            hs->count++;
+            hs->data[i] = ptr;
+            return NULL;
+        } else if (hs->data[i] == ptr) {
+            return ptr;
+        }
+
+        i = (i + 1) & mask;
+    } while (i != first);
+
+    abort();
 }
 
 bool nl_hashset_remove(NL_HashSet* restrict hs, void* ptr) {
-    size_t index = nl_hashset_lookup(hs, ptr);
-    if (index == SIZE_MAX || (index & NL_HASHSET_HIGH_BIT) == 0) {
-        return false;
-    }
+    assert(ptr);
+    uint32_t h = NL_HASHSET_HASH(ptr);
 
-    hs->count--;
-    hs->data[index] = NL_HASHSET_TOMB;
-    return true;
+    size_t mask = (1 << hs->exp) - 1;
+    size_t first = h & mask, i = first;
+    do {
+        if (hs->data[i] == NULL) {
+            return false;
+        } else if (hs->data[i] == ptr) {
+            hs->count--;
+            hs->data[i] = NL_HASHSET_TOMB;
+            return true;
+        }
+
+        i = (i + 1) & mask;
+    } while (i != first);
+
+    abort();
 }
 
 void nl_hashset_remove2(NL_HashSet* restrict hs, void* ptr, NL_HashFunc hash, NL_CompareFunc cmp) {

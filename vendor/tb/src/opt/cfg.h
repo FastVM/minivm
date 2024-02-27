@@ -23,7 +23,7 @@ TB_CFG tb_compute_rpo(TB_Function* f, TB_Passes* p) {
 static TB_Node* end_of_bb(TB_Node* n) {
     while (!cfg_is_terminator(n)) {
         TB_Node* next = cfg_next_control0(n);
-        if (next == NULL || next->type == TB_REGION) {
+        if (next == NULL || cfg_is_region(next)) {
             break;
         }
         n = next;
@@ -54,6 +54,15 @@ static Block* create_block(TB_Arena* arena, TB_Node* bb) {
             if (u->n->type == TB_PROJ) {
                 int index = TB_NODE_GET_EXTRA_T(u->n, TB_NodeProj)->index;
                 top->succ[index] = cfg_next_bb_after_cproj(u->n);
+            }
+        }
+
+        TB_NodeBranch* br = TB_NODE_GET_EXTRA(end);
+        if (br->succ_count == 2) {
+            // make the hot path the fallthrough
+            float taken = (float)br->keys[0].taken / (float)br->total_hits;
+            if (taken < 0.5f) {
+                SWAP(TB_Node*, top->succ[0], top->succ[1]);
             }
         }
     } else if (!cfg_is_endpoint(end)) {
@@ -88,12 +97,7 @@ TB_CFG tb_compute_rpo2(TB_Function* f, Worklist* ws) {
             Block b = *top;
 
             TB_BasicBlock bb = { .start = b.bb, .end = b.end, .dom_depth = -1 };
-            if (b.bb->type == TB_REGION) {
-                bb.freq = TB_NODE_GET_EXTRA_T(b.bb, TB_NodeRegion)->freq;
-                assert(bb.freq >= BB_LOW_FREQ);
-            } else {
-                bb.freq = 1.0;
-            }
+            bb.freq = 1.0;
 
             dyn_array_put(ws->items, b.bb);
             nl_map_put(cfg.node_to_block, b.bb, bb);
@@ -166,7 +170,7 @@ TB_DominanceFrontiers* tb_get_dominance_frontiers(TB_Function* f, TB_Passes* res
         TB_Node* bb = blocks[i];
         assert(find_traversal_index(&cfg, bb) == i);
 
-        if (bb->type == TB_REGION && bb->input_count >= 2) {
+        if (cfg_is_region(bb) && bb->input_count >= 2) {
             FOREACH_N(k, 0, bb->input_count) {
                 TB_Node* runner = cfg_get_pred(&cfg, bb, k);
 

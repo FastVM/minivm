@@ -866,7 +866,7 @@ static void pe_init(TB_Linker* l) {
 }
 
 #define WRITE(data, size) (memcpy(&output[write_pos], data, size), write_pos += (size))
-static TB_ExportBuffer pe_export(TB_Linker* l) {
+static TB_ExportBuffer pe_export(TB_Linker* l, TB_Arena* arena) {
     PE_ImageDataDirectory imp_dir, iat_dir;
     COFF_ImportDirectory* import_dirs;
 
@@ -1099,7 +1099,7 @@ static TB_ExportBuffer pe_export(TB_Linker* l) {
     }
 
     size_t write_pos = 0;
-    TB_ExportChunk* chunk = tb_export_make_chunk(output_size);
+    TB_ExportChunk* chunk = tb_export_make_chunk(arena, output_size);
     uint8_t* restrict output = chunk->data;
 
     uint32_t pe_magic = 0x00004550;

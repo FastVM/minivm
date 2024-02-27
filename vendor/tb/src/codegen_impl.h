@@ -184,6 +184,11 @@ static void compile_function(TB_Passes* restrict p, TB_FunctionOutput* restrict 
     }
 
     Worklist* restrict ws = &p->worklist;
+
+    // legalize step takes out any of our 16bit and 8bit math ops
+    tb_pass_prep(p);
+    tb_pass_legalize(p, f->super.module->target_arch);
+
     worklist_clear(ws);
 
     TB_CFG cfg;

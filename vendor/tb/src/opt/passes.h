@@ -17,7 +17,6 @@ enum {
 #define TB_OPTDEBUG_DATAFLOW 0
 #define TB_OPTDEBUG_INLINE   0
 #define TB_OPTDEBUG_REGALLOC 0
-
 #define TB_OPTDEBUG_GVN      0
 
 // for toggling ANSI colors
@@ -51,9 +50,6 @@ typedef struct {
 // a simplification of the set of all pointers (or floats)
 typedef enum {
     LATTICE_UNKNOWN,         // bottom aka {nan, non-nan} or for pointers {null, non-null}
-
-    LATTICE_KNOWN_NAN = 1,   // {nan}
-    LATTICE_KNOWN_NOT_NAN,   // {non-nan}
 
     LATTICE_KNOWN_FALSE = 1, // {false}
     LATTICE_KNOWN_TRUE,      // {true}
@@ -218,7 +214,7 @@ struct TB_Passes {
 
     // nice stats
     struct {
-        #if TB_OPTDEBUG_PEEP
+        #if TB_OPTDEBUG_PEEP || TB_OPTDEBUG_SCCP
         int time;
         #endif
 
@@ -229,6 +225,15 @@ struct TB_Passes {
         #endif
     } stats;
 };
+
+typedef struct {
+    TB_Module* mod;
+    NL_HashSet visited;
+
+    size_t ws_cap;
+    size_t ws_cnt;
+    TB_Function** ws;
+} IPOSolver;
 
 static uint64_t tb__mask(uint64_t bits) {
     return ~UINT64_C(0) >> (64 - bits);
@@ -499,6 +504,18 @@ static int dom_depth(TB_CFG* cfg, TB_Node* n) {
     return nl_map_get_checked(cfg->node_to_block, n).dom_depth;
 }
 
+static bool slow_dommy(TB_CFG* cfg, TB_Node* expected_dom, TB_Node* bb) {
+    while (bb != NULL && expected_dom != bb) {
+        TB_Node* new_bb = idom(cfg, bb);
+        if (new_bb == NULL || new_bb == bb) {
+            return false;
+        }
+        bb = new_bb;
+    }
+
+    return true;
+}
+
 extern thread_local TB_Arena* tmp_arena;
 
 void verify_tmp_arena(TB_Passes* p);
@@ -524,8 +541,11 @@ int worklist_popcount(Worklist* ws);
 TB_Node* worklist_pop(Worklist* ws);
 
 // Local scheduler
-void greedy_scheduler(TB_Passes* passes, TB_CFG* cfg, Worklist* ws, DynArray(PhiVal)* phi_vals, TB_BasicBlock* bb, TB_Node* end);
-void tb_pass_schedule(TB_Passes* opt, TB_CFG cfg, bool renumber);
+void greedy_scheduler(TB_Passes* p, TB_CFG* cfg, Worklist* ws, DynArray(PhiVal)* phi_vals, TB_BasicBlock* bb, TB_Node* end);
+void tb_pass_schedule(TB_Passes* p, TB_CFG cfg, bool renumber);
+
+// makes arch-friendly IR
+void tb_pass_legalize(TB_Passes* p, TB_Arch arch);
 
 Lattice* lattice_universe_get(TB_Passes* p, TB_Node* n);
 LatticeTrifecta lattice_truthy(Lattice* l);

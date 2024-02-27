@@ -9,6 +9,10 @@ typedef struct Elem {
     int i;
 } Elem;
 
+static bool swag_to_hoist(TB_Node* n) {
+    return n->type == TB_LOAD;
+}
+
 ////////////////////////////////
 // Late scheduling
 ////////////////////////////////
@@ -228,7 +232,7 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg, bool renumber) {
                     DO_IF(TB_OPTDEBUG_GCM)(printf("  user v%u @ bb%d\n", y->gvn, use_block->id));
                     if (y->type == TB_PHI) {
                         TB_Node* use_node = y->inputs[0];
-                        assert(use_node->type == TB_REGION);
+                        assert(cfg_is_region(use_node));
 
                         if (y->input_count != use_node->input_count + 1) {
                             tb_panic("phi has parent with mismatched predecessors");
@@ -255,17 +259,21 @@ void tb_pass_schedule(TB_Passes* p, TB_CFG cfg, bool renumber) {
                     // which didn't already get scheduled in EARLY
                     assert(old && "huh?");
 
-                    // replace old BB entry
+                    // replace old BB entry, also if old is a natural loop we might
+                    // be better off hoisting the values if possible.
                     if (old != lca && lca->dom_depth > old->dom_depth) {
-                        TB_OPTDEBUG(GCM)(
-                            printf("  LATE  v%u into .bb%d: ", n->gvn, lca->id),
-                            print_node_sexpr(n, 0),
-                            printf("\n")
-                        );
+                        // some ops deserve hoisting more than others (cough cough loads)
+                        if (!swag_to_hoist(n) || !cfg_is_natural_loop(old->start)) {
+                            TB_OPTDEBUG(GCM)(
+                                printf("  LATE  v%u into .bb%d: ", n->gvn, lca->id),
+                                print_node_sexpr(n, 0),
+                                printf("\n")
+                            );
 
-                        p->scheduled[n->gvn] = lca;
-                        nl_hashset_remove(&old->items, n);
-                        nl_hashset_put(&lca->items, n);
+                            p->scheduled[n->gvn] = lca;
+                            nl_hashset_remove(&old->items, n);
+                            nl_hashset_put(&lca->items, n);
+                        }
                     }
                 }
             }

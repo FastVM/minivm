@@ -44,16 +44,16 @@ struct COFF_UnwindInfo {
     COFF_SectionHeader pdata_header;
 };
 
-static void generate_unwind_info(COFF_UnwindInfo* restrict u, const ICodeGen* restrict code_gen, size_t xdata_section, TB_ModuleSection* section) {
+static void generate_unwind_info(TB_Arena* dst_arena, COFF_UnwindInfo* restrict u, const ICodeGen* restrict code_gen, size_t xdata_section, TB_ModuleSection* section) {
     size_t count = dyn_array_length(section->funcs);
     *u = (COFF_UnwindInfo){ .patch_count = count * 3, .section_num = (xdata_section+1) * 2 };
 
     // generate pdata
-    u->pdata_chunk = tb_export_make_chunk(count * 3 * sizeof(uint32_t));
+    u->pdata_chunk = tb_export_make_chunk(dst_arena, count * 3 * sizeof(uint32_t));
     uint32_t* pdata = (uint32_t*) u->pdata_chunk->data;
 
     bool overflow = count * 3 >= 0xFFFF;
-    u->pdata_relocs = tb_export_make_chunk((overflow + count*3) * sizeof(COFF_ImageReloc));
+    u->pdata_relocs = tb_export_make_chunk(dst_arena, (overflow + count*3) * sizeof(COFF_ImageReloc));
     COFF_ImageReloc* relocs = (COFF_ImageReloc*) u->pdata_relocs->data;
 
     if (overflow) {
@@ -97,7 +97,7 @@ static void generate_unwind_info(COFF_UnwindInfo* restrict u, const ICodeGen* re
         };
     }
 
-    u->xdata_chunk = tb_export_make_chunk(xdata.count);
+    u->xdata_chunk = tb_export_make_chunk(dst_arena, xdata.count);
     memcpy(u->xdata_chunk->data, xdata.data, xdata.count);
     tb_platform_heap_free(xdata.data);
 
@@ -117,7 +117,7 @@ static void generate_unwind_info(COFF_UnwindInfo* restrict u, const ICodeGen* re
 }
 
 #define WRITE(data, size) (memcpy(&output[write_pos], data, size), write_pos += (size))
-TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
+TB_ExportBuffer tb_coff_write_output(TB_Module* m, TB_Arena* dst_arena, const IDebugFormat* dbg) {
     TB_Arena* arena = get_temporary_arena(m);
 
     ExportList exports;
@@ -177,7 +177,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
         // make unwind info for each section with functions
         if (code_gen->emit_win64eh_unwind_info && sections[i].funcs) {
             COFF_UnwindInfo* u = tb_arena_alloc(arena, sizeof(COFF_UnwindInfo));
-            generate_unwind_info(u, code_gen, section_count, &sections[i]);
+            generate_unwind_info(dst_arena, u, code_gen, section_count, &sections[i]);
 
             sections[i].unwind = u;
             section_count += 2; // .pdata + .xdata
@@ -280,7 +280,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
 
     CUIK_TIMED_BLOCK("write output") {
         CUIK_TIMED_BLOCK("write headers") {
-            TB_ExportChunk* headers = tb_export_make_chunk(sizeof(COFF_FileHeader) + (sizeof(COFF_SectionHeader) * section_count));
+            TB_ExportChunk* headers = tb_export_make_chunk(dst_arena, sizeof(COFF_FileHeader) + (sizeof(COFF_SectionHeader) * section_count));
 
             // write COFF header
             COFF_FileHeader* file = (COFF_FileHeader*) headers->data;
@@ -350,7 +350,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
 
         // write raw data
         dyn_array_for(i, sections) {
-            TB_ExportChunk* sec = tb_export_make_chunk(sections[i].total_size);
+            TB_ExportChunk* sec = tb_export_make_chunk(dst_arena, sections[i].total_size);
             tb_helper_write_section(m, 0, &sections[i], sec->data, 0);
             tb_export_append_chunk(&buffer, sec);
 
@@ -365,7 +365,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
         }
 
         FOREACH_N(i, 0, debug_sections.length) {
-            TB_ExportChunk* sec = tb_export_make_chunk(debug_sections.data[i].raw_data.length);
+            TB_ExportChunk* sec = tb_export_make_chunk(dst_arena, debug_sections.data[i].raw_data.length);
             memcpy(sec->data, debug_sections.data[i].raw_data.data, debug_sections.data[i].raw_data.length);
             tb_export_append_chunk(&buffer, sec);
         }
@@ -376,7 +376,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
             DynArray(TB_FunctionOutput*) funcs = sections[i].funcs;
             DynArray(TB_Global*) globals = sections[i].globals;
 
-            TB_ExportChunk* relocations = tb_export_make_chunk(reloc_count * sizeof(COFF_ImageReloc));
+            TB_ExportChunk* relocations = tb_export_make_chunk(dst_arena, reloc_count * sizeof(COFF_ImageReloc));
             COFF_ImageReloc* relocs = (COFF_ImageReloc*) relocations->data;
 
             dyn_array_for(j, funcs) {
@@ -442,7 +442,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
         }
 
         FOREACH_N(i, 0, debug_sections.length) {
-            TB_ExportChunk* relocations = tb_export_make_chunk(debug_sections.data[i].relocation_count * sizeof(COFF_ImageReloc));
+            TB_ExportChunk* relocations = tb_export_make_chunk(dst_arena, debug_sections.data[i].relocation_count * sizeof(COFF_ImageReloc));
             COFF_ImageReloc* relocs = (COFF_ImageReloc*) relocations->data;
 
             FOREACH_N(j, 0, debug_sections.data[i].relocation_count) {
@@ -471,7 +471,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
         uint32_t string_table_mark = 4;
         size_t string_table_length = 0;
         CUIK_TIMED_BLOCK("write symbols") {
-            TB_ExportChunk* symtab = tb_export_make_chunk(header.symbol_count * sizeof(COFF_Symbol));
+            TB_ExportChunk* symtab = tb_export_make_chunk(dst_arena, header.symbol_count * sizeof(COFF_Symbol));
 
             size_t write_pos = 0;
             uint8_t* output = symtab->data;
@@ -648,7 +648,7 @@ TB_ExportBuffer tb_coff_write_output(TB_Module* m, const IDebugFormat* dbg) {
         // write string table
         {
             // assert(write_pos == strtbl.pos);
-            TB_ExportChunk* chunk = tb_export_make_chunk(strtbl.size);
+            TB_ExportChunk* chunk = tb_export_make_chunk(dst_arena, strtbl.size);
 
             memcpy(chunk->data, &string_table_mark, sizeof(uint32_t));
 

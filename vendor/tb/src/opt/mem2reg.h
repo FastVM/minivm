@@ -114,6 +114,10 @@ static void expunge(TB_Function* f, TB_Node* n) {
     tb_pass_kill_node(f, n);
 }
 
+static TB_Node* node_or_poison(TB_Function* f, TB_Node* n, TB_DataType dt) {
+    return n ? n : make_poison(f, dt);
+}
+
 static void fixup_mem_node(TB_Function* f, TB_Passes* restrict p, LocalSplitter* restrict ctx, TB_Node* curr, TB_Node** latest) {
     int user_cnt = 0;
     MemOp* users = NULL;
@@ -206,7 +210,10 @@ static void fixup_mem_node(TB_Function* f, TB_Passes* restrict p, LocalSplitter*
                         set_input(f, use_n, latest[1 + cat], 1);
                         tb_pass_mark(p, use_n);
                     } else {
-                        subsume_node(f, use_n, latest[1 + cat]);
+                        assert(use_n->type == TB_LOAD);
+
+                        TB_Node* val = node_or_poison(f, latest[1 + cat], use_n->dt);
+                        subsume_node(f, use_n, val);
                     }
                 }
             }
@@ -263,16 +270,25 @@ static void fixup_mem_node(TB_Function* f, TB_Passes* restrict p, LocalSplitter*
                     FOREACH_N(i, 0, ctx->local_count) {
                         // let's hope the first datatype we get from the phi is decent, if not the
                         // peepholes will ideally fix it.
-                        TB_DataType dt = ctx->renames[i].alias_idx >= 0 ? TB_TYPE_MEMORY : latest[1 + i]->dt;
+                        TB_Node* val = latest[1 + i];
+                        TB_DataType dt = TB_TYPE_MEMORY;
 
-                        TB_Node* new_phi = tb_alloc_node(f, TB_PHI, dt, use_n->input_count, 0);
-                        set_input(f, new_phi, region, 0);
-                        set_input(f, new_phi, latest[1 + i], use_i);
-                        new_latest[1 + i] = new_phi;
-                        tb_pass_mark(p, new_phi);
+                        if (val != NULL) {
+                            if (ctx->renames[i].alias_idx < 0) {
+                                dt = val->dt;
+                            }
 
-                        nl_table_put(&ctx->phi2local, new_phi, &ctx->renames[i]);
-                        lattice_universe_map(p, new_phi, NULL);
+                            TB_Node* new_phi = tb_alloc_node(f, TB_PHI, dt, use_n->input_count, 0);
+                            set_input(f, new_phi, region, 0);
+                            set_input(f, new_phi, val, use_i);
+                            new_latest[1 + i] = new_phi;
+                            tb_pass_mark(p, new_phi);
+
+                            nl_table_put(&ctx->phi2local, new_phi, &ctx->renames[i]);
+                            lattice_universe_map(p, new_phi, NULL);
+                        } else {
+                            new_latest[1 + i] = NULL;
+                        }
                     }
 
                     // first entry, every other time we'll just be stitching phis
@@ -283,18 +299,20 @@ static void fixup_mem_node(TB_Function* f, TB_Passes* restrict p, LocalSplitter*
                         Rename* name = nl_table_get(&ctx->phi2local, phi->n);
                         if (name == &RENAME_DUMMY) {
                             set_input(f, phi->n, latest[0], use_i);
-                        } else if (name->alias_idx < 0) {
-                            TB_Node* val = latest[1 + (name - ctx->renames)];
-                            if (val->dt.raw != phi->n->dt.raw) {
-                                // insert bitcast
-                                TB_Node* cast = tb_alloc_node(f, TB_BITCAST, phi->n->dt, 2, 0);
-                                set_input(f, cast, val, 1);
-                                val = cast;
-                            }
+                        } else if (name) {
+                            if (name->alias_idx < 0) {
+                                TB_Node* val = latest[1 + (name - ctx->renames)];
+                                if (val->dt.raw != phi->n->dt.raw) {
+                                    // insert bitcast
+                                    TB_Node* cast = tb_alloc_node(f, TB_BITCAST, phi->n->dt, 2, 0);
+                                    set_input(f, cast, val, 1);
+                                    val = cast;
+                                }
 
-                            set_input(f, phi->n, val, use_i);
-                        } else {
-                            set_input(f, phi->n, latest[1 + (name - ctx->renames)], use_i);
+                                set_input(f, phi->n, val, use_i);
+                            } else {
+                                set_input(f, phi->n, latest[1 + (name - ctx->renames)], use_i);
+                            }
                         }
                     }
                 }

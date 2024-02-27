@@ -35,7 +35,7 @@ static TB_Node* ideal_region(TB_Passes* restrict p, TB_Function* f, TB_Node* n) 
                         remove_input(f, use->n, i + 1);
                     }
                 }
-            } else if (n->inputs[i]->type == TB_REGION) {
+            } else if (cfg_is_region(n->inputs[i])) {
                 #if 1
                 // pure regions can be collapsed into direct edges
                 if (n->inputs[i]->users->next == NULL && n->inputs[i]->input_count > 0) {
@@ -166,7 +166,7 @@ static TB_Node* ideal_phi(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
                         }
                     }
 
-                    uint64_t falsey = TB_NODE_GET_EXTRA_T(branch, TB_NodeBranch)->keys[0];
+                    uint64_t falsey = TB_NODE_GET_EXTRA_T(branch, TB_NodeBranch)->keys[0].key;
                     TB_Node* cond = branch->inputs[1];
 
                     // TODO(NeGate): handle non-zero falseys
@@ -236,7 +236,7 @@ static TB_Node* ideal_phi(TB_Passes* restrict opt, TB_Function* f, TB_Node* n) {
                 if (index == 0) {
                     l->entries[index].key = 0; // default value, doesn't matter
                 } else {
-                    l->entries[index].key = br->keys[index - 1];
+                    l->entries[index].key = br->keys[index - 1].key;
                 }
 
                 TB_NodeInt* v = TB_NODE_GET_EXTRA(n->inputs[1 + i]);
@@ -259,7 +259,7 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
     TB_NodeBranch* br = TB_NODE_GET_EXTRA(n);
 
     if (br->succ_count == 2) {
-        if (n->input_count == 2 && br->keys[0] == 0) {
+        if (n->input_count == 2 && br->keys[0].key == 0) {
             TB_Node* cmp_node = n->inputs[1];
             TB_NodeTypeEnum cmp_type = cmp_node->type;
 
@@ -268,7 +268,7 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
             //
             // TODO(NeGate): implement form which works on an arbitrary falsey
             if (n->inputs[0]->type == TB_PROJ && n->inputs[0]->inputs[0]->type == TB_BRANCH && is_empty_bb(opt, n)) {
-                uint64_t falsey = br->keys[0];
+                uint64_t falsey = br->keys[0].key;
                 TB_Node* pred_branch = n->inputs[0]->inputs[0];
 
                 int index = TB_NODE_GET_EXTRA_T(n->inputs[0], TB_NodeProj)->index;
@@ -288,7 +288,7 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
 
                     // if they're the same then we've got a shortcircuit eval setup
                     if (shared_edge == shared_edge2) {
-                        assert(shared_edge->type == TB_REGION);
+                        assert(cfg_is_region(shared_edge));
                         int shared_i  = other_proj->n->users->slot;
                         int shared_i2 = other_proj2->n->users->slot;
 
@@ -370,10 +370,11 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
             if ((cmp_type == TB_CMP_NE || cmp_type == TB_CMP_EQ) && cmp_node->inputs[2]->type == TB_INTEGER_CONST) {
                 uint64_t imm = TB_NODE_GET_EXTRA_T(cmp_node->inputs[2], TB_NodeInt)->value;
                 set_input(f, n, cmp_node->inputs[1], 1);
-                br->keys[0] = imm;
+                br->keys[0].key = imm;
 
                 // flip successors
                 if (cmp_type == TB_CMP_EQ) {
+                    SWAP(uint64_t, br->keys[0].taken, br->keys[1].taken);
                     FOR_USERS(u, n) {
                         TB_NodeProj* p = TB_NODE_GET_EXTRA(u->n);
                         p->index = !p->index;
@@ -388,7 +389,7 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
     return NULL;
 }
 
-static Lattice* sccp_call(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_call(TB_Passes* restrict opt, TB_Node* n) {
     TB_NodeCall* c = TB_NODE_GET_EXTRA(n);
 
     size_t size = sizeof(Lattice) + c->proj_count*sizeof(Lattice*);
@@ -420,7 +421,7 @@ static Lattice* sccp_call(TB_Passes* restrict opt, TB_Node* n) {
     }
 }
 
-static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
+static Lattice* value_branch(TB_Passes* restrict opt, TB_Node* n) {
     Lattice* before = lattice_universe_get(opt, n->inputs[0]);
     if (before == &TOP_IN_THE_SKY) {
         return &TOP_IN_THE_SKY;
@@ -441,16 +442,14 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
         taken = 0;
 
         FOREACH_N(i, 0, br->succ_count - 1) {
-            int64_t case_key = br->keys[i];
+            int64_t case_key = br->keys[i].key;
             if (key_const == case_key) {
                 taken = i + 1;
                 break;
             }
         }
     } else if (br->succ_count == 2) {
-        // TODO(NeGate): extend this to MEET redundant checks to ideally
-        // narrow on more complex checks.
-        int64_t* primary_keys = br->keys;
+        TB_BranchKey* primary_keys = br->keys;
 
         // check for redundant conditions in the doms.
         FOR_USERS(u, n->inputs[1]) {
@@ -459,8 +458,8 @@ static Lattice* sccp_branch(TB_Passes* restrict opt, TB_Node* n) {
             }
 
             TB_Node* end = u->n;
-            int64_t* keys = TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->keys;
-            if (TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->succ_count != 2 || keys[0] != primary_keys[0]) {
+            TB_BranchKey* keys = TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->keys;
+            if (TB_NODE_GET_EXTRA_T(end, TB_NodeBranch)->succ_count != 2 || keys[0].key != primary_keys[0].key) {
                 continue;
             }
 

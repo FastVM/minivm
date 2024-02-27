@@ -35,7 +35,7 @@ static void elf_init(TB_Linker* l) {
 }
 
 #define WRITE(data, size) (memcpy(&output[write_pos], data, size), write_pos += (size))
-static TB_ExportBuffer elf_export(TB_Linker* l) {
+static TB_ExportBuffer elf_export(TB_Linker* l, TB_Arena* arena) {
     CUIK_TIMED_BLOCK("GC sections") {
         tb_linker_push_named(l, l->entrypoint);
         tb_linker_mark_live(l);
@@ -103,7 +103,7 @@ static TB_ExportBuffer elf_export(TB_Linker* l) {
     size_t output_size = size_of_headers + section_content_size;
     size_t write_pos = 0;
 
-    TB_ExportChunk* chunk = tb_export_make_chunk(output_size);
+    TB_ExportChunk* chunk = tb_export_make_chunk(arena, output_size);
     uint8_t* restrict output = chunk->data;
 
     TB_Elf64_Ehdr header = {

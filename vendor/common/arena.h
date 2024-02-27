@@ -20,38 +20,33 @@
 #endif
 
 enum {
-    TB_ARENA_SMALL_CHUNK_SIZE  =          16 * 1024,
-    TB_ARENA_MEDIUM_CHUNK_SIZE =    4 * 1024 * 1024,
-    TB_ARENA_LARGE_CHUNK_SIZE  =   16 * 1024 * 1024,
+    TB_ARENA_SMALL_CHUNK_SIZE  =         4 * 1024,
+    TB_ARENA_MEDIUM_CHUNK_SIZE =       512 * 1024,
+    TB_ARENA_LARGE_CHUNK_SIZE  = 64 * 1024 * 1024,
 
     TB_ARENA_ALIGNMENT = 16,
 };
 
-typedef struct TB_ArenaChunk TB_ArenaChunk;
-struct TB_ArenaChunk {
-    TB_ArenaChunk* next;
-    size_t pad;
-    char data[];
-};
+typedef struct TB_Arena TB_Arena;
+struct TB_Arena {
+    TB_Arena* next;
 
-typedef struct TB_Arena {
-    size_t chunk_size;
-    TB_ArenaChunk* base;
-    TB_ArenaChunk* top;
+    // we only care about this for the root arena chunk but whatever
+    TB_Arena* top;
 
     // top of the allocation space
     char* watermark;
     char* high_point; // &top->data[chunk_size]
 
-    size_t highest_point;
-} TB_Arena;
+    char data[];
+};
 
 typedef struct TB_ArenaSavepoint {
-    TB_ArenaChunk* top;
+    TB_Arena* top;
     char* watermark;
 } TB_ArenaSavepoint;
 
-#define TB_ARENA_FOR(it, arena) for (TB_ArenaChunk* it = (arena)->base; it != NULL; it = it->next)
+#define TB_ARENA_FOR(it, arena) for (TB_Arena* it = (arena); it != NULL; it = it->next)
 
 #define TB_ARENA_ALLOC(arena, T) tb_arena_alloc(arena, sizeof(T))
 #define TB_ARENA_ARR_ALLOC(arena, count, T) tb_arena_alloc(arena, (count) * sizeof(T))
@@ -71,6 +66,7 @@ TB_API void tb_arena_pop(TB_Arena* restrict arena, void* ptr, size_t size);
 // in case you wanna mix unaligned and aligned arenas
 TB_API void tb_arena_realign(TB_Arena* restrict arena);
 
+TB_API size_t tb_arena_chunk_size(TB_Arena* arena);
 TB_API size_t tb_arena_current_size(TB_Arena* arena);
 
 // savepoints

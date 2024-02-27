@@ -26,7 +26,10 @@ static void dumb_print_node_internal(TB_Function* f, Lattice** types, TB_Node* n
         }
     }
     printf(" = %s ", tb_node_get_name(n));
-    if (n->type == TB_SYMBOL) {
+    if (n->type == TB_STORE) {
+        print_type(n->inputs[3]->dt);
+        printf(" ");
+    } if (n->type == TB_SYMBOL) {
         TB_Symbol* sym = TB_NODE_GET_EXTRA_T(n, TB_NodeSymbol)->sym;
         if (sym->name[0]) {
             printf("'%s' ", sym->name);

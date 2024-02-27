@@ -208,14 +208,14 @@ bool tb_x86_disasm(TB_X86_Inst* restrict inst, size_t length, const uint8_t* dat
 
     // in the "default" "type" "system", REX.W is 64bit, certain ops
     // will mark they're 8bit and most will just be 32bit (with 16bit on ADDR16)
-    if (flags & OP_SSE) {
+    if (props & OP_SSE) {
         // ss     REP    OPCODE
         // sd     REPNE  OPCODE
         // ps     __     OPCODE
         // pd     DATA16 OPCODE
-        if (inst->flags & TB_X86_INSTR_REPNE) {
+        if (flags & TB_X86_INSTR_REPNE) {
             inst->dt = TB_X86_TYPE_SSE_SD;
-        } else if (inst->flags & TB_X86_INSTR_REP) {
+        } else if (flags & TB_X86_INSTR_REP) {
             inst->dt = TB_X86_TYPE_SSE_SS;
         } else if (inst->dt == TB_X86_TYPE_WORD) {
             inst->dt = TB_X86_TYPE_SSE_PD;

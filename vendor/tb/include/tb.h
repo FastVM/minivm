@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// https://semver.org/
 #define TB_VERSION_MAJOR 0
 #define TB_VERSION_MINOR 3
 #define TB_VERSION_PATCH 0
@@ -81,7 +80,7 @@ typedef enum TB_System {
     TB_SYSTEM_LINUX,
     TB_SYSTEM_MACOS,
     TB_SYSTEM_ANDROID, // Not supported yet
-    TB_SYSTEM_WEB,
+    TB_SYSTEM_WASM,
 
     TB_SYSTEM_MAX,
 } TB_System;
@@ -254,16 +253,22 @@ typedef enum TB_NodeTypeEnum {
     ////////////////////////////////
     //   there's only one ROOT per function, it's inputs are the return values, it's
     //   outputs are the initial params.
-    TB_ROOT,       // (Callgraph, Exits...) -> (Control, Memory, RPC, Data...)
+    TB_ROOT,         // (Callgraph, Exits...) -> (Control, Memory, RPC, Data...)
     //   return nodes feed into ROOT, jumps through the RPC out of this stack frame.
-    TB_RETURN,     // (Control, Memory, RPC, Data...) -> ()
+    TB_RETURN,       // (Control, Memory, RPC, Data...) -> ()
     //   regions are used to represent paths which have multiple entries.
     //   each input is a predecessor.
-    TB_REGION,     // (Control...) -> (Control)
+    TB_REGION,       // (Control...) -> (Control)
+    //   a natural loop header has the first edge be the dominating predecessor, every other edge
+    //   is a backedge.
+    TB_NATURAL_LOOP, // (Control...) -> (Control)
+    //   a natural loop header (thus also a region) of an affine loop (one where the induction
+    //   var is an affine y=mx+b kind of function)
+    TB_AFFINE_LOOP,  // (Control...) -> (Control)
     //   phi nodes work the same as in SSA CFG, the value is based on which predecessor was taken.
     //   each input lines up with the regions such that region.in[i] will use phi.in[i+1] as the
     //   subsequent data.
-    TB_PHI,        // (Control, Data...) -> Data
+    TB_PHI,          // (Control, Data...) -> Data
     //   branch is used to implement most control flow, it acts like a switch
     //   statement in C usually. they take a key and match against some cases,
     //   if they match, it'll jump to that successor, if none match it'll take
@@ -396,8 +401,8 @@ typedef enum TB_NodeTypeEnum {
     TB_FSUB,
     TB_FMUL,
     TB_FDIV,
-    TB_FMAX,
     TB_FMIN,
+    TB_FMAX,
 
     // Comparisons
     TB_CMP_EQ,
@@ -410,9 +415,11 @@ typedef enum TB_NodeTypeEnum {
     TB_CMP_FLE,
 
     // Special ops
-    //   adds two paired integers to two other paired integers and returns
-    //   a low and high value
-    TB_ADDPAIR,
+    //   add with carry
+    TB_ADC,     // (Int, Int, Bool?) -> (Int, Bool)
+    //   division and modulo
+    TB_UDIVMOD, // (Int, Int) -> (Int, Int)
+    TB_SDIVMOD, // (Int, Int) -> (Int, Int)
     //   does full multiplication (64x64=128 and so on) returning
     //   the low and high values in separate projections
     TB_MULPAIR,
@@ -564,10 +571,16 @@ struct TB_Node {
 #define TB_NODE_GET_EXTRA_T(n, T)    ((T*) (n)->extra)
 #define TB_NODE_SET_EXTRA(n, T, ...) (*((T*) (n)->extra) = (T){ __VA_ARGS__ })
 
-// this represents switch (many targets), if (one target) and goto (only default) logic.
 typedef struct { // TB_BRANCH
+    uint64_t taken;
+    int64_t key;
+} TB_BranchKey;
+
+// this represents switch (many targets), if (one target)
+typedef struct { // TB_BRANCH
+    uint64_t total_hits;
     size_t succ_count;
-    int64_t keys[];
+    TB_BranchKey keys[];
 } TB_NodeBranch;
 
 typedef struct { // TB_PROJ
@@ -631,8 +644,6 @@ typedef struct {
 typedef struct {
     TB_MemoryOrder order;
     TB_MemoryOrder order2;
-    TB_Node* proj0;
-    TB_Node* proj1;
 } TB_NodeAtomic;
 
 typedef struct {
@@ -652,14 +663,6 @@ typedef struct {
 
 typedef struct {
     const char* tag;
-
-    // natural loops here will have in[0] has entry and in[1] as the backedge,
-    // the nice bit is that it means we know the dominator and can take advantage
-    // of that later.
-    bool natty;
-
-    // magic factor for hot-code, higher means run more often
-    float freq;
 
     // used for IR building
     TB_Node *mem_in;
@@ -902,9 +905,8 @@ typedef struct {
     TB_ExportChunk *head, *tail;
 } TB_ExportBuffer;
 
-TB_API TB_ExportBuffer tb_module_object_export(TB_Module* m, TB_DebugFormat debug_fmt);
+TB_API TB_ExportBuffer tb_module_object_export(TB_Module* m, TB_Arena* dst_arena, TB_DebugFormat debug_fmt);
 TB_API bool tb_export_buffer_to_file(TB_ExportBuffer buffer, const char* path);
-TB_API void tb_export_buffer_free(TB_ExportBuffer buffer);
 
 ////////////////////////////////
 // Linker exporter
@@ -930,7 +932,7 @@ typedef struct {
 TB_API TB_ExecutableType tb_system_executable_format(TB_System s);
 
 TB_API TB_Linker* tb_linker_create(TB_ExecutableType type, TB_Arch arch);
-TB_API TB_ExportBuffer tb_linker_export(TB_Linker* l);
+TB_API TB_ExportBuffer tb_linker_export(TB_Linker* l, TB_Arena* arena);
 TB_API void tb_linker_destroy(TB_Linker* l);
 
 TB_API bool tb_linker_get_msg(TB_Linker* l, TB_LinkerMsg* msg);
@@ -1281,15 +1283,18 @@ TB_API bool tb_inst_add_phi_operand(TB_Function* f, TB_Node* phi, TB_Node* regio
 
 TB_API TB_Node* tb_inst_phi2(TB_Function* f, TB_Node* region, TB_Node* a, TB_Node* b);
 TB_API void tb_inst_goto(TB_Function* f, TB_Node* target);
-TB_API void tb_inst_if(TB_Function* f, TB_Node* cond, TB_Node* true_case, TB_Node* false_case);
-TB_API void tb_inst_branch(TB_Function* f, TB_DataType dt, TB_Node* key, TB_Node* default_case, size_t entry_count, const TB_SwitchEntry* keys);
+TB_API TB_Node* tb_inst_if(TB_Function* f, TB_Node* cond, TB_Node* true_case, TB_Node* false_case);
+TB_API TB_Node* tb_inst_branch(TB_Function* f, TB_DataType dt, TB_Node* key, TB_Node* default_case, size_t entry_count, const TB_SwitchEntry* keys);
 TB_API void tb_inst_unreachable(TB_Function* f);
 TB_API void tb_inst_debugbreak(TB_Function* f);
 TB_API void tb_inst_trap(TB_Function* f);
 
 // revised API for if, this one returns the control projections such that a target is not necessary while building
 //   projs[0] is the true case, projs[1] is false.
-TB_API void tb_inst_if2(TB_Function* f, TB_Node* cond, TB_Node* projs[2]);
+TB_API TB_Node* tb_inst_if2(TB_Function* f, TB_Node* cond, TB_Node* projs[2]);
+
+// n is a TB_BRANCH with two successors, taken is the number of times it's true
+TB_API void tb_inst_set_branch_freq(TB_Function* f, TB_Node* n, int total_hits, int taken);
 
 TB_API void tb_inst_ret(TB_Function* f, size_t count, TB_Node** values);
 
@@ -1365,7 +1370,9 @@ TB_API void tb_builder_set_var(TB_GraphBuilder* g, int id);
 
 // control flow primitives
 //   ( a -- )
-TB_API void tb_builder_if(TB_GraphBuilder* g);
+//
+//   taken is the number of times we do the true case
+TB_API void tb_builder_if(TB_GraphBuilder* g, int total_hits, int taken);
 //   ( -- )
 TB_API void tb_builder_else(TB_GraphBuilder* g);
 //   ( -- )
@@ -1436,10 +1443,8 @@ TB_API void tb_pass_print_dot(TB_Passes* opt, TB_PrintCallback callback, void* u
 //   at least)
 TB_API TB_FunctionOutput* tb_pass_codegen(TB_Passes* opt, TB_Arena* code_arena, const TB_FeatureSet* features, bool emit_asm);
 
-void tb_module_prepare_ipo(TB_Module* m);
-
 // interprocedural optimizer iter
-bool tb_module_ipo(TB_Module* m);
+TB_API bool tb_module_ipo(TB_Module* m);
 
 TB_API void tb_pass_kill_node(TB_Function* f, TB_Node* n);
 TB_API void tb_pass_mark(TB_Passes* opt, TB_Node* n);

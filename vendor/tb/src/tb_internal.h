@@ -244,6 +244,7 @@ typedef struct TB_FunctionOutput {
     size_t code_size;
 
     // export-specific
+    uint32_t wasm_type;
     uint32_t unwind_info;
     uint32_t unwind_size;
 
@@ -551,7 +552,7 @@ ExportList tb_module_layout_sections(TB_Module* m);
 size_t tb_helper_write_section(TB_Module* m, size_t write_pos, TB_ModuleSection* section, uint8_t* output, uint32_t pos);
 size_t tb__layout_relocations(TB_Module* m, DynArray(TB_ModuleSection) sections, const ICodeGen* restrict code_gen, size_t output_size, size_t reloc_size);
 
-TB_ExportChunk* tb_export_make_chunk(size_t size);
+TB_ExportChunk* tb_export_make_chunk(TB_Arena* arena, size_t size);
 void tb_export_append_chunk(TB_ExportBuffer* buffer, TB_ExportChunk* c);
 
 ////////////////////////////////
