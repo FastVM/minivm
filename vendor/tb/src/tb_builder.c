@@ -945,7 +945,7 @@ TB_Node* tb_inst_if(TB_Function* f, TB_Node* cond, TB_Node* if_true, TB_Node* if
     TB_Node* mem_state = peek_mem(f);
 
     // generate control projections
-    TB_Node* n = tb_alloc_node(f, TB_BRANCH, TB_TYPE_TUPLE, 2, sizeof(TB_NodeBranch) + sizeof(int64_t));
+    TB_Node* n = tb_alloc_node(f, TB_BRANCH, TB_TYPE_TUPLE, 2, sizeof(TB_NodeBranch) + sizeof(TB_BranchKey));
     set_input(f, n, transfer_ctrl(f, NULL), 0);
     set_input(f, n, cond, 1);
 
@@ -969,7 +969,7 @@ TB_Node* tb_inst_if2(TB_Function* f, TB_Node* cond, TB_Node* projs[2]) {
     TB_Node* mem_state = peek_mem(f);
 
     // generate control projections
-    TB_Node* n = tb_alloc_node(f, TB_BRANCH, TB_TYPE_TUPLE, 2, sizeof(TB_NodeBranch) + sizeof(int64_t));
+    TB_Node* n = tb_alloc_node(f, TB_BRANCH, TB_TYPE_TUPLE, 2, sizeof(TB_NodeBranch) + sizeof(TB_BranchKey));
     set_input(f, n, transfer_ctrl(f, NULL), 0);
     set_input(f, n, cond, 1);
 
@@ -997,7 +997,7 @@ TB_Node* tb_inst_branch(TB_Function* f, TB_DataType dt, TB_Node* key, TB_Node* d
     TB_Node* mem_state = peek_mem(f);
 
     // generate control projections
-    TB_Node* n = tb_alloc_node(f, TB_BRANCH, TB_TYPE_TUPLE, 2, sizeof(TB_NodeBranch) + (sizeof(int64_t) * entry_count));
+    TB_Node* n = tb_alloc_node(f, TB_BRANCH, TB_TYPE_TUPLE, 2, sizeof(TB_NodeBranch) + (sizeof(TB_BranchKey) * entry_count));
     set_input(f, n, transfer_ctrl(f, NULL), 0);
     set_input(f, n, key, 1);
 

@@ -7,7 +7,6 @@
 #include "../ir/ir.h"
 #include "../std/io.h"
 #include "../std/util.h"
-#include "./parser.h"
 
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
@@ -31,7 +30,7 @@ bool vm_lang_lua_repl_table_get_bool(vm_table_t *table, const char *key) {
 
 void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
     config->use_tb_opt = vm_lang_lua_repl_table_get_bool(table, "opt");
-    vm_table_t *dump = vm_table_lookup_str(table, "dump")->val_val.table;
+    vm_table_t *dump = VM_TABLE_LOOKUP_STR(table, "dump")->val_val.table;
     config->dump_src = vm_lang_lua_repl_table_get_bool(dump, "src");
     config->dump_ast = vm_lang_lua_repl_table_get_bool(dump, "ast");
     config->dump_ir = vm_lang_lua_repl_table_get_bool(dump, "ir");
@@ -46,20 +45,20 @@ void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
 }
 
 void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
-    VM_STD_SET_BOOL(table, "opt", config->use_tb_opt);
+    VM_TABLE_SET(table, str, "opt", b, config->use_tb_opt);
     vm_table_t *dump = vm_table_new();
-    VM_STD_SET_TAB(table, "dump", dump);
-    VM_STD_SET_BOOL(dump, "src", config->dump_src);
-    VM_STD_SET_BOOL(dump, "ast", config->dump_ast);
-    VM_STD_SET_BOOL(dump, "ir", config->dump_ir);
-    VM_STD_SET_BOOL(dump, "ver", config->dump_ver);
-    VM_STD_SET_BOOL(dump, "tb", config->dump_tb);
-    VM_STD_SET_BOOL(dump, "tb_opt", config->dump_tb_opt);
-    VM_STD_SET_BOOL(dump, "tb_dot", config->dump_tb_dot);
-    VM_STD_SET_BOOL(dump, "tb_opt_dot", config->dump_tb_opt_dot);
-    VM_STD_SET_BOOL(dump, "asm", config->dump_asm);
-    VM_STD_SET_BOOL(dump, "args", config->dump_args);
-    VM_STD_SET_BOOL(dump, "time", config->dump_time);
+    VM_TABLE_SET(table, str, "dump", table, dump);
+    VM_TABLE_SET(dump, str, "src", b, config->dump_src);
+    VM_TABLE_SET(dump, str, "ast", b, config->dump_ast);
+    VM_TABLE_SET(dump, str, "ir", b, config->dump_ir);
+    VM_TABLE_SET(dump, str, "ver", b, config->dump_ver);
+    VM_TABLE_SET(dump, str, "tb", b, config->dump_tb);
+    VM_TABLE_SET(dump, str, "tb_opt", b, config->dump_tb_opt);
+    VM_TABLE_SET(dump, str, "tb_dot", b, config->dump_tb_dot);
+    VM_TABLE_SET(dump, str, "tb_opt_dot", b, config->dump_tb_opt_dot);
+    VM_TABLE_SET(dump, str, "asm", b, config->dump_asm);
+    VM_TABLE_SET(dump, str, "args", b, config->dump_args);
+    VM_TABLE_SET(dump, str, "time", b, config->dump_time);
 }
 
 #if !defined(EMSCRIPTEN)
@@ -119,7 +118,7 @@ const char *vm_lang_lua_repl_highlight_bracket_color(vm_table_t *repl, size_t de
     if (repl == NULL) {
         return "";
     }
-    vm_pair_t *value = vm_table_lookup_str(repl, "parens");
+    vm_pair_t *value = VM_TABLE_LOOKUP_STR(repl, "parens");
     if (value == NULL) {
         return "";
     }
@@ -202,7 +201,7 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     );
     TSNode root_node = ts_tree_root_node(tree);
     size_t depth = 0;
-    vm_pair_t *value = vm_table_lookup_str(state->std, "config");
+    vm_pair_t *value = VM_TABLE_LOOKUP_STR(state->std, "config");
     vm_table_t *repl = NULL;
     if (value != NULL && vm_type_eq(value->val_tag, VM_TYPE_TAB)) {
         repl = value->val_val.table;
@@ -222,13 +221,13 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
     vm_table_t *repl = vm_table_new();
     vm_lang_lua_repl_table_set_config(repl, config);
-    VM_STD_SET_BOOL(repl, "echo", true);
+    VM_TABLE_SET(repl, str, "echo", b, true);
     vm_table_t *parens = vm_table_new();
-    vm_table_set(parens, (vm_value_t){.i32 = 1}, (vm_value_t){.str = "yellow"}, VM_TYPE_I32, VM_TYPE_STR);
-    vm_table_set(parens, (vm_value_t){.i32 = 2}, (vm_value_t){.str = "magenta"}, VM_TYPE_I32, VM_TYPE_STR);
-    vm_table_set(parens, (vm_value_t){.i32 = 3}, (vm_value_t){.str = "blue"}, VM_TYPE_I32, VM_TYPE_STR);
-    VM_STD_SET_TAB(repl, "parens", parens);
-    VM_STD_SET_TAB(std, "config", repl);
+    VM_TABLE_SET(parens, i32, 1, str, "yellow");
+    VM_TABLE_SET(parens, i32, 2, str, "magenta");
+    VM_TABLE_SET(parens, i32, 3, str, "blue");
+    VM_TABLE_SET(repl, str, "parens", table, parens);
+    VM_TABLE_SET(std, str, "config", table, repl);
 
 #if !defined(EMSCRIPTEN)
     ic_set_history(".minivm-history", 2000);

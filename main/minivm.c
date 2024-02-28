@@ -21,12 +21,12 @@ typedef struct {
 
 EMSCRIPTEN_KEEPALIVE vm_main_t *vm_main_new(void) {
     vm_main_t *ret = vm_malloc(sizeof(vm_main_t));
-    ret->std = vm_std_new();
     ret->config = (vm_config_t){
         .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
         .target = VM_TARGET_TB_EMCC,
     };
+    ret->std = vm_std_new(&ret->config);
     ret->blocks = (vm_blocks_t) {0};
     return ret;
 }
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
     vm_config_t *config = &val_config;
     bool echo = false;
     bool isrepl = true;
-    vm_table_t *std = vm_std_new();
+    vm_table_t *std = vm_std_new(config);
     for (int i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (!strcmp(arg, "--")) {

@@ -374,7 +374,7 @@ static TB_Node* ideal_branch(TB_Passes* restrict opt, TB_Function* f, TB_Node* n
 
                 // flip successors
                 if (cmp_type == TB_CMP_EQ) {
-                    SWAP(uint64_t, br->keys[0].taken, br->keys[1].taken);
+                    br->keys[0].taken = br->total_hits - br->keys[0].taken;
                     FOR_USERS(u, n) {
                         TB_NodeProj* p = TB_NODE_GET_EXTRA(u->n);
                         p->index = !p->index;

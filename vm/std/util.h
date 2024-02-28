@@ -3,28 +3,6 @@
 
 #include "./std.h"
 
-#define VM_STD_SET_BOOL(table, key, value) vm_table_set( \
-    (table),                                             \
-    (vm_value_t){.str = (key)},                          \
-    (vm_value_t){.b = (_Bool)(value)},                  \
-    VM_TYPE_STR,                                          \
-    VM_TYPE_BOOL                                          \
-)
-#define VM_STD_SET_TAB(table, key, value) vm_table_set( \
-    (table),                                            \
-    (vm_value_t){.str = (key)},                         \
-    (vm_value_t){.all = (void *)(value)},               \
-    VM_TYPE_STR,                                         \
-    VM_TYPE_TAB                                          \
-)
-#define VM_STD_SET_FFI(table, key, value) vm_table_set( \
-    (table),                                            \
-    (vm_value_t){.str = (key)},                         \
-    (vm_value_t){.all = (void *)(value)},               \
-    VM_TYPE_STR,                                         \
-    VM_TYPE_FFI                                          \
-)
-
 static inline bool vm_std_parse_args(vm_std_value_t *args, const char *fmt, ...) {
     size_t head = 0;
     va_list ap;

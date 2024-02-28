@@ -3,7 +3,6 @@
 
 #include "../ast/ast.h"
 #include "./io.h"
-#include "./util.h"
 
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
@@ -430,42 +429,52 @@ void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-vm_table_t *vm_std_new(void) {
+vm_table_t *vm_std_new_args(vm_config_t *config, char *argv0, int argc, char **argv) {
     vm_table_t *std = vm_table_new();
 
     {
         vm_table_t *io = vm_table_new();
-        VM_STD_SET_TAB(std, "io", io);
-        VM_STD_SET_FFI(io, "write", &vm_std_io_write);
+        VM_TABLE_SET(std, str, "io", table, io);;
+        VM_TABLE_SET(io, str, "write", ffi, &vm_std_io_write);;
     }
 
     {
         vm_table_t *string = vm_table_new();
-        VM_STD_SET_TAB(std, "string", string);
-        VM_STD_SET_FFI(string, "format", &vm_std_string_format);
+        VM_TABLE_SET(std, str, "string", table, string);;
+        VM_TABLE_SET(string, str, "format", ffi, &vm_std_string_format);;
     }
 
     {
         vm_table_t *vm = vm_table_new();
-        VM_STD_SET_FFI(vm, "print", &vm_std_vm_print);
+        VM_TABLE_SET(vm, str, "print", ffi, &vm_std_vm_print);;
         {
             vm_table_t *vm_ver = vm_table_new();
-            VM_STD_SET_TAB(vm, "version", vm_ver);
+            VM_TABLE_SET(vm, str, "version", table, vm_ver);;
         }
-        VM_STD_SET_TAB(std, "vm", vm);
+        VM_TABLE_SET(std, str, "vm", table, vm);;
     }
 
     {
         vm_table_t *os = vm_table_new();
-        VM_STD_SET_FFI(os, "exit", &vm_std_os_exit);
-        VM_STD_SET_TAB(std, "os", os);
+        VM_TABLE_SET(os, str, "exit", ffi, &vm_std_os_exit);;
+        VM_TABLE_SET(std, str, "os", table, os);;
     }
 
-    VM_STD_SET_FFI(std, "tostring", &vm_std_tostring);
-    VM_STD_SET_FFI(std, "type", &vm_std_type);
-    VM_STD_SET_FFI(std, "print", &vm_std_print);
-    VM_STD_SET_FFI(std, "assert", &vm_std_assert);
-    VM_STD_SET_FFI(std, "load", &vm_std_load);
+    {
+        vm_table_t *arg = vm_table_new();
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, -1), VM_STD_VALUE_LITERAL(str, argv0));
+        VM_TABLE_SET(std, str, "arg", table, arg);;
+    }
+
+    VM_TABLE_SET(std, str, "tostring", ffi, &vm_std_tostring);;
+    VM_TABLE_SET(std, str, "type", ffi, &vm_std_type);;
+    VM_TABLE_SET(std, str, "print", ffi, &vm_std_print);;
+    VM_TABLE_SET(std, str, "assert", ffi, &vm_std_assert);;
+    VM_TABLE_SET(std, str, "load", ffi, &vm_std_load);;
 
     return std;
+}
+
+vm_table_t *vm_std_new(vm_config_t *config) {
+    return vm_std_new_args(config, NULL, 0, NULL);
 }

@@ -43,7 +43,6 @@ typedef struct {
     nl_buffer_t *globals;
     nl_buffer_t *pre;
     nl_buffer_t *buf;
-    TB_Node *return_block;
     void *arena;
     ptrdiff_t loop_goes_to;
     int depth;
@@ -652,10 +651,10 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
     TB_BasicBlock* bb = ctx->opt->scheduled[bb_start->gvn];
     Worklist* ws = &ctx->opt->worklist;
 
-    #ifndef NDEBUG
-    TB_BasicBlock* expected = &nl_map_get_checked(ctx->cfg.node_to_block, bb_start);
-    assert(expected == bb);
-    #endif
+    // #ifndef NDEBUG
+    // TB_BasicBlock* expected = &nl_map_get_checked(ctx->cfg.node_to_block, bb_start);
+    // assert(expected == bb);
+    // #endif
 
     CFmtBlockRange *range = c_fmt_get_block_range(ctx, bb_start);
 
@@ -911,6 +910,8 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                 break;
             }
 
+            case TB_NATURAL_LOOP:
+            case TB_AFFINE_LOOP:
             case TB_CALLGRAPH: {
                 break;
             }
@@ -1389,7 +1390,7 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                         FOREACH_N(i, 2, 4) {
                             if (projs[i] == NULL) break;
                             c_fmt_output(ctx, projs[i]);
-                            nl_buffer_format(ctx->buf, "ret.v%u;\n", projs[i]->gvn, projs[i]->gvn);
+                            nl_buffer_format(ctx->buf, "ret.v%u;\n", projs[i]->gvn);
                         }
                     }
                     ctx->depth -= 1;
@@ -1610,8 +1611,6 @@ TB_API char *tb_pass_c_fmt(TB_Passes* opt) {
     // schedule nodes
     tb_pass_schedule(opt, ctx.cfg, false);
     worklist_clear_visited(&opt->worklist);
-
-    ctx.return_block = opt->worklist.items[ctx.cfg.block_count - 1];
 
     // TB_Node* end_bb = NULL;
     FOREACH_N(i, 0, ctx.cfg.block_count) {

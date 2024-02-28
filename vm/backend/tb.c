@@ -1699,6 +1699,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             tb_pass_print_dot(passes, tb_default_print_callback, stdout);
         }
     }
+    fflush(stdout);
 #endif
 #if defined(EMSCRIPTEN)
     if (state->config->target == VM_TARGET_TB_EMCC) {

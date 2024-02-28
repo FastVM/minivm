@@ -1,5 +1,5 @@
 ---
-Language: C
+Language: Cpp
 AlignAfterOpenBracket: BlockIndent
 ColumnLimit: 0
 IndentCaseBlocks: false

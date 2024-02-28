@@ -5,6 +5,7 @@
 #include "./io.h"
 
 void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value);
-vm_table_t *vm_std_new(void);
+vm_table_t *vm_std_new_args(vm_config_t *config, char *argv0, int argc, char **argv);
+vm_table_t *vm_std_new(vm_config_t *config);
 
 #endif

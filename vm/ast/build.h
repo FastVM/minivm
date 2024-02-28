@@ -60,37 +60,19 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...);
 vm_ast_node_t vm_ast_build_error(const char *str);
 vm_ast_node_t vm_ast_build_nil(void);
 
-// ugly hacks
-#define VM_AST_LITERAL_TYPE_TO_TAG_i8(...) VM_TYPE_I8
-#define VM_AST_LITERAL_TYPE_TO_TAG_i16(...) VM_TYPE_I16
-#define VM_AST_LITERAL_TYPE_TO_TAG_i32(...) VM_TYPE_I32
-#define VM_AST_LITERAL_TYPE_TO_TAG_i64(...) VM_TYPE_I64
-#define VM_AST_LITERAL_TYPE_TO_TAG_f32(...) VM_TYPE_F32
-#define VM_AST_LITERAL_TYPE_TO_TAG_f64(...) VM_TYPE_F64
-#define VM_AST_LITERAL_TYPE_TO_TAG_b(...) VM_TYPE_BOOL
-#define VM_AST_LITERAL_TYPE_TO_TAG_str(...) VM_TYPE_STR
-
-#define VM_AST_LITERAL_TYPE_TO_TAG_CONCAT2_IMPL(X_, Y_) X_##Y_
-#define VM_AST_LITERAL_TYPE_TO_TAG_CONCAT2(X_, Y_) VM_AST_LITERAL_TYPE_TO_TAG_CONCAT2_IMPL(X_, Y_)
-
 // use this like follows
-// vm_ast_literal(i32, 10)
-// vm_ast_literal(f64, )
-#define vm_ast_build_literal(TYPE_, VALUE_)                                                  \
-    ((vm_ast_node_t){                                                                        \
-        .type = VM_AST_NODE_LITERAL,                                                         \
-        .value.literal = (vm_std_value_t){                                                   \
-            .tag = VM_AST_LITERAL_TYPE_TO_TAG_CONCAT2(VM_AST_LITERAL_TYPE_TO_TAG_, TYPE_)(), \
-            .value = (vm_value_t){                                                           \
-                .TYPE_ = (VALUE_),                                                           \
-            },                                                                               \
-        },                                                                                   \
+// vm_ast_build_literal(i32, 10)
+// vm_ast_build_literal(f64, )
+#define vm_ast_build_literal(TYPE_, VALUE_)                   \
+    ((vm_ast_node_t){                                         \
+        .type = VM_AST_NODE_LITERAL,                          \
+        .value.literal = VM_STD_VALUE_LITERAL(TYPE_, VALUE_), \
     })
 
-#define vm_ast_build_ident(STR_) \
-    ((vm_ast_node_t) {                         \
+#define vm_ast_build_ident(STR_)   \
+    ((vm_ast_node_t){              \
         .type = VM_AST_NODE_IDENT, \
-        .value.ident = (STR_),\
+        .value.ident = (STR_),     \
     })
-    
+
 #endif
