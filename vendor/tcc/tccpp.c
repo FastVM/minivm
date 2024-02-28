@@ -3622,7 +3622,11 @@ static void tcc_predefs(TCCState *s1, CString *cs, int is_asm)
       cstr_printf(cs, "#define __STDC_VERSION__ %dL\n", s1->cversion);
       cstr_cat(cs,
         /* load more predefs and __builtins */
+#if CONFIG_TCC_PREDEFS
         #include "tccdefs_.h" /* include as strings */
+#else
+        "#include <tccdefs.h>\n" /* load at runtime */
+#endif
         , -1);
     }
     cstr_printf(cs, "#define __BASE_FILE__ \"%s\"\n", file->filename);

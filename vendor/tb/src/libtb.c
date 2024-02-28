@@ -81,7 +81,7 @@ void* tb_jit_stack_create(void) {
     return VirtualAlloc2(GetCurrentProcess(), NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE, &param, 1);
 }
 #endif /* NTDDI_VERSION >= NTDDI_WIN10_RS4 */
-#elif defined(_POSIX_C_SOURCE)
+#elif defined(_POSIX_C_SOURCE) || defined(__APPLE__)
 void* tb_platform_valloc(size_t size) {
     return mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }

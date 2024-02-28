@@ -5876,9 +5876,7 @@ ST_FUNC void unary(void)
         next();
 	skip('(');
 	expr_type(&controlling_type, expr_eq);
-	controlling_type.t &= ~(VT_CONSTANT | VT_VOLATILE | VT_ARRAY);
-	if ((controlling_type.t & VT_BTYPE) == VT_FUNC)
-	  mk_pointer(&controlling_type);
+	convert_parameter_type (&controlling_type);
 
         nocode_wanted = saved_nocode_wanted;
 
@@ -6547,14 +6545,14 @@ static void expr_eq(void)
 
 ST_FUNC void gexpr(void)
 {
-    while (1) {
-        expr_eq();
-        if (tok != ',')
-            break;
+    expr_eq();
+    while (tok == ',') {
 	constant_p &= (vtop->r & (VT_VALMASK | VT_LVAL)) == VT_CONST &&
                       !((vtop->r & VT_SYM) && vtop->sym->a.addrtaken);
         vpop();
         next();
+        expr_eq();
+	convert_parameter_type (&vtop->type);
     }
 }
 
@@ -7268,7 +7266,7 @@ again:
                 if (is_expr) {
                     vpop();
                     gexpr();
-                } else {
+                } else if (!decl(VT_JMP)) {
                     gexpr();
                     vpop();
                 }

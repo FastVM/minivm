@@ -165,7 +165,7 @@ void cuikperf_thread_start(void) {
     #if _WIN32
     uint32_t tid = GetCurrentThreadId();
     #else
-    uint32_t tid = pthread_self();
+    uint32_t tid = 0;
     #endif
 
     if (profiling) {
@@ -201,7 +201,7 @@ void cuikperf_region_start(const char* label, const char* extra) {
         #if _WIN32
         uint32_t tid = GetCurrentThreadId();
         #else
-        uint32_t tid = pthread_self();
+        uint32_t tid = 0;
         #endif
 
         spall_buffer_begin_args(&ctx, &muh_buffer, label, strlen(label), extra, extra ? strlen(extra) : 0, nanos, tid, 0);
@@ -217,7 +217,7 @@ void cuikperf_region_end(void) {
         #if _WIN32
         uint32_t tid = GetCurrentThreadId();
         #else
-        uint32_t tid = pthread_self();
+        uint32_t tid = 0;
         #endif
 
         spall_buffer_end_ex(&ctx, &muh_buffer, nanos, tid, 0);
