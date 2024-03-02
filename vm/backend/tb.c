@@ -312,6 +312,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
         vm_io_buffer_t buf = {0};
         vm_io_format_block(&buf, block);
         fprintf(stdout, "\n--- vmir ---\n%.*s", (int)buf.len, buf.buf);
+        fflush(stdout);
     }
 #endif
 
@@ -846,7 +847,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                         TB_TYPE_PTR,
                         tb_inst_member_access(state->fun, end_head, offsetof(vm_std_value_t, tag)),
                         vm_tb_make_type(state, VM_TYPE_UNK),
-                        4,
+                        8,
                         false
                     );
 
@@ -1210,7 +1211,7 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
             TB_Node *val_tag_tag = tb_inst_load(
                 state->fun,
-                TB_TYPE_I8,
+                TB_TYPE_I32,
                 tb_inst_member_access(state->fun, val_tag, offsetof(vm_type_value_t, tag)),
                 1,
                 false
@@ -1220,16 +1221,16 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
 
             size_t next_nargs = branch.targets[0]->nargs;
 
-            // for (size_t argno = 0; argno < next_nargs; argno++) {
-            //     if (branch.targets[0]->args[argno].reg == branch.out.reg) {
-            //         goto branch_uses_reg;
-            //     }
-            // }
+            for (size_t argno = 0; argno < next_nargs; argno++) {
+                if (branch.targets[0]->args[argno].reg == branch.out.reg) {
+                    goto branch_uses_reg;
+                }
+            }
 
             {
                 TB_Node *report_err = tb_inst_region(state->fun);
                 TB_Node *after_err_check = tb_inst_region(state->fun);
-                TB_Node *is_err = tb_inst_cmp_eq(state->fun, val_tag_tag, tb_inst_uint(state->fun, TB_TYPE_I8, VM_TAG_ERROR));
+                TB_Node *is_err = tb_inst_cmp_eq(state->fun, val_tag_tag, tb_inst_uint(state->fun, TB_TYPE_I32, VM_TAG_ERROR));
                 tb_inst_if(state->fun, is_err, report_err, after_err_check);
                 tb_inst_set_control(state->fun, report_err);
                 TB_Node *ret_args[2] = {
@@ -1240,7 +1241,15 @@ void vm_tb_func_body_once_as(vm_tb_state_t *state, TB_Node **regs, vm_block_t *b
                 tb_inst_set_control(state->fun, after_err_check);
             }
 
-        // branch_uses_reg:;
+        branch_uses_reg:;
+
+            if (sizeof(size_t) == 8) {
+                val_tag_tag = tb_inst_bitcast(
+                    state->fun,
+                    val_tag_tag,
+                    TB_TYPE_I64
+                );
+            }
 
             TB_PrototypeParam next_rets[2] = {
                 {VM_TB_TYPE_VALUE},
@@ -1683,23 +1692,26 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     if (state->config->dump_tb) {
         fprintf(stdout, "\n--- tb ---\n");
         tb_pass_print(passes);
+        fflush(stdout);
     }
     if (state->config->dump_tb_dot) {
         fprintf(stdout, "\n--- tb dot ---\n");
         tb_pass_print_dot(passes, tb_default_print_callback, stdout);
+        fflush(stdout);
     }
     if (state->config->use_tb_opt) {
         tb_pass_optimize(passes);
         if (state->config->dump_tb_opt) {
             fprintf(stdout, "\n--- opt tb ---\n");
             tb_pass_print(passes);
+            fflush(stdout);
         }
         if (state->config->dump_tb_dot) {
             fprintf(stdout, "\n--- opt dot ---\n");
             tb_pass_print_dot(passes, tb_default_print_callback, stdout);
+            fflush(stdout);
         }
     }
-    fflush(stdout);
 #endif
 #if defined(EMSCRIPTEN)
     if (state->config->target == VM_TARGET_TB_EMCC) {
@@ -1782,8 +1794,10 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
             TB_FunctionOutput *out = tb_pass_codegen(passes, state->arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");
             tb_output_print_asm(out, stdout);
+            fflush(stdout);
         } else {
             tb_pass_codegen(passes, state->arena, &features, false);
+            fflush(stdout);
         }
 #else
         tb_pass_codegen(passes, state->arena, &features, false);

@@ -284,13 +284,13 @@ size_t vm_value_hash(vm_std_value_t value) {
         }
         case VM_TAG_F32: {
             if (vm_value_is_int(value)) {
-                return (size_t) value.value.f32 * 1610612741;
+                return (size_t) (int32_t) value.value.f32 * 1610612741;
             }
             return (size_t) *(uint32_t *) &value.value.f32;
         }
         case VM_TAG_F64: {
             if (vm_value_is_int(value)) {
-                return (size_t) value.value.f64 * 1610612741;
+                return (size_t) (int64_t) value.value.f64 * 1610612741;
             }
             return (size_t) *(uint64_t *) &value.value.f64;
         }

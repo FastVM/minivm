@@ -842,6 +842,9 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                     }
                 } else {
                     c_fmt_spaces(ctx);
+                    nl_buffer_format(ctx->buf, "{\n");
+                    ctx->depth += 1;
+                    c_fmt_spaces(ctx);
                     nl_buffer_format(ctx->buf, "tb2c_%s_v%u_ret_t v%u_ret = ", ctx->name, n->gvn, n->gvn);
                     nl_buffer_format(ctx->buf, "((tb2c_%s_v%u_t) ", ctx->name, n->gvn);
                     c_fmt_ref_to_node(ctx, func);
@@ -869,6 +872,9 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
                     }
                     c_fmt_spaces(ctx);
                     nl_buffer_format(ctx->buf, "return (tb2c_%s_ret_t) ret;\n", ctx->name);
+                    ctx->depth -= 1;
+                    c_fmt_spaces(ctx);
+                    nl_buffer_format(ctx->buf, "}\n");
                 }
                 break;
             }
