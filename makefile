@@ -29,7 +29,7 @@ VM_SRCS = vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/co
 ALL_SRCS = $(VM_SRCS) $(STD_SRCS) $(EXTRA_SRCS) $(TREES_SRCS)
 ALL_OBJS = $(ALL_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TCC_SRCS ?= vendor/tcc/libtcc.c
+TCC_SRCS ?= vendor/tcc/libtcc.c vendor/tcc/lib/libtcc1.c
 TCC_OBJS = $(TCC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 TB_SRCS = vendor/common/common.c vendor/common/perf.c vendor/tb/src/libtb.c vendor/tb/src/x64/x64_target.c

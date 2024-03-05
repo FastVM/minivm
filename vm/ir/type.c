@@ -52,7 +52,7 @@ void *vm_cache_get(vm_cache_t *cache, vm_rblock_t *rblock) {
 }
 
 void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_block_t *value) {
-    for (ptrdiff_t i = (ptrdiff_t) cache->len - 1; i >= 0; i--) {
+    for (ptrdiff_t i = (ptrdiff_t)cache->len - 1; i >= 0; i--) {
         vm_rblock_t *found = cache->keys[i];
         if (rblock->block->isfunc == found->block->isfunc &&
             rblock->block == found->block) {

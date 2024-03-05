@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
         .target = VM_TARGET_TB_EMCC,
 #else
         .use_tb_opt = false,
-        .use_num = VM_USE_NUM_I64,
+        .use_num = VM_USE_NUM_F64,
         .target = VM_TARGET_TB,
 #endif
     };
@@ -90,6 +90,25 @@ int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--repl")) {
             vm_lang_lua_repl(config, std, blocks);
             isrepl = false;
+        } else if (!strncmp(arg, "--tb-", 5)) {
+            arg += 5;
+            bool enable = true;
+            if (!strncmp(arg, "no-", 3)) {
+                arg += 3;
+                enable = false;
+            }
+            if (!strcmp(arg, "recompile")) {
+                config->tb_recompile = enable;
+            } else if (!strcmp(arg, "cast-regs")) {
+                config->tb_regs_cast = enable;
+            } else if (!strcmp(arg, "raw-regs")) {
+                config->tb_regs_node = enable;
+            } else if (!strcmp(arg, "force-bitcast")) {
+                config->tb_force_bitcast = enable;
+            } else {
+                fprintf(stderr, "error: unknown flag --tb-%s want --tb-recompile, --tb-cast-regs, or --tb-raw-regs", arg);
+                return 1;
+            }
         } else if (!strncmp(arg, "--number=", 9)) {
             arg += 9;
             if (!strcmp(arg, "i8")) {
@@ -105,7 +124,7 @@ int main(int argc, char **argv) {
             } else if (!strcmp(arg, "f64")) {
                 config->use_num = VM_USE_NUM_F64;
             } else {
-                fprintf(stderr, "cannot use have as a number type: %s\n", arg);
+                fprintf(stderr, "error: cannot use have as a number type: %s\n", arg);
                 return 1;
             }
         } else if (!strncmp(arg, "--target-", 9) || !strncmp(arg, "--target=", 9)) {

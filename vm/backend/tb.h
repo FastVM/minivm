@@ -11,24 +11,20 @@
 
 struct vm_tb_state_t;
 struct vm_tb_comp_state_t;
-struct vm_tb_chain_t;
+struct vm_tb_config_t;
 
 typedef struct vm_tb_state_t vm_tb_state_t;
 typedef struct vm_tb_comp_state_t vm_tb_comp_state_t;
-typedef struct vm_tb_chain_t vm_tb_chain_t;
+typedef struct vm_tb_config_t vm_tb_config_t;
 
 typedef vm_std_value_t VM_CDECL vm_tb_comp_t(vm_tb_comp_state_t *comp, vm_value_t *args);
-
-struct vm_tb_chain_t {
-    vm_tb_chain_t *_Atomic next;
-    void *mem[VM_TAG_MAX];
-} ;
 
 struct vm_tb_state_t {
     void *module;
     void *fun;
     vm_config_t *config;
     vm_blocks_t *blocks;
+    void *regs;
 
     void *jit;
 

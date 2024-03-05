@@ -26,7 +26,7 @@ vm_io_buffer_t *vm_io_buffer_new(void) {
     vm_io_buffer_t *ret = vm_malloc(sizeof(vm_io_buffer_t));
     char *buf = vm_malloc(sizeof(char));
     *buf = '\0';
-    *ret = (vm_io_buffer_t) {
+    *ret = (vm_io_buffer_t){
         .alloc = 1,
         .buf = buf,
         .len = 0,
@@ -42,7 +42,7 @@ void vm_io_buffer_format(vm_io_buffer_t *buf, const char *fmt, ...) {
 }
 
 char *vm_io_vformat(const char *fmt, va_list ap) {
-    vm_io_buffer_t buf = (vm_io_buffer_t) {0};
+    vm_io_buffer_t buf = (vm_io_buffer_t){0};
     vm_io_buffer_vformat(&buf, fmt, ap);
     return buf.buf;
 }

@@ -1,8 +1,8 @@
 
 #include "check.h"
 
-#include "rblock.h"
 #include "../std/io.h"
+#include "rblock.h"
 
 static vm_type_t vm_check_get_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_LIT) {
@@ -15,12 +15,7 @@ static vm_type_t vm_check_get_tag(vm_arg_t arg) {
 }
 
 bool vm_check_is_math(vm_type_t type) {
-    return vm_type_eq(type, VM_TYPE_I8)
-        || vm_type_eq(type, VM_TYPE_I16)
-        || vm_type_eq(type, VM_TYPE_I32)
-        || vm_type_eq(type, VM_TYPE_I64)
-        || vm_type_eq(type, VM_TYPE_F32)
-        || vm_type_eq(type, VM_TYPE_F64);
+    return vm_type_eq(type, VM_TYPE_I8) || vm_type_eq(type, VM_TYPE_I16) || vm_type_eq(type, VM_TYPE_I32) || vm_type_eq(type, VM_TYPE_I64) || vm_type_eq(type, VM_TYPE_F32) || vm_type_eq(type, VM_TYPE_F64);
 }
 
 const char *vm_check_instr(vm_instr_t instr) {

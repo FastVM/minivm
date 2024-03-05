@@ -1,7 +1,7 @@
 
+#include "exec.h"
 #include "../lib.h"
 #include "../std/io.h"
-#include "exec.h"
 
 #if defined(_WIN32)
 // unsupported
@@ -10,10 +10,10 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
 }
 #else
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <dlfcn.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
@@ -63,12 +63,12 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
     for (size_t i = 0; srcs[i] != NULL; i++) {
         vm_io_buffer_format(src_buf, "%s", srcs[i]);
     }
-    uint64_t hash = XXH3_64bits((void *) src_buf->buf, src_buf->len);
+    uint64_t hash = XXH3_64bits((void *)src_buf->buf, src_buf->len);
     char so_file[128];
-    snprintf(so_file, 64, ".minivm-cache/out-%s-%"PRIx64".so", comp, hash);
+    snprintf(so_file, 64, ".minivm-cache/out-%s-%" PRIx64 ".so", comp, hash);
     if (stat(src_buf->buf, &st) == -1) {
         char c_file[128];
-        snprintf(c_file, 64, ".minivm-cache/src-%s-%"PRIx64".c", comp, hash);
+        snprintf(c_file, 64, ".minivm-cache/src-%s-%" PRIx64 ".c", comp, hash);
         FILE *out = fopen(c_file, "w");
         fwrite(src_buf->buf, src_buf->len, 1, out);
         fclose(out);

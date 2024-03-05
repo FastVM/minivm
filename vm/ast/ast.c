@@ -36,4 +36,3 @@ void vm_ast_free_node(vm_ast_node_t node) {
         }
     }
 }
-

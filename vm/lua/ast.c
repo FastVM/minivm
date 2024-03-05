@@ -215,7 +215,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         TSNode list = ts_node_child(node, 0);
         TSNode exprs = ts_node_child(node, 2);
         vm_ast_node_t ret = vm_ast_build_nil();
-        for (size_t i = 0; i < ts_node_child_count(list); i+=2) {
+        for (size_t i = 0; i < ts_node_child_count(list); i += 2) {
             TSNode list_ent = ts_node_child(list, i);
             vm_ast_node_t cur;
             if (i < ts_node_child_count(exprs)) {
@@ -627,6 +627,6 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str) {
     ts_tree_delete(tree);
 
     ts_parser_delete(parser);
-    
+
     return vm_ast_build_do(res, vm_ast_build_return(vm_ast_build_nil()));
 }

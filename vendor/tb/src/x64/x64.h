@@ -125,8 +125,8 @@ static const InstDesc inst_table[] = {
 #define WIN64_ABI_CALLER_SAVED ((1u << RAX) | (1u << RCX) | (1u << RDX) | (1u << R8) | (1u << R9) | (1u << R10) | (1u << R11))
 #define WIN64_ABI_CALLEE_SAVED ~WIN64_ABI_CALLER_SAVED
 
-#define SYSV_ABI_CALLER_SAVED ((1u << RAX) | (1u << RDI) | (1u << RSI) | (1u << RCX) | (1u << RDX) | (1u << R8) | (1u << R9) | (1u << R10) | (1u << R11))
-#define SYSV_ABI_CALLEE_SAVED ~SYSV_ABI_CALLER_SAVED
+#define SYSV_ABI_CALLER_SAVED ((1u << RAX) | (1u << RCX) | (1u << RDX) | (1u << RSI) | (1u << RDI) | (1u << R8) | (1u << R9) | (1u << R10) | (1u << R11))
+#define SYSV_ABI_CALLEE_SAVED ((1u << RBX) | (1u << RSP) | (1u << RBP) | (1u << R12) | (1u << R13) | (1u << R14) | (1u << R15))
 
 #define SYSCALL_ABI_CALLER_SAVED ((1u << RDI) | (1u << RSI) | (1u << RDX) | (1u << R10) | (1u << R8) | (1u << R9) | (1u << RAX) | (1u << R11))
 #define SYSCALL_ABI_CALLEE_SAVED ~SYSCALL_ABI_CALLER_SAVED

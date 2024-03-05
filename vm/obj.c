@@ -53,12 +53,7 @@ double vm_value_to_f64(vm_std_value_t arg) {
 }
 
 bool vm_value_can_to_n64(vm_std_value_t val) {
-    return vm_type_eq(val.tag, VM_TYPE_I8)
-        || vm_type_eq(val.tag, VM_TYPE_I16)
-        || vm_type_eq(val.tag, VM_TYPE_I32)
-        || vm_type_eq(val.tag, VM_TYPE_I64)
-        || vm_type_eq(val.tag, VM_TYPE_F32)
-        || vm_type_eq(val.tag, VM_TYPE_F64);
+    return vm_type_eq(val.tag, VM_TYPE_I8) || vm_type_eq(val.tag, VM_TYPE_I16) || vm_type_eq(val.tag, VM_TYPE_I32) || vm_type_eq(val.tag, VM_TYPE_I64) || vm_type_eq(val.tag, VM_TYPE_F32) || vm_type_eq(val.tag, VM_TYPE_F64);
 }
 
 bool vm_value_is_int(vm_std_value_t val) {
@@ -77,15 +72,15 @@ bool vm_value_is_int(vm_std_value_t val) {
         }
         case VM_TAG_F32: {
             float v = val.value.f32;
-            if ((float) INT32_MIN <= v && v <= (float) INT32_MAX) {
-                return (float) (int32_t) v == v;
+            if ((float)INT32_MIN <= v && v <= (float)INT32_MAX) {
+                return (float)(int32_t)v == v;
             }
             return fmodf(v, 1.0f) == 0.0f;
         }
         case VM_TAG_F64: {
             double v = val.value.f64;
-            if ((double) INT64_MIN <= v && v <= (double) INT64_MAX) {
-                return (double) (int64_t) v == v;
+            if ((double)INT64_MIN <= v && v <= (double)INT64_MAX) {
+                return (double)(int64_t)v == v;
             }
             return fmod(v, 1.0) == 0.0;
         }
@@ -271,28 +266,28 @@ size_t vm_value_hash(vm_std_value_t value) {
             return SIZE_MAX - (size_t)value.value.b;
         }
         case VM_TAG_I8: {
-            return (size_t) value.value.i8 * 1610612741;
+            return (size_t)value.value.i8 * 1610612741;
         }
         case VM_TAG_I16: {
-            return (size_t) value.value.i16 * 1610612741;
+            return (size_t)value.value.i16 * 1610612741;
         }
         case VM_TAG_I32: {
-            return (size_t) value.value.i32 * 1610612741;
+            return (size_t)value.value.i32 * 1610612741;
         }
         case VM_TAG_I64: {
-            return (size_t) value.value.i64 * 1610612741;
+            return (size_t)value.value.i64 * 1610612741;
         }
         case VM_TAG_F32: {
             if (vm_value_is_int(value)) {
-                return (size_t) (int32_t) value.value.f32 * 1610612741;
+                return (size_t)(int32_t)value.value.f32 * 1610612741;
             }
-            return (size_t) *(uint32_t *) &value.value.f32;
+            return (size_t) * (uint32_t *)&value.value.f32;
         }
         case VM_TAG_F64: {
             if (vm_value_is_int(value)) {
-                return (size_t) (int64_t) value.value.f64 * 1610612741;
+                return (size_t)(int64_t)value.value.f64 * 1610612741;
             }
-            return (size_t) *(uint64_t *) &value.value.f64;
+            return (size_t) * (uint64_t *)&value.value.f64;
         }
         case VM_TAG_STR: {
             size_t ret = 1 << 16;

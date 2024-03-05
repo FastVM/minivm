@@ -529,16 +529,18 @@ CFmtBlockRange *c_fmt_get_block_range(CFmtState* ctx, TB_Node* n) {
     if (nl_table_get(&ctx->block_ranges, n) == NULL) {
         TB_BasicBlock* bb = ctx->opt->scheduled[n->gvn];
         Worklist* ws = &ctx->opt->worklist;
-        
-        size_t foreach_start = dyn_array_length(ws->items);
-        ctx->sched(ctx->opt, &ctx->cfg, ws, NULL, bb, bb->end);
-        size_t foreach_end = dyn_array_length(ws->items);
-
         CFmtBlockRange *range = tb_platform_heap_alloc(sizeof(CFmtBlockRange));
+        if (bb == NULL) {
+            range->low = dyn_array_length(ws->items);
+            range->high = dyn_array_length(ws->items);
+        } else {
+            size_t foreach_start = dyn_array_length(ws->items);
+            ctx->sched(ctx->opt, &ctx->cfg, ws, NULL, bb, bb->end);
+            size_t foreach_end = dyn_array_length(ws->items);
 
-        range->low = foreach_start;
-        range->high = foreach_end;
-
+            range->low = foreach_start;
+            range->high = foreach_end;
+        }
         nl_table_put(&ctx->block_ranges, n, range);
     }
     return nl_table_get(&ctx->block_ranges, n);
@@ -649,6 +651,9 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
     nl_buffer_format(ctx->buf, "bb%u:\n", bb_start->gvn);
 
     TB_BasicBlock* bb = ctx->opt->scheduled[bb_start->gvn];
+    if (bb == NULL) {
+        return;
+    }
     Worklist* ws = &ctx->opt->worklist;
 
     // #ifndef NDEBUG
@@ -971,7 +976,7 @@ static void c_fmt_bb(CFmtState* ctx, TB_Node* bb_start) {
             
             case TB_BITCAST: {
                 TB_Node *src = n->inputs[n->input_count-1];
-                if (src->dt.type == TB_FLOAT && n->dt.type == TB_FLOAT) {
+                if (src->dt.type == TB_FLOAT || n->dt.type == TB_FLOAT) {
                     c_fmt_spaces(ctx);
                     nl_buffer_format(ctx->buf, "{\n");
                     ctx->depth += 1;
@@ -1620,9 +1625,11 @@ TB_API char *tb_pass_c_fmt(TB_Passes* opt) {
 
     // TB_Node* end_bb = NULL;
     FOREACH_N(i, 0, ctx.cfg.block_count) {
-        ctx.depth += 1;
-        c_fmt_bb(&ctx, opt->worklist.items[i]);
-        ctx.depth -= 1;
+        if (opt->worklist.items[i] != NULL) {
+            ctx.depth += 1;
+            c_fmt_bb(&ctx, opt->worklist.items[i]);
+            ctx.depth -= 1;
+        }
     }
 
     worklist_free(&opt->worklist);

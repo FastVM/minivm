@@ -139,6 +139,8 @@ struct vm_block_t {
     void *pass;
     const char *check;
 
+    uint8_t uses[VM_TAG_MAX];
+
     int64_t label : 61;
     bool isfunc : 1;
     bool mark : 1;

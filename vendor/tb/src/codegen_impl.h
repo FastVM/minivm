@@ -41,7 +41,7 @@ static Tile* get_tile(Ctx* restrict ctx, TB_Node* n) {
                 .reg = -1,
                 .assigned = -1,
                 .range_cap = 4, .range_count = 1,
-                .ranges = tb_platform_heap_alloc(4 * sizeof(LiveRange))
+                .ranges = tb_platform_heap_alloc(8 * sizeof(LiveRange))
             };
             tile->outs[i]->ranges[0] = (LiveRange){ INT_MAX, INT_MAX };
         }

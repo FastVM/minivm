@@ -2,6 +2,8 @@
 #if !defined(VM_HEADER_CONFIG)
 #define VM_HEADER_CONFIG
 
+#include <stdbool.h>
+
 #define VM_USE_DUMP 1
 #define VM_NO_TAILCALL 0
 #define VM_FORMAT_FLOAT "%.14g"
@@ -41,22 +43,27 @@ struct vm_config_t {
     unsigned int target: 4;
     unsigned int use_num: 3;
     unsigned int use_ver_count: 2;
-    _Bool use_tb_opt: 1;
-    _Bool use_profile: 1;
+    bool use_tb_opt: 1;
+    bool use_profile: 1;
     
-    _Bool dump_src: 1;
-    _Bool dump_ast: 1;
-    _Bool dump_ir: 1;
-    _Bool dump_ver: 1;
-    _Bool dump_tb: 1;
-    _Bool dump_tb_opt: 1;
-    _Bool dump_tb_dot: 1;
-    _Bool dump_tb_opt_dot: 1;
-    _Bool dump_asm: 1;
-    _Bool dump_args: 1;
-    _Bool dump_time: 1;
+    bool dump_src: 1;
+    bool dump_ast: 1;
+    bool dump_ir: 1;
+    bool dump_ver: 1;
+    bool dump_tb: 1;
+    bool dump_tb_opt: 1;
+    bool dump_tb_dot: 1;
+    bool dump_tb_opt_dot: 1;
+    bool dump_asm: 1;
+    bool dump_args: 1;
+    bool dump_time: 1;
 
-    _Bool is_repl: 1;
+    bool is_repl: 1;
+
+    bool tb_recompile: 1;
+    bool tb_regs_cast: 1;
+    bool tb_regs_node: 1;
+    bool tb_force_bitcast: 1;
 };
 
 #endif

@@ -6,7 +6,6 @@
 #include "../backend/tb.h"
 #include "../ir/ir.h"
 #include "../std/io.h"
-#include "../std/util.h"
 
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
