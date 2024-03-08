@@ -1,11 +1,13 @@
+#include <tree_sitter/api.h>
+
 #include "./repl.h"
-#include "../../vendor/trees/api.h"
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../ast/print.h"
 #include "../backend/tb.h"
 #include "../ir/ir.h"
 #include "../std/io.h"
+#include <sys/_clock_id.h>
 
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
@@ -174,6 +176,7 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, vm_table_t *repl,
         "return",
         "else",
         "end",
+        "for",
         NULL,
     };
     for (size_t i = 0; keywords[i] != NULL; i++) {
@@ -284,7 +287,8 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 #if !defined(EMSCRIPTEN)
         ic_history_add(input);
 #endif
-        clock_t start = clock();
+        struct timespec start;
+        clock_gettime(CLOCK_MONOTONIC, &start);
 
         if (config->dump_src) {
             printf("\n--- src ---\n");
@@ -321,9 +325,11 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         if (config->dump_time) {
-            clock_t end = clock();
+            struct timespec end;
+            clock_gettime(CLOCK_MONOTONIC, &end);
 
-            double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
+            double diff = (double) (end.tv_sec - start.tv_sec) * 1000 + (double) (end.tv_nsec - start.tv_nsec) * 0.000001;
+
             printf("took: %.3fms\n", diff);
         }
     }

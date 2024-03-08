@@ -26,3 +26,4 @@ out.*
 .vscode
 .vscode
 .mypy_cache
+*.core

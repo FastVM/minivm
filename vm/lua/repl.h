@@ -5,8 +5,8 @@
 #include "../obj.h"
 #include "../lib.h"
 #if !defined(EMSCRIPTEN)
-#include "../../vendor/isocline/isocline.h"
-#include "../../vendor/isocline/completions.h"
+#include "../../vendor/isocline/include/isocline.h"
+#include "../../vendor/isocline/src/completions.h"
 #endif
 
 struct vm_lang_lua_repl_complete_state_t;

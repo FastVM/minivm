@@ -1,6 +1,6 @@
 
+#include <tree_sitter/api.h>
 #include "../ast/ast.h"
-#include "../../vendor/trees/api.h"
 #include "../ast/build.h"
 #include "../std/io.h"
 

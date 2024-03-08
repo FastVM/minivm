@@ -1,8 +1,8 @@
 
 #include "./tb.h"
 
-#include "../../vendor/common/arena.h"
-#include "../../vendor/tb/include/tb.h"
+#include "../../vendor/cuik/common/arena.h"
+#include "../../vendor/cuik/tb/include/tb.h"
 #include "../../vendor/tcc/libtcc.h"
 #include "../ir/check.h"
 #include "../ir/rblock.h"
@@ -1843,6 +1843,9 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
     }
 #else
     if (state->config->target == VM_TARGET_TB_TCC) {
+#if !defined(VM_USE_TCC)
+        return NULL;
+#else
         const char *c_header = tb_pass_c_prelude(state->module);
         const char *c_src = tb_pass_c_fmt(passes);
         int c_header_size = strlen(c_header);
@@ -1864,6 +1867,7 @@ void *vm_tb_rfunc_comp(vm_rblock_t *rblock) {
         void *code = tcc_get_symbol(state, name);
         rblock->code = code;
         return code;
+#endif
     } else if (state->config->target == VM_TARGET_TB_GCC) {
         const char *cs[] = {
             tb_pass_c_prelude(state->module),

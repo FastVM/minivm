@@ -1,0 +1,16 @@
+[submodule "vendor/tcc"]
+	path = vendor/tcc
+	url = https://github.com/fastvm/minivm-tinycc
+[submodule "vendor/cuik"]
+	path = vendor/cuik
+	url = https://github.com/fastvm/minivm-cuik
+	branch = tb2c
+[submodule "vendor/xxhash"]
+	path = vendor/xxhash
+	url = https://github.com/fastvm/minivm-xxhash
+[submodule "vendor/tree-sitter"]
+	path = vendor/tree-sitter
+	url = https://github.com/fastvm/minivm-tree-sitter
+[submodule "vendor/isocline"]
+	path = vendor/isocline
+	url = https://github.com/fastvm/minivm-isocline
