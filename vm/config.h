@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define VM_USE_DUMP 1
-#define VM_NO_TAILCALL 0
+#define VM_NO_TAILCALL 1
 #define VM_FORMAT_FLOAT "%.14g"
 
 struct vm_config_t;

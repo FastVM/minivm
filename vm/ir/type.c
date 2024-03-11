@@ -3,7 +3,7 @@
 
 #include "ir.h"
 
-const vm_type_value_t vm_type_base[VM_TAG_MAX] = {
+vm_type_value_t vm_type_base[VM_TAG_MAX] = {
     [VM_TAG_NIL] = {VM_TAG_NIL},
     [VM_TAG_BOOL] = {VM_TAG_BOOL},
     [VM_TAG_I8] = {VM_TAG_I8},

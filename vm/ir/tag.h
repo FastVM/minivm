@@ -33,7 +33,7 @@ struct vm_type_value_t {
     uint32_t tag;
 };
 
-extern const vm_type_value_t vm_type_base[VM_TAG_MAX];
+extern vm_type_value_t vm_type_base[VM_TAG_MAX];
 
 #define VM_TYPE_UNK (NULL)
 #define VM_TYPE_NIL (&vm_type_base[VM_TAG_NIL])

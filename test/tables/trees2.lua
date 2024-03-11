@@ -12,11 +12,16 @@ end
 
 local function ItemCheck(tree)
     if #tree == 3 then
-        return tree[1] + ItemCheck(tree[2]) - ItemCheck(tree[3])
+        local v1 = tree[1]
+        local v2 = ItemCheck(tree[2])
+        local v3 = ItemCheck(tree[3])
+        print(v1, v2, v3)
+        return v1 + v2 - v3
     else
+        print(tree[1])
         return tree[1]
     end
 end
 
-local stretchtree = BottomUpTree(0, 12)
+local stretchtree = BottomUpTree(0, 3)
 print(ItemCheck(stretchtree))
