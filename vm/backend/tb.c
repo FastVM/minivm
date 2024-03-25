@@ -534,7 +534,7 @@ branch_uses_reg:;
                 false
             );
 
-            if (VM_NO_TAILCALL) {
+            if (state->config->tb_use_tailcall) {
                 TB_MultiOutput out = vm_tb_inst_call(
                     state,
                     next_proto,
@@ -565,7 +565,7 @@ branch_uses_reg:;
             false
         );
 
-        if (VM_NO_TAILCALL) {
+        if (state->config->tb_use_tailcall) {
             TB_MultiOutput out = vm_tb_inst_call(
                 state,
                 next_proto,
@@ -599,7 +599,7 @@ branch_uses_reg:;
             }
         }
 
-        if (VM_NO_TAILCALL) {
+        if (state->config->tb_use_tailcall) {
             TB_MultiOutput out = vm_tb_inst_call(
                 state,
                 next_proto,

@@ -5,7 +5,6 @@
 #include <stdbool.h>
 
 #define VM_USE_DUMP 1
-#define VM_NO_TAILCALL 1
 #define VM_FORMAT_FLOAT "%.14g"
 
 struct vm_config_t;
@@ -64,6 +63,7 @@ struct vm_config_t {
     bool tb_regs_cast: 1;
     bool tb_regs_node: 1;
     bool tb_force_bitcast: 1;
+    bool tb_use_tailcall;
 };
 
 #endif

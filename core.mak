@@ -110,10 +110,11 @@ $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 $(TCC_DIR)/config.h: $(TCC_DIR)/configure
 	cd $(TCC_DIR)/ && ./configure
 
-$(TCC_DIR)/tccdefs_.h: $(TCC_DIR)/include/tccdefs.h
-	$(MAKE) -C $(TCC_DIR) tccdefs_.h
+$(TCC_DIR)/tccdefs_.h: $(TCC_DIR)/include/tccdefs.h $(TCC_DIR)/config.h
+	# $(MAKE) -C $(TCC_DIR) tccdefs_.h
+	echo '""' > $(TCC_DIR)/tccdefs_.h
 
-$(TCC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c) $(TCC_DIR) $(TCC_DIR)/config.h
+$(TCC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c) $(TCC_DIR) $(TCC_DIR)/tccdefs_.h $(TCC_DIR)/config.h
 	@mkdir -p $$(dirname $(@))
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS)
 

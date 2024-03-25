@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
         .use_tb_opt = false,
         .use_num = VM_USE_NUM_F64,
         .target = VM_TARGET_TB,
+        .tb_use_tailcall = true,
 #endif
     };
     vm_blocks_t val_blocks = {0};
@@ -105,6 +106,8 @@ int main(int argc, char **argv) {
                 config->tb_regs_node = enable;
             } else if (!strcmp(arg, "force-bitcast")) {
                 config->tb_force_bitcast = enable;
+            } else if (!strcmp(arg, "tailcall")) {
+                config->tb_use_tailcall = enable;
             } else {
                 fprintf(stderr, "error: unknown flag --tb-%s want --tb-recompile, --tb-cast-regs, or --tb-raw-regs", arg);
                 return 1;
