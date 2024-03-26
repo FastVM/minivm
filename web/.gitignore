@@ -1,5 +1,14 @@
+
+# eew
 node_modules
+
+# too big, don't care
 package-lock.json
+
+# vite stuff
 public
+.vite
+
+# attempts to build llvm
 emception
-node_modules
+llvm-project
