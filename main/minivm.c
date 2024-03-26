@@ -108,6 +108,8 @@ int main(int argc, char **argv) {
                 config->tb_force_bitcast = enable;
             } else if (!strcmp(arg, "tailcall")) {
                 config->tb_use_tailcall = enable;
+            } else if (!strcmp(arg, "lbbv")) {
+                config->tb_use_lbbv = enable;
             } else {
                 fprintf(stderr, "error: unknown flag --tb-%s want --tb-recompile, --tb-cast-regs, or --tb-raw-regs", arg);
                 return 1;

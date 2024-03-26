@@ -63,7 +63,8 @@ struct vm_config_t {
     bool tb_regs_cast: 1;
     bool tb_regs_node: 1;
     bool tb_force_bitcast: 1;
-    bool tb_use_tailcall;
+    bool tb_use_tailcall: 1;
+    bool tb_use_lbbv: 1;
 };
 
 #endif
