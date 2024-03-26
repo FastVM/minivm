@@ -8,6 +8,10 @@
 #include "../ir/ir.h"
 #include "../std/io.h"
 
+#if defined(EMSCRIPTEN)
+#include <termios.h>
+#endif
+
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 
@@ -261,31 +265,21 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         if (input == NULL) {
             break;
         }
+        ic_history_add(input);
 #else
         printf("lua> ");
         char input[256];
         size_t head = 0;
-        while (true) {
+        while (head < 256) {
             char c = fgetc(stdin);
-            if (c == '\n' || c == '\r') {
-                c = '\0';
-                printf("\n");
-            } else if (c == 127) {
-                printf("\x1B[D \x1B[D");
-                head -= 1;
-            } else {
-                printf("%c", (int)c);
-            }
             input[head++] = c;
-            if (c == '\0') {
+            if (c == '\0' || c == '\n') {
                 break;
             }
         }
+        input[head] = '\0';
 #endif
         vm_lang_lua_repl_table_get_config(repl, config);
-#if !defined(EMSCRIPTEN)
-        ic_history_add(input);
-#endif
         struct timespec start;
         clock_gettime(CLOCK_MONOTONIC, &start);
 

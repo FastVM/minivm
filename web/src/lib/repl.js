@@ -60,18 +60,26 @@ export const repl = ({putchar}) => {
     const has = new SharedArrayBuffer(4);
     const want = new SharedArrayBuffer(4);
     const inbuf = new SharedArrayBuffer(4);
-    obj.input = async (str) => {
+
+    {
         const inbuf32 = new Int32Array(inbuf);
         const want32 = new Int32Array(want);
         const has32 = new Int32Array(has);
-        for (const c of str) {
+        obj.char = async (c) => {
             await Atomics.waitAsync(want32, 0, 0).value;
             want32[0] = 0;
-            inbuf32[0] = typeof c === 'string' ? c.charCodeAt(0) : c;
+            inbuf32[0] = c;
             has32[0] = 0
             Atomics.notify(has32, 0, 1);
-        }
-    };
+        };
+        
+        obj.chars = async (str) => {
+            for (const c of str) {
+                await obj.char(typeof c === 'string' ? c.charCodeAt(0) : c);
+            }
+        };
+    }
+
     obj.start = async() => {
         const worker = new Worker(new URL(/* webpackChunkName: "wlua" */ '../lib/wlua.js', import.meta.url), {type: 'module'});
         const wait = new SharedArrayBuffer(4);
@@ -91,7 +99,7 @@ export const repl = ({putchar}) => {
                     break;
                 }
                 case 'stderr': {
-                    obj.putchar(unmap(data.stdout));
+                    obj.putchar(unmap(data.stderr));
                     break;
                 }
                 case 'exit-err': {

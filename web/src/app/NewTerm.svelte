@@ -1,52 +1,50 @@
 <script>
+    import '@xterm/xterm/css/xterm.css';
+
 	import { repl } from '../lib/repl.js';
     import { onMount } from 'svelte';
+    import { Terminal } from '@xterm/xterm';
+    import { FitAddon } from '@xterm/addon-fit';
+    import { openpty } from 'xterm-pty';
 
-    let data = '';
-    let src = '';
-    
+    let div;
+
+    const term = new Terminal(new FitAddon());
+
+    const fit = new FitAddon();
+
+    term.loadAddon(fit);
+
+    const { master, slave } = openpty();
+
+    term.loadAddon(master);
+
+    onMount(() => {
+        fit.fit();
+
+        term.open(div);
+    });
+
     const obj = repl({
         putchar: (str) => {
-            data += str;
+            console.log(str);
+            term.write(str);
         }
     });
 
-    const key = (event) => {
-        if (event.key === 'Enter') {
-            obj.input(src + '\n');
-            src = '';
-        }
-    };
-
     obj.start();
+
+    slave.onReadable(() => {
+        const src = slave.read();
+        obj.chars(src);
+    });
+
+    const resize = () => {
+        fit.fit();
+    };
 </script>
 
 <style>
-    input {
-        width: 100%;
-        font-family: monospace;
-        padding: 1em;
-        border: 0;
-        border-color: transparent;
-        outline: none;
-        background-color: black;
-        color: greenyellow;
-        user-select: none;
-    }
-   
-    textarea {
-        width: 100%;
-        height: 100%;
-        resize: none;
-        background-color: black;
-        color: greenyellow;
-        border: 0;
-        padding: 1em;
-        padding-top: 0em;
-        outline: none;
-        flex-grow: 1;
-    }
-
     .term {
         display: flex;
         flex-direction: column;
@@ -59,7 +57,4 @@
     }
 </style>
 
-<div class="term">
-    <input type="text" on:keypress={key} bind:value={src}/>
-    <textarea readonly>{data}</textarea>
-</div>
+<div class="term" on:resize={resize} bind:this={div}/>
