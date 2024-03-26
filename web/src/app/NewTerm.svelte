@@ -27,7 +27,6 @@
 
     const obj = repl({
         putchar: (str) => {
-            console.log(str);
             term.write(str);
         }
     });

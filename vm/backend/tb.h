@@ -28,8 +28,11 @@ struct vm_tb_state_t {
 
     void *jit;
 
-    // code arena
-    void *arena;
+    // arenas
+    void *ir_arena;
+    void *tmp_arena;
+    void *code_arena;
+    void *worklist;
 
     // jit caller (for windows)
 #if defined(_WIN32)

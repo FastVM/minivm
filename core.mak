@@ -50,7 +50,7 @@ TB_SRCS_FREEBSD = $(CUIK_DIR)/c11threads/threads_posix.c
 TB_SRCS = $(TB_SRCS_BASE) $(TB_SRCS_$(OS_NAME))
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-BASE_OBJS = $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS) $(TCC_OBJS)
+BASE_OBJS = $(TCC_OBJS) $(ALL_OBJS) $(GC_OBJS) $(TB_OBJS)
 
 CFLAGS += -I $(TREE_SITTER_DIR)/lib/include -I $(TREE_SITTER_DIR)/lib/src $(FLAGS)
 LDFLAGS += $(FLAGS)

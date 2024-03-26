@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t){
 #if defined(EMSCRIPTEN)
         .use_tb_opt = false,
-        .use_num = VM_USE_NUM_I64,
+        .use_num = VM_USE_NUM_F64,
         .target = VM_TARGET_TB_EMCC,
 #else
         .use_tb_opt = false,
