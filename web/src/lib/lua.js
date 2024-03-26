@@ -1,8 +1,5 @@
 
 import Module from '../../../build/bin/minivm.js';
-import wasmBinary from '../../../build/bin/minivm.wasm';
-
-const wasmBuffer = await (await fetch(wasmBinary)).arrayBuffer();
 
 export const run = (args, opts) => {
     const stdinFunc = () => {
@@ -27,7 +24,6 @@ export const run = (args, opts) => {
     
     const mod = Module({
         noInitialRun: true,
-        wasmBinary: wasmBuffer,
         preRun: (mod) => {
             mod.FS.init(stdinFunc, stdoutFunc, stderrFunc);
         },

@@ -4,7 +4,7 @@ let comp;
 const thens = [];
 
 const waitForComp = () => {
-    comp = new Worker(new URL(/* webpackChunkName: "wcomp" */ '../lib/wcomp.js', import.meta.url));
+    comp = new Worker(new URL(/* webpackChunkName: "wcomp" */ '../lib/wcomp.js', import.meta.url), {type: 'module'});
     return new Promise((ok, err) => {
         comp.onmessage = ({data}) => {
             switch (data.type) {
@@ -31,24 +31,49 @@ const unmap = (c) => {
     }
 };
 
+const wait = (ms) => new Promise((res, rej) => {
+    setTimeout(res, ms);
+});
+
+const waitAsync = async (array, index, value) => {
+    if (Atomics.waitAsync != null) {
+        await Atomics.waitAsync(array, index, value);
+    } else {
+        let time = 0;
+        while (true) {
+            const got = Atomics.wait(array, index, value, 0);
+            if (got !== 'timed-out') {
+                return got; 
+            }
+            if (time < 20) {
+                time += 1;
+            }
+            await wait(time);
+        }
+    }
+};
+
 export const repl = ({putchar}) => {
     const hasComp = waitForComp();
     const obj = {};
     obj.putchar = putchar;
+    const has = new SharedArrayBuffer(4);
     const want = new SharedArrayBuffer(4);
     const inbuf = new SharedArrayBuffer(4);
     obj.input = async (str) => {
-        const i32buf = new Int32Array(inbuf);
-        const i32want = new Int32Array(want);
+        const inbuf32 = new Int32Array(inbuf);
+        const want32 = new Int32Array(want);
+        const has32 = new Int32Array(has);
         for (const c of str) {
-            await Atomics.waitAsync(i32want, 0, 0).value;
-            i32want[0] = 0;
-            i32buf[0] = typeof c === 'number' ? c : c.charCodeAt(0);
-            Atomics.notify(i32buf, 0, 1);
+            await Atomics.waitAsync(want32, 0, 0).value;
+            want32[0] = 0;
+            inbuf32[0] = typeof c === 'string' ? c.charCodeAt(0) : c;
+            has32[0] = 0
+            Atomics.notify(has32, 0, 1);
         }
     };
     obj.start = async() => {
-        const worker = new Worker(new URL(/* webpackChunkName: "wlua" */ '../lib/wlua.js', import.meta.url));
+        const worker = new Worker(new URL(/* webpackChunkName: "wlua" */ '../lib/wlua.js', import.meta.url), {type: 'module'});
         const wait = new SharedArrayBuffer(4);
         const ret = new SharedArrayBuffer(65536);
         const number = thens.length;
@@ -93,6 +118,7 @@ export const repl = ({putchar}) => {
                         wait: wait,
                         inbuf: inbuf,
                         want: want,
+                        has: has,
                     });
                     break;
                 }

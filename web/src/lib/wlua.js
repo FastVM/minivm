@@ -1,15 +1,20 @@
 
 import {run} from './lua.js';
 
+const n = (1 << 32) - 1;
+
+let has;
 let want;
 let inbuf;
 const stdin = () => {
-    const i32buf = new Int32Array(inbuf);
-    const i32want = new Int32Array(want);
-    i32want[0] = 1;
-    Atomics.notify(i32want, 0, 1);
-    Atomics.wait(i32buf, 0, i32buf[0]);
-    return i32buf[0];
+    const inbuf32 = new Int32Array(inbuf);
+    const want32 = new Int32Array(want);
+    const has32 = new Int32Array(has);
+    want32[0] = 1;
+    Atomics.notify(want32, 0, 1);
+    Atomics.wait(has32, 0, 0);
+    has32[0] = 0;
+    return inbuf32[0];
 };
 
 const stdout = (msg) => {
@@ -57,12 +62,9 @@ self.onmessage = ({data}) => {
             self.postMessage({type: 'get-args'});
             wait = data.wait;
             ret = data.ret;
-            inbuf = data.inbuf;
+            has = data.has;
             want = data.want;
-            break;
-        }
-        case 'stdin': {
-            
+            inbuf = data.inbuf;
             break;
         }
         case 'args': {
