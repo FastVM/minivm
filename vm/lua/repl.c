@@ -1,6 +1,6 @@
-#include <tree_sitter/api.h>
 
 #include "./repl.h"
+#include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../ast/print.h"
@@ -281,7 +281,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 #endif
         vm_lang_lua_repl_table_get_config(repl, config);
         struct timespec start;
-        clock_gettime(CLOCK_MONOTONIC, &start);
+        clock_gettime(CLOCK_REALTIME, &start);
 
         if (config->dump_src) {
             printf("\n--- src ---\n");
@@ -319,9 +319,9 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
         if (config->dump_time) {
             struct timespec end;
-            clock_gettime(CLOCK_MONOTONIC, &end);
+            clock_gettime(CLOCK_REALTIME, &end);
 
-            double diff = (double) (end.tv_sec - start.tv_sec) * 1000 + (double) (end.tv_nsec - start.tv_nsec) * 0.000001;
+            double diff = (double)(end.tv_sec - start.tv_sec) * 1000 + (double)(end.tv_nsec - start.tv_nsec) * 0.000001;
 
             printf("took: %.3fms\n", diff);
         }

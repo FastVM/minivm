@@ -1,10 +1,10 @@
 #include "../vm/ast/comp.h"
 #include "../vm/ast/print.h"
 #include "../vm/backend/tb.h"
+#include "../vm/config.h"
 #include "../vm/ir/ir.h"
 #include "../vm/std/io.h"
 #include "../vm/std/std.h"
-#include "../vm/config.h"
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks);
@@ -27,7 +27,7 @@ EMSCRIPTEN_KEEPALIVE vm_main_t *vm_main_new(void) {
         .target = VM_TARGET_TB_EMCC,
     };
     ret->std = vm_std_new(&ret->config);
-    ret->blocks = (vm_blocks_t) {0};
+    ret->blocks = (vm_blocks_t){0};
     return ret;
 }
 
@@ -38,23 +38,20 @@ EMSCRIPTEN_KEEPALIVE void vm_main_lua_eval(vm_main_t *main, const char *src) {
     if (!vm_type_eq(value.tag, VM_TYPE_NIL)) {
         vm_io_buffer_t buf = {0};
         vm_io_debug(&buf, 0, "", value, NULL);
-        printf("%.*s", (int) buf.len, buf.buf);
+        printf("%.*s", (int)buf.len, buf.buf);
     }
 }
 
 #endif
 
 int main(int argc, char **argv) {
-    vm_init_mem();
-    // GC_disable();
-    vm_config_t val_config = (vm_config_t){
-#if defined(EMSCRIPTEN)
+    vm_config_t val_config = (vm_config_t) {
         .use_tb_opt = false,
-        .use_num = VM_USE_NUM_F64,
+        .use_num = VM_USE_NUM_I64,
+        .tb_use_lbbv = true,
+#if defined(EMSCRIPTEN)
         .target = VM_TARGET_TB_EMCC,
 #else
-        .use_tb_opt = false,
-        .use_num = VM_USE_NUM_F64,
         .target = VM_TARGET_TB,
         .tb_use_tailcall = true,
 #endif
@@ -219,7 +216,7 @@ int main(int argc, char **argv) {
             if (config->dump_ast) {
                 vm_io_buffer_t buf = {0};
                 vm_ast_print_node(&buf, 0, "", node);
-                printf("\n--- ast ---\n%.*s", (int) buf.len, buf.buf);
+                printf("\n--- ast ---\n%.*s", (int)buf.len, buf.buf);
             }
 
             vm_ast_comp_more(node, blocks);
@@ -227,14 +224,14 @@ int main(int argc, char **argv) {
             if (config->dump_ir) {
                 vm_io_buffer_t buf = {0};
                 vm_io_format_blocks(&buf, blocks);
-                printf("\n--- ir ---\n%.*s", (int) buf.len, buf.buf);
+                printf("\n--- ir ---\n%.*s", (int)buf.len, buf.buf);
             }
 
             vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
             if (echo) {
                 vm_io_buffer_t buf = {0};
                 vm_io_debug(&buf, 0, "", value, NULL);
-                printf("%.*s", (int) buf.len, buf.buf);
+                printf("%.*s", (int)buf.len, buf.buf);
             }
 
             if (config->dump_time) {

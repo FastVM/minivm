@@ -119,7 +119,7 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
             ret_ = VM_STD_VALUE_LITERAL(f64, (double)(VALUE_));  \
         }                                                        \
     }                                                            \
-    ret_;                                                         \
+    ret_;                                                        \
 })
 
 #define VM_TABLE_SET_VALUE(TABLE_, KEY_, VALUE_) ({                       \

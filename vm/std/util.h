@@ -53,9 +53,9 @@ static inline bool vm_std_parse_args(vm_std_value_t *args, const char *fmt, ...)
     return true;
 }
 
-#define VM_STD_FUNC_DEF(func_) \
-    void func_ ## _impl(vm_std_closure_t *closure, vm_std_value_t *args); \
-    const vm_ffi_func_t func_ = (vm_ffi_func_t) {.name = #func_ "_impl", .func = &func_ ## _impl}; \
-    void func_ ## _impl(vm_std_closure_t *closure, vm_std_value_t *args)
+#define VM_STD_FUNC_DEF(func_)                                                                  \
+    void func_##_impl(vm_std_closure_t *closure, vm_std_value_t *args);                         \
+    const vm_ffi_func_t func_ = (vm_ffi_func_t){.name = #func_ "_impl", .func = &func_##_impl}; \
+    void func_##_impl(vm_std_closure_t *closure, vm_std_value_t *args)
 
 #endif

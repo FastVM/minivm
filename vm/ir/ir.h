@@ -91,11 +91,13 @@ struct vm_arg_t {
         vm_std_value_t lit;
         vm_block_t *func;
         vm_rblock_t *rfunc;
+
         struct {
             uint64_t reg;
             vm_type_t reg_tag;
         };
     };
+
     uint8_t type;
 };
 
@@ -104,12 +106,15 @@ struct vm_branch_t {
         vm_block_t *targets[VM_TAG_MAX];
         vm_rblock_t *rtargets[VM_TAG_MAX];
     };
+
     vm_arg_t *args;
     vm_arg_t out;
+
     struct {
         vm_rblock_t **call_table;
         void **jump_table;
     };
+
     uint8_t op;
     vm_type_t tag;
 };
@@ -169,6 +174,6 @@ vm_type_t vm_arg_to_tag(vm_arg_t arg);
 void vm_free_block_sub(vm_block_t *block);
 void vm_free_block(vm_block_t *block);
 
-#define vm_arg_nil() ((vm_arg_t) { .type = (VM_ARG_LIT), .lit.tag = (VM_TYPE_NIL) })
+#define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit.tag = (VM_TYPE_NIL)})
 
 #endif

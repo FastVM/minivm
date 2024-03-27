@@ -14,6 +14,7 @@ struct vm_ast_node_t;
 typedef struct vm_ast_node_t vm_ast_node_t;
 
 typedef uint8_t vm_ast_node_type_t;
+
 enum {
     VM_AST_NODE_FORM,
     VM_AST_NODE_IDENT,
@@ -21,6 +22,7 @@ enum {
 };
 
 typedef uint8_t vm_ast_form_type_t;
+
 enum {
     VM_AST_FORM_DO,
     // locals

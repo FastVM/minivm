@@ -41,6 +41,7 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
         };
     }
 }
+
 void vm_io_format_type(vm_io_buffer_t *out, vm_type_t type) {
     switch (vm_type_tag(type)) {
         case VM_TAG_UNK: {
@@ -108,6 +109,7 @@ void vm_io_format_type(vm_io_buffer_t *out, vm_type_t type) {
         }
     }
 }
+
 void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
     if (val.out.type != VM_ARG_NONE) {
         vm_io_format_arg(out, val.out);
@@ -207,6 +209,7 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
         }
     }
 }
+
 void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
     if (val.op == VM_IOP_NOP) {
         vm_io_buffer_format(out, "nop");

@@ -155,7 +155,7 @@ void vm_test(vm_config_t *config, const char *name, vm_test_func_t gen) {
     clock_t p2 = clock();
 
     vm_ast_blocks_t blocks = vm_ast_comp(node);
-    
+
     clock_t p3 = clock();
 
     if (config->dump_ir) {
@@ -163,7 +163,7 @@ void vm_test(vm_config_t *config, const char *name, vm_test_func_t gen) {
     }
 
     vm_std_value_t value = vm_tb_run(config, blocks.len, blocks.blocks, vm_std_new());
-    
+
     clock_t p4 = clock();
 
     vm_io_debug(stdout, 0, "result: ", value, NULL);
@@ -178,8 +178,7 @@ void vm_test(vm_config_t *config, const char *name, vm_test_func_t gen) {
 #define vm_test(...) vm_test(config, __VA_ARGS__)
 
 int main(int argc, char **argv) {
-    vm_init_mem();
-    vm_config_t val_config = (vm_config_t) {
+    vm_config_t val_config = (vm_config_t){
         .use_tb_opt = true,
         .dump_src = false,
         .dump_ast = false,

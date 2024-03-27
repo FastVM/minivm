@@ -73,6 +73,7 @@ vm_ast_node_t vm_ast_build_do(vm_ast_node_t lhs, vm_ast_node_t rhs) {
 vm_ast_node_t vm_ast_build_set(vm_ast_node_t target, vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_SET, target, value);
 }
+
 vm_ast_node_t vm_ast_build_local(vm_ast_node_t target, vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_LOCAL, target, value);
 }
@@ -86,9 +87,11 @@ vm_ast_node_t vm_ast_build_env(void) {
 vm_ast_node_t vm_ast_build_new(void) {
     return vm_ast_form0(VM_AST_FORM_NEW);
 }
+
 vm_ast_node_t vm_ast_build_len(vm_ast_node_t table) {
     return vm_ast_form(VM_AST_FORM_LEN, table);
 }
+
 vm_ast_node_t vm_ast_build_load(vm_ast_node_t table, vm_ast_node_t key) {
     return vm_ast_form(VM_AST_FORM_LOAD, table, key);
 }
@@ -97,21 +100,27 @@ vm_ast_node_t vm_ast_build_load(vm_ast_node_t table, vm_ast_node_t key) {
 vm_ast_node_t vm_ast_build_add(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_ADD, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_sub(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_SUB, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_mul(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_MUL, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_div(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_DIV, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_idiv(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_IDIV, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_mod(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_MOD, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_pow(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_POW, lhs, rhs);
 }
@@ -125,18 +134,23 @@ vm_ast_node_t vm_ast_build_concat(vm_ast_node_t lhs, vm_ast_node_t rhs) {
 vm_ast_node_t vm_ast_build_eq(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_EQ, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_ne(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_NE, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_lt(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_LT, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_gt(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_GT, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_le(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_LE, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_ge(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_GE, lhs, rhs);
 }
@@ -145,9 +159,11 @@ vm_ast_node_t vm_ast_build_ge(vm_ast_node_t lhs, vm_ast_node_t rhs) {
 vm_ast_node_t vm_ast_build_and(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_AND, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_or(vm_ast_node_t lhs, vm_ast_node_t rhs) {
     return vm_ast_form(VM_AST_FORM_OR, lhs, rhs);
 }
+
 vm_ast_node_t vm_ast_build_not(vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_NOT, value);
 }
@@ -156,9 +172,11 @@ vm_ast_node_t vm_ast_build_not(vm_ast_node_t value) {
 vm_ast_node_t vm_ast_build_if(vm_ast_node_t cond, vm_ast_node_t iftrue, vm_ast_node_t iffalse) {
     return vm_ast_form(VM_AST_FORM_IF, cond, iftrue, iffalse);
 }
+
 vm_ast_node_t vm_ast_build_while(vm_ast_node_t cond, vm_ast_node_t body) {
     return vm_ast_form(VM_AST_FORM_WHILE, cond, body);
 }
+
 vm_ast_node_t vm_ast_build_break(void) {
     return vm_ast_form0(VM_AST_FORM_BREAK);
 }
@@ -174,9 +192,11 @@ vm_ast_node_t vm_ast_build_args(size_t nargs, vm_ast_node_t *bind) {
         },
     };
 }
+
 vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t self, vm_ast_node_t args, vm_ast_node_t body) {
     return vm_ast_form(VM_AST_FORM_LAMBDA, self, args, body);
 }
+
 vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args) {
     vm_ast_node_t *ret = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));
     ret[0] = func;
@@ -192,9 +212,11 @@ vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t 
         },
     };
 }
+
 vm_ast_node_t vm_ast_build_return(vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_RETURN, value);
 }
+
 vm_ast_node_t vm_ast_build_block(size_t len, ...) {
     va_list ap;
     va_start(ap, len);

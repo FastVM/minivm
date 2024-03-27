@@ -1,4 +1,4 @@
 
-CFLAGS := -DVM_USE_TCC $(CFLAGS)
+CFLAGS_VM := -DVM_USE_TCC $(CLFAGS_VM)
 
 include core.mak

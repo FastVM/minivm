@@ -13,32 +13,32 @@ struct vm_tb_ver_state_t;
 typedef struct vm_tb_ver_state_t vm_tb_ver_state_t;
 
 struct vm_tb_ver_state_t {
-    void *module;
-    void *fun;
+    TB_Module *module;
+    TB_Function *fun;
     vm_config_t *config;
     vm_blocks_t *blocks;
-    void *regs;
+    TB_Node **regs;
 
-    void *jit;
+    TB_JIT *jit;
 
     // arenas
-    void *ir_arena;
-    void *tmp_arena;
-    void *code_arena;
-    void *worklist;
+    TB_Arena *ir_arena;
+    TB_Arena *tmp_arena;
+    TB_Arena *code_arena;
+    TB_Worklist *worklist;
 
     // jit caller (for windows)
 #if defined(_WIN32)
-    void (*vm_caller)(vm_std_value_t*, void*);
+    void (*vm_caller)(vm_std_value_t *, void *);
 #endif
 
     // externals
-    void *vm_tb_ver_rfunc_comp;
-    void *vm_table_new;
-    void *vm_table_iset;
-    void *vm_table_get_pair;
-    void *vm_tb_ver_print;
-    void *std;
+    TB_Symbol *vm_tb_ver_rfunc_comp;
+    TB_Symbol *vm_table_new;
+    TB_Symbol *vm_table_iset;
+    TB_Symbol *vm_table_get_pair;
+    TB_Symbol *vm_tb_ver_print;
+    vm_table_t *std;
 };
 
 typedef vm_std_value_t VM_CDECL vm_tb_ver_func_t(void);
@@ -50,7 +50,7 @@ static TB_Node *vm_tb_ver_func_body_once(vm_tb_ver_state_t *state, vm_block_t *b
 static void vm_tb_ver_func_report_error(vm_tb_ver_state_t *state, const char *str);
 static TB_Node *vm_tb_ver_make_type(vm_tb_ver_state_t *state, vm_type_t key_tag);
 
-#define vm_tb_ver_select_binary_cmp(xtag, onint, onfloat, ...) ({             \
+#define vm_tb_ver_select_binary_cmp(xtag, onint, onfloat, ...) ({         \
     vm_type_t tag = xtag;                                                 \
     TB_Node *ret = NULL;                                                  \
     if (!vm_type_eq(tag, VM_TYPE_F64) && !vm_type_eq(tag, VM_TYPE_F32)) { \
@@ -1614,21 +1614,21 @@ static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
 
     state->module = mod;
 
-    state->vm_tb_ver_rfunc_comp = tb_extern_create(mod, -1, "vm_tb_ver_rfunc_comp", TB_EXTERNAL_SO_LOCAL);
-    state->vm_table_new = tb_extern_create(mod, -1, "vm_table_new", TB_EXTERNAL_SO_LOCAL);
-    state->vm_table_iset = tb_extern_create(mod, -1, "vm_table_iset", TB_EXTERNAL_SO_LOCAL);
-    state->vm_table_get_pair = tb_extern_create(mod, -1, "vm_table_get_pair", TB_EXTERNAL_SO_LOCAL);
-    state->vm_tb_ver_print = tb_extern_create(mod, -1, "vm_tb_ver_print", TB_EXTERNAL_SO_LOCAL);
+    state->vm_tb_ver_rfunc_comp = (TB_Symbol *)tb_extern_create(mod, -1, "vm_tb_ver_rfunc_comp", TB_EXTERNAL_SO_LOCAL);
+    state->vm_table_new = (TB_Symbol *)tb_extern_create(mod, -1, "vm_table_new", TB_EXTERNAL_SO_LOCAL);
+    state->vm_table_iset = (TB_Symbol *)tb_extern_create(mod, -1, "vm_table_iset", TB_EXTERNAL_SO_LOCAL);
+    state->vm_table_get_pair = (TB_Symbol *)tb_extern_create(mod, -1, "vm_table_get_pair", TB_EXTERNAL_SO_LOCAL);
+    state->vm_tb_ver_print = (TB_Symbol *)tb_extern_create(mod, -1, "vm_tb_ver_print", TB_EXTERNAL_SO_LOCAL);
     tb_symbol_bind_ptr(state->vm_tb_ver_rfunc_comp, (void *)&vm_tb_ver_rfunc_comp);
     tb_symbol_bind_ptr(state->vm_table_new, (void *)&vm_table_new);
     tb_symbol_bind_ptr(state->vm_table_iset, (void *)&vm_table_iset);
     tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
     tb_symbol_bind_ptr(state->vm_tb_ver_print, (void *)&vm_tb_ver_print);
 
-    state->ir_arena  = tb_arena_create(1 << 16);
-    state->code_arena= tb_arena_create(1 << 16);
+    state->ir_arena = tb_arena_create(1 << 16);
+    state->code_arena = tb_arena_create(1 << 16);
     state->tmp_arena = tb_arena_create(1 << 16);
-    state->worklist  = tb_worklist_alloc();
+    state->worklist = tb_worklist_alloc();
 
 #if !defined(EMSCRIPTEN)
     state->jit = tb_jit_begin(state->module, 1 << 16);
@@ -1832,7 +1832,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         }
     }
 
-    TB_Function* f = state->fun;
+    TB_Function *f = state->fun;
 #if VM_USE_DUMP
     if (state->config->dump_tb) {
         fprintf(stdout, "\n--- tb ---\n");
@@ -1865,8 +1865,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         const char *cs[] = {
             tb_c_prelude(state->module),
             tb_print_c(f, state->worklist, state->tmp_arena),
-            NULL
-        };
+            NULL};
         void *code = vm_cache_comp("emcc", cs, name);
         rblock->code = code;
         return code;
@@ -1899,25 +1898,30 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         rblock->code = code;
         return code;
 #endif
-    } else if (state->config->target == VM_TARGET_TB_CC  || state->config->target == VM_TARGET_TB_CLANG
-            || state->config->target == VM_TARGET_TB_GCC) {
+    } else if (state->config->target == VM_TARGET_TB_CC || state->config->target == VM_TARGET_TB_CLANG || state->config->target == VM_TARGET_TB_GCC) {
         const char *cs[] = {
             tb_c_prelude(state->module),
             tb_print_c(f, state->worklist, state->tmp_arena),
-            NULL
-        };
-        const char* cc_name = NULL;
+            NULL};
+        const char *cc_name = NULL;
         switch (state->config->target) {
-            case VM_TARGET_TB_CC:    cc_name = "cc";    break;
-            case VM_TARGET_TB_CLANG: cc_name = "clang"; break;
-            case VM_TARGET_TB_GCC:   cc_name = "gcc";   break;
-            default: break;
+            case VM_TARGET_TB_CC:
+                cc_name = "cc";
+                break;
+            case VM_TARGET_TB_CLANG:
+                cc_name = "clang";
+                break;
+            case VM_TARGET_TB_GCC:
+                cc_name = "gcc";
+                break;
+            default:
+                break;
         }
         void *code = vm_cache_comp("cc", cs, name);
         rblock->code = code;
         return code;
     } else if (state->config->target == VM_TARGET_TB) {
-        TB_FeatureSet features = (TB_FeatureSet){0};
+        TB_FeatureSet features = (TB_FeatureSet){ TB_FEATURE_FRAME_PTR };
         if (VM_USE_DUMP && state->config->dump_asm) {
             TB_FunctionOutput *out = tb_codegen(f, state->worklist, state->tmp_arena, state->code_arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");

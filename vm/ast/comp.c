@@ -35,11 +35,13 @@ struct vm_ast_comp_names_t {
         const char **ptr;
         size_t alloc;
     } regs;
+
     struct {
         size_t len;
         vm_ast_comp_cap_t *ptr;
         size_t alloc;
     } caps;
+
     vm_ast_comp_names_t *next;
 };
 
@@ -161,7 +163,11 @@ static vm_arg_t vm_ast_comp_reg_named(vm_ast_comp_t *comp, const char *name) {
         comp->names->regs.alloc = (reg + 1) * 2;
         comp->names->regs.ptr = vm_realloc(comp->names->regs.ptr, sizeof(const char *) * comp->names->regs.alloc);
     }
-    comp->names->regs.ptr[reg] = vm_strdup(name);
+    if (name == NULL) {
+        comp->names->regs.ptr[reg] = NULL;
+    } else {
+        comp->names->regs.ptr[reg] = vm_strdup(name);
+    }
     return (vm_arg_t){
         .type = VM_ARG_REG,
         .reg = reg + 1,
@@ -233,8 +239,7 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
         .lit = (vm_std_value_t){
             .tag = VM_TYPE_I32,
             .value.i32 = slotnum,
-        }
-    };
+        }};
     vm_ast_blocks_branch(
         comp,
         (vm_branch_t){

@@ -1,11 +1,14 @@
 *.bin
 bin
 build
+.cache
+compile_commands.json
 *.core
 *.dll
 *.err
 *.exe
 *.gcda
+info.txt
 *.lib
 libminivm.a
 libminivm.lib

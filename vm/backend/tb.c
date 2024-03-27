@@ -6,8 +6,8 @@
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
-#include "tb_ver.h"
 #include "tb_dyn.h"
+#include "tb_ver.h"
 
 vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_std_value_t val = vm_tb_run_repl(config, entry, blocks, std);
@@ -29,13 +29,12 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
         vm_tb_ver_func_t *fn = (vm_tb_ver_func_t *)vm_tb_ver_full_comp(state, entry);
 
-    #if defined(_WIN32)
+#if defined(_WIN32)
         state->vm_caller(&value, fn);
-    #else
+#else
         value = fn();
-    #endif
+#endif
     } else {
-
     }
 
     for (size_t i = 0; i < blocks->len; i++) {

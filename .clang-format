@@ -4,7 +4,8 @@ AlignAfterOpenBracket: BlockIndent
 ColumnLimit: 0
 IndentCaseBlocks: false
 IndentWidth: 4
-InsertBraces: true
 SortIncludes: true
 IndentCaseLabels: true
 BreakBeforeBraces: Attach
+MaxEmptyLinesToKeep: 2
+SeparateDefinitionBlocks: Always

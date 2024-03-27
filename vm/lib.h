@@ -14,6 +14,7 @@
 #endif
 
 #include <inttypes.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -21,9 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wctype.h>
-#include <math.h>
 #include <time.h>
+#include <wctype.h>
 
 #include "config.h"
 
@@ -33,30 +33,37 @@
     exit(1);
 #endif
 
-char *vm_strdup(const char *str);
+static inline void *vm_malloc(size_t size) {
+    void *ret = malloc(size);
+    if (ret == NULL) {
+        __builtin_trap();
+    }
+    return ret;
+}
 
-#if 0
-void GC_init();
-void *GC_malloc(size_t size);
-void *GC_realloc(void *ptr, size_t size);
-void GC_free(void *ptr);
+static inline void *vm_realloc(void *ptr, size_t size) {
+    void *ret = realloc(ptr, size);
+    if (ret == NULL) {
+        __builtin_trap();
+    }
+    return ret;
+}
 
-#define vm_init_mem() (GC_init())
-#define vm_malloc(x) (GC_malloc((x)))
-#define vm_realloc(x, y) (GC_realloc((x), (y)))
-#define vm_free(x) (GC_free((void*)(x)))
-#endif
+static inline void vm_free(const void *ptr) {
+    free((void *)ptr);
+}
 
-#if 1
-#define vm_init_mem() ((void)0)
-#define vm_malloc(x) (malloc((x)))
-#define vm_realloc(x, y) (realloc((void *) (x), (y)))
-#define vm_free(x) ((void)((x)))
-#endif
-#endif
+static char *vm_strdup(const char *str) {
+    int len = strlen(str);
+    char *buf = vm_malloc(sizeof(char) * (len + 1));
+    memcpy(buf, str, len + 1);
+    return buf;
+}
 
 #if defined(_WIN32)
 #define VM_CDECL __attribute__((cdecl))
 #else
 #define VM_CDECL
+#endif
+
 #endif
