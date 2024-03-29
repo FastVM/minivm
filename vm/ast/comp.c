@@ -239,7 +239,8 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
         .lit = (vm_std_value_t){
             .tag = VM_TYPE_I32,
             .value.i32 = slotnum,
-        }};
+        }
+    };
     vm_ast_blocks_branch(
         comp,
         (vm_branch_t){

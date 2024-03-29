@@ -12,40 +12,18 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 // void GC_disable(void);
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
-
-typedef struct {
-    vm_table_t *std;
-    vm_blocks_t blocks;
-    vm_config_t config;
-} vm_main_t;
-
-EMSCRIPTEN_KEEPALIVE vm_main_t *vm_main_new(void) {
-    vm_main_t *ret = vm_malloc(sizeof(vm_main_t));
-    ret->config = (vm_config_t){
-        .use_tb_opt = false,
-        .use_num = VM_USE_NUM_I64,
-        .target = VM_TARGET_TB_EMCC,
-    };
-    ret->std = vm_std_new(&ret->config);
-    ret->blocks = (vm_blocks_t){0};
-    return ret;
-}
-
-EMSCRIPTEN_KEEPALIVE void vm_main_lua_eval(vm_main_t *main, const char *src) {
-    vm_ast_node_t node = vm_lang_lua_parse(&main->config, src);
-    vm_ast_comp_more(node, &main->blocks);
-    vm_std_value_t value = vm_tb_run_main(&main->config, main->blocks.entry, &main->blocks, main->std);
-    if (!vm_type_eq(value.tag, VM_TYPE_NIL)) {
-        vm_io_buffer_t buf = {0};
-        vm_io_debug(&buf, 0, "", value, NULL);
-        printf("%.*s", (int)buf.len, buf.buf);
-    }
-}
-
+#include <unistd.h>
 #endif
 
 int main(int argc, char **argv) {
-    vm_config_t val_config = (vm_config_t) {
+#if defined(EMSCRIPTEN)
+    EM_ASM({
+        FS.mkdir('/dir');
+        FS.mount(NODEFS, { root: '.' }, '/dir');
+    });
+    chdir("/dir");
+#endif
+    vm_config_t val_config = (vm_config_t){
         .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
         .tb_use_lbbv = true,

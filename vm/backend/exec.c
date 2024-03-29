@@ -18,15 +18,9 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
 
-#if 0
-void vm_compile_c_to_wasm(int n);
-#endif
-
-#if 1
 EM_JS(void, vm_compile_c_to_wasm, (int n), {
-    globalThis.vm_compile_c_to_wasm(n);
+    Module._vm_compile_c_to_wasm(n);
 });
-#endif
 
 void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
     static int n = 0;

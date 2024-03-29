@@ -3,6 +3,8 @@ OPT ?= -Os -flto
 
 EXE ?=
 
+POST_INSTALL ?= @
+
 BUILD_DIR ?= build
 OBJ_DIR ?= $(BUILD_DIR)/obj
 TMP_DIR ?= $(BUILD_DIR)/tmp
@@ -24,29 +26,29 @@ OS_NAME_Darwin = MACOS
 OS_NAME_Linux = LINUX
 OS_NAME_FreeBSD = FREEBSD
 
-OS_NAME = $(OS_NAME_$(UNAME_S))
+OS_NAME ?= $(OS_NAME_$(UNAME_S))
 
 PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 # GC_SRCS = vendor/bdwgc/alloc.c vendor/bdwgc/allchblk.c vendor/bdwgc/blacklst.c vendor/bdwgc/dbg_mlc.c vendor/bdwgc/dyn_load.c vendor/bdwgc/finalize.c vendor/bdwgc/headers.c vendor/bdwgc/malloc.c vendor/bdwgc/mallocx.c vendor/bdwgc/mark.c vendor/bdwgc/mach_dep.c vendor/bdwgc/mark_rts.c vendor/bdwgc/misc.c vendor/bdwgc/new_hblk.c vendor/bdwgc/obj_map.c vendor/bdwgc/os_dep.c vendor/bdwgc/ptr_chck.c vendor/bdwgc/reclaim.c
-ISOCLINE_SRCS = $(ISOCLINE_DIR)/src/isocline.c
-XXH_SRCS = $(XXHASH_DIR)/xxhash.c
-TREES_SRCS = $(TREE_SITTER_DIR)/lib/src/alloc.c $(TREE_SITTER_DIR)/lib/src/get_changed_ranges.c $(TREE_SITTER_DIR)/lib/src/language.c $(TREE_SITTER_DIR)/lib/src/lexer.c $(TREE_SITTER_DIR)/lib/src/node.c $(TREE_SITTER_DIR)/lib/src/parser.c $(TREE_SITTER_DIR)/lib/src/query.c $(TREE_SITTER_DIR)/lib/src/stack.c $(TREE_SITTER_DIR)/lib/src/subtree.c $(TREE_SITTER_DIR)/lib/src/tree_cursor.c $(TREE_SITTER_DIR)/lib/src/tree.c $(TREE_SITTER_DIR)/lib/src/wasm_store.c
-GC_OBJS = $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
-VENDOR_SRCS = $(ISOCLINE_SRCS) $(XXH_SRCS) $(TREES_SRCS) $(GC_OBJS)
+ISOCLINE_SRCS += $(ISOCLINE_DIR)/src/isocline.c
+XXH_SRCS += $(XXHASH_DIR)/xxhash.c
+TREES_SRCS += $(TREE_SITTER_DIR)/lib/src/alloc.c $(TREE_SITTER_DIR)/lib/src/get_changed_ranges.c $(TREE_SITTER_DIR)/lib/src/language.c $(TREE_SITTER_DIR)/lib/src/lexer.c $(TREE_SITTER_DIR)/lib/src/node.c $(TREE_SITTER_DIR)/lib/src/parser.c $(TREE_SITTER_DIR)/lib/src/query.c $(TREE_SITTER_DIR)/lib/src/stack.c $(TREE_SITTER_DIR)/lib/src/subtree.c $(TREE_SITTER_DIR)/lib/src/tree_cursor.c $(TREE_SITTER_DIR)/lib/src/tree.c $(TREE_SITTER_DIR)/lib/src/wasm_store.c
+GC_OBJS += $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
+VENDOR_SRCS += $(ISOCLINE_SRCS) $(XXH_SRCS) $(TREES_SRCS) $(GC_OBJS)
 VENDOR_OBJS = $(VENDOR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 STD_SRCS = vm/std/io.c vm/std/std.c
-VM_SRCS = vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/backend/exec.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser/parser.c vm/lua/parser/scan.c vm/lua/ast.c vm/lua/repl.c $(STD_SRCS) $(EXTRA_SRCS)
+VM_SRCS += vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/backend/exec.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser/parser.c vm/lua/parser/scan.c vm/lua/ast.c vm/lua/repl.c $(STD_SRCS)
 VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-TCC_SRCS ?= $(TCC_DIR)/libtcc.c $(TCC_DIR)/lib/libtcc1.c
+TCC_SRCS ?= $(TCC_DIR)/libtcc.c
 TCC_OBJS = $(TCC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 TB_SRCS_BASE = $(CUIK_DIR)/common/common.c $(CUIK_DIR)/common/perf.c $(CUIK_DIR)/tb/src/libtb.c $(CUIK_DIR)/tb/src/x64/x64_target.c
 TB_SRCS_FREEBSD = $(CUIK_DIR)/c11threads/threads_posix.c
-TB_SRCS = $(TB_SRCS_BASE) $(TB_SRCS_$(OS_NAME))
+TB_SRCS += $(TB_SRCS_BASE) $(TB_SRCS_$(OS_NAME))
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS = $(VM_OBJS) $(TB_OBJS) $(TCC_OBJS) $(VENDOR_OBJS)
@@ -58,7 +60,7 @@ LDFLAGS_FREEBSD = -lm -ldl -lpthread
 
 LDFLAGS := $(LDFLAGS_$(OS_NAME)) $(LDFLAGS)
 
-CFLAGS_CUIK := -I $(CUIK_DIR)/tb/include -I $(CUIK_DIR)/common -DCUIK_USE_TB -DLOG_SUPPRESS -DTB_HAS_X64 $(CFLAGS_CUIK)
+CFLAGS_TB := -I $(CUIK_DIR)/tb/include -I$(CUIK_DIR)/c11threads -I $(CUIK_DIR)/common -DCUIK_USE_TB -DLOG_SUPPRESS -DTB_HAS_X64 $(CFLAGS_TB)
 CFLAGS_VENDOR := -I $(TREE_SITTER_DIR)/lib/include -I $(TREE_SITTER_DIR)/lib/src $(CFLAGS_VENDOR)
 
 CFLAGS := $(CFLAGS_$(OS_NAME)) $(CFLAGS)
@@ -66,12 +68,7 @@ CFLAGS := $(CFLAGS_$(OS_NAME)) $(CFLAGS)
 LDFLAGS := $(FLAGS) $(LDFLAGS)
 CFLAGS := $(FLAGS) $(CFLAGS)
 
-MKDIR_WINDOWS = @mkdir -p
-MKDIR_MACOS = @mkdir -p
-MKDIR_LINUX = @mkdir -p
-MKDIR_FREEBSD = @mkdir -p
-
-MKDIR = $(MKDIR_$(OS_NAME))
+MKDIR = @mkdir -p
 
 default: all
 
@@ -101,6 +98,7 @@ bins: $(BIN_DIR)/minivm$(EXE)
 minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 	$(MKDIR) $(dir $(@))
 	$(CC) $(OPT) $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) $(LDFLAGS)
+	$(POST_INSTALL)
 
 # prepare minimal tcc
 
@@ -114,7 +112,7 @@ $(TCC_DIR)/tccdefs_.h: $(TCC_DIR)/include/tccdefs.h $(TCC_DIR)/config.h
 
 $(TB_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	$(MKDIR) $(dir $(@))
-	$(CC) -Wno-unused-value -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) $(CFLAGS_CUIK)
+	$(CC) -Wno-unused-value -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) $(CFLAGS_TB)
 
 $(TCC_OBJS): $(@:$(OBJ_DIR)/%.o=%.c) $(TCC_DIR) $(TCC_DIR)/tccdefs_.h $(TCC_DIR)/config.h
 	$(MKDIR) $(dir $(@))
@@ -127,11 +125,6 @@ $(VENDOR_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	$(MKDIR) $(dir $(@))
 	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) $(CFLAGS_VM)
-
-# format
-
-format: .dummy
-	clang-format -i $(VM_OBJS:$(OBJ_DIR)/%.o=%.c)
 
 # cleanup
 

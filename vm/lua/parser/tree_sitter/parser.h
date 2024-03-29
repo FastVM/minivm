@@ -9,7 +9,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 
-#define ts_builtin_sym_error ((TSSymbol)-1)
+#define ts_builtin_sym_error ((TSSymbol) - 1)
 #define ts_builtin_sym_end 0
 #define TREE_SITTER_SERIALIZATION_BUFFER_SIZE 1024
 
@@ -177,7 +177,7 @@ struct TSLanguage {
  *  Parse Table Macros
  */
 
-#define SMALL_STATE(id) ((id)-LARGE_STATE_COUNT)
+#define SMALL_STATE(id) ((id) - LARGE_STATE_COUNT)
 
 #define STATE(id) id
 
@@ -221,7 +221,8 @@ struct TSLanguage {
                 .type = TSParseActionTypeReduce, \
                 .symbol = symbol_val,            \
                 .child_count = child_count_val,  \
-                __VA_ARGS__},                    \
+                __VA_ARGS__                      \
+            },                                   \
         }                                        \
     }
 

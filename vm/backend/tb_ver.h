@@ -1865,7 +1865,8 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         const char *cs[] = {
             tb_c_prelude(state->module),
             tb_print_c(f, state->worklist, state->tmp_arena),
-            NULL};
+            NULL
+        };
         void *code = vm_cache_comp("emcc", cs, name);
         rblock->code = code;
         return code;
@@ -1892,7 +1893,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         tcc_set_options(state, "-nostdlib");
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
         tcc_compile_string(state, buf);
-        tcc_relocate(state, TCC_RELOCATE_AUTO);
+        tcc_relocate(state);
         vm_free(buf);
         void *code = tcc_get_symbol(state, name);
         rblock->code = code;
@@ -1902,7 +1903,8 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         const char *cs[] = {
             tb_c_prelude(state->module),
             tb_print_c(f, state->worklist, state->tmp_arena),
-            NULL};
+            NULL
+        };
         const char *cc_name = NULL;
         switch (state->config->target) {
             case VM_TARGET_TB_CC:
@@ -1921,7 +1923,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         rblock->code = code;
         return code;
     } else if (state->config->target == VM_TARGET_TB) {
-        TB_FeatureSet features = (TB_FeatureSet){ TB_FEATURE_FRAME_PTR };
+        TB_FeatureSet features = (TB_FeatureSet){TB_FEATURE_FRAME_PTR};
         if (VM_USE_DUMP && state->config->dump_asm) {
             TB_FunctionOutput *out = tb_codegen(f, state->worklist, state->tmp_arena, state->code_arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");

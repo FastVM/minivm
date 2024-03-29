@@ -9,6 +9,7 @@
 #include "../std/io.h"
 
 #if defined(EMSCRIPTEN)
+#include <emscripten.h>
 #include <termios.h>
 #endif
 
@@ -221,6 +222,12 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
 }
 #endif
 
+#if defined(EMSCRIPTEN)
+EM_JS(char, vm_lang_lua_read, (), {
+    return Module._vm_lang_lua_read();
+});
+#endif
+
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks) {
     config->is_repl = true;
 
@@ -270,8 +277,8 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         printf("lua> ");
         char input[256];
         size_t head = 0;
-        while (head < 256) {
-            char c = fgetc(stdin);
+        while (head < 255) {
+            char c = vm_lang_lua_read();
             input[head++] = c;
             if (c == '\0' || c == '\n') {
                 break;

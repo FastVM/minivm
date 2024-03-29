@@ -4,7 +4,7 @@
 [submodule "vendor/cuik"]
 	path = vendor/cuik
 	url = https://github.com/fastvm/minivm-cuik
-	branch = tb2c
+	branch = new-cg
 [submodule "vendor/xxhash"]
 	path = vendor/xxhash
 	url = https://github.com/fastvm/minivm-xxhash
