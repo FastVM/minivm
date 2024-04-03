@@ -11,22 +11,29 @@ const cc = `clang`;
 const ld = `wasm-ld`;
 
 const cFlagsList = [
-    '-target wasm32-unknown-unknown',
-    '-fignore-exceptions',
-    '-fPIC',
-    '-fvisibility=default',
+    '-cc1',
+    '-triple',
+    'wasm32-unknown-unknown',
+    '-emit-obj',
+    '-disable-llvm-verifier',
+    '-discard-value-names',
+    '-mframe-pointer=none',
+    '-Os',
+    '-w',
+    '-vectorize-loops',
+    '-vectorize-slp',
+    '-x',
+    'c',
 ];
 const ldFlagsList = [
-    '--no-whole-archive',
     '--import-undefined',
     '--import-memory',
-    '--strip-debug',
     '--export-dynamic',
     '--experimental-pic',
     '-shared',
 ];
 
-const cflags = cFlagsList.join(' ');
+const cFlags = cFlagsList.join(' ');
 const ldflags = ldFlagsList.join(' ');
 
 export const run = (args, opts) => {
@@ -56,7 +63,7 @@ export const run = (args, opts) => {
             const outFile = `.minivm-cache/out${n}.wasm`;
             const cSrc = mod.FS.readFile(`/in${n}.c`);
             writeFileSync(inFile, cSrc);
-            execSync(`${cc} -O2 -c -w ${cflags} ${inFile} -o ${midFile}`);
+            execSync(`${cc} ${cFlags} ${inFile} -o ${midFile}`);
             execSync(`${ld} ${ldflags} ${midFile} -o ${outFile}`)
             const wasm = readFileSync(outFile);
             unlinkSync(inFile);
@@ -80,7 +87,7 @@ export const config = {
 
     stdin() {
         const buf = Buffer.alloc(1);
-        readSync(0, buf, 0, 1);
+        readSync(0, buf, 0, 1, null);
         return new Uint8Array(buf)[0];
     },
 };

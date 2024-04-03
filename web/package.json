@@ -13,6 +13,8 @@
     "xterm-pty": "^0.10.1"
   },
   "scripts": {
+    "start": "npm run watch",
+
     "watch": "concurrently -n make,vite,server 'npm run make:watch' 'npm run vite:watch' 'npm run serve'",
     "serve": "python3 server.py",
     

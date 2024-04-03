@@ -96,27 +96,35 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
         },                                                                                   \
     }
 
+#define VM_STD_VALUE_NIL ((vm_std_value_t) {.tag = (VM_TYPE_NIL)})
+
 #define VM_STD_VALUE_NUMBER(CONFIG_, VALUE_) ({                  \
     vm_config_t *config_ = (CONFIG_);                            \
     vm_std_value_t ret_;                                         \
     switch (config_->use_num) {                                  \
         case VM_USE_NUM_I8: {                                    \
             ret_ = VM_STD_VALUE_LITERAL(i8, (int8_t)(VALUE_));   \
+            break;                                               \
         }                                                        \
         case VM_USE_NUM_I16: {                                   \
             ret_ = VM_STD_VALUE_LITERAL(i16, (int16_t)(VALUE_)); \
+            break;                                               \
         }                                                        \
         case VM_USE_NUM_I32: {                                   \
             ret_ = VM_STD_VALUE_LITERAL(i32, (int32_t)(VALUE_)); \
+            break;                                               \
         }                                                        \
         case VM_USE_NUM_I64: {                                   \
             ret_ = VM_STD_VALUE_LITERAL(i64, (int64_t)(VALUE_)); \
+            break;                                               \
         }                                                        \
         case VM_USE_NUM_F32: {                                   \
             ret_ = VM_STD_VALUE_LITERAL(f32, (float)(VALUE_));   \
+            break;                                               \
         }                                                        \
         case VM_USE_NUM_F64: {                                   \
             ret_ = VM_STD_VALUE_LITERAL(f64, (double)(VALUE_));  \
+            break;                                               \
         }                                                        \
     }                                                            \
     ret_;                                                        \

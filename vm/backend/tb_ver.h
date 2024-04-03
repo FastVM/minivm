@@ -1925,11 +1925,11 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     } else if (state->config->target == VM_TARGET_TB) {
         TB_FeatureSet features = (TB_FeatureSet){TB_FEATURE_FRAME_PTR};
         if (VM_USE_DUMP && state->config->dump_asm) {
-            TB_FunctionOutput *out = tb_codegen(f, state->worklist, state->tmp_arena, state->code_arena, &features, true);
+            TB_FunctionOutput *out = tb_codegen(f, state->worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");
             tb_output_print_asm(out, stdout);
         } else {
-            tb_codegen(f, state->worklist, state->tmp_arena, state->code_arena, &features, false);
+            tb_codegen(f, state->worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
         }
 
 #if VM_USE_DUMP

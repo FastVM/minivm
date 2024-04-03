@@ -188,6 +188,58 @@ void vm_std_tostring(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
+void vm_std_tonumber(vm_std_closure_t *closure, vm_std_value_t *args) {
+    switch (args[0].tag->tag) {
+        case VM_TAG_I8: {
+            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i8);
+            return;
+        }
+        case VM_TAG_I16: {
+            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i16);
+            return;
+        }
+        case VM_TAG_I32: {
+            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i32);
+            return;
+        }
+        case VM_TAG_I64: {
+            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i64);
+            return;
+        }
+        case VM_TAG_F32: {
+            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.f32);
+            return;
+        }
+        case VM_TAG_F64: {
+            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.f64);
+            return;
+        }
+        case VM_TAG_STR: {
+            if (closure->config->use_num == VM_USE_NUM_F32 || closure->config->use_num == VM_USE_NUM_F64) {
+                double num;
+                if (sscanf(args[0].value.str, "%lf", &num) == 0) {
+                    args[0] = VM_STD_VALUE_NIL;
+                    return;
+                }
+                args[0] = VM_STD_VALUE_NUMBER(closure->config, num);
+                return;
+            } else {
+                int64_t num;
+                if (sscanf(args[0].value.str, "%"SCNi64, &num) == 0) {
+                    args[0] = VM_STD_VALUE_NIL;
+                    return;
+                }
+                args[0] = VM_STD_VALUE_NUMBER(closure->config, num);
+                return;
+            }
+        }
+        default: {
+            args[0] = VM_STD_VALUE_NIL;
+            return;
+        }
+    }
+}
+
 void vm_std_print(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     vm_io_buffer_t out = {0};
@@ -428,67 +480,53 @@ void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-vm_table_t *vm_std_new_args(vm_config_t *config, char *argv0, int argc, char **argv) {
+void vm_std_set_arg(vm_config_t *config, vm_table_t *std, const char *prog, const char *file, int argc, char **argv) {
+    vm_table_t *arg = vm_table_new();
+    VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, -1), VM_STD_VALUE_LITERAL(str, prog));
+    VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, 0), VM_STD_VALUE_LITERAL(str, file));
+    for (int64_t i = 0; i < argc; i++) {
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, i+1), VM_STD_VALUE_LITERAL(str, argv[i]));
+    }
+    VM_TABLE_SET(std, str, "arg", table, arg);
+}
+
+vm_table_t *vm_std_new(vm_config_t *config) {
     vm_table_t *std = vm_table_new();
 
     {
         vm_table_t *io = vm_table_new();
         VM_TABLE_SET(std, str, "io", table, io);
-        ;
         VM_TABLE_SET(io, str, "write", ffi, &vm_std_io_write);
-        ;
     }
 
     {
         vm_table_t *string = vm_table_new();
         VM_TABLE_SET(std, str, "string", table, string);
-        ;
         VM_TABLE_SET(string, str, "format", ffi, &vm_std_string_format);
-        ;
     }
 
     {
         vm_table_t *vm = vm_table_new();
         VM_TABLE_SET(vm, str, "print", ffi, &vm_std_vm_print);
-        ;
         {
             vm_table_t *vm_ver = vm_table_new();
             VM_TABLE_SET(vm, str, "version", table, vm_ver);
-            ;
         }
         VM_TABLE_SET(std, str, "vm", table, vm);
-        ;
     }
 
     {
         vm_table_t *os = vm_table_new();
         VM_TABLE_SET(os, str, "exit", ffi, &vm_std_os_exit);
-        ;
         VM_TABLE_SET(std, str, "os", table, os);
-        ;
-    }
-
-    {
-        vm_table_t *arg = vm_table_new();
-        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, -1), VM_STD_VALUE_LITERAL(str, argv0));
-        VM_TABLE_SET(std, str, "arg", table, arg);
-        ;
     }
 
     VM_TABLE_SET(std, str, "tostring", ffi, &vm_std_tostring);
-    ;
+    VM_TABLE_SET(std, str, "tonumber", ffi, &vm_std_tonumber);
     VM_TABLE_SET(std, str, "type", ffi, &vm_std_type);
-    ;
     VM_TABLE_SET(std, str, "print", ffi, &vm_std_print);
-    ;
     VM_TABLE_SET(std, str, "assert", ffi, &vm_std_assert);
-    ;
     VM_TABLE_SET(std, str, "load", ffi, &vm_std_load);
-    ;
 
     return std;
-}
-
-vm_table_t *vm_std_new(vm_config_t *config) {
-    return vm_std_new_args(config, NULL, 0, NULL);
 }

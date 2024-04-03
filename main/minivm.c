@@ -40,8 +40,9 @@ int main(int argc, char **argv) {
     bool echo = false;
     bool isrepl = true;
     vm_table_t *std = vm_std_new(config);
-    for (int i = 1; i < argc; i++) {
-        char *arg = argv[i];
+    int i = 1;
+    while (i < argc) {
+        char *arg = argv[i++];
         if (!strcmp(arg, "--")) {
             break;
         }
@@ -167,18 +168,17 @@ int main(int argc, char **argv) {
 
             clock_t start = clock();
 
+            const char *name;
             const char *src;
-            // if (!strcmp(arg, "-f")) {
-            //     isrepl = last_isrepl;
-            //     arg = argv[i + 1];
-            //     i += 1;
-            // }
             if (!strcmp(arg, "-e")) {
-                src = argv[i + 1];
-                i += 1;
+                src = argv[i++];
+                name = "<expr>";
             } else {
                 src = vm_io_read(arg);
+                name = arg;
             }
+
+            vm_std_set_arg(config, std, argv[0], name, argc - i, &argv[i]);
 
             if (src == NULL) {
                 fprintf(stderr, "error: no such file: %s\n", arg);
@@ -218,10 +218,14 @@ int main(int argc, char **argv) {
                 double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
                 printf("took: %.3fms\n", diff);
             }
+
+            break;
         }
     }
 
     if (isrepl) {
+        vm_std_set_arg(config, std, argv[0], "<repl>", argc - i, argv + i);
+        
         vm_lang_lua_repl(config, std, blocks);
     }
 
