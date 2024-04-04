@@ -1,7 +1,6 @@
 
 local v = 1
-local run = true
-while run do
+while true do
     local x = if v == 1 then
         "v == 1"
     elseif v == 2 then
