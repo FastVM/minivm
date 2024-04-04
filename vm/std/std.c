@@ -41,7 +41,7 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_assert(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_std_value_t val = args[0];
-    if (!vm_type_eq(val.tag, VM_TYPE_NIL) || (vm_type_eq(val.tag, VM_TYPE_BOOL) && !val.value.b)) {
+    if (vm_type_eq(val.tag, VM_TYPE_NIL) || (vm_type_eq(val.tag, VM_TYPE_BOOL) && !val.value.b)) {
         vm_std_value_t msg = args[1];
         vm_io_buffer_t buf = {0};
         vm_io_print_lit(&buf, msg);
@@ -507,18 +507,18 @@ vm_table_t *vm_std_new(vm_config_t *config) {
 
     {
         vm_table_t *vm = vm_table_new();
+        VM_TABLE_SET(std, str, "vm", table, vm);
         VM_TABLE_SET(vm, str, "print", ffi, &vm_std_vm_print);
         {
             vm_table_t *vm_ver = vm_table_new();
             VM_TABLE_SET(vm, str, "version", table, vm_ver);
         }
-        VM_TABLE_SET(std, str, "vm", table, vm);
     }
 
     {
         vm_table_t *os = vm_table_new();
-        VM_TABLE_SET(os, str, "exit", ffi, &vm_std_os_exit);
         VM_TABLE_SET(std, str, "os", table, os);
+        VM_TABLE_SET(os, str, "exit", ffi, &vm_std_os_exit);
     }
 
     VM_TABLE_SET(std, str, "tostring", ffi, &vm_std_tostring);
