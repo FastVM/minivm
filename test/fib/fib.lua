@@ -7,4 +7,4 @@ local function fib(n)
     end
 end
 
-print(fib(15))
+print(fib(tonumber(arg and arg[1]) or 35))

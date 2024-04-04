@@ -7,5 +7,4 @@ local fib = function(fib, n)
     end
 end
 
-local res = fib(fib, 35)
-print(res)
+print(fib(fib, tonumber(arg and arg[1]) or 35))

@@ -10,5 +10,5 @@ end
 
 fib_cap.fib = fib
 
-local res = fib(fib_cap, 35)
+local res = fib(fib_cap, tonumber(arg and arg[1]) or 35))
 print(res)
