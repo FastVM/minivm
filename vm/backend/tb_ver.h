@@ -1628,7 +1628,6 @@ static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
     state->ir_arena = tb_arena_create(1 << 16);
     state->code_arena = tb_arena_create(1 << 16);
     state->tmp_arena = tb_arena_create(1 << 16);
-    state->worklist = tb_worklist_alloc();
 
 #if !defined(EMSCRIPTEN)
     state->jit = tb_jit_begin(state->module, 1 << 16);
@@ -1657,7 +1656,7 @@ static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
     tb_inst_ret(fun, 0, NULL);
 
     // compile it
-    tb_codegen(fun, state->worklist, state->tmp_arena, state->code_arena, NULL, false);
+    tb_codegen(fun, worklist, state->tmp_arena, state->code_arena, NULL, false);
 
     state->vm_caller = tb_jit_place_function(state->jit, fun);
 #endif
@@ -1673,7 +1672,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
 
     vm_tb_ver_state_t *state = rblock->state;
 
-    vm_tb_ver_new_module(state);
+    // vm_tb_ver_new_module(state);
 
     if (state->config->use_ver_count >= VM_USE_VERSION_COUNT_GLOBAL) {
         vm_table_t *vm_tab = vm_table_lookup(state->std, (vm_value_t){.str = "vm"}, VM_TYPE_STR)->val_val.table;
@@ -1833,6 +1832,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     }
 
     TB_Function *f = state->fun;
+    TB_Worklist *worklist = tb_worklist_alloc();
 #if VM_USE_DUMP
     if (state->config->dump_tb) {
         fprintf(stdout, "\n--- tb ---\n");
@@ -1845,7 +1845,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         fflush(stdout);
     }
     if (state->config->use_tb_opt) {
-        tb_opt(f, state->worklist, state->ir_arena, state->tmp_arena, false);
+        tb_opt(f, worklist, state->ir_arena, state->tmp_arena, false);
 
         if (state->config->dump_tb_opt) {
             fprintf(stdout, "\n--- opt tb ---\n");
@@ -1860,31 +1860,29 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     }
 #endif
 
+    void *ret = NULL;
 #if defined(EMSCRIPTEN)
     if (state->config->target == VM_TARGET_TB_EMCC) {
         const char *cs[] = {
             tb_c_prelude(state->module),
-            tb_print_c(f, state->worklist, state->tmp_arena),
+            tb_print_c(f, worklist, state->tmp_arena),
             NULL
         };
         void *code = vm_cache_comp("emcc", cs, name);
         rblock->code = code;
-        return code;
+        ret = code;
     } else {
-        return NULL;
+        __builtin_trap();
     }
 #else
     if (state->config->target == VM_TARGET_TB_TCC) {
 #if !defined(VM_USE_TCC)
         return NULL;
 #else
-        const char *c_header = tb_c_prelude(state->module);
-        const char *c_src = tb_print_c(f, state->worklist, state->tmp_arena);
-        int c_header_size = strlen(c_header);
-        int c_src_size = strlen(c_src);
-        char *buf = vm_malloc(c_header_size + c_src_size + 1);
-        strcpy(buf, c_header);
-        strcpy(buf + c_header_size, c_src);
+        TB_CBuffer *cbuf = tb_c_buf_new();
+        tb_c_print_prelude(cbuf, state->module);
+        tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
+        const char *buf = tb_c_buf_to_data(cbuf);
         if (state->config->dump_asm) {
             printf("\n--- c ---\n%s", buf);
         }
@@ -1894,17 +1892,16 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
         tcc_compile_string(state, buf);
         tcc_relocate(state);
-        vm_free(buf);
+        tb_c_data_free(buf);
         void *code = tcc_get_symbol(state, name);
         rblock->code = code;
-        return code;
+        ret = code;
 #endif
     } else if (state->config->target == VM_TARGET_TB_CC || state->config->target == VM_TARGET_TB_CLANG || state->config->target == VM_TARGET_TB_GCC) {
-        const char *cs[] = {
-            tb_c_prelude(state->module),
-            tb_print_c(f, state->worklist, state->tmp_arena),
-            NULL
-        };
+        TB_CBuffer *cbuf = tb_c_buf_new();
+        tb_c_print_prelude(cbuf, state->module);
+        tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
+        const char *buf = tb_c_buf_to_data(cbuf);
         const char *cc_name = NULL;
         switch (state->config->target) {
             case VM_TARGET_TB_CC:
@@ -1919,17 +1916,18 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             default:
                 break;
         }
-        void *code = vm_cache_comp("cc", cs, name);
+        void *code = vm_cache_comp(cc_name, buf, name);
+        tb_c_data_free(buf);
         rblock->code = code;
-        return code;
+        ret = code;
     } else if (state->config->target == VM_TARGET_TB) {
         TB_FeatureSet features = (TB_FeatureSet){TB_FEATURE_FRAME_PTR};
         if (VM_USE_DUMP && state->config->dump_asm) {
-            TB_FunctionOutput *out = tb_codegen(f, state->worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
+            TB_FunctionOutput *out = tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");
             tb_output_print_asm(out, stdout);
         } else {
-            tb_codegen(f, state->worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
+            tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
         }
 
 #if VM_USE_DUMP
@@ -1947,11 +1945,13 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         rblock->jit = state->jit;
         rblock->del = &vm_tb_ver_rblock_del;
 
-        return code;
+        ret = code;
     } else {
         __builtin_trap();
     }
 #endif
+    tb_worklist_free(worklist);
+    return ret;
 }
 
 static void vm_tb_ver_rblock_del(vm_rblock_t *rblock) {
@@ -1961,6 +1961,7 @@ static void vm_tb_ver_rblock_del(vm_rblock_t *rblock) {
 static void *vm_tb_ver_full_comp(vm_tb_ver_state_t *state, vm_block_t *block) {
     vm_types_t *regs = vm_rblock_regs_empty(block->nregs);
     vm_rblock_t *rblock = vm_rblock_new(block, regs);
+    vm_tb_ver_new_module(state);
     rblock->state = state;
     return vm_tb_ver_rfunc_comp(rblock);
 }

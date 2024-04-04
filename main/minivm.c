@@ -113,8 +113,6 @@ int main(int argc, char **argv) {
 #if defined(EMSCRIPTEN)
             if (!strcmp(arg, "emcc")) {
                 config->target = VM_TARGET_TB_EMCC;
-            } else if (!strcmp(arg, "js")) {
-                config->target = VM_TARGET_TB_JS;
             } else {
                 fprintf(stderr, "cannot target: %s\n", arg);
                 return 1;

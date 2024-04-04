@@ -22,7 +22,7 @@ EM_JS(void, vm_compile_c_to_wasm, (int n), {
     Module._vm_compile_c_to_wasm(n);
 });
 
-void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
+void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
     static int n = 0;
     n += 1;
     struct stat st = {0};
@@ -33,9 +33,7 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
     vm_io_buffer_format(so_buf, "/out%i.so", n);
     const char *so_file = so_buf->buf;
     FILE *out = fopen(c_file, "w");
-    for (size_t i = 0; srcs[i] != NULL; i++) {
-        fwrite(srcs[i], strlen(srcs[i]), 1, out);
-    }
+    fwrite(src, strlen(src), 1, out);
     fclose(out);
     vm_compile_c_to_wasm(n);
     void *handle = dlopen(so_file, RTLD_LAZY);
@@ -48,23 +46,20 @@ void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
 
 #include "../../vendor/xxhash/xxhash.h"
 
-void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
+void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
     struct stat st = {0};
     if (stat(".minivm-cache", &st) == -1) {
         mkdir(".minivm-cache", 0700);
     }
-    vm_io_buffer_t *src_buf = vm_io_buffer_new();
-    for (size_t i = 0; srcs[i] != NULL; i++) {
-        vm_io_buffer_format(src_buf, "%s", srcs[i]);
-    }
-    uint64_t hash = XXH3_64bits((void *)src_buf->buf, src_buf->len);
+    size_t len = strlen(src);
+    uint64_t hash = XXH3_64bits((void *)src, len);
     char so_file[128];
     snprintf(so_file, 64, ".minivm-cache/out-%s-%" PRIx64 ".so", comp, hash);
-    if (stat(src_buf->buf, &st) == -1) {
+    if (stat(src, &st) == -1) {
         char c_file[128];
         snprintf(c_file, 64, ".minivm-cache/src-%s-%" PRIx64 ".c", comp, hash);
         FILE *out = fopen(c_file, "w");
-        fwrite(src_buf->buf, src_buf->len, 1, out);
+        fwrite(src, len, 1, out);
         fclose(out);
         vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
         vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s -o %s -w -pipe", comp, c_file, so_file);
