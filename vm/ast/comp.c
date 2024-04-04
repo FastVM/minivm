@@ -309,8 +309,8 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                         (vm_branch_t){
                             .op = VM_BOP_BLE,
                             .args = vm_ast_args(2, arg2, arg1),
-                            .targets[0] = iffalse,
-                            .targets[1] = iftrue,
+                            .targets[0] = iftrue,
+                            .targets[1] = iffalse,
                         }
                     );
                     return;
