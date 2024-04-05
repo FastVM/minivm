@@ -24,14 +24,15 @@ int main(int argc, char **argv) {
     chdir("/dir");
 #endif
     vm_config_t val_config = (vm_config_t){
-        .use_tb_opt = false,
         .use_num = VM_USE_NUM_I64,
-        .tb_use_lbbv = true,
+        .tb_lbbv = true,
+        .tb_recompile = true,
 #if defined(EMSCRIPTEN)
         .target = VM_TARGET_TB_EMCC,
+        .tb_tailcalls = true,
 #else
         .target = VM_TARGET_TB,
-        .tb_use_tailcall = true,
+        .tb_tailcalls = true,
 #endif
     };
     vm_blocks_t val_blocks = {0};
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
     vm_config_t *config = &val_config;
     bool echo = false;
     bool isrepl = true;
-    vm_table_t *std = vm_std_new(config);
+    vm_table_t *std = vm_std_new(config); 
     int i = 1;
     while (i < argc) {
         char *arg = argv[i++];
@@ -47,19 +48,15 @@ int main(int argc, char **argv) {
             break;
         }
         if (!strcmp(arg, "--opt")) {
-            config->use_tb_opt = true;
+            config->tb_opt = true;
         } else if (!strcmp(arg, "--no-opt")) {
-            config->use_tb_opt = false;
+            config->tb_opt = false;
         } else if (!strcmp(arg, "--ver-count=none")) {
             config->use_ver_count = VM_USE_VERSION_COUNT_NONE;
         } else if (!strcmp(arg, "--ver-count=global")) {
             config->use_ver_count = VM_USE_VERSION_COUNT_GLOBAL;
         } else if (!strcmp(arg, "--ver-count=fine")) {
             config->use_ver_count = VM_USE_VERSION_COUNT_FINE;
-        } else if (!strcmp(arg, "--profile")) {
-            config->use_profile = true;
-        } else if (!strcmp(arg, "--no-profile")) {
-            config->use_profile = false;
         } else if (!strcmp(arg, "--echo")) {
             echo = true;
         } else if (!strcmp(arg, "--no-echo")) {
@@ -82,12 +79,12 @@ int main(int argc, char **argv) {
                 config->tb_regs_node = enable;
             } else if (!strcmp(arg, "force-bitcast")) {
                 config->tb_force_bitcast = enable;
-            } else if (!strcmp(arg, "tailcall")) {
-                config->tb_use_tailcall = enable;
+            } else if (!strcmp(arg, "tailcalls")) {
+                config->tb_tailcalls = enable;
             } else if (!strcmp(arg, "lbbv")) {
-                config->tb_use_lbbv = enable;
+                config->tb_lbbv = enable;
             } else {
-                fprintf(stderr, "error: unknown flag --tb-%s want --tb-recompile, --tb-cast-regs, or --tb-raw-regs", arg);
+                fprintf(stderr, "error: unknown flag --tb-%s want --tb-[recompile/cast-regs/raw-regs/force-bitcast/tailcalls/lbbv]", arg);
                 return 1;
             }
         } else if (!strncmp(arg, "--number=", 9)) {
@@ -111,7 +108,7 @@ int main(int argc, char **argv) {
         } else if (!strncmp(arg, "--target-", 9) || !strncmp(arg, "--target=", 9)) {
             arg += 9;
 #if defined(EMSCRIPTEN)
-            if (!strcmp(arg, "emcc")) {
+            if (!strcmp(arg, "tb-emcc")) {
                 config->target = VM_TARGET_TB_EMCC;
             } else {
                 fprintf(stderr, "cannot target: %s\n", arg);
@@ -166,11 +163,10 @@ int main(int argc, char **argv) {
 
             clock_t start = clock();
 
-            const char *name;
+            const char *name = NULL;
             const char *src;
             if (!strcmp(arg, "-e")) {
                 src = argv[i++];
-                name = "<expr>";
             } else {
                 src = vm_io_read(arg);
                 name = arg;
@@ -188,6 +184,10 @@ int main(int argc, char **argv) {
             }
 
             vm_ast_node_t node = vm_lang_lua_parse(config, src);
+
+            if (name != NULL) {
+                vm_free(src);
+            }
 
             if (config->dump_ast) {
                 vm_io_buffer_t buf = {0};

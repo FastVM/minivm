@@ -25,6 +25,11 @@ struct vm_tb_ver_state_t {
     TB_Arena *ir_arena;
     TB_Arena *tmp_arena;
     TB_Arena *code_arena;
+
+    TB_ArenaSavepoint ir_arena_save;
+    TB_ArenaSavepoint tmp_arena_save;
+    TB_ArenaSavepoint code_arena_save;
+
     TB_Worklist *worklist;
 
     // jit caller (for windows)
@@ -44,6 +49,7 @@ struct vm_tb_ver_state_t {
 typedef vm_std_value_t VM_CDECL vm_tb_ver_func_t(void);
 
 static void vm_tb_ver_new_module(vm_tb_ver_state_t *state);
+static void vm_tb_ver_free_module(vm_tb_ver_state_t *state);
 static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock);
 static void vm_tb_ver_func_print_value(vm_tb_ver_state_t *state, vm_type_t tag, TB_Node *value);
 static TB_Node *vm_tb_ver_func_body_once(vm_tb_ver_state_t *state, vm_block_t *block);
@@ -135,18 +141,17 @@ static TB_Node *vm_tb_ver_bitcast_from_value(vm_tb_ver_state_t *state, TB_Node *
 
 static TB_Node *vm_tb_ver_bitcast_to_value(vm_tb_ver_state_t *state, TB_Node *src) {
     if (state->config->tb_force_bitcast || src->dt.type != VM_TB_TYPE_VALUE.type || src->dt.data != VM_TB_TYPE_VALUE.data) {
-        if (src->dt.type == TB_FLOAT) {
-            if (src->dt.data == TB_TYPE_F32.data) {
-                TB_Node *local = tb_inst_local(state->fun, sizeof(vm_value_t), 8);
-                tb_inst_store(state->fun, TB_TYPE_F32, local, src, 8, false);
-                return tb_inst_load(state->fun, VM_TB_TYPE_VALUE, local, 8, false);
-            } else if (src->dt.data == TB_TYPE_F64.data) {
-                TB_Node *local = tb_inst_local(state->fun, sizeof(vm_value_t), 8);
-                tb_inst_store(state->fun, TB_TYPE_F64, local, src, 8, false);
-                return tb_inst_load(state->fun, VM_TB_TYPE_VALUE, local, 8, false);
-            }
+        if (src->dt.type == TB_FLOAT32) {
+            TB_Node *local = tb_inst_local(state->fun, sizeof(vm_value_t), 8);
+            tb_inst_store(state->fun, TB_TYPE_F32, local, src, 8, false);
+            return tb_inst_load(state->fun, VM_TB_TYPE_VALUE, local, 8, false);
+        } else if (src->dt.type == TB_FLOAT64) {
+            TB_Node *local = tb_inst_local(state->fun, sizeof(vm_value_t), 8);
+            tb_inst_store(state->fun, TB_TYPE_F64, local, src, 8, false);
+            return tb_inst_load(state->fun, VM_TB_TYPE_VALUE, local, 8, false);
+        } else {
+            return tb_inst_bitcast(state->fun, src, VM_TB_TYPE_VALUE);
         }
-        return tb_inst_bitcast(state->fun, src, VM_TB_TYPE_VALUE);
     }
     return src;
 }
@@ -581,7 +586,7 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
                 false
             );
 
-            if (state->config->tb_use_tailcall) {
+            if (state->config->tb_tailcalls) {
                 TB_MultiOutput out = vm_tb_ver_inst_call(
                     state,
                     next_proto,
@@ -612,7 +617,7 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
             false
         );
 
-        if (state->config->tb_use_tailcall) {
+        if (state->config->tb_tailcalls) {
             TB_MultiOutput out = vm_tb_ver_inst_call(
                 state,
                 next_proto,
@@ -646,7 +651,7 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
             }
         }
 
-        if (state->config->tb_use_tailcall) {
+        if (state->config->tb_tailcalls) {
             TB_MultiOutput out = vm_tb_ver_inst_call(
                 state,
                 next_proto,
@@ -1599,6 +1604,11 @@ static void vm_tb_ver_func_print_value(vm_tb_ver_state_t *state, vm_type_t tag, 
     );
 }
 
+static void vm_tb_ver_free_module(vm_tb_ver_state_t *state) {
+    tb_module_destroy(state->module);
+    state->module = NULL;
+}
+
 static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
     if (state->module != NULL) {
 #if !defined(EMSCRIPTEN)
@@ -1621,9 +1631,21 @@ static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
     tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
     tb_symbol_bind_ptr(state->vm_tb_ver_print, (void *)&vm_tb_ver_print);
 
-    state->ir_arena = tb_arena_create(1 << 16);
-    state->code_arena = tb_arena_create(1 << 16);
-    state->tmp_arena = tb_arena_create(1 << 16);
+    if (state->ir_arena == NULL) {
+        state->ir_arena = tb_arena_create(1 << 16);
+        state->ir_arena_save = tb_arena_save(state->ir_arena);
+    }
+    if (state->code_arena == NULL) {
+        state->code_arena = tb_arena_create(1 << 16);
+        state->code_arena_save = tb_arena_save(state->code_arena);
+    }
+    if (state->tmp_arena == NULL) {
+        state->tmp_arena = tb_arena_create(1 << 16);
+        state->tmp_arena_save = tb_arena_save(state->tmp_arena);
+    }
+    tb_arena_restore(state->ir_arena, state->ir_arena_save);
+    tb_arena_restore(state->code_arena, state->code_arena_save);
+    tb_arena_restore(state->tmp_arena, state->tmp_arena_save);
 
 #if !defined(EMSCRIPTEN)
     state->jit = tb_jit_begin(state->module, 1 << 16);
@@ -1668,7 +1690,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
 
     vm_tb_ver_state_t *state = rblock->state;
 
-    // vm_tb_ver_new_module(state);
+    vm_tb_ver_new_module(state);
 
     if (state->config->use_ver_count >= VM_USE_VERSION_COUNT_GLOBAL) {
         vm_table_t *vm_tab = vm_table_lookup(state->std, (vm_value_t){.str = "vm"}, VM_TYPE_STR)->val_val.table;
@@ -1840,7 +1862,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         tb_print_dot(f, tb_default_print_callback, stdout);
         fflush(stdout);
     }
-    if (state->config->use_tb_opt) {
+    if (state->config->tb_opt) {
         tb_opt(f, worklist, state->ir_arena, state->tmp_arena, false);
 
         if (state->config->dump_tb_opt) {
@@ -1859,12 +1881,12 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     void *ret = NULL;
 #if defined(EMSCRIPTEN)
     if (state->config->target == VM_TARGET_TB_EMCC) {
-        const char *cs[] = {
-            tb_c_prelude(state->module),
-            tb_print_c(f, worklist, state->tmp_arena),
-            NULL
-        };
-        void *code = vm_cache_comp("emcc", cs, name);
+        TB_CBuffer *cbuf = tb_c_buf_new();
+        tb_c_print_prelude(cbuf, state->module);
+        tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
+        const char *buf = tb_c_buf_to_data(cbuf);
+        void *code = vm_cache_comp("emcc", buf, name);
+        tb_c_data_free(buf);
         rblock->code = code;
         ret = code;
     } else {
@@ -1917,7 +1939,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         rblock->code = code;
         ret = code;
     } else if (state->config->target == VM_TARGET_TB) {
-        TB_FeatureSet features = (TB_FeatureSet){TB_FEATURE_FRAME_PTR};
+        TB_FeatureSet features = (TB_FeatureSet){};
         if (VM_USE_DUMP && state->config->dump_asm) {
             TB_FunctionOutput *out = tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");
@@ -1947,6 +1969,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     }
 #endif
     tb_worklist_free(worklist);
+    vm_tb_ver_free_module(state);
     return ret;
 }
 
@@ -1957,7 +1980,7 @@ static void vm_tb_ver_rblock_del(vm_rblock_t *rblock) {
 static void *vm_tb_ver_full_comp(vm_tb_ver_state_t *state, vm_block_t *block) {
     vm_types_t *regs = vm_rblock_regs_empty(block->nregs);
     vm_rblock_t *rblock = vm_rblock_new(block, regs);
-    vm_tb_ver_new_module(state);
+    // vm_tb_ver_new_module(state)`;
     rblock->state = state;
     return vm_tb_ver_rfunc_comp(rblock);
 }

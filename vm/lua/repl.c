@@ -1,12 +1,13 @@
 
 #include "./repl.h"
-#include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../ast/print.h"
 #include "../backend/tb.h"
 #include "../ir/ir.h"
 #include "../std/io.h"
+
+#include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
@@ -34,7 +35,7 @@ bool vm_lang_lua_repl_table_get_bool(vm_table_t *table, const char *key) {
 }
 
 void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
-    config->use_tb_opt = vm_lang_lua_repl_table_get_bool(table, "opt");
+    config->tb_opt = vm_lang_lua_repl_table_get_bool(table, "opt");
     vm_table_t *dump = VM_TABLE_LOOKUP_STR(table, "dump")->val_val.table;
     config->dump_src = vm_lang_lua_repl_table_get_bool(dump, "src");
     config->dump_ast = vm_lang_lua_repl_table_get_bool(dump, "ast");
@@ -50,7 +51,7 @@ void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
 }
 
 void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
-    VM_TABLE_SET(table, str, "opt", b, config->use_tb_opt);
+    VM_TABLE_SET(table, str, "opt", b, config->tb_opt);
     vm_table_t *dump = vm_table_new();
     VM_TABLE_SET(table, str, "dump", table, dump);
     VM_TABLE_SET(dump, str, "src", b, config->dump_src);

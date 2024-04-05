@@ -4,6 +4,8 @@ CC = emcc
 TCC_SRCS = 
 CFLAGS := $(CFLAGS)
 
+# CFLAGS_TB = -DTB_HAS_WASM
+
 include core.mak
 
 CFLAGS := -fPIC $(CFLAGS)

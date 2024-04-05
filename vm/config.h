@@ -41,8 +41,6 @@ struct vm_config_t {
     unsigned int target : 4;
     unsigned int use_num : 3;
     unsigned int use_ver_count : 2;
-    bool use_tb_opt : 1;
-    bool use_profile : 1;
 
     bool dump_src : 1;
     bool dump_ast : 1;
@@ -58,12 +56,13 @@ struct vm_config_t {
 
     bool is_repl : 1;
 
+    bool tb_opt : 1;
     bool tb_recompile : 1;
     bool tb_regs_cast : 1;
     bool tb_regs_node : 1;
     bool tb_force_bitcast : 1;
-    bool tb_use_tailcall : 1;
-    bool tb_use_lbbv : 1;
+    bool tb_tailcalls : 1;
+    bool tb_lbbv : 1;
 };
 
 #endif

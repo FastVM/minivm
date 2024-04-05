@@ -179,7 +179,7 @@ void vm_test(vm_config_t *config, const char *name, vm_test_func_t gen) {
 
 int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t){
-        .use_tb_opt = true,
+        .tb_opt = true,
         .dump_src = false,
         .dump_ast = false,
         .dump_ir = false,

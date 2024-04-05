@@ -482,8 +482,12 @@ void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_set_arg(vm_config_t *config, vm_table_t *std, const char *prog, const char *file, int argc, char **argv) {
     vm_table_t *arg = vm_table_new();
-    VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, -1), VM_STD_VALUE_LITERAL(str, prog));
-    VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, 0), VM_STD_VALUE_LITERAL(str, file));
+    if (prog != NULL) {
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, -1), VM_STD_VALUE_LITERAL(str, prog));
+    }
+    if (file != NULL) {
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, 0), VM_STD_VALUE_LITERAL(str, file));
+    }
     for (int64_t i = 0; i < argc; i++) {
         VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, i+1), VM_STD_VALUE_LITERAL(str, argv[i]));
     }

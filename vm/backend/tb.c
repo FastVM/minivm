@@ -19,13 +19,14 @@ vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
 vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_std_value_t value;
-    if (config->tb_use_lbbv) {
+    if (config->tb_lbbv) {
         vm_tb_ver_state_t *state = vm_malloc(sizeof(vm_tb_ver_state_t));
-        state->std = std;
-        state->config = config;
-        state->blocks = blocks;
-        state->module = NULL;
-        state->regs = NULL;
+        
+        *state = (vm_tb_ver_state_t) {
+            .std = std,
+            .config = config,
+            .blocks = blocks,
+        };
 
         vm_tb_ver_func_t *fn = (vm_tb_ver_func_t *)vm_tb_ver_full_comp(state, entry);
 
@@ -34,6 +35,12 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 #else
         value = fn();
 #endif
+
+        tb_arena_destroy(state->ir_arena);
+        tb_arena_destroy(state->tmp_arena);
+        tb_arena_destroy(state->code_arena);
+
+        vm_free(state);
     } else {
     }
 
