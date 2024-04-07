@@ -117,10 +117,16 @@ int main(int argc, char **argv) {
 #else
             if (!strcmp(arg, "tb")) {
                 config->target = VM_TARGET_TB;
-            } else if (!strcmp(arg, "tb-cc")) {
-                config->target = VM_TARGET_TB_CC;
+#if defined(VM_USE_TCC)
             } else if (!strcmp(arg, "tb-tcc")) {
                 config->target = VM_TARGET_TB_TCC;
+#endif
+#if defined(VM_USE_GCCJIT)
+            } else if (!strcmp(arg, "tb-gccjit")) {
+                config->target = VM_TARGET_TB_GCCJIT;
+#endif
+            } else if (!strcmp(arg, "tb-cc")) {
+                config->target = VM_TARGET_TB_CC;
             } else if (!strcmp(arg, "tb-gcc")) {
                 config->target = VM_TARGET_TB_GCC;
             } else if (!strcmp(arg, "tb-clang")) {

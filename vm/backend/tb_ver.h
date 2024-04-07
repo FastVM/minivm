@@ -1607,6 +1607,11 @@ static void vm_tb_ver_func_print_value(vm_tb_ver_state_t *state, vm_type_t tag, 
 static void vm_tb_ver_free_module(vm_tb_ver_state_t *state) {
     tb_module_destroy(state->module);
     state->module = NULL;
+#if 1
+    state->ir_arena = NULL;
+    state->code_arena = NULL;
+    state->tmp_arena = NULL;
+#endif
 }
 
 static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
@@ -1879,24 +1884,21 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
 #endif
 
     void *ret = NULL;
+    switch (state->config->target) {
 #if defined(EMSCRIPTEN)
-    if (state->config->target == VM_TARGET_TB_EMCC) {
+    case VM_TARGET_TB_EMCC: {
         TB_CBuffer *cbuf = tb_c_buf_new();
         tb_c_print_prelude(cbuf, state->module);
         tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
         const char *buf = tb_c_buf_to_data(cbuf);
         void *code = vm_cache_comp("emcc", buf, name);
         tb_c_data_free(buf);
-        rblock->code = code;
         ret = code;
-    } else {
-        __builtin_trap();
+        break;
     }
 #else
-    if (state->config->target == VM_TARGET_TB_TCC) {
-#if !defined(VM_USE_TCC)
-        return NULL;
-#else
+#if defined(VM_USE_TCC)
+    case VM_TARGET_TB_TCC: {
         TB_CBuffer *cbuf = tb_c_buf_new();
         tb_c_print_prelude(cbuf, state->module);
         tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
@@ -1912,10 +1914,21 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         tcc_relocate(state);
         tb_c_data_free(buf);
         void *code = tcc_get_symbol(state, name);
-        rblock->code = code;
         ret = code;
+        break;
+    }
 #endif
-    } else if (state->config->target == VM_TARGET_TB_CC || state->config->target == VM_TARGET_TB_CLANG || state->config->target == VM_TARGET_TB_GCC) {
+#if defined(VM_USE_GCCJIT)
+    case VM_TARGET_TB_GCCJIT: {
+        TB_GCCJIT_Module *mod = tb_gcc_module_new(state->module);
+        TB_GCCJIT_Function *func = tb_gcc_module_function(mod, f, worklist, state->tmp_arena);
+        ret = tb_gcc_function_ptr(func);
+        break;
+    }
+#endif
+    case VM_TARGET_TB_CC:
+    case VM_TARGET_TB_GCC:
+    case VM_TARGET_TB_CLANG: {
         TB_CBuffer *cbuf = tb_c_buf_new();
         tb_c_print_prelude(cbuf, state->module);
         tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
@@ -1936,20 +1949,21 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         }
         void *code = vm_cache_comp(cc_name, buf, name);
         tb_c_data_free(buf);
-        rblock->code = code;
         ret = code;
-    } else if (state->config->target == VM_TARGET_TB) {
+        break;
+    }
+    case VM_TARGET_TB: {
         TB_FeatureSet features = (TB_FeatureSet){};
-        if (VM_USE_DUMP && state->config->dump_asm) {
+#if VM_USE_DUMP
+        if (state->config->dump_asm) {
             TB_FunctionOutput *out = tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
             fprintf(stdout, "\n--- x86asm ---\n");
             tb_output_print_asm(out, stdout);
         } else {
             tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
         }
-
-#if VM_USE_DUMP
-        fflush(stdout);
+#else
+        tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
 #endif
 
         void *code = tb_jit_place_function(state->jit, state->fun);
@@ -1959,17 +1973,22 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         tb_arena_clear(state->tmp_arena);
         tb_arena_clear(state->code_arena);
 
-        rblock->code = code;
         rblock->jit = state->jit;
         rblock->del = &vm_tb_ver_rblock_del;
 
         ret = code;
-    } else {
-        __builtin_trap();
+        break;
     }
 #endif
+    default: {
+        __builtin_trap();
+    }
+    }
     tb_worklist_free(worklist);
     vm_tb_ver_free_module(state);
+    if (ret) {
+        rblock->code = ret;
+    }
     return ret;
 }
 
