@@ -62,13 +62,6 @@ static TB_Node *vm_tb_ver_make_type(vm_tb_ver_state_t *state, vm_type_t key_tag)
     ret;                                                                  \
 })
 
-#if defined(VM_USE_TCC)
-void vm_tb_ver_tcc_error_func(void *user, const char *msg) {
-    printf("%s\n", msg);
-    exit(1);
-}
-#endif
-
 static TB_Node *vm_tb_ver_ptr_name(vm_tb_ver_state_t *state, const char *name, const void *value) {
     return tb_inst_uint(state->fun, TB_TYPE_PTR, (uint64_t)value);
 }
@@ -1882,7 +1875,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             printf("\n--- c ---\n%s", buf);
         }
         TCCState *state = tcc_new();
-        tcc_set_error_func(state, 0, vm_tb_ver_tcc_error_func);
+        tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
         tcc_set_options(state, "-nostdlib");
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
         tcc_compile_string(state, buf);

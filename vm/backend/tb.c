@@ -6,6 +6,13 @@
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
+#if defined(VM_USE_TCC)
+void vm_tb_tcc_error_func(void *user, const char *msg) {
+    printf("%s\n", msg);
+    exit(1);
+}
+#endif
+
 #include "tb_dyn.h"
 #include "tb_ver.h"
 
