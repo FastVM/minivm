@@ -338,7 +338,7 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_type_t key_
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
-    size_t next = stop & and;
+    size_t next = stop;
     do {
         vm_pair_t *pair = &table->pairs[next];
         vm_std_value_t value = (vm_std_value_t){
@@ -457,6 +457,7 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
         out->val_tag = pair->val_tag;
         return;
     }
+    __builtin_trap();
     out->val_tag = VM_TYPE_NIL;
     return;
 }

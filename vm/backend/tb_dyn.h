@@ -124,7 +124,7 @@ vm_tb_dyn_pair_t vm_tb_dyn_arg(vm_tb_dyn_state_t *state, vm_tb_dyn_pair_t *regs,
                             tb_inst_uint(func, TB_TYPE_PTR, (uint64_t)(size_t)arg.lit.value.str),
                             VM_TB_TYPE_VALUE
                         ),
-                        .tag = vm_tb_dyn_ptr(func, VM_TYPE_FFI),
+                        .tag = vm_tb_dyn_ptr(func, VM_TYPE_STR),
                     };
                 }
                 case VM_TAG_FFI: {
@@ -279,7 +279,6 @@ void vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_tb_dyn_pair_t *regs, TB_Functi
 
                 TB_FunctionPrototype *get_proto = tb_prototype_create(state->mod, VM_TB_CC, 2, get_params, 0, NULL, false);
                 TB_Node *arg2 = tb_inst_local(func, sizeof(vm_pair_t), 8);
-                vm_tb_dyn_pair_t pair = vm_tb_dyn_arg(state, regs, func, block->branch.args[1]);
                 tb_inst_store(
                     func,
                     VM_TB_TYPE_VALUE,
@@ -288,7 +287,7 @@ void vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_tb_dyn_pair_t *regs, TB_Functi
                         arg2,
                         offsetof(vm_pair_t, key_val)
                     ),
-                    pair.val,
+                    index.val,
                     4,
                     false
                 );
@@ -300,7 +299,7 @@ void vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_tb_dyn_pair_t *regs, TB_Functi
                         arg2,
                         offsetof(vm_pair_t, key_tag)
                     ),
-                    pair.tag,
+                    index.tag,
                     4,
                     false
                 );
@@ -318,20 +317,13 @@ void vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_tb_dyn_pair_t *regs, TB_Functi
                     get_args
                 );
 
-                tb_inst_store(
+                TB_Node *val = tb_inst_load(
                     func,
                     VM_TB_TYPE_VALUE,
-                    regs[block->branch.out.reg].val,
-                    tb_inst_load(
+                    tb_inst_member_access(
                         func,
-                        VM_TB_TYPE_VALUE,
-                        tb_inst_member_access(
-                            func,
-                            arg2,
-                            offsetof(vm_pair_t, val_val)
-                        ),
-                        4,
-                        false
+                        arg2,
+                        offsetof(vm_pair_t, val_val)
                     ),
                     4,
                     false
@@ -348,6 +340,16 @@ void vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_tb_dyn_pair_t *regs, TB_Functi
                     4,
                     false
                 );
+
+                tb_inst_store(
+                    func,
+                    VM_TB_TYPE_VALUE,
+                    regs[block->branch.out.reg].val,
+                    val,
+                    4,
+                    false
+                );
+
 
                 tb_inst_store(
                     func,
@@ -652,6 +654,9 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
     state->vm_table_new = (TB_Symbol *)tb_extern_create(state->mod, -1, "vm_table_new", TB_EXTERNAL_SO_LOCAL);
     state->vm_table_iset = (TB_Symbol *)tb_extern_create(state->mod, -1, "vm_table_iset", TB_EXTERNAL_SO_LOCAL);
     state->vm_table_get_pair = (TB_Symbol *)tb_extern_create(state->mod, -1, "vm_table_get_pair", TB_EXTERNAL_SO_LOCAL);
+    tb_symbol_bind_ptr(state->vm_table_new, (void *)&vm_table_new);
+    tb_symbol_bind_ptr(state->vm_table_iset, (void *)&vm_table_iset);
+    tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
 
     memset(state->funcs, 0, sizeof(TB_Function *) * state->blocks->len);
 
@@ -706,11 +711,10 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
             tb_c_print_prelude(cbuf, state->mod);
             for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
                 TB_Function *func = state->funcs[block_num];
-                if (func != NULL && func != entry_func) {
+                if (func != NULL) {
                     tb_c_print_function(cbuf, func, worklist, tmp_arena);
                 }
             }
-            tb_c_print_function(cbuf, entry_func, worklist, tmp_arena);
             const char *buf = tb_c_buf_to_data(cbuf);
             if (state->config->dump_asm) {
                 printf("\n--- c ---\n%s", buf);
@@ -728,11 +732,46 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
             break;
         }
 #endif
+        case VM_TARGET_TB_CC:
+        case VM_TARGET_TB_GCC:
+        case VM_TARGET_TB_CLANG: {
+            TB_CBuffer *cbuf = tb_c_buf_new();
+            tb_c_print_prelude(cbuf, state->mod);
+            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
+                TB_Function *func = state->funcs[block_num];
+                if (func != NULL) {
+                    tb_c_print_function(cbuf, func, worklist, tmp_arena);
+                }
+            }
+            const char *buf = tb_c_buf_to_data(cbuf);
+            const char *cc_name = NULL;
+            switch (state->config->target) {
+                case VM_TARGET_TB_CC:
+                    cc_name = "cc";
+                    break;
+                case VM_TARGET_TB_CLANG:
+                    cc_name = "clang";
+                    break;
+                case VM_TARGET_TB_GCC:
+                    cc_name = "gcc";
+                    break;
+                default:
+                    break;
+            }
+            char nbuf[64];
+            snprintf(nbuf, 63, "vm_block_func_%zi", entry->id);
+            void *code = vm_cache_comp(cc_name, buf, nbuf);
+            tb_c_data_free(buf);
+            ret = code;
+            break;
+        }
 #endif
         default: {
             break;
         }
     }
+
+    // printf("%zu\n", ret);
 
     if (ret == NULL) {
         fprintf(stderr, "FAIL!\n");
