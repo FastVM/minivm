@@ -72,6 +72,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
         }
     }
     switch (branch.op) {
+        case VM_BOP_INDEX:
         case VM_BOP_GET: {
             if (branch.args[1].type == VM_ARG_REG) {
                 branch.tag = regs->tags[branch.args[1].reg];

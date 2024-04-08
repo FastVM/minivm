@@ -144,6 +144,10 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             vm_io_buffer_format(out, "ret");
             break;
         }
+        case VM_BOP_INDEX: {
+            vm_io_buffer_format(out, "index");
+            break;
+        }
         case VM_BOP_GET: {
             vm_io_buffer_format(out, "get");
             break;
@@ -174,7 +178,7 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             vm_io_format_arg(out, val.args[i]);
         }
     }
-    if (val.op == VM_BOP_GET || val.op == VM_BOP_CALL) {
+    if (val.op == VM_BOP_GET || val.op == VM_BOP_INDEX || val.op == VM_BOP_CALL) {
         vm_io_buffer_format(out, " then .%zi", (size_t)val.targets[0]->id);
         vm_io_buffer_format(out, "(");
         for (size_t i = 0; i < val.targets[0]->nargs; i++) {

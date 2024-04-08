@@ -84,14 +84,17 @@ const char *vm_check_branch(vm_branch_t branch) {
             vm_io_format_type(&buf, vm_arg_to_tag(branch.args[0]));
             return buf.buf;
         }
-        case VM_BOP_GET: {
+        case VM_BOP_INDEX: {
             if (vm_type_eq(vm_check_get_tag(branch.args[0]), VM_TYPE_TAB)) {
                 return NULL;
             }
+            return "can't index value: not a table";
+        }
+        case VM_BOP_GET: {
             if (vm_type_eq(vm_check_get_tag(branch.args[0]), VM_TYPE_CLOSURE)) {
                 return NULL;
             }
-            return "can't index value: not a table";
+            return "can't get value: not a closure";
         }
         default: {
             return NULL;

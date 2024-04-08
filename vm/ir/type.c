@@ -158,7 +158,7 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_types_t *types, vm_branch_t bran
     if (!vm_type_eq(branch.tag, VM_TYPE_UNK)) {
         __builtin_trap();
     }
-    if (branch.op == VM_BOP_GET) {
+    if (branch.op == VM_BOP_GET || branch.op == VM_BOP_INDEX) {
         goto ret;
     } else if (branch.op == VM_BOP_CALL) {
         goto ret;

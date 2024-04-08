@@ -32,11 +32,6 @@ struct vm_tb_ver_state_t {
 
     TB_Worklist *worklist;
 
-    // jit caller (for windows)
-#if defined(_WIN32)
-    void (*vm_caller)(vm_std_value_t *, void *);
-#endif
-
     // externals
     TB_Symbol *vm_tb_ver_rfunc_comp;
     TB_Symbol *vm_table_new;
@@ -1439,7 +1434,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
             }
             break;
         }
-        case VM_BOP_GET: {
+        case VM_BOP_INDEX: {
             vm_type_t arg0tag = vm_arg_to_tag(branch.args[0]);
             if (vm_type_eq(arg0tag, VM_TYPE_TAB)) {
                 TB_PrototypeParam get_params[2] = {
@@ -1514,7 +1509,13 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                         false
                     )
                 );
-            } else if (vm_type_eq(arg0tag, VM_TYPE_CLOSURE)) {
+            } else {
+                vm_tb_ver_func_report_error(state, "bad index");
+            }
+        }
+        case VM_BOP_GET: {
+            vm_type_t arg0tag = vm_arg_to_tag(branch.args[0]);
+            if (vm_type_eq(arg0tag, VM_TYPE_CLOSURE)) {
                 TB_Node *std_val_ref = tb_inst_array_access(
                     state->fun,
                     vm_tb_ver_func_read_arg(state, branch.args[0]),
@@ -1656,33 +1657,7 @@ static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
     state->jit = tb_jit_begin(state->module, 1 << 16);
 #endif
 
-    // on windows we don't have access to multiple returns from C so we'll
-    // just make a dumb caller for such a pattern
-#if defined(_WIN32)
-    TB_PrototypeParam call_proto_rets[2] = {{VM_TB_TYPE_VALUE}, {TB_TYPE_PTR}};
-    TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, call_proto_rets, false);
 
-    TB_PrototypeParam proto_params[2] = {{TB_TYPE_PTR}, {TB_TYPE_PTR}};
-    TB_Function *fun = tb_function_create(state->module, -1, "caller", TB_LINKAGE_PUBLIC);
-    TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_params, 0, NULL, false);
-    tb_function_set_prototype(fun, -1, proto, NULL);
-
-    // tb_inst_debugbreak(fun);
-    TB_MultiOutput out = tb_inst_call(fun, call_proto, tb_inst_param(fun, 1), 0, NULL);
-
-    // store into struct
-    TB_Node *dst = tb_inst_param(fun, 0);
-    tb_inst_store(fun, VM_TB_TYPE_VALUE, dst, out.multiple[0], _Alignof(vm_value_t), false);
-    TB_Node *dst2 = tb_inst_member_access(fun, dst, offsetof(vm_std_value_t, tag));
-    tb_inst_store(fun, TB_TYPE_PTR, dst2, out.multiple[1], _Alignof(uint32_t), false);
-
-    tb_inst_ret(fun, 0, NULL);
-
-    // compile it
-    tb_codegen(fun, worklist, state->tmp_arena, state->code_arena, NULL, false);
-
-    state->vm_caller = tb_jit_place_function(state->jit, fun);
-#endif
 }
 
 static void vm_tb_ver_rblock_del(vm_rblock_t *rblock);
@@ -1981,14 +1956,16 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     }
 #endif
     default: {
-        __builtin_trap();
+        ret = NULL;
+        break;
     }
     }
     tb_worklist_free(worklist);
     vm_tb_ver_free_module(state);
-    if (ret) {
-        rblock->code = ret;
+    if (ret == NULL) {
+        __builtin_trap();
     }
+    rblock->code = ret;
     return ret;
 }
 
