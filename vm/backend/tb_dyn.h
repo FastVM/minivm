@@ -273,7 +273,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                     );
                     TB_Node *rhs = tb_inst_bitcast(
                         state->func,
-                        arg1.val,
+                        arg2.val,
                         state->number_dt
                     );
 
@@ -322,16 +322,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                         vm_tb_dyn_pair_of(
                             state,
                             state->number_type,
-                            tb_inst_add(
-                                state->func,
-                                val,
-                                tb_inst_bitcast(
-                                    state->func,
-                                    arg2.val,
-                                    state->number_dt
-                                ),
-                                TB_ARITHMATIC_NONE
-                            )
+                            val
                         )
                     );
                 }
@@ -587,7 +578,11 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                 );
 
                 TB_Node *get_args[2] = {
-                    table.val,
+                    tb_inst_bitcast(
+                        state->func,
+                        table.val,
+                        TB_TYPE_PTR
+                    ),
                     arg2,
                 };
 

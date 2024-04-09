@@ -62,20 +62,12 @@ void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
         fwrite(src, len, 1, out);
         fclose(out);
         vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
-#if 0
         vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s -o %s -w -pipe", comp, c_file, so_file);
-#else
-#if 1
-    vm_io_buffer_format(cmd_buf, "%s -shared -g2 -fPIC %s -o %s -w -pipe", comp, c_file, so_file);
-#else
-    vm_io_buffer_format(cmd_buf, "%s -fsanitize=address,undefined -shared -g2 -fPIC %s -o %s -w -pipe", comp, c_file, so_file);
-#endif
-#endif
         int res = system(cmd_buf->buf);
         if (res) {
             return NULL;
         }
-        // remove(c_file);
+        remove(c_file);
     }
     void *handle = dlopen(so_file, RTLD_LAZY);
     void *sym = dlsym(handle, entry);
