@@ -1503,9 +1503,11 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     )
                 );
             } else {
-                vm_tb_ver_func_report_error(state, "bad index");
+                vm_tb_ver_func_report_error(state, "bad get");
             }
+            break;
         }
+        
         case VM_BOP_LOAD: {
             vm_type_t arg0tag = vm_arg_to_tag(branch.args[0]);
             if (vm_type_eq(arg0tag, VM_TYPE_CLOSURE)) {
@@ -1545,7 +1547,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     )
                 );
             } else {
-                vm_tb_ver_func_report_error(state, "bad get");
+                vm_tb_ver_func_report_error(state, "bad load");
             }
             break;
         }

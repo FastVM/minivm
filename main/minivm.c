@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
         .target = VM_TARGET_TB_EMCC,
         .tb_tailcalls = true,
 #else
-        .target = VM_TARGET_TB,
+        .target = VM_TARGET_TB_CC,
         .tb_tailcalls = true,
 #endif
     };

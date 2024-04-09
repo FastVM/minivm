@@ -3,7 +3,7 @@ EXE ?= .js
 CC = emcc
 TCC_SRCS = 
 CFLAGS := $(CFLAGS)
-GCJCIT = NO 
+GCCJIT = NO 
 
 # CFLAGS_TB = -DTB_HAS_WASM
 

@@ -279,7 +279,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
                     TB_Node *val = NULL;
                     if (vm_type_eq(state->number_type, VM_TYPE_F32) || vm_type_eq(state->number_type, VM_TYPE_F64)) {
-                        TB_Node *(*func)(TB_Function *func, TB_Node *lhs, TB_Node *rhs) = NULL;
+                        TB_Node *(*func)(TB_Function * func, TB_Node * lhs, TB_Node * rhs) = NULL;
 
                         if (instr.op == VM_IOP_ADD) {
                             func = tb_inst_fadd;
@@ -334,7 +334,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                 vm_tb_dyn_set(
                     state,
                     instr.out,
-                    (vm_tb_dyn_pair_t) {
+                    (vm_tb_dyn_pair_t){
                         .val = vm_tb_dyn_ptr(state, state->std),
                         .tag = vm_tb_dyn_ptr(state, VM_TYPE_TAB),
                     }
@@ -621,7 +621,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                 vm_tb_dyn_set(
                     state,
                     block->branch.out,
-                    (vm_tb_dyn_pair_t) {
+                    (vm_tb_dyn_pair_t){
                         .val = val,
                         .tag = tag,
                     }
@@ -669,13 +669,13 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
             {
                 tb_inst_set_control(state->func, not_bool);
-                
+
                 tb_inst_if(state->func, tb_inst_cmp_ne(state->func, arg.tag, vm_tb_dyn_ptr(state, VM_TYPE_NIL)), then, els);
             }
 
             {
                 tb_inst_set_control(state->func, is_bool);
-                
+
                 tb_inst_if(state->func, tb_inst_bitcast(state->func, arg.val, TB_TYPE_BOOL), then, els);
             }
 
@@ -723,7 +723,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
                 tb_inst_set_control(state->func, is_number2);
 
-                TB_Node *(*func)(TB_Function *func, TB_Node *lhs, TB_Node *rhs) = NULL;
+                TB_Node *(*func)(TB_Function * func, TB_Node * lhs, TB_Node * rhs) = NULL;
 
                 if (vm_type_eq(state->number_type, VM_TYPE_F32) || vm_type_eq(state->number_type, VM_TYPE_F64)) {
                     if (block->branch.op == VM_BOP_BEQ) {
@@ -746,7 +746,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                         func = vm_tb_dyn_le;
                     }
                 }
-                
+
                 tb_inst_if(state->func, func(state->func, arg1.val, arg2.val), then, els);
             }
 
@@ -862,7 +862,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                 vm_tb_dyn_set(
                     state,
                     block->branch.out,
-                    (vm_tb_dyn_pair_t) {
+                    (vm_tb_dyn_pair_t){
                         .val = val,
                         .tag = tag,
                     }
@@ -920,7 +920,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                 vm_tb_dyn_set(
                     state,
                     block->branch.out,
-                    (vm_tb_dyn_pair_t) {
+                    (vm_tb_dyn_pair_t){
                         .val = out.multiple[0],
                         .tag = out.multiple[1],
                     }
@@ -990,7 +990,7 @@ void vm_tb_dyn_func(vm_tb_dyn_state_t *state, TB_Function *xfunc, vm_block_t *en
         vm_tb_dyn_set(
             state,
             arg,
-            (vm_tb_dyn_pair_t) {
+            (vm_tb_dyn_pair_t){
                 .val = tb_inst_param(state->func, i * 2 + 0),
                 .tag = tb_inst_param(state->func, i * 2 + 1),
             }
@@ -1013,7 +1013,9 @@ void vm_tb_dyn_func(vm_tb_dyn_state_t *state, TB_Function *xfunc, vm_block_t *en
 }
 
 vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
+    TB_Arena *ir_arena = tb_arena_create(1 << 16);
     TB_Arena *tmp_arena = tb_arena_create(1 << 16);
+    TB_Arena *code_arena = tb_arena_create(1 << 16);
 
     switch (state->config->use_num) {
         case VM_USE_NUM_I8: {
@@ -1091,7 +1093,7 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
     }
     for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
         vm_block_t *block = state->blocks->blocks[block_num];
-        
+
         if (block->isfunc) {
             if (state->config->dump_tb) {
                 fprintf(stdout, "\n--- tb ---\n");
@@ -1179,13 +1181,32 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
             ret = code;
             break;
         }
+
+        case VM_TARGET_TB: {
+            TB_Worklist *worklist = tb_worklist_alloc();
+            TB_JIT *jit = tb_jit_begin(state->mod, 1 << 16);
+
+            TB_FeatureSet features = (TB_FeatureSet){};
+            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
+                TB_Function *func = state->funcs[block_num];
+                if (func != NULL) {
+                    tb_codegen(func, worklist, ir_arena, tmp_arena, code_arena, &features, false);
+                }
+            }
+            void *code = tb_jit_place_function(jit, entry_func);
+
+            ret = code;
+            break;
+        }
 #endif
         default: {
             break;
         }
     }
 
-    // printf("%zu\n", ret);
+    tb_arena_clear(ir_arena);
+    tb_arena_clear(tmp_arena);
+    tb_arena_clear(code_arena);
 
     if (ret == NULL) {
         fprintf(stderr, "FAIL!\n");
