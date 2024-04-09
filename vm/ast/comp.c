@@ -244,7 +244,7 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     vm_ast_blocks_branch(
         comp,
         (vm_branch_t){
-            .op = VM_BOP_GET,
+            .op = VM_BOP_LOAD,
             .out = reg,
             .args = vm_ast_args(2, cap, slot),
             .targets[0] = next,
@@ -697,7 +697,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
-                            .op = VM_BOP_INDEX,
+                            .op = VM_BOP_GET,
                             .out = out,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = next,
@@ -1090,7 +1090,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
-                            .op = VM_BOP_INDEX,
+                            .op = VM_BOP_GET,
                             .out = out,
                             .args = vm_ast_args(2, got, env_key),
                             .targets[0] = next,

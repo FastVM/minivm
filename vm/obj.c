@@ -457,7 +457,6 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
         out->val_tag = pair->val_tag;
         return;
     }
-    __builtin_trap();
     out->val_tag = VM_TYPE_NIL;
     return;
 }

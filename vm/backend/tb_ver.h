@@ -1427,7 +1427,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
             }
             break;
         }
-        case VM_BOP_INDEX: {
+        case VM_BOP_GET: {
             vm_type_t arg0tag = vm_arg_to_tag(branch.args[0]);
             if (vm_type_eq(arg0tag, VM_TYPE_TAB)) {
                 TB_PrototypeParam get_params[2] = {
@@ -1506,7 +1506,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                 vm_tb_ver_func_report_error(state, "bad index");
             }
         }
-        case VM_BOP_GET: {
+        case VM_BOP_LOAD: {
             vm_type_t arg0tag = vm_arg_to_tag(branch.args[0]);
             if (vm_type_eq(arg0tag, VM_TYPE_CLOSURE)) {
                 TB_Node *std_val_ref = tb_inst_array_access(
@@ -1649,8 +1649,6 @@ static void vm_tb_ver_new_module(vm_tb_ver_state_t *state) {
 #if !defined(EMSCRIPTEN)
     state->jit = tb_jit_begin(state->module, 1 << 16);
 #endif
-
-
 }
 
 static void vm_tb_ver_rblock_del(vm_rblock_t *rblock);
@@ -1874,7 +1872,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         if (state->config->dump_asm) {
             printf("\n--- c ---\n%s", buf);
         }
-        TCCState *state = tcc_new();
+    TCCState *state = tcc_new();
         tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
         tcc_set_options(state, "-nostdlib");
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
