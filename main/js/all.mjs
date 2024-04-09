@@ -10,31 +10,8 @@ if (!existsSync('.minivm-cache')) {
 const cc = `clang`;
 const ld = `wasm-ld`;
 
-const cFlagsList = [
-    '-cc1',
-    '-triple',
-    'wasm32-unknown-unknown',
-    '-emit-obj',
-    '-disable-llvm-verifier',
-    '-discard-value-names',
-    '-mframe-pointer=none',
-    '-Os',
-    '-w',
-    '-vectorize-loops',
-    '-vectorize-slp',
-    '-x',
-    'c',
-];
-const ldFlagsList = [
-    '--import-undefined',
-    '--import-memory',
-    '--export-dynamic',
-    '--experimental-pic',
-    '-shared',
-];
-
-const cFlags = cFlagsList.join(' ');
-const ldflags = ldFlagsList.join(' ');
+let cFlags = '-c -target wasm32-unknown-emscripten -fignore-exceptions -fPIC -fvisibility=default -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr -DEMSCRIPTEN -Wno-incompatible-library-redeclaration -Wno-parentheses-equality';
+let ldFlags = '-L/lazy/emscripten/cache/sysroot/lib/wasm32-emscripten/pic --no-whole-archive -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr --import-undefined --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --experimental-pic -shared';
 
 export const run = (args, opts) => {
     const stdinFunc = () => {
@@ -63,8 +40,8 @@ export const run = (args, opts) => {
             const outFile = `.minivm-cache/out${n}.wasm`;
             const cSrc = mod.FS.readFile(`/in${n}.c`);
             writeFileSync(inFile, cSrc);
-            execSync(`${cc} ${cFlags} ${inFile} -o ${midFile}`);
-            execSync(`${ld} ${ldflags} ${midFile} -o ${outFile}`)
+            execSync(`${cc} -O2 ${inFile} ${cFlags} -o ${midFile}`);
+            execSync(`${ld} --whole-archive ${midFile} ${ldFlags} -o ${outFile}`)
             const wasm = readFileSync(outFile);
             unlinkSync(inFile);
             unlinkSync(midFile);

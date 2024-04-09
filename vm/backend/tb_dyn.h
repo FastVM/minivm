@@ -1106,6 +1106,22 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
     void *ret = NULL;
     switch (state->config->target) {
 #if defined(EMSCRIPTEN)
+        case VM_TARGET_TB_EMCC: {
+            TB_CBuffer *cbuf = tb_c_buf_new();
+            tb_c_print_prelude(cbuf, state->mod);
+            TB_Worklist *worklist = tb_worklist_alloc();
+            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
+                TB_Function *func = state->funcs[block_num];
+                if (func != NULL) {
+                    tb_c_print_function(cbuf, func, worklist, tmp_arena);
+                }
+            }
+            const char *buf = tb_c_buf_to_data(cbuf);
+            void *code = vm_cache_comp("emcc", buf, entry_buf);
+            tb_c_data_free(buf);
+            ret = code;
+            break;
+        }
 #else
 #if defined(VM_USE_GCCJIT)
         case VM_TARGET_TB_GCCJIT: {

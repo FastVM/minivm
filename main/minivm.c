@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     chdir("/dir");
 #endif
     vm_config_t val_config = (vm_config_t){
-        .use_num = VM_USE_NUM_I64,
+        .use_num = VM_USE_NUM_F64,
         .tb_lbbv = false,
         .tb_recompile = true,
 #if defined(EMSCRIPTEN)

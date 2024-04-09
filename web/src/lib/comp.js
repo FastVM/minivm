@@ -16,7 +16,7 @@ let comps = 0;
 export const comp = (cBuf) => {
     comps += 1;
     emception.fileSystem.writeFile(`/working/in${comps}.c`, cBuf);
-    const result1 = emception.runx(`/usr/bin/clang -O1 -c ${flags1} /working/in${comps}.c -o /working/mid${comps}.o`);
+    const result1 = emception.runx(`/usr/bin/clang -O2 -c ${flags1} /working/in${comps}.c -o /working/mid${comps}.o`);
     if (result1.returncode !== 0) {
         console.error(`clang exited with code ${result1.returncode}`);
     }
