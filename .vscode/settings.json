@@ -1,14 +1,6 @@
 {
     "files.associations": {
         "*.c": "c",
-        "*.h": "c",
-        "array": "c",
-        "string": "c",
-        "string_view": "c",
-        "typeinfo": "c",
-        "system_error": "c",
-        "__threading_support": "c",
-        "__locale": "c",
-        "vector": "c"
+        "*.h": "c"
     }
 }
