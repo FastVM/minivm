@@ -389,7 +389,6 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             if (block->id < 0) {
                 continue;
             }
-            block->id = i;
             if (block->isfunc) {
                 continue;
             }

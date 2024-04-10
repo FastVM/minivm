@@ -259,7 +259,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             vm_lang_lua_repl_highlight,
             &highlight_state
         );
-        printf("INPUT: %s\n", input);
         if (input == NULL) {
             break;
         }
