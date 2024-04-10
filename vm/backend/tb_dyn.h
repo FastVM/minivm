@@ -279,7 +279,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
                     TB_Node *val = NULL;
                     if (vm_type_eq(state->number_type, VM_TYPE_F32) || vm_type_eq(state->number_type, VM_TYPE_F64)) {
-                        TB_Node *(*func)(TB_Function * func, TB_Node * lhs, TB_Node * rhs) = NULL;
+                        TB_Node *(*func)(TB_Function *func, TB_Node *lhs, TB_Node *rhs) = NULL;
 
                         if (instr.op == VM_IOP_ADD) {
                             func = tb_inst_fadd;
@@ -723,7 +723,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
                 tb_inst_set_control(state->func, is_number2);
 
-                TB_Node *(*func)(TB_Function * func, TB_Node * lhs, TB_Node * rhs) = NULL;
+                TB_Node *(*func)(TB_Function *func, TB_Node *lhs, TB_Node *rhs) = NULL;
 
                 if (vm_type_eq(state->number_type, VM_TYPE_F32) || vm_type_eq(state->number_type, VM_TYPE_F64)) {
                     if (block->branch.op == VM_BOP_BEQ) {
@@ -762,9 +762,9 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
             TB_Node *is_error = tb_inst_region(state->func);
             TB_Node *is_result = tb_inst_region(state->func);
 
-            tb_inst_if(state->func, tb_inst_cmp_eq(state->func, run.tag, vm_tb_dyn_ptr(state, VM_TYPE_FFI)), is_ffi, is_not_ffi);
+            tb_inst_if(state->func, tb_inst_cmp_eq(state->func, run.tag, vm_tb_dyn_ptr(state, VM_TYPE_CLOSURE)), is_closure, is_not_ffi);
             tb_inst_set_control(state->func, is_not_ffi);
-            tb_inst_if(state->func, tb_inst_cmp_eq(state->func, run.tag, vm_tb_dyn_ptr(state, VM_TYPE_CLOSURE)), is_closure, is_error);
+            tb_inst_if(state->func, tb_inst_cmp_eq(state->func, run.tag, vm_tb_dyn_ptr(state, VM_TYPE_FFI)), is_ffi, is_error);
 
             TB_Node *then = vm_tb_dyn_block(state, block->branch.targets[0]);
 

@@ -96,7 +96,7 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
         },                                                                                   \
     }
 
-#define VM_STD_VALUE_NIL ((vm_std_value_t) {.tag = (VM_TYPE_NIL)})
+#define VM_STD_VALUE_NIL ((vm_std_value_t){.tag = (VM_TYPE_NIL)})
 
 #define VM_STD_VALUE_NUMBER(CONFIG_, VALUE_) ({                  \
     vm_config_t *config_ = (CONFIG_);                            \

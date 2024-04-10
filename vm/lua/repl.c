@@ -67,7 +67,6 @@ void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
     VM_TABLE_SET(dump, str, "time", b, config->dump_time);
 }
 
-#if !defined(EMSCRIPTEN)
 void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     vm_lang_lua_repl_complete_state_t *state = cenv->arg;
     ptrdiff_t len = strlen(prefix);
@@ -221,13 +220,6 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     // fclose(out);
     // ic_highlight(henv, 1, strlen(input) - 2, "keyword");
 }
-#endif
-
-#if defined(EMSCRIPTEN)
-EM_JS(char, vm_lang_lua_read, (), {
-    return Module._vm_lang_lua_read();
-});
-#endif
 
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks) {
     config->is_repl = true;
@@ -242,9 +234,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
     VM_TABLE_SET(repl, str, "parens", table, parens);
     VM_TABLE_SET(std, str, "config", table, repl);
 
-#if !defined(EMSCRIPTEN)
     ic_set_history(".minivm-history", 2000);
-#endif
 
     vm_lang_lua_repl_complete_state_t complete_state = (vm_lang_lua_repl_complete_state_t){
         .config = config,
@@ -255,14 +245,13 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         .std = std,
     };
 
-#if defined(EMSCRIPTEN)
-    setvbuf(stdin, NULL, _IONBF, 0);
-    setvbuf(stdout, NULL, _IONBF, 0);
-    setvbuf(stderr, NULL, _IONBF, 0);
-#endif
+    // #if defined(EMSCRIPTEN)
+    //     setvbuf(stdin, NULL, _IONBF, 0);
+    //     setvbuf(stdout, NULL, _IONBF, 0);
+    //     setvbuf(stderr, NULL, _IONBF, 0);
+    // #endif
 
     while (true) {
-#if !defined(EMSCRIPTEN)
         char *input = ic_readline_ex(
             "lua",
             vm_lang_lua_repl_completer,
@@ -270,23 +259,11 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             vm_lang_lua_repl_highlight,
             &highlight_state
         );
+        printf("INPUT: %s\n", input);
         if (input == NULL) {
             break;
         }
         ic_history_add(input);
-#else
-        printf("lua> ");
-        char input[256];
-        size_t head = 0;
-        while (head < 255) {
-            char c = vm_lang_lua_read();
-            input[head++] = c;
-            if (c == '\0' || c == '\n') {
-                break;
-            }
-        }
-        input[head] = '\0';
-#endif
         vm_lang_lua_repl_table_get_config(repl, config);
         struct timespec start;
         clock_gettime(CLOCK_REALTIME, &start);
@@ -297,9 +274,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         vm_ast_node_t node = vm_lang_lua_parse(config, input);
-#if !defined(EMSCRIPTEN)
         free(input);
-#endif
 
         if (config->dump_ast) {
             vm_io_buffer_t buf = {0};

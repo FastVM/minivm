@@ -225,7 +225,7 @@ void vm_std_tonumber(vm_std_closure_t *closure, vm_std_value_t *args) {
                 return;
             } else {
                 int64_t num;
-                if (sscanf(args[0].value.str, "%"SCNi64, &num) == 0) {
+                if (sscanf(args[0].value.str, "%" SCNi64, &num) == 0) {
                     args[0] = VM_STD_VALUE_NIL;
                     return;
                 }
@@ -489,7 +489,7 @@ void vm_std_set_arg(vm_config_t *config, vm_table_t *std, const char *prog, cons
         VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, 0), VM_STD_VALUE_LITERAL(str, file));
     }
     for (int64_t i = 0; i < argc; i++) {
-        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, i+1), VM_STD_VALUE_LITERAL(str, argv[i]));
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, i + 1), VM_STD_VALUE_LITERAL(str, argv[i]));
     }
     VM_TABLE_SET(std, str, "arg", table, arg);
 }

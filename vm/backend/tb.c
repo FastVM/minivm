@@ -62,14 +62,14 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     if (config->tb_lbbv) {
         vm_tb_ver_state_t *state = vm_malloc(sizeof(vm_tb_ver_state_t));
-        
-        *state = (vm_tb_ver_state_t) {
+
+        *state = (vm_tb_ver_state_t){
             .std = std,
             .config = config,
             .blocks = blocks,
         };
 
-        vm_tb_ver_func_t *fn = (vm_tb_ver_func_t *) vm_tb_ver_full_comp(state, entry);
+        vm_tb_ver_func_t *fn = (vm_tb_ver_func_t *)vm_tb_ver_full_comp(state, entry);
 
 #if defined(_WIN32)
         caller(&value, fn);
@@ -85,13 +85,13 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
     } else {
         vm_tb_dyn_state_t *state = vm_malloc(sizeof(vm_tb_dyn_state_t));
 
-        *state = (vm_tb_dyn_state_t) {
+        *state = (vm_tb_dyn_state_t){
             .std = std,
             .config = config,
             .blocks = blocks,
         };
 
-        vm_tb_dyn_func_t *fn = (vm_tb_dyn_func_t *) vm_tb_dyn_comp(state, entry);
+        vm_tb_dyn_func_t *fn = (vm_tb_dyn_func_t *)vm_tb_dyn_comp(state, entry);
 
 #if defined(_WIN32)
         state->vm_caller(&value, fn);

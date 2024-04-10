@@ -1347,13 +1347,13 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     }
 
                     TB_Node *call_func = vm_tb_ver_inst_call(
-                                                state,
-                                                comp_proto,
-                                                tb_inst_get_symbol_address(state->fun, state->vm_tb_ver_rfunc_comp),
-                                                1,
-                                                &rblock
+                                             state,
+                                             comp_proto,
+                                             tb_inst_get_symbol_address(state->fun, state->vm_tb_ver_rfunc_comp),
+                                             1,
+                                             &rblock
                     )
-                                                .single;
+                                             .single;
 
                     tb_inst_store(
                         state->fun,
@@ -1507,7 +1507,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
             }
             break;
         }
-        
+
         case VM_BOP_LOAD: {
             vm_type_t arg0tag = vm_arg_to_tag(branch.args[0]);
             if (vm_type_eq(arg0tag, VM_TYPE_CLOSURE)) {
@@ -1854,104 +1854,104 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     void *ret = NULL;
     switch (state->config->target) {
 #if defined(EMSCRIPTEN)
-    case VM_TARGET_TB_EMCC: {
-        TB_CBuffer *cbuf = tb_c_buf_new();
-        tb_c_print_prelude(cbuf, state->module);
-        tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
-        const char *buf = tb_c_buf_to_data(cbuf);
-        void *code = vm_cache_comp("emcc", buf, name);
-        tb_c_data_free(buf);
-        ret = code;
-        break;
-    }
+        case VM_TARGET_TB_EMCC: {
+            TB_CBuffer *cbuf = tb_c_buf_new();
+            tb_c_print_prelude(cbuf, state->module);
+            tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
+            const char *buf = tb_c_buf_to_data(cbuf);
+            void *code = vm_cache_comp("emcc", buf, name);
+            tb_c_data_free(buf);
+            ret = code;
+            break;
+        }
 #else
 #if defined(VM_USE_TCC)
-    case VM_TARGET_TB_TCC: {
-        TB_CBuffer *cbuf = tb_c_buf_new();
-        tb_c_print_prelude(cbuf, state->module);
-        tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
-        const char *buf = tb_c_buf_to_data(cbuf);
-        if (state->config->dump_asm) {
-            printf("\n--- c ---\n%s", buf);
+        case VM_TARGET_TB_TCC: {
+            TB_CBuffer *cbuf = tb_c_buf_new();
+            tb_c_print_prelude(cbuf, state->module);
+            tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
+            const char *buf = tb_c_buf_to_data(cbuf);
+            if (state->config->dump_asm) {
+                printf("\n--- c ---\n%s", buf);
+            }
+            TCCState *state = tcc_new();
+            tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
+            tcc_set_options(state, "-nostdlib");
+            tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
+            tcc_compile_string(state, buf);
+            tcc_relocate(state);
+            tb_c_data_free(buf);
+            void *code = tcc_get_symbol(state, name);
+            ret = code;
+            break;
         }
-    TCCState *state = tcc_new();
-        tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
-        tcc_set_options(state, "-nostdlib");
-        tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
-        tcc_compile_string(state, buf);
-        tcc_relocate(state);
-        tb_c_data_free(buf);
-        void *code = tcc_get_symbol(state, name);
-        ret = code;
-        break;
-    }
 #endif
 #if defined(VM_USE_GCCJIT)
-    case VM_TARGET_TB_GCCJIT: {
-        TB_GCCJIT_Module *mod = tb_gcc_module_new(state->module);
-        TB_GCCJIT_Function *func = tb_gcc_module_function(mod, f, worklist, state->tmp_arena);
-        ret = tb_gcc_function_ptr(func);
-        break;
-    }
-#endif
-    case VM_TARGET_TB_CC:
-    case VM_TARGET_TB_GCC:
-    case VM_TARGET_TB_CLANG: {
-        TB_CBuffer *cbuf = tb_c_buf_new();
-        tb_c_print_prelude(cbuf, state->module);
-        tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
-        const char *buf = tb_c_buf_to_data(cbuf);
-        const char *cc_name = NULL;
-        switch (state->config->target) {
-            case VM_TARGET_TB_CC:
-                cc_name = "cc";
-                break;
-            case VM_TARGET_TB_CLANG:
-                cc_name = "clang";
-                break;
-            case VM_TARGET_TB_GCC:
-                cc_name = "gcc";
-                break;
-            default:
-                break;
+        case VM_TARGET_TB_GCCJIT: {
+            TB_GCCJIT_Module *mod = tb_gcc_module_new(state->module);
+            TB_GCCJIT_Function *func = tb_gcc_module_function(mod, f, worklist, state->tmp_arena);
+            ret = tb_gcc_function_ptr(func);
+            break;
         }
-        void *code = vm_cache_comp(cc_name, buf, name);
-        tb_c_data_free(buf);
-        ret = code;
-        break;
-    }
-    case VM_TARGET_TB: {
-        TB_FeatureSet features = (TB_FeatureSet){};
+#endif
+        case VM_TARGET_TB_CC:
+        case VM_TARGET_TB_GCC:
+        case VM_TARGET_TB_CLANG: {
+            TB_CBuffer *cbuf = tb_c_buf_new();
+            tb_c_print_prelude(cbuf, state->module);
+            tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
+            const char *buf = tb_c_buf_to_data(cbuf);
+            const char *cc_name = NULL;
+            switch (state->config->target) {
+                case VM_TARGET_TB_CC:
+                    cc_name = "cc";
+                    break;
+                case VM_TARGET_TB_CLANG:
+                    cc_name = "clang";
+                    break;
+                case VM_TARGET_TB_GCC:
+                    cc_name = "gcc";
+                    break;
+                default:
+                    break;
+            }
+            void *code = vm_cache_comp(cc_name, buf, name);
+            tb_c_data_free(buf);
+            ret = code;
+            break;
+        }
+        case VM_TARGET_TB: {
+            TB_FeatureSet features = (TB_FeatureSet){};
 #if VM_USE_DUMP
-        if (state->config->dump_asm) {
-            TB_FunctionOutput *out = tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
-            fprintf(stdout, "\n--- x86asm ---\n");
-            tb_output_print_asm(out, stdout);
-        } else {
-            tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
-        }
+            if (state->config->dump_asm) {
+                TB_FunctionOutput *out = tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
+                fprintf(stdout, "\n--- x86asm ---\n");
+                tb_output_print_asm(out, stdout);
+            } else {
+                tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
+            }
 #else
-        tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
+            tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
 #endif
 
-        void *code = tb_jit_place_function(state->jit, state->fun);
+            void *code = tb_jit_place_function(state->jit, state->fun);
 
-        // don't need any of these anymore
-        tb_arena_clear(state->ir_arena);
-        tb_arena_clear(state->tmp_arena);
-        tb_arena_clear(state->code_arena);
+            // don't need any of these anymore
+            tb_arena_clear(state->ir_arena);
+            tb_arena_clear(state->tmp_arena);
+            tb_arena_clear(state->code_arena);
 
-        rblock->jit = state->jit;
-        rblock->del = &vm_tb_ver_rblock_del;
+            rblock->jit = state->jit;
+            rblock->del = &vm_tb_ver_rblock_del;
 
-        ret = code;
-        break;
-    }
+            ret = code;
+            break;
+        }
 #endif
-    default: {
-        ret = NULL;
-        break;
-    }
+        default: {
+            ret = NULL;
+            break;
+        }
     }
     tb_worklist_free(worklist);
     vm_tb_ver_free_module(state);

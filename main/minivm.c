@@ -9,7 +9,6 @@
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks);
 
-// void GC_disable(void);
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
 #include <unistd.h>
@@ -19,11 +18,11 @@ int main(int argc, char **argv) {
 #if defined(EMSCRIPTEN)
     EM_ASM({
         FS.mkdir('/dir');
-        FS.mount(NODEFS, { root: '.' }, '/dir');
+        FS.mount(NODEFS, {root : '.'}, '/dir');
     });
     chdir("/dir");
 #endif
-    vm_config_t val_config = (vm_config_t){
+    vm_config_t val_config = (vm_config_t) {
         .use_num = VM_USE_NUM_F64,
         .tb_lbbv = false,
         .tb_recompile = true,
@@ -40,7 +39,7 @@ int main(int argc, char **argv) {
     vm_config_t *config = &val_config;
     bool echo = false;
     bool isrepl = true;
-    vm_table_t *std = vm_std_new(config); 
+    vm_table_t *std = vm_std_new(config);
     int i = 1;
     while (i < argc) {
         char *arg = argv[i++];
@@ -229,7 +228,7 @@ int main(int argc, char **argv) {
 
     if (isrepl) {
         vm_std_set_arg(config, std, argv[0], "<repl>", argc - i, argv + i);
-        
+
         vm_lang_lua_repl(config, std, blocks);
     }
 

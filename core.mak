@@ -50,6 +50,7 @@ TCC_SRCS ?= $(TCC_DIR)/libtcc.c
 TCC_OBJS = $(TCC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 TB_SRCS_BASE = $(CUIK_DIR)/common/common.c $(CUIK_DIR)/common/perf.c $(CUIK_DIR)/tb/src/libtb.c $(CUIK_DIR)/tb/src/x64/x64_target.c $(CUIK_DIR)/tb/src/wasm/wasm_target.c
+TB_SRCS_MACOS = $(CUIK_DIR)/c11threads/threads_posix.c
 TB_SRCS_FREEBSD = $(CUIK_DIR)/c11threads/threads_posix.c
 TB_SRCS += $(TB_SRCS_BASE) $(TB_SRCS_$(OS_NAME))
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
@@ -59,8 +60,11 @@ OBJS = $(VM_OBJS) $(TB_OBJS) $(TCC_OBJS) $(VENDOR_OBJS)
 LDFLAGS_GCCJIT_NO = 
 LDFLAGS_GCCJIT_YES = -lgccjit
 
+LDFLAGS_MACOS_GCCJIT_NO = 
+LDFLAGS_MACOS_GCCJIT_YES = -L/opt/homebrew/lib/gcc/current
+
 LDFLAGS_WINDOWS =
-LDFLAGS_MACOS = -w -Wl,-pagezero_size,0x4000
+LDFLAGS_MACOS = $(LDFLAGS_MACOS_GCCJIT_$(GCCJIT))
 LDFLAGS_LINUX = -lm -ldl
 LDFLAGS_FREEBSD = -lm -ldl -lpthread
 
@@ -72,6 +76,7 @@ CFLAGS_VENDOR := -I$(TREE_SITTER_DIR)/lib/include -I$(TREE_SITTER_DIR)/lib/src $
 CFLAGS_GCCJIT_NO = 
 CFLAGS_GCCJIT_YES = -DVM_USE_GCCJIT
 
+CFLAGS_MACOS = -I/opt/homebrew/include
 CFLAGS := $(CFLAGS_$(OS_NAME)) $(CFLAGS_GCCJIT_$(GCCJIT)) $(CFLAGS)
 
 LDFLAGS := $(FLAGS) $(LDFLAGS)
