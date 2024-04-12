@@ -99,6 +99,8 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         value = fn();
 #endif
 
+        blocks->len = 0;
+
         vm_free(state);
     }
 

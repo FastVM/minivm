@@ -11,7 +11,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
-#include <unistd.h>
 #endif
 
 int main(int argc, char **argv) {
@@ -168,9 +167,9 @@ int main(int argc, char **argv) {
             } else {
                 src = vm_io_read(arg);
                 name = arg;
+                vm_std_set_arg(config, std, argv[0], name, argc - i, &argv[i]);
             }
 
-            vm_std_set_arg(config, std, argv[0], name, argc - i, &argv[i]);
 
             if (src == NULL) {
                 fprintf(stderr, "error: no such file: %s\n", arg);
@@ -215,7 +214,9 @@ int main(int argc, char **argv) {
                 printf("took: %.3fms\n", diff);
             }
 
-            break;
+            if (name != NULL) {
+                break;
+            }
         }
     }
 

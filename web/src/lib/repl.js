@@ -34,8 +34,7 @@ const unmap = (c) => {
 const hasComp = waitForComp();
 
 export const repl = ({putchar}) => {
-    const obj = {};
-    obj.putchar = putchar;
+    const obj = { putchar };
     const has = new SharedArrayBuffer(4);
     const want = new SharedArrayBuffer(4);
     const inbuf = new SharedArrayBuffer(4);
@@ -112,7 +111,7 @@ export const repl = ({putchar}) => {
                 case 'get-args': {
                     worker.postMessage({
                         type: 'args',
-                        args: ['--repl'],
+                        args: ['-e', '', '--repl'],
                     });
                     break;
                 }

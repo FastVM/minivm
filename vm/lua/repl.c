@@ -11,7 +11,6 @@
 
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
-#include <termios.h>
 #endif
 
 const TSLanguage *tree_sitter_lua(void);
@@ -263,9 +262,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             break;
         }
         ic_history_add(input);
-        vm_lang_lua_repl_table_get_config(repl, config);
-        struct timespec start;
-        clock_gettime(CLOCK_REALTIME, &start);
+        clock_t start = clock();
 
         if (config->dump_src) {
             printf("\n--- src ---\n");
@@ -291,6 +288,9 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         vm_std_value_t value = vm_tb_run_repl(config, blocks->entry, blocks, std);
+        
+        vm_lang_lua_repl_table_get_config(repl, config);
+        
         if (vm_type_eq(value.tag, VM_TYPE_ERROR)) {
             fprintf(stderr, "error: %s\n", value.value.str);
         } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && !vm_type_eq(value.tag, VM_TYPE_NIL)) {
@@ -300,10 +300,9 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         if (config->dump_time) {
-            struct timespec end;
-            clock_gettime(CLOCK_REALTIME, &end);
+            clock_t end = clock();
 
-            double diff = (double)(end.tv_sec - start.tv_sec) * 1000 + (double)(end.tv_nsec - start.tv_nsec) * 0.000001;
+            double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
 
             printf("took: %.3fms\n", diff);
         }
