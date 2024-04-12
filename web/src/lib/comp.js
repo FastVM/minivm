@@ -1,30 +1,50 @@
-import Emception from "./emception.js";
 
-const emception = new Emception();
+import { default as BoxModule } from '../../../vendor/llvm-box/bin/llvm-box.mjs';
 
-await emception.init();
+const box = await BoxModule();
 
-emception.onstdout = (s) => console.log(s);
-emception.onstderr = (s) => console.error(s);
+let ldFlagsBase = '-O0 --import-memory --strip-debug --export-dynamic --experimental-pic -shared';
+let cFlagsBase = '-O2 -nostdlib -target wasm32-unknown-emscripten -fPIC -fvisibility=default';
 
-// emception.run('emcc --check -Wno-version-check');
+const boxSpawn = (real, cmd, ...cmdArgs) => {
+    const args = [real, cmd, ...cmdArgs];
+    const argc = args.length;
+    const argv = box._malloc((argc + 1) * 4);
+    let argv_ptr = argv;
+    for (const arg of args) {
+        const arr = new TextEncoder().encode(arg);
+        const str = box._malloc(arr.length + 1);
+        for (let i = 0; i < arr.length; i++) {
+            box.HEAPU8[str + i] = arr[i];
+        }
+        box.HEAPU8[str + arr.length] = 0;
+        box.HEAPU32[argv_ptr >> 2] = str;
+        argv_ptr += 4
+    };
+    box.HEAPU32[argv_ptr >> 2] = 0;
+    return box._main(argc, argv);
+};
 
-let flags1 = '-target wasm32-unknown-emscripten -fignore-exceptions -fPIC -fvisibility=default -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr -DEMSCRIPTEN -Wno-incompatible-library-redeclaration -Wno-parentheses-equality';
-let flags2 = '-L/lazy/emscripten/cache/sysroot/lib/wasm32-emscripten/pic --no-whole-archive -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr --import-undefined --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --experimental-pic -shared';
+const execSync = (real, str) => {
+    try {
+        boxSpawn(real, ...str.split(/ +/));
+    } catch (e) {
+        if (!('status' in e) && e.status !== 0) {
+            throw e;            
+        }
+    }
+};
 
 let comps = 0;
-export const comp = (cBuf) => {
-    comps += 1;
-    emception.fileSystem.writeFile(`/working/in${comps}.c`, cBuf);
-    const result1 = emception.runx(`/usr/bin/clang -O2 -c ${flags1} /working/in${comps}.c -o /working/mid${comps}.o`);
-    if (result1.returncode !== 0) {
-        console.error(`clang exited with code ${result1.returncode}`);
-    }
-    const result2 = emception.runx(`/usr/bin/wasm-ld --whole-archive /working/mid${comps}.o ${flags2} -o /working/out${comps}.wasm`);
-    if (result2.returncode !== 0) {
-        console.error(`wasm-ld exited with code ${result2.returncode}`)
-    }
-    return emception.fileSystem.readFile(`/working/out${comps}.wasm`);
+export const comp = (cSrc) => {
+    const n = comps++;
+    const inFile = `/in${n}.c`;
+    const outFile = `/out${n}.wasm`;
+    box.FS.writeFile(inFile, cSrc);
+    const midFile = `/mid${n}.o`;
+    execSync('clang', `clang -c -w ${inFile} ${cFlagsBase} -o ${midFile}`);
+    execSync('lld', `wasm-ld --no-entry --whole-archive ${midFile} ${ldFlagsBase} -o ${outFile}`);
+    return box.FS.readFile(outFile);
 };
 
 // comp('int main() {}');

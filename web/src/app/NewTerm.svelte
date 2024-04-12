@@ -5,7 +5,6 @@
     import { onMount } from 'svelte';
     import { Terminal } from '@xterm/xterm';
     import { FitAddon } from '@xterm/addon-fit';
-    import { openpty } from 'xterm-pty';
 
     let div;
 
@@ -15,14 +14,14 @@
 
     term.loadAddon(fit);
 
-    const { master, slave } = openpty();
-
-    term.loadAddon(master);
-
     onMount(() => {
         fit.fit();
 
         term.open(div);
+
+        term.onData((data) => {
+            obj.chars(data);
+        });
     });
 
     const obj = repl({
@@ -32,11 +31,6 @@
     });
 
     obj.start();
-
-    slave.onReadable(() => {
-        const src = slave.read();
-        obj.chars(src);
-    });
 
     const resize = () => {
         fit.fit();

@@ -1,8 +1,6 @@
 
 import {run} from './lua.js';
 
-const n = (1 << 32) - 1;
-
 let has;
 let want;
 let inbuf;

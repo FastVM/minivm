@@ -4,13 +4,11 @@
     "@xterm/addon-fit": "^0.9.0",
     "@xterm/xterm": "^5.4.0",
     "concurrently": "^8.2.2",
-    "emception": "^1.0.15",
     "nodemon": "^3.1.0",
     "svelte": "^4.2.12",
     "vite": "^5.2.6",
     "vite-plugin-top-level-await": "^1.4.1",
-    "vite-plugin-wasm": "^3.3.0",
-    "xterm-pty": "^0.10.1"
+    "vite-plugin-wasm": "^3.3.0"
   },
   "scripts": {
     "start": "npm run watch",
