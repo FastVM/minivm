@@ -14,3 +14,6 @@
 [submodule "vendor/isocline"]
 	path = vendor/isocline
 	url = https://github.com/fastvm/minivm-isocline
+[submodule "vendor/llvm-box"]
+	path = vendor/llvm-box
+	url = https://github.com/fastvm/llvm-box

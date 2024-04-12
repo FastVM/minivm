@@ -1,26 +1,61 @@
 
-import Module from '../../build/bin/minivm.mjs';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, readSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { default as MiniVM } from '../../build/bin/minivm.mjs';
+import { default as BoxModule } from '../../vendor/llvm-box/bin/llvm-box.mjs';
+import { openSync, readSync } from 'fs';
 
-if (!existsSync('.minivm-cache')) {
-    mkdirSync('.minivm-cache');
-}
+const unlinkSync = (path) => {};
 
-const remove = (path) => {
-    unlinkSync(path);
+const mkdirSync = (path) => {
+    box.FS.mkdir(path);
 };
 
-const cc = process.env['VM_CC'] ?? `clang`;
-const ld = process.env['VM_LD'];
+const writeFileSync = (path, data) => {
+    box.FS.writeFile(path, data);
+};
+
+const readFileSync = (path) => {
+    return box.FS.readFile(path);
+};
+
+const boxSpawn = (real, cmd, ...cmdArgs) => {
+    const args = [real, cmd, ...cmdArgs];
+    const argc = args.length;
+    const argv = box._malloc((argc + 1) * 4);
+    let argv_ptr = argv;
+    for (const arg of args) {
+        const arr = new TextEncoder().encode(arg);
+        const str = box._malloc(arr.length + 1);
+        for (let i = 0; i < arr.length; i++) {
+            box.HEAPU8[str + i] = arr[i];
+        }
+        box.HEAPU8[str + arr.length] = 0;
+        box.HEAPU32[argv_ptr >> 2] = str;
+        argv_ptr += 4
+    };
+    box.HEAPU32[argv_ptr >> 2] = 0;
+    return box._main(argc, argv);
+};
+
+const execSync = (real, str) => {
+    try {
+        boxSpawn(real, ...str.split(/ +/));
+    } catch (e) {
+        if (!('status' in e) && e.status !== 0) {
+            throw e;            
+        }
+    }
+};
+
+const cc = process.env['VM_CC'] ?? 'clang';
+const ld = process.env['VM_LD'] ?? 'wasm-ld';
 
 const join = (c, ld) => {
     const ldj = ld.split(' ').map(x => `-Wl,${x}`).join(' ');
     return `${c} ${ldj}`;
 }
 
-let ldFlagsBase = '-O0 -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr --import-undefined --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --experimental-pic -shared';
-let cFlagsBase = '-O2 -nostdlib -target wasm32-unknown-emscripten -fignore-exceptions -fPIC -fvisibility=default -mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr -DEMSCRIPTEN -Wno-incompatible-library-redeclaration -Wno-parentheses-equality';
+let ldFlagsBase = '-O0 --import-memory --strip-debug --export-dynamic --experimental-pic -shared';
+let cFlagsBase = '-O2 -nostdlib -target wasm32-unknown-emscripten -fPIC -fvisibility=default';
 const cFlags = join(cFlagsBase, ldFlagsBase);
 
 const time = Number(process.env['VM_TIME']);
@@ -55,9 +90,10 @@ const stdinFunc = () => {
     const buf = Buffer.alloc(1);
     while (true) {
         try {
-            readSync(process.stdin.fd, buf, 0, 1, null);
+            readSync(openSync('/dev/stdin'), buf, 0, 1, null);
             break;
         } catch (e) {
+            console.error(e);
             continue;
         }
     }
@@ -72,6 +108,25 @@ const stderrFunc = (c) => {
     process.stderr.write(new Uint8Array([c]));
 };
 
+timeBegin('llvm');
+
+const box = await BoxModule({
+    noInitialRun: true,
+    
+    stdout(c) {
+        process.stdout.write(new Uint8Array([c]));
+    },
+    
+    stderr(c) {
+        process.stderr.write(new Uint8Array([c]));
+    },
+});
+
+const cache = '/work';
+mkdirSync(cache);
+
+timeEnd('llvm');
+
 export const run = (args) => {
     timeBegin('run');
     process.stdin.setRawMode(true);
@@ -80,41 +135,45 @@ export const run = (args) => {
 
     timeBegin(last);
 
-    const mod = Module({
+    const mod = MiniVM({
         noInitialRun: true,
-        ENV: Object.create(process.env),
         stdin: watch(stdinFunc),
         stdout: watch(stdoutFunc),
         stderr: watch(stderrFunc),
         _vm_compile_c_to_wasm: (n) => {
-            console.timeEnd(last);
-            const inFile = `.minivm-cache/in${n}.c`;
-            // const midFile = `.minivm-cache/mid${n}.o`;
-            const outFile = `.minivm-cache/out${n}.wasm`;
+            timeEnd(last);
             const cSrc = mod.FS.readFile(`/in${n}.c`);
+            let wasm = null;
+            const inFile = `${cache}/in${n}.c`;
+            const outFile = `${cache}/out${n}.wasm`;
             writeFileSync(inFile, cSrc);
-            if (ld == null) {
+            if (ld === 'none') {
                 timeBegin(cc);
-                execSync(`${cc} ${inFile} ${cFlags} -o ${outFile}`);
+                execSync('clang', `${cc} ${inFile} ${cFlags} -o ${outFile}`);
                 timeEnd(cc);
+                unlinkSync(inFile);
             } else {
-                const midFile = `.minivm-cache/mid${n}.o`;
+                const midFile = `${cache}/mid${n}.o`;
                 timeBegin(cc);
-                execSync(`${cc} ${inFile} ${cFlags} -o ${midFile}`);
+                execSync('clang', `${cc} -c -w ${inFile} ${cFlagsBase} -o ${midFile}`);
                 timeEnd(cc);
+                unlinkSync(inFile);
                 timeBegin(ld);
-                execSync(`${ld} --whole-archive ${midFile} ${ldFlags} -o ${outFile}`)
+                execSync('lld', `${ld} --no-entry --whole-archive ${midFile} ${ldFlagsBase} -o ${outFile}`);
                 timeEnd(ld);
-                remove(midFile);
+                unlinkSync(midFile);
             }
-            const wasm = readFileSync(outFile);
-            remove(inFile);
-            remove(outFile);
+            wasm = readFileSync(outFile);
+            unlinkSync(outFile);
             mod.FS.writeFile(`/out${n}.so`, wasm);
             last = `after${n}`;
             timeBegin(last);
         },
     });
+
+    mod.FS.mkdir('/dir');
+    mod.FS.mount(mod.NODEFS, {root : '.'}, '/dir');
+    mod.FS.chdir('/dir');
 
     timeEnd(last);
     last = 'main';
@@ -123,8 +182,8 @@ export const run = (args) => {
     mod.callMain(args);
 
     timeEnd(last);
-  
+
     process.stdin.setRawMode(false);
-    
+
     timeEnd('run');
 };

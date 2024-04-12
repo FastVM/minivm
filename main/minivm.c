@@ -15,13 +15,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 #endif
 
 int main(int argc, char **argv) {
-#if defined(EMSCRIPTEN)
-    EM_ASM({
-        FS.mkdir('/dir');
-        FS.mount(NODEFS, {root : '.'}, '/dir');
-    });
-    chdir("/dir");
-#endif
     vm_config_t val_config = (vm_config_t) {
         .use_num = VM_USE_NUM_F64,
         .tb_lbbv = false,

@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.c": "c",
-        "*.h": "c"
+        "*.h": "c",
+        "*.inc": "c"
     }
 }

@@ -2,4 +2,8 @@
 
 import {run} from './all.js';
 
-run(process.argv.slice(2));
+try {
+    run(process.argv.slice(2));
+} catch (e) {
+    console.error(e);
+}
