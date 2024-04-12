@@ -1,10 +1,10 @@
 
 import { comp } from './comp.js';
 
-self.onmessage = ({data}) => {
+self.onmessage = async ({data}) => {
     switch (data.type) {
         case 'comp': {
-            const output = comp(data.input);
+            const output = await comp(data.input);
             self.postMessage({
                 type: 'result',
                 output: output,

@@ -31,30 +31,9 @@ const unmap = (c) => {
     }
 };
 
-const wait = (ms) => new Promise((res, rej) => {
-    setTimeout(res, ms);
-});
-
-const waitAsync = async (array, index, value) => {
-    if (Atomics.waitAsync != null) {
-        await Atomics.waitAsync(array, index, value);
-    } else {
-        let time = 0;
-        while (true) {
-            const got = Atomics.wait(array, index, value, 0);
-            if (got !== 'timed-out') {
-                return got; 
-            }
-            if (time < 20) {
-                time += 1;
-            }
-            await wait(time);
-        }
-    }
-};
+const hasComp = waitForComp();
 
 export const repl = ({putchar}) => {
-    const hasComp = waitForComp();
     const obj = {};
     obj.putchar = putchar;
     const has = new SharedArrayBuffer(4);
@@ -80,7 +59,7 @@ export const repl = ({putchar}) => {
         };
     }
 
-    obj.start = async() => {
+    obj.start = () => new Promise((ok, err) => {
         const worker = new Worker(new URL(/* webpackChunkName: "wlua" */ '../lib/wlua.js', import.meta.url), {type: 'module'});
         const wait = new SharedArrayBuffer(4);
         const ret = new SharedArrayBuffer(65536);
@@ -139,6 +118,6 @@ export const repl = ({putchar}) => {
                 }
             }
         };
-    };
+    });
     return obj;
 };
