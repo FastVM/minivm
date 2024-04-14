@@ -1,6 +1,8 @@
 #if !defined(VM_HEADER_OBJ)
 #define VM_HEADER_OBJ
 
+#include "lib.h"
+
 union vm_value_t;
 typedef union vm_value_t vm_value_t;
 
@@ -17,7 +19,6 @@ struct vm_std_closure_t;
 typedef struct vm_std_closure_t vm_std_closure_t;
 
 #include "ir/tag.h"
-#include "lib.h"
 
 union vm_value_t {
     void *all;
@@ -58,6 +59,7 @@ struct vm_table_t {
 struct vm_std_closure_t {
     vm_config_t *config;
     vm_blocks_t *blocks;
+    vm_std_value_t data[];
 };
 
 bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs);

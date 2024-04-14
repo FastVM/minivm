@@ -930,7 +930,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                 );
                 break;
             }
-            case VM_IOP_LEN: {
+            case VM_IOP_TABLE_LEN: {
                 vm_type_t table_tag = vm_arg_to_tag(instr.args[0]);
                 if (vm_type_eq(table_tag, VM_TYPE_TAB)) {
                     TB_Node *len = tb_inst_load(
@@ -964,7 +964,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                 }
                 break;
             }
-            case VM_IOP_SET: {
+            case VM_IOP_TABLE_SET: {
                 vm_type_t key_tag = vm_arg_to_tag(instr.args[1]);
                 vm_type_t val_tag = vm_arg_to_tag(instr.args[2]);
                 TB_PrototypeParam proto_params[5] = {
@@ -995,7 +995,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                 );
                 break;
             }
-            case VM_IOP_NEW: {
+            case VM_IOP_TABLE_NEW: {
                 TB_PrototypeParam proto_ret[1] = {
                     {TB_TYPE_PTR},
                 };

@@ -5,9 +5,7 @@ export const run = (args, opts) => {
     const mod = Module({
         noInitialRun: true,
         _vm_compile_c_to_wasm(n) {
-            const cBuf = new TextDecoder().decode(mod.FS.readFile(`/in${n}.c`));
-            const soBuf = opts.comp(cBuf);
-            mod.FS.writeFile(`/out${n}.so`, soBuf);
+            mod.FS.writeFile(`/out${n}.so`, opts.comp(mod.FS.readFile(`/in${n}.c`)));
         },
         stdin() {
             return opts.stdin();

@@ -611,7 +611,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             vm_ast_blocks_instr(
                                 comp,
                                 (vm_instr_t){
-                                    .op = VM_IOP_SET,
+                                    .op = VM_IOP_TABLE_SET,
                                     .out = (vm_arg_t){
                                         .type = VM_ARG_NONE,
                                     },
@@ -641,7 +641,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         vm_ast_blocks_instr(
                             comp,
                             (vm_instr_t){
-                                .op = VM_IOP_SET,
+                                .op = VM_IOP_TABLE_SET,
                                 .args = vm_ast_args(3, table, key, val),
                                 .out = (vm_arg_t){
                                     .type = VM_ARG_NONE,
@@ -669,7 +669,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
-                            .op = VM_IOP_NEW,
+                            .op = VM_IOP_TABLE_NEW,
                             .out = out,
                             .args = vm_ast_args(0),
                         }
@@ -944,46 +944,55 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = old_cur;
 
                     vm_arg_t out = vm_ast_comp_reg(comp);
-                    vm_block_t *with_lambda = vm_ast_comp_new_block(comp);
 
-                    vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * (names->caps.len + 3));
-                    call_args[0] = (vm_arg_t){
-                        .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t){
-                            .tag = VM_TYPE_FFI,
-                            .value.ffi = &vm_std_vm_closure,
-                        },
-                    };
-                    call_args[1] = (vm_arg_t){
-                        .type = VM_ARG_FUN,
-                        .func = body,
-                    };
-                    for (size_t i = 0; i < names->caps.len; i++) {
-                        vm_ast_comp_cap_t cap = names->caps.ptr[i];
-                        vm_arg_t got = vm_ast_comp_get_var(comp, cap.name);
-                        if (got.type != VM_ARG_NONE) {
-                            call_args[i + 2] = got;
-                        } else {
-                            call_args[i + 2] = vm_arg_nil();
+                    vm_ast_blocks_instr(
+                        comp,
+                        (vm_instr_t) {
+                            .op = VM_IOP_CLOSURE,
+                            .args = vm_ast_args(1, vm_ast_build_literal)
                         }
-                    }
-                    call_args[names->caps.len + 2] = (vm_arg_t){
-                        .type = VM_ARG_NONE,
-                    };
+                    )
+
+                    // vm_block_t *with_lambda = vm_ast_comp_new_block(comp);
+
+                    // vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * (names->caps.len + 3));
+                    // call_args[0] = (vm_arg_t){
+                    //     .type = VM_ARG_LIT,
+                    //     .lit = (vm_std_value_t){
+                    //         .tag = VM_TYPE_FFI,
+                    //         .value.ffi = &vm_std_vm_closure,
+                    //     },
+                    // };
+                    // call_args[1] = (vm_arg_t){
+                    //     .type = VM_ARG_FUN,
+                    //     .func = body,
+                    // };
+                    // for (size_t i = 0; i < names->caps.len; i++) {
+                    //     vm_ast_comp_cap_t cap = names->caps.ptr[i];
+                    //     vm_arg_t got = vm_ast_comp_get_var(comp, cap.name);
+                    //     if (got.type != VM_ARG_NONE) {
+                    //         call_args[i + 2] = got;
+                    //     } else {
+                    //         call_args[i + 2] = vm_arg_nil();
+                    //     }
+                    // }
+                    // call_args[names->caps.len + 2] = (vm_arg_t){
+                    //     .type = VM_ARG_NONE,
+                    // };
 
                     vm_ast_names_free(names);
 
-                    vm_ast_blocks_branch(
-                        comp,
-                        (vm_branch_t){
-                            .op = VM_BOP_CALL,
-                            .out = out,
-                            .args = call_args,
-                            .targets[0] = with_lambda,
-                        }
-                    );
+                    // vm_ast_blocks_branch(
+                    //     comp,
+                    //     (vm_branch_t){
+                    //         .op = VM_BOP_CALL,
+                    //         .out = out,
+                    //         .args = call_args,
+                    //         .targets[0] = with_lambda,
+                    //     }
+                    // );
 
-                    comp->cur = with_lambda;
+                    // comp->cur = with_lambda;
 
                     return out;
                 }

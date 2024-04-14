@@ -18,6 +18,7 @@ typedef struct vm_instr_t vm_instr_t;
 typedef struct vm_block_t vm_block_t;
 typedef struct vm_blocks_t vm_blocks_t;
 
+#include "../obj.h"
 #include "../lib.h"
 #include "../std/io.h"
 #include "../std/std.h"
@@ -63,9 +64,12 @@ enum {
     VM_IOP_IDIV,
     VM_IOP_MOD,
     // tables
-    VM_IOP_SET,
-    VM_IOP_NEW,
+    VM_IOP_TABLE_SET,
+    VM_IOP_TABLE_NEW,
     VM_IOP_LEN,
+    // closures
+    VM_IOP_CLOSURE_NEW,
+    VM_IOP_CLOSURE_SET,
     // objects
     VM_IOP_STD,
 };

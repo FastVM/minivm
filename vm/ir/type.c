@@ -127,7 +127,7 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_types_t *types, vm_instr_t instr) 
             goto ret;
         }
     }
-    if (instr.op == VM_IOP_NEW) {
+    if (instr.op == VM_IOP_TABLE_NEW) {
         instr.tag = VM_TYPE_TAB;
         goto ret;
     }

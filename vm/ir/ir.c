@@ -252,11 +252,11 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
             vm_io_buffer_format(out, "mod");
             break;
         }
-        case VM_IOP_SET: {
+        case VM_IOP_TABLE_SET: {
             vm_io_buffer_format(out, "set");
             break;
         }
-        case VM_IOP_NEW: {
+        case VM_IOP_TABLE_NEW: {
             vm_io_buffer_format(out, "new");
             break;
         }
