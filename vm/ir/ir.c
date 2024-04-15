@@ -264,7 +264,7 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
             vm_io_buffer_format(out, "std");
             break;
         }
-        case VM_IOP_LEN: {
+        case VM_IOP_TABLE_LEN: {
             vm_io_buffer_format(out, "len");
             break;
         }

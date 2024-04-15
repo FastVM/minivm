@@ -34,12 +34,19 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
     static vm_tb_caller_t *caller = NULL;
 
     if (caller == NULL) {
+        TB_Module *mod = tb_module_create_for_host(true);
+        
+        TB_Arena *tmp_arena = tb_arena_create(TB_ARENA_SMALL_CHUNK_SIZE);
+        TB_Arena *code_arena = tb_arena_create(TB_ARENA_MEDIUM_CHUNK_SIZE);
+        TB_Worklist *worklist = tb_worklist_alloc();
+        TB_JIT *jit = tb_jit_begin(mod, 1 << 16);
+
         TB_PrototypeParam call_proto_rets[2] = {{VM_TB_TYPE_VALUE}, {TB_TYPE_PTR}};
-        TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, call_proto_rets, false);
+        TB_FunctionPrototype *call_proto = tb_prototype_create(mod, VM_TB_CC, 0, NULL, 2, call_proto_rets, false);
 
         TB_PrototypeParam proto_params[2] = {{TB_TYPE_PTR}, {TB_TYPE_PTR}};
-        TB_Function *fun = tb_function_create(state->module, -1, "caller", TB_LINKAGE_PUBLIC);
-        TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_params, 0, NULL, false);
+        TB_Function *fun = tb_function_create(mod, -1, "caller", TB_LINKAGE_PUBLIC);
+        TB_FunctionPrototype *proto = tb_prototype_create(mod, VM_TB_CC, 2, proto_params, 0, NULL, false);
         tb_function_set_prototype(fun, -1, proto, NULL);
 
         // tb_inst_debugbreak(fun);
@@ -54,9 +61,11 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         tb_inst_ret(fun, 0, NULL);
 
         // compile it
-        tb_codegen(fun, worklist, state->tmp_arena, state->code_arena, NULL, false);
+        tb_codegen(fun, worklist, tmp_arena, code_arena, tmp_arena, NULL, false);
 
-        caller = tb_jit_place_function(state->jit, fun);
+        caller = tb_jit_place_function(jit, fun);
+
+        tb_worklist_free(worklist);
     }
 #endif
 
@@ -94,7 +103,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         vm_tb_dyn_func_t *fn = (vm_tb_dyn_func_t *)vm_tb_dyn_comp(state, entry);
 
 #if defined(_WIN32)
-        state->vm_caller(&value, fn);
+        caller(&value, fn);
 #else
         value = fn();
 #endif

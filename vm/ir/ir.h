@@ -66,7 +66,7 @@ enum {
     // tables
     VM_IOP_TABLE_SET,
     VM_IOP_TABLE_NEW,
-    VM_IOP_LEN,
+    VM_IOP_TABLE_LEN,
     // closures
     VM_IOP_CLOSURE_NEW,
     VM_IOP_CLOSURE_SET,

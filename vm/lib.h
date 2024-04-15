@@ -2,6 +2,10 @@
 #if !defined(VM_HEADER_LIB)
 #define VM_HEADER_LIB
 
+#if defined(_WIN32)
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #if defined(__TINYC__)
 #define __builtin_trap() exit(1)
 #define __builtin_unreachable() exit(1)

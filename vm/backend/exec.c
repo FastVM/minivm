@@ -4,12 +4,42 @@
 #include "../std/io.h"
 
 #if defined(_WIN32)
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+#include "../../vendor/xxhash/xxhash.h"
+
 // unsupported
-void *vm_cache_comp(const char *comp, const char **srcs, const char *entry) {
-    return NULL;
+void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
+    if (GetFileAttributes(".minivm-cache") == INVALID_FILE_ATTRIBUTES) {
+        CreateDirectory (".minivm-cache", NULL);
+    }
+    size_t len = strlen(src);
+    uint64_t hash = XXH3_64bits((void *)src, len);
+    char so_file[128];
+    snprintf(so_file, 64, ".minivm-cache/out-%s-%" PRIx64 ".so", comp, hash);
+    if (GetFileAttributes(so_file) == INVALID_FILE_ATTRIBUTES) {
+        char c_file[128];
+        snprintf(c_file, 64, ".minivm-cache/src-%s-%" PRIx64 ".c", comp, hash);
+        FILE *out = fopen(c_file, "w");
+        fwrite(src, len, 1, out);
+        fclose(out);
+        vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
+        vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s -o %s -w -pipe", comp, c_file, so_file);
+        int res = system(cmd_buf->buf);
+        if (res) {
+            return NULL;
+        }
+        remove(c_file);
+    }
+    void *handle = LoadLibrary(so_file);
+    void *sym = GetProcAddress(handle, entry);
+    remove(so_file);
+    // printf("<funcptr: %p>\n", sym);
+    return sym;
 }
 #else
-
 #include <dlfcn.h>
 #include <sys/stat.h>
 #include <sys/types.h>
