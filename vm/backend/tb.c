@@ -35,7 +35,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     if (caller == NULL) {
         TB_Module *mod = tb_module_create_for_host(true);
-        
+
         TB_Arena *tmp_arena = tb_arena_create(TB_ARENA_SMALL_CHUNK_SIZE);
         TB_Arena *code_arena = tb_arena_create(TB_ARENA_MEDIUM_CHUNK_SIZE);
         TB_Worklist *worklist = tb_worklist_alloc();

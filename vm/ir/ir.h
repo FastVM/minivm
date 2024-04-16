@@ -18,8 +18,8 @@ typedef struct vm_instr_t vm_instr_t;
 typedef struct vm_block_t vm_block_t;
 typedef struct vm_blocks_t vm_blocks_t;
 
-#include "../obj.h"
 #include "../lib.h"
+#include "../obj.h"
 #include "../std/io.h"
 #include "../std/std.h"
 #include "tag.h"

@@ -36,7 +36,7 @@ struct vm_tb_dyn_state_t {
     TB_Symbol *vm_table_new;
     TB_Symbol *vm_table_set_pair;
     TB_Symbol *vm_table_get_pair;
-    
+
     size_t nlocals;
     TB_Node *locals;
     TB_Node **regs;
@@ -323,7 +323,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
                     TB_Node *val = NULL;
                     if (vm_type_eq(state->number_type, VM_TYPE_F32) || vm_type_eq(state->number_type, VM_TYPE_F64)) {
-                        TB_Node *(*func)(TB_Function * func, TB_Node * lhs, TB_Node * rhs) = NULL;
+                        TB_Node *(*func)(TB_Function *func, TB_Node *lhs, TB_Node *rhs) = NULL;
 
                         if (instr.op == VM_IOP_ADD) {
                             func = tb_inst_fadd;
@@ -773,7 +773,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
                 tb_inst_set_control(state->func, is_number2);
 
-                TB_Node *(*func)(TB_Function * func, TB_Node * lhs, TB_Node * rhs) = NULL;
+                TB_Node *(*func)(TB_Function *func, TB_Node *lhs, TB_Node *rhs) = NULL;
 
                 if (vm_type_eq(state->number_type, VM_TYPE_F32) || vm_type_eq(state->number_type, VM_TYPE_F64)) {
                     if (branch.op == VM_BOP_BEQ) {

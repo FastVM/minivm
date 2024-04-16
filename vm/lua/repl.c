@@ -288,9 +288,9 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         vm_std_value_t value = vm_tb_run_repl(config, blocks->entry, blocks, std);
-        
+
         vm_lang_lua_repl_table_get_config(repl, config);
-        
+
         if (vm_type_eq(value.tag, VM_TYPE_ERROR)) {
             fprintf(stderr, "error: %s\n", value.value.str);
         } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && !vm_type_eq(value.tag, VM_TYPE_NIL)) {

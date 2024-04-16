@@ -13,7 +13,7 @@
 // unsupported
 void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
     if (GetFileAttributes(".minivm-cache") == INVALID_FILE_ATTRIBUTES) {
-        CreateDirectory (".minivm-cache", NULL);
+        CreateDirectory(".minivm-cache", NULL);
     }
     size_t len = strlen(src);
     uint64_t hash = XXH3_64bits((void *)src, len);

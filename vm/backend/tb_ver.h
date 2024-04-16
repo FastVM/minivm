@@ -129,11 +129,11 @@ static TB_Node *vm_tb_ver_bitcast_from_value(vm_tb_ver_state_t *state, TB_Node *
 
 static TB_Node *vm_tb_ver_bitcast_to_value(vm_tb_ver_state_t *state, TB_Node *src) {
     if (state->config->tb_force_bitcast || src->dt.type != VM_TB_TYPE_VALUE.type || src->dt.data != VM_TB_TYPE_VALUE.data) {
-        if (src->dt.type == TB_FLOAT32) {
+        if (src->dt.type == TB_TAG_F32) {
             TB_Node *local = tb_inst_local(state->fun, sizeof(vm_value_t), 8);
             tb_inst_store(state->fun, TB_TYPE_F32, local, src, 8, false);
             return tb_inst_load(state->fun, VM_TB_TYPE_VALUE, local, 8, false);
-        } else if (src->dt.type == TB_FLOAT64) {
+        } else if (src->dt.type == TB_TAG_F64) {
             TB_Node *local = tb_inst_local(state->fun, sizeof(vm_value_t), 8);
             tb_inst_store(state->fun, TB_TYPE_F64, local, src, 8, false);
             return tb_inst_load(state->fun, VM_TB_TYPE_VALUE, local, 8, false);
