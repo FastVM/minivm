@@ -15,7 +15,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
 int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t) {
-        .use_num = VM_USE_NUM_F64,
+        .use_num = VM_USE_NUM_I64,
         .tb_lbbv = false,
         .tb_recompile = true,
 #if defined(EMSCRIPTEN)
