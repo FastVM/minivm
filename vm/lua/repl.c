@@ -18,7 +18,7 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 
 vm_std_value_t vm_lang_lua_repl_table_get(vm_table_t *table, const char *key) {
     vm_pair_t pair = (vm_pair_t){
-        .key_tag = VM_TYPE_STR,
+        .key_tag = VM_TAG_STR,
         .key_val.str = key,
     };
     vm_table_get_pair(table, &pair);
@@ -30,7 +30,7 @@ vm_std_value_t vm_lang_lua_repl_table_get(vm_table_t *table, const char *key) {
 
 bool vm_lang_lua_repl_table_get_bool(vm_table_t *table, const char *key) {
     vm_std_value_t got = vm_lang_lua_repl_table_get(table, key);
-    return !vm_type_eq(got.tag, VM_TYPE_NIL) && (!vm_type_eq(got.tag, VM_TYPE_BOOL) || got.value.b);
+    return !vm_type_eq(got.tag, VM_TAG_NIL) && (!vm_type_eq(got.tag, VM_TAG_BOOL) || got.value.b);
 }
 
 void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
@@ -79,7 +79,7 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
 with_new_std:;
     for (size_t i = 0; i < (1 << std->alloc); i++) {
         vm_pair_t *pair = &std->pairs[i];
-        if (vm_type_eq(pair->key_tag, VM_TYPE_STR)) {
+        if (vm_type_eq(pair->key_tag, VM_TAG_STR)) {
             const char *got = pair->key_val.str;
             size_t i = 0;
             while (got[i] != '\0') {
@@ -98,7 +98,7 @@ with_new_std:;
                     continue;
                 }
             }
-            if (vm_type_eq(pair->val_tag, VM_TYPE_NIL)) {
+            if (vm_type_eq(pair->val_tag, VM_TAG_NIL)) {
                 if (last_word[i] == '.') {
                     std = pair->val_val.table;
                     last_word = &last_word[i + 1];
@@ -126,15 +126,15 @@ const char *vm_lang_lua_repl_highlight_bracket_color(vm_table_t *repl, size_t de
     if (value == NULL) {
         return "";
     }
-    if (vm_type_eq(value->val_tag, VM_TYPE_TAB)) {
+    if (vm_type_eq(value->val_tag, VM_TAG_TAB)) {
         return "";
     }
     if (value->val_val.table->len == 0) {
         return "";
     }
     vm_table_t *tab = value->val_val.table;
-    vm_pair_t *sub = vm_table_lookup(tab, (vm_value_t){.i32 = (int32_t)depth % (int32_t)tab->len + 1}, VM_TYPE_I32);
-    if (sub == NULL || vm_type_eq(sub->val_tag, VM_TYPE_STR)) {
+    vm_pair_t *sub = vm_table_lookup(tab, (vm_value_t){.i32 = (int32_t)depth % (int32_t)tab->len + 1}, VM_TAG_I32);
+    if (sub == NULL || vm_type_eq(sub->val_tag, VM_TAG_STR)) {
         return "";
     }
     return sub->val_val.str;
@@ -208,7 +208,7 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     size_t depth = 0;
     vm_pair_t *value = VM_TABLE_LOOKUP_STR(state->std, "config");
     vm_table_t *repl = NULL;
-    if (value != NULL && vm_type_eq(value->val_tag, VM_TYPE_TAB)) {
+    if (value != NULL && vm_type_eq(value->val_tag, VM_TAG_TAB)) {
         repl = value->val_val.table;
     }
     vm_lang_lua_repl_highlight_walk(henv, repl, &depth, root_node);
@@ -291,9 +291,9 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
         vm_lang_lua_repl_table_get_config(repl, config);
 
-        if (vm_type_eq(value.tag, VM_TYPE_ERROR)) {
+        if (vm_type_eq(value.tag, VM_TAG_ERROR)) {
             fprintf(stderr, "error: %s\n", value.value.str);
-        } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && !vm_type_eq(value.tag, VM_TYPE_NIL)) {
+        } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && !vm_type_eq(value.tag, VM_TAG_NIL)) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);
             printf("%.*s", (int)buf.len, buf.buf);

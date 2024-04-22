@@ -10,35 +10,35 @@ static inline bool vm_std_parse_args(vm_std_value_t *args, const char *fmt, ...)
     while (*fmt != '\0') {
         switch (*fmt++) {
             case 's': {
-                if (vm_type_eq(args[head].tag, VM_TYPE_STR)) {
+                if (vm_type_eq(args[head].tag, VM_TAG_STR)) {
                     return false;
                 }
                 *va_arg(ap, const char **) = args[head++].value.str;
                 break;
             }
             // case 'i': {
-            //     if (vm_type_eq(args[head].tag, VM_TYPE_I64)) {
+            //     if (vm_type_eq(args[head].tag, VM_TAG_I64)) {
             //         return false;
             //     }
             //     *va_arg(ap, int64_t *) = args[head++].value.i64;
             //     break;
             // }
             case 'f': {
-                if (vm_type_eq(args[head].tag, VM_TYPE_F64)) {
+                if (vm_type_eq(args[head].tag, VM_TAG_F64)) {
                     return false;
                 }
                 *va_arg(ap, double *) = args[head++].value.f64;
                 break;
             }
             case 't': {
-                if (vm_type_eq(args[head].tag, VM_TYPE_TAB)) {
+                if (vm_type_eq(args[head].tag, VM_TAG_TAB)) {
                     return false;
                 }
                 *va_arg(ap, vm_table_t **) = args[head++].value.table;
                 break;
             }
             case 'a': {
-                if (vm_type_eq(args[head].tag, VM_TYPE_TAB)) {
+                if (vm_type_eq(args[head].tag, VM_TAG_TAB)) {
                     return false;
                 }
                 *va_arg(ap, void **) = args[head++].value.all;

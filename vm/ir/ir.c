@@ -19,7 +19,7 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_REG: {
-            if (vm_type_eq(val.reg_tag, VM_TYPE_UNK)) {
+            if (vm_type_eq(val.reg_tag, VM_TAG_UNK)) {
                 vm_io_buffer_format(out, "%%%zu", (size_t)val.reg);
             } else {
                 vm_io_buffer_format(out, "%%%zu:", (size_t)val.reg);
@@ -42,7 +42,7 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
     }
 }
 
-void vm_io_format_type(vm_io_buffer_t *out, vm_type_t type) {
+void vm_io_format_type(vm_io_buffer_t *out, vm_tag_t type) {
     switch (vm_type_tag(type)) {
         case VM_TAG_UNK: {
             vm_io_buffer_format(out, "unk");
@@ -157,7 +157,7 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             break;
         }
     }
-    if (!vm_type_eq(val.tag, VM_TYPE_UNK)) {
+    if (!vm_type_eq(val.tag, VM_TAG_UNK)) {
         vm_io_buffer_format(out, ".");
         vm_io_format_type(out, val.tag);
     }
@@ -273,7 +273,7 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
             break;
         }
     }
-    if (!vm_type_eq(val.tag, VM_TYPE_UNK)) {
+    if (!vm_type_eq(val.tag, VM_TAG_UNK)) {
         vm_io_buffer_format(out, ".");
         vm_io_format_type(out, val.tag);
     }
@@ -463,15 +463,15 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
     }
 }
 
-vm_type_t vm_arg_to_tag(vm_arg_t arg) {
+vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
     if (arg.type == VM_ARG_REG) {
         return arg.reg_tag;
     } else if (arg.type == VM_ARG_LIT) {
         return arg.lit.tag;
     } else if (arg.type == VM_ARG_FUN) {
-        return VM_TYPE_FUN;
+        return VM_TAG_FUN;
     } else {
-        return VM_TYPE_UNK;
+        return VM_TAG_UNK;
     }
 }
 

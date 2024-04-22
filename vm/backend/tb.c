@@ -4,6 +4,7 @@
 #include "../../vendor/cuik/tb/include/tb.h"
 
 #define VM_TB_CC TB_CDECL
+#define VM_TB_TYPE_TAG TB_TYPE_I8
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
 #if defined(VM_USE_TCC)
@@ -18,7 +19,7 @@ void vm_tb_tcc_error_func(void *user, const char *msg) {
 
 vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_std_value_t val = vm_tb_run_repl(config, entry, blocks, std);
-    if (vm_type_eq(val.tag, VM_TYPE_ERROR)) {
+    if (vm_type_eq(val.tag, VM_TAG_ERROR)) {
         fprintf(stderr, "error: %s\n", val.value.str);
     }
     return val;

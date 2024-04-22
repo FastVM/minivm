@@ -3,23 +3,6 @@
 
 #include "ir.h"
 
-vm_type_value_t vm_type_base[VM_TAG_MAX] = {
-    [VM_TAG_NIL] = {VM_TAG_NIL},
-    [VM_TAG_BOOL] = {VM_TAG_BOOL},
-    [VM_TAG_I8] = {VM_TAG_I8},
-    [VM_TAG_I16] = {VM_TAG_I16},
-    [VM_TAG_I32] = {VM_TAG_I32},
-    [VM_TAG_I64] = {VM_TAG_I64},
-    [VM_TAG_F32] = {VM_TAG_F32},
-    [VM_TAG_F64] = {VM_TAG_F64},
-    [VM_TAG_STR] = {VM_TAG_STR},
-    [VM_TAG_CLOSURE] = {VM_TAG_CLOSURE},
-    [VM_TAG_FUN] = {VM_TAG_FUN},
-    [VM_TAG_TAB] = {VM_TAG_TAB},
-    [VM_TAG_FFI] = {VM_TAG_FFI},
-    [VM_TAG_ERROR] = {VM_TAG_ERROR},
-};
-
 vm_rblock_t *vm_rblock_new(vm_block_t *block, vm_types_t *regs) {
     vm_rblock_t *rblock = vm_malloc(sizeof(vm_rblock_t));
     *rblock = (vm_rblock_t){
@@ -81,9 +64,9 @@ void vm_cache_set(vm_cache_t *cache, vm_rblock_t *rblock, vm_block_t *value) {
 vm_types_t *vm_rblock_regs_empty(size_t ntags) {
     vm_types_t *ret = vm_malloc(sizeof(vm_types_t));
     ret->ntags = ntags;
-    ret->tags = vm_malloc(sizeof(vm_type_t) * ntags);
+    ret->tags = vm_malloc(sizeof(vm_tag_t) * ntags);
     for (size_t i = 0; i < ntags; i++) {
-        ret->tags[i] = VM_TYPE_UNK;
+        ret->tags[i] = VM_TAG_UNK;
     }
     return ret;
 }
@@ -91,12 +74,12 @@ vm_types_t *vm_rblock_regs_empty(size_t ntags) {
 vm_types_t *vm_rblock_regs_dup(vm_types_t *regs) {
     vm_types_t *ret = vm_malloc(sizeof(vm_types_t));
     ret->ntags = regs->ntags;
-    ret->tags = vm_malloc(sizeof(vm_type_t) * ret->ntags);
+    ret->tags = vm_malloc(sizeof(vm_tag_t) * ret->ntags);
     for (size_t i = 0; i < ret->ntags && i < regs->ntags; i++) {
         ret->tags[i] = regs->tags[i];
     }
     for (size_t i = regs->ntags; i < ret->ntags; i++) {
-        ret->tags[i] = VM_TYPE_UNK;
+        ret->tags[i] = VM_TAG_UNK;
     }
     return ret;
 }
@@ -114,28 +97,28 @@ bool vm_rblock_regs_match(vm_types_t *a, vm_types_t *b) {
 }
 
 vm_instr_t vm_rblock_type_specialize_instr(vm_types_t *types, vm_instr_t instr) {
-    if (!vm_type_eq(instr.tag, VM_TYPE_UNK)) {
+    if (!vm_type_eq(instr.tag, VM_TAG_UNK)) {
         __builtin_trap();
     }
     if (instr.op == VM_IOP_STD) {
-        instr.tag = VM_TYPE_TAB;
+        instr.tag = VM_TAG_TAB;
         goto ret;
     }
     if (instr.op == VM_IOP_MOVE) {
         if (instr.args[0].type == VM_ARG_FUN) {
-            instr.tag = VM_TYPE_FUN;
+            instr.tag = VM_TAG_FUN;
             goto ret;
         }
     }
     if (instr.op == VM_IOP_TABLE_NEW) {
-        instr.tag = VM_TYPE_TAB;
+        instr.tag = VM_TAG_TAB;
         goto ret;
     }
     if (instr.op == VM_IOP_TABLE_LEN) {
-        instr.tag = VM_TYPE_I32;
+        instr.tag = VM_TAG_I32;
         goto ret;
     }
-    if (vm_type_eq(instr.tag, VM_TYPE_UNK)) {
+    if (vm_type_eq(instr.tag, VM_TAG_UNK)) {
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             if (instr.args[i].type == VM_ARG_REG) {
                 instr.tag = types->tags[instr.args[i].reg];
@@ -148,21 +131,21 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_types_t *types, vm_instr_t instr) 
                 goto ret;
             }
         }
-        instr.tag = VM_TYPE_NIL;
+        instr.tag = VM_TAG_NIL;
     }
 ret:;
     return instr;
 }
 
 vm_branch_t vm_rblock_type_specialize_branch(vm_types_t *types, vm_branch_t branch) {
-    if (!vm_type_eq(branch.tag, VM_TYPE_UNK)) {
+    if (!vm_type_eq(branch.tag, VM_TAG_UNK)) {
         __builtin_trap();
     }
     if (branch.op == VM_BOP_LOAD || branch.op == VM_BOP_GET) {
         goto ret;
     } else if (branch.op == VM_BOP_CALL) {
         goto ret;
-    } else if (vm_type_eq(branch.tag, VM_TYPE_UNK)) {
+    } else if (vm_type_eq(branch.tag, VM_TAG_UNK)) {
         for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
             if (branch.args[i].type == VM_ARG_REG) {
                 branch.tag = types->tags[branch.args[i].reg];
@@ -175,7 +158,7 @@ vm_branch_t vm_rblock_type_specialize_branch(vm_types_t *types, vm_branch_t bran
                 goto ret;
             }
         }
-        branch.tag = VM_TYPE_NIL;
+        branch.tag = VM_TAG_NIL;
     }
 ret:;
     return branch;

@@ -89,7 +89,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
                 }
             }
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                regs->tags[branch.out.reg] = &vm_type_base[i];
+                regs->tags[branch.out.reg] = i;
                 branch.rtargets[i] = vm_rblock_new(from, regs);
             }
             break;
@@ -110,7 +110,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
                 };
             }
             if (branch.args[0].type == VM_ARG_REG) {
-                if (vm_type_eq(branch.args[0].reg_tag, VM_TYPE_FUN)) {
+                if (vm_type_eq(branch.args[0].reg_tag, VM_TAG_FUN)) {
                     size_t nargs = 0;
                     for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
                         nargs += 1;
@@ -126,13 +126,13 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
                             if (i <= nargs) {
                                 regs2->tags[blocks->blocks[j]->args[i - 1].reg] = vm_arg_to_tag(branch.args[i]);
                             } else {
-                                regs2->tags[blocks->blocks[j]->args[i - 1].reg] = VM_TYPE_NIL;
+                                regs2->tags[blocks->blocks[j]->args[i - 1].reg] = VM_TAG_NIL;
                             }
                         }
                         branch.call_table[j] = vm_rblock_new(blocks->blocks[j], regs2);
                     }
                 }
-                if (vm_type_eq(branch.args[0].reg_tag, VM_TYPE_CLOSURE)) {
+                if (vm_type_eq(branch.args[0].reg_tag, VM_TAG_CLOSURE)) {
                     size_t nargs = 0;
                     for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
                         nargs += 1;
@@ -145,12 +145,12 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
                         }
                         vm_types_t *regs2 = vm_rblock_regs_empty(blocks->blocks[j]->nregs);
                         if (blocks->blocks[j]->nargs != 0) {
-                            regs2->tags[blocks->blocks[j]->args[0].reg] = VM_TYPE_CLOSURE;
+                            regs2->tags[blocks->blocks[j]->args[0].reg] = VM_TAG_CLOSURE;
                             for (size_t i = 1; i < blocks->blocks[j]->nargs; i++) {
                                 if (i <= nargs) {
                                     regs2->tags[blocks->blocks[j]->args[i].reg] = vm_arg_to_tag(branch.args[i]);
                                 } else {
-                                    regs2->tags[blocks->blocks[j]->args[i].reg] = VM_TYPE_NIL;
+                                    regs2->tags[blocks->blocks[j]->args[i].reg] = VM_TAG_NIL;
                                 }
                             }
                         }
@@ -167,7 +167,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
                 }
             }
             for (size_t i = 1; i < VM_TAG_MAX; i++) {
-                regs->tags[branch.out.reg] = &vm_type_base[i];
+                regs->tags[branch.out.reg] = i;
                 branch.rtargets[i] = vm_rblock_new(from, regs);
             }
             break;

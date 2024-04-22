@@ -99,7 +99,7 @@ struct vm_arg_t {
 
         struct {
             uint64_t reg;
-            vm_type_t reg_tag;
+            vm_tag_t reg_tag;
         };
     };
 
@@ -121,14 +121,14 @@ struct vm_branch_t {
     };
 
     uint8_t op;
-    vm_type_t tag;
+    vm_tag_t tag;
 };
 
 struct vm_instr_t {
     vm_arg_t *args;
     vm_arg_t out;
     uint8_t op;
-    vm_type_t tag;
+    vm_tag_t tag;
 };
 
 struct vm_block_t {
@@ -167,18 +167,18 @@ struct vm_blocks_t {
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
 
 void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val);
-void vm_io_format_type(vm_io_buffer_t *out, vm_type_t tag);
+void vm_io_format_type(vm_io_buffer_t *out, vm_tag_t tag);
 void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val);
 void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val);
 void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val);
 void vm_io_format_blocks(vm_io_buffer_t *out, vm_blocks_t *val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
-vm_type_t vm_arg_to_tag(vm_arg_t arg);
+vm_tag_t vm_arg_to_tag(vm_arg_t arg);
 
 void vm_free_block_sub(vm_block_t *block);
 void vm_free_block(vm_block_t *block);
 
-#define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit.tag = (VM_TYPE_NIL)})
+#define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL)})
 
 #endif
