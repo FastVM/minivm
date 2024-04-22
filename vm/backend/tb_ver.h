@@ -1934,7 +1934,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
 #endif
 
-            void *code = tb_jit_place_function(state->jit, state->fun);
+            void *code = tb_jit_place_function(state->jit, f);
 
             // don't need any of these anymore
             tb_arena_clear(state->ir_arena);
