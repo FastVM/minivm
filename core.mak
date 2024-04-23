@@ -52,6 +52,7 @@ TCC_OBJS = $(TCC_SRCS:%.c=$(OBJ_DIR)/%.o)
 TB_SRCS_BASE = $(CUIK_DIR)/common/common.c $(CUIK_DIR)/common/perf.c $(CUIK_DIR)/tb/src/libtb.c $(CUIK_DIR)/tb/src/x64/x64_target.c $(CUIK_DIR)/tb/src/wasm/wasm_target.c
 TB_SRCS_MACOS = $(CUIK_DIR)/c11threads/threads_posix.c
 TB_SRCS_FREEBSD = $(CUIK_DIR)/c11threads/threads_posix.c
+TB_SRCS_WINDOWS = $(CUIK_DIR)/c11threads/threads_msvc.c
 TB_SRCS += $(TB_SRCS_BASE) $(TB_SRCS_$(OS_NAME))
 TB_OBJS = $(TB_SRCS:%.c=$(OBJ_DIR)/%.o)
 

@@ -1225,7 +1225,7 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                 }
             }
             const char *buf = tb_c_buf_to_data(cbuf);
-            void *code = vm_cache_comp("emcc", buf, entry_buf);
+            void *code = vm_cache_comp("emcc", state->config->cflags, buf, entry_buf);
             tb_c_data_free(buf);
             ret = code;
             break;
@@ -1300,7 +1300,7 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                 default:
                     break;
             }
-            void *code = vm_cache_comp(cc_name, buf, entry_buf);
+            void *code = vm_cache_comp(cc_name, state->config->cflags, buf, entry_buf);
             tb_c_data_free(buf);
             ret = code;
             break;

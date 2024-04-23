@@ -43,6 +43,8 @@ enum {
 };
 
 struct vm_config_t {
+    const char *cflags;
+
     unsigned int target : 4;
     unsigned int use_num : 3;
     unsigned int use_ver_count : 2;

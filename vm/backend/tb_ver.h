@@ -419,7 +419,7 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
 
     TB_PrototypeParam next_rets[2] = {
         {VM_TB_TYPE_VALUE},
-        {TB_TYPE_PTR},
+        {VM_TB_TYPE_TAG},
     };
 
     TB_PrototypeParam *next_params = vm_malloc(sizeof(TB_PrototypeParam) * next_nargs);
@@ -964,8 +964,8 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     {TB_TYPE_PTR},
                     {VM_TB_TYPE_VALUE},
                     {VM_TB_TYPE_VALUE},
-                    {TB_TYPE_PTR},
-                    {TB_TYPE_PTR},
+                    {VM_TB_TYPE_TAG},
+                    {VM_TB_TYPE_TAG},
                 };
                 TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 5, proto_params, 0, NULL, false);
                 TB_Node *args[5] = {
@@ -1180,7 +1180,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     }
                     tb_inst_store(
                         state->fun,
-                        TB_TYPE_PTR,
+                        VM_TB_TYPE_TAG,
                         tb_inst_member_access(state->fun, head, offsetof(vm_std_value_t, tag)),
                         vm_tb_ver_make_type(state, tag),
                         1,
@@ -1192,7 +1192,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
 
                 tb_inst_store(
                     state->fun,
-                    TB_TYPE_PTR,
+                    VM_TB_TYPE_TAG,
                     tb_inst_member_access(state->fun, end_head, offsetof(vm_std_value_t, tag)),
                     vm_tb_ver_make_type(state, VM_TAG_UNK),
                     1,
@@ -1232,7 +1232,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     ),
                     tb_inst_load(
                         state->fun,
-                        TB_TYPE_PTR,
+                        VM_TB_TYPE_TAG,
                         tb_inst_member_access(
                             state->fun,
                             call_arg,
@@ -1286,7 +1286,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
 
                 TB_PrototypeParam call_proto_rets[2] = {
                     {VM_TB_TYPE_VALUE},
-                    {TB_TYPE_PTR},
+                    {VM_TB_TYPE_TAG},
                 };
 
                 TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, nargs, call_proto_params, 2, call_proto_rets, false);
@@ -1445,7 +1445,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                 );
                 tb_inst_store(
                     state->fun,
-                    TB_TYPE_PTR,
+                    VM_TB_TYPE_TAG,
                     tb_inst_member_access(
                         state->fun,
                         arg2,
@@ -1485,7 +1485,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     ),
                     tb_inst_load(
                         state->fun,
-                        TB_TYPE_PTR,
+                        VM_TB_TYPE_TAG,
                         tb_inst_member_access(
                             state->fun,
                             arg2,
@@ -1529,7 +1529,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                     ),
                     tb_inst_load(
                         state->fun,
-                        TB_TYPE_PTR,
+                        VM_TB_TYPE_TAG,
                         tb_inst_member_access(
                             state->fun,
                             std_val_ref,
@@ -1573,7 +1573,7 @@ static void vm_tb_ver_print(vm_tag_t tag, uint64_t ivalue) {
 
 static void vm_tb_ver_func_print_value(vm_tb_ver_state_t *state, vm_tag_t tag, TB_Node *value) {
     TB_PrototypeParam proto_args[2] = {
-        {TB_TYPE_PTR},
+        {VM_TB_TYPE_TAG},
         {VM_TB_TYPE_VALUE},
     };
 
@@ -1724,7 +1724,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
     if (block == NULL) {
         TB_PrototypeParam proto_rets[2] = {
             {VM_TB_TYPE_VALUE},
-            {TB_TYPE_PTR},
+            {VM_TB_TYPE_TAG},
         };
 
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, proto_rets, false);
@@ -1742,7 +1742,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
 
         TB_PrototypeParam proto_rets[2] = {
             {VM_TB_TYPE_VALUE},
-            {TB_TYPE_PTR},
+            {VM_TB_TYPE_TAG},
         };
 
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, block->nargs, proto_args, 2, proto_rets, false);
@@ -1852,7 +1852,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             tb_c_print_prelude(cbuf, state->module);
             tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
             const char *buf = tb_c_buf_to_data(cbuf);
-            void *code = vm_cache_comp("emcc", buf, name);
+            void *code = vm_cache_comp("emcc", state->config->cflags, buf, name);
             tb_c_data_free(buf);
             ret = code;
             break;
@@ -1908,7 +1908,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
                 default:
                     break;
             }
-            void *code = vm_cache_comp(cc_name, buf, name);
+            void *code = vm_cache_comp(cc_name, state->config->cflags, buf, name);
             tb_c_data_free(buf);
             ret = code;
             break;

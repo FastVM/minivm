@@ -15,7 +15,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
 int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t) {
-        .use_num = VM_USE_NUM_I64,
+        .use_num = VM_USE_NUM_I32,
         .tb_lbbv = false,
         .tb_recompile = true,
 #if defined(EMSCRIPTEN)
@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
         .target = VM_TARGET_TB_CC,
         .tb_tailcalls = true,
 #endif
+        .cflags = NULL,
     };
     vm_blocks_t val_blocks = {0};
     vm_blocks_t *blocks = &val_blocks;
@@ -55,6 +56,21 @@ int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--repl")) {
             vm_lang_lua_repl(config, std, blocks);
             isrepl = false;
+        } else if (!strncmp(arg, "--cflag=", 8)) {
+            arg += 8;
+            const char *last = config->cflags;
+            if (last == NULL) {
+                size_t alloc = strlen(arg) + 1;
+                char *buf = vm_malloc(sizeof(char) * alloc);
+                snprintf(buf, alloc, "%s", arg);
+                config->cflags = buf;
+            } else {
+                size_t alloc = strlen(last) + 1 + strlen(arg) + 1;
+                char *buf = vm_malloc(sizeof(char) * alloc);
+                snprintf(buf, alloc, "%s %s", last, arg);
+                config->cflags = buf;
+                vm_free(last);
+            }
         } else if (!strncmp(arg, "--tb-", 5)) {
             arg += 5;
             bool enable = true;

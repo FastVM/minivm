@@ -10,8 +10,10 @@
 
 #include "../../vendor/xxhash/xxhash.h"
 
-// unsupported
-void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
+void *vm_cache_comp(const char *comp, const char *flags, const char *src, const char *entry) {
+    if (flags == NULL) {
+        flags = "";
+    }
     if (GetFileAttributes(".minivm-cache") == INVALID_FILE_ATTRIBUTES) {
         CreateDirectory(".minivm-cache", NULL);
     }
@@ -26,7 +28,7 @@ void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
         fwrite(src, len, 1, out);
         fclose(out);
         vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
-        vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s -o %s -w -pipe", comp, c_file, so_file);
+        vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
         int res = system(cmd_buf->buf);
         if (res) {
             return NULL;
@@ -52,7 +54,7 @@ EM_JS(void, vm_compile_c_to_wasm, (int n), {
     Module._vm_compile_c_to_wasm(n);
 });
 
-void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
+void *vm_cache_comp(const char *comp, const char *flags, const char *src, const char *entry) {
     static int n = 0;
     n += 1;
     struct stat st = {0};
@@ -76,7 +78,10 @@ void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
 
 #include "../../vendor/xxhash/xxhash.h"
 
-void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
+void *vm_cache_comp(const char *comp, const char *flags, const char *src, const char *entry) {
+    if (flags == NULL) {
+        flags = "";
+    }
     struct stat st = {0};
     if (stat(".minivm-cache", &st) == -1) {
         mkdir(".minivm-cache", 0700);
@@ -92,7 +97,7 @@ void *vm_cache_comp(const char *comp, const char *src, const char *entry) {
         fwrite(src, len, 1, out);
         fclose(out);
         vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
-        vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s -o %s -w -pipe", comp, c_file, so_file);
+        vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
         int res = system(cmd_buf->buf);
         if (res) {
             return NULL;
