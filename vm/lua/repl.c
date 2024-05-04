@@ -42,8 +42,6 @@ void vm_lang_lua_repl_table_get_config(vm_table_t *table, vm_config_t *config) {
     config->dump_ver = vm_lang_lua_repl_table_get_bool(dump, "ver");
     config->dump_tb = vm_lang_lua_repl_table_get_bool(dump, "tb");
     config->dump_tb_opt = vm_lang_lua_repl_table_get_bool(dump, "tb_opt");
-    config->dump_tb_dot = vm_lang_lua_repl_table_get_bool(dump, "tb_dot");
-    config->dump_tb_opt_dot = vm_lang_lua_repl_table_get_bool(dump, "tb_opt_dot");
     config->dump_asm = vm_lang_lua_repl_table_get_bool(dump, "asm");
     config->dump_args = vm_lang_lua_repl_table_get_bool(dump, "args");
     config->dump_time = vm_lang_lua_repl_table_get_bool(dump, "time");
@@ -59,8 +57,6 @@ void vm_lang_lua_repl_table_set_config(vm_table_t *table, vm_config_t *config) {
     VM_TABLE_SET(dump, str, "ver", b, config->dump_ver);
     VM_TABLE_SET(dump, str, "tb", b, config->dump_tb);
     VM_TABLE_SET(dump, str, "tb_opt", b, config->dump_tb_opt);
-    VM_TABLE_SET(dump, str, "tb_dot", b, config->dump_tb_dot);
-    VM_TABLE_SET(dump, str, "tb_opt_dot", b, config->dump_tb_opt_dot);
     VM_TABLE_SET(dump, str, "asm", b, config->dump_asm);
     VM_TABLE_SET(dump, str, "args", b, config->dump_args);
     VM_TABLE_SET(dump, str, "time", b, config->dump_time);

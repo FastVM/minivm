@@ -157,10 +157,6 @@ int main(int argc, char **argv) {
                 config->dump_tb = true;
             } else if (!strcmp(arg, "opt")) {
                 config->dump_tb_opt = true;
-            } else if (!strcmp(arg, "tb-dot")) {
-                config->dump_tb_dot = true;
-            } else if (!strcmp(arg, "opt-dot")) {
-                config->dump_tb_opt_dot = true;
             } else if (!strcmp(arg, "asm")) {
                 config->dump_asm = true;
             } else if (!strcmp(arg, "args")) {

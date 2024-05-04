@@ -1720,6 +1720,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         snprintf(name, 23, "block_unk_%zu", comps++);
     }
     state->fun = tb_function_create(state->module, -1, name, TB_LINKAGE_PUBLIC);
+    tb_function_set_arenas(state->fun, state->tmp_arena, state->ir_arena);
 
     if (block == NULL) {
         TB_PrototypeParam proto_rets[2] = {
@@ -1728,7 +1729,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         };
 
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 0, NULL, 2, proto_rets, false);
-        tb_function_set_prototype(state->fun, -1, proto, state->ir_arena);
+        tb_function_set_prototype(state->fun, -1, proto);
 
         vm_tb_ver_func_report_error(state, "internal: block == NULL");
     } else {
@@ -1748,7 +1749,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, block->nargs, proto_args, 2, proto_rets, false);
         vm_free(proto_args);
 
-        tb_function_set_prototype(state->fun, -1, proto, state->ir_arena);
+        tb_function_set_prototype(state->fun, -1, proto);
 
         if (block != NULL) {
             for (size_t i = 0; i < block->nargs; i++) {
@@ -1823,22 +1824,12 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         tb_print(f, state->tmp_arena);
         fflush(stdout);
     }
-    if (state->config->dump_tb_dot) {
-        fprintf(stdout, "\n--- tb dot ---\n");
-        tb_print_dot(f, tb_default_print_callback, stdout);
-        fflush(stdout);
-    }
     if (state->config->tb_opt) {
-        tb_opt(f, worklist, state->ir_arena, state->tmp_arena, false);
+        tb_opt(f, worklist, false);
 
         if (state->config->dump_tb_opt) {
             fprintf(stdout, "\n--- opt tb ---\n");
             tb_print(f, state->tmp_arena);
-            fflush(stdout);
-        }
-        if (state->config->dump_tb_dot) {
-            fprintf(stdout, "\n--- opt dot ---\n");
-            tb_print_dot(f, tb_default_print_callback, stdout);
             fflush(stdout);
         }
     }
@@ -1917,14 +1908,14 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             TB_FeatureSet features = (TB_FeatureSet){};
 #if VM_USE_DUMP
             if (state->config->dump_asm) {
-                TB_FunctionOutput *out = tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, true);
+                TB_FunctionOutput *out = tb_codegen(f, worklist, state->code_arena, &features, true);
                 fprintf(stdout, "\n--- x86asm ---\n");
                 tb_output_print_asm(out, stdout);
             } else {
-                tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
+                tb_codegen(f, worklist, state->code_arena, &features, false);
             }
 #else
-            tb_codegen(f, worklist, state->ir_arena, state->tmp_arena, state->code_arena, &features, false);
+            tb_codegen(f, worklist, state->code_arena, &features, false);
 #endif
 
             void *code = tb_jit_place_function(state->jit, f);

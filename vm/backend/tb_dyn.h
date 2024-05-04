@@ -846,7 +846,12 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
             {
                 tb_inst_set_control(state->func, is_ffi);
 
-                TB_Node *call_arg = tb_inst_local(state->func, sizeof(vm_std_value_t) * (num_args / 2), 8);
+                TB_Node *call_arg;
+                if (num_args == 0) {
+                    call_arg = tb_inst_local(state->func, sizeof(vm_std_value_t) * (num_args / 2), 8);
+                } else {
+                    call_arg = tb_inst_local(state->func, sizeof(vm_std_value_t), 8);
+                }
 
                 for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
                     TB_Node *head = tb_inst_member_access(state->func, call_arg, sizeof(vm_std_value_t) * (i - 1));
@@ -1041,7 +1046,7 @@ void vm_tb_dyn_func(vm_tb_dyn_state_t *state, TB_Function *xfunc, vm_block_t *en
         {VM_TB_TYPE_TAG},
     };
     TB_FunctionPrototype *proto = tb_prototype_create(state->mod, VM_TB_CC, num_params, param_types, num_returns, return_types, false);
-    tb_function_set_prototype(state->func, -1, proto, NULL);
+    tb_function_set_prototype(state->func, -1, proto);
 
     TB_Node *compiled_start = tb_inst_region(state->func);
 
@@ -1165,6 +1170,7 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
             char buf[64];
             snprintf(buf, 63, "vm_block_func_%zu", block_num);
             TB_Function *cur = tb_function_create(state->mod, -1, buf, TB_LINKAGE_PUBLIC);
+            tb_function_set_arenas(cur, tmp_arena, ir_arena);
             if (block == entry) {
                 snprintf(entry_buf, 63, "%s", buf);
                 entry_func = cur;
@@ -1192,24 +1198,18 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                 tb_print(state->funcs[block_num], tmp_arena);
                 fflush(stdout);
             }
-                
+
             if (state->config->tb_opt) {
-                tb_opt(state->funcs[block_num], worklist, ir_arena, tmp_arena, false);
+                tb_opt(state->funcs[block_num], worklist, false);
 
                 if (state->config->dump_tb_opt) {
                     fprintf(stdout, "\n--- opt tb ---\n");
                     tb_print(state->funcs[block_num], tmp_arena);
                     fflush(stdout);
                 }
-                if (state->config->dump_tb_dot) {
-                    fprintf(stdout, "\n--- opt dot ---\n");
-                    tb_print_dot(state->funcs[block_num], tb_default_print_callback, stdout);
-                    fflush(stdout);
-                }
             }
         }
     }
-    
 
     void *ret = NULL;
     switch (state->config->target) {
@@ -1319,10 +1319,10 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                 TB_Function *func = state->funcs[block_num];
                 if (func != NULL) {
                     if (state->config->dump_asm) {
-                        TB_FunctionOutput *out = tb_codegen(func, worklist, ir_arena, tmp_arena, code_arena, &features, true);
+                        TB_FunctionOutput *out = tb_codegen(func, worklist, code_arena, &features, true);
                         tb_output_print_asm(out, stdout);
                     } else {
-                        tb_codegen(func, worklist, ir_arena, tmp_arena, code_arena, &features, false);
+                        tb_codegen(func, worklist, code_arena, &features, false);
                     }
                 }
             }

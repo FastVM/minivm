@@ -47,8 +47,9 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
         TB_PrototypeParam proto_params[2] = {{TB_TYPE_PTR}, {TB_TYPE_PTR}};
         TB_Function *fun = tb_function_create(mod, -1, "caller", TB_LINKAGE_PUBLIC);
+        tb_function_set_arenas(fun, tmp_arena, tmp_arena);
         TB_FunctionPrototype *proto = tb_prototype_create(mod, VM_TB_CC, 2, proto_params, 0, NULL, false);
-        tb_function_set_prototype(fun, -1, proto, NULL);
+        tb_function_set_prototype(fun, -1, proto);
 
         // tb_inst_debugbreak(fun);
         TB_MultiOutput out = tb_inst_call(fun, call_proto, tb_inst_param(fun, 1), 0, NULL);
@@ -62,7 +63,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         tb_inst_ret(fun, 0, NULL);
 
         // compile it
-        tb_codegen(fun, worklist, tmp_arena, code_arena, tmp_arena, NULL, false);
+        tb_codegen(fun, worklist, code_arena, NULL, false);
 
         caller = tb_jit_place_function(jit, fun);
 
