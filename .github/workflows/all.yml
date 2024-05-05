@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - run: make CC=cc OPT='-Os -fomit-frame-pointer -flto' GCCJIT=NO
+      - run: make -Bj CC=cc OPT='-Os -flto' GCCJIT=NO
       - uses: actions/upload-artifact@v3
         with:
           name: minivm-linux
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - run: make EXE=.exe CC='gcc' OPT='-Os -fomit-frame-pointer -flto' CFLAGS='-D__chkstk=vm_hack_chkstk -Icuik/c11threads -include pthread.h' EXTRA_SRCS='cuik/c11threads/threads_posix.c' LDFLAGS='-lpthread' GCCJIT=NO
+      - run: make -Bj EXE=.exe CC='gcc' OPT='-Os -flto' OS_NAME=WINDOWS GCCJIT=NO
       - uses: actions/upload-artifact@v3
         with:
           name: minivm-windows
