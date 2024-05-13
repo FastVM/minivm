@@ -63,9 +63,26 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         tb_inst_ret(fun, 0, NULL);
 
         // compile it
+#if defined(VM_USE_TCC)
+        TB_CBuffer *cbuf = tb_c_buf_new();
+        tb_c_print_prelude(cbuf, mod);
+        tb_c_print_function(cbuf, fun, worklist, tmp_arena);
+        const char *buf = tb_c_buf_to_data(cbuf);
+        if (config->dump_asm) {
+            printf("\n--- c ---\n%s", buf);
+        }
+        TCCState *state = tcc_new();
+        tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
+        tcc_set_options(state, "-nostdlib");
+        tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
+        tcc_compile_string(state, buf);
+        tcc_relocate(state);
+        tb_c_data_free(buf);
+        caller = tcc_get_symbol(state, "caller");
+#else
         tb_codegen(fun, worklist, code_arena, NULL, false);
-
         caller = tb_jit_place_function(jit, fun);
+#endif
 
         tb_worklist_free(worklist);
     }

@@ -20,17 +20,17 @@ enum {
 };
 
 enum {
+    VM_TARGET_TB,
 #if defined(EMSCRIPTEN)
     VM_TARGET_TB_EMCC,
 #else
 #if defined(VM_USE_TCC)
-    VM_TARGET_TB,
+    VM_TARGET_TB_TCC,
 #endif
 #if defined(VM_USE_GCCJIT)
     VM_TARGET_TB_GCCJIT,
 #endif
     VM_TARGET_TB_CC,
-    VM_TARGET_TB_TCC,
     VM_TARGET_TB_GCC,
     VM_TARGET_TB_CLANG,
 #endif

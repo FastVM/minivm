@@ -46,8 +46,11 @@ TB_Node *vm_tb_dyn_ptr(vm_tb_dyn_state_t *state, const void *ptr) {
 }
 
 vm_tb_dyn_pair_t vm_tb_dyn_pair_of(vm_tb_dyn_state_t *state, vm_tag_t type, TB_Node *value) {
+    if (value->dt.raw != VM_TB_TYPE_VALUE.raw) {
+        value = tb_inst_bitcast(state->func, value, VM_TB_TYPE_VALUE);
+    }
     return (vm_tb_dyn_pair_t){
-        .val = tb_inst_bitcast(state->func, value, VM_TB_TYPE_VALUE),
+        .val = value,
         .tag = tb_inst_uint(state->func, VM_TB_TYPE_TAG, type),
     };
 }
@@ -1214,6 +1217,34 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
     void *ret = NULL;
     switch (state->config->target) {
 #if defined(EMSCRIPTEN)
+        case VM_TARGET_TB: {
+            TB_Worklist *worklist = tb_worklist_alloc();
+            TB_JIT *jit = tb_jit_begin(state->mod, 1 << 16);
+
+            if (state->config->dump_asm) {
+                fprintf(stdout, "\n--- x86asm ---\n");
+            }
+
+            TB_FeatureSet features = (TB_FeatureSet){};
+            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
+                TB_Function *func = state->funcs[block_num];
+                if (func != NULL) {
+                    if (state->config->dump_asm) {
+                        TB_FunctionOutput *out = tb_codegen(func, worklist, code_arena, &features, true);
+                        tb_output_print_asm(out, stdout);
+                    } else {
+                        TB_FunctionOutput *out = tb_codegen(func, worklist, code_arena, &features, false);
+                        size_t len = 0;
+                        uint8_t *code = tb_output_get_code(out, &len);
+                        printf("%.*s", (int) len, (char *) code);
+                    }
+                }
+            }
+            void *code = tb_jit_place_function(jit, entry_func);
+
+            ret = code;
+            break;
+        }
         case VM_TARGET_TB_EMCC: {
             TB_CBuffer *cbuf = tb_c_buf_new();
             tb_c_print_prelude(cbuf, state->mod);

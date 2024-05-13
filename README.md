@@ -6,7 +6,7 @@ MiniVM is a Small but Optimizing Virtual Machine and Runtime.
 
 It has a just-in-time compiler based on [Cuik](https://github.com/realnegate/cuik)'s [TB](https://github.com/RealNeGate/Cuik/tree/master/tb).
 
-Currently it supports Linux x86-64, FreeBSD amd64 with work going on to re-add Windows x64 support.
+Currently it supports Linux x86-64, FreeBSD amd64, Windows x64 and WebAssembly.
 
 MiniVM is written in C11 with (minor GNU extensions), and builds with GCC and Clang, with TCC support not hard to patch in.
 
@@ -33,12 +33,6 @@ Here's some Shell Commands to build MiniVM different ways
 * For Size - `make -Bj CC=gcc OPT='-s -Oz -flto -fno-asynchronous-unwind-tables -fomit-frame-pointer'`
     * GCC does a better job than Clang to make tiny binaries of MiniVM.
 * For Speed - `make -Bj OPT='-O3 -flto'`
-
-## Binary Size
-
-* 142.9 KiB when built for size
-* 284.1 KiB when built for speed
-* 901.0 Kib when built for debug
 
 ## Speed
 

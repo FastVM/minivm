@@ -22,7 +22,11 @@ int main(int argc, char **argv) {
         .target = VM_TARGET_TB_EMCC,
         .tb_tailcalls = true,
 #else
+#if defined(_WIN32)
+        .target = VM_TARGET_TB_TCC,
+#else
         .target = VM_TARGET_TB_CC,
+#endif
         .tb_tailcalls = true,
 #endif
         .cflags = NULL,

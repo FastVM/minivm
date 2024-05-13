@@ -4,11 +4,11 @@ jobs:
   linux-minivm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - run: make -Bj CC=cc OPT='-Os -flto' GCCJIT=NO
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: minivm-linux
           path:  |
@@ -16,11 +16,11 @@ jobs:
   windows-minivm-gcc:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
-      - run: make -Bj EXE=.exe CC='gcc' OPT='-Os -flto' OS_NAME=WINDOWS GCCJIT=NO
-      - uses: actions/upload-artifact@v3
+      - run: make -Bj EXE=.exe CC='gcc' OPT='-Os -flto' OS=WINDOWS GCCJIT=NO
+      - uses: actions/upload-artifact@v4
         with:
           name: minivm-windows
           path:  |
