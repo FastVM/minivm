@@ -22,6 +22,7 @@ jobs:
       - name: Set up MinGW
         uses: egor-tensin/setup-mingw@v2
         with:
+          version: 12.2.0 
           platform: x64
       - run: make -Bj EXE=.exe CC='gcc' OPT='-Os -flto' OS=WINDOWS GCCJIT=NO
       - uses: actions/upload-artifact@v4
