@@ -68,7 +68,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         tb_c_print_prelude(cbuf, mod);
         tb_c_print_function(cbuf, fun, worklist, tmp_arena);
         const char *buf = tb_c_buf_to_data(cbuf);
-        if (config->dump_asm) {
+        if (config->dump_c) {
             printf("\n--- c ---\n%s", buf);
         }
         TCCState *state = tcc_new();

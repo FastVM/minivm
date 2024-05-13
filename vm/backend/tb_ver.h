@@ -1855,7 +1855,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             tb_c_print_prelude(cbuf, state->module);
             tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
             const char *buf = tb_c_buf_to_data(cbuf);
-            if (state->config->dump_asm) {
+            if (state->config->dump_c) {
                 printf("\n--- c ---\n%s", buf);
             }
             TCCState *state = tcc_new();

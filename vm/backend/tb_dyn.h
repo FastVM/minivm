@@ -1290,7 +1290,7 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                 }
             }
             const char *buf = tb_c_buf_to_data(cbuf);
-            if (state->config->dump_asm) {
+            if (state->config->dump_c) {
                 printf("\n--- c ---\n%s", buf);
             }
             TCCState *state = tcc_new();

@@ -163,6 +163,8 @@ int main(int argc, char **argv) {
                 config->dump_tb_opt = true;
             } else if (!strcmp(arg, "asm")) {
                 config->dump_asm = true;
+            } else if (!strcmp(arg, "c")) {
+                config->dump_c = true;
             } else if (!strcmp(arg, "args")) {
                 config->dump_args = true;
             } else if (!strcmp(arg, "time")) {
