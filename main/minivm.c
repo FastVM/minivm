@@ -165,8 +165,6 @@ int main(int argc, char **argv) {
                 config->dump_asm = true;
             } else if (!strcmp(arg, "c")) {
                 config->dump_c = true;
-            } else if (!strcmp(arg, "args")) {
-                config->dump_args = true;
             } else if (!strcmp(arg, "time")) {
                 config->dump_time = true;
             } else {

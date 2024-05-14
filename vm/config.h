@@ -57,7 +57,6 @@ struct vm_config_t {
     bool dump_tb_opt : 1;
     bool dump_asm : 1;
     bool dump_c : 1;
-    bool dump_args : 1;
     bool dump_time : 1;
 
     bool is_repl : 1;

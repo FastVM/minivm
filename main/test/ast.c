@@ -187,7 +187,6 @@ int main(int argc, char **argv) {
         .dump_tb = false,
         .dump_tb_opt = false,
         .dump_x86 = false,
-        .dump_args = false,
         .dump_time = true,
     };
     vm_config_t *config = &val_config;
@@ -218,9 +217,6 @@ int main(int argc, char **argv) {
             }
             if (!strcmp(arg, "x86")) {
                 config->dump_x86 = true;
-            }
-            if (!strcmp(arg, "args")) {
-                config->dump_args = true;
             }
         }
     }

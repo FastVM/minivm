@@ -76,6 +76,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         tcc_set_options(state, "-nostdlib");
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
         tcc_compile_string(state, buf);
+        tcc_add_symbol(state, "memmove", &memmove);
         tcc_relocate(state);
         tb_c_data_free(buf);
         caller = tcc_get_symbol(state, "caller");

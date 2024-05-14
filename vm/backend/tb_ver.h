@@ -1785,13 +1785,6 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
                         vm_type_to_tb_type(rblock->regs->tags[block->args[i].reg])
                     )
                 );
-                if (state->config->dump_args) {
-                    vm_tb_ver_func_print_value(
-                        state,
-                        rblock->regs->tags[block->args[i].reg],
-                        tb_inst_param(state->fun, i)
-                    );
-                }
             }
             TB_Node *main = tb_inst_region(state->fun);
             tb_inst_set_region_name(state->fun, main, -1, "entry");
@@ -1863,6 +1856,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             tcc_set_options(state, "-nostdlib");
             tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
             tcc_compile_string(state, buf);
+            tcc_add_symbol(state, "memmove", &memmove);
             tcc_relocate(state);
             tb_c_data_free(buf);
             void *code = tcc_get_symbol(state, name);
