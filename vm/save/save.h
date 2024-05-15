@@ -12,7 +12,8 @@ struct vm_save_t {
     uint8_t *buf;
 };
 
-vm_save_t vm_save_value(vm_std_value_t arg);
+vm_save_t vm_save_load(FILE *file);
 vm_std_value_t vm_load_value(vm_save_t arg);
+vm_save_t vm_save_value(vm_std_value_t arg);
 
 #endif

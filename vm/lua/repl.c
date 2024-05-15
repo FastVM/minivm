@@ -236,13 +236,17 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         .std = std,
     };
 
-    vm_save_t save = vm_save_value((vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
-    std = vm_load_value(save).value.table;
-    // FILE *f = fopen("out.bin", "wb");
-    // if (f != NULL) {
-    //     fwrite(save.buf, 1, save.len, f);
-    //     fclose(f);
-    // }
+    {
+        FILE *f = fopen("out.bin", "rb");
+        if (f != NULL) {
+            vm_save_t save = vm_save_load(f);
+            fclose(f);
+            vm_std_value_t val = vm_load_value(save);
+            if (val.tag == VM_TAG_TAB) {
+                std = val.value.table;
+            }
+        }
+    }
 
     // #if defined(EMSCRIPTEN)
     //     setvbuf(stdin, NULL, _IONBF, 0);
@@ -305,6 +309,13 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
 
             printf("took: %.3fms\n", diff);
+        }
+
+        vm_save_t save = vm_save_value((vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+        FILE *f = fopen("out.bin", "wb");
+        if (f != NULL) {
+            fwrite(save.buf, 1, save.len, f);
+            fclose(f);
         }
     }
 }
