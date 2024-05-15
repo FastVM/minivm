@@ -148,13 +148,6 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, vm_table_t *repl,
     if (!strcmp("identifier", type)) {
         ic_highlight(henv, start, len, "white");
     }
-    // if (!strcmp("binary_expression", type)) {
-    //     TSNode node2 = ts_node_child(node, 1);
-    //     size_t start2 = ts_node_start_byte(node2);
-    //     size_t end2 = ts_node_end_byte(node2);
-    //     size_t len2 = end2 - start2;
-    //     ic_highlight(henv, start2, len2, "white");
-    // }
     if (!strcmp("(", type)) {
         ic_highlight(henv, start, len, vm_lang_lua_repl_highlight_bracket_color(repl, *depth));
         *depth += 1;
@@ -164,6 +157,9 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, vm_table_t *repl,
         ic_highlight(henv, start, len, vm_lang_lua_repl_highlight_bracket_color(repl, *depth));
     }
     const char *keywords[] = {
+        "or",
+        "and",
+        "not",
         "local",
         "function",
         "while",
