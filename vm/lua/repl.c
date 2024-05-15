@@ -13,6 +13,8 @@
 #include <emscripten.h>
 #endif
 
+#include "../save/save.h"
+
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 
@@ -233,6 +235,14 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         .config = config,
         .std = std,
     };
+
+    vm_save_t save = vm_save_value((vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+    std = vm_load_value(save).value.table;
+    // FILE *f = fopen("out.bin", "wb");
+    // if (f != NULL) {
+    //     fwrite(save.buf, 1, save.len, f);
+    //     fclose(f);
+    // }
 
     // #if defined(EMSCRIPTEN)
     //     setvbuf(stdin, NULL, _IONBF, 0);

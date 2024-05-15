@@ -43,8 +43,7 @@ GC_OBJS += $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 VENDOR_SRCS += $(ISOCLINE_SRCS) $(XXH_SRCS) $(TREES_SRCS) $(GC_OBJS)
 VENDOR_OBJS = $(VENDOR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-STD_SRCS = vm/std/io.c vm/std/std.c
-VM_SRCS += vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/backend/exec.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser/parser.c vm/lua/parser/scan.c vm/lua/ast.c vm/lua/repl.c $(STD_SRCS)
+VM_SRCS += vm/std/io.c vm/std/std.c vm/save/write.c vm/save/read.c vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/backend/exec.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser/parser.c vm/lua/parser/scan.c vm/lua/ast.c vm/lua/repl.c $(STD_SRCS)
 VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 TCC_SRCS ?= $(TCC_DIR)/libtcc.c
@@ -84,7 +83,7 @@ CFLAGS_TB_WASM_YES = -DTB_HAS_WASM
 CFLAGS_MACOS = -I/opt/homebrew/include
 CFLAGS := $(CFLAGS_$(OS)) $(CFLAGS_GCCJIT_$(GCCJIT)) $(CFLAGS_TB_WASM_$(TB_WASM)) $(CFLAGS)
 
-LDFLAGS := $(FLAGS) $(LDFLAGS)
+LDFLAGS := -no-pie $(FLAGS) $(LDFLAGS)
 CFLAGS := $(FLAGS) $(CFLAGS)
 
 MKDIR = @mkdir -p

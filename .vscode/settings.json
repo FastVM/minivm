@@ -1,7 +1,18 @@
 {
     "files.associations": {
+        "*.inc": "c",
         "*.c": "c",
         "*.h": "c",
-        "*.inc": "c"
+        "compare": "c",
+        "cstdint": "c",
+        "*.tcc": "c",
+        "optional": "c",
+        "system_error": "c",
+        "array": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "cstddef": "c"
     }
 }
