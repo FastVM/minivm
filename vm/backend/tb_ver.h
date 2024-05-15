@@ -1938,7 +1938,6 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
 }
 
 static void vm_tb_ver_rblock_del(vm_rblock_t *rblock) {
-    // TB_JIT *jit = rblock->jit;
 }
 
 static void *vm_tb_ver_full_comp(vm_tb_ver_state_t *state, vm_block_t *block) {

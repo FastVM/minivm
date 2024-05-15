@@ -135,10 +135,6 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
     for (size_t i = 0; i < blocks->len; i++) {
         vm_block_t *block = blocks->blocks[i];
-        // for (size_t j = 0; j < block->cache.len; j++) {
-        //     vm_rblock_reset(block->cache.keys[j]);
-        //     vm_free_block_sub(block->cache.values[j]);
-        // }
         block->cache.len = 0;
     }
 

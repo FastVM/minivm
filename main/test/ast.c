@@ -252,10 +252,6 @@ int main(int argc, char **argv) {
         "huge.fib",
         vm_main_test_huge_fib
     );
-    // vm_test(
-    //     "table.env",
-    //     vm_main_test_table_env
-    // );
     vm_test(
         "table.load.basic",
         vm_main_test_table_load_basic

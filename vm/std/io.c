@@ -240,16 +240,6 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         }
                         break;
                     }
-                    // case VM_TAG_I64: {
-                    //     vm_std_value_t val = (vm_std_value_t){
-                    //         .tag = p.val_tag,
-                    //         .value = p.val_val,
-                    //     };
-                    //     char buf[64];
-                    //     snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
-                    //     vm_io_debug(out, indent + 1, buf, val, &next);
-                    //     break;
-                    // }
                     case VM_TAG_I8: {
                         vm_std_value_t val = (vm_std_value_t){
                             .tag = p.val_tag,
@@ -341,7 +331,6 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
         default: {
             vm_indent(out, indent, prefix);
             vm_io_buffer_format(out, "<0x%zx: %p>\n", (size_t)vm_type_tag(value.tag), value.value.all);
-            // __builtin_trap();
             break;
         }
     }

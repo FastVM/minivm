@@ -38,7 +38,6 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src, const 
     void *handle = LoadLibrary(so_file);
     void *sym = GetProcAddress(handle, entry);
     remove(so_file);
-    // printf("<funcptr: %p>\n", sym);
     return sym;
 }
 #else
@@ -107,7 +106,6 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src, const 
     void *handle = dlopen(so_file, RTLD_LAZY);
     void *sym = dlsym(handle, entry);
     remove(so_file);
-    // printf("<funcptr: %p>\n", sym);
     return sym;
 }
 #endif
