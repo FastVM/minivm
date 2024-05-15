@@ -193,7 +193,7 @@ vm_save_t vm_save_load(FILE *in) {
     uint8_t *ops = vm_malloc(sizeof(char) * nalloc);
     size_t nops = 0;
     size_t size;
-    for (;;) {
+    while (true) {
         if (nops + 256 >= nalloc) {
             nalloc = (nops + 256) * 2;
             ops = vm_realloc(ops, sizeof(char) * nalloc);

@@ -64,7 +64,7 @@ char *vm_io_read(const char *vm_io_buffer_tname) {
     char *ops = vm_malloc(sizeof(char) * nalloc);
     size_t nops = 0;
     size_t size;
-    for (;;) {
+    while (true) {
         if (nops + 256 >= nalloc) {
             nalloc = (nops + 256) * 2;
             ops = vm_realloc(ops, sizeof(char) * nalloc);
