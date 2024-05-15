@@ -38,7 +38,7 @@ struct vm_tb_dyn_state_t {
 
     size_t nlocals;
     TB_Node *locals;
-    TB_Node **regs;
+    vm_tb_dyn_pair_t *regs;
 };
 
 TB_Node *vm_tb_dyn_ptr(vm_tb_dyn_state_t *state, const void *ptr) {
@@ -143,41 +143,9 @@ vm_tb_dyn_pair_t vm_tb_dyn_arg(vm_tb_dyn_state_t *state, vm_arg_t arg) {
             );
         }
         case VM_ARG_REG: {
-            return (vm_tb_dyn_pair_t){
-                .val = tb_inst_load(
-                    state->func,
-                    VM_TB_TYPE_VALUE,
-                    tb_inst_member_access(
-                        state->func,
-                        tb_inst_load(
-                            state->func,
-                            TB_TYPE_PTR,
-                            state->regs[arg.reg],
-                            4,
-                            false
-                        ),
-                        offsetof(vm_std_value_t, value)
-                    ),
-                    4,
-                    false
-                ),
-                .tag = tb_inst_load(
-                    state->func,
-                    VM_TB_TYPE_TAG,
-                    tb_inst_member_access(
-                        state->func,
-                        tb_inst_load(
-                            state->func,
-                            TB_TYPE_PTR,
-                            state->regs[arg.reg],
-                            4,
-                            false
-                        ),
-                        offsetof(vm_std_value_t, tag)
-                    ),
-                    4,
-                    false
-                ),
+            return (vm_tb_dyn_pair_t) {
+                .tag = tb_inst_load(state->func, VM_TB_TYPE_TAG, state->regs[arg.reg].tag, 1, false),
+                .val = tb_inst_load(state->func, VM_TB_TYPE_VALUE, state->regs[arg.reg].val, 4, false),
             };
         }
         case VM_ARG_FUN: {
@@ -199,64 +167,38 @@ TB_Node *vm_tb_dyn_tag_eq(vm_tb_dyn_state_t *state, TB_Node *lhs, TB_Node *rhs) 
         state->func,
         lhs,
         rhs
-        // tb_inst_load(
-        //     state->func,
-        //     TB_TYPE_I32,
-        //     lhs,
-        //     offsetof(vm_type_value_t, tag),
-        //     false
-        // ),
-        // tb_inst_load(
-        //     state->func,
-        //     TB_TYPE_I32,
-        //     rhs,
-        //     offsetof(vm_type_value_t, tag),
-        //     false
-        // )
     );
 }
 
 void vm_tb_dyn_set(vm_tb_dyn_state_t *state, vm_arg_t out, vm_tb_dyn_pair_t pair) {
-    tb_inst_store(
-        state->func,
-        VM_TB_TYPE_VALUE,
-        tb_inst_member_access(
+    if (pair.tag) {
+        tb_inst_store(
             state->func,
-            tb_inst_load(
+            VM_TB_TYPE_TAG,
+            state->regs[out.reg].tag,
+            pair.tag,
+            1,
+            false
+        );
+    }
+    if (pair.val) {
+        TB_Node *val = pair.val;;
+        if (val->dt.raw != VM_TB_TYPE_VALUE.raw) {
+            val = tb_inst_bitcast(
                 state->func,
-                TB_TYPE_PTR,
-                state->regs[out.reg],
-                4,
-                false
-            ),
-            offsetof(vm_std_value_t, value)
-        ),
-        tb_inst_bitcast(
+                val,
+                VM_TB_TYPE_VALUE
+            );
+        }
+        tb_inst_store(
             state->func,
-            pair.val,
-            VM_TB_TYPE_VALUE
-        ),
-        4,
-        false
-    );
-    tb_inst_store(
-        state->func,
-        VM_TB_TYPE_TAG,
-        tb_inst_member_access(
-            state->func,
-            tb_inst_load(
-                state->func,
-                TB_TYPE_PTR,
-                state->regs[out.reg],
-                4,
-                false
-            ),
-            offsetof(vm_std_value_t, tag)
-        ),
-        pair.tag,
-        4,
-        false
-    );
+            VM_TB_TYPE_VALUE,
+            state->regs[out.reg].val,
+            val,
+            4,
+            false
+        );
+    }
 }
 
 TB_Node *vm_tb_dyn_lt(TB_Function *f, TB_Node *a, TB_Node *b) {
@@ -1078,24 +1020,23 @@ void vm_tb_dyn_func(vm_tb_dyn_state_t *state, TB_Function *xfunc, vm_block_t *en
 
     TB_Node *compiled_start = tb_inst_region(state->func);
 
-    state->regs = vm_malloc(sizeof(TB_Node *) * entry->nregs);
-
-    TB_Node *locals = tb_inst_local(state->func, sizeof(vm_std_value_t) * entry->nregs, 4);
-    state->nlocals = entry->nregs;
-    state->locals = locals;
+    state->regs = vm_malloc(sizeof(vm_tb_dyn_pair_t) * entry->nregs);
 
     for (size_t i = 0; i < entry->nregs; i++) {
-        TB_Node *ptr = tb_inst_local(state->func, sizeof(vm_std_value_t *), 4);
-        TB_Node *local = tb_inst_member_access(state->func, locals, sizeof(vm_std_value_t) * i);
-        tb_inst_store(
-            state->func,
-            TB_TYPE_PTR,
-            ptr,
-            local,
-            4,
-            false
-        );
-        state->regs[i] = ptr;
+        // TB_Node *ptr = tb_inst_local(state->func, sizeof(vm_std_value_t *), 4);
+        // TB_Node *local = tb_inst_member_access(state->func, locals, sizeof(vm_std_value_t) * i);
+        // tb_inst_store(
+        //     state->func,
+        //     TB_TYPE_PTR,
+        //     ptr,
+        //     local,
+        //     4,
+        //     false
+        // );
+        state->regs[i] = (vm_tb_dyn_pair_t) {
+            .tag = tb_inst_local(state->func, sizeof(vm_tag_t), 1),
+            .val = tb_inst_local(state->func, sizeof(vm_value_t), 4),
+        };
     }
 
     TB_Node *head = tb_inst_param(state->func, 0);
@@ -1125,7 +1066,7 @@ void vm_tb_dyn_func(vm_tb_dyn_state_t *state, TB_Function *xfunc, vm_block_t *en
                 state,
                 arg,
                 (vm_tb_dyn_pair_t){
-                    .val = tb_inst_uint(state->func, VM_TB_TYPE_VALUE, 0),
+                    .val = NULL,
                     .tag = nil_tag,
                 }
             );

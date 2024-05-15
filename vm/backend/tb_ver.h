@@ -391,9 +391,6 @@ static void vm_tb_ver_func_branch(vm_tb_ver_state_t *state, vm_block_t *target, 
 }
 
 static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out, vm_block_t *target, vm_rblock_t **rtargets, TB_Node *value, TB_Node *tag, void **mem) {
-
-    // tb_inst_debugbreak(state->fun);
-
     size_t next_nargs = target->nargs;
 
     while (out.type == VM_ARG_REG) {
