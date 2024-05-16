@@ -50,7 +50,7 @@ static inline void reset_state(Scanner *scanner) {
     scanner->level_count = 0;
 }
 
-void *tree_sitter_lua_external_scanner_create() {
+void *tree_sitter_lua_external_scanner_create(void) {
     Scanner *scanner = calloc(1, sizeof(Scanner));
     return scanner;
 }

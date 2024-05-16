@@ -6,7 +6,6 @@
 #include "../backend/tb.h"
 #include "../ir/ir.h"
 #include "../std/io.h"
-#include "../save/value.h"
 
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
@@ -114,29 +113,7 @@ with_new_std:;
 ret:;
 }
 
-const char *vm_lang_lua_repl_highlight_bracket_color(vm_table_t *repl, size_t depth) {
-    if (repl == NULL) {
-        return "";
-    }
-    vm_pair_t *value = VM_TABLE_LOOKUP_STR(repl, "parens");
-    if (value == NULL) {
-        return "";
-    }
-    if (vm_type_eq(value->val_tag, VM_TAG_TAB)) {
-        return "";
-    }
-    if (value->val_val.table->len == 0) {
-        return "";
-    }
-    vm_table_t *tab = value->val_val.table;
-    vm_pair_t *sub = vm_table_lookup(tab, (vm_value_t){.i32 = (int32_t)depth % (int32_t)tab->len + 1}, VM_TAG_I32);
-    if (sub == NULL || vm_type_eq(sub->val_tag, VM_TAG_STR)) {
-        return "";
-    }
-    return sub->val_val.str;
-}
-
-void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, vm_table_t *repl, size_t *depth, TSNode node) {
+void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TSNode node) {
     const char *type = ts_node_type(node);
     size_t start = ts_node_start_byte(node);
     size_t end = ts_node_end_byte(node);
@@ -149,14 +126,6 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, vm_table_t *repl,
     }
     if (!strcmp("identifier", type)) {
         ic_highlight(henv, start, len, "white");
-    }
-    if (!strcmp("(", type)) {
-        ic_highlight(henv, start, len, vm_lang_lua_repl_highlight_bracket_color(repl, *depth));
-        *depth += 1;
-    }
-    if (!strcmp(")", type)) {
-        *depth -= 1;
-        ic_highlight(henv, start, len, vm_lang_lua_repl_highlight_bracket_color(repl, *depth));
     }
     const char *keywords[] = {
         "or",
@@ -182,7 +151,7 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, vm_table_t *repl,
     size_t num_children = ts_node_child_count(node);
     for (size_t i = 0; i < num_children; i++) {
         TSNode sub = ts_node_child(node, i);
-        vm_lang_lua_repl_highlight_walk(henv, repl, depth, sub);
+        vm_lang_lua_repl_highlight_walk(henv, depth, sub);
     }
 }
 
@@ -199,11 +168,7 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     TSNode root_node = ts_tree_root_node(tree);
     size_t depth = 0;
     vm_pair_t *value = VM_TABLE_LOOKUP_STR(state->std, "config");
-    vm_table_t *repl = NULL;
-    if (value != NULL && vm_type_eq(value->val_tag, VM_TAG_TAB)) {
-        repl = value->val_val.table;
-    }
-    vm_lang_lua_repl_highlight_walk(henv, repl, &depth, root_node);
+    vm_lang_lua_repl_highlight_walk(henv, &depth, root_node);
     ts_tree_delete(tree);
     ts_parser_delete(parser);
     // FILE *out = fopen("out.log", "w");
@@ -215,15 +180,15 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks) {
     config->is_repl = true;
 
-    vm_table_t *repl = vm_table_new();
-    vm_lang_lua_repl_table_set_config(repl, config);
-    VM_TABLE_SET(repl, str, "echo", b, true);
-    vm_table_t *parens = vm_table_new();
-    VM_TABLE_SET(parens, i32, 1, str, "yellow");
-    VM_TABLE_SET(parens, i32, 2, str, "magenta");
-    VM_TABLE_SET(parens, i32, 3, str, "blue");
-    VM_TABLE_SET(repl, str, "parens", table, parens);
-    VM_TABLE_SET(std, str, "config", table, repl);
+    // vm_table_t *repl = vm_table_new();
+    // vm_lang_lua_repl_table_set_config(repl, config);
+    // VM_TABLE_SET(repl, str, "echo", b, true);
+    // vm_table_t *parens = vm_table_new();
+    // VM_TABLE_SET(parens, i32, 1, str, "yellow");
+    // VM_TABLE_SET(parens, i32, 2, str, "magenta");
+    // VM_TABLE_SET(parens, i32, 3, str, "blue");
+    // VM_TABLE_SET(repl, str, "parens", table, parens);
+    // VM_TABLE_SET(std, str, "config", table, repl);
 
     ic_set_history(".minivm-history", 2000);
 
@@ -235,22 +200,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         .config = config,
         .std = std,
     };
-
-    {
-        FILE *f = fopen("out.bin", "rb");
-        if (f != NULL) {
-            vm_save_t save = vm_save_load(f);
-            fclose(f);
-            vm_save_loaded_t ld = vm_load_value(config, save);
-            if (ld.blocks != NULL) {
-                *blocks = *ld.blocks;
-                *std = *ld.env.value.table;
-                vm_io_buffer_t *buf = vm_io_buffer_new();
-                vm_io_format_blocks(buf, blocks);
-                printf("%s", buf->buf);
-            }
-        }
-    }
 
     // #if defined(EMSCRIPTEN)
     //     setvbuf(stdin, NULL, _IONBF, 0);
@@ -309,11 +258,11 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
         vm_std_value_t value = vm_tb_run_repl(config, blocks->entry, blocks, std);
 
-        vm_lang_lua_repl_table_get_config(repl, config);
+        // vm_lang_lua_repl_table_get_config(repl, config);
 
         if (vm_type_eq(value.tag, VM_TAG_ERROR)) {
             fprintf(stderr, "error: %s\n", value.value.str);
-        } else if (vm_lang_lua_repl_table_get_bool(repl, "echo") && !vm_type_eq(value.tag, VM_TAG_NIL)) {
+        } else if (!vm_type_eq(value.tag, VM_TAG_NIL)) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);
             printf("%.*s", (int)buf.len, buf.buf);
@@ -325,13 +274,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
 
             printf("took: %.3fms\n", diff);
-        }
-
-        vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
-        FILE *f = fopen("out.bin", "wb");
-        if (f != NULL) {
-            fwrite(save.buf, 1, save.len, f);
-            fclose(f);
         }
     }
 }

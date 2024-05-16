@@ -2,6 +2,10 @@
 #include "./io.h"
 
 void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap) {
+    if (buf->buf == NULL) {
+        buf->alloc = 16;
+        buf->buf = vm_malloc(sizeof(char) * buf->alloc);
+    }
     while (true) {
         int avail = buf->alloc - buf->len;
         va_list ap_copy;

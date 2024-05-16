@@ -5,6 +5,7 @@
 #include "../vm/ir/ir.h"
 #include "../vm/std/io.h"
 #include "../vm/std/std.h"
+#include "../vm/save/value.h"
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks);
@@ -22,11 +23,7 @@ int main(int argc, char **argv) {
         .target = VM_TARGET_TB_EMCC,
         .tb_tailcalls = true,
 #else
-#if defined(_WIN32)
         .target = VM_TARGET_TB_TCC,
-#else
-        .target = VM_TARGET_TB_CC,
-#endif
         .tb_tailcalls = true,
 #endif
         .cflags = NULL,
@@ -60,6 +57,28 @@ int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--repl")) {
             vm_lang_lua_repl(config, std, blocks);
             isrepl = false;
+        } else if (!strncmp(arg, "--load=", 7)) {
+            arg += 7;
+            FILE *f = fopen(arg, "rb");
+            if (f != NULL) {
+                vm_save_t save = vm_save_load(f);
+                fclose(f);
+                vm_save_loaded_t ld = vm_load_value(config, save);
+                if (ld.blocks != NULL) {
+                    blocks = ld.blocks;
+                    std = ld.env.value.table;
+                    vm_io_buffer_t *buf = vm_io_buffer_new();
+                    vm_io_format_blocks(buf, blocks);
+                }
+            }
+        } else if (!strncmp(arg, "--save=", 7)) {
+            arg += 7;
+            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+            FILE *f = fopen(arg, "wb");
+            if (f != NULL) {
+                fwrite(save.buf, 1, save.len, f);
+                fclose(f);
+            }
         } else if (!strncmp(arg, "--cflag=", 8)) {
             arg += 8;
             const char *last = config->cflags;

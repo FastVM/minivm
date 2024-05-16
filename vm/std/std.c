@@ -495,6 +495,8 @@ void vm_std_set_arg(vm_config_t *config, vm_table_t *std, const char *prog, cons
     VM_TABLE_SET(std, str, "arg", table, arg);
 }
 
+void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args);
+
 vm_table_t *vm_std_new(vm_config_t *config) {
     vm_table_t *std = vm_table_new();
 
@@ -532,6 +534,10 @@ vm_table_t *vm_std_new(vm_config_t *config) {
     VM_TABLE_SET(std, str, "print", ffi, VM_STD_REF(config, vm_std_print));
     VM_TABLE_SET(std, str, "assert", ffi, VM_STD_REF(config, vm_std_assert));
     VM_TABLE_SET(std, str, "load", ffi, VM_STD_REF(config, vm_std_load));
+
+    VM_STD_REF(config, vm_std_vm_concat);
+    VM_STD_REF(config, vm_lua_comp_op_std_pow);
+    VM_STD_REF(config, vm_std_vm_closure);
 
     return std;
 }

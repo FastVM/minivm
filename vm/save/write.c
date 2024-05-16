@@ -131,7 +131,7 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
             case VM_TAG_ERROR:
             case VM_TAG_STR: {
                 const char *buf = value.value.str;
-                size_t len = strlen(buf) + 1;
+                size_t len = strlen(buf);
                 vm_save_write_uleb(&write, (uint64_t) len);
                 for (size_t i = 0; i < len; i++) {
                     vm_save_write_byte(&write, (uint8_t) buf[i]);
@@ -204,7 +204,7 @@ outer:;
     }
     for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {
         const char *src = srcs[nsrcs++];
-        size_t len = strlen(src) + 1;
+        size_t len = strlen(src);
         vm_save_write_uleb(&write, (uint64_t) len);
         for (size_t i = 0; i < len; i++) {
             vm_save_write_byte(&write, (uint8_t) src[i]);

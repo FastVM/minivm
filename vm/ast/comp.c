@@ -45,7 +45,7 @@ struct vm_ast_comp_names_t {
     vm_ast_comp_names_t *next;
 };
 
-static void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     double v = vm_value_to_f64(*args++);
     while (!vm_type_eq(args->tag, VM_TAG_UNK)) {

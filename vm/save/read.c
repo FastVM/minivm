@@ -123,10 +123,11 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
             case VM_TAG_ERROR:
             case VM_TAG_STR: {
                 uint64_t len = vm_save_read_uleb(&read);
-                char *buf = vm_malloc(sizeof(char) * len);
+                char *buf = vm_malloc(sizeof(char) * (len + 1));
                 for (size_t i = 0; i < len; i++) {
                     buf[i] = vm_save_read_byte(&read);
                 }
+                buf[len] = '\0';
                 value.str = buf;
                 break;
             }
@@ -222,10 +223,11 @@ outer:;
     uint64_t nsrcs = vm_save_read_uleb(&read);
     for (uint64_t i = 0; i < nsrcs; i++) {
         uint64_t len = vm_save_read_uleb(&read);
-        char *src = vm_malloc(sizeof(char) * len);
+        char *src = vm_malloc(sizeof(char) * (len + 1));
         for (uint64_t j = 0; j < len; j++) {
             src[j] = (char) vm_save_read_byte(&read);
         }
+        src[len] = '\0';
         vm_ast_node_t node = vm_lang_lua_parse(config, src);
         vm_ast_comp_more(node, blocks);
         // vm_ast_free_node(node);
