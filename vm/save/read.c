@@ -1,5 +1,9 @@
 
-#include "save.h"
+#include "value.h"
+#include "../ast/ast.h"
+#include "../ast/comp.h"
+
+vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 
 struct vm_save_read_t;
 typedef struct vm_save_read_t vm_save_read_t;
@@ -44,18 +48,17 @@ static uint64_t vm_save_read_uleb(vm_save_read_t *read) {
 }
 
 static int64_t vm_save_read_sleb(vm_save_read_t *read) {
-    int64_t x = 0;
-    size_t shift = 0;
+    int64_t result = 0;
+    uint8_t shift = 0;
     while (true) {
-        uint8_t buf = vm_save_read_byte(read);
-        x += (buf & 0x7f) << shift;
+        uint8_t byte = vm_save_read_byte(read);
+        result |= (byte & 0x7f) << shift;
         shift += 7;
-        if (buf < 0x80) {
-            if (shift < 64 && (buf & 0x40)) {
-                return (int64_t)(x - ((int64_t)1 << shift));
-            } else {
-                return x;
+        if ((0x80 & byte) == 0) {
+            if (shift < 64 && (byte & 0x40) != 0) {
+                return result | (~0 << shift);
             }
+            return result;
         }
     }
 }
@@ -64,7 +67,7 @@ bool vm_save_read_is_done(vm_save_read_t *read) {
     return read->buf.read == read->buf.len;
 }
 
-vm_std_value_t vm_load_value(vm_save_t arg) {
+vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
     vm_save_read_t read = (vm_save_read_t){
         .buf.len = arg.len,
         .buf.bytes = arg.buf,
@@ -73,13 +76,14 @@ vm_std_value_t vm_load_value(vm_save_t arg) {
         .values.ptr = NULL,
         .values.alloc = 0,
     };
-    while (!vm_save_read_is_done(&read)) {
+    while (true) {
         size_t start = read.buf.read;
         vm_tag_t tag = (vm_tag_t) vm_save_read_byte(&read);
         vm_value_t value;
+        // printf("object #%zu at [0x%zX] with type %zu\n", read.values.len, start, (size_t) tag);
         switch (tag) {
             case VM_TAG_UNK: {
-                break;
+                goto outer;
             }
             case VM_TAG_NIL: {
                 value.all = NULL;
@@ -127,7 +131,13 @@ vm_std_value_t vm_load_value(vm_save_t arg) {
                 break;
             }
             case VM_TAG_FFI: {
-                value.all = (void *) (size_t) vm_save_read_uleb(&read);
+                size_t id = vm_save_read_uleb(&read);
+                value.all = NULL;
+                for (vm_externs_t *cur = config->externs; cur; cur = cur->last) {
+                    if (cur->id == id) {
+                        value.all = cur->value;
+                    }
+                }
                 break;
             }
             case VM_TAG_CLOSURE: {
@@ -142,6 +152,7 @@ vm_std_value_t vm_load_value(vm_save_t arg) {
                     vm_save_read_uleb(&read);
                 }
                 value.closure = closure;
+                break;
             }
             case VM_TAG_TAB: {
                 uint64_t real = vm_save_read_uleb(&read);
@@ -154,7 +165,7 @@ vm_std_value_t vm_load_value(vm_save_t arg) {
                 break;
             }
             default: {
-                fprintf(stderr, "unhandled object #%zu at [%zu]: type %zu\n", read.values.len, start, (size_t) tag);
+                fprintf(stderr, "unhandled object #%zu at [0x%zX]: type %zu\n", read.values.len, start, (size_t) tag);
                 goto error;
             }
         }
@@ -170,6 +181,8 @@ vm_std_value_t vm_load_value(vm_save_t arg) {
             },
         };
     }
+outer:;
+    size_t loc = read.buf.read;
     for (size_t i = 0; i < read.values.len; i++) {
         vm_save_value_t save = read.values.ptr[i];
         vm_value_t value = save.value.value;
@@ -188,7 +201,7 @@ vm_std_value_t vm_load_value(vm_save_t arg) {
             case VM_TAG_TAB: {
                 uint64_t real = vm_save_read_uleb(&read);
                 vm_table_t *table = value.table;
-                for (size_t i = 0; i < real; i++) {
+                for (uint64_t i = 0; i < real; i++) {
                     size_t key_index = vm_save_read_uleb(&read);
                     size_t value_index = vm_save_read_uleb(&read);
                     VM_TABLE_SET_VALUE(table, read.values.ptr[key_index].value, read.values.ptr[value_index].value);
@@ -200,7 +213,31 @@ vm_std_value_t vm_load_value(vm_save_t arg) {
             }
         }
     }
-    return read.values.ptr[0].value;
+    read.buf.read = loc;
+    vm_blocks_t *blocks = vm_malloc(sizeof(vm_blocks_t));
+    blocks->len = 0;
+    blocks->alloc = 0;
+    blocks->blocks = NULL;
+    blocks->srcs = NULL;
+    uint64_t nsrcs = vm_save_read_uleb(&read);
+    for (uint64_t i = 0; i < nsrcs; i++) {
+        uint64_t len = vm_save_read_uleb(&read);
+        char *src = vm_malloc(sizeof(char) * len);
+        for (uint64_t j = 0; j < len; j++) {
+            src[j] = (char) vm_save_read_byte(&read);
+        }
+        vm_ast_node_t node = vm_lang_lua_parse(config, src);
+        vm_ast_comp_more(node, blocks);
+        // vm_ast_free_node(node);
+        vm_blocks_add_src(blocks, src);
+    }
+    return (vm_save_loaded_t) {
+        .blocks = blocks,
+        .env = read.values.ptr[0].value,
+    };
 error:;
-    return (vm_std_value_t) {.tag = VM_TAG_NIL};
+    return (vm_save_loaded_t) {
+        .blocks = NULL,
+        .env = (vm_std_value_t) {.tag = VM_TAG_NIL},
+    };
 }

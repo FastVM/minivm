@@ -13,7 +13,7 @@ struct vm_tb_dyn_state_t;
 typedef struct vm_tb_dyn_pair_t vm_tb_dyn_pair_t;
 typedef struct vm_tb_dyn_state_t vm_tb_dyn_state_t;
 
-typedef vm_std_value_t VM_CDECL vm_tb_dyn_func_t(void);
+typedef vm_std_value_t VM_CDECL vm_tb_dyn_func_t(vm_std_value_t *values);
 
 struct vm_tb_dyn_pair_t {
     TB_Node *val;

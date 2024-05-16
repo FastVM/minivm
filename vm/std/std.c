@@ -20,6 +20,7 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
     }
     const char *str = args[0].value.str;
     vm_ast_node_t node = vm_lang_lua_parse(closure->config, str);
+    vm_blocks_add_src(closure->blocks, str);
     vm_ast_comp_more(node, closure->blocks);
     vm_ast_free_node(node);
 
@@ -500,19 +501,19 @@ vm_table_t *vm_std_new(vm_config_t *config) {
     {
         vm_table_t *io = vm_table_new();
         VM_TABLE_SET(std, str, "io", table, io);
-        VM_TABLE_SET(io, str, "write", ffi, &vm_std_io_write);
+        VM_TABLE_SET(io, str, "write", ffi, VM_STD_REF(config, vm_std_io_write));
     }
 
     {
         vm_table_t *string = vm_table_new();
         VM_TABLE_SET(std, str, "string", table, string);
-        VM_TABLE_SET(string, str, "format", ffi, &vm_std_string_format);
+        VM_TABLE_SET(string, str, "format", ffi, VM_STD_REF(config, vm_std_string_format));
     }
 
     {
         vm_table_t *vm = vm_table_new();
         VM_TABLE_SET(std, str, "vm", table, vm);
-        VM_TABLE_SET(vm, str, "print", ffi, &vm_std_vm_print);
+        VM_TABLE_SET(vm, str, "print", ffi, VM_STD_REF(config, vm_std_vm_print));
         {
             vm_table_t *vm_ver = vm_table_new();
             VM_TABLE_SET(vm, str, "version", table, vm_ver);
@@ -522,15 +523,15 @@ vm_table_t *vm_std_new(vm_config_t *config) {
     {
         vm_table_t *os = vm_table_new();
         VM_TABLE_SET(std, str, "os", table, os);
-        VM_TABLE_SET(os, str, "exit", ffi, &vm_std_os_exit);
+        VM_TABLE_SET(os, str, "exit", ffi, VM_STD_REF(config, vm_std_os_exit));
     }
 
-    VM_TABLE_SET(std, str, "tostring", ffi, &vm_std_tostring);
-    VM_TABLE_SET(std, str, "tonumber", ffi, &vm_std_tonumber);
-    VM_TABLE_SET(std, str, "type", ffi, &vm_std_type);
-    VM_TABLE_SET(std, str, "print", ffi, &vm_std_print);
-    VM_TABLE_SET(std, str, "assert", ffi, &vm_std_assert);
-    VM_TABLE_SET(std, str, "load", ffi, &vm_std_load);
+    VM_TABLE_SET(std, str, "tostring", ffi, VM_STD_REF(config, vm_std_tostring));
+    VM_TABLE_SET(std, str, "tonumber", ffi, VM_STD_REF(config, vm_std_tonumber));
+    VM_TABLE_SET(std, str, "type", ffi, VM_STD_REF(config, vm_std_type));
+    VM_TABLE_SET(std, str, "print", ffi, VM_STD_REF(config, vm_std_print));
+    VM_TABLE_SET(std, str, "assert", ffi, VM_STD_REF(config, vm_std_assert));
+    VM_TABLE_SET(std, str, "load", ffi, VM_STD_REF(config, vm_std_load));
 
     return std;
 }

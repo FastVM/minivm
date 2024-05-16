@@ -251,6 +251,9 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
         case VM_TAG_STR: {
             return vm_type_eq(rhs.tag, VM_TAG_STR) && !strcmp(lhs.value.str, rhs.value.str);
         }
+        case VM_TAG_FUN: {
+            return rhs.tag == VM_TAG_FUN && lhs.value.i32 == rhs.value.i32;
+        }
         default: {
             return vm_type_eq(lhs.tag, rhs.tag) && lhs.value.all == rhs.value.all;
         }

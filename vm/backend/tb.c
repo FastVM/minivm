@@ -122,13 +122,17 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
 
         vm_tb_dyn_func_t *fn = (vm_tb_dyn_func_t *)vm_tb_dyn_comp(state, entry);
 
+        vm_std_value_t values[1] = {
+            [0].tag = VM_TAG_UNK,
+        };
+
 #if defined(_WIN32)
         caller(&value, fn);
 #else
-        value = fn();
+        value = fn(&values[0]);
 #endif
 
-        blocks->len = 0;
+        // blocks->len = 0;
 
         vm_free(state);
     }

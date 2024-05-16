@@ -70,4 +70,18 @@ static char *vm_strdup(const char *str) {
 #define VM_CDECL
 #endif
 
+static inline void vm_config_add_extern(vm_config_t *config, void *value) {
+    vm_externs_t *last = config->externs;
+    for (vm_externs_t *cur = last; cur; cur = cur->last) {
+        if (cur->value == value) {
+            return;
+        }
+    }
+    vm_externs_t *next = vm_malloc(sizeof(vm_externs_t));
+    next->id = last == NULL ? 0 : last->id + 1;
+    next->value = value;
+    next->last = last;
+    config->externs = next;
+}
+
 #endif

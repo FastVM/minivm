@@ -43,7 +43,14 @@ GC_OBJS += $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
 VENDOR_SRCS += $(ISOCLINE_SRCS) $(XXH_SRCS) $(TREES_SRCS) $(GC_OBJS)
 VENDOR_OBJS = $(VENDOR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-VM_SRCS += vm/std/io.c vm/std/std.c vm/save/write.c vm/save/read.c vm/ir/ir.c vm/lib.c vm/ir/type.c vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c vm/obj.c vm/backend/tb.c vm/backend/exec.c vm/ir/check.c vm/ir/rblock.c vm/lua/parser/parser.c vm/lua/parser/scan.c vm/lua/ast.c vm/lua/repl.c $(STD_SRCS)
+VM_AST_SRCS += vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c
+VM_BACKEND_SRCS += vm/backend/tb.c vm/backend/exec.c
+VM_BASE_SRCS += vm/lib.c vm/obj.c
+VM_DATA_SRCS += vm/save/io.c vm/save/write.c vm/save/read.c
+VM_IR_SRCS += vm/ir/ir.c vm/ir/type.c vm/ir/rblock.c vm/ir/check.c
+VM_LUA_SRCS += vm/lua/parser/parser.c vm/lua/parser/scan.c vm/lua/repl.c vm/lua/ast.c
+VM_STD_SRCS += vm/std/io.c vm/std/std.c
+VM_SRCS += $(VM_AST_SRCS) $(VM_BASE_SRCS) $(VM_BACKEND_SRCS) $(VM_DATA_SRCS) $(VM_IR_SRCS) $(VM_LUA_SRCS) $(VM_STD_SRCS)
 VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 TCC_SRCS ?= $(TCC_DIR)/libtcc.c
@@ -83,7 +90,7 @@ CFLAGS_TB_WASM_YES = -DTB_HAS_WASM
 CFLAGS_MACOS = -I/opt/homebrew/include
 CFLAGS := $(CFLAGS_$(OS)) $(CFLAGS_GCCJIT_$(GCCJIT)) $(CFLAGS_TB_WASM_$(TB_WASM)) $(CFLAGS)
 
-LDFLAGS := -no-pie $(FLAGS) $(LDFLAGS)
+LDFLAGS := $(FLAGS) $(LDFLAGS)
 CFLAGS := $(FLAGS) $(CFLAGS)
 
 MKDIR = @mkdir -p

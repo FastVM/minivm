@@ -6,6 +6,7 @@
 #include "../backend/tb.h"
 #include "../ir/ir.h"
 #include "../std/io.h"
+#include "../save/value.h"
 
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
@@ -13,7 +14,6 @@
 #include <emscripten.h>
 #endif
 
-#include "../save/save.h"
 
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
@@ -241,9 +241,13 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         if (f != NULL) {
             vm_save_t save = vm_save_load(f);
             fclose(f);
-            vm_std_value_t val = vm_load_value(save);
-            if (val.tag == VM_TAG_TAB) {
-                std = val.value.table;
+            vm_save_loaded_t ld = vm_load_value(config, save);
+            if (ld.blocks != NULL) {
+                *blocks = *ld.blocks;
+                *std = *ld.env.value.table;
+                vm_io_buffer_t *buf = vm_io_buffer_new();
+                vm_io_format_blocks(buf, blocks);
+                printf("%s", buf->buf);
             }
         }
     }
@@ -254,7 +258,17 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
     //     setvbuf(stderr, NULL, _IONBF, 0);
     // #endif
 
+    const char *arr[] = {
+        // "f = function() return 2 end",
+        "f()",
+        NULL,
+    };
+    const char **inputs = &arr[0];
+
     while (true) {
+#if 0
+        const char *input = *inputs++;
+#else
         char *input = ic_readline_ex(
             "lua",
             vm_lang_lua_repl_completer,
@@ -262,6 +276,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             vm_lang_lua_repl_highlight,
             &highlight_state
         );
+#endif
         if (input == NULL) {
             break;
         }
@@ -274,13 +289,14 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 
         vm_ast_node_t node = vm_lang_lua_parse(config, input);
-        free(input);
+        vm_blocks_add_src(blocks, input);
 
         if (config->dump_ast) {
             vm_io_buffer_t buf = {0};
             vm_ast_print_node(&buf, 0, "", node);
             printf("\n--- ast ---\n%.*s", (int)buf.len, buf.buf);
         }
+
 
         vm_ast_comp_more(node, blocks);
         vm_ast_free_node(node);
@@ -311,7 +327,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             printf("took: %.3fms\n", diff);
         }
 
-        vm_save_t save = vm_save_value((vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+        vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
         FILE *f = fopen("out.bin", "wb");
         if (f != NULL) {
             fwrite(save.buf, 1, save.len, f);

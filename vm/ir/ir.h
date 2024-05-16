@@ -8,6 +8,7 @@ struct vm_instr_t;
 struct vm_block_t;
 struct vm_rblock_t;
 struct vm_cache_t;
+struct vm_blocks_srcs_t;
 struct vm_blocks_t;
 
 typedef struct vm_rblock_t vm_rblock_t;
@@ -16,6 +17,7 @@ typedef struct vm_arg_t vm_arg_t;
 typedef struct vm_branch_t vm_branch_t;
 typedef struct vm_instr_t vm_instr_t;
 typedef struct vm_block_t vm_block_t;
+typedef struct vm_blocks_srcs_t vm_blocks_srcs_t;
 typedef struct vm_blocks_t vm_blocks_t;
 
 #include "../lib.h"
@@ -157,11 +159,17 @@ struct vm_block_t {
     bool checked : 1;
 };
 
+struct vm_blocks_srcs_t {
+    const char *src;
+    vm_blocks_srcs_t *last;
+};
+
 struct vm_blocks_t {
     size_t len;
     vm_block_t **blocks;
     size_t alloc;
     vm_block_t *entry;
+    vm_blocks_srcs_t *srcs;
 };
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
@@ -180,5 +188,12 @@ void vm_free_block_sub(vm_block_t *block);
 void vm_free_block(vm_block_t *block);
 
 #define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL)})
+
+static inline void vm_blocks_add_src(vm_blocks_t *blocks, const char *src) {
+    vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
+    next->last = blocks->srcs;
+    next->src = src;
+    blocks->srcs = next;
+}
 
 #endif

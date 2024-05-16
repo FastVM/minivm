@@ -1,8 +1,7 @@
-#if !defined(VM_HEADER_SAVE_SAVE)
-#define VM_HEADER_SAVE_SAVE
+#if !defined(VM_HEADER_SAVE_IO)
+#define VM_HEADER_SAVE_IO
 
 #include "../lib.h"
-#include "../std/io.h"
 
 struct vm_save_t;
 typedef struct vm_save_t vm_save_t;
@@ -13,7 +12,5 @@ struct vm_save_t {
 };
 
 vm_save_t vm_save_load(FILE *file);
-vm_std_value_t vm_load_value(vm_save_t arg);
-vm_save_t vm_save_value(vm_std_value_t arg);
 
 #endif

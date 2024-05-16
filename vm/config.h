@@ -7,6 +7,9 @@
 #define VM_USE_DUMP 1
 #define VM_FORMAT_FLOAT "%.14g"
 
+struct vm_externs_t;
+typedef struct vm_externs_t vm_externs_t;
+
 struct vm_config_t;
 typedef struct vm_config_t vm_config_t;
 
@@ -42,7 +45,15 @@ enum {
     VM_USE_VERSION_COUNT_FINE,
 };
 
+struct vm_externs_t {
+    size_t id;
+    void *value;
+    vm_externs_t *last;
+};
+
 struct vm_config_t {
+    vm_externs_t *externs;
+
     const char *cflags;
 
     unsigned int target : 4;

@@ -197,10 +197,7 @@ int main(int argc, char **argv) {
             }
 
             vm_ast_node_t node = vm_lang_lua_parse(config, src);
-
-            if (name != NULL) {
-                vm_free(src);
-            }
+            vm_blocks_add_src(blocks, src);
 
             if (config->dump_ast) {
                 vm_io_buffer_t buf = {0};
