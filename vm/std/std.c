@@ -90,6 +90,9 @@ void vm_std_vm_print(vm_std_closure_t *closure, vm_std_value_t *args) {
         vm_io_debug(&buf, 0, "", args[i], NULL);
         printf("%.*s", (int)buf.len, buf.buf);
     }
+    args[0] = (vm_std_value_t) {
+        .tag = VM_TAG_NIL,
+    };
 }
 
 void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
@@ -524,8 +527,8 @@ vm_table_t *vm_std_new(vm_config_t *config) {
 
     {
         vm_table_t *os = vm_table_new();
-        VM_TABLE_SET(std, str, "os", table, os);
         VM_TABLE_SET(os, str, "exit", ffi, VM_STD_REF(config, vm_std_os_exit));
+        VM_TABLE_SET(std, str, "os", table, os);
     }
 
     VM_TABLE_SET(std, str, "tostring", ffi, VM_STD_REF(config, vm_std_tostring));
@@ -534,6 +537,7 @@ vm_table_t *vm_std_new(vm_config_t *config) {
     VM_TABLE_SET(std, str, "print", ffi, VM_STD_REF(config, vm_std_print));
     VM_TABLE_SET(std, str, "assert", ffi, VM_STD_REF(config, vm_std_assert));
     VM_TABLE_SET(std, str, "load", ffi, VM_STD_REF(config, vm_std_load));
+    VM_TABLE_SET(std, str, "_G", table, std);
 
     VM_STD_REF(config, vm_std_vm_concat);
     VM_STD_REF(config, vm_lua_comp_op_std_pow);

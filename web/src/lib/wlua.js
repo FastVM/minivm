@@ -1,6 +1,7 @@
 
 import {run} from './lua.js';
 
+let sync = null;
 let has;
 let want;
 let inbuf;
@@ -48,7 +49,7 @@ const comp = (input) => {
 };
 
 const onArgs = (args) => {
-    run(args, {stdin, stdout, stderr, comp});
+    run(args, {stdin, stdout, stderr, comp, sync});
     self.postMessage({
         type: 'exit-ok',
     });
@@ -56,6 +57,10 @@ const onArgs = (args) => {
 
 self.onmessage = ({data}) => {
     switch(data.type) {
+        case 'sync': {
+            sync = data.buf;
+            break;
+        }
         case 'buffer': {
             self.postMessage({type: 'get-args'});
             wait = data.wait;
@@ -63,6 +68,7 @@ self.onmessage = ({data}) => {
             has = data.has;
             want = data.want;
             inbuf = data.inbuf;
+            sync = data.sync;
             break;
         }
         case 'args': {

@@ -98,6 +98,12 @@ export const repl = ({putchar}) => {
                     break;
                 }
                 case 'get-buffer': {
+                    let sync = null;
+                    try {
+                        sync = Uint8Array.from(JSON.parse(localStorage.getItem('minivm.state')));
+                    } catch (e) {
+                        console.error(e);
+                    }
                     worker.postMessage({
                         type: 'buffer',
                         ret: ret,
@@ -105,6 +111,7 @@ export const repl = ({putchar}) => {
                         inbuf: inbuf,
                         want: want,
                         has: has,
+                        sync: sync,
                     });
                     break;
                 }
@@ -113,6 +120,11 @@ export const repl = ({putchar}) => {
                         type: 'args',
                         args: ['-e', '', '--repl'],
                     });
+                    break;
+                }
+                case 'sync': {
+                    const buf = data.buf;
+                    localStorage.setItem('minivm.state', JSON.stringify(Array.from(buf)));
                     break;
                 }
             }

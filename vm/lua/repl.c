@@ -10,6 +10,8 @@
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
 #if defined(EMSCRIPTEN)
+#include "../save/value.h"
+
 #include <emscripten.h>
 #endif
 
@@ -177,18 +179,14 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     // ic_highlight(henv, 1, strlen(input) - 2, "keyword");
 }
 
+#if defined(EMSCRIPTEN)
+EM_JS(void, vm_lang_lua_repl_sync, (void), {
+    Module._vm_lang_lua_repl_sync();
+});
+#endif
+
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks) {
     config->is_repl = true;
-
-    // vm_table_t *repl = vm_table_new();
-    // vm_lang_lua_repl_table_set_config(repl, config);
-    // VM_TABLE_SET(repl, str, "echo", b, true);
-    // vm_table_t *parens = vm_table_new();
-    // VM_TABLE_SET(parens, i32, 1, str, "yellow");
-    // VM_TABLE_SET(parens, i32, 2, str, "magenta");
-    // VM_TABLE_SET(parens, i32, 3, str, "blue");
-    // VM_TABLE_SET(repl, str, "parens", table, parens);
-    // VM_TABLE_SET(std, str, "config", table, repl);
 
     ic_set_history(".minivm-history", 2000);
 
@@ -207,6 +205,23 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
     //     setvbuf(stderr, NULL, _IONBF, 0);
     // #endif
 
+    #if defined(EMSCRIPTEN)
+    {
+        FILE *f = fopen("/wasm.bin", "rb");
+        if (f != NULL) {
+            vm_save_t save = vm_save_load(f);
+            fclose(f);
+            vm_save_loaded_t ld = vm_load_value(config, save);
+            if (ld.blocks != NULL) {
+                blocks = ld.blocks;
+                std = ld.env.value.table;
+                vm_io_buffer_t *buf = vm_io_buffer_new();
+                vm_io_format_blocks(buf, blocks);
+            }
+        }
+    }
+    #endif
+
     const char *arr[] = {
         // "f = function() return 2 end",
         "f()",
@@ -215,6 +230,19 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
     const char **inputs = &arr[0];
 
     while (true) {
+#if defined(EMSCRIPTEN)
+        {
+
+            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+            FILE *f = fopen("/wasm.bin", "wb");
+            if (f != NULL) {
+                fwrite(save.buf, 1, save.len, f);
+                fclose(f);
+            }
+            vm_lang_lua_repl_sync();
+        }
+#endif
+
 #if 0
         const char *input = *inputs++;
 #else
