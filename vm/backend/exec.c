@@ -108,8 +108,8 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
         fwrite(src, len, 1, out);
         fclose(out);
         vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
-        // vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
-        vm_io_buffer_format(cmd_buf, "%s -shared -g3 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
+        vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
+        // vm_io_buffer_format(cmd_buf, "%s -shared -g3 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
         int res = system(cmd_buf->buf);
         if (res) {
             return NULL;
