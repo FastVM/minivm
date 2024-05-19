@@ -1274,15 +1274,22 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
             if (state->config->dump_c) {
                 printf("\n--- c ---\n%s", buf);
             }
-            TCCState *state = tcc_new();
-            tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
-            tcc_set_options(state, "-nostdlib");
-            tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
-            tcc_compile_string(state, buf);
-            tcc_add_symbol(state, "memmove", &memmove);
-            tcc_relocate(state);
+            TCCState *tcc = tcc_new();
+            tcc_set_error_func(tcc, 0, vm_tb_tcc_error_func);
+            tcc_set_options(tcc, "-nostdlib");
+            tcc_set_output_type(tcc, TCC_OUTPUT_MEMORY);
+            tcc_compile_string(tcc, buf);
+            tcc_add_symbol(tcc, "memmove", &memmove);
+            tcc_relocate(tcc);
             tb_c_data_free(buf);
-            ret = tcc_get_symbol(state, entry_buf);
+            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
+                vm_block_t *block = state->blocks->blocks[block_num];
+                TB_Function *func = state->funcs[block_num];
+                if (block->isfunc) {
+                    state->codes[block->id] = tcc_get_symbol(tcc, ((TB_Symbol *)func)->name);
+                }
+            }
+            ret = tcc_get_symbol(tcc, entry_buf);
             break;
         }
 #endif
