@@ -7,13 +7,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - run: make -Bj CC=cc OPT='-Os -flto' GCCJIT=NO
+      - run: make linux
+      - run: cat build/test/all.txt
       - uses: actions/upload-artifact@v4
         with:
           name: minivm-linux
-          path:  |
+          path: |
             build/bin/minivm
-  windows-minivm-gcc:
+  mac-minivm:
+    runs-on: macos-latest-xlarge
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - run: make mac
+      - run: cat build/test/all.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minivm-mac
+          path: |
+            build/bin/minivm
+  windows-minivm:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,9 +38,10 @@ jobs:
         with:
           version: 12.2.0 
           platform: x64
-      - run: make -Bj EXE=.exe CC='gcc' OPT='-Os -flto' OS=WINDOWS GCCJIT=NO
+      - run: make windows
+      - run: cat build/test/all.txt
       - uses: actions/upload-artifact@v4
         with:
           name: minivm-windows
-          path:  |
+          path: |
             build/bin/minivm.exe
