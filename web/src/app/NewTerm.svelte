@@ -8,7 +8,7 @@
 
     let div;
 
-    const term = new Terminal(new FitAddon());
+    const term = new Terminal();
 
     const fit = new FitAddon();
 

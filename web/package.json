@@ -21,7 +21,7 @@
     "build:watch": "concurrently -n make,vite 'npm run make:watch' 'npm run vite:watch'",
     
     "make:watch": "npx nodemon --watch ../vm --watch ../vendor --watch ../main --ext '*' --exec 'npm run make'",
-    "make": "make -C .. -f web.mak -Bj CFLAGS='-DNDEBUG -fPIC' OPT='-g3'",
+    "make": "make -C .. -f web.mak -Bj CFLAGS='-DNDEBUG -fPIC' OPT='-Os -flto'",
     
     "vite:watch": "npx vite build --watch",
     "vite": "npx vite build"

@@ -39,6 +39,8 @@ struct vm_tb_dyn_state_t {
     size_t nlocals;
     TB_Node *locals;
     vm_tb_dyn_pair_t *regs;
+
+    void **codes;
 };
 
 TB_Node *vm_tb_dyn_ptr(vm_tb_dyn_state_t *state, const void *ptr) {
@@ -152,7 +154,7 @@ vm_tb_dyn_pair_t vm_tb_dyn_arg(vm_tb_dyn_state_t *state, vm_arg_t arg) {
             return vm_tb_dyn_pair_of(
                 state,
                 VM_TAG_FUN,
-                tb_inst_get_symbol_address(state->func, (TB_Symbol *)state->funcs[arg.func->id])
+                tb_inst_uint(state->func, TB_TYPE_I32, arg.func->id)
             );
         }
         default: {
@@ -937,20 +939,27 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                 TB_MultiOutput out = tb_inst_call(
                     state->func,
                     call_proto,
-                    tb_inst_bitcast(
+                    tb_inst_load(
                         state->func,
-                        tb_inst_load(
+                        TB_TYPE_PTR,
+                        tb_inst_array_access(
                             state->func,
-                            VM_TB_TYPE_VALUE,
-                            tb_inst_member_access(
+                            vm_tb_dyn_ptr(state, state->codes),
+                            tb_inst_load(
                                 state->func,
-                                run.val,
-                                offsetof(vm_std_value_t, value)
+                                TB_TYPE_I32,
+                                tb_inst_member_access(
+                                    state->func,
+                                    run.val,
+                                    offsetof(vm_std_value_t, value)
+                                ),
+                                4,
+                                false
                             ),
-                            4,
-                            false
+                            sizeof(void *)
                         ),
-                        TB_TYPE_PTR
+                        4,
+                        false
                     ),
                     1,
                     &call_arg
@@ -1139,6 +1148,8 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
     state->funcs = vm_malloc(sizeof(TB_Function *) * max);
     memset(state->funcs, 0, sizeof(TB_Function *) * max);
 
+    state->codes = vm_malloc(sizeof(void *) * max);
+
     state->compiled = vm_malloc(sizeof(TB_Node *) * max);
     memset(state->compiled, 0, sizeof(TB_Node *) * max);
 
@@ -1148,7 +1159,6 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
     tb_symbol_bind_ptr(state->vm_table_new, (void *)&vm_table_new);
     tb_symbol_bind_ptr(state->vm_table_set_pair, (void *)&vm_table_set_pair);
     tb_symbol_bind_ptr(state->vm_table_get_pair, (void *)&vm_table_get_pair);
-
 
     char entry_buf[64];
     TB_Function *entry_func = NULL;
@@ -1243,28 +1253,12 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                 }
             }
             const char *buf = tb_c_buf_to_data(cbuf);
-            void *code = vm_cache_comp("emcc", state->config->cflags, buf, entry_buf);
+            void *handle = vm_cache_comp("emcc", state->config->cflags, buf);
             tb_c_data_free(buf);
-            ret = code;
+            ret = vm_cache_dlsym(handle, entry_buf);
             break;
         }
 #else
-#if defined(VM_USE_GCCJIT)
-        case VM_TARGET_TB_GCCJIT: {
-            TB_GCCJIT_Module *mod = tb_gcc_module_new(state->mod);
-            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
-                TB_Function *func = state->funcs[block_num];
-                if (func != NULL && func != entry_func) {
-                    TB_Worklist *worklist = tb_worklist_alloc();
-                    tb_gcc_module_function(mod, func, worklist, tmp_arena);
-                }
-            }
-            TB_Worklist *worklist = tb_worklist_alloc();
-            TB_GCCJIT_Function *func = tb_gcc_module_function(mod, entry_func, worklist, tmp_arena);
-            ret = tb_gcc_function_ptr(func);
-            break;
-        }
-#endif
 #if defined(VM_USE_TCC)
         case VM_TARGET_TB_TCC: {
             TB_CBuffer *cbuf = tb_c_buf_new();
@@ -1319,9 +1313,18 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                 default:
                     break;
             }
-            void *code = vm_cache_comp(cc_name, state->config->cflags, buf, entry_buf);
+            void *handle = vm_cache_comp(cc_name, state->config->cflags, buf);
             tb_c_data_free(buf);
-            ret = code;
+
+            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
+                vm_block_t *block = state->blocks->blocks[block_num];
+                TB_Function *func = state->funcs[block_num];
+                if (block->isfunc) {
+                    state->codes[block->id] = vm_cache_dlsym(handle, ((TB_Symbol *)func)->name);
+                }
+            }
+
+            ret = vm_cache_dlsym(handle, entry_buf);
             break;
         }
 
@@ -1345,9 +1348,15 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
                     }
                 }
             }
-            void *code = tb_jit_place_function(jit, entry_func);
+            for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
+                vm_block_t *block = state->blocks->blocks[block_num];
+                TB_Function *func = state->funcs[block_num];
+                if (block->isfunc) {
+                    state->codes[block->id] = tb_jit_place_function(jit, func);
+                }
+            }
 
-            ret = code;
+            ret = tb_jit_place_function(jit, entry_func);
             break;
         }
 #endif

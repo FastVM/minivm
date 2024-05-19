@@ -519,10 +519,7 @@ vm_table_t *vm_std_new(vm_config_t *config) {
         vm_table_t *vm = vm_table_new();
         VM_TABLE_SET(std, str, "vm", table, vm);
         VM_TABLE_SET(vm, str, "print", ffi, VM_STD_REF(config, vm_std_vm_print));
-        {
-            vm_table_t *vm_ver = vm_table_new();
-            VM_TABLE_SET(vm, str, "version", table, vm_ver);
-        }
+        VM_TABLE_SET(vm, str, "version", str, "0.0.3");
     }
 
     {

@@ -10,7 +10,11 @@
 
 #include "../../vendor/xxhash/xxhash.h"
 
-void *vm_cache_comp(const char *comp, const char *flags, const char *src, const char *entry) {
+void *vm_cache_dlsym(void *handle, const char *name) {
+    return GetProcAddress(handle, entry);
+}
+
+void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
     if (flags == NULL) {
         flags = "";
     }
@@ -37,9 +41,8 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src, const 
         remove(c_file);
     }
     void *handle = LoadLibrary(so_file);
-    void *sym = GetProcAddress(handle, entry);
     remove(so_file);
-    return sym;
+    return handle;
 }
 #else
 #include <dlfcn.h>
@@ -54,7 +57,11 @@ EM_JS(void, vm_compile_c_to_wasm, (int n), {
     Module._vm_compile_c_to_wasm(n);
 });
 
-void *vm_cache_comp(const char *comp, const char *flags, const char *src, const char *entry) {
+void *vm_cache_dlsym(void *handle, const char *name) {
+    return dlsym(handle, name);
+}
+
+void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
     static int n = 0;
     n += 1;
     struct stat st = {0};
@@ -69,16 +76,20 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src, const 
     fclose(out);
     vm_compile_c_to_wasm(n);
     void *handle = dlopen(so_file, RTLD_LAZY);
-    void *sym = dlsym(handle, entry);
+    // void *sym = dlsym(handle, entry);
     remove(c_file);
     remove(so_file);
-    return sym;
+    return handle;
 }
 #else
 
 #include "../../vendor/xxhash/xxhash.h"
 
-void *vm_cache_comp(const char *comp, const char *flags, const char *src, const char *entry) {
+void *vm_cache_dlsym(void *handle, const char *name) {
+    return dlsym(handle, name);
+}
+
+void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
     if (flags == NULL) {
         flags = "";
     }
@@ -97,18 +108,17 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src, const 
         fwrite(src, len, 1, out);
         fclose(out);
         vm_io_buffer_t *cmd_buf = vm_io_buffer_new();
-        vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
-        // vm_io_buffer_format(cmd_buf, "%s -shared -g3 -fsanitize=memory -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
+        // vm_io_buffer_format(cmd_buf, "%s -shared -O2 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
+        vm_io_buffer_format(cmd_buf, "%s -shared -g3 -foptimize-sibling-calls -fPIC %s %s -o %s -w -pipe", comp, flags, c_file, so_file);
         int res = system(cmd_buf->buf);
         if (res) {
             return NULL;
         }
-        remove(c_file);
+        // remove(c_file);
     }
     void *handle = dlopen(so_file, RTLD_LAZY);
-    void *sym = dlsym(handle, entry);
     remove(so_file);
-    return sym;
+    return handle;
 }
 #endif
 

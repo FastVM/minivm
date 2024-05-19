@@ -100,7 +100,11 @@ export const repl = ({putchar}) => {
                 case 'get-buffer': {
                     let sync = null;
                     try {
-                        sync = Uint8Array.from(JSON.parse(localStorage.getItem('minivm.state')));
+                        if (localStorage.getItem('minivm.clear') != null) {
+                            localStorage.removeItem('minivm.clear');
+                        } else if (localStorage.getItem('minivm.state') != null) {
+                            sync = Uint8Array.from(JSON.parse(localStorage.getItem('minivm.state')));
+                        }
                     } catch (e) {
                         console.error(e);
                     }
@@ -123,8 +127,7 @@ export const repl = ({putchar}) => {
                     break;
                 }
                 case 'sync': {
-                    const buf = data.buf;
-                    localStorage.setItem('minivm.state', JSON.stringify(Array.from(buf)));
+                    localStorage.setItem('minivm.state', JSON.stringify(Array.from(data.buf)));
                     break;
                 }
             }

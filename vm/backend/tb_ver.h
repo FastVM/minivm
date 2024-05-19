@@ -1861,14 +1861,6 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             break;
         }
 #endif
-#if defined(VM_USE_GCCJIT)
-        case VM_TARGET_TB_GCCJIT: {
-            TB_GCCJIT_Module *mod = tb_gcc_module_new(state->module);
-            TB_GCCJIT_Function *func = tb_gcc_module_function(mod, f, worklist, state->tmp_arena);
-            ret = tb_gcc_function_ptr(func);
-            break;
-        }
-#endif
         case VM_TARGET_TB_CC:
         case VM_TARGET_TB_GCC:
         case VM_TARGET_TB_CLANG: {
@@ -1890,9 +1882,9 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
                 default:
                     break;
             }
-            void *code = vm_cache_comp(cc_name, state->config->cflags, buf, name);
+            void *handle = vm_cache_comp(cc_name, state->config->cflags, buf);
             tb_c_data_free(buf);
-            ret = code;
+            ret = vm_cache_dlsym(handle, name);
             break;
         }
         case VM_TARGET_TB: {
