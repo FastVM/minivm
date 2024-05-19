@@ -11,7 +11,7 @@
 #include "../../vendor/xxhash/xxhash.h"
 
 void *vm_cache_dlsym(void *handle, const char *name) {
-    return GetProcAddress(handle, entry);
+    return GetProcAddress(handle, name);
 }
 
 void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
