@@ -15,7 +15,7 @@ jobs:
           path: |
             build/bin/minivm
   mac-minivm:
-    runs-on: macos-arm64
+    runs-on: macos-14-arm64
     steps:
       - uses: actions/checkout@v4
         with:
