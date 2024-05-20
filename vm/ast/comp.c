@@ -223,7 +223,7 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     }
     if (slotnum < 0) {
         slotnum = ++comp->names->caps.len;
-        if (slotnum + 1 >= comp->names->caps.alloc) {
+        if (slotnum + 1 >= (ptrdiff_t) comp->names->caps.alloc) {
             comp->names->caps.alloc = slotnum * 2;
             comp->names->caps.ptr = vm_realloc(comp->names->caps.ptr, sizeof(vm_ast_comp_cap_t) * comp->names->caps.alloc);
         }

@@ -4,7 +4,6 @@
 #include "../../vendor/isocline/include/isocline.h"
 #include "../../vendor/isocline/src/completions.h"
 #include "../config.h"
-#include "../lib.h"
 #include "../obj.h"
 
 struct vm_lang_lua_repl_complete_state_t;

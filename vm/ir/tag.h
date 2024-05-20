@@ -31,7 +31,7 @@ struct vm_types_t {
 
 typedef struct vm_types_t vm_types_t;
 
-static uint32_t vm_type_tag(vm_tag_t type) {
+static inline uint8_t vm_type_tag(vm_tag_t type) {
     return type;
 }
 

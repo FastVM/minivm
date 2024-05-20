@@ -191,7 +191,6 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
             }
         }
     }
-outer:;
     vm_save_write_byte(&write, VM_TAG_UNK);
     uint64_t nsrcs = 0;
     for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {

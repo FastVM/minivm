@@ -158,7 +158,6 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TS
 }
 
 void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
-    vm_lang_lua_repl_highlight_state_t *state = arg;
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_lua());
     TSTree *tree = ts_parser_parse_string(
@@ -169,7 +168,6 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     );
     TSNode root_node = ts_tree_root_node(tree);
     size_t depth = 0;
-    vm_pair_t *value = VM_TABLE_LOOKUP_STR(state->std, "config");
     vm_lang_lua_repl_highlight_walk(henv, &depth, root_node);
     ts_tree_delete(tree);
     ts_parser_delete(parser);
@@ -221,13 +219,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
     }
     #endif
-
-    const char *arr[] = {
-        // "f = function() return 2 end",
-        "f()",
-        NULL,
-    };
-    const char **inputs = &arr[0];
 
     while (true) {
 #if defined(EMSCRIPTEN)

@@ -372,10 +372,6 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         .tag = key_tag,
         .value = key_val,
     };
-    vm_std_value_t value = (vm_std_value_t){
-        .tag = val_tag,
-        .value = val_val,
-    };
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;

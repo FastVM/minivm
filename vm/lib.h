@@ -54,21 +54,15 @@ static inline void *vm_realloc(void *ptr, size_t size) {
 }
 
 static inline void vm_free(const void *ptr) {
-    free((void *)ptr);
+    free((void *) ptr);
 }
 
-static char *vm_strdup(const char *str) {
-    int len = strlen(str);
+static inline char *vm_strdup(const char *str) {
+    size_t len = strlen(str);
     char *buf = vm_malloc(sizeof(char) * (len + 1));
     memcpy(buf, str, len + 1);
     return buf;
 }
-
-#if defined(_WIN32)
-#define VM_CDECL __attribute__((cdecl))
-#else
-#define VM_CDECL
-#endif
 
 static inline void vm_config_add_extern(vm_config_t *config, void *value) {
     vm_externs_t *last = config->externs;

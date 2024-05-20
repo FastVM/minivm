@@ -41,12 +41,11 @@ struct vm_tb_ver_state_t {
     vm_table_t *std;
 };
 
-typedef vm_std_value_t VM_CDECL vm_tb_ver_func_t(void);
+typedef vm_std_value_t vm_tb_ver_func_t(void);
 
 static void vm_tb_ver_new_module(vm_tb_ver_state_t *state);
 static void vm_tb_ver_free_module(vm_tb_ver_state_t *state);
 static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock);
-static void vm_tb_ver_func_print_value(vm_tb_ver_state_t *state, vm_tag_t tag, TB_Node *value);
 static TB_Node *vm_tb_ver_func_body_once(vm_tb_ver_state_t *state, vm_block_t *block);
 static void vm_tb_ver_func_report_error(vm_tb_ver_state_t *state, const char *str);
 static TB_Node *vm_tb_ver_make_type(vm_tb_ver_state_t *state, vm_tag_t key_tag);
@@ -322,10 +321,6 @@ static bool vm_tb_ver_str_eq(const char *str1, const char *str2) {
     return strcmp(str1, str2) == 0;
 }
 
-static bool vm_tb_ver_str_lt(const char *str1, const char *str2) {
-    return strcmp(str1, str2) < 0;
-}
-
 static void vm_tb_ver_func_reset_pass(vm_block_t *block);
 
 static void vm_tb_ver_func_reset_pass_internal(vm_block_t *block) {
@@ -384,10 +379,6 @@ static TB_Node *vm_tb_ver_func_body_once(vm_tb_ver_state_t *state, vm_block_t *b
     vm_tb_ver_func_body_once_as(state, block);
     tb_inst_set_trace(state->fun, old_ctrl);
     return ret;
-}
-
-static void vm_tb_ver_func_branch(vm_tb_ver_state_t *state, vm_block_t *target, vm_rblock_t **rtargets) {
-    __builtin_trap();
 }
 
 static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out, vm_block_t *target, vm_rblock_t **rtargets, TB_Node *value, TB_Node *tag, void **mem) {
@@ -1566,28 +1557,6 @@ static void vm_tb_ver_print(vm_tag_t tag, uint64_t ivalue) {
     vm_io_buffer_t buf = {0};
     vm_io_debug(&buf, 0, "debug: ", val, NULL);
     fprintf(stdout, "%.*s", (int)buf.len, buf.buf);
-}
-
-static void vm_tb_ver_func_print_value(vm_tb_ver_state_t *state, vm_tag_t tag, TB_Node *value) {
-    TB_PrototypeParam proto_args[2] = {
-        {VM_TB_TYPE_TAG},
-        {VM_TB_TYPE_VALUE},
-    };
-
-    TB_FunctionPrototype *proto = tb_prototype_create(state->module, VM_TB_CC, 2, proto_args, 0, NULL, false);
-
-    TB_Node *params[2] = {
-        vm_tb_ver_make_type(state, tag),
-        vm_tb_ver_bitcast_to_value(state, value),
-    };
-
-    vm_tb_ver_inst_call(
-        state,
-        proto,
-        tb_inst_get_symbol_address(state->fun, state->vm_tb_ver_print),
-        2,
-        params
-    );
 }
 
 static void vm_tb_ver_free_module(vm_tb_ver_state_t *state) {

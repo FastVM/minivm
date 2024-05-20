@@ -13,7 +13,7 @@ struct vm_tb_dyn_state_t;
 typedef struct vm_tb_dyn_pair_t vm_tb_dyn_pair_t;
 typedef struct vm_tb_dyn_state_t vm_tb_dyn_state_t;
 
-typedef vm_std_value_t VM_CDECL vm_tb_dyn_func_t(vm_std_value_t *values);
+typedef vm_std_value_t vm_tb_dyn_func_t(vm_std_value_t *values);
 
 struct vm_tb_dyn_pair_t {
     TB_Node *val;
@@ -350,6 +350,66 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                         .tag = tb_inst_uint(state->func, VM_TB_TYPE_TAG, VM_TAG_TAB),
                     }
                 );
+                break;
+            }
+
+            case VM_IOP_TABLE_LEN: {
+                vm_tb_dyn_pair_t table = vm_tb_dyn_arg(state, instr.args[0]);
+
+                TB_Node *is_table = tb_inst_region(state->func);
+                TB_Node *is_error = tb_inst_region(state->func);
+
+                tb_inst_if(state->func, vm_tb_dyn_tag_eq(state, table.tag, tb_inst_uint(state->func, VM_TB_TYPE_TAG, VM_TAG_TAB)), is_table, is_error);
+
+                {
+                    tb_inst_set_control(state->func, is_error);
+
+                    TB_Node *returns[2] = {
+                        tb_inst_bitcast(
+                            state->func,
+                            vm_tb_dyn_ptr(state, "type error: can get the length of only tables"),
+                            VM_TB_TYPE_VALUE
+                        ),
+                        tb_inst_uint(state->func, VM_TB_TYPE_TAG, VM_TAG_ERROR),
+                    };
+
+                    tb_inst_ret(state->func, 2, returns);
+                }
+
+                {
+                    tb_inst_set_control(state->func, is_table);
+
+                    TB_Node *len = tb_inst_load(
+                        state->func,
+                        TB_TYPE_I32,
+                        tb_inst_member_access(
+                            state->func,
+                            table.val,
+                            offsetof(vm_table_t, len)
+                        ),
+                        1,
+                        false
+                    );
+
+                    if (state->config->use_num == VM_USE_NUM_F32) {
+                        len = tb_inst_float2int(state->func, len, TB_TYPE_F32, true);
+                    } else if (state->config->use_num == VM_USE_NUM_F64) {
+                        len = tb_inst_float2int(state->func, len, TB_TYPE_F64, true);
+                    } else if (state->number_dt.raw != TB_TYPE_I32.raw) {
+                        len = tb_inst_bitcast(state->func, len, state->number_dt);
+                    }
+
+                    vm_tb_dyn_set(
+                        state,
+                        instr.out,
+                        vm_tb_dyn_pair_of(
+                            state,
+                            state->number_type,
+                            len
+                        )
+                    );
+                }
+
                 break;
             }
 
@@ -774,7 +834,6 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
             TB_Node *is_not_ffi = tb_inst_region(state->func);
             TB_Node *is_closure = tb_inst_region(state->func);
             TB_Node *is_error = tb_inst_region(state->func);
-            TB_Node *is_result = tb_inst_region(state->func);
 
             tb_inst_if(state->func, vm_tb_dyn_tag_eq(state, run.tag, tb_inst_uint(state->func, VM_TB_TYPE_TAG, VM_TAG_CLOSURE)), is_closure, is_not_ffi);
             tb_inst_set_control(state->func, is_not_ffi);
@@ -1140,7 +1199,7 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
     size_t max = 0;
     for (size_t block_num = 0; block_num < state->blocks->len; block_num++) {
         vm_block_t *block = state->blocks->blocks[block_num];
-        if (block->id >= max) {
+        if (block->id >= (ptrdiff_t) max) {
             max = block->id + 1;
         }
     }
