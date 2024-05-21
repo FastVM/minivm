@@ -17,3 +17,6 @@
 [submodule "vendor/llvm-box"]
 	path = vendor/llvm-box
 	url = https://github.com/fastvm/llvm-box
+[submodule "vendor/lua"]
+	path = vendor/lua
+	url = https://github.com/lua/lua

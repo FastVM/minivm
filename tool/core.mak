@@ -11,6 +11,8 @@ TCC ?= YES
 POST_INSTALL ?= @
 
 TEST_TIME = 15
+TEST_LUA = lua
+TEST_DIFF = diff
 
 BUILD_DIR ?= build
 OBJ_DIR ?= $(BUILD_DIR)/obj
@@ -102,7 +104,7 @@ MKDIR = @mkdir -p
 
 # find test -name '*.lua' | xargs echo
 TEST_LUAS = test/closure/funcons.lua test/closure/ccall.lua test/closure/recursive.lua test/closure/funcret.lua test/closure/delay.lua test/closure/yodacall.lua test/tables/len.lua test/tables/test.lua test/tables/tbench.lua test/tables/concat.lua test/tables/trees_no_loop.lua test/tables/trees2.lua test/tables/abench.lua test/tables/trees.lua test/types/scary.lua test/basic/boolean.lua test/basic/countdown.lua test/basic/method.lua test/basic/mod.lua test/basic/if.lua test/basic/hello.lua test/basic/types.lua test/basic/while.lua test/basic/idiv.lua test/basic/numtype.lua test/basic/arg.lua test/rec/tak.lua test/rec/tarai.lua test/fib/tab.lua test/fib/ptr.lua test/fib/fib.lua test/loop/squares.lua test/loop/primes_for.lua test/loop/loop2.lua test/loop/eval.lua test/loop/primes4.lua test/loop/primes5.lua test/loop/primes2.lua test/loop/primes3.lua test/loop/primes1.lua test/loop/sqrt.lua test/loop/range.lua test/loop/loop.lua
-TEST_TEXTS = $(TEST_LUAS:%.lua=$(TEST_DIR)/%.txt)
+TEST_TEXTS = $(TEST_LUAS:%.lua=$(TEST_DIR)/%.diff)
 TEST_TIMEOUT_WINDOWS = timeout /t $(TEST_TIME)
 TEST_TIMEOUT_MAC = timeout $(TEST_TIME)s
 TEST_TIMEOUT_LINUX = timeout $(TEST_TIME)s
@@ -150,11 +152,16 @@ $(TCC_DIR)/tccdefs_.h: $(TCC_DIR)/include/tccdefs.h $(TCC_DIR)/config.h
 # tests
 
 test: $(TEST_TEXTS)
-	mv $(TEST_DIR)/tmp.txt $(TEST_DIR)/all.txt
-	
-$(TEST_TEXTS): $(BIN_DIR)/minivm$(EXE) $(@:$(TEST_DIR)/%.txt=%.lua)
+	cat $(TEST_TEXTS) > $(TEST_DIR)/diff.txt
+
+$(TEST_TEXTS): $(BIN_DIR)/minivm$(EXE) $(@:$(TEST_DIR)/%.diff=%.lua)
 	$(MKDIR) $(dir $(@))
-	if ! $(TEST_TIMEOUT) $(BIN_DIR)/minivm$(EXE) $(TEST_FLAGS) $(@:$(TEST_DIR)/%.txt=%.lua) > $(@); then echo fail $(@) >> $(TEST_DIR)/tmp.txt; fi
+	$(TEST_TIMEOUT) $(BIN_DIR)/minivm$(EXE) $(TEST_FLAGS) $(@:$(TEST_DIR)/%.diff=%.lua) 2>&1 > $(@:$(TEST_DIR)/%.diff=$(TEST_DIR)/%.vm.log) || true
+	$(TEST_TIMEOUT) $(TEST_LUA) $(@:$(TEST_DIR)/%.diff=%.lua) 2>&1 > $(@:$(TEST_DIR)/%.diff=$(TEST_DIR)/%.lua.log) || true
+	echo "--- $(@:$(TEST_DIR)/%.diff=%.lua) ---" > $(@)
+	$(TEST_DIFF) $(@:$(TEST_DIR)/%.diff=$(TEST_DIR)/%.lua.log) $(@:$(TEST_DIR)/%.diff=$(TEST_DIR)/%.vm.log) >> $(@) || true
+	echo "--- end ---" >> $(@)
+	echo >> $(@)
 
 # compile c
 

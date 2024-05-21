@@ -8,7 +8,7 @@ jobs:
         with:
           submodules: true
       - run: make linux
-      - run: cat build/test/all.txt
+      - run: cat build/test/diff.txt
       - uses: actions/upload-artifact@v4
         with:
           name: minivm-linux
@@ -21,7 +21,7 @@ jobs:
         with:
           submodules: true
       - run: make mac
-      - run: cat build/test/all.txt
+      - run: cat build/test/diff.txt
       - uses: actions/upload-artifact@v4
         with:
           name: minivm-mac
@@ -39,7 +39,7 @@ jobs:
           version: 12.2.0 
           platform: x64
       - run: make windows
-      - run: cat build/test/all.txt
+      - run: cat build/test/diff.txt
       - uses: actions/upload-artifact@v4
         with:
           name: minivm-windows
