@@ -16,7 +16,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
 int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t) {
-        .use_num = VM_USE_NUM_I32,
+        .use_num = VM_USE_NUM_F64,
         .tb_lbbv = false,
         .tb_regs_cast = true,
         .tb_recompile = true,
@@ -24,7 +24,11 @@ int main(int argc, char **argv) {
         .target = VM_TARGET_TB_EMCC,
         .tb_tailcalls = true,
 #else
+#if defined(_WIN32) || defined(__APPLE__)
         .target = VM_TARGET_TB_TCC,
+#else
+        .target = VM_TARGET_TB_CC,
+#endif
         .tb_tailcalls = true,
 #endif
         .cflags = NULL,
@@ -230,6 +234,9 @@ int main(int argc, char **argv) {
             }
 
             vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
+            if (value.tag == VM_TAG_ERROR) {
+                exit(1);
+            }
             if (echo) {
                 vm_io_buffer_t buf = {0};
                 vm_io_debug(&buf, 0, "", value, NULL);

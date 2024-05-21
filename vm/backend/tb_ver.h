@@ -317,10 +317,6 @@ static TB_Node *vm_tb_ver_func_read_arg(vm_tb_ver_state_t *state, vm_arg_t arg) 
     }
 }
 
-static bool vm_tb_ver_str_eq(const char *str1, const char *str2) {
-    return strcmp(str1, str2) == 0;
-}
-
 static void vm_tb_ver_func_reset_pass(vm_block_t *block);
 
 static void vm_tb_ver_func_reset_pass_internal(vm_block_t *block) {
@@ -1094,7 +1090,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                 TB_MultiOutput out = vm_tb_ver_inst_call(
                     state,
                     proto,
-                    vm_tb_ver_ptr_name(state, "vm_tb_ver_str_eq", &vm_tb_ver_str_eq),
+                    vm_tb_ver_ptr_name(state, "vm_tb_str_eq", &vm_tb_str_eq),
                     2,
                     args
                 );

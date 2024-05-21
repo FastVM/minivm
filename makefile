@@ -3,12 +3,13 @@ OPT = -Os -flto
 PRE = 
 
 linux: .dummy
-	$(PRE) make -Bj -f tool/core.mak test OS=LINUX CFLAGS_VM="-DVM_USE_TCC" CC=cc
+	$(PRE) make -Bj -f tool/core.mak test OS=LINUX CC=cc
 
 mac: .dummy
-	$(PRE) make -Bj -f tool/core.mak test OS=MAC CFLAGS_VM="-DVM_USE_TCC" CC=clang
+	$(PRE) make -Bj -f tool/core.mak test OS=MAC CC=clang
 
 windows:
-	$(PRE) make -Bj -f tool/core.mak test OS=WINDOWS CFLAGS_VM="-DVM_USE_TCC" EXE=.exe
+	$(PRE) make -Bj -f tool/core.mak test OS=WINDOWS EXE=.exe
+
 
 .dummy:

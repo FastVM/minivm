@@ -14,6 +14,10 @@ void vm_tb_tcc_error_func(void *user, const char *msg) {
 }
 #endif
 
+static bool vm_tb_str_eq(const char *str1, const char *str2) {
+    return strcmp(str1, str2) == 0;
+}
+
 #include "tb_dyn.h"
 #include "tb_ver.h"
 
