@@ -239,7 +239,6 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                 vm_tb_dyn_set(state, instr.out, arg);
                 break;
             }
-
             case VM_IOP_ADD:
             case VM_IOP_SUB:
             case VM_IOP_MUL:
@@ -408,6 +407,134 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
                             val
                         )
                     );
+                }
+
+                break;
+            }
+
+            case VM_IOP_IDIV: {
+                vm_tb_dyn_pair_t arg1 = vm_tb_dyn_arg(state, instr.args[0]);
+                vm_tb_dyn_pair_t arg2 = vm_tb_dyn_arg(state, instr.args[1]);
+
+                TB_Node *is_number1 = tb_inst_region(state->func);
+                TB_Node *is_number2 = tb_inst_region(state->func);
+                TB_Node *is_error = tb_inst_region(state->func);
+
+                tb_inst_if(state->func, vm_tb_dyn_tag_eq(state, arg1.tag, tb_inst_uint(state->func, VM_TB_TYPE_TAG, state->number_type)), is_number1, is_error);
+
+                {
+                    tb_inst_set_control(state->func, is_error);
+
+                    TB_Node *returns[2] = {
+                        tb_inst_bitcast(
+                            state->func,
+                            vm_tb_dyn_ptr(state, "type error: math"),
+                            VM_TB_TYPE_VALUE
+                        ),
+                        tb_inst_uint(state->func, VM_TB_TYPE_TAG, VM_TAG_ERROR),
+                    };
+
+                    tb_inst_ret(state->func, 2, returns);
+                }
+
+                {
+                    tb_inst_set_control(state->func, is_number1);
+
+                    tb_inst_if(state->func, vm_tb_dyn_tag_eq(state, arg2.tag, tb_inst_uint(state->func, VM_TB_TYPE_TAG, state->number_type)), is_number2, is_error);
+                }
+
+                {
+                    tb_inst_set_control(state->func, is_number2);
+
+                    if (state->number_type == VM_TAG_F32) {
+                        TB_Node *lhs = tb_inst_bitcast(state->func, arg1.val, TB_TYPE_F32);
+                        TB_Node *rhs = tb_inst_bitcast(state->func, arg2.val, TB_TYPE_F32);
+
+                        TB_Node *was_not_in_bounds = tb_inst_region(state->func);
+                        tb_inst_set_region_name(state->func, was_not_in_bounds, -1, "div_was_not_in_bounds");
+                        TB_Node *was_in_bounds = tb_inst_region(state->func);
+                        tb_inst_set_region_name(state->func, was_in_bounds, -1, "div_was_in_bounds");
+                        TB_Node *after = tb_inst_region(state->func);
+                        tb_inst_set_region_name(state->func, after, -1, "after_mod");
+
+                        TB_Node *raw_div = tb_inst_fdiv(state->func, lhs, rhs);
+                        TB_Node *too_low = tb_inst_cmp_flt(state->func, raw_div, tb_inst_float32(state->func, (double)INT32_MIN));
+                        TB_Node *too_high = tb_inst_cmp_fgt(state->func, raw_div, tb_inst_float32(state->func, (double)INT32_MAX));
+                        TB_Node *is_out_of_bounds = tb_inst_or(state->func, too_low, too_high);
+                        tb_inst_if(state->func, is_out_of_bounds, was_not_in_bounds, was_in_bounds);
+                        TB_Node *v1 = NULL;
+                        TB_Node *v2 = NULL;
+                        {
+                            tb_inst_set_control(state->func, was_in_bounds);
+                            TB_Node *int_div = tb_inst_float2int(state->func, raw_div, TB_TYPE_I32, true);
+                            TB_Node *float_div = tb_inst_int2float(state->func, int_div, TB_TYPE_F32, true);
+                            v1 = float_div;
+                            tb_inst_goto(state->func, after);
+                        }
+
+                        {
+                            tb_inst_set_control(state->func, was_not_in_bounds);
+                            TB_Node *mul = tb_inst_fmul(state->func, raw_div, rhs);
+                            TB_Node *sub = tb_inst_fsub(state->func, lhs, mul);
+                            v2 = sub;
+                            tb_inst_goto(state->func, after);
+                        }
+
+                        tb_inst_set_control(state->func, after);
+
+                        vm_tb_dyn_set(state, instr.out, (vm_tb_dyn_pair_t) {
+                            .tag = tb_inst_uint(state->func, VM_TB_TYPE_TAG, VM_TAG_F32),
+                            .val = tb_inst_phi2(state->func, after, v1, v2),
+                        });
+                    } else if (state->number_type == VM_TAG_F64) {
+                        TB_Node *lhs = tb_inst_bitcast(state->func, arg1.val, TB_TYPE_F64);
+                        TB_Node *rhs = tb_inst_bitcast(state->func, arg2.val, TB_TYPE_F64);
+
+                        TB_Node *was_not_in_bounds = tb_inst_region(state->func);
+                        tb_inst_set_region_name(state->func, was_not_in_bounds, -1, "div_was_not_in_bounds");
+                        TB_Node *was_in_bounds = tb_inst_region(state->func);
+                        tb_inst_set_region_name(state->func, was_in_bounds, -1, "div_was_in_bounds");
+                        TB_Node *after = tb_inst_region(state->func);
+                        tb_inst_set_region_name(state->func, after, -1, "after_mod");
+
+                        TB_Node *raw_div = tb_inst_fdiv(state->func, lhs, rhs);
+                        TB_Node *too_low = tb_inst_cmp_flt(state->func, raw_div, tb_inst_float64(state->func, (double)INT64_MIN));
+                        TB_Node *too_high = tb_inst_cmp_fgt(state->func, raw_div, tb_inst_float64(state->func, (double)INT64_MAX));
+                        TB_Node *is_out_of_bounds = tb_inst_or(state->func, too_low, too_high);
+                        tb_inst_if(state->func, is_out_of_bounds, was_not_in_bounds, was_in_bounds);
+                        TB_Node *v1 = NULL;
+                        TB_Node *v2 = NULL;
+                        {
+                            tb_inst_set_control(state->func, was_in_bounds);
+                            TB_Node *int_div = tb_inst_float2int(state->func, raw_div, TB_TYPE_I64, true);
+                            TB_Node *float_div = tb_inst_int2float(state->func, int_div, TB_TYPE_F64, true);
+                            v1 = float_div;
+                            tb_inst_goto(state->func, after);
+                        }
+
+                        {
+                            tb_inst_set_control(state->func, was_not_in_bounds);
+                            TB_Node *mul = tb_inst_fmul(state->func, raw_div, rhs);
+                            TB_Node *sub = tb_inst_fsub(state->func, lhs, mul);
+                            v2 = sub;
+                            tb_inst_goto(state->func, after);
+                        }
+
+                        tb_inst_set_control(state->func, after);
+
+                        vm_tb_dyn_set(state, instr.out, (vm_tb_dyn_pair_t) {
+                            .tag = tb_inst_uint(state->func, VM_TB_TYPE_TAG, VM_TAG_F64),
+                            .val = tb_inst_phi2(state->func, after, v1, v2),
+                        });
+                    } else {
+                        TB_Node *lhs = tb_inst_bitcast(state->func, arg1.val, state->number_dt);
+                        TB_Node *rhs = tb_inst_bitcast(state->func, arg2.val, state->number_dt);
+
+                        vm_tb_dyn_set(state, instr.out, (vm_tb_dyn_pair_t) {
+                            .tag = tb_inst_uint(state->func, VM_TB_TYPE_TAG, state->number_type),
+                            .val = tb_inst_div(state->func, lhs, rhs, false),
+                        });
+                    }
                 }
 
                 break;
