@@ -11,7 +11,7 @@ mac: .dummy
 	$(PRE) make -Bj -f tool/core.mak test OS=MAC CC=clang TEST_LUA=vendor/lua/lua
 
 windows:
-	$(PRE) make -j -C vendor/lua MYCFLAGS=-DLUA_USE_POSIX MYLDFLAGS= MYLIBS=-ldl
+	$(PRE) make -j -C vendor/lua MYCFLAGS= MYLDFLAGS= MYLIBS=
 	$(PRE) make -Bj -f tool/core.mak test OS=WINDOWS EXE=.exe TEST_LUA=vendor/lua/lua
 
 .dummy:
