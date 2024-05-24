@@ -121,11 +121,11 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
                 break;
             }
             case VM_TAG_F32: {
-                vm_save_write_uleb(&write, (uint64_t) *(uint32_t *) &value.value.f32);
+                vm_save_write_uleb(&write, (uint32_t) value.value.i32);
                 break;
             }
             case VM_TAG_F64: {
-                vm_save_write_uleb(&write, *(uint64_t *) &value.value.f64);
+                vm_save_write_uleb(&write, (uint64_t) value.value.i64);
                 break;
             }
             case VM_TAG_ERROR:

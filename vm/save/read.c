@@ -56,7 +56,7 @@ static int64_t vm_save_read_sleb(vm_save_read_t *read) {
         shift += 7;
         if ((0x80 & byte) == 0) {
             if (shift < 64 && (byte & 0x40) != 0) {
-                return result | (~0 << shift);
+                return result | -(1 << shift);
             }
             return result;
         }
@@ -112,12 +112,12 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
             }
             case VM_TAG_F32: {
                 uint32_t n = (uint32_t) vm_save_read_uleb(&read);
-                value.f32 = *(float *)&n;
+                value.i32 = (int32_t) n;
                 break;
             }
             case VM_TAG_F64: {
                 uint64_t n = vm_save_read_uleb(&read);
-                value.f64 = *(double *)&n;
+                value.i64 = (int64_t) n;
                 break;
             }
             case VM_TAG_ERROR:

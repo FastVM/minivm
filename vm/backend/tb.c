@@ -9,6 +9,7 @@
 
 #if defined(VM_USE_TCC)
 void vm_tb_tcc_error_func(void *user, const char *msg) {
+    (void) user;
     printf("%s\n", msg);
     exit(1);
 }

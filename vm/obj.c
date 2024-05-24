@@ -284,13 +284,13 @@ size_t vm_value_hash(vm_std_value_t value) {
             if (vm_value_is_int(value)) {
                 return (size_t)(int32_t)value.value.f32 * 1610612741;
             }
-            return (size_t) * (uint32_t *)&value.value.f32;
+            return (size_t) (uint32_t) value.value.i32;
         }
         case VM_TAG_F64: {
             if (vm_value_is_int(value)) {
                 return (size_t)(int64_t)value.value.f64 * 1610612741;
             }
-            return (size_t) * (uint64_t *)&value.value.f64;
+            return (size_t) (uint64_t) value.value.i64;
         }
         case VM_TAG_STR: {
             size_t ret = 1 << 16;
@@ -403,7 +403,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         next += 1;
         next &= and;
     } while (next != stop);
-    if ((table->used + 1) * 3 >= 2 * (1 << table->alloc)) {
+    if ((table->used + 1) * 3 >= 2 * ((uint32_t) 1 << table->alloc)) {
         vm_table_t *ret = vm_table_new_size(table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
             vm_pair_t *in_pair = &table->pairs[i];

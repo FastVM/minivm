@@ -74,7 +74,7 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     const char *last_word = &prefix[head];
     vm_table_t *std = state->std;
 with_new_std:;
-    for (size_t i = 0; i < (1 << std->alloc); i++) {
+    for (size_t i = 0; i < ((size_t) 1 << std->alloc); i++) {
         vm_pair_t *pair = &std->pairs[i];
         if (vm_type_eq(pair->key_tag, VM_TAG_STR)) {
             const char *got = pair->key_val.str;
@@ -158,6 +158,7 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TS
 }
 
 void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
+    (void) arg;
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_lua());
     TSTree *tree = ts_parser_parse_string(

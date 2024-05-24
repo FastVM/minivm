@@ -1178,12 +1178,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
             {
                 tb_inst_set_control(state->func, is_ffi);
 
-                TB_Node *call_arg;
-                if (num_args == 0) {
-                    call_arg = tb_inst_local(state->func, sizeof(vm_std_value_t) * (num_args / 2), 8);
-                } else {
-                    call_arg = tb_inst_local(state->func, sizeof(vm_std_value_t), 8);
-                }
+                TB_Node *call_arg = tb_inst_local(state->func, sizeof(vm_std_value_t) * (num_args / 2), 8);
 
                 for (size_t i = 1; branch.args[i].type != VM_ARG_NONE; i++) {
                     TB_Node *head = tb_inst_member_access(state->func, call_arg, sizeof(vm_std_value_t) * (i - 1));
