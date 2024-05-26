@@ -1,6 +1,6 @@
 
-#if !defined(VM_HEADER_BE_TB)
-#define VM_HEADER_BE_TB
+#if !defined(VM_HEADER_BACKEND_TB)
+#define VM_HEADER_BACKEND_TB
 
 #include "../ir/ir.h"
 #include "../ir/type.h"
