@@ -3,6 +3,7 @@
 #define VM_HEADER_CONFIG
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stddef.h>
 
 #define VM_USE_DUMP 1
@@ -54,9 +55,9 @@ struct vm_config_t {
 
     const char *cflags;
 
-    unsigned int target : 4;
-    unsigned int use_num : 3;
-    unsigned int use_ver_count : 2;
+    uint8_t target : 4;
+    uint8_t use_num : 3;
+    uint8_t use_ver_count : 2;
 
     bool dump_src : 1;
     bool dump_ast : 1;
