@@ -48,7 +48,6 @@ enum {
     VM_BOP_BLE,
     VM_BOP_BEQ,
     VM_BOP_RET,
-    VM_BOP_BTYPE,
     VM_BOP_LOAD,
     VM_BOP_GET,
     VM_BOP_CALL,
@@ -69,9 +68,6 @@ enum {
     VM_IOP_TABLE_SET,
     VM_IOP_TABLE_NEW,
     VM_IOP_TABLE_LEN,
-    // closures
-    VM_IOP_CLOSURE_NEW,
-    VM_IOP_CLOSURE_SET,
     // objects
     VM_IOP_STD,
 };

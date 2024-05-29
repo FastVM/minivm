@@ -36,3 +36,11 @@ void vm_ast_free_node(vm_ast_node_t node) {
         }
     }
 }
+
+#if !defined(NDEBUG)
+const char *vm_ast_format(vm_ast_node_t *node) {
+    vm_io_buffer_t *buf = vm_io_buffer_new();
+    vm_ast_print_node(buf, 0, "", node);
+    return vm_io_buffer_get(buf);
+}
+#endif

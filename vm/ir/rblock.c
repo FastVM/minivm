@@ -16,7 +16,7 @@ void vm_rblock_reset(vm_rblock_t *rblock) {
     vm_free(rblock);
 }
 
-vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
+vm_block_t *vm_rblock_version(vm_config_t *config, vm_blocks_t *blocks, vm_rblock_t *rblock) {
     if (rblock->cache != NULL) {
         return rblock->cache;
     }
@@ -40,7 +40,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
         }
     }
     for (size_t ninstr = 0; ninstr < rblock->block->len; ninstr++) {
-        vm_instr_t instr = vm_rblock_type_specialize_instr(regs, rblock->block->instrs[ninstr]);
+        vm_instr_t instr = vm_rblock_type_specialize_instr(config, regs, rblock->block->instrs[ninstr]);
         size_t nargs = 1;
         for (size_t i = 0; instr.args[i].type != VM_ARG_NONE; i++) {
             nargs += 1;
@@ -58,7 +58,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
             regs->tags[instr.out.reg] = instr.tag;
         }
     }
-    vm_branch_t branch = vm_rblock_type_specialize_branch(regs, rblock->block->branch);
+    vm_branch_t branch = vm_rblock_type_specialize_branch(config, regs, rblock->block->branch);
     size_t nargs = 1;
     for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
         nargs += 1;
@@ -173,7 +173,7 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
             break;
         }
         case VM_BOP_JUMP: {
-            branch.targets[0] = vm_rblock_version(blocks, vm_rblock_new(branch.targets[0], regs));
+            branch.targets[0] = vm_rblock_version(config, blocks, vm_rblock_new(branch.targets[0], regs));
             if (branch.targets[0] == NULL) {
                 ret = NULL;
                 return ret;
@@ -184,8 +184,8 @@ vm_block_t *vm_rblock_version(vm_blocks_t *blocks, vm_rblock_t *rblock) {
         case VM_BOP_BEQ:
         case VM_BOP_BLT:
         case VM_BOP_BLE: {
-            branch.targets[0] = vm_rblock_version(blocks, vm_rblock_new(branch.targets[0], regs));
-            branch.targets[1] = vm_rblock_version(blocks, vm_rblock_new(branch.targets[1], regs));
+            branch.targets[0] = vm_rblock_version(config, blocks, vm_rblock_new(branch.targets[0], regs));
+            branch.targets[1] = vm_rblock_version(config, blocks, vm_rblock_new(branch.targets[1], regs));
             if (branch.targets[0] == NULL) {
                 ret = NULL;
                 return ret;

@@ -332,6 +332,9 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "unary_expression")) {
         const char *op = ts_node_type(ts_node_child(node, 0));
         vm_ast_node_t right = vm_lang_lua_conv(src, ts_node_child(node, 1));
+        if (!strcmp(op, "not")) {
+            return vm_ast_build_if(right, vm_ast_build_literal(b, false), vm_ast_build_literal(b, true));
+        }
         if (!strcmp(op, "#")) {
             return vm_ast_build_len(right);
         }
@@ -415,6 +418,11 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         return vm_ast_build_error(vm_io_format("unknown operator: %s", op));
     }
     if (!strcmp(type, "string")) {
+        if (ts_node_child_count(node) == 2) {
+            char *ret = vm_malloc(sizeof(char) * 1);
+            ret[0] = '\0';
+            return vm_ast_build_literal(str, ret);
+        }
         TSNode content = ts_node_child(node, 1);
         char *val = vm_lang_lua_src(src, content);
         size_t alloc = strlen(val);

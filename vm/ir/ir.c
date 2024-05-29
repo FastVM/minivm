@@ -124,10 +124,6 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             vm_io_buffer_format(out, "bb");
             break;
         }
-        case VM_BOP_BTYPE: {
-            vm_io_buffer_format(out, "btype");
-            break;
-        }
         case VM_BOP_BLT: {
             vm_io_buffer_format(out, "blt");
             break;

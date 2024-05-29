@@ -83,6 +83,7 @@ struct vm_ast_node_t {
     vm_ast_node_type_t type;
 };
 
+const char *vm_ast_format(vm_ast_node_t *node);
 void vm_ast_free_form(vm_ast_form_t node);
 void vm_ast_free_ident(const char *node);
 void vm_ast_free_literal(vm_std_value_t node);

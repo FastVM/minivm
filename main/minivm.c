@@ -24,7 +24,6 @@ int main(int argc, char **argv) {
         .use_num = VM_USE_NUM_F64,
         .tb_lbbv = false,
         .tb_regs_cast = true,
-        .tb_recompile = true,
 #if defined(EMSCRIPTEN)
         .target = VM_TARGET_TB_EMCC,
         .tb_tailcalls = true,

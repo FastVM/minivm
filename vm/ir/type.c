@@ -96,7 +96,7 @@ bool vm_rblock_regs_match(vm_types_t *a, vm_types_t *b) {
     return true;
 }
 
-vm_instr_t vm_rblock_type_specialize_instr(vm_types_t *types, vm_instr_t instr) {
+vm_instr_t vm_rblock_type_specialize_instr(vm_config_t *config, vm_types_t *types, vm_instr_t instr) {
     if (!vm_type_eq(instr.tag, VM_TAG_UNK)) {
         __builtin_trap();
     }
@@ -115,7 +115,32 @@ vm_instr_t vm_rblock_type_specialize_instr(vm_types_t *types, vm_instr_t instr) 
         goto ret;
     }
     if (instr.op == VM_IOP_TABLE_LEN) {
-        instr.tag = VM_TAG_I32;
+        switch (config->use_num) {
+            case VM_USE_NUM_I8: {
+                instr.tag = VM_TAG_I8;
+                break;
+            }
+            case VM_USE_NUM_I16: {
+                instr.tag = VM_TAG_I16;
+                break;
+            }
+            case VM_USE_NUM_I32: {
+                instr.tag = VM_TAG_I32;
+                break;
+            }
+            case VM_USE_NUM_I64: {
+                instr.tag = VM_TAG_I64;
+                break;
+            }
+            case VM_USE_NUM_F32: {
+                instr.tag = VM_TAG_F32;
+                break;
+            }
+            case VM_USE_NUM_F64: {
+                instr.tag = VM_TAG_F64;
+                break;
+            }
+        }
         goto ret;
     }
     if (vm_type_eq(instr.tag, VM_TAG_UNK)) {
@@ -137,7 +162,7 @@ ret:;
     return instr;
 }
 
-vm_branch_t vm_rblock_type_specialize_branch(vm_types_t *types, vm_branch_t branch) {
+vm_branch_t vm_rblock_type_specialize_branch(vm_config_t *config, vm_types_t *types, vm_branch_t branch) {
     if (!vm_type_eq(branch.tag, VM_TAG_UNK)) {
         __builtin_trap();
     }

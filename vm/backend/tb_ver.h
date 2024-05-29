@@ -435,7 +435,7 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
 
             vm_tb_ver_func_write(state, i, out.reg, value);
 
-            vm_block_t *block = vm_rblock_version(state->blocks, rtargets[i]);
+            vm_block_t *block = vm_rblock_version(state->config, state->blocks, rtargets[i]);
 
             vm_tb_ver_func_body_once_as(state, block);
 
@@ -938,7 +938,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
                         len
                     );
                 } else {
-                    fprintf(stderr, "\n ^ unhandled instruction\n");
+                    fprintf(stdout, "\nunhandled instruction: table_len\n");
                 }
                 break;
             }
@@ -1673,7 +1673,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         vm_table_set(vm_ver_tab, (vm_value_t){.str = "global"}, res, VM_TAG_STR, tag);
     }
 
-    vm_block_t *block = vm_rblock_version(state->blocks, rblock);
+    vm_block_t *block = vm_rblock_version(state->config, state->blocks, rblock);
 
     static size_t comps = 0;
     char name[64];
