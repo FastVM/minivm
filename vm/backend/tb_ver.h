@@ -552,25 +552,13 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
                 false
             );
 
-            if (state->config->tb_tailcalls) {
-                TB_MultiOutput out = vm_tb_ver_inst_call(
-                    state,
-                    next_proto,
-                    new_func_multi.single,
-                    next_nargs,
-                    next_args
-                );
-
-                tb_inst_ret(state->fun, 2, out.multiple);
-            } else {
-                tb_inst_tailcall(
-                    state->fun,
-                    next_proto,
-                    new_func_multi.single,
-                    next_nargs,
-                    next_args
-                );
-            }
+            tb_inst_tailcall(
+                state->fun,
+                next_proto,
+                new_func_multi.single,
+                next_nargs,
+                next_args
+            );
 
             tb_inst_set_control(state->fun, has_use_region);
         }
@@ -583,25 +571,13 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
             false
         );
 
-        if (state->config->tb_tailcalls) {
-            TB_MultiOutput out = vm_tb_ver_inst_call(
-                state,
-                next_proto,
-                new_func_multi.single,
-                next_nargs,
-                next_args
-            );
-
-            tb_inst_ret(state->fun, 2, out.multiple);
-        } else {
-            tb_inst_tailcall(
-                state->fun,
-                next_proto,
-                new_func_multi.single,
-                next_nargs,
-                next_args
-            );
-        }
+        tb_inst_tailcall(
+            state->fun,
+            next_proto,
+            new_func_multi.single,
+            next_nargs,
+            next_args
+        );
     }
 
     {
@@ -617,25 +593,13 @@ static void vm_tb_ver_func_branch_on_ptr(vm_tb_ver_state_t *state, vm_arg_t out,
             }
         }
 
-        if (state->config->tb_tailcalls) {
-            TB_MultiOutput out = vm_tb_ver_inst_call(
-                state,
-                next_proto,
-                func,
-                next_nargs,
-                next_args
-            );
-
-            tb_inst_ret(state->fun, 2, out.multiple);
-        } else {
-            tb_inst_tailcall(
-                state->fun,
-                next_proto,
-                func,
-                next_nargs,
-                next_args
-            );
-        }
+        tb_inst_tailcall(
+            state->fun,
+            next_proto,
+            func,
+            next_nargs,
+            next_args
+        );
     }
 }
 

@@ -26,14 +26,8 @@ int main(int argc, char **argv) {
         .tb_regs_cast = true,
 #if defined(EMSCRIPTEN)
         .target = VM_TARGET_TB_EMCC,
-        .tb_tailcalls = true,
 #else
-#if defined(_WIN32) || defined(__APPLE__)
         .target = VM_TARGET_TB_TCC,
-#else
-        .target = VM_TARGET_TB_CC,
-#endif
-        .tb_tailcalls = true,
 #endif
         .cflags = NULL,
     };
@@ -144,8 +138,6 @@ int main(int argc, char **argv) {
                 config->tb_regs_node = enable;
             } else if (!strcmp(arg, "force-bitcast")) {
                 config->tb_force_bitcast = enable;
-            } else if (!strcmp(arg, "tailcalls")) {
-                config->tb_tailcalls = enable;
             } else if (!strcmp(arg, "lbbv")) {
                 config->tb_lbbv = enable;
             } else {
