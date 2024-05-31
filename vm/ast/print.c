@@ -139,6 +139,10 @@ void vm_ast_print_node(vm_io_buffer_t *out, size_t indent, const char *prefix, v
                     vm_io_buffer_format(out, "return");
                     break;
                 }
+                case VM_AST_FORM_SCOPE: {
+                    vm_io_buffer_format(out, "scope");
+                    break;
+                }
             }
             vm_io_buffer_format(out, " {\n");
             for (size_t i = 0; i < form.len; i++) {

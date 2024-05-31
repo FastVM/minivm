@@ -45,7 +45,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         for (size_t i = 1; i < num_children; i++) {
             ret = vm_ast_build_do(ret, vm_lang_lua_conv(src, ts_node_child(node, i)));
         }
-        return ret;
+        return vm_ast_build_scope(ret);
     }
     if (!strcmp(type, "break_statement")) {
         return vm_ast_build_break();
@@ -333,7 +333,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
         const char *op = ts_node_type(ts_node_child(node, 0));
         vm_ast_node_t right = vm_lang_lua_conv(src, ts_node_child(node, 1));
         if (!strcmp(op, "not")) {
-            return vm_ast_build_if(right, vm_ast_build_literal(b, false), vm_ast_build_literal(b, true));
+            return vm_ast_build_not(right);
         }
         if (!strcmp(op, "#")) {
             return vm_ast_build_len(right);

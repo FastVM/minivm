@@ -189,7 +189,9 @@ static void vm_ast_blocks_branch(vm_ast_comp_t *comp, vm_branch_t branch) {
 }
 
 static size_t vm_ast_comp_get_local(vm_ast_comp_names_t *names, const char *name) {
-    for (size_t i = 0; i < names->regs.len; i++) {
+    size_t i = names->regs.len;
+    while (i > 0) {
+        i -= 1;
         if (names->regs.ptr[i] != NULL && !strcmp(names->regs.ptr[i], name)) {
             return i + 1;
         }
@@ -1030,6 +1032,12 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     );
                     comp->cur = vm_ast_comp_new_block(comp);
                     return vm_arg_nil();
+                }
+                case VM_AST_FORM_SCOPE: {
+                    size_t count = comp->names->regs.len;
+                    vm_arg_t ret = vm_ast_comp_to(comp, form.args[0]);
+                    comp->names->regs.len = count;
+                    return ret;
                 }
             }
             break;

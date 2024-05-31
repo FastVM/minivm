@@ -217,6 +217,10 @@ vm_ast_node_t vm_ast_build_return(vm_ast_node_t value) {
     return vm_ast_form(VM_AST_FORM_RETURN, value);
 }
 
+vm_ast_node_t vm_ast_build_scope(vm_ast_node_t value) {
+    return vm_ast_form(VM_AST_FORM_SCOPE, value);
+}
+
 vm_ast_node_t vm_ast_build_block(size_t len, ...) {
     va_list ap;
     va_start(ap, len);

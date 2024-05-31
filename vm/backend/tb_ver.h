@@ -114,7 +114,7 @@ static TB_Node *vm_tb_ver_make_type(vm_tb_ver_state_t *state, vm_tag_t type) {
             return tb_inst_uint(state->fun, VM_TB_TYPE_TAG, VM_TAG_ERROR);
         }
         default: {
-            fprintf(stderr, "\nunhandled type.tag #%zu\n", (size_t)vm_type_tag(type));
+            fprintf(stderr, "\nunhandled type tag #%zu\n", (size_t)vm_type_tag(type));
             __builtin_trap();
         }
     }
@@ -189,7 +189,7 @@ static TB_DataType vm_type_to_tb_type(vm_tag_t type) {
             return TB_TYPE_PTR;
         }
         default: {
-            fprintf(stderr, "\nunhandled type.tag #%zu\n", (size_t)vm_type_tag(type));
+            fprintf(stderr, "\nunhandled type tag #%zu\n", (size_t)vm_type_tag(type));
             __builtin_trap();
         }
     }

@@ -114,7 +114,7 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
         if (res) {
             return NULL;
         }
-        // remove(c_file);
+        remove(c_file);
     }
     void *handle = dlopen(so_file, RTLD_LAZY);
     remove(so_file);

@@ -64,6 +64,8 @@ enum {
     VM_AST_FORM_LAMBDA,
     VM_AST_FORM_CALL,
     VM_AST_FORM_RETURN,
+    // scopes
+    VM_AST_FORM_SCOPE,
 };
 
 struct vm_ast_form_t {

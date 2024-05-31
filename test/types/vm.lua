@@ -78,30 +78,50 @@ function vm.check(checker, where, value)
     end
 end
 
-local t = vm.type.f64
-
-local x2str = vm.type.record({t, t})
+-- local x2str = vm.type.record({t, t})
 
 -- function foo(a: f64): str
 --     return tostring(a)
 -- end 
 
-local a_loc = {"in: parameter a", "in: global function to_s"}
-local r_loc = {"in: return value", "in: global function to_s"}
+-- local a_loc = {"in: parameter a", "in: global function to_s"}
+-- local r_loc = {"in: return value", "in: global function to_s"}
+-- local a_type = vm.type.f64
+-- local r_type = vm.type.str
+
+-- local function to_s(a)
+--     vm.check(a_type, a_loc, a)
+--     local r = tostring(a)
+--     vm.check(r_type, r_loc, r)
+--     return r
+-- end
+
+-- print(to_s("x"))
+-- print(to_s(0))
+-- print(to_s(3))
+
+-- local function fib(n)
+--     vm.check()
+-- end
+
+local a_loc = {"in: parameter n", "in: function fib"}
+local r_loc = {"in: return value", "in: function fib"}
 local a_type = vm.type.f64
-local r_type = vm.type.str
+local r_type = vm.type.f64
 
-local function to_s(a)
-    vm.check(a_type, a_loc, a)
-    local r = tostring(a)
-    vm.check(r_type, r_loc, r)
-    return r
-end
-
-print(to_s("x"))
-print(to_s(0))
-print(to_s(3))
+local check = vm.check
 
 local function fib(n)
-    vm.check()
+    check(a_type, a_loc, n)
+    if n < 2 then
+        local r = n
+        check(r_type, r_loc, r)
+        return r
+    else
+        local r = fib(n-1) + fib(n-2)
+        check(r_type, r_loc, r)
+        return r
+    end
 end
+
+print(fib(30))
