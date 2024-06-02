@@ -1,7 +1,6 @@
 
 import Module from '../../../build/bin/minivm.mjs';
 
-
 export const run = (args, opts) => {
     const mod = Module({
         noInitialRun: true,

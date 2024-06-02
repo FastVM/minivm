@@ -78,7 +78,7 @@ LDFLAGS_GCCJIT_YES = -lgccjit
 LDFLAGS_MAC_GCCJIT_NO =
 LDFLAGS_MAC_GCCJIT_YES = -L/opt/homebrew/lib/gcc/current
 
-LDFLAGS_WINDOWS =
+LDFLAGS_WINDOWS = -lSynchronization
 LDFLAGS_MAC = $(LDFLAGS_MAC_GCCJIT_$(GCCJIT))
 LDFLAGS_LINUX = -lm -ldl
 LDFLAGS_FREEBSD = -lm -ldl -lpthread

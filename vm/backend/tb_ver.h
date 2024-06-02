@@ -213,18 +213,14 @@ static TB_Node *vm_tb_ver_bitcast_to_reg(vm_tb_ver_state_t *state, TB_Node *valu
 
 static void vm_tb_ver_func_write(vm_tb_ver_state_t *state, vm_tag_t tag, size_t reg, TB_Node *value) {
     TB_Node **regs = state->regs;
-    if (state->config->tb_regs_node) {
-        regs[reg] = vm_tb_ver_bitcast_to_reg(state, value);
-    } else {
-        tb_inst_store(
-            state->fun,
-            state->config->tb_regs_cast ? VM_TB_TYPE_VALUE : vm_type_to_tb_type(tag),
-            regs[reg],
-            vm_tb_ver_bitcast_to_reg(state, value),
-            1,
-            false
-        );
-    }
+    tb_inst_store(
+        state->fun,
+        state->config->tb_regs_cast ? VM_TB_TYPE_VALUE : vm_type_to_tb_type(tag),
+        regs[reg],
+        vm_tb_ver_bitcast_to_reg(state, value),
+        1,
+        false
+    );
 }
 
 static TB_Node *vm_tb_ver_func_read(vm_tb_ver_state_t *state, vm_tag_t tag, size_t reg) {
@@ -233,33 +229,21 @@ static TB_Node *vm_tb_ver_func_read(vm_tb_ver_state_t *state, vm_tag_t tag, size
         fprintf(stderr, "internal error: register %%%zu load before store\n", (size_t)reg);
         __builtin_trap();
     }
-    if (state->config->tb_regs_node) {
-        return vm_tb_ver_bitcast_from_reg(
-            state,
+    return vm_tb_ver_bitcast_from_reg(
+        state,
+        tb_inst_load(
+            state->fun,
+            state->config->tb_regs_cast ? VM_TB_TYPE_VALUE : vm_type_to_tb_type(tag),
             regs[reg],
-            vm_type_to_tb_type(tag)
-        );
-    } else {
-        return vm_tb_ver_bitcast_from_reg(
-            state,
-            tb_inst_load(
-                state->fun,
-                state->config->tb_regs_cast ? VM_TB_TYPE_VALUE : vm_type_to_tb_type(tag),
-                regs[reg],
-                1,
-                false
-            ),
-            vm_type_to_tb_type(tag)
-        );
-    }
+            1,
+            false
+        ),
+        vm_type_to_tb_type(tag)
+    );
 }
 
 static TB_Node *vm_tb_ver_func_local(vm_tb_ver_state_t *state) {
-    if (state->config->tb_regs_node) {
-        return NULL;
-    } else {
-        return tb_inst_local(state->fun, sizeof(vm_value_t), 8);
-    }
+    return tb_inst_local(state->fun, sizeof(vm_value_t), 8);
 }
 
 static TB_Node *vm_tb_ver_func_read_arg(vm_tb_ver_state_t *state, vm_arg_t arg) {
@@ -1763,7 +1747,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             tb_c_print_prelude(cbuf, state->module);
             tb_c_print_function(cbuf, f, worklist, state->tmp_arena);
             const char *buf = tb_c_buf_to_data(cbuf);
-            void *code = vm_cache_comp("emcc", state->config->cflags, buf, name);
+            void *code = vm_cache_comp("emcc", state->config->cflags, buf);
             tb_c_data_free(buf);
             ret = code;
             break;

@@ -1,4 +1,5 @@
 #include "tree_sitter/parser.h"
+#include <wctype.h>
 
 enum TokenType {
     BLOCK_COMMENT_START,

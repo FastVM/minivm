@@ -18,7 +18,17 @@ const readFileSync = (path) => {
 };
 
 const boxSpawn = (cmd, ...cmdArgs) => {
-    const args = [cmd, ...cmdArgs];
+    const args = [...cmdArgs];
+    switch (cmd) {
+        case 'wasm-ld':
+            args.unshift('lld', 'wasm-ld');
+            break;
+        case 'clang':
+            args.unshift('clang', 'clang');
+            break;
+        default: 
+            throw new Error(`command: ${cmd}`);
+    }
     const argc = args.length;
     const argv = box._malloc((argc + 1) * 4);
     let argv_ptr = argv;
@@ -127,7 +137,7 @@ mkdirSync(cache);
 
 timeEnd('llvm');
 
-export const run = (args) => {
+export const run = async (args) => {
     timeBegin('run');
     process.stdin.setRawMode(true);
 
@@ -135,11 +145,14 @@ export const run = (args) => {
 
     timeBegin(last);
 
-    const mod = MiniVM({
+    const mod = await MiniVM({
         noInitialRun: true,
         stdin: watch(stdinFunc),
         stdout: watch(stdoutFunc),
         stderr: watch(stderrFunc),
+
+        _vm_lang_lua_repl_sync() {},
+
         _vm_compile_c_to_wasm: (n) => {
             timeEnd(last);
             const cSrc = mod.FS.readFile(`/in${n}.c`);
@@ -149,17 +162,17 @@ export const run = (args) => {
             writeFileSync(inFile, cSrc);
             if (ld === 'none') {
                 timeBegin(cc);
-                execSync(`llvm-box ${cc} ${inFile} ${cFlags} -o ${outFile}`);
+                execSync(`${cc} ${inFile} ${cFlags} -o ${outFile}`);
                 timeEnd(cc);
                 unlinkSync(inFile);
             } else {
                 const midFile = `${cache}/mid${n}.o`;
                 timeBegin(cc);
-                execSync(`llvm-box ${cc} -c -w ${inFile} ${cFlagsBase} -o ${midFile}`);
+                execSync(`${cc} -c -w ${inFile} ${cFlagsBase} -o ${midFile}`);
                 timeEnd(cc);
                 unlinkSync(inFile);
                 timeBegin(ld);
-                execSync(`llvm-box ${ld} --no-entry --whole-archive ${midFile} ${ldFlagsBase} -o ${outFile}`);
+                execSync(`${ld} --no-entry --whole-archive ${midFile} ${ldFlagsBase} -o ${outFile}`);
                 timeEnd(ld);
                 unlinkSync(midFile);
             }
@@ -189,7 +202,7 @@ export const run = (args) => {
 };
 
 try {
-    run(process.argv.slice(2));
+    await run(process.argv.slice(2));
 } catch (e) {
     console.error(e);
 }

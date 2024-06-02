@@ -134,8 +134,6 @@ int main(int argc, char **argv) {
                 config->tb_recompile = enable;
             } else if (!strcmp(arg, "cast-regs")) {
                 config->tb_regs_cast = enable;
-            } else if (!strcmp(arg, "raw-regs")) {
-                config->tb_regs_node = enable;
             } else if (!strcmp(arg, "force-bitcast")) {
                 config->tb_force_bitcast = enable;
             } else if (!strcmp(arg, "lbbv")) {
