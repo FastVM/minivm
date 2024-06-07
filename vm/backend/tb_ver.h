@@ -3,7 +3,6 @@
 #define VM_BE_TB_VER
 
 #include "../../vendor/cuik/common/arena.h"
-#include "../../vendor/tcc/libtcc.h"
 #include "../ir/check.h"
 #include "../ir/rblock.h"
 #include "./exec.h"
@@ -1762,9 +1761,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             if (state->config->dump_c) {
                 printf("\n--- c ---\n%s", buf);
             }
-            TCCState *state = tcc_new();
-            tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
-            tcc_set_options(state, "-nostdlib");
+            TCCState *state = vm_tcc_new();
             tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
             tcc_compile_string(state, buf);
             tcc_add_symbol(state, "memmove", &memmove);

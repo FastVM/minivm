@@ -8,10 +8,22 @@
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
 #if defined(VM_USE_TCC)
+#include "../../vendor/tcc/libtcc.h"
+
 void vm_tb_tcc_error_func(void *user, const char *msg) {
     (void) user;
     printf("%s\n", msg);
     exit(1);
+}
+
+static void *vm_tcc_new(void) {
+    unsigned long long __fixunsdfdi(double a1);
+    
+    TCCState *state = tcc_new();
+    tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
+    tcc_set_options(state, "-nostdlib");
+    tcc_add_symbol(state, "__fixunsdfdi", (const void *) &__fixunsdfdi);
+    return state;
 }
 #endif
 
@@ -76,9 +88,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
         if (config->dump_c) {
             printf("\n--- c ---\n%s", buf);
         }
-        TCCState *state = tcc_new();
-        tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
-        tcc_set_options(state, "-nostdlib");
+        TCCState *state = vm_tcc_new();
         tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
         tcc_compile_string(state, buf);
         tcc_add_symbol(state, "memmove", &memmove);

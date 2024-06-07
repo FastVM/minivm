@@ -3,7 +3,6 @@
 #define VM_BE_TB_DYN
 
 #include "../../vendor/cuik/common/arena.h"
-#include "../../vendor/tcc/libtcc.h"
 #include "../ir/check.h"
 #include "./exec.h"
 
@@ -1683,9 +1682,7 @@ vm_tb_dyn_func_t *vm_tb_dyn_comp(vm_tb_dyn_state_t *state, vm_block_t *entry) {
             if (state->config->dump_c) {
                 printf("\n--- c ---\n%s", buf);
             }
-            TCCState *tcc = tcc_new();
-            tcc_set_error_func(tcc, 0, vm_tb_tcc_error_func);
-            tcc_set_options(tcc, "-nostdlib");
+            TCCState *tcc = vm_tcc_new();
             tcc_set_output_type(tcc, TCC_OUTPUT_MEMORY);
             tcc_compile_string(tcc, buf);
             tcc_add_symbol(tcc, "memmove", &memmove);
