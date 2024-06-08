@@ -49,19 +49,19 @@ static TB_Node *vm_tb_ver_func_body_once(vm_tb_ver_state_t *state, vm_block_t *b
 static void vm_tb_ver_func_report_error(vm_tb_ver_state_t *state, const char *str);
 static TB_Node *vm_tb_ver_make_type(vm_tb_ver_state_t *state, vm_tag_t key_tag);
 
-#define vm_tb_ver_select_binary_cmp(xtag, onint, onfloat, ...) ({         \
-    vm_tag_t tag = xtag;                                                 \
-    TB_Node *ret = NULL;                                                  \
+#define vm_tb_ver_select_binary_cmp(xtag, onint, onfloat, ...) ({       \
+    vm_tag_t tag = xtag;                                                \
+    TB_Node *ret = NULL;                                                \
     if (!vm_type_eq(tag, VM_TAG_F64) && !vm_type_eq(tag, VM_TAG_F32)) { \
-        ret = onint(__VA_ARGS__, true);                                   \
-    } else {                                                              \
-        ret = onfloat(__VA_ARGS__);                                       \
-    }                                                                     \
-    ret;                                                                  \
+        ret = onint(__VA_ARGS__, true);                                 \
+    } else {                                                            \
+        ret = onfloat(__VA_ARGS__);                                     \
+    }                                                                   \
+    ret;                                                                \
 })
 
 static TB_Node *vm_tb_ver_ptr_name(vm_tb_ver_state_t *state, const char *name, const void *value) {
-    (void) name;
+    (void)name;
     return tb_inst_uint(state->fun, TB_TYPE_PTR, (uint64_t)value);
 }
 
@@ -1841,7 +1841,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
 }
 
 static void vm_tb_ver_rblock_del(vm_rblock_t *rblock) {
-    (void) rblock;
+    (void)rblock;
 }
 
 static void *vm_tb_ver_full_comp(vm_tb_ver_state_t *state, vm_block_t *block) {

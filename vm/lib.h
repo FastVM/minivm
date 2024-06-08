@@ -54,7 +54,7 @@ static inline void *vm_realloc(void *ptr, size_t size) {
 }
 
 static inline void vm_free(const void *ptr) {
-    free((void *) ptr);
+    free((void *)ptr);
 }
 
 static inline char *vm_strdup(const char *str) {

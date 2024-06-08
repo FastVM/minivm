@@ -221,8 +221,7 @@ struct TSLanguage {
                 .type = TSParseActionTypeReduce, \
                 .symbol = symbol_val,            \
                 .child_count = child_count_val,  \
-                __VA_ARGS__                      \
-            },                                   \
+                __VA_ARGS__},                    \
         }                                        \
     }
 

@@ -17,7 +17,7 @@ vm_save_t vm_save_load(FILE *in) {
             break;
         }
     }
-    return (vm_save_t) {
+    return (vm_save_t){
         .len = nops,
         .buf = ops,
     };

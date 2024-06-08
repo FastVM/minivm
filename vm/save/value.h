@@ -1,8 +1,8 @@
 #if !defined(VM_HEADER_SAVE_DATA_VALUE)
 #define VM_HEADER_SAVE_DATA_VALUE
 
-#include "./io.h"
 #include "../obj.h"
+#include "./io.h"
 
 struct vm_save_loaded_t;
 typedef struct vm_save_loaded_t vm_save_loaded_t;

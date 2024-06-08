@@ -3,8 +3,8 @@
 #define VM_HEADER_CONFIG
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define VM_USE_DUMP 1
 #define VM_FORMAT_FLOAT "%.14g"

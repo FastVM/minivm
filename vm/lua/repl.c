@@ -74,7 +74,7 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     const char *last_word = &prefix[head];
     vm_table_t *std = state->std;
 with_new_std:;
-    for (size_t i = 0; i < ((size_t) 1 << std->alloc); i++) {
+    for (size_t i = 0; i < ((size_t)1 << std->alloc); i++) {
         vm_pair_t *pair = &std->pairs[i];
         if (vm_type_eq(pair->key_tag, VM_TAG_STR)) {
             const char *got = pair->key_val.str;
@@ -158,7 +158,7 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TS
 }
 
 void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
-    (void) arg;
+    (void)arg;
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_lua());
     TSTree *tree = ts_parser_parse_string(
@@ -204,7 +204,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
     //     setvbuf(stderr, NULL, _IONBF, 0);
     // #endif
 
-    #if defined(EMSCRIPTEN)
+#if defined(EMSCRIPTEN)
     {
         FILE *f = fopen("/wasm.bin", "rb");
         if (f != NULL) {
@@ -219,13 +219,13 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             }
         }
     }
-    #endif
+#endif
 
     while (true) {
 #if defined(EMSCRIPTEN)
         {
 
-            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
             FILE *f = fopen("/wasm.bin", "wb");
             if (f != NULL) {
                 fwrite(save.buf, 1, save.len, f);

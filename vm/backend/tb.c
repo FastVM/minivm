@@ -11,18 +11,18 @@
 #include "../../vendor/tcc/libtcc.h"
 
 void vm_tb_tcc_error_func(void *user, const char *msg) {
-    (void) user;
+    (void)user;
     printf("%s\n", msg);
     exit(1);
 }
 
 static void *vm_tcc_new(void) {
     unsigned long long __fixunsdfdi(double a1);
-    
+
     TCCState *state = tcc_new();
     tcc_set_error_func(state, 0, vm_tb_tcc_error_func);
     tcc_set_options(state, "-nostdlib");
-    tcc_add_symbol(state, "__fixunsdfdi", (const void *) &__fixunsdfdi);
+    tcc_add_symbol(state, "__fixunsdfdi", (const void *)&__fixunsdfdi);
     return state;
 }
 #endif

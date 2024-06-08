@@ -8,13 +8,13 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks);
 
 void vm_std_os_exit(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     exit((int)vm_value_to_i64(args[0]));
     return;
 }
 
 void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     if (vm_type_eq(args[0].tag, VM_TAG_STR)) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
@@ -45,7 +45,7 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_assert(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     vm_std_value_t val = args[0];
     if (vm_type_eq(val.tag, VM_TAG_NIL) || (vm_type_eq(val.tag, VM_TAG_BOOL) && !val.value.b)) {
         vm_std_value_t msg = args[1];
@@ -66,7 +66,7 @@ void vm_std_assert(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_error(vm_std_closure_t *closure, vm_std_value_t *args) {
     if (args[0].tag == VM_TAG_STR) {
-        *args = (vm_std_value_t) {
+        *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = args[0].value.str,
         };
@@ -83,7 +83,7 @@ void vm_std_error(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     int64_t nargs = 0;
     for (size_t i = 0; !vm_type_eq(args[i].tag, VM_TAG_UNK); i++) {
         nargs += 1;
@@ -111,19 +111,19 @@ void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_vm_print(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     for (size_t i = 0; !vm_type_eq(args[i].tag, VM_TAG_UNK); i++) {
         vm_io_buffer_t buf = {0};
         vm_io_debug(&buf, 0, "", args[i], NULL);
         printf("%.*s", (int)buf.len, buf.buf);
     }
-    args[0] = (vm_std_value_t) {
+    args[0] = (vm_std_value_t){
         .tag = VM_TAG_NIL,
     };
 }
 
 void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     size_t len = 1;
     for (size_t i = 0; vm_type_eq(args[i].tag, VM_TAG_STR); i++) {
         len += strlen(args[i].value.str);
@@ -146,7 +146,7 @@ void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     const char *ret = "unknown";
     switch (vm_type_tag(args[0].tag)) {
         case VM_TAG_NIL: {
@@ -213,7 +213,7 @@ void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_tostring(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     vm_io_buffer_t out = {0};
     vm_value_buffer_tostring(&out, *args);
     *args = (vm_std_value_t){
@@ -275,7 +275,7 @@ void vm_std_tonumber(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_print(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     vm_std_value_t *ret = args;
     vm_io_buffer_t out = {0};
     bool first = true;
@@ -293,7 +293,7 @@ void vm_std_print(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_io_write(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     vm_std_value_t *ret = args;
     vm_io_buffer_t out = {0};
     while (!vm_type_eq(args->tag, VM_TAG_UNK)) {
@@ -306,7 +306,7 @@ void vm_std_io_write(vm_std_closure_t *closure, vm_std_value_t *args) {
 }
 
 void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void) closure;
+    (void)closure;
     vm_std_value_t *ret = args;
     vm_io_buffer_t *out = vm_io_buffer_new();
     vm_std_value_t fmt = *args++;
@@ -533,7 +533,7 @@ void vm_std_set_arg(vm_config_t *config, vm_table_t *std, const char *prog, cons
 
 void vm_std_vm_typename(vm_std_closure_t *closure, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_STR) {
-        *args = (vm_std_value_t) {
+        *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = "vm.type: expected string",
         };
@@ -602,7 +602,7 @@ void vm_std_vm_typeof(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_table_keys(vm_std_closure_t *closure, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_TAB) {
-        *args = (vm_std_value_t) {
+        *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = "table.values: expect a table",
         };
@@ -616,7 +616,7 @@ void vm_std_table_keys(vm_std_closure_t *closure, vm_std_value_t *args) {
         vm_pair_t *pair = &tab->pairs[i];
         if (pair->key_tag != VM_TAG_UNK) {
             vm_std_value_t key = VM_STD_VALUE_NUMBER(closure->config, write_head);
-            vm_std_value_t value = (vm_std_value_t) {
+            vm_std_value_t value = (vm_std_value_t){
                 .tag = pair->key_tag,
                 .value = pair->key_val,
             };
@@ -624,7 +624,7 @@ void vm_std_table_keys(vm_std_closure_t *closure, vm_std_value_t *args) {
             write_head++;
         }
     }
-    *args = (vm_std_value_t) {
+    *args = (vm_std_value_t){
         .tag = VM_TAG_TAB,
         .value.table = ret,
     };
@@ -633,7 +633,7 @@ void vm_std_table_keys(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_table_values(vm_std_closure_t *closure, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_TAB) {
-        *args = (vm_std_value_t) {
+        *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = "table.values: expect a table",
         };
@@ -647,7 +647,7 @@ void vm_std_table_values(vm_std_closure_t *closure, vm_std_value_t *args) {
         vm_pair_t *pair = &tab->pairs[i];
         if (pair->key_tag != VM_TAG_UNK) {
             vm_std_value_t key = VM_STD_VALUE_NUMBER(closure->config, write_head);
-            vm_std_value_t value = (vm_std_value_t) {
+            vm_std_value_t value = (vm_std_value_t){
                 .tag = pair->val_tag,
                 .value = pair->val_val,
             };
@@ -655,7 +655,7 @@ void vm_std_table_values(vm_std_closure_t *closure, vm_std_value_t *args) {
             write_head++;
         }
     }
-    *args = (vm_std_value_t) {
+    *args = (vm_std_value_t){
         .tag = VM_TAG_TAB,
         .value.table = ret,
     };

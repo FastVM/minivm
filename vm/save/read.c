@@ -1,7 +1,7 @@
 
-#include "value.h"
 #include "../ast/ast.h"
 #include "../ast/comp.h"
+#include "value.h"
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 
@@ -78,7 +78,7 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
     };
     while (true) {
         size_t start = read.buf.read;
-        vm_tag_t tag = (vm_tag_t) vm_save_read_byte(&read);
+        vm_tag_t tag = (vm_tag_t)vm_save_read_byte(&read);
         vm_value_t value;
         // printf("object #%zu at [0x%zX] with type %zu\n", read.values.len, start, (size_t) tag);
         switch (tag) {
@@ -94,30 +94,30 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
                 break;
             }
             case VM_TAG_I8: {
-                value.i8 = (int8_t) vm_save_read_sleb(&read);
+                value.i8 = (int8_t)vm_save_read_sleb(&read);
                 break;
             }
             case VM_TAG_I16: {
-                value.i16 = (int16_t) vm_save_read_sleb(&read);
+                value.i16 = (int16_t)vm_save_read_sleb(&read);
                 break;
             }
             case VM_TAG_FUN:
             case VM_TAG_I32: {
-                value.i32 = (int32_t) vm_save_read_sleb(&read);
+                value.i32 = (int32_t)vm_save_read_sleb(&read);
                 break;
             }
             case VM_TAG_I64: {
-                value.i64 = (int64_t) vm_save_read_sleb(&read);
+                value.i64 = (int64_t)vm_save_read_sleb(&read);
                 break;
             }
             case VM_TAG_F32: {
-                uint32_t n = (uint32_t) vm_save_read_uleb(&read);
-                value.i32 = (int32_t) n;
+                uint32_t n = (uint32_t)vm_save_read_uleb(&read);
+                value.i32 = (int32_t)n;
                 break;
             }
             case VM_TAG_F64: {
                 uint64_t n = vm_save_read_uleb(&read);
-                value.i64 = (int64_t) n;
+                value.i64 = (int64_t)n;
                 break;
             }
             case VM_TAG_ERROR:
@@ -144,9 +144,9 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
             case VM_TAG_CLOSURE: {
                 uint64_t len = vm_save_read_uleb(&read);
                 vm_std_value_t *closure = vm_malloc(sizeof(vm_std_value_t) * (len + 1));
-                closure[0] = (vm_std_value_t) {
+                closure[0] = (vm_std_value_t){
                     .tag = VM_TAG_I32,
-                    .value.i32 = (int32_t) (uint32_t) len,
+                    .value.i32 = (int32_t)(uint32_t)len,
                 };
                 closure += 1;
                 for (size_t i = 0; i < len; i++) {
@@ -166,7 +166,7 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
                 break;
             }
             default: {
-                fprintf(stderr, "unhandled object #%zu at [0x%zX]: type %zu\n", read.values.len, start, (size_t) tag);
+                fprintf(stderr, "unhandled object #%zu at [0x%zX]: type %zu\n", read.values.len, start, (size_t)tag);
                 goto error;
             }
         }
@@ -174,9 +174,9 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
             read.values.alloc = (read.values.len + 1) * 2;
             read.values.ptr = vm_realloc(read.values.ptr, sizeof(vm_save_value_t) * read.values.alloc);
         }
-        read.values.ptr[read.values.len++] = (vm_save_value_t) {
+        read.values.ptr[read.values.len++] = (vm_save_value_t){
             .start = start,
-            .value = (vm_std_value_t) {
+            .value = (vm_std_value_t){
                 .tag = tag,
                 .value = value,
             },
@@ -188,7 +188,7 @@ outer:;
         vm_save_value_t save = read.values.ptr[i];
         vm_value_t value = save.value.value;
         read.buf.read = save.start;
-        vm_tag_t tag = (vm_tag_t) vm_save_read_byte(&read);
+        vm_tag_t tag = (vm_tag_t)vm_save_read_byte(&read);
         switch (tag) {
             case VM_TAG_CLOSURE: {
                 uint64_t len = vm_save_read_uleb(&read);
@@ -225,7 +225,7 @@ outer:;
         uint64_t len = vm_save_read_uleb(&read);
         char *src = vm_malloc(sizeof(char) * (len + 1));
         for (uint64_t j = 0; j < len; j++) {
-            src[j] = (char) vm_save_read_byte(&read);
+            src[j] = (char)vm_save_read_byte(&read);
         }
         src[len] = '\0';
         vm_ast_node_t node = vm_lang_lua_parse(config, src);
@@ -233,13 +233,13 @@ outer:;
         // vm_ast_free_node(node);
         vm_blocks_add_src(blocks, src);
     }
-    return (vm_save_loaded_t) {
+    return (vm_save_loaded_t){
         .blocks = blocks,
         .env = read.values.ptr[0].value,
     };
 error:;
-    return (vm_save_loaded_t) {
+    return (vm_save_loaded_t){
         .blocks = NULL,
-        .env = (vm_std_value_t) {.tag = VM_TAG_NIL},
+        .env = (vm_std_value_t){.tag = VM_TAG_NIL},
     };
 }

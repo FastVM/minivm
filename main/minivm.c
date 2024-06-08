@@ -3,12 +3,12 @@
 #include "../vm/backend/tb.h"
 #include "../vm/config.h"
 #include "../vm/ir/ir.h"
+#include "../vm/save/value.h"
 #include "../vm/std/io.h"
 #include "../vm/std/std.h"
-#include "../vm/save/value.h"
 
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
@@ -26,6 +26,8 @@ int main(int argc, char **argv) {
         .tb_regs_cast = true,
 #if defined(EMSCRIPTEN)
         .target = VM_TARGET_TB_EMCC,
+#elif defined(__FreeBSD__)
+        .target = VM_TARGET_TB_CLANG,
 #else
         .target = VM_TARGET_TB_TCC,
 #endif
@@ -79,7 +81,7 @@ int main(int argc, char **argv) {
             }
             vm_lang_lua_repl(config, std, blocks);
             {
-                vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+                vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
                 FILE *f = fopen(arg, "wb");
                 if (f != NULL) {
                     fwrite(save.buf, 1, save.len, f);
@@ -102,7 +104,7 @@ int main(int argc, char **argv) {
             }
         } else if (!strncmp(arg, "--save=", 7)) {
             arg += 7;
-            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t) {.tag = VM_TAG_TAB, .value.table = std});
+            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
             FILE *f = fopen(arg, "wb");
             if (f != NULL) {
                 fwrite(save.buf, 1, save.len, f);
