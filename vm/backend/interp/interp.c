@@ -165,6 +165,9 @@ bool vm_interp_value_lt(vm_std_value_t lhs, vm_std_value_t rhs) {
                 }
             }
         }
+        default: {
+            return false;
+        }
     }
 }
 
@@ -319,6 +322,9 @@ bool vm_interp_value_le(vm_std_value_t lhs, vm_std_value_t rhs) {
                     return false;
                 }
             }
+        }
+        default: {
+            return false;
         }
     }
 }
@@ -508,27 +514,46 @@ new_block:;
         }
         case VM_BOP_GET: {
             vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
+            vm_std_value_t v2 = vm_interp_arg(interp, branch->args[1]);
             vm_pair_t pair;
-            pair.key_tag = v1.tag;
-            pair.key_val = v1.value;
+            pair.key_tag = v2.tag;
+            pair.key_val = v2.value;
             vm_table_get_pair(v1.value.table, &pair);
-            vm_interp_out_arg(interp, branch->out, (vm_std_value_t) {
+            vm_std_value_t out = (vm_std_value_t) {
                 .tag = pair.val_tag,
                 .value = pair.val_val,
-            });
+            };
+            vm_interp_out_arg(interp, branch->out, out);
             block = branch->targets[0];
             goto new_block;
         }
         case VM_BOP_CALL: {
             vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
             switch (v1.tag) {
+                case VM_TAG_CLOSURE: {
+                    next_regs[0] = v1;
+                    size_t i = 1;
+                    while (branch->args[i].type != VM_TAG_UNK) {
+                        next_regs[i] = vm_interp_arg(interp, branch->args[i]);
+                        i += 1;
+                    }
+                    next_regs[i].tag = VM_TAG_UNK;
+                    vm_std_value_t *last_regs = interp->regs;
+                    interp->regs = next_regs;
+                    vm_std_value_t got = vm_interp_block(interp, interp->blocks->blocks[v1.value.closure[0].value.i32]);
+                    interp->regs = last_regs;
+                    vm_interp_out_arg(interp, branch->out, got);
+                    block = branch->targets[0];
+                    goto new_block;
+                }
                 case VM_TAG_FFI: {
                     size_t i = 0;
-                    while (branch->args[i].type != VM_TAG_UNK) {
+                    while (branch->args[i + 1].type != VM_TAG_UNK) {
                         next_regs[i] = vm_interp_arg(interp, branch->args[i + 1]);
                         i += 1;
                     }
-                    v1.value.ffi(&interp->config, next_regs);
+                    next_regs[i].tag = VM_TAG_UNK;
+                    v1.value.ffi(&interp->closure, next_regs);
                     vm_interp_out_arg(interp, branch->out, next_regs[0]);
                     block = branch->targets[0];
                     goto new_block;
