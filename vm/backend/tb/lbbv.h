@@ -2,11 +2,6 @@
 #if !defined(VM_BE_TB_VER)
 #define VM_BE_TB_VER
 
-#include "../../vendor/cuik/common/arena.h"
-#include "../ir/check.h"
-#include "../ir/rblock.h"
-#include "./exec.h"
-
 struct vm_tb_ver_state_t;
 
 typedef struct vm_tb_ver_state_t vm_tb_ver_state_t;
@@ -16,7 +11,7 @@ struct vm_tb_ver_state_t {
     TB_Function *fun;
     vm_config_t *config;
     vm_blocks_t *blocks;
-    TB_Node **regs;
+    TB_Node *regs;
 
     TB_JIT *jit;
 
@@ -211,11 +206,14 @@ static TB_Node *vm_tb_ver_bitcast_to_reg(vm_tb_ver_state_t *state, TB_Node *valu
 }
 
 static void vm_tb_ver_func_write(vm_tb_ver_state_t *state, vm_tag_t tag, size_t reg, TB_Node *value) {
-    TB_Node **regs = state->regs;
     tb_inst_store(
         state->fun,
         state->config->tb_regs_cast ? VM_TB_TYPE_VALUE : vm_type_to_tb_type(tag),
-        regs[reg],
+        tb_inst_member_access(
+            state->fun,
+            state->regs,
+            sizeof(vm_value_t) * reg
+        ),
         vm_tb_ver_bitcast_to_reg(state, value),
         1,
         false
@@ -223,26 +221,21 @@ static void vm_tb_ver_func_write(vm_tb_ver_state_t *state, vm_tag_t tag, size_t 
 }
 
 static TB_Node *vm_tb_ver_func_read(vm_tb_ver_state_t *state, vm_tag_t tag, size_t reg) {
-    TB_Node **regs = state->regs;
-    if (regs[reg] == NULL) {
-        fprintf(stderr, "internal error: register %%%zu load before store\n", (size_t)reg);
-        __builtin_trap();
-    }
     return vm_tb_ver_bitcast_from_reg(
         state,
         tb_inst_load(
             state->fun,
             state->config->tb_regs_cast ? VM_TB_TYPE_VALUE : vm_type_to_tb_type(tag),
-            regs[reg],
+            tb_inst_member_access(
+                state->fun,
+                state->regs,
+                sizeof(vm_value_t) * reg
+            ),
             1,
             false
         ),
         vm_type_to_tb_type(tag)
     );
-}
-
-static TB_Node *vm_tb_ver_func_local(vm_tb_ver_state_t *state) {
-    return tb_inst_local(state->fun, sizeof(vm_value_t), 8);
 }
 
 static TB_Node *vm_tb_ver_func_read_arg(vm_tb_ver_state_t *state, vm_arg_t arg) {
@@ -1675,13 +1668,7 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
         }
 
         if (block != NULL) {
-            TB_Node **regs = vm_malloc(sizeof(TB_Node *) * block->nregs);
-
-            for (size_t i = 0; i < block->nregs; i++) {
-                regs[i] = vm_tb_ver_func_local(state);
-            }
-
-            state->regs = regs;
+            state->regs = tb_inst_local(state->fun, sizeof(vm_value_t) * block->nregs, 8);
 
             for (size_t i = 0; i < block->nargs; i++) {
                 vm_arg_t arg = block->args[i];
@@ -1714,8 +1701,6 @@ static void *vm_tb_ver_rfunc_comp(vm_rblock_t *rblock) {
             vm_tb_ver_func_reset_pass(block);
 
             state->regs = NULL;
-
-            vm_free(regs);
         }
     }
 

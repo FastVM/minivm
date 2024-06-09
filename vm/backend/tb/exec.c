@@ -1,14 +1,14 @@
 
 #include "exec.h"
-#include "../lib.h"
-#include "../std/io.h"
+#include "../../lib.h"
+#include "../../std/io.h"
 
 #if defined(_WIN32)
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include "../../vendor/xxhash/xxhash.h"
+#include "../../../vendor/xxhash/xxhash.h"
 
 void *vm_cache_dlsym(void *handle, const char *name) {
     return GetProcAddress(handle, name);
@@ -83,7 +83,7 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
 }
 #else
 
-#include "../../vendor/xxhash/xxhash.h"
+#include "../../../vendor/xxhash/xxhash.h"
 
 void *vm_cache_dlsym(void *handle, const char *name) {
     return dlsym(handle, name);

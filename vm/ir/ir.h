@@ -36,7 +36,6 @@ enum {
     VM_ARG_LIT,
     VM_ARG_FUN,
     // for backend use
-    VM_ARG_TAG,
     VM_ARG_RFUNC,
 };
 

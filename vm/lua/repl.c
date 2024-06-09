@@ -3,7 +3,7 @@
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../ast/print.h"
-#include "../backend/tb.h"
+#include "../backend/backend.h"
 #include "../ir/ir.h"
 #include "../std/io.h"
 
@@ -276,7 +276,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             printf("%.*s", (int)buf.len, buf.buf);
         }
 
-        vm_std_value_t value = vm_tb_run_repl(config, blocks->entry, blocks, std);
+        vm_std_value_t value = vm_run_repl(config, blocks->entry, blocks, std);
 
         // vm_lang_lua_repl_table_get_config(repl, config);
 

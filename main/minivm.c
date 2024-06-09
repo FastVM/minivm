@@ -1,6 +1,6 @@
 #include "../vm/ast/comp.h"
 #include "../vm/ast/print.h"
-#include "../vm/backend/tb.h"
+#include "../vm/backend/backend.h"
 #include "../vm/config.h"
 #include "../vm/ir/ir.h"
 #include "../vm/save/value.h"
@@ -22,7 +22,7 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 int main(int argc, char **argv) {
     vm_config_t val_config = (vm_config_t) {
         .use_num = VM_USE_NUM_F64,
-        .tb_lbbv = false,
+        .lbbv = false,
         .tb_regs_cast = true,
 #if defined(EMSCRIPTEN)
         .target = VM_TARGET_TB_EMCC,
@@ -125,6 +125,10 @@ int main(int argc, char **argv) {
                 config->cflags = buf;
                 vm_free(last);
             }
+        } else if (!strcmp(arg, "--lbbv")) {
+            config->lbbv = true;
+        } else if (!strcmp(arg, "--no-lbbv")) {
+            config->lbbv = false;
         } else if (!strncmp(arg, "--tb-", 5)) {
             arg += 5;
             bool enable = true;
@@ -138,10 +142,8 @@ int main(int argc, char **argv) {
                 config->tb_regs_cast = enable;
             } else if (!strcmp(arg, "force-bitcast")) {
                 config->tb_force_bitcast = enable;
-            } else if (!strcmp(arg, "lbbv")) {
-                config->tb_lbbv = enable;
             } else {
-                fprintf(stderr, "error: unknown flag --tb-%s want --tb-[recompile/cast-regs/raw-regs/force-bitcast/tailcalls/lbbv]", arg);
+                fprintf(stderr, "error: unknown flag --tb-%s want --tb-[recompile/cast-regs/force-bitcast]", arg);
                 return 1;
             }
         } else if (!strncmp(arg, "--number=", 9)) {
@@ -172,7 +174,9 @@ int main(int argc, char **argv) {
                 return 1;
             }
 #else
-            if (!strcmp(arg, "tb")) {
+            if (!strcmp(arg, "interp")) {
+                config->target = VM_TARGET_INTERP;
+            } else if (!strcmp(arg, "tb")) {
                 config->target = VM_TARGET_TB;
 #if defined(VM_USE_TCC)
             } else if (!strcmp(arg, "tb-tcc")) {
@@ -255,7 +259,7 @@ int main(int argc, char **argv) {
                 printf("\n--- ir ---\n%.*s", (int)buf.len, buf.buf);
             }
 
-            vm_std_value_t value = vm_tb_run_main(config, blocks->entry, blocks, std);
+            vm_std_value_t value = vm_run_main(config, blocks->entry, blocks, std);
             if (value.tag == VM_TAG_ERROR) {
                 exit(1);
             }

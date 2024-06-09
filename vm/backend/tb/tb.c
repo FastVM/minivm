@@ -1,14 +1,18 @@
 
 #include "./tb.h"
+#include "./exec.h"
+#include "../../ir/check.h"
+#include "../../ir/rblock.h"
 
-#include "../../vendor/cuik/tb/include/tb.h"
+#include "../../../vendor/cuik/tb/include/tb.h"
+#include "../../../vendor/cuik/common/arena.h"
 
 #define VM_TB_CC TB_CDECL
 #define VM_TB_TYPE_TAG TB_TYPE_I8
 #define VM_TB_TYPE_VALUE TB_TYPE_I64
 
 #if defined(VM_USE_TCC)
-#include "../../vendor/tcc/libtcc.h"
+#include "../../../vendor/tcc/libtcc.h"
 
 void vm_tb_tcc_error_func(void *user, const char *msg) {
     (void)user;
@@ -31,20 +35,12 @@ static bool vm_tb_str_eq(const char *str1, const char *str2) {
     return strcmp(str1, str2) == 0;
 }
 
-#include "tb_dyn.h"
-#include "tb_ver.h"
-
-vm_std_value_t vm_tb_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
-    vm_std_value_t val = vm_tb_run_repl(config, entry, blocks, std);
-    if (vm_type_eq(val.tag, VM_TAG_ERROR)) {
-        fprintf(stderr, "error: %s\n", val.value.str);
-    }
-    return val;
-}
+#include "dynamic.h"
+#include "lbbv.h"
 
 typedef void vm_tb_caller_t(vm_std_value_t *, void *);
 
-vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
+vm_std_value_t vm_tb_run(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_std_value_t value;
     // on windows we don't have access to multiple returns from C so we'll
     // just make a dumb caller for such a pattern
@@ -104,7 +100,7 @@ vm_std_value_t vm_tb_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_
     }
 #endif
 
-    if (config->tb_lbbv) {
+    if (config->lbbv) {
         vm_tb_ver_state_t *state = vm_malloc(sizeof(vm_tb_ver_state_t));
 
         *state = (vm_tb_ver_state_t){

@@ -25,6 +25,7 @@ enum {
 };
 
 enum {
+    VM_TARGET_INTERP,
     VM_TARGET_TB,
 #if defined(EMSCRIPTEN)
     VM_TARGET_TB_EMCC,
@@ -75,7 +76,7 @@ struct vm_config_t {
     bool tb_recompile : 1;
     bool tb_regs_cast : 1;
     bool tb_force_bitcast : 1;
-    bool tb_lbbv : 1;
+    bool lbbv : 1;
 };
 
 #endif

@@ -51,7 +51,7 @@ VENDOR_SRCS += $(ISOCLINE_SRCS) $(XXH_SRCS) $(TREES_SRCS) $(GC_OBJS)
 VENDOR_OBJS = $(VENDOR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 VM_AST_SRCS += vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c
-VM_BACKEND_SRCS += vm/backend/tb.c vm/backend/exec.c
+VM_BACKEND_SRCS += vm/backend/backend.c vm/backend/tb/tb.c vm/backend/tb/exec.c vm/backend/interp/interp.c
 VM_BASE_SRCS += vm/lib.c vm/obj.c
 VM_DATA_SRCS += vm/save/io.c vm/save/write.c vm/save/read.c
 VM_IR_SRCS += vm/ir/ir.c vm/ir/type.c vm/ir/rblock.c vm/ir/check.c

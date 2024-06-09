@@ -2,10 +2,6 @@
 #if !defined(VM_BE_TB_DYN)
 #define VM_BE_TB_DYN
 
-#include "../../vendor/cuik/common/arena.h"
-#include "../ir/check.h"
-#include "./exec.h"
-
 struct vm_tb_dyn_pair_t;
 struct vm_tb_dyn_state_t;
 
