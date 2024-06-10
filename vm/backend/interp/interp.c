@@ -13,6 +13,37 @@ struct vm_interp_t {
     vm_std_closure_t closure;
 };
 
+enum {
+    VM_IOP_MOVE_I = VM_MAX_IOP,
+    VM_IOP_MOVE_R,
+
+    VM_IOP_ADD_RI,
+    VM_IOP_ADD_IR,
+    VM_IOP_ADD_RR,
+
+    VM_IOP_SUB_RI,
+    VM_IOP_SUB_IR,
+    VM_IOP_SUB_RR,
+
+    VM_IOP_MUL_RI,
+    VM_IOP_MUL_IR,
+    VM_IOP_MUL_RR,
+
+    VM_IOP_DIV_RI,
+    VM_IOP_DIV_IR,
+    VM_IOP_DIV_RR,
+
+    VM_IOP_IDIV_RI,
+    VM_IOP_IDIV_IR,
+    VM_IOP_IDIV_RR,
+
+    VM_IOP_MOD_RI,
+    VM_IOP_MOD_IR,
+    VM_IOP_MOD_RR,
+
+    VM_MAX_INT_IOP,
+};
+
 bool vm_interp_value_lt(vm_std_value_t lhs, vm_std_value_t rhs) {
     switch (vm_type_tag(lhs.tag)) {
         case VM_TAG_I8: {
@@ -329,10 +360,10 @@ bool vm_interp_value_le(vm_std_value_t lhs, vm_std_value_t rhs) {
     }
 }
 
-vm_std_value_t vm_interp_arg(vm_interp_t *interp, vm_arg_t arg) {
+vm_std_value_t vm_interp_arg(vm_std_value_t *regs, vm_arg_t arg) {
     switch (arg.type) {
         case VM_ARG_REG: {
-            return interp->regs[arg.reg];
+            return regs[arg.reg];
         }
         case VM_ARG_LIT: {
             return arg.lit;
@@ -350,92 +381,459 @@ vm_std_value_t vm_interp_arg(vm_interp_t *interp, vm_arg_t arg) {
     }
 }
 
-void vm_interp_out_arg(vm_interp_t *interp, vm_arg_t key, vm_std_value_t value) {
-    interp->regs[key.reg] = value;
+void vm_interp_out_arg(vm_std_value_t *regs, vm_arg_t key, vm_std_value_t value) {
+    regs[key.reg] = value;
 }
 
-vm_std_value_t vm_interp_block(vm_interp_t *interp, vm_block_t *block) {
-    vm_std_value_t *next_regs = &interp->regs[block->nregs];
+vm_std_value_t vm_interp_block(vm_interp_t *interp, vm_std_value_t *regs, vm_block_t *block) {
+    vm_std_value_t *next_regs = &regs[block->nregs];
 new_block:;
-    for (size_t i = 0; i < block->len; i++) {
-        vm_instr_t instr = block->instrs[i];
+    size_t ninstr = block->len;
+    vm_instr_t *instrs = block->instrs;
+    vm_branch_t *branch = &block->branch;
+    for (size_t i = 0; i < ninstr; i++) {
+        vm_instr_t instr;
+        goto no_redo_instr;
+    redo_instr:;
+        instrs[i] = instr;
+        goto after_read_instr;
+    no_redo_instr:;
+        instr = instrs[i];
+    after_read_instr:;
         switch (instr.op) {
             case VM_IOP_NOP: {
                 break;
             }
             case VM_IOP_MOVE: {
-                vm_std_value_t v1 = vm_interp_arg(interp, instr.args[0]);
-                vm_interp_out_arg(interp, instr.out, v1);
-                break;
+                if (instr.args[0].type == VM_ARG_LIT) {
+                    instr.op = VM_IOP_MOVE_I;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_MOVE_R;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_FUN) {
+                    instr.op = VM_IOP_MOVE_I;
+                    instr.args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = (vm_std_value_t) {
+                            .tag = VM_TAG_FUN,
+                            .value.i32 = (int32_t) instr.args[0].func->id,
+                        },
+                    };
+                    goto redo_instr;
+                } else {
+                    __builtin_trap();
+                    break;
+                }
             }
             case VM_IOP_ADD: {
-#define OP(x, y) ((x)+(y))
-#include "binop.inc"
-                break;
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t out;
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    #define OP(x, y) ((x)+(y))
+                    #include "binop.inc"
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = out,
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_IOP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_ADD_IR;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_IOP_ADD_RI;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_ADD_RR;
+                    goto redo_instr;
+                } else {
+                    __builtin_trap();
+                    break;
+                }
             }
             case VM_IOP_SUB: {
-#define OP(x, y) ((x)-(y))
-#include "binop.inc"
-                break;
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t out;
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    #define OP(x, y) ((x)-(y))
+                    #include "binop.inc"
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = out,
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_IOP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_SUB_IR;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_IOP_SUB_RI;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_SUB_RR;
+                    goto redo_instr;
+                } else {
+                    __builtin_trap();
+                    break;
+                }
             }
             case VM_IOP_MUL: {
-#define OP(x, y) ((x)*(y))
-#include "binop.inc"
-                break;
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t out;
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    #define OP(x, y) ((x)*(y))
+                    #include "binop.inc"
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = out,
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_IOP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_MUL_IR;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_IOP_MUL_RI;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_MUL_RR;
+                    goto redo_instr;
+                } else {
+                    __builtin_trap();
+                    break;
+                }
             }
             case VM_IOP_DIV: {
-#define OP(x, y) ((x)/(y))
-#include "binop.inc"
-                break;
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t out;
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    #define OP(x, y) ((x)/(y))
+                    #include "binop.inc"
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = out,
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_IOP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_DIV_IR;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_IOP_DIV_RI;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_DIV_RR;
+                    goto redo_instr;
+                } else {
+                    __builtin_trap();
+                    break;
+                }
             }
             case VM_IOP_IDIV: {
-#define OP(x, y) ((x) / (y))
-#define OP_F(x, y) fmod((double) (x), (double) (y))
-#include "binop.inc"
-                break;
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t out;
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    #define OP(x, y) ((x)/(y))
+                    #define OP_F(x, y) floor((x)/(y))
+                    #include "binop.inc"
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = out,
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_IOP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_IDIV_IR;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_IOP_IDIV_RI;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_IDIV_RR;
+                    goto redo_instr;
+                } else {
+                    __builtin_trap();
+                    break;
+                }
             }
             case VM_IOP_MOD: {
-#define OP(x, y) ((x) % (y))
-#define OP_F(x, y) fmod((double) (x), (double) (y))
-#include "binop.inc"
-                break;
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t out;
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    #define OP(x, y) ((x)%(y))
+                    #define OP_F(x, y) fmod((x),(y))
+                    #include "binop.inc"
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = out,
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_IOP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_MOD_IR;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_IOP_MOD_RI;
+                    goto redo_instr;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_IOP_MOD_RR;
+                    goto redo_instr;
+                } else {
+                    __builtin_trap();
+                    break;
+                }
             }
             case VM_IOP_TABLE_SET: {
-                vm_std_value_t v1 = vm_interp_arg(interp, instr.args[0]);
-                vm_std_value_t v2 = vm_interp_arg(interp, instr.args[1]);
-                vm_std_value_t v3 = vm_interp_arg(interp, instr.args[2]);
+                vm_std_value_t v1 = vm_interp_arg(regs, instr.args[0]);
+                vm_std_value_t v2 = vm_interp_arg(regs, instr.args[1]);
+                vm_std_value_t v3 = vm_interp_arg(regs, instr.args[2]);
                 vm_table_set(v1.value.table, v2.value, v3.value, v2.tag, v3.tag);
                 break;
             }
             case VM_IOP_TABLE_NEW: {
-                vm_interp_out_arg(interp, instr.out, (vm_std_value_t) {
+                vm_interp_out_arg(regs, instr.out, (vm_std_value_t) {
                     .tag = VM_TAG_TAB,
                     .value.table = vm_table_new(),
                 });
                 break;
             }
             case VM_IOP_TABLE_LEN: {
-                vm_std_value_t v1 = vm_interp_arg(interp, instr.args[0]);
-                vm_interp_out_arg(interp, instr.out, VM_STD_VALUE_NUMBER(interp->config, v1.value.table->len));
+                vm_std_value_t v1 = vm_interp_arg(regs, instr.args[0]);
+                vm_interp_out_arg(regs, instr.out, VM_STD_VALUE_NUMBER(interp->config, v1.value.table->len));
                 break;
             }
             case VM_IOP_STD: {
-                vm_interp_out_arg(interp, instr.out, (vm_std_value_t) {
+                vm_interp_out_arg(regs, instr.out, (vm_std_value_t) {
                     .tag = VM_TAG_TAB,
                     .value.table = interp->std,
                 });
                 break;
             }
+            case VM_IOP_MOVE_I: {
+                vm_interp_out_arg(regs, instr.out, instr.args[0].lit);
+                break;
+            }
+            case VM_IOP_MOVE_R: {
+                vm_interp_out_arg(regs, instr.out, regs[instr.args[0].reg]);
+                break;
+            }
+            case VM_IOP_ADD_RI: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = instr.args[1].lit;
+                #define OP(x, y) ((x)+(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_ADD_IR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = instr.args[0].lit;
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)+(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_ADD_RR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)+(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_SUB_RI: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = instr.args[1].lit;
+                #define OP(x, y) ((x)-(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_SUB_IR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = instr.args[0].lit;
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)-(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_SUB_RR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)-(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_MUL_RI: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = instr.args[1].lit;
+                #define OP(x, y) ((x)*(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_MUL_IR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = instr.args[0].lit;
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)*(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_MUL_RR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)*(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_DIV_RI: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = instr.args[1].lit;
+                #define OP(x, y) ((x)/(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_DIV_IR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = instr.args[0].lit;
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)/(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_DIV_RR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)/(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_IDIV_RI: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = instr.args[1].lit;
+                #define OP(x, y) ((x)/(y))
+                #define OP_F(x, y) floor((x)/(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_IDIV_IR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = instr.args[0].lit;
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)/(y))
+                #define OP_F(x, y) floor((x)/(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_IDIV_RR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)/(y))
+                #define OP_F(x, y) floor((x)/(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_MOD_RI: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = instr.args[1].lit;
+                #define OP(x, y) ((x)%(y))
+                #define OP_F(x, y) fmod((x),(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_MOD_IR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = instr.args[0].lit;
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)%(y))
+                #define OP_F(x, y) fmod((x),(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
+            case VM_IOP_MOD_RR: {
+                vm_std_value_t out;
+                vm_std_value_t v1 = regs[instr.args[0].reg];
+                vm_std_value_t v2 = regs[instr.args[1].reg];
+                #define OP(x, y) ((x)%(y))
+                #define OP_F(x, y) fmod((x),(y))
+                #include "binop.inc"
+                vm_interp_out_arg(regs, instr.out, out);
+                break;
+            }
         }
     }
-    vm_branch_t *branch = &block->branch;
     switch (branch->op) {
+        default: {
+            __builtin_trap();
+        }
         case VM_BOP_JUMP: {
             block = branch->targets[0];
             goto new_block;
         }
         case VM_BOP_BB: {
-            vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
+            vm_std_value_t v1 = vm_interp_arg(regs, branch->args[0]);
             if (v1.tag == VM_TAG_NIL || (v1.tag == VM_TAG_BOOL && !v1.value.b)) {
                 block = branch->targets[1];
                 goto new_block;
@@ -445,8 +843,8 @@ new_block:;
             }
         }
         case VM_BOP_BLT: {
-            vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
-            vm_std_value_t v2 = vm_interp_arg(interp, branch->args[1]);
+            vm_std_value_t v1 = vm_interp_arg(regs, branch->args[0]);
+            vm_std_value_t v2 = vm_interp_arg(regs, branch->args[1]);
             if (vm_interp_value_lt(v1, v2)) {
                 block = branch->targets[0];
                 goto new_block;
@@ -456,8 +854,8 @@ new_block:;
             }
         }
         case VM_BOP_BLE: {
-            vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
-            vm_std_value_t v2 = vm_interp_arg(interp, branch->args[1]);
+            vm_std_value_t v1 = vm_interp_arg(regs, branch->args[0]);
+            vm_std_value_t v2 = vm_interp_arg(regs, branch->args[1]);
             if (vm_interp_value_le(v1, v2)) {
                 block = branch->targets[0];
                 goto new_block;
@@ -467,8 +865,8 @@ new_block:;
             }
         }
         case VM_BOP_BEQ: {
-            vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
-            vm_std_value_t v2 = vm_interp_arg(interp, branch->args[1]);
+            vm_std_value_t v1 = vm_interp_arg(regs, branch->args[0]);
+            vm_std_value_t v2 = vm_interp_arg(regs, branch->args[1]);
             if (vm_value_eq(v1, v2)) {
                 block = branch->targets[0];
                 goto new_block;
@@ -478,34 +876,34 @@ new_block:;
             }
         }
         case VM_BOP_RET: {
-            return vm_interp_arg(interp, branch->args[0]);
+            return vm_interp_arg(regs, branch->args[0]);
         }
         case VM_BOP_LOAD: {
-            vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
-            vm_std_value_t v2 = vm_interp_arg(interp, branch->args[0]);
+            vm_std_value_t v1 = vm_interp_arg(regs, branch->args[0]);
+            vm_std_value_t v2 = vm_interp_arg(regs, branch->args[0]);
             switch (v2.tag) {
                 case VM_TAG_I8: {
-                    vm_interp_out_arg(interp, branch->out, v1.value.closure[v2.value.i8]);
+                    vm_interp_out_arg(regs, branch->out, v1.value.closure[v2.value.i8]);
                     break;
                 }
                 case VM_TAG_I16: {
-                    vm_interp_out_arg(interp, branch->out, v1.value.closure[v2.value.i16]);
+                    vm_interp_out_arg(regs, branch->out, v1.value.closure[v2.value.i16]);
                     break;
                 }
                 case VM_TAG_I32: {
-                    vm_interp_out_arg(interp, branch->out, v1.value.closure[v2.value.i32]);
+                    vm_interp_out_arg(regs, branch->out, v1.value.closure[v2.value.i32]);
                     break;
                 }
                 case VM_TAG_I64: {
-                    vm_interp_out_arg(interp, branch->out, v1.value.closure[v2.value.i16]);
+                    vm_interp_out_arg(regs, branch->out, v1.value.closure[v2.value.i16]);
                     break;
                 }
                 case VM_TAG_F32: {
-                    vm_interp_out_arg(interp, branch->out, v1.value.closure[(int64_t) v2.value.f32]);
+                    vm_interp_out_arg(regs, branch->out, v1.value.closure[(int64_t) v2.value.f32]);
                     break;
                 }
                 case VM_TAG_F64: {
-                    vm_interp_out_arg(interp, branch->out, v1.value.closure[(int64_t) v2.value.f64]);
+                    vm_interp_out_arg(regs, branch->out, v1.value.closure[(int64_t) v2.value.f64]);
                     break;
                 }
             }
@@ -513,8 +911,8 @@ new_block:;
             goto new_block;
         }
         case VM_BOP_GET: {
-            vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
-            vm_std_value_t v2 = vm_interp_arg(interp, branch->args[1]);
+            vm_std_value_t v1 = vm_interp_arg(regs, branch->args[0]);
+            vm_std_value_t v2 = vm_interp_arg(regs, branch->args[1]);
             vm_pair_t pair;
             pair.key_tag = v2.tag;
             pair.key_val = v2.value;
@@ -523,38 +921,36 @@ new_block:;
                 .tag = pair.val_tag,
                 .value = pair.val_val,
             };
-            vm_interp_out_arg(interp, branch->out, out);
+            vm_interp_out_arg(regs, branch->out, out);
             block = branch->targets[0];
             goto new_block;
         }
         case VM_BOP_CALL: {
-            vm_std_value_t v1 = vm_interp_arg(interp, branch->args[0]);
+            vm_std_value_t v1 = vm_interp_arg(regs, branch->args[0]);
             switch (v1.tag) {
                 case VM_TAG_CLOSURE: {
                     next_regs[0] = v1;
                     size_t i = 1;
                     while (branch->args[i].type != VM_TAG_UNK) {
-                        next_regs[i] = vm_interp_arg(interp, branch->args[i]);
+                        next_regs[i] = vm_interp_arg(regs, branch->args[i]);
                         i += 1;
                     }
                     next_regs[i].tag = VM_TAG_UNK;
-                    vm_std_value_t *last_regs = interp->regs;
-                    interp->regs = next_regs;
-                    vm_std_value_t got = vm_interp_block(interp, interp->blocks->blocks[v1.value.closure[0].value.i32]);
-                    interp->regs = last_regs;
-                    vm_interp_out_arg(interp, branch->out, got);
+                    // vm_std_value_t got = vm_interp_block(interp, next_regs, interp->blocks->blocks[v1.value.closure[0].value.i32]);
+                    vm_std_value_t got = vm_interp_block(interp, next_regs, interp->blocks->blocks[v1.value.closure[0].value.i32]);
+                    vm_interp_out_arg(regs, branch->out, got);
                     block = branch->targets[0];
                     goto new_block;
                 }
                 case VM_TAG_FFI: {
                     size_t i = 0;
                     while (branch->args[i + 1].type != VM_TAG_UNK) {
-                        next_regs[i] = vm_interp_arg(interp, branch->args[i + 1]);
+                        next_regs[i] = vm_interp_arg(regs, branch->args[i + 1]);
                         i += 1;
                     }
                     next_regs[i].tag = VM_TAG_UNK;
                     v1.value.ffi(&interp->closure, next_regs);
-                    vm_interp_out_arg(interp, branch->out, next_regs[0]);
+                    vm_interp_out_arg(regs, branch->out, next_regs[0]);
                     block = branch->targets[0];
                     goto new_block;
                 }
@@ -574,14 +970,15 @@ vm_std_value_t vm_interp_run(vm_config_t *config, vm_block_t *entry, vm_blocks_t
         .config = config,
         .blocks = blocks,
         .std = std,
-        .regs = vm_malloc(sizeof(vm_std_value_t) * 65536),
         .closure.config = config,
         .closure.blocks = blocks,
     };
 
-    vm_std_value_t ret = vm_interp_block(&interp, entry);
+    vm_std_value_t *regs = vm_malloc(sizeof(vm_std_value_t) * 65536);
+    
+    vm_std_value_t ret = vm_interp_block(&interp, regs, entry);
 
-    vm_free(interp.regs);
+    vm_free(regs);
 
     return ret;
 }

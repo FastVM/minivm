@@ -50,6 +50,7 @@ enum {
     VM_BOP_LOAD,
     VM_BOP_GET,
     VM_BOP_CALL,
+    VM_MAX_BOP,
 };
 
 enum {
@@ -69,6 +70,7 @@ enum {
     VM_IOP_TABLE_LEN,
     // objects
     VM_IOP_STD,
+    VM_MAX_IOP,
 };
 
 struct vm_rblock_t {
