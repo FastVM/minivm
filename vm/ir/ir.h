@@ -124,10 +124,10 @@ struct vm_branch_t {
 };
 
 struct vm_instr_t {
-    vm_arg_t *args;
-    vm_arg_t out;
-    uint8_t op;
     vm_tag_t tag;
+    vm_arg_t *args;
+    uint8_t op;
+    vm_arg_t out;
 };
 
 struct vm_block_t {

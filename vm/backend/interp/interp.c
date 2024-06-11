@@ -5,22 +5,26 @@
 #if 0
 #define VM_OPCODE_DEBUG(s) printf("%s\n", #s);
 #else
-#define VM_OPCODE_DEBUG(s) 
+#define VM_OPCODE_DEBUG(s)
 #endif
 
 struct vm_interp_t;
 typedef struct vm_interp_t vm_interp_t;
 
 struct vm_interp_t {
-    vm_config_t *config;
-    vm_blocks_t *blocks;
     vm_table_t *std;
     vm_std_value_t *regs;
     vm_std_closure_t closure;
 };
 
 enum {
-    VM_OP_MOVE_I = VM_MAX_IOP,
+    VM_OP_TABLE_SET,
+    VM_OP_TABLE_NEW,
+    VM_OP_TABLE_LEN,
+
+    VM_OP_STD,
+    
+    VM_OP_MOVE_I,
     VM_OP_MOVE_R,
 
     VM_OP_ADD_RI,
@@ -460,407 +464,427 @@ vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t v2) {
     return out;
 }
 
+void vm_interp_renumber_block(vm_block_t *block) {
+    vm_branch_t *branch = &block->branch;
+
+    vm_instr_t instr;
+
+    for (size_t i = 0; i < block->len; i++) {
+        vm_instr_t instr = block->instrs[i];
+        switch (instr.op) {
+            case VM_IOP_NOP: VM_OPCODE_DEBUG(VM_IOP_NOP) {
+                break;
+            } 
+            case VM_IOP_MOVE: VM_OPCODE_DEBUG(VM_IOP_MOVE) {
+                if (instr.args[0].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_MOVE_I;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG) {
+                    instr.op = VM_OP_MOVE_R;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_FUN) {
+                    instr.op = VM_OP_MOVE_I;
+                    instr.args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = (vm_std_value_t) {
+                            .tag = VM_TAG_FUN,
+                            .value.i32 = (int32_t) instr.args[0].func->id,
+                        },
+                    };
+                    break;
+                } else {
+                    __builtin_trap();
+                }
+            }
+            case VM_IOP_ADD: VM_OPCODE_DEBUG(VM_IOP_ADD) {
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = vm_interp_add(v1, v2),
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_OP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    break;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_ADD_IR;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_ADD_RI;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_ADD_RR;
+                    break;
+                } else {
+                    __builtin_trap();
+                }
+            }
+            case VM_IOP_SUB: VM_OPCODE_DEBUG(VM_IOP_SUB) {
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = vm_interp_sub(v1, v2),
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_OP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    break;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_SUB_IR;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_SUB_RI;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_SUB_RR;
+                    break;
+                } else {
+                    __builtin_trap();
+                }
+            }
+            case VM_IOP_MUL: VM_OPCODE_DEBUG(VM_IOP_MUL) {
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = vm_interp_mul(v1, v2),
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_OP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    break;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_MUL_IR;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_MUL_RI;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_MUL_RR;
+                    break;
+                } else {
+                    __builtin_trap();
+                }
+            }
+            case VM_IOP_DIV: VM_OPCODE_DEBUG(VM_IOP_DIV) {
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = vm_interp_div(v1, v2),
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_OP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    break;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_DIV_IR;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_DIV_RI;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_DIV_RR;
+                    break;
+                } else {
+                    __builtin_trap();
+                }
+            }
+            case VM_IOP_IDIV: VM_OPCODE_DEBUG(VM_IOP_IDIV) {
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = vm_interp_idiv(v1, v2),
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_OP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    break;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_IDIV_IR;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_IDIV_RI;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_IDIV_RR;
+                    break;
+                } else {
+                    __builtin_trap();
+                }
+            }
+            case VM_IOP_MOD: VM_OPCODE_DEBUG(VM_IOP_MOD) {
+                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+                    vm_std_value_t v1 = instr.args[0].lit;
+                    vm_std_value_t v2 = instr.args[1].lit;
+                    vm_arg_t *args = vm_malloc(sizeof(vm_arg_t));
+                    args[0] = (vm_arg_t) {
+                        .type = VM_ARG_LIT,
+                        .lit = vm_interp_mod(v1, v2),
+                    };
+                    instr = (vm_instr_t) {
+                        .op = VM_OP_MOVE_I,
+                        .out = instr.out,
+                        .args = args,
+                    };
+                    break;
+                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_MOD_IR;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_MOD_RI;
+                    break;
+                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_MOD_RR;
+                    break;
+                } else {
+                    __builtin_trap();
+                }
+            }
+            case VM_IOP_TABLE_SET: {
+                instr.op = VM_OP_TABLE_SET;
+                break;
+            }
+            case VM_IOP_TABLE_NEW: {
+                instr.op = VM_OP_TABLE_NEW;
+                break;
+            }
+            case VM_IOP_TABLE_LEN: {
+                instr.op = VM_OP_TABLE_LEN;
+                break;
+            }
+            case VM_IOP_STD: {
+                instr.op = VM_OP_STD;
+                break;
+            }
+        }
+        
+        block->instrs[i] = instr;
+    }
+
+    switch (branch->op) {
+        case VM_BOP_JUMP: {
+            instr.op = VM_OP_JUMP;
+            instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
+            instr.args[0].func = branch->targets[0];
+            break;
+        }
+        case VM_BOP_BB: {
+            if (branch->args[0].type == VM_ARG_LIT) {
+                vm_std_value_t v1 = branch->args[0].lit;
+                instr.op = VM_OP_JUMP;
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
+                if (v1.tag == VM_TAG_NIL || (v1.tag == VM_TAG_BOOL && !v1.value.b)) {
+                    instr.args[0].func = branch->targets[1];
+                } else {
+                    instr.args[0].func = branch->targets[0];
+                }
+            } else {
+                instr.op = VM_OP_BB_R;
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 3);
+                instr.args[0] = branch->args[0];
+                instr.args[1].func = branch->targets[0];
+                instr.args[2].func = branch->targets[1];
+            }
+            break;
+        }
+        case VM_BOP_BLT: {
+            if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_LIT) {
+                vm_std_value_t v1 = branch->args[0].lit;
+                vm_std_value_t v2 = branch->args[1].lit;
+                instr.op = VM_OP_JUMP;
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
+                if (vm_interp_value_lt(v1, v2)) {
+                    instr.args[0].func = branch->targets[1];
+                } else {
+                    instr.args[0].func = branch->targets[0];
+                }
+            } else {
+                if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_BLT_RI;
+                } else if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_BLT_IR;
+                } else if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_BLT_RR;
+                } else {
+                    __builtin_trap();
+                }
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 4);
+                instr.args[0] = branch->args[0];
+                instr.args[1] = branch->args[1];
+                instr.args[2].func = branch->targets[0];
+                instr.args[3].func = branch->targets[1];
+            }
+            break;
+        }
+        case VM_BOP_BLE: {
+            if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_LIT) {
+                vm_std_value_t v1 = branch->args[0].lit;
+                vm_std_value_t v2 = branch->args[1].lit;
+                instr.op = VM_OP_JUMP;
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
+                if (vm_interp_value_le(v1, v2)) {
+                    instr.args[0].func = branch->targets[1];
+                } else {
+                    instr.args[0].func = branch->targets[0];
+                }
+            } else {
+                if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_BLE_RI;
+                } else if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_BLE_IR;
+                } else if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_BLE_RR;
+                } else {
+                    __builtin_trap();
+                }
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 4);
+                instr.args[0] = branch->args[0];
+                instr.args[1] = branch->args[1];
+                instr.args[2].func = branch->targets[0];
+                instr.args[3].func = branch->targets[1];
+            }
+            break;
+        }
+        case VM_BOP_BEQ: {
+            if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_LIT) {
+                vm_std_value_t v1 = branch->args[0].lit;
+                vm_std_value_t v2 = branch->args[1].lit;
+                instr.op = VM_OP_JUMP;
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
+                if (vm_value_eq(v1, v2)) {
+                    instr.args[0].func = branch->targets[1];
+                } else {
+                    instr.args[0].func = branch->targets[0];
+                }
+            } else {
+                if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_LIT) {
+                    instr.op = VM_OP_BEQ_RI;
+                } else if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_BEQ_IR;
+                } else if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_REG) {
+                    instr.op = VM_OP_BEQ_RR;
+                } else {
+                    __builtin_trap();
+                }
+                instr.args = vm_malloc(sizeof(vm_arg_t) * 4);
+                instr.args[0] = branch->args[0];
+                instr.args[1] = branch->args[1];
+                instr.args[2].func = branch->targets[0];
+                instr.args[3].func = branch->targets[1];
+            }
+            break;
+        }
+        case VM_BOP_RET: {
+            if (branch->args[0].type == VM_ARG_LIT) {
+                instr.op = VM_OP_RET_I;
+            } else if (branch->args[0].type == VM_ARG_REG) {
+                instr.op = VM_OP_RET_R;
+            } else {
+                __builtin_trap();
+            }
+            instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
+            instr.args[0] = branch->args[0];
+            break;
+        }
+        case VM_BOP_LOAD: {
+            instr.op = VM_OP_LOAD;
+            instr.args = branch->args;
+            instr.out = branch->out;
+            instr.args[0] = branch->args[0];
+            instr.args[1] = branch->args[1];
+            instr.args[2].func = branch->targets[0];
+            break;
+        }
+        case VM_BOP_GET: {
+            instr.op = VM_OP_GET;
+            instr.args = vm_malloc(sizeof(vm_arg_t) * 3);
+            instr.args[0] = branch->args[0];
+            instr.args[1] = branch->args[1];
+            instr.args[2].func = branch->targets[0];
+            instr.out = branch->out;
+            break;
+        }
+        case VM_BOP_CALL: {
+            instr.op = VM_OP_CALL;
+            instr.args = branch->args;
+            instr.out = branch->out;
+            size_t narg = 1;
+            while (instr.args[narg].type != VM_ARG_NONE) {
+                narg += 1;
+            }
+            instr.args[narg].func = branch->targets[0];
+            break;
+        }
+        case VM_BOP_FALL: {
+            break;
+        }
+        default: {
+            __builtin_trap();
+        }
+    }
+
+    vm_block_realloc(block, instr);
+}
+
+void vm_interp_renumber_blocks(vm_blocks_t *blocks) {
+    for (size_t i = 0; i < blocks->len; i++) {
+        vm_interp_renumber_block(blocks->blocks[i]);
+    }
+}
+
 vm_std_value_t vm_interp_block(vm_interp_t *interp, vm_std_value_t *regs, vm_block_t *block) {
     vm_std_value_t *next_regs = &regs[block->nregs];
 new_block:;
     if (!block->mark) {
-        block->mark = true;
-
-        vm_branch_t *branch = &block->branch;
-
-        vm_instr_t instr;
-
-        switch (branch->op) {
-            case VM_BOP_JUMP: {
-                instr.op = VM_OP_JUMP;
-                instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
-                instr.args[0].func = branch->targets[0];
-                break;
-            }
-            case VM_BOP_BB: {
-                if (branch->args[0].type == VM_ARG_LIT) {
-                    vm_std_value_t v1 = branch->args[0].lit;
-                    instr.op = VM_OP_JUMP;
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
-                    if (v1.tag == VM_TAG_NIL || (v1.tag == VM_TAG_BOOL && !v1.value.b)) {
-                        instr.args[0].func = branch->targets[1];
-                    } else {
-                        instr.args[0].func = branch->targets[0];
-                    }
-                } else {
-                    instr.op = VM_OP_BB_R;
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 3);
-                    instr.args[0] = branch->args[0];
-                    instr.args[1].func = branch->targets[0];
-                    instr.args[2].func = branch->targets[1];
-                }
-                break;
-            }
-            case VM_BOP_BLT: {
-                if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_LIT) {
-                    vm_std_value_t v1 = branch->args[0].lit;
-                    vm_std_value_t v2 = branch->args[1].lit;
-                    instr.op = VM_OP_JUMP;
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
-                    if (vm_interp_value_lt(v1, v2)) {
-                        instr.args[0].func = branch->targets[1];
-                    } else {
-                        instr.args[0].func = branch->targets[0];
-                    }
-                } else {
-                    if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_LIT) {
-                        instr.op = VM_OP_BLT_RI;
-                    } else if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_REG) {
-                        instr.op = VM_OP_BLT_IR;
-                    } else if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_REG) {
-                        instr.op = VM_OP_BLT_RR;
-                    } else {
-                        __builtin_trap();
-                    }
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 4);
-                    instr.args[0] = branch->args[0];
-                    instr.args[1] = branch->args[1];
-                    instr.args[2].func = branch->targets[0];
-                    instr.args[3].func = branch->targets[1];
-                }
-                break;
-            }
-            case VM_BOP_BLE: {
-                if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_LIT) {
-                    vm_std_value_t v1 = branch->args[0].lit;
-                    vm_std_value_t v2 = branch->args[1].lit;
-                    instr.op = VM_OP_JUMP;
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
-                    if (vm_interp_value_le(v1, v2)) {
-                        instr.args[0].func = branch->targets[1];
-                    } else {
-                        instr.args[0].func = branch->targets[0];
-                    }
-                } else {
-                    if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_LIT) {
-                        instr.op = VM_OP_BLE_RI;
-                    } else if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_REG) {
-                        instr.op = VM_OP_BLE_IR;
-                    } else if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_REG) {
-                        instr.op = VM_OP_BLE_RR;
-                    } else {
-                        __builtin_trap();
-                    }
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 4);
-                    instr.args[0] = branch->args[0];
-                    instr.args[1] = branch->args[1];
-                    instr.args[2].func = branch->targets[0];
-                    instr.args[3].func = branch->targets[1];
-                }
-                break;
-            }
-            case VM_BOP_BEQ: {
-                if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_LIT) {
-                    vm_std_value_t v1 = branch->args[0].lit;
-                    vm_std_value_t v2 = branch->args[1].lit;
-                    instr.op = VM_OP_JUMP;
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
-                    if (vm_value_eq(v1, v2)) {
-                        instr.args[0].func = branch->targets[1];
-                    } else {
-                        instr.args[0].func = branch->targets[0];
-                    }
-                } else {
-                    if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_LIT) {
-                        instr.op = VM_OP_BEQ_RI;
-                    } else if (branch->args[0].type == VM_ARG_LIT && branch->args[1].type == VM_ARG_REG) {
-                        instr.op = VM_OP_BEQ_IR;
-                    } else if (branch->args[0].type == VM_ARG_REG && branch->args[1].type == VM_ARG_REG) {
-                        instr.op = VM_OP_BEQ_RR;
-                    } else {
-                        __builtin_trap();
-                    }
-                    instr.args = vm_malloc(sizeof(vm_arg_t) * 4);
-                    instr.args[0] = branch->args[0];
-                    instr.args[1] = branch->args[1];
-                    instr.args[2].func = branch->targets[0];
-                    instr.args[3].func = branch->targets[1];
-                }
-                break;
-            }
-            case VM_BOP_RET: {
-                if (branch->args[0].type == VM_ARG_LIT) {
-                    instr.op = VM_OP_RET_I;
-                } else if (branch->args[0].type == VM_ARG_REG) {
-                    instr.op = VM_OP_RET_R;
-                } else {
-                    __builtin_trap();
-                }
-                instr.args = vm_malloc(sizeof(vm_arg_t) * 1);
-                instr.args[0] = branch->args[0];
-                break;
-            }
-            case VM_BOP_LOAD: {
-                instr.op = VM_OP_LOAD;
-                instr.args = branch->args;
-                instr.out = branch->out;
-                instr.args[0] = branch->args[0];
-                instr.args[1] = branch->args[1];
-                instr.args[2].func = branch->targets[0];
-                break;
-            }
-            case VM_BOP_GET: {
-                instr.op = VM_OP_GET;
-                instr.args = vm_malloc(sizeof(vm_arg_t) * 3);
-                instr.args[0] = branch->args[0];
-                instr.args[1] = branch->args[1];
-                instr.args[2].func = branch->targets[0];
-                instr.out = branch->out;
-                break;
-            }
-            case VM_BOP_CALL: {
-                instr.op = VM_OP_CALL;
-                instr.args = branch->args;
-                instr.out = branch->out;
-                size_t narg = 1;
-                while (instr.args[narg].type != VM_ARG_NONE) {
-                    narg += 1;
-                }
-                instr.args[narg].func = branch->targets[0];
-                break;
-            }
-            default: {
-                __builtin_trap();
-            }
-        }
-
-        vm_block_realloc(block, instr);
     }
     vm_instr_t *instrs = block->instrs;
-    size_t i = 0;
-    vm_instr_t instr;
-    goto read_instr;
-redo_instr:;
-    instrs[i-1] = instr;
-    goto after_read_instr;
 read_instr:;
-    instr = instrs[i++];
-after_read_instr:;
+    vm_instr_t instr = *instrs++;
     switch (instr.op) {
-        case VM_IOP_NOP: VM_OPCODE_DEBUG(VM_IOP_NOP) {
-            goto read_instr;
-        } 
-        case VM_IOP_MOVE: VM_OPCODE_DEBUG(VM_IOP_MOVE) {
-            if (instr.args[0].type == VM_ARG_LIT) {
-                instr.op = VM_OP_MOVE_I;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG) {
-                instr.op = VM_OP_MOVE_R;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_FUN) {
-                instr.op = VM_OP_MOVE_I;
-                instr.args[0] = (vm_arg_t) {
-                    .type = VM_ARG_LIT,
-                    .lit = (vm_std_value_t) {
-                        .tag = VM_TAG_FUN,
-                        .value.i32 = (int32_t) instr.args[0].func->id,
-                    },
-                };
-                goto redo_instr;
-            } else {
-                __builtin_trap();
-                goto read_instr;
-            }
-        }
-        case VM_IOP_ADD: VM_OPCODE_DEBUG(VM_IOP_ADD) {
-            if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
-                vm_std_value_t v1 = instr.args[0].lit;
-                vm_std_value_t v2 = instr.args[1].lit;
-                vm_arg_t *args = vm_malloc(sizeof(vm_std_value_t));
-                args[0] = (vm_arg_t) {
-                    .type = VM_ARG_LIT,
-                    .lit = vm_interp_add(v1, v2),
-                };
-                instr = (vm_instr_t) {
-                    .op = VM_OP_MOVE_I,
-                    .out = instr.out,
-                    .args = args,
-                };
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_ADD_IR;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
-                instr.op = VM_OP_ADD_RI;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_ADD_RR;
-                goto redo_instr;
-            } else {
-                __builtin_trap();
-                goto read_instr;
-            }
-        }
-        case VM_IOP_SUB: VM_OPCODE_DEBUG(VM_IOP_SUB) {
-            if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
-                vm_std_value_t v1 = instr.args[0].lit;
-                vm_std_value_t v2 = instr.args[1].lit;
-                vm_arg_t *args = vm_malloc(sizeof(vm_std_value_t));
-                args[0] = (vm_arg_t) {
-                    .type = VM_ARG_LIT,
-                    .lit = vm_interp_sub(v1, v2),
-                };
-                instr = (vm_instr_t) {
-                    .op = VM_OP_MOVE_I,
-                    .out = instr.out,
-                    .args = args,
-                };
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_SUB_IR;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
-                instr.op = VM_OP_SUB_RI;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_SUB_RR;
-                goto redo_instr;
-            } else {
-                __builtin_trap();
-                goto read_instr;
-            }
-        }
-        case VM_IOP_MUL: VM_OPCODE_DEBUG(VM_IOP_MUL) {
-            if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
-                vm_std_value_t v1 = instr.args[0].lit;
-                vm_std_value_t v2 = instr.args[1].lit;
-                vm_arg_t *args = vm_malloc(sizeof(vm_std_value_t));
-                args[0] = (vm_arg_t) {
-                    .type = VM_ARG_LIT,
-                    .lit = vm_interp_mul(v1, v2),
-                };
-                instr = (vm_instr_t) {
-                    .op = VM_OP_MOVE_I,
-                    .out = instr.out,
-                    .args = args,
-                };
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_MUL_IR;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
-                instr.op = VM_OP_MUL_RI;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_MUL_RR;
-                goto redo_instr;
-            } else {
-                __builtin_trap();
-                goto read_instr;
-            }
-        }
-        case VM_IOP_DIV: VM_OPCODE_DEBUG(VM_IOP_DIV) {
-            if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
-                vm_std_value_t v1 = instr.args[0].lit;
-                vm_std_value_t v2 = instr.args[1].lit;
-                vm_arg_t *args = vm_malloc(sizeof(vm_std_value_t));
-                args[0] = (vm_arg_t) {
-                    .type = VM_ARG_LIT,
-                    .lit = vm_interp_div(v1, v2),
-                };
-                instr = (vm_instr_t) {
-                    .op = VM_OP_MOVE_I,
-                    .out = instr.out,
-                    .args = args,
-                };
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_DIV_IR;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
-                instr.op = VM_OP_DIV_RI;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_DIV_RR;
-                goto redo_instr;
-            } else {
-                __builtin_trap();
-                goto read_instr;
-            }
-        }
-        case VM_IOP_IDIV: VM_OPCODE_DEBUG(VM_IOP_IDIV) {
-            if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
-                vm_std_value_t v1 = instr.args[0].lit;
-                vm_std_value_t v2 = instr.args[1].lit;
-                vm_arg_t *args = vm_malloc(sizeof(vm_std_value_t));
-                args[0] = (vm_arg_t) {
-                    .type = VM_ARG_LIT,
-                    .lit = vm_interp_idiv(v1, v2),
-                };
-                instr = (vm_instr_t) {
-                    .op = VM_OP_MOVE_I,
-                    .out = instr.out,
-                    .args = args,
-                };
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_IDIV_IR;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
-                instr.op = VM_OP_IDIV_RI;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_IDIV_RR;
-                goto redo_instr;
-            } else {
-                __builtin_trap();
-                goto read_instr;
-            }
-        }
-        case VM_IOP_MOD: VM_OPCODE_DEBUG(VM_IOP_MOD) {
-            if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
-                vm_std_value_t v1 = instr.args[0].lit;
-                vm_std_value_t v2 = instr.args[1].lit;
-                vm_arg_t *args = vm_malloc(sizeof(vm_std_value_t));
-                args[0] = (vm_arg_t) {
-                    .type = VM_ARG_LIT,
-                    .lit = vm_interp_mod(v1, v2),
-                };
-                instr = (vm_instr_t) {
-                    .op = VM_OP_MOVE_I,
-                    .out = instr.out,
-                    .args = args,
-                };
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_MOD_IR;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
-                instr.op = VM_OP_MOD_RI;
-                goto redo_instr;
-            } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
-                instr.op = VM_OP_MOD_RR;
-                goto redo_instr;
-            } else {
-                __builtin_trap();
-                goto read_instr;
-            }
-        }
-        case VM_IOP_TABLE_SET: VM_OPCODE_DEBUG(VM_IOP_TABLE_SET) {
+        case VM_OP_TABLE_SET: VM_OPCODE_DEBUG(VM_OP_TABLE_SET) {
             vm_std_value_t v1 = vm_interp_arg(regs, instr.args[0]);
             vm_std_value_t v2 = vm_interp_arg(regs, instr.args[1]);
             vm_std_value_t v3 = vm_interp_arg(regs, instr.args[2]);
             vm_table_set(v1.value.table, v2.value, v3.value, v2.tag, v3.tag);
             goto read_instr;
         }
-        case VM_IOP_TABLE_NEW: VM_OPCODE_DEBUG(VM_IOP_TABLE_NEW) {
+        case VM_OP_TABLE_NEW: VM_OPCODE_DEBUG(VM_OP_TABLE_NEW) {
             vm_interp_out_arg(regs, instr.out, (vm_std_value_t) {
                 .tag = VM_TAG_TAB,
                 .value.table = vm_table_new(),
             });
             goto read_instr;
         }
-        case VM_IOP_TABLE_LEN: VM_OPCODE_DEBUG(VM_IOP_TABLE_LEN) {
+        case VM_OP_TABLE_LEN: VM_OPCODE_DEBUG(VM_OP_TABLE_LEN) {
             vm_std_value_t v1 = vm_interp_arg(regs, instr.args[0]);
-            vm_interp_out_arg(regs, instr.out, VM_STD_VALUE_NUMBER(interp->config, v1.value.table->len));
+            vm_interp_out_arg(regs, instr.out, VM_STD_VALUE_NUMBER(interp->closure.config, v1.value.table->len));
             goto read_instr;
         }
-        case VM_IOP_STD: VM_OPCODE_DEBUG(VM_IOP_STD) {
+        case VM_OP_STD: VM_OPCODE_DEBUG(VM_OP_STD) {
             vm_interp_out_arg(regs, instr.out, (vm_std_value_t) {
                 .tag = VM_TAG_TAB,
                 .value.table = interp->std,
@@ -1124,8 +1148,7 @@ after_read_instr:;
                         j += 1;
                     }
                     next_regs[j].tag = VM_TAG_UNK;
-                    // vm_std_value_t got = vm_interp_block(interp, next_regs, interp->blocks->blocks[v1.value.closure[0].value.i32]);
-                    vm_std_value_t got = vm_interp_block(interp, next_regs, interp->blocks->blocks[v1.value.closure[0].value.i32]);
+                    vm_std_value_t got = vm_interp_block(interp, next_regs, interp->closure.blocks->blocks[v1.value.closure[0].value.i32]);
                     vm_interp_out_arg(regs, instr.out, got);
                     block = instr.args[j].func;
                     goto new_block;
@@ -1159,12 +1182,12 @@ after_read_instr:;
 
 vm_std_value_t vm_interp_run(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_interp_t interp = (vm_interp_t) {
-        .config = config,
-        .blocks = blocks,
         .std = std,
         .closure.config = config,
         .closure.blocks = blocks,
     };
+
+    vm_interp_renumber_blocks(blocks);
 
     vm_std_value_t *regs = vm_malloc(sizeof(vm_std_value_t) * 65536);
     

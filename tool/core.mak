@@ -61,7 +61,7 @@ VM_SRCS += $(VM_AST_SRCS) $(VM_BASE_SRCS) $(VM_BACKEND_SRCS) $(VM_DATA_SRCS) $(V
 VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 CFLAGS_VM_TCC_YES = -DVM_USE_TCC
 
-TCC_SRCS ?= $(TCC_DIR)/libtcc.c $(TCC_DIR)/lib/libtcc1.c
+TCC_SRCS ?= $(TCC_DIR)/libtcc.c
 TCC_OBJS = $(TCC_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 TB_SRCS_BASE = $(CUIK_DIR)/common/common.c $(CUIK_DIR)/common/perf.c $(CUIK_DIR)/tb/src/libtb.c $(CUIK_DIR)/tb/src/x64/x64_target.c $(CUIK_DIR)/tb/src/wasm/wasm_target.c
