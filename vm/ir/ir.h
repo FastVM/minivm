@@ -55,20 +55,16 @@ enum {
 
 enum {
     VM_IOP_NOP,
-    // util
     VM_IOP_MOVE,
-    // math
     VM_IOP_ADD,
     VM_IOP_SUB,
     VM_IOP_MUL,
     VM_IOP_DIV,
     VM_IOP_IDIV,
     VM_IOP_MOD,
-    // tables
     VM_IOP_TABLE_SET,
     VM_IOP_TABLE_NEW,
     VM_IOP_TABLE_LEN,
-    // objects
     VM_IOP_STD,
     VM_MAX_IOP,
 };
