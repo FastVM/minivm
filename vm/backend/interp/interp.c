@@ -2,6 +2,16 @@
 #include "interp.h"
 #include "../../obj.h"
 
+#define COMBINE(x, y) ((x)*VM_TAG_MAX + (y))
+#define CONCAT2(x, y) x ## y
+#define CONCAT(x, y) CONCAT2(x, y)
+
+#if 1
+#define VM_INLINE inline
+#else
+#define VM_INLINE inline __attribute__((always_inline))
+#endif
+
 #if 0
 #define VM_OPCODE_DEBUG(s) printf("%s\n", #s);
 #else
@@ -21,7 +31,7 @@ enum {
     VM_OP_TABLE_SET,
     VM_OP_TABLE_NEW,
     VM_OP_TABLE_LEN,
-    
+
     VM_OP_MOVE_I,
     VM_OP_MOVE_R,
 
@@ -64,14 +74,14 @@ enum {
     VM_OP_BEQ_RI,
     VM_OP_BEQ_IR,
     VM_OP_BEQ_RR,
-    
+
     VM_OP_RET_I,
     VM_OP_RET_R,
 
     VM_OP_LOAD,
     VM_OP_GET,
     VM_OP_CALL,
-    
+
     VM_MAX_OP,
 };
 
@@ -85,355 +95,75 @@ struct vm_interp_t {
 
 struct vm_interp_block_t {
     size_t nregs;
-    
+
     uint8_t *code;
 };
 
-static inline bool vm_interp_value_lt(vm_std_value_t lhs, vm_std_value_t rhs) {
-    switch (vm_type_tag(lhs.tag)) {
-        case VM_TAG_I8: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i8 < rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i8 < rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i8 < rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i8 < rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i8 < rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i8 < rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I16: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i16 < rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i16 < rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i16 < rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i16 < rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i16 < rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i16 < rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I32: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i32 < rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i32 < rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i32 < rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i32 < rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i32 < rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i32 < rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I64: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i64 < rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i64 < rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i64 < rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i64 < rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i64 < rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i64 < rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_F32: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.f32 < rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.f32 < rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.f32 < rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.f32 < rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.f32 < rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.f32 < rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_F64: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.f64 < rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.f64 < rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.f64 < rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.f64 < rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.f64 < rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.f64 < rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        default: {
-            return false;
-        }
-    }
+static VM_INLINE bool vm_interp_value_eq(vm_std_value_t v1, vm_std_value_t v2) {
+    #define OP(x, y) ((x)==(y))
+    #define OP_S(x, y) (strcmp((x), (y)) == 0)
+    #define WRITE return
+    #define NAME EQ
+    #include "test.inc"
 }
 
-static inline bool vm_interp_value_le(vm_std_value_t lhs, vm_std_value_t rhs) {
-    switch (vm_type_tag(lhs.tag)) {
-        case VM_TAG_I8: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i8 <= rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i8 <= rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i8 <= rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i8 <= rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i8 <= rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i8 <= rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I16: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i16 <= rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i16 <= rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i16 <= rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i16 <= rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i16 <= rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i16 <= rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I32: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i32 <= rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i32 <= rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i32 <= rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i32 <= rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i32 <= rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i32 <= rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I64: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.i64 <= rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i64 <= rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i64 <= rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i64 <= rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i64 <= rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i64 <= rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_F32: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.f32 <= rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.f32 <= rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.f32 <= rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.f32 <= rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.f32 <= rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.f32 <= rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_F64: {
-            switch (vm_type_tag(rhs.tag)) {
-                case VM_TAG_I8: {
-                    return lhs.value.f64 <= rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.f64 <= rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.f64 <= rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.f64 <= rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.f64 <= rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.f64 <= rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        default: {
-            return false;
-        }
-    }
+static VM_INLINE bool vm_interp_value_lt(vm_std_value_t v1, vm_std_value_t v2) {
+    #define OP(x, y) ((x)<(y))
+    #define OP_S(x, y) (strcmp((x), (y)) < 0)
+    #define WRITE return
+    #define NAME LT
+    #include "test.inc"
 }
 
-static inline vm_std_value_t vm_interp_add(vm_std_value_t v1, vm_std_value_t v2) {
+static VM_INLINE bool vm_interp_value_le(vm_std_value_t v1, vm_std_value_t v2) {
+    #define OP(x, y) ((x)<=(y))
+    #define OP_S(x, y) (strcmp((x), (y)) <= 0)
+    #define WRITE return
+    #define NAME LE
+    #include "test.inc"
+}
+
+static VM_INLINE vm_std_value_t vm_interp_add(vm_std_value_t v1, vm_std_value_t v2) {
     #define OP(x, y) ((x)+(y))
+    #define WRITE return
+    #define NAME ADD
     #include "binop.inc"
 }
 
-static inline vm_std_value_t vm_interp_sub(vm_std_value_t v1, vm_std_value_t v2) {
+static VM_INLINE vm_std_value_t vm_interp_sub(vm_std_value_t v1, vm_std_value_t v2) {
     #define OP(x, y) ((x)-(y))
+    #define WRITE return
+    #define NAME SUB
     #include "binop.inc"
 }
 
-static inline vm_std_value_t vm_interp_mul(vm_std_value_t v1, vm_std_value_t v2) {
+static VM_INLINE vm_std_value_t vm_interp_mul(vm_std_value_t v1, vm_std_value_t v2) {
     #define OP(x, y) ((x)*(y))
+    #define WRITE return
+    #define NAME MUL
     #include "binop.inc"
 }
 
-static inline vm_std_value_t vm_interp_div(vm_std_value_t v1, vm_std_value_t v2) {
+static VM_INLINE vm_std_value_t vm_interp_div(vm_std_value_t v1, vm_std_value_t v2) {
     #define OP(x, y) ((x)/(y))
+    #define WRITE return
+    #define NAME DIV
     #include "binop.inc"
 }
 
-static inline vm_std_value_t vm_interp_idiv(vm_std_value_t v1, vm_std_value_t v2) {
+static VM_INLINE vm_std_value_t vm_interp_idiv(vm_std_value_t v1, vm_std_value_t v2) {
     #define OP(x, y) ((x)/(y))
     #define OP_F(x, y) floor((x)/(y))
+    #define WRITE return
+    #define NAME IDIV
     #include "binop.inc"
 }
 
-static inline vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t v2) {
+static VM_INLINE vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t v2) {
     #define OP(x, y) ((x)%(y))
     #define OP_F(x, y) fmod((x),(y))
+    #define WRITE return
+    #define NAME MOD
     #include "binop.inc"
 }
 
@@ -603,7 +333,7 @@ vm_interp_block_t vm_interp_renumber_block(vm_interp_t *interp, vm_block_t *bloc
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else {      
+                } else {
                     __builtin_trap();
                 }
                 break;
@@ -816,7 +546,7 @@ vm_interp_block_t vm_interp_renumber_block(vm_interp_t *interp, vm_block_t *bloc
             if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_LIT) {
                 vm_std_value_t v1 = branch.args[0].lit;
                 vm_std_value_t v2 = branch.args[1].lit;
-                if (vm_value_eq(v1, v2)) {
+                if (vm_interp_value_eq(v1, v2)) {
                     vm_interp_push_op(VM_OP_JUMP);
                     vm_interp_push(vm_interp_block_t *, &interp->blocks[branch.targets[0]->id]);
                 } else {
@@ -1435,7 +1165,7 @@ vm_std_value_t vm_interp_run(vm_config_t *config, vm_block_t *entry, vm_blocks_t
     vm_interp_renumber_blocks(&interp);
 
     vm_std_value_t *regs = vm_malloc(sizeof(vm_std_value_t) * 65536);
-    
+
     vm_std_value_t ret = vm_interp_block(&interp, regs, interp.blocks[entry->id]);
 
     vm_free(regs);
