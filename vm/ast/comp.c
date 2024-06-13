@@ -169,7 +169,7 @@ static vm_arg_t vm_ast_comp_reg_named(vm_ast_comp_t *comp, const char *name) {
     }
     return (vm_arg_t){
         .type = VM_ARG_REG,
-        .reg = reg + 1,
+        .reg = reg,
     };
 }
 
@@ -193,7 +193,7 @@ static size_t vm_ast_comp_get_local(vm_ast_comp_names_t *names, const char *name
     while (i > 0) {
         i -= 1;
         if (names->regs.ptr[i] != NULL && !strcmp(names->regs.ptr[i], name)) {
-            return i + 1;
+            return i;
         }
     }
     return SIZE_MAX;
@@ -899,32 +899,17 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
                     body->nargs = args.len + 1;
                     body->args = vm_malloc(sizeof(vm_arg_t) * body->nargs);
-                    body->args[0] = (vm_arg_t){
-                        .type = VM_ARG_REG,
-                        .reg = 0,
-                    };
+                    if (form.args[0].type == VM_AST_NODE_IDENT) {
+                        body->args[0] = vm_ast_comp_reg_named(comp, form.args[0].value.ident);
+                    } else {
+                        body->args[0] = vm_ast_comp_reg_named(comp, NULL);
+                    }
                     for (size_t i = 0; i < args.len; i++) {
                         vm_ast_node_t arg = args.args[i];
                         if (arg.type != VM_AST_NODE_IDENT) {
                             __builtin_trap();
                         }
                         body->args[i + 1] = vm_ast_comp_reg_named(comp, arg.value.ident);
-                    }
-
-                    if (form.args[0].type == VM_AST_NODE_IDENT) {
-                        vm_arg_t out = vm_ast_comp_reg_named(comp, form.args[0].value.ident);
-                        vm_arg_t cap = (vm_arg_t){
-                            .type = VM_ARG_REG,
-                            .reg = 0,
-                        };
-                        vm_ast_blocks_instr(
-                            comp,
-                            (vm_instr_t){
-                                .op = VM_IOP_MOVE,
-                                .out = out,
-                                .args = vm_ast_args(1, cap),
-                            }
-                        );
                     }
 
                     vm_block_t *old_break = comp->on_break;

@@ -1065,7 +1065,7 @@ vm_std_value_t vm_interp_block(vm_interp_t *interp, vm_std_value_t *regs, vm_int
                 break;
             }
             default: {
-                __builtin_trap();
+                __builtin_unreachable();
                 break;
             }
         }
@@ -1110,7 +1110,7 @@ vm_std_value_t vm_interp_block(vm_interp_t *interp, vm_std_value_t *regs, vm_int
                         goto call_closure_next_arg;
                     }
                     default: {
-                        __builtin_trap();
+                        __builtin_unreachable();
                     }
                 }
             call_closure_end:;
@@ -1137,7 +1137,7 @@ vm_std_value_t vm_interp_block(vm_interp_t *interp, vm_std_value_t *regs, vm_int
                         goto call_ffi_next_arg;
                     }
                     default: {
-                        __builtin_trap();
+                        __builtin_unreachable();
                     }
                 }
             call_ffi_end:;
