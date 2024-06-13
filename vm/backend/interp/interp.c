@@ -3,13 +3,17 @@
 #include "../../obj.h"
 
 #define COMBINE(x, y) ((x)*VM_TAG_MAX + (y))
-#define CONCAT2(x, y) x ## y
-#define CONCAT(x, y) CONCAT2(x, y)
+#define CONCAT_2(x, y) x ## _ ## y
+#define CONCAT(x, y) CONCAT_2(x, y)
+#define CONCAT3_2(x, y, z) x ## _ ## y ## _ ## z
+#define CONCAT3(x, y) CONCAT3_2(x, y)
 
-#if 1
-#define VM_INLINE inline
-#else
+#define VM_MATH_SWITCH 1
+
+#if VM_MATH_SWITCH
 #define VM_INLINE inline __attribute__((always_inline))
+#else
+#define VM_INLINE inline
 #endif
 
 #if 0
@@ -17,6 +21,7 @@
 #else
 #define VM_OPCODE_DEBUG(s)
 #endif
+
 
 struct vm_interp_t;
 typedef struct vm_interp_t vm_interp_t;
