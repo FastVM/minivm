@@ -75,8 +75,8 @@ int main(int argc, char **argv) {
                 fclose(f);
                 vm_save_loaded_t ld = vm_load_value(config, save);
                 if (ld.blocks != NULL) {
-                    blocks = ld.blocks;
-                    std = ld.env.value.table;
+                    *blocks = *ld.blocks;
+                    *std = *ld.env.value.table;
                     vm_io_buffer_t *buf = vm_io_buffer_new();
                     vm_io_format_blocks(buf, blocks);
                 }

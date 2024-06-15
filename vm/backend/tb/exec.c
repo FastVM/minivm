@@ -89,6 +89,62 @@ void *vm_cache_dlsym(void *handle, const char *name) {
     return dlsym(handle, name);
 }
 
+#if 0
+
+#include <sys/wait.h>
+
+void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
+    if (flags == NULL) {
+        flags = "";
+    }
+
+    size_t len = strlen(src);
+    uint64_t hash = XXH3_64bits((void *)src, len);
+    
+    char so_file[128];
+    snprintf(so_file, 64, ".minivm-cache/out-%s-%" PRIx64 ".so", comp, hash);
+
+    char c_file[128];
+    snprintf(c_file, 64, ".minivm-cache/src-%s-%" PRIx64 ".c", comp, hash);
+    FILE *out = fopen(c_file, "w");
+    fwrite(src, len, 1, out);
+    fclose(out);
+
+    int pid = fork();
+    if (pid < 0) {
+        __builtin_trap();
+        return NULL;
+    }
+
+    if (pid == 0) {
+        char *const args[] = {
+            vm_strdup(comp),
+            vm_strdup("-shared"),
+            vm_strdup("-O2"),
+            vm_strdup("-foptimize-sibling-calls"),
+            vm_strdup("-fPIC"),
+            vm_strdup("-w"),
+            vm_strdup("-pipe"),
+            vm_strdup(c_file),
+            vm_strdup("-o"),
+            vm_strdup(so_file),
+            NULL,
+        };
+
+        execvp(comp, args);
+        remove(c_file);
+        exit(0);
+    } else {
+        waitpid(pid, NULL, 0);
+        void *handle = dlopen(so_file, RTLD_LAZY);
+        remove(so_file);
+        return handle;
+    }
+
+}
+
+#else
+
 void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
     if (flags == NULL) {
         flags = "";
@@ -120,6 +176,9 @@ void *vm_cache_comp(const char *comp, const char *flags, const char *src) {
     remove(so_file);
     return handle;
 }
+
+#endif
+
 #endif
 
 #endif

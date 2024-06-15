@@ -185,6 +185,88 @@ EM_JS(void, vm_lang_lua_repl_sync, (void), {
 });
 #endif
 
+#if VM_USE_RAYLIB
+#include "../../vendor/cuik/c11threads/threads.h"
+
+void vm_lang_lua_gui_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks, mtx_t *mutex) {
+    config->is_repl = true;
+
+    ic_set_history(".minivm-history", 2000);
+
+    vm_lang_lua_repl_complete_state_t complete_state = (vm_lang_lua_repl_complete_state_t){
+        .config = config,
+        .std = std,
+    };
+    vm_lang_lua_repl_highlight_state_t highlight_state = (vm_lang_lua_repl_highlight_state_t){
+        .config = config,
+        .std = std,
+    };
+
+    while (true) {
+        char *input = ic_readline_ex(
+            "lua",
+            vm_lang_lua_repl_completer,
+            &complete_state,
+            vm_lang_lua_repl_highlight,
+            &highlight_state
+        );
+        
+        if (input == NULL) {
+            break;
+        }
+
+        mtx_lock(mutex);
+
+        if (config->save_file != NULL) {
+            FILE *f = fopen(config->save_file, "rb");
+            if (f != NULL) {
+                vm_save_t save = vm_save_load(f);
+                fclose(f);
+                vm_save_loaded_t ld = vm_load_value(config, save);
+                if (ld.blocks != NULL) {
+                    *blocks = *ld.blocks;
+                    *std = *ld.env.value.table;
+                    vm_io_buffer_t *buf = vm_io_buffer_new();
+                    vm_io_format_blocks(buf, blocks);
+                }
+            }
+        }
+            
+        ic_history_add(input);
+        clock_t start = clock();
+
+        vm_blocks_add_src(blocks, input);
+
+        vm_ast_node_t node = vm_lang_lua_parse(config, input);
+
+        vm_blocks_add_src(blocks, input);
+        vm_ast_comp_more(node, blocks);
+        vm_ast_free_node(node);
+
+        vm_std_value_t value = vm_run_repl(config, blocks->entry, blocks, std);
+
+        if (vm_type_eq(value.tag, VM_TAG_ERROR)) {
+            fprintf(stderr, "error: %s\n", value.value.str);
+        } else if (!vm_type_eq(value.tag, VM_TAG_NIL)) {
+            vm_io_buffer_t buf = {0};
+            vm_io_debug(&buf, 0, "", value, NULL);
+            printf("%.*s", (int)buf.len, buf.buf);
+        }
+
+        if (config->save_file != NULL) {
+            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
+            FILE *f = fopen(config->save_file, "wb");
+            if (f != NULL) {
+                fwrite(save.buf, 1, save.len, f);
+                fclose(f);
+            }
+        }
+
+        mtx_unlock(mutex);
+    }
+}
+#endif
+
 void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks) {
     config->is_repl = true;
 
@@ -199,41 +281,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         .std = std,
     };
 
-    // #if defined(EMSCRIPTEN)
-    //     setvbuf(stdin, NULL, _IONBF, 0);
-    //     setvbuf(stdout, NULL, _IONBF, 0);
-    //     setvbuf(stderr, NULL, _IONBF, 0);
-    // #endif
-
-    if (config->save_file != NULL) {
-        FILE *f = fopen(config->save_file, "rb");
-        if (f != NULL) {
-            vm_save_t save = vm_save_load(f);
-            fclose(f);
-            vm_save_loaded_t ld = vm_load_value(config, save);
-            if (ld.blocks != NULL) {
-                blocks = ld.blocks;
-                std = ld.env.value.table;
-                vm_io_buffer_t *buf = vm_io_buffer_new();
-                vm_io_format_blocks(buf, blocks);
-            }
-        }
-    }
-
-    for (vm_blocks_srcs_t *src = blocks->srcs; src != NULL; src = src->last) {
-        if (src->src[0] == '!') {
-            if (!strncmp(&src->src[1], "init", 4)) {
-                const char *setup_code = &src->src[4];
-                size_t n = blocks->len;
-                vm_ast_node_t node = vm_lang_lua_parse(config, setup_code);
-                vm_ast_comp_more(node, blocks);
-                vm_ast_free_node(node);
-                vm_run_repl(config, blocks->blocks[n], blocks, std);
-                blocks->len = n;
-            }
-        }
-    }
-
 #if defined(EMSCRIPTEN)
     {
         FILE *f = fopen("/wasm.bin", "rb");
@@ -242,8 +289,8 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             fclose(f);
             vm_save_loaded_t ld = vm_load_value(config, save);
             if (ld.blocks != NULL) {
-                blocks = ld.blocks;
-                std = ld.env.value.table;
+                *blocks = *ld.blocks;
+                *std = *ld.env.value.table;
                 vm_io_buffer_t *buf = vm_io_buffer_new();
                 vm_io_format_blocks(buf, blocks);
             }
@@ -265,9 +312,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
         }
 #endif
 
-#if 0
-        const char *input = *inputs++;
-#else
         char *input = ic_readline_ex(
             "lua",
             vm_lang_lua_repl_completer,
@@ -275,7 +319,11 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             vm_lang_lua_repl_highlight,
             &highlight_state
         );
-#endif
+
+        if (input == NULL) {
+            break;
+        }
+
         if (config->save_file != NULL) {
             FILE *f = fopen(config->save_file, "rb");
             if (f != NULL) {
@@ -283,8 +331,8 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
                 fclose(f);
                 vm_save_loaded_t ld = vm_load_value(config, save);
                 if (ld.blocks != NULL) {
-                    blocks = ld.blocks;
-                    std = ld.env.value.table;
+                    *blocks = *ld.blocks;
+                    *std = *ld.env.value.table;
                     vm_io_buffer_t *buf = vm_io_buffer_new();
                     vm_io_format_blocks(buf, blocks);
                 }
@@ -301,58 +349,42 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
 
         vm_blocks_add_src(blocks, input);
 
-        if (input[0] != '!') {
-            for (vm_blocks_srcs_t *src = blocks->srcs; src != NULL; src = src->last) {
-                if (src->src[0] == '!') {
-                    if (!strncmp(&src->src[1], "loop", 4)) {
-                        const char *loop_code = &src->src[5];
-                        size_t n = blocks->len;
-                        vm_ast_node_t node = vm_lang_lua_parse(config, loop_code);
-                        vm_ast_comp_more(node, blocks);
-                        vm_ast_free_node(node);
-                        vm_run_repl(config, blocks->blocks[n], blocks, std);
-                        blocks->len = n;
-                    }
-                }
-            }
+        vm_ast_node_t node = vm_lang_lua_parse(config, input);
 
-            vm_ast_node_t node = vm_lang_lua_parse(config, input);
+        if (config->dump_ast) {
+            vm_io_buffer_t buf = {0};
+            vm_ast_print_node(&buf, 0, "", node);
+            printf("\n--- ast ---\n%.*s", (int)buf.len, buf.buf);
+        }
 
-            if (config->dump_ast) {
-                vm_io_buffer_t buf = {0};
-                vm_ast_print_node(&buf, 0, "", node);
-                printf("\n--- ast ---\n%.*s", (int)buf.len, buf.buf);
-            }
+        vm_blocks_add_src(blocks, input);
+        vm_ast_comp_more(node, blocks);
+        vm_ast_free_node(node);
 
-            vm_blocks_add_src(blocks, input);
-            vm_ast_comp_more(node, blocks);
-            vm_ast_free_node(node);
+        if (config->dump_ir) {
+            vm_io_buffer_t buf = {0};
+            vm_io_format_blocks(&buf, blocks);
+            printf("%.*s", (int)buf.len, buf.buf);
+        }
 
-            if (config->dump_ir) {
-                vm_io_buffer_t buf = {0};
-                vm_io_format_blocks(&buf, blocks);
-                printf("%.*s", (int)buf.len, buf.buf);
-            }
+        vm_std_value_t value = vm_run_repl(config, blocks->entry, blocks, std);
 
-            vm_std_value_t value = vm_run_repl(config, blocks->entry, blocks, std);
+        // vm_lang_lua_repl_table_get_config(repl, config);
 
-            // vm_lang_lua_repl_table_get_config(repl, config);
+        if (vm_type_eq(value.tag, VM_TAG_ERROR)) {
+            fprintf(stderr, "error: %s\n", value.value.str);
+        } else if (!vm_type_eq(value.tag, VM_TAG_NIL)) {
+            vm_io_buffer_t buf = {0};
+            vm_io_debug(&buf, 0, "", value, NULL);
+            printf("%.*s", (int)buf.len, buf.buf);
+        }
 
-            if (vm_type_eq(value.tag, VM_TAG_ERROR)) {
-                fprintf(stderr, "error: %s\n", value.value.str);
-            } else if (!vm_type_eq(value.tag, VM_TAG_NIL)) {
-                vm_io_buffer_t buf = {0};
-                vm_io_debug(&buf, 0, "", value, NULL);
-                printf("%.*s", (int)buf.len, buf.buf);
-            }
+        if (config->dump_time) {
+            clock_t end = clock();
 
-            if (config->dump_time) {
-                clock_t end = clock();
+            double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
 
-                double diff = (double)(end - start) / CLOCKS_PER_SEC * 1000;
-
-                printf("took: %.3fms\n", diff);
-            }
+            printf("took: %.3fms\n", diff);
         }
 
         if (config->save_file != NULL) {
@@ -361,9 +393,6 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
             if (f != NULL) {
                 fwrite(save.buf, 1, save.len, f);
                 fclose(f);
-            }
-            if (input == NULL) {
-                break;
             }
         }
     }

@@ -1218,6 +1218,7 @@ TB_Node *vm_tb_dyn_block(vm_tb_dyn_state_t *state, vm_block_t *block) {
 
                 closure->config = state->config;
                 closure->blocks = state->blocks;
+                closure->std = state->std;
 
                 TB_FunctionPrototype *call_proto = tb_prototype_create(state->mod, VM_TB_CC, 2, call_proto_params, 0, NULL, false);
 

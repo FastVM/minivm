@@ -1084,6 +1084,7 @@ static void vm_tb_ver_func_body_once_as(vm_tb_ver_state_t *state, vm_block_t *bl
 
                 closure->config = state->config;
                 closure->blocks = state->blocks;
+                closure->std = state->std;
 
                 TB_FunctionPrototype *call_proto = tb_prototype_create(state->module, VM_TB_CC, 2, call_proto_params, 0, NULL, false);
 

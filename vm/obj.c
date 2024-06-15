@@ -21,7 +21,7 @@ int64_t vm_value_to_i64(vm_std_value_t arg) {
             return (int64_t)arg.value.f64;
         }
         default: {
-            return -1;
+            return 0;
         }
     }
 }
@@ -47,7 +47,7 @@ double vm_value_to_f64(vm_std_value_t arg) {
             return (double)arg.value.f64;
         }
         default: {
-            return -1;
+            return 0;
         }
     }
 }

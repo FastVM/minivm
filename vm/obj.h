@@ -59,6 +59,7 @@ struct vm_table_t {
 struct vm_std_closure_t {
     vm_config_t *config;
     vm_blocks_t *blocks;
+    vm_table_t *std;
     vm_std_value_t data[];
 };
 
@@ -148,5 +149,23 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
 })
 
 #define VM_TABLE_LOOKUP_STR(TABLE_, STR_) (vm_table_lookup((TABLE_), (vm_value_t){.str = (STR_)}, VM_TAG_STR))
+
+#define VM_PAIR_VALUE(PAIR_) ({ \
+    vm_pair_t pair_ = (PAIR_); \
+    (vm_std_value_t) { \
+        .tag = pair_.val_tag, \
+        .value = pair_.val_val, \
+    }; \
+})
+
+#define VM_PAIR_PTR_VALUE(PPAIR_) ({ \
+    vm_pair_t *pair_ = (PPAIR_); \
+    pair_ == NULL \
+    ? VM_STD_VALUE_NIL \
+    : (vm_std_value_t) { \
+        .tag = pair_->val_tag, \
+        .value = pair_->val_val, \
+    }; \
+})
 
 #endif

@@ -153,8 +153,9 @@ struct vm_block_t {
 };
 
 struct vm_blocks_srcs_t {
-    const char *src;
     vm_blocks_srcs_t *last;
+    const char *src;
+    void *data;
 };
 
 struct vm_blocks_t {
@@ -163,6 +164,7 @@ struct vm_blocks_t {
     size_t alloc;
     vm_block_t *entry;
     vm_blocks_srcs_t *srcs;
+    vm_blocks_srcs_t *init_upto;
 };
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
@@ -184,8 +186,10 @@ void vm_free_block(vm_block_t *block);
 
 static inline void vm_blocks_add_src(vm_blocks_t *blocks, const char *src) {
     vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
-    next->last = blocks->srcs;
-    next->src = src;
+    *next = (vm_blocks_srcs_t) {
+        .last = blocks->srcs,
+        .src = src,
+    };
     blocks->srcs = next;
 }
 

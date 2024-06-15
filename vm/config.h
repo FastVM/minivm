@@ -49,6 +49,7 @@ struct vm_externs_t {
     size_t id;
     void *value;
     vm_externs_t *last;
+    void *data;
 };
 
 struct vm_config_t {

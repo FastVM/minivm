@@ -439,7 +439,7 @@ vm_interp_block_t vm_interp_renumber_block(vm_interp_t *interp, vm_block_t *bloc
             case VM_IOP_STD: {
                 vm_interp_push_op(VM_OP_MOVE_I);
                 vm_interp_push(vm_interp_tag_t, VM_TAG_TAB);
-                vm_interp_push(vm_value_t, (vm_value_t) {.table = interp->std});
+                vm_interp_push(vm_value_t, (vm_value_t) {.table = interp->closure.std});
                 vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 break;
             }
@@ -1163,9 +1163,9 @@ vm_std_value_t vm_interp_block(vm_interp_t *interp, vm_std_value_t *regs, vm_int
 
 vm_std_value_t vm_interp_run(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std) {
     vm_interp_t interp = (vm_interp_t) {
-        .std = std,
         .closure.config = config,
         .closure.blocks = blocks,
+        .closure.std = std,
         .blocks = NULL,
         .ptrs = vm_interp_block(NULL, NULL, (vm_interp_block_t) {0}).value.all,
     };

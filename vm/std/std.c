@@ -670,8 +670,6 @@ void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args);
 #include "../../vendor/cuik/c11threads/threads.h"
 #include "../backend/backend.h"
 
-static Color vm_gui_draw_color = BLACK;
-
 int vm_std_gui_draw(void *arg) {
     vm_table_t *gui = arg;
     return 0;
@@ -681,69 +679,171 @@ typedef struct  {
     vm_config_t *config;
     vm_table_t *std;
     vm_blocks_t *blocks;
+    mtx_t *mutex;
 } vm_std_gui_repl_t;
 
-void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks);
+void vm_lang_lua_gui_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks, mtx_t *mutex);
 
 int vm_std_gui_repl(void *arg) {
     vm_std_gui_repl_t *repl = arg;
-    vm_lang_lua_repl(repl->config, repl->std, repl->blocks);
+    vm_lang_lua_gui_repl(repl->config, repl->std, repl->blocks, repl->mutex);
     exit(0);
     return 0;
 }
 
 static Color vm_value_to_color(vm_std_value_t arg) {
+    if (arg.tag == VM_TAG_I8 || arg.tag == VM_TAG_I16 || arg.tag == VM_TAG_I32 || arg.tag == VM_TAG_I64 || arg.tag == VM_TAG_F32 || arg.tag == VM_TAG_F64) {
+        uint8_t c = vm_value_to_i64(arg);
+        return (Color) {
+            c,
+            c,
+            c,
+            255,
+        };
+    } else if (arg.tag == VM_TAG_TAB) {
+        vm_pair_t *r = VM_TABLE_LOOKUP_STR(arg.value.table, "red");
+        vm_pair_t *g = VM_TABLE_LOOKUP_STR(arg.value.table, "green");
+        vm_pair_t *b = VM_TABLE_LOOKUP_STR(arg.value.table, "blue");
+        vm_pair_t *a = VM_TABLE_LOOKUP_STR(arg.value.table, "alpha");
+        return (Color) {
+            r ? vm_value_to_i64(VM_PAIR_VALUE(*r)) : 0,
+            g ? vm_value_to_i64(VM_PAIR_VALUE(*g)) : 0,
+            b ? vm_value_to_i64(VM_PAIR_VALUE(*b)) : 0,
+            a ? vm_value_to_i64(VM_PAIR_VALUE(*a)) : 255,
+        };
+    } else {
+        return BLACK;
+    }
+}
+
+static Color vm_value_field_to_color(vm_std_value_t arg, const char *field) {
     if (arg.tag != VM_TAG_TAB) {
         return BLACK;
     }
-    vm_std_value_t *r = VM_TABLE_LOOKUP_STR(arg.value.table, "red");
-    vm_std_value_t *g = VM_TABLE_LOOKUP_STR(arg.value.table, "green");
-    vm_std_value_t *b = VM_TABLE_LOOKUP_STR(arg.value.table, "blue");
-    vm_std_value_t *a = VM_TABLE_LOOKUP_STR(arg.value.table, "alpha");
-    return (Color) {
-        r ? vm_value_to_i64(*r) : 0,
-        g ? vm_value_to_i64(*g) : 0,
-        b ? vm_value_to_i64(*b) : 0,
-        a ? vm_value_to_i64(*a) : 255,
+    return vm_value_to_color(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, field)));
+}
+
+static Vector2 vm_value_to_vector2(vm_std_value_t arg) {
+    if (arg.tag != VM_TAG_TAB) {
+        return (Vector2) {0, 0};
+    }
+    vm_pair_t *x = VM_TABLE_LOOKUP_STR(arg.value.table, "x");
+    vm_pair_t *y = VM_TABLE_LOOKUP_STR(arg.value.table, "y");
+    return (Vector2) {
+        x ? vm_value_to_i64(VM_PAIR_VALUE(*x)) : 0,
+        y ? vm_value_to_i64(VM_PAIR_VALUE(*y)) : 0,
     };
 }
 
-void vm_std_gui_rect(vm_std_closure_t *closure, vm_std_value_t *args) {
-    DrawRectangle(vm_value_to_i64(args[0]), vm_value_to_i64(args[1]), vm_value_to_i64(args[2]), vm_value_to_i64(args[3]), vm_gui_draw_color);
+static Vector2 vm_value_field_to_vector2(vm_std_value_t arg, const char *field) {
+    if (arg.tag != VM_TAG_TAB) {
+        return (Vector2) {0, 0};
+    }
+    return vm_value_to_vector2(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, field)));
+}
+
+static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_std_value_t arg);
+
+static void vm_std_gui_draw_tree_children(vm_std_closure_t *closure, Rectangle rect, vm_table_t *tree) {
+    int32_t i = 1;
+    while (true) {
+        vm_std_value_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t) { .i32 = i }, VM_TAG_I32));
+        if (child.tag != VM_TAG_TAB) {
+            break;
+        }
+        i += 1;
+        vm_std_gui_draw_tree(closure, rect, child);
+    }
+}
+
+static void vm_std_gui_draw_tree_children_list(vm_std_closure_t *closure, Rectangle rect, vm_table_t *tree) {
+    size_t len = tree->len;
+    if (len == 0) {
+        return;
+    }
+    float height = rect.height / len;
+    Rectangle child_rect = (Rectangle) {
+        rect.x,
+        rect.y,
+        rect.width,
+        height,
+    };
+    int32_t i = 1;
+    while (true) {
+        vm_std_value_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t) { .i32 = i }, VM_TAG_I32));
+        if (child.tag != VM_TAG_TAB) {
+            break;
+        }
+        i += 1;
+        vm_std_gui_draw_tree(closure, child_rect, child);
+        child_rect.y += height;
+    }
+}
+
+static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_std_value_t arg) {
+    // vm_io_buffer_t *buf = vm_io_buffer_new();
+    // vm_io_debug(buf, 0, "", arg, NULL);
+    // printf("%s\n", buf->buf);
+    if (arg.tag != VM_TAG_TAB) {
+        return;
+    }
+    vm_table_t *tree = arg.value.table;
+    vm_std_value_t std_type = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(tree, "type"));
+    if (std_type.tag == VM_TAG_NIL) {
+        size_t n = (1 << tree->alloc);
+        for (size_t i = 0; i < n; i++) {
+            vm_pair_t *pair = &tree->pairs[i];
+            if (pair->key_tag == VM_TAG_UNK) {
+                continue;
+            }
+            vm_std_gui_draw_tree(closure, rect, (vm_std_value_t){
+                .tag = pair->val_tag,
+                .value = pair->val_val,
+            });
+        }
+    } else if (std_type.tag == VM_TAG_STR) {
+        const char *type = std_type.value.str;
+        if (!strcmp(type, "rectangle")) {
+            DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
+            vm_std_gui_draw_tree_children(closure, rect, tree);
+        } else if (!strcmp(type, "list")) {
+            // DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
+            vm_std_gui_draw_tree_children_list(closure, rect, tree);
+        }
+    }
 }
 
 void vm_std_gui_init(vm_std_closure_t *closure, vm_std_value_t *args) {
-    vm_table_t *env = args[0].value.table;
-    thrd_t thrd;
     vm_std_gui_repl_t *repl = vm_malloc(sizeof(vm_std_gui_repl_t));
     *repl = (vm_std_gui_repl_t) {
         .config = closure->config,
-        .std = env,
+        .std = closure->std,
         .blocks = closure->blocks,
+        .mutex = vm_malloc(sizeof(mtx_t)),
     };
-    thrd_create(&thrd, &vm_std_gui_repl, &repl);
+    mtx_init(repl->mutex, mtx_plain);
+
+    thrd_t thrd;
+    thrd_create(&thrd, &vm_std_gui_repl, repl);
+
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(960, 540, "MiniVM");
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        for (vm_blocks_srcs_t *src = closure->blocks->srcs; src != NULL; src = src->last) {
-            if (src->src[0] == '!') {
-                if (!strncmp(&src->src[1], "draw", 4)) {
-                    const char *loop_code = &src->src[5];
-                    size_t n = closure->blocks->len;
-                    vm_ast_node_t node = vm_lang_lua_parse(closure->config, loop_code);
-                    vm_ast_comp_more(node, closure->blocks);
-                    vm_ast_free_node(node);
-                    vm_run_repl(closure->config, closure->blocks->blocks[n], closure->blocks, env);
-                    closure->blocks->len = n;
-                }
-            }
-        }
+        mtx_lock(repl->mutex);
+        vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(closure->std, "root"));
+        Rectangle rect = (Rectangle) {
+            0,
+            0,
+            GetScreenWidth(),
+            GetScreenHeight(),
+        };
+        vm_std_gui_draw_tree(closure, rect, tree);
+        mtx_unlock(repl->mutex);
         EndDrawing();
     }
     CloseWindow();
-    args[0] = VM_STD_VALUE_NIL;
     return;
 }
 
@@ -787,16 +887,6 @@ vm_table_t *vm_std_new(vm_config_t *config) {
         VM_TABLE_SET(std, str, "table", table, table);
     }
 
-    #if VM_USE_RAYLIB
-    {
-        vm_table_t *gui = vm_table_new();
-        VM_TABLE_SET(std, str, "gui", table, gui);
-        vm_table_t *state = vm_table_new();
-        VM_TABLE_SET(gui, str, "init", ffi, VM_STD_REF(config, vm_std_gui_init));
-        VM_TABLE_SET(gui, str, "rect", ffi, VM_STD_REF(config, vm_std_gui_rect));
-    }
-    #endif
-
     VM_TABLE_SET(std, str, "error", ffi, VM_STD_REF(config, vm_std_error));
     VM_TABLE_SET(std, str, "tostring", ffi, VM_STD_REF(config, vm_std_tostring));
     VM_TABLE_SET(std, str, "tonumber", ffi, VM_STD_REF(config, vm_std_tonumber));
@@ -808,6 +898,13 @@ vm_table_t *vm_std_new(vm_config_t *config) {
 
     vm_config_add_extern(config, &vm_lua_comp_op_std_pow);
     vm_config_add_extern(config, &vm_std_vm_closure);
+
+    #if VM_USE_RAYLIB
+    {
+        VM_TABLE_SET(std, str, "app", ffi, VM_STD_REF(config, vm_std_gui_init));
+        VM_TABLE_SET(std, str, "root", table, vm_table_new());
+    }
+    #endif
 
     return std;
 }
