@@ -664,6 +664,16 @@ void vm_std_table_values(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args);
 
+#if VM_USE_RAYLIB
+
+#include "../../vendor/raylib/src/raylib.h"
+
+void vm_std_gui_box(vm_std_closure_t *closure, vm_std_value_t *args) {
+    
+}
+
+#endif
+
 vm_table_t *vm_std_new(vm_config_t *config) {
     vm_table_t *std = vm_table_new();
 
@@ -701,6 +711,15 @@ vm_table_t *vm_std_new(vm_config_t *config) {
         VM_TABLE_SET(table, str, "values", ffi, VM_STD_REF(config, vm_std_table_values));
         VM_TABLE_SET(std, str, "table", table, table);
     }
+
+    #if VM_USE_RAYLIB
+    {
+        vm_table_t *gui = vm_table_new();
+        VM_TABLE_SET(std, str, "table", table, gui);
+        vm_table_t *state = vm_table_new();
+        VM_TABLE_SET(gui, str, "window", table, state);
+    }
+    #endif
 
     VM_TABLE_SET(std, str, "error", ffi, VM_STD_REF(config, vm_std_error));
     VM_TABLE_SET(std, str, "tostring", ffi, VM_STD_REF(config, vm_std_tostring));

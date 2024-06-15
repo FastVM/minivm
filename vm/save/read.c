@@ -1,6 +1,7 @@
 
 #include "../ast/ast.h"
 #include "../ast/comp.h"
+#include "../backend/backend.h"
 #include "value.h"
 
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
@@ -228,10 +229,14 @@ outer:;
             src[j] = (char)vm_save_read_byte(&read);
         }
         src[len] = '\0';
-        vm_ast_node_t node = vm_lang_lua_parse(config, src);
-        vm_ast_comp_more(node, blocks);
-        // vm_ast_free_node(node);
-        vm_blocks_add_src(blocks, src);
+        if (src[0] == '!') {
+            vm_ast_node_t node = vm_lang_lua_parse(config, src);
+            vm_blocks_add_src(blocks, src);
+            vm_ast_comp_more(node, blocks);
+        } else {
+            vm_blocks_add_src(blocks, src);
+
+        }
     }
     return (vm_save_loaded_t){
         .blocks = blocks,

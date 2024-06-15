@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
         .tb_regs_cast = true,
 #if defined(EMSCRIPTEN)
         .target = VM_TARGET_TB_EMCC,
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__APPLE__)
         .target = VM_TARGET_TB_CLANG,
 #else
         .target = VM_TARGET_TB_TCC,
@@ -79,15 +79,8 @@ int main(int argc, char **argv) {
                     }
                 }
             }
+            config->save_file = arg;
             vm_lang_lua_repl(config, std, blocks);
-            {
-                vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
-                FILE *f = fopen(arg, "wb");
-                if (f != NULL) {
-                    fwrite(save.buf, 1, save.len, f);
-                    fclose(f);
-                }
-            }
         } else if (!strncmp(arg, "--load=", 7)) {
             arg += 7;
             FILE *f = fopen(arg, "rb");

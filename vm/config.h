@@ -54,6 +54,7 @@ struct vm_externs_t {
 struct vm_config_t {
     vm_externs_t *externs;
 
+    const char *save_file;
     const char *cflags;
 
     uint8_t target : 4;

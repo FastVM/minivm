@@ -10,8 +10,9 @@ linux: .dummy
 	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=LINUX CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)"
 
 mac: .dummy
-	$(PRE) make -Bj$(J) -C vendor/lua MYCFLAGS=-DLUA_USE_MACOSX MYLDFLAGS= MYLIBS=-ldl
-	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)"
+	$(PRE) make -Bj$(J) -C vendor/raylib/src CFLAGS="-w $(OPT) $(CLFAGS)"
+	$(PRE) make -Bj$(J) -C vendor/lua MYCFLAGS=-DLUA_USE_MACOSX MYLDFLAGS= MYLIBS=-ldl CFLAGS="$(OPT) $(CFLAGS)"
+	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC CFLAGS="-DVM_USE_RAYLIB $(CFLAGS)" LDFLAGS="vendor/raylib/src/libraylib.a $(LDFLAGS)" CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" RAYLIB=YES
 
 windows: .dummy
 	$(PRE) make -Bj$(J) -C vendor/lua MYCFLAGS= MYLDFLAGS= MYLIBS=

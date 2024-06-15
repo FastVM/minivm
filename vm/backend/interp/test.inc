@@ -1,6 +1,4 @@
 
-#define VM_MATH_SWITCH 1
-
 #if !defined(OP)
 #error before including test.inc, #define OP
 #endif

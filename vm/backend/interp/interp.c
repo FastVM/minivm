@@ -110,6 +110,7 @@ static VM_INLINE bool vm_interp_value_eq(vm_std_value_t v1, vm_std_value_t v2) {
     #define WRITE return
     #define NAME EQ
     #include "test.inc"
+    __builtin_trap();
 }
 
 static VM_INLINE bool vm_interp_value_lt(vm_std_value_t v1, vm_std_value_t v2) {
@@ -118,6 +119,7 @@ static VM_INLINE bool vm_interp_value_lt(vm_std_value_t v1, vm_std_value_t v2) {
     #define WRITE return
     #define NAME LT
     #include "test.inc"
+    __builtin_trap();
 }
 
 static VM_INLINE bool vm_interp_value_le(vm_std_value_t v1, vm_std_value_t v2) {
@@ -126,6 +128,7 @@ static VM_INLINE bool vm_interp_value_le(vm_std_value_t v1, vm_std_value_t v2) {
     #define WRITE return
     #define NAME LE
     #include "test.inc"
+    __builtin_trap();
 }
 
 static VM_INLINE vm_std_value_t vm_interp_add(vm_std_value_t v1, vm_std_value_t v2) {

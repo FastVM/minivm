@@ -71,6 +71,9 @@ static void *binop_table[COMBINE(VM_TAG_MAX, VM_TAG_MAX)] = {
 
 #if VM_MATH_SWITCH
 switch (COMBINE(v1.tag, v2.tag)) {
+    default: {
+        __builtin_trap();
+    }
 #else
 goto *binop_table[COMBINE(v1.tag, v2.tag)];
 #endif

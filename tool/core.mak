@@ -42,11 +42,15 @@ OS ?= $(OS_$(UNAME_S))
 PROG_SRCS = main/minivm.c
 PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 
+CFLAGS_VM_RAYLIB_YES = -DVM_USE_RAYLIB
+CFLAGS_VM += $(CFLAGS_VM_RAYLIB_$(RAYLIB))
+
 # GC_SRCS = vendor/bdwgc/alloc.c vendor/bdwgc/allchblk.c vendor/bdwgc/blacklst.c vendor/bdwgc/dbg_mlc.c vendor/bdwgc/dyn_load.c vendor/bdwgc/finalize.c vendor/bdwgc/headers.c vendor/bdwgc/malloc.c vendor/bdwgc/mallocx.c vendor/bdwgc/mark.c vendor/bdwgc/mach_dep.c vendor/bdwgc/mark_rts.c vendor/bdwgc/misc.c vendor/bdwgc/new_hblk.c vendor/bdwgc/obj_map.c vendor/bdwgc/os_dep.c vendor/bdwgc/ptr_chck.c vendor/bdwgc/reclaim.c
 ISOCLINE_SRCS += $(ISOCLINE_DIR)/src/isocline.c
 XXH_SRCS += $(XXHASH_DIR)/xxhash.c
 TREES_SRCS += $(TREE_SITTER_DIR)/lib/src/alloc.c $(TREE_SITTER_DIR)/lib/src/get_changed_ranges.c $(TREE_SITTER_DIR)/lib/src/language.c $(TREE_SITTER_DIR)/lib/src/lexer.c $(TREE_SITTER_DIR)/lib/src/node.c $(TREE_SITTER_DIR)/lib/src/parser.c $(TREE_SITTER_DIR)/lib/src/query.c $(TREE_SITTER_DIR)/lib/src/stack.c $(TREE_SITTER_DIR)/lib/src/subtree.c $(TREE_SITTER_DIR)/lib/src/tree_cursor.c $(TREE_SITTER_DIR)/lib/src/tree.c $(TREE_SITTER_DIR)/lib/src/wasm_store.c
 GC_OBJS += $(GC_SRCS:%.c=$(OBJ_DIR)/%.o)
+
 VENDOR_SRCS += $(ISOCLINE_SRCS) $(XXH_SRCS) $(TREES_SRCS) $(GC_OBJS)
 VENDOR_OBJS = $(VENDOR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
