@@ -667,9 +667,84 @@ void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args);
 #if VM_USE_RAYLIB
 
 #include "../../vendor/raylib/src/raylib.h"
+#include "../../vendor/cuik/c11threads/threads.h"
+#include "../backend/backend.h"
 
-void vm_std_gui_box(vm_std_closure_t *closure, vm_std_value_t *args) {
-    
+static Color vm_gui_draw_color = BLACK;
+
+int vm_std_gui_draw(void *arg) {
+    vm_table_t *gui = arg;
+    return 0;
+}
+
+typedef struct  {
+    vm_config_t *config;
+    vm_table_t *std;
+    vm_blocks_t *blocks;
+} vm_std_gui_repl_t;
+
+void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks);
+
+int vm_std_gui_repl(void *arg) {
+    vm_std_gui_repl_t *repl = arg;
+    vm_lang_lua_repl(repl->config, repl->std, repl->blocks);
+    exit(0);
+    return 0;
+}
+
+static Color vm_value_to_color(vm_std_value_t arg) {
+    if (arg.tag != VM_TAG_TAB) {
+        return BLACK;
+    }
+    vm_std_value_t *r = VM_TABLE_LOOKUP_STR(arg.value.table, "red");
+    vm_std_value_t *g = VM_TABLE_LOOKUP_STR(arg.value.table, "green");
+    vm_std_value_t *b = VM_TABLE_LOOKUP_STR(arg.value.table, "blue");
+    vm_std_value_t *a = VM_TABLE_LOOKUP_STR(arg.value.table, "alpha");
+    return (Color) {
+        r ? vm_value_to_i64(*r) : 0,
+        g ? vm_value_to_i64(*g) : 0,
+        b ? vm_value_to_i64(*b) : 0,
+        a ? vm_value_to_i64(*a) : 255,
+    };
+}
+
+void vm_std_gui_rect(vm_std_closure_t *closure, vm_std_value_t *args) {
+    DrawRectangle(vm_value_to_i64(args[0]), vm_value_to_i64(args[1]), vm_value_to_i64(args[2]), vm_value_to_i64(args[3]), vm_gui_draw_color);
+}
+
+void vm_std_gui_init(vm_std_closure_t *closure, vm_std_value_t *args) {
+    vm_table_t *env = args[0].value.table;
+    thrd_t thrd;
+    vm_std_gui_repl_t *repl = vm_malloc(sizeof(vm_std_gui_repl_t));
+    *repl = (vm_std_gui_repl_t) {
+        .config = closure->config,
+        .std = env,
+        .blocks = closure->blocks,
+    };
+    thrd_create(&thrd, &vm_std_gui_repl, &repl);
+    SetTraceLogLevel(LOG_WARNING);
+    InitWindow(960, 540, "MiniVM");
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        for (vm_blocks_srcs_t *src = closure->blocks->srcs; src != NULL; src = src->last) {
+            if (src->src[0] == '!') {
+                if (!strncmp(&src->src[1], "draw", 4)) {
+                    const char *loop_code = &src->src[5];
+                    size_t n = closure->blocks->len;
+                    vm_ast_node_t node = vm_lang_lua_parse(closure->config, loop_code);
+                    vm_ast_comp_more(node, closure->blocks);
+                    vm_ast_free_node(node);
+                    vm_run_repl(closure->config, closure->blocks->blocks[n], closure->blocks, env);
+                    closure->blocks->len = n;
+                }
+            }
+        }
+        EndDrawing();
+    }
+    CloseWindow();
+    args[0] = VM_STD_VALUE_NIL;
+    return;
 }
 
 #endif
@@ -715,9 +790,10 @@ vm_table_t *vm_std_new(vm_config_t *config) {
     #if VM_USE_RAYLIB
     {
         vm_table_t *gui = vm_table_new();
-        VM_TABLE_SET(std, str, "table", table, gui);
+        VM_TABLE_SET(std, str, "gui", table, gui);
         vm_table_t *state = vm_table_new();
-        VM_TABLE_SET(gui, str, "window", table, state);
+        VM_TABLE_SET(gui, str, "init", ffi, VM_STD_REF(config, vm_std_gui_init));
+        VM_TABLE_SET(gui, str, "rect", ffi, VM_STD_REF(config, vm_std_gui_rect));
     }
     #endif
 

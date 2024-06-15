@@ -86,6 +86,7 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_str(...) VM_TAG_STR
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_table(...) VM_TAG_TAB
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_ffi(...) VM_TAG_FFI
+#define VM_VALUE_LITERAL_TYPE_TO_TAG_error(...) VM_TAG_ERROR
 
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_CONCAT2_IMPL(X_, Y_) X_##Y_
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_CONCAT2(X_, Y_) VM_VALUE_LITERAL_TYPE_TO_TAG_CONCAT2_IMPL(X_, Y_)

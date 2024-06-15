@@ -205,15 +205,31 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
     //     setvbuf(stderr, NULL, _IONBF, 0);
     // #endif
 
+    if (config->save_file != NULL) {
+        FILE *f = fopen(config->save_file, "rb");
+        if (f != NULL) {
+            vm_save_t save = vm_save_load(f);
+            fclose(f);
+            vm_save_loaded_t ld = vm_load_value(config, save);
+            if (ld.blocks != NULL) {
+                blocks = ld.blocks;
+                std = ld.env.value.table;
+                vm_io_buffer_t *buf = vm_io_buffer_new();
+                vm_io_format_blocks(buf, blocks);
+            }
+        }
+    }
 
     for (vm_blocks_srcs_t *src = blocks->srcs; src != NULL; src = src->last) {
         if (src->src[0] == '!') {
             if (!strncmp(&src->src[1], "init", 4)) {
                 const char *setup_code = &src->src[4];
+                size_t n = blocks->len;
                 vm_ast_node_t node = vm_lang_lua_parse(config, setup_code);
                 vm_ast_comp_more(node, blocks);
                 vm_ast_free_node(node);
-                vm_run_repl(config, blocks->entry, blocks, std);
+                vm_run_repl(config, blocks->blocks[n], blocks, std);
+                blocks->len = n;
             }
         }
     }
@@ -290,12 +306,12 @@ void vm_lang_lua_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks)
                 if (src->src[0] == '!') {
                     if (!strncmp(&src->src[1], "loop", 4)) {
                         const char *loop_code = &src->src[5];
-                        vm_ast_node_t node = vm_lang_lua_parse(config, loop_code);
                         size_t n = blocks->len;
-                        vm_blocks_add_src(blocks, loop_code);
+                        vm_ast_node_t node = vm_lang_lua_parse(config, loop_code);
                         vm_ast_comp_more(node, blocks);
                         vm_ast_free_node(node);
-                        vm_run_main(config, blocks->blocks[n], blocks, std);
+                        vm_run_repl(config, blocks->blocks[n], blocks, std);
+                        blocks->len = n;
                     }
                 }
             }

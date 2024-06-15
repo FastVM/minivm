@@ -65,20 +65,6 @@ int main(int argc, char **argv) {
         } else if (!strncmp(arg, "--file=", 7)) {
             arg += 7;
             isrepl = false;
-            {
-                FILE *f = fopen(arg, "rb");
-                if (f != NULL) {
-                    vm_save_t save = vm_save_load(f);
-                    fclose(f);
-                    vm_save_loaded_t ld = vm_load_value(config, save);
-                    if (ld.blocks != NULL) {
-                        blocks = ld.blocks;
-                        std = ld.env.value.table;
-                        vm_io_buffer_t *buf = vm_io_buffer_new();
-                        vm_io_format_blocks(buf, blocks);
-                    }
-                }
-            }
             config->save_file = arg;
             vm_lang_lua_repl(config, std, blocks);
         } else if (!strncmp(arg, "--load=", 7)) {
