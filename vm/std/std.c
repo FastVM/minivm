@@ -809,6 +809,19 @@ static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_s
         } else if (!strcmp(type, "list")) {
             // DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
             vm_std_gui_draw_tree_children_list(closure, rect, tree);
+        } else if (!strcmp(type, "button")) {
+            DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
+            vm_std_gui_draw_tree_children(closure, rect, tree);
+            vm_std_value_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "click"));
+            vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
+            if (button.tag == VM_TAG_STR && run.tag == VM_TAG_CLOSURE) {
+                const char *name = button.value.str;
+                if ((!strcmp(name, "left") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                    || (!strcmp(name, "right") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                    || (!strcmp(name, "middle") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
+                    vm_run_repl(closure->config, closure->blocks->blocks[run.value.closure[0].value.i32], closure->blocks, closure->std);
+                }
+            }
         }
     }
 }
@@ -832,7 +845,7 @@ void vm_std_gui_init(vm_std_closure_t *closure, vm_std_value_t *args) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
         mtx_lock(repl->mutex);
-        vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(closure->std, "root"));
+        vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(closure->std, "draw"));
         Rectangle rect = (Rectangle) {
             0,
             0,
@@ -902,7 +915,7 @@ vm_table_t *vm_std_new(vm_config_t *config) {
     #if VM_USE_RAYLIB
     {
         VM_TABLE_SET(std, str, "app", ffi, VM_STD_REF(config, vm_std_gui_init));
-        VM_TABLE_SET(std, str, "root", table, vm_table_new());
+        VM_TABLE_SET(std, str, "draw", table, vm_table_new());
     }
     #endif
 

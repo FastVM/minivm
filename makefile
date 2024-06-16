@@ -1,17 +1,17 @@
 
 OPT = -Os -flto
 PRE = 
-TARGET = test
+TARGET = bins
 J != nproc
 
 TEST_LUA = vendor/lua/lua
 linux: .dummy
-	$(PRE) make -Bj$(J) -C vendor/lua MYCFLAGS=-DLUA_USE_LINUX MYLDFLAGS= MYLIBS=-ldl
+	# $(PRE) make -Bj$(J) -C vendor/lua MYCFLAGS=-DLUA_USE_LINUX MYLDFLAGS= MYLIBS=-ldl
 	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=LINUX CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)"
 
 mac: .dummy
-	$(PRE) make -Bj$(J) -C vendor/raylib/src CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
-	$(PRE) make -Bj$(J) -C vendor/lua MYCFLAGS=-DLUA_USE_MACOSX MYLDFLAGS= MYLIBS=-ldl CFLAGS="$(OPT) $(CFLAGS)"
+	$(PRE) make -Bj$(J) -C vendor/raylib/src LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
+	# $(PRE) make -Bj$(J) -C vendor/lua MYCFLAGS=-DLUA_USE_MACOSX MYLDFLAGS= MYLIBS=-ldl CFLAGS="$(OPT) $(CFLAGS)"
 	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB $(CFLAGS)" LDFLAGS="vendor/raylib/src/libraylib.a -framework Cocoa -framework OpenGL -framework IOKit $(LDFLAGS)" 
 
 windows: .dummy
@@ -19,8 +19,8 @@ windows: .dummy
 	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=WINDOWS CC="$(CC)" EXE=.exe TEST_LUA="$(TEST_LUA)"
 
 freebsd: .dummy
-	$(PRE) gmake -j$(J) -C vendor/raylib/src CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
-	$(PRE) gmake -j$(J) -C vendor/lua CC="$(CC)" MYCFLAGS=-DLUA_USE_LINUX MYLDFLAGS= MYLIBS=-ldl
+	$(PRE) gmake -j$(J) -C vendor/raylib/src LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
+	# $(PRE) gmake -j$(J) -C vendor/lua CC="$(CC)" MYCFLAGS=-DLUA_USE_LINUX MYLDFLAGS= MYLIBS=-ldl
 	$(PRE) gmake -Bj$(J) -f tool/core.mak $(TARGET) OS=FREEBSD CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB $(CFLAGS)" LDFLAGS="-L/usr/local/lib vendor/raylib/src/libraylib.a -lOpenGL -lm -lpthread $(LDFLAGS)" 
 
 EMCC_CFLAGS = -fPIC -DNDEBUG

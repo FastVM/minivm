@@ -16,7 +16,7 @@
 #define VM_INLINE inline
 #endif
 
-#if 0
+#if 1
 #define VM_OPCODE_DEBUG(s) printf("%s\n", #s);
 #else
 #define VM_OPCODE_DEBUG(s)
@@ -190,7 +190,7 @@ static VM_INLINE vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t 
 #define vm_interp_push(t, v) (*(t *)vm_interp_push_num(sizeof(t)) = (v))
 #define vm_interp_push_op(v) vm_interp_push(void *, interp->ptrs[v])
 
-vm_interp_block_t vm_interp_renumber_block(vm_interp_t *interp, vm_block_t *block) {
+void *vm_interp_renumber_block(vm_interp_t *interp, vm_block_t *block) {
     size_t alloc = 32;
     size_t len = 0;
     uint8_t *code = vm_malloc(sizeof(uint8_t) * alloc);
@@ -413,6 +413,7 @@ vm_interp_block_t vm_interp_renumber_block(vm_interp_t *interp, vm_block_t *bloc
                 for (size_t i = 0; i < 3; i++) {
                     vm_interp_push(vm_interp_tag_t, instr.args[i].type);
                     if (instr.args[i].type == VM_ARG_LIT) {
+                        vm_interp_push(vm_interp_tag_t, instr.args[i].lit.tag);
                         vm_interp_push(vm_value_t, instr.args[i].lit.value);
                     } else {
                         vm_interp_push(vm_interp_reg_t, instr.args[i].reg);
@@ -667,17 +668,20 @@ vm_interp_block_t vm_interp_renumber_block(vm_interp_t *interp, vm_block_t *bloc
             __builtin_trap();
         }
     }
-    return (vm_interp_block_t) {
-        .nregs = block->nregs,
-        .code = code,
-    };
+    return code;
 }
 
 void vm_interp_renumber_blocks(vm_interp_t *interp) {
     vm_blocks_t *blocks = interp->closure.blocks;
     interp->blocks = vm_malloc(sizeof(vm_interp_block_t) * blocks->len);
     for (size_t i = 0; i < blocks->len; i++) {
-        interp->blocks[i] = vm_interp_renumber_block(interp, blocks->blocks[i]);
+        if (blocks->blocks[i]->pass == NULL) {
+            blocks->blocks[i]->pass = vm_interp_renumber_block(interp, blocks->blocks[i]);
+        }
+        interp->blocks[i] = (vm_interp_block_t) {
+            .nregs = blocks->blocks[i]->nregs,
+            .code = blocks->blocks[i]->pass,
+        };
     }
 }
 
@@ -697,11 +701,19 @@ void vm_interp_renumber_blocks(vm_interp_t *interp) {
 })
 #define vm_interp_block_reg() (regs[vm_interp_block_read(vm_interp_reg_t)])
 
+#if 0
+#define vm_interp_block_arg() ( \
+    vm_interp_block_read(vm_interp_tag_t) == VM_ARG_LIT \
+        ? (printf(":LIT\n"), vm_interp_block_lit()) \
+        : (printf(":REG\n"), vm_interp_block_reg()) \
+    )
+#else
 #define vm_interp_block_arg() ( \
     vm_interp_block_read(vm_interp_tag_t) == VM_ARG_LIT \
         ? vm_interp_block_lit() \
         : vm_interp_block_reg() \
     )
+#endif
 
 #define vm_interp_block_out(value) (regs[vm_interp_block_read(vm_interp_reg_t)] = (value))
 
@@ -1177,6 +1189,8 @@ vm_std_value_t vm_interp_run(vm_config_t *config, vm_block_t *entry, vm_blocks_t
     vm_std_value_t ret = vm_interp_block(&interp, regs, interp.blocks[entry->id]);
 
     vm_free(regs);
+
+    vm_free(interp.blocks);
 
     return ret;
 }

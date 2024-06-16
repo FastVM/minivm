@@ -64,9 +64,7 @@ int main(int argc, char **argv) {
             isrepl = false;
         } else if (!strncmp(arg, "--file=", 7)) {
             arg += 7;
-            isrepl = false;
             config->save_file = arg;
-            vm_lang_lua_repl(config, std, blocks);
         } else if (!strncmp(arg, "--load=", 7)) {
             arg += 7;
             FILE *f = fopen(arg, "rb");
@@ -203,14 +201,18 @@ int main(int argc, char **argv) {
 
             const char *name = NULL;
             const char *src;
+            bool f_flag = true;
             if (!strcmp(arg, "-e")) {
                 src = argv[i++];
             } else {
+                f_flag = !strcmp(arg, "-f");
+                if (f_flag) {
+                    arg = argv[i++];
+                }
                 src = vm_io_read(arg);
                 name = arg;
                 vm_std_set_arg(config, std, argv[0], name, argc - i, &argv[i]);
             }
-
 
             if (src == NULL) {
                 fprintf(stderr, "error: no such file: %s\n", arg);
@@ -255,7 +257,7 @@ int main(int argc, char **argv) {
                 printf("took: %.3fms\n", diff);
             }
 
-            if (name != NULL) {
+            if (!f_flag) {
                 break;
             }
         }
