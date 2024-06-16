@@ -1,6 +1,4 @@
 
-
-
 OPT ?= -Os -flto
 
 EXE ?=
@@ -39,7 +37,7 @@ CFLAGS_VM += $(CFLAGS_VM_RAYLIB_$(RAYLIB))
 THREAD_SRCS_OS_WINDOWS = vendor/c11threads/threads_msvc.c
 THREAD_SRCS_OS_MAC = vendor/c11threads/threads_posix.c
 THREAD_SRCS_OS_LINUX = vendor/c11threads/threads_posix.c
-THREAD_SRCS_OS_POSIX = vendor/c11threads/threads_posix.c
+THREAD_SRCS_OS_FREEBSD = vendor/c11threads/threads_posix.c
 THREAD_SRCS += $(THREAD_SRCS_OS_$(OS))
 
 ISOCLINE_SRCS += $(ISOCLINE_DIR)/src/isocline.c

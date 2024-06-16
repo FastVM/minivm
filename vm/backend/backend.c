@@ -1058,9 +1058,10 @@ new_block:;
         uint8_t *c0 = code;
         vm_std_value_t v1 = vm_run_repl_arg();
         vm_std_value_t v2 = vm_run_repl_arg();
-        vm_table_pair_t pair;
-        pair.key_tag = v2.tag;
-        pair.key_val = v2.value;
+        vm_table_pair_t pair = (vm_table_pair_t) {
+            .key_tag = v2.tag,
+            .key_val = v2.value,
+        };
         vm_table_get_pair(v1.value.table, &pair);
         vm_std_value_t v3 = (vm_std_value_t) {
             .tag = pair.val_tag,
