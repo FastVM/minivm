@@ -1,12 +1,13 @@
 
 #include "./repl.h"
-#include "../ast/ast.h"
-#include "../ast/comp.h"
 #include "../ir.h"
 #include "../io.h"
-#include "../save/value.h"
 #include "../vm.h"
 #include "../obj.h"
+#include "../ast/ast.h"
+#include "../ast/comp.h"
+#include "../save/value.h"
+#include "../backend/backend.h"
 
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
@@ -21,9 +22,9 @@
 
 
 const TSLanguage *tree_sitter_lua(void);
-vm_ast_node_t vm_lang_lua_parse(vm_t *config, const char *str);
+vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
 
-vm_std_value_t vm_lang_lua_repl_table_get(vm_table_t *table, const char *key) {
+vm_std_value_t vm_repl_table_get(vm_table_t *table, const char *key) {
     vm_table_pair_t pair = (vm_table_pair_t){
         .key_tag = VM_TAG_STR,
         .key_val.str = key,
@@ -35,12 +36,12 @@ vm_std_value_t vm_lang_lua_repl_table_get(vm_table_t *table, const char *key) {
     };
 }
 
-bool vm_lang_lua_repl_table_get_bool(vm_table_t *table, const char *key) {
-    vm_std_value_t got = vm_lang_lua_repl_table_get(table, key);
+bool vm_repl_table_get_bool(vm_table_t *table, const char *key) {
+    vm_std_value_t got = vm_repl_table_get(table, key);
     return got.tag != VM_TAG_NIL && (got.tag != VM_TAG_BOOL || got.value.b);
 }
 
-void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
+void vm_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     vm_t *vm = cenv->arg;
     ptrdiff_t len = strlen(prefix);
     ptrdiff_t head = len - 1;
@@ -49,7 +50,7 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     }
     head += 1;
     const char *last_word = &prefix[head];
-    vm_table_t *std = vm->std;
+    vm_table_t *std = vm->std.value.table;
 with_new_std:;
     for (size_t i = 0; i < ((size_t)1 << std->alloc); i++) {
         vm_table_pair_t *pair = &std->pairs[i];
@@ -92,7 +93,7 @@ with_new_std:;
 ret:;
 }
 
-void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TSNode node) {
+void vm_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TSNode node) {
     const char *type = ts_node_type(node);
     size_t start = ts_node_start_byte(node);
     size_t end = ts_node_end_byte(node);
@@ -130,11 +131,11 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TS
     size_t num_children = ts_node_child_count(node);
     for (size_t i = 0; i < num_children; i++) {
         TSNode sub = ts_node_child(node, i);
-        vm_lang_lua_repl_highlight_walk(henv, depth, sub);
+        vm_repl_highlight_walk(henv, depth, sub);
     }
 }
 
-void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
+void vm_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
     (void)arg;
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_lua());
@@ -146,7 +147,7 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
     );
     TSNode root_node = ts_tree_root_node(tree);
     size_t depth = 0;
-    vm_lang_lua_repl_highlight_walk(henv, &depth, root_node);
+    vm_repl_highlight_walk(henv, &depth, root_node);
     ts_tree_delete(tree);
     ts_parser_delete(parser);
     // FILE *out = fopen("out.log", "w");
@@ -156,92 +157,14 @@ void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, voi
 }
 
 #if defined(EMSCRIPTEN)
-EM_JS(void, vm_lang_lua_repl_sync, (void), {
-    Module._vm_lang_lua_repl_sync();
+EM_JS(void, vm_repl_sync, (void), {
+    Module._vm_repl_sync();
 });
 #endif
 
-#if VM_USE_RAYLIB
 #include "../../vendor/c11threads/threads.h"
 
-void vm_lang_lua_gui_repl(vm_t *config, vm_table_t *std, vm_blocks_t config->blocks, mtx_t *mutex) {
-    ic_set_history(".minivm-history", 2000);
-
-    vm_lang_lua_repl_complete_vm_t complete_vm = (vm_lang_lua_repl_complete_vm_t){
-        .config = config,
-        .std = std,
-    };
-    vm_lang_lua_repl_highlight_vm_t highlight_vm = (vm_lang_lua_repl_highlight_vm_t){
-        .config = config,
-        .std = std,
-    };
-
-    while (true) {
-        char *input = ic_readline_ex(
-            "lua",
-            vm_lang_lua_repl_completer,
-            &complete_vm,
-            vm_lang_lua_repl_highlight,
-            &highlight_vm
-        );
-        
-        if (input == NULL) {
-            break;
-        }
-
-        mtx_lock(mutex);
-
-        if (config->save_file != NULL) {
-            FILE *f = fopen(config->save_file, "rb");
-            if (f != NULL) {
-                vm_save_t save = vm_save_load(f);
-                fclose(f);
-                vm_save_loaded_t ld = vm_load_value(config, save);
-                if (ld.blocks != NULL) {
-                    config->blocks = ld.blocks;
-                    config->std = ld.env.value.table;
-                    vm_io_buffer_t *buf = vm_io_buffer_new();
-                    vm_io_format_blocks(buf, blocks);
-                }
-            }
-        }
-            
-        ic_history_add(input);
-        clock_t start = clock();
-
-        vm_blocks_add_src(blocks, input);
-
-        vm_ast_node_t node = vm_lang_lua_parse(config, input);
-
-        vm_blocks_add_src(blocks, input);
-        vm_ast_comp_more(node, blocks);
-        vm_ast_free_node(node);
-
-        vm_std_value_t value = vm_run_repl(config, blocks->entry, blocks, std);
-
-        if (value.tag == VM_TAG_ERROR) {
-            fprintf(stderr, "error: %s\n", value.value.str);
-        } else if (value.tag != VM_TAG_NIL) {
-            vm_io_buffer_t buf = {0};
-            vm_io_debug(&buf, 0, "", value, NULL);
-            printf("%.*s", (int)buf.len, buf.buf);
-        }
-
-        if (config->save_file != NULL) {
-            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
-            FILE *f = fopen(config->save_file, "wb");
-            if (f != NULL) {
-                fwrite(save.buf, 1, save.len, f);
-                fclose(f);
-            }
-        }
-
-        mtx_unlock(mutex);
-    }
-}
-#endif
-
-void vm_lang_lua_repl(vm_t *config) {
+void vm_repl(vm_t *vm) {
     ic_set_history(".minivm-history", 2000);
 
 #if defined(EMSCRIPTEN)
@@ -250,10 +173,10 @@ void vm_lang_lua_repl(vm_t *config) {
         if (f != NULL) {
             vm_save_t save = vm_save_load(f);
             fclose(f);
-            vm_save_loaded_t ld = vm_load_value(config, save);
+            vm_save_loaded_t ld = vm_load_value(vm, save);
             if (ld.blocks != NULL) {
-                config->blocks = ld.blocks;
-                config->std = ld.env.value.table;
+                vm->blocks = ld.blocks;
+                vm->std = ld.env.value.table;
                 vm_io_buffer_t *buf = vm_io_buffer_new();
                 vm_io_format_blocks(buf, blocks);
             }
@@ -265,21 +188,21 @@ void vm_lang_lua_repl(vm_t *config) {
 #if defined(EMSCRIPTEN)
         {
 
-            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
+            vm_save_t save = vm_save_value(vm, vm->blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
             FILE *f = fopen("/wasm.bin", "wb");
             if (f != NULL) {
                 fwrite(save.buf, 1, save.len, f);
                 fclose(f);
             }
-            vm_lang_lua_repl_sync();
+            vm_repl_sync();
         }
 #endif
 
         char *input = ic_readline_ex(
             "lua",
-            vm_lang_lua_repl_completer,
+            vm_repl_completer,
             vm,
-            vm_lang_lua_repl_highlight,
+            vm_repl_highlight,
             vm
         );
 
@@ -287,17 +210,19 @@ void vm_lang_lua_repl(vm_t *config) {
             break;
         }
 
-        if (config->save_file != NULL) {
-            FILE *f = fopen(config->save_file, "rb");
+        mtx_lock(vm->mutex);
+
+        if (vm->save_file != NULL) {
+            FILE *f = fopen(vm->save_file, "rb");
             if (f != NULL) {
                 vm_save_t save = vm_save_load(f);
                 fclose(f);
-                vm_save_loaded_t ld = vm_load_value(config, save);
+                vm_save_loaded_t ld = vm_load_value(vm, save);
                 if (ld.blocks != NULL) {
-                    config->blocks = ld.blocks;
-                    config->std = ld.env.value.table;
+                    vm->blocks = ld.blocks;
+                    vm->std = ld.env;
                     vm_io_buffer_t *buf = vm_io_buffer_new();
-                    vm_io_format_blocks(buf, blocks);
+                    vm_io_format_blocks(buf, vm->blocks);
                 }
             }
         }
@@ -305,15 +230,9 @@ void vm_lang_lua_repl(vm_t *config) {
         ic_history_add(input);
         clock_t start = clock();
 
-        vm_blocks_add_src(blocks, input);
+        vm_block_t *entry = vm_compile(vm, input);
 
-        vm_ast_node_t node = vm_lang_lua_parse(config, input);
-
-        vm_blocks_add_src(blocks, input);
-        vm_ast_comp_more(node, blocks);
-        vm_ast_free_node(node);
-
-        vm_std_value_t value = vm_run_repl(config, blocks->entry, blocks, std);
+        vm_std_value_t value = vm_run_repl(vm, entry);
 
         if (value.tag == VM_TAG_ERROR) {
             fprintf(stderr, "error: %s\n", value.value.str);
@@ -323,13 +242,15 @@ void vm_lang_lua_repl(vm_t *config) {
             printf("%.*s", (int)buf.len, buf.buf);
         }
 
-        if (config->save_file != NULL) {
-            vm_save_t save = vm_save_value(config, blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
-            FILE *f = fopen(config->save_file, "wb");
+        if (vm->save_file != NULL) {
+            vm_save_t save = vm_save_value(vm);
+            FILE *f = fopen(vm->save_file, "wb");
             if (f != NULL) {
                 fwrite(save.buf, 1, save.len, f);
                 fclose(f);
             }
         }
+
+        mtx_unlock(vm->mutex);
     }
 }

@@ -90,7 +90,7 @@ bool vm_value_is_int(vm_std_value_t val) {
     }
 }
 
-bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
+bool vm_obj_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
     switch (lhs.tag) {
         case VM_TAG_NIL: {
             return rhs.tag == VM_TAG_NIL;
@@ -351,7 +351,7 @@ vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t
         if (value.tag == VM_TAG_UNK) {
             return NULL;
         }
-        if (vm_value_eq(key, value)) {
+        if (vm_obj_eq(key, value)) {
             return pair;
         }
         next += 1;
@@ -385,7 +385,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
             .tag = pair->key_tag,
             .value = pair->key_val,
         };
-        if (vm_value_eq(key, check)) {
+        if (vm_obj_eq(key, check)) {
             if (val_tag == VM_TAG_NIL) {
                 pair->key_tag = VM_TAG_UNK;
                 if (vm_value_is_int(key)) {
@@ -430,7 +430,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         .tag = VM_TAG_I32,
         .value.i32 = table->len + 1,
     };
-    if (vm_value_eq(vlen, key)) {
+    if (vm_obj_eq(vlen, key)) {
         while (true) {
             int32_t next = table->len + 1;
             vm_table_pair_t *got = vm_table_lookup(table, (vm_value_t){.i32 = next}, VM_TAG_I32);

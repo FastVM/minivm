@@ -1,7 +1,6 @@
 #if !defined(VM_HEADER_SAVE_DATA_VALUE)
 #define VM_HEADER_SAVE_DATA_VALUE
 
-#include "../obj.h"
 #include "./io.h"
 
 struct vm_save_loaded_t;

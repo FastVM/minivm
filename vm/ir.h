@@ -118,9 +118,7 @@ struct vm_blocks_t {
     size_t len;
     vm_block_t **blocks;
     size_t alloc;
-    vm_block_t *entry;
     vm_blocks_srcs_t *srcs;
-    vm_blocks_srcs_t *init_upto;
 };
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
@@ -140,13 +138,6 @@ void vm_free_block(vm_block_t *block);
 
 #define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL)})
 
-static inline void vm_blocks_add_src(vm_blocks_t *blocks, const char *src) {
-    vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
-    *next = (vm_blocks_srcs_t) {
-        .last = blocks->srcs,
-        .src = src,
-    };
-    blocks->srcs = next;
-}
+vm_block_t *vm_compile(vm_t *vm, const char *src);
 
 #endif

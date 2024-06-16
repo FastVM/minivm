@@ -729,13 +729,14 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
         [VM_OP_CALL] = &&VM_OP_CALL,
     };
 
-    uint8_t *code = block->code;
-    if (code == NULL) {
-        code = vm_interp_renumber_block(vm, &ptrs[0], block);
-        block->code = code;
-    }
-
+new_block:;
     vm_std_value_t *next_regs = &regs[block->nregs];
+    
+    uint8_t *code = block->code;
+    if (block->code == NULL) {
+        code = vm_interp_renumber_block(vm, &ptrs[0], block);
+        block->code = block->code;
+    }
 
     vm_run_repl_jump();
 
@@ -895,117 +896,117 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
         vm_run_repl_jump();
     }
     VM_OP_JUMP:; VM_OPCODE_DEBUG(jump) {
-        code = vm_run_repl_read(vm_block_t *)->code;
-        vm_run_repl_jump();
+        block = vm_run_repl_read(vm_block_t *);
+        goto new_block;
     }
     VM_OP_BB_R:; VM_OPCODE_DEBUG(bb_r) {
         vm_std_value_t v1 = vm_run_repl_reg();
         if (v1.tag != VM_TAG_NIL && (v1.tag != VM_TAG_BOOL || v1.value.b)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BLT_RI:; VM_OPCODE_DEBUG(blt_ri) {
         vm_std_value_t v1 = vm_run_repl_reg();
         vm_std_value_t v2 = vm_run_repl_lit();
         if (vm_interp_value_lt(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BLT_IR:; VM_OPCODE_DEBUG(blt_ir) {
         vm_std_value_t v1 = vm_run_repl_lit();
         vm_std_value_t v2 = vm_run_repl_reg();
         if (vm_interp_value_lt(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BLT_RR:; VM_OPCODE_DEBUG(blt_rr) {
         vm_std_value_t v1 = vm_run_repl_reg();
         vm_std_value_t v2 = vm_run_repl_reg();
         if (vm_interp_value_lt(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BLE_RI:; VM_OPCODE_DEBUG(ble_ri) {
         vm_std_value_t v1 = vm_run_repl_reg();
         vm_std_value_t v2 = vm_run_repl_lit();
         if (vm_interp_value_le(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BLE_IR:; VM_OPCODE_DEBUG(ble_ir) {
         vm_std_value_t v1 = vm_run_repl_lit();
         vm_std_value_t v2 = vm_run_repl_reg();
         if (vm_interp_value_le(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BLE_RR:; VM_OPCODE_DEBUG(ble_rr) {
         vm_std_value_t v1 = vm_run_repl_reg();
         vm_std_value_t v2 = vm_run_repl_reg();
         if (vm_interp_value_le(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BEQ_RI:; VM_OPCODE_DEBUG(beq_ri) {
         vm_std_value_t v1 = vm_run_repl_reg();
         vm_std_value_t v2 = vm_run_repl_lit();
-        if (vm_value_eq(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+        if (vm_obj_eq(v1, v2)) {
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BEQ_IR:; VM_OPCODE_DEBUG(beq_ir) {
         vm_std_value_t v1 = vm_run_repl_lit();
         vm_std_value_t v2 = vm_run_repl_reg();
-        if (vm_value_eq(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+        if (vm_obj_eq(v1, v2)) {
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_BEQ_RR:; VM_OPCODE_DEBUG(beq_rr) {
         vm_std_value_t v1 = vm_run_repl_reg();
         vm_std_value_t v2 = vm_run_repl_reg();
-        if (vm_value_eq(v1, v2)) {
-            code = vm_run_repl_read(vm_block_t *)->code;
+        if (vm_obj_eq(v1, v2)) {
+            block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
-            code = vm_run_repl_read(vm_block_t *)->code;
+            block = vm_run_repl_read(vm_block_t *);
         }
-        vm_run_repl_jump();
+        goto new_block;
     }
     VM_OP_RET_I:; VM_OPCODE_DEBUG(ret_i) {
         vm_std_value_t v1 = vm_run_repl_lit();
@@ -1050,8 +1051,8 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
             }
         }
         vm_run_repl_out(v3);
-        code = vm_run_repl_read(vm_block_t *)->code;
-        vm_run_repl_jump();
+        block = vm_run_repl_read(vm_block_t *);
+        goto new_block;
     }
     VM_OP_GET:; VM_OPCODE_DEBUG(get) {
         uint8_t *c0 = code;
@@ -1066,8 +1067,8 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
             .value = pair.val_val,
         };
         vm_run_repl_out(v3);
-        code = vm_run_repl_read(vm_block_t *)->code;
-        vm_run_repl_jump();
+        block = vm_run_repl_read(vm_block_t *);
+        goto new_block;
     }
     VM_OP_CALL:; VM_OPCODE_DEBUG(call) {
         vm_std_value_t v1 = vm_run_repl_arg();
@@ -1095,13 +1096,13 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
                 }
             call_closure_end:;
                 next_regs[j].tag = VM_TAG_UNK;
-                vm_std_value_t *last_regs = vm->regs;
+                vm_std_value_t *last_regs = regs;
                 vm->regs = next_regs;
                 vm_std_value_t got = vm_run_repl(vm, vm->blocks->blocks[v1.value.closure[0].value.i32]);
                 vm->regs = last_regs;
                 vm_run_repl_out(got);
-                code = vm_run_repl_read(vm_block_t *)->code;
-                break;
+                block = vm_run_repl_read(vm_block_t *);
+                goto new_block;
             }
             case VM_TAG_FFI: {
                 size_t j = 0;
@@ -1127,8 +1128,8 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
                 next_regs[j].tag = VM_TAG_UNK;
                 v1.value.ffi(vm, next_regs);
                 vm_run_repl_out(next_regs[0]);
-                code = vm_run_repl_read(vm_block_t *)->code;
-                break;
+                block = vm_run_repl_read(vm_block_t *);
+                goto new_block;
             }
             default: {
                 return (vm_std_value_t) {

@@ -3,7 +3,6 @@
 #include "ast.h"
 #include "build.h"
 #include "print.h"
-#include "../ir.h"
 
 struct vm_ast_comp_t;
 typedef struct vm_ast_comp_t vm_ast_comp_t;
@@ -1098,18 +1097,18 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
     exit(1);
 }
 
-void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks) {
+vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
     vm_ast_comp_t comp = (vm_ast_comp_t){
-        .blocks = blocks,
+        .blocks = vm->blocks,
         .names = NULL,
         .cur = NULL,
         .on_break = NULL,
         .is_error = false,
     };
     vm_ast_comp_names_push(&comp);
-    comp.blocks->entry = vm_ast_comp_new_block(&comp);
-    size_t start = comp.blocks->entry->id;
-    comp.cur = comp.blocks->entry;
+    vm_block_t *entry = vm_ast_comp_new_block(&comp);
+    size_t start = entry->id;
+    comp.cur = entry;
     vm_ast_blocks_instr(
         &comp,
         (vm_instr_t){
@@ -1127,6 +1126,6 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks) {
         }
     }
     vm_ast_names_free(names);
-    comp.blocks->entry->isfunc = true;
     vm_block_info(comp.blocks->len - start, comp.blocks->blocks + start);
+    return entry;
 }

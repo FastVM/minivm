@@ -229,9 +229,7 @@ outer:;
             src[j] = (char)vm_save_read_byte(&read);
         }
         src[len] = '\0';
-        vm_ast_node_t node = vm_lang_lua_parse(vm, src);
-        vm_blocks_add_src(blocks, src);
-        vm_ast_comp_more(node, blocks);
+        vm_compile(vm, src);
     }
     return (vm_save_loaded_t){
         .blocks = blocks,

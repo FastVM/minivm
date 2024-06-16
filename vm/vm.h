@@ -108,4 +108,6 @@ struct vm_t {
     vm_std_value_t *regs;
 };
 
+void vm_repl(vm_t *config);
+
 #endif

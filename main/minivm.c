@@ -12,23 +12,27 @@
 #include <string.h>
 #include <time.h>
 
-vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
-
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
 #endif
+
+#include "../vendor/c11threads/threads.h"
 
 int main(int argc, char **argv) {
     vm_t val_vm = (vm_t) {
         .use_num = VM_USE_NUM_F64,
         .regs = vm_malloc(sizeof(vm_std_value_t) * 65536),
     };
-    vm_blocks_t val_blocks = {0};
-    vm_blocks_t *blocks = &val_blocks;
     vm_t *vm = &val_vm;
+
+    vm_std_new(vm);
+    mtx_init(vm->mutex, mtx_plain);
+    
+    vm_blocks_t val_blocks = {0};
+    vm->blocks = &val_blocks;
+
     bool echo = false;
     bool isrepl = true;
-    vm_std_new(vm);
     int i = 1;
     while (i < argc) {
         char *arg = argv[i++];
@@ -40,7 +44,7 @@ int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--no-echo")) {
             echo = false;
         } else if (!strcmp(arg, "--repl")) {
-            vm_lang_lua_repl(vm);
+            vm_repl(vm);
             isrepl = false;
         } else if (!strncmp(arg, "--file=", 7)) {
             arg += 7;
@@ -56,7 +60,7 @@ int main(int argc, char **argv) {
                     vm->blocks = ld.blocks;
                     vm->std = ld.env;
                     vm_io_buffer_t *buf = vm_io_buffer_new();
-                    vm_io_format_blocks(buf, blocks);
+                    vm_io_format_blocks(buf, vm->blocks);
                 }
             }
         } else if (!strncmp(arg, "--save=", 7)) {
@@ -109,11 +113,9 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "error: no such file: %s\n", arg);
             }
 
-            vm_ast_node_t node = vm_lang_lua_parse(vm, src);
-            vm_blocks_add_src(blocks, src);
-            vm_ast_comp_more(node, blocks);
+            vm_block_t *entry = vm_compile(vm, src);
 
-            vm_std_value_t value = vm_run_main(vm, blocks->entry);
+            vm_std_value_t value = vm_run_main(vm, entry);
             if (value.tag == VM_TAG_ERROR) {
                 exit(1);
             }
@@ -132,7 +134,7 @@ int main(int argc, char **argv) {
     if (isrepl) {
         vm_std_set_arg(vm, argv[0], "<repl>", argc - i, argv + i);
 
-        vm_lang_lua_repl(vm);
+        vm_repl(vm);
     }
 
     return 0;

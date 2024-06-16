@@ -1,5 +1,8 @@
 
 #include "value.h"
+#include "../obj.h"
+#include "../io.h"
+#include "../ir.h"
 
 struct vm_save_write_t;
 typedef struct vm_save_write_t vm_save_write_t;
@@ -21,7 +24,7 @@ struct vm_save_write_t {
 
 static size_t vm_save_write_push(vm_save_write_t *write, vm_std_value_t value) {
     for (size_t i = 0; i < write->values.write; i++) {
-        if (vm_value_eq(write->values.buf[i], value)) {
+        if (vm_obj_eq(write->values.buf[i], value)) {
             return i;
         }
     }
@@ -193,15 +196,15 @@ vm_save_t vm_save_value(vm_t *vm) {
     }
     vm_save_write_byte(&write, VM_TAG_UNK);
     uint64_t nsrcs = 0;
-    for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {
+    for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
         nsrcs += 1;
     }
     vm_save_write_uleb(&write, nsrcs);
     const char **srcs = vm_malloc(sizeof(const char *) * nsrcs);
-    for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {
+    for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
         srcs[--nsrcs] = cur->src;
     }
-    for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {
+    for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
         const char *src = srcs[nsrcs++];
         size_t len = strlen(src);
         vm_save_write_uleb(&write, (uint64_t)len);

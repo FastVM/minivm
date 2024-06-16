@@ -6,7 +6,7 @@
 struct vm_table_pair_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
 
-bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs);
+bool vm_obj_eq(vm_std_value_t lhs, vm_std_value_t rhs);
 bool vm_value_is_int(vm_std_value_t val);
 int64_t vm_value_to_i64(vm_std_value_t arg);
 double vm_value_to_f64(vm_std_value_t arg);
@@ -92,23 +92,5 @@ void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *pair);
 })
 
 #define VM_TABLE_LOOKUP_STR(TABLE_, STR_) (vm_table_lookup((TABLE_), (vm_value_t){.str = (STR_)}, VM_TAG_STR))
-
-#define VM_PAIR_VALUE(PAIR_) ({ \
-    vm_table_pair_t pair_ = (PAIR_); \
-    (vm_std_value_t) { \
-        .tag = pair_.val_tag, \
-        .value = pair_.val_val, \
-    }; \
-})
-
-#define VM_PAIR_PTR_VALUE(PPAIR_) ({ \
-    vm_table_pair_t *pair_ = (PPAIR_); \
-    pair_ == NULL \
-    ? VM_STD_VALUE_NIL \
-    : (vm_std_value_t) { \
-        .tag = pair_->val_tag, \
-        .value = pair_->val_val, \
-    }; \
-})
 
 #endif
