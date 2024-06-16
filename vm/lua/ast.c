@@ -638,7 +638,7 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str) {
 }
 
 vm_block_t *vm_compile(vm_t *vm, const char *src) {
-   vm_ast_node_t ast = vm_lang_lua_parse(vm, src);
+    vm_ast_node_t ast = vm_lang_lua_parse(vm, src);
     vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
     *next = (vm_blocks_srcs_t) {
         .last = vm->blocks->srcs,

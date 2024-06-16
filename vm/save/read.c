@@ -68,7 +68,7 @@ bool vm_save_read_is_done(vm_save_read_t *read) {
     return read->buf.read == read->buf.len;
 }
 
-vm_save_loaded_t vm_load_value(vm_t *vm, vm_save_t save) {
+void vm_load_value(vm_t *vm, vm_save_t save) {
     vm_save_read_t read = (vm_save_read_t){
         .buf.len = save.len,
         .buf.bytes = save.buf,
@@ -216,11 +216,9 @@ outer:;
         }
     }
     read.buf.read = loc;
-    vm_blocks_t *blocks = vm_malloc(sizeof(vm_blocks_t));
-    blocks->len = 0;
-    blocks->alloc = 0;
-    blocks->blocks = NULL;
-    blocks->srcs = NULL;
+    vm->blocks = vm_malloc(sizeof(vm_blocks_t));
+    *vm->blocks = (vm_blocks_t) { 0 };
+    vm->std = read.values.ptr[0].value;
     uint64_t nsrcs = vm_save_read_uleb(&read);
     for (uint64_t i = 0; i < nsrcs; i++) {
         uint64_t len = vm_save_read_uleb(&read);
@@ -231,13 +229,6 @@ outer:;
         src[len] = '\0';
         vm_compile(vm, src);
     }
-    return (vm_save_loaded_t){
-        .blocks = blocks,
-        .env = read.values.ptr[0].value,
-    };
 error:;
-    return (vm_save_loaded_t){
-        .blocks = NULL,
-        .env = (vm_std_value_t){.tag = VM_TAG_NIL},
-    };
+    
 }

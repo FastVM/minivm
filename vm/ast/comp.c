@@ -394,6 +394,11 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
 }
 
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
+    {
+        vm_io_buffer_t *buf = vm_io_buffer_new();
+        vm_ast_print_node(buf, 0, "compile = ", node);
+        printf("%s\n", buf->buf);
+    }
     switch (node.type) {
         case VM_AST_NODE_FORM: {
             vm_ast_form_t form = node.value.form;
@@ -575,15 +580,12 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 case VM_AST_FORM_LOCAL: {
                     vm_arg_t value_arg = vm_ast_comp_to(comp, form.args[1]);
                     vm_ast_node_t target = form.args[0];
-                    size_t local = vm_ast_comp_reg_named(comp, target.value.ident).reg;
+                    vm_arg_t local = vm_ast_comp_reg_named(comp, target.value.ident);
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
                             .op = VM_IOP_MOVE,
-                            .out = (vm_arg_t){
-                                .type = VM_ARG_REG,
-                                .reg = local,
-                            },
+                            .out = local,
                             .args = vm_ast_args(1, value_arg),
                         }
                     );

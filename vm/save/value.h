@@ -12,7 +12,7 @@ struct vm_save_loaded_t {
 };
 
 
-vm_save_loaded_t vm_load_value(vm_t *vm, vm_save_t save);
+void vm_load_value(vm_t *vm, vm_save_t save);
 vm_save_t vm_save_value(vm_t *vm);
 
 #endif

@@ -167,35 +167,9 @@ EM_JS(void, vm_repl_sync, (void), {
 void vm_repl(vm_t *vm) {
     ic_set_history(".minivm-history", 2000);
 
-#if defined(EMSCRIPTEN)
-    {
-        FILE *f = fopen("/wasm.bin", "rb");
-        if (f != NULL) {
-            vm_save_t save = vm_save_load(f);
-            fclose(f);
-            vm_save_loaded_t ld = vm_load_value(vm, save);
-            if (ld.blocks != NULL) {
-                vm->blocks = ld.blocks;
-                vm->std = ld.env.value.table;
-                vm_io_buffer_t *buf = vm_io_buffer_new();
-                vm_io_format_blocks(buf, blocks);
-            }
-        }
-    }
-#endif
-
     while (true) {
 #if defined(EMSCRIPTEN)
-        {
-
-            vm_save_t save = vm_save_value(vm, vm->blocks, (vm_std_value_t){.tag = VM_TAG_TAB, .value.table = std});
-            FILE *f = fopen("/wasm.bin", "wb");
-            if (f != NULL) {
-                fwrite(save.buf, 1, save.len, f);
-                fclose(f);
-            }
-            vm_repl_sync();
-        }
+        vm_repl_sync();
 #endif
 
         char *input = ic_readline_ex(
@@ -217,18 +191,11 @@ void vm_repl(vm_t *vm) {
             if (f != NULL) {
                 vm_save_t save = vm_save_load(f);
                 fclose(f);
-                vm_save_loaded_t ld = vm_load_value(vm, save);
-                if (ld.blocks != NULL) {
-                    vm->blocks = ld.blocks;
-                    vm->std = ld.env;
-                    vm_io_buffer_t *buf = vm_io_buffer_new();
-                    vm_io_format_blocks(buf, vm->blocks);
-                }
+                vm_load_value(vm, save);
             }
         }
         
         ic_history_add(input);
-        clock_t start = clock();
 
         vm_block_t *entry = vm_compile(vm, input);
 

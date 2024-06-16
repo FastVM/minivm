@@ -49,19 +49,19 @@ int main(int argc, char **argv) {
         } else if (!strncmp(arg, "--file=", 7)) {
             arg += 7;
             vm->save_file = arg;
+            FILE *f = fopen(vm->save_file, "rb");
+            if (f != NULL) {
+                vm_save_t save = vm_save_load(f);
+                fclose(f);
+                vm_load_value(vm, save);
+            }
         } else if (!strncmp(arg, "--load=", 7)) {
             arg += 7;
             FILE *f = fopen(arg, "rb");
             if (f != NULL) {
                 vm_save_t save = vm_save_load(f);
                 fclose(f);
-                vm_save_loaded_t ld = vm_load_value(vm, save);
-                if (ld.blocks != NULL) {
-                    vm->blocks = ld.blocks;
-                    vm->std = ld.env;
-                    vm_io_buffer_t *buf = vm_io_buffer_new();
-                    vm_io_format_blocks(buf, vm->blocks);
-                }
+                vm_load_value(vm, save);
             }
         } else if (!strncmp(arg, "--save=", 7)) {
             arg += 7;
