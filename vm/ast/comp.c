@@ -1,7 +1,5 @@
 
 #include "comp.h"
-#include "../ir/rblock.h"
-#include "../ir/type.h"
 #include "ast.h"
 #include "build.h"
 #include "print.h"
@@ -47,7 +45,7 @@ struct vm_ast_comp_names_t {
 void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     double v = vm_value_to_f64(*args++);
-    while (!vm_type_eq(args->tag, VM_TAG_UNK)) {
+    while (args->tag != VM_TAG_UNK) {
         v = pow(v, vm_value_to_f64(*args++));
     }
     switch (closure->config->use_num) {
@@ -151,7 +149,6 @@ static vm_block_t *vm_ast_comp_new_block(vm_ast_comp_t *comp) {
     *block = (vm_block_t){
         .id = (ptrdiff_t)comp->blocks->len,
     };
-    vm_cache_new(&block->cache);
     comp->blocks->blocks[comp->blocks->len++] = block;
     return block;
 }
@@ -366,7 +363,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
         }
         case VM_AST_NODE_LITERAL: {
             vm_std_value_t value = node.value.literal;
-            if (vm_type_eq(value.tag, VM_TAG_ERROR)) {
+            if (value.tag == VM_TAG_ERROR) {
                 comp->is_error = true;
                 return;
             }
@@ -1028,9 +1025,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
         }
         case VM_AST_NODE_LITERAL: {
             vm_std_value_t num = node.value.literal;
-            if (vm_type_eq(num.tag, VM_TAG_NIL)) {
+            if (num.tag == VM_TAG_NIL) {
                 return vm_arg_nil();
-            } else if (vm_type_eq(num.tag, VM_TAG_STR)) {
+            } else if (num.tag == VM_TAG_STR) {
                 vm_arg_t str = (vm_arg_t){
                     .type = VM_ARG_LIT,
                     .lit = (vm_std_value_t){
@@ -1039,7 +1036,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     },
                 };
                 return str;
-            } else if (vm_type_eq(num.tag, VM_TAG_ERROR)) {
+            } else if (num.tag == VM_TAG_ERROR) {
                 comp->is_error = true;
                 return (vm_arg_t){
                     .type = VM_ARG_NONE,
@@ -1108,14 +1105,6 @@ void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks) {
         .on_break = NULL,
         .is_error = false,
     };
-    for (size_t i = 0; i < blocks->len; i++) {
-        vm_block_t *block = blocks->blocks[i];
-        for (size_t j = 0; j < block->cache.len; j++) {
-            vm_rblock_reset(block->cache.keys[j]);
-            vm_free_block_sub(block->cache.values[j]);
-        }
-        block->cache.len = 0;
-    }
     vm_ast_comp_names_push(&comp);
     comp.blocks->entry = vm_ast_comp_new_block(&comp);
     size_t start = comp.blocks->entry->id;

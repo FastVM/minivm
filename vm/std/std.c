@@ -7,6 +7,20 @@
 vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
 void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks);
 
+static inline void vm_config_add_extern(vm_config_t *config, void *value) {
+    vm_externs_t *last = config->externs;
+    for (vm_externs_t *cur = last; cur; cur = cur->last) {
+        if (cur->value == value) {
+            return;
+        }
+    }
+    vm_externs_t *next = vm_malloc(sizeof(vm_externs_t));
+    next->id = last == NULL ? 0 : last->id + 1;
+    next->value = value;
+    next->last = last;
+    config->externs = next;
+}
+
 void vm_std_os_exit(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
     exit((int)vm_value_to_i64(args[0]));
@@ -15,7 +29,7 @@ void vm_std_os_exit(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
-    if (vm_type_eq(args[0].tag, VM_TAG_STR)) {
+    if (args[0].tag == VM_TAG_STR) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = "cannot load non-string value",
@@ -47,7 +61,7 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
 void vm_std_assert(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
     vm_std_value_t val = args[0];
-    if (vm_type_eq(val.tag, VM_TAG_NIL) || (vm_type_eq(val.tag, VM_TAG_BOOL) && !val.value.b)) {
+    if (val.tag == VM_TAG_NIL || (val.tag == VM_TAG_BOOL && !val.value.b)) {
         vm_std_value_t msg = args[1];
         vm_io_buffer_t buf = {0};
         vm_io_debug(&buf, 0, "assert failed with mesage: ", msg, NULL);
@@ -85,10 +99,10 @@ void vm_std_error(vm_std_closure_t *closure, vm_std_value_t *args) {
 void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
     int64_t nargs = 0;
-    for (size_t i = 0; !vm_type_eq(args[i].tag, VM_TAG_UNK); i++) {
+    for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
         nargs += 1;
     }
-    if (nargs == 0 || !vm_type_eq(args[0].tag, VM_TAG_FUN)) {
+    if (nargs == 0 || args[0].tag != VM_TAG_FUN) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_NIL,
         };
@@ -100,7 +114,7 @@ void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
         .value.i32 = (int32_t)nargs,
     };
     vals += 1;
-    for (size_t i = 0; !vm_type_eq(args[i].tag, VM_TAG_UNK); i++) {
+    for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
         vals[i] = args[i];
     }
     *args = (vm_std_value_t){
@@ -112,7 +126,7 @@ void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 void vm_std_vm_print(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
-    for (size_t i = 0; !vm_type_eq(args[i].tag, VM_TAG_UNK); i++) {
+    for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
         vm_io_buffer_t buf = {0};
         vm_io_debug(&buf, 0, "", args[i], NULL);
         printf("%.*s", (int)buf.len, buf.buf);
@@ -125,12 +139,12 @@ void vm_std_vm_print(vm_std_closure_t *closure, vm_std_value_t *args) {
 void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
     size_t len = 1;
-    for (size_t i = 0; vm_type_eq(args[i].tag, VM_TAG_STR); i++) {
+    for (size_t i = 0; args[i].tag == VM_TAG_STR; i++) {
         len += strlen(args[i].value.str);
     }
     char *buf = vm_malloc(sizeof(char) * len);
     size_t head = 0;
-    for (size_t i = 0; vm_type_eq(args[i].tag, VM_TAG_STR); i++) {
+    for (size_t i = 0; args[i].tag == VM_TAG_STR; i++) {
         size_t len = strlen(args[i].value.str);
         if (len == 0) {
             continue;
@@ -148,7 +162,7 @@ void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
 void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
     const char *ret = "unknown";
-    switch (vm_type_tag(args[0].tag)) {
+    switch (args[0].tag) {
         case VM_TAG_NIL: {
             ret = "nil";
             break;
@@ -279,7 +293,7 @@ void vm_std_print(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     vm_io_buffer_t out = {0};
     bool first = true;
-    while (!vm_type_eq(args->tag, VM_TAG_UNK)) {
+    while (args->tag != VM_TAG_UNK) {
         if (!first) {
             vm_io_buffer_format(&out, "\t");
         }
@@ -296,7 +310,7 @@ void vm_std_io_write(vm_std_closure_t *closure, vm_std_value_t *args) {
     (void)closure;
     vm_std_value_t *ret = args;
     vm_io_buffer_t out = {0};
-    while (!vm_type_eq(args->tag, VM_TAG_UNK)) {
+    while (args->tag != VM_TAG_UNK) {
         vm_value_buffer_tostring(&out, *args++);
     }
     fprintf(stdout, "%.*s", (int)out.len, out.buf);
@@ -310,7 +324,7 @@ void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     vm_io_buffer_t *out = vm_io_buffer_new();
     vm_std_value_t fmt = *args++;
-    if (vm_type_eq(fmt.tag, VM_TAG_STR)) {
+    if (fmt.tag == VM_TAG_STR) {
         *ret = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = "invalid format (not a string)",
@@ -378,7 +392,7 @@ void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
         char format[64];
         strncpy(format, head, str - head);
         vm_std_value_t arg = *args++;
-        if (vm_type_eq(arg.tag, VM_TAG_UNK)) {
+        if (arg.tag == VM_TAG_UNK) {
             *ret = (vm_std_value_t){
                 .tag = VM_TAG_ERROR,
                 .value.str = "too few args",
@@ -486,7 +500,7 @@ void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
                 return;
             }
             case 's': {
-                if (vm_type_eq(arg.tag, VM_TAG_STR)) {
+                if (arg.tag == VM_TAG_STR) {
                     strcpy(&format[len], "s");
                     vm_io_buffer_format(out, format, arg.value.str);
                 } else if (vm_value_can_to_n64(arg)) {
@@ -667,7 +681,7 @@ void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args);
 #if VM_USE_RAYLIB
 
 #include "../../vendor/raylib/src/raylib.h"
-#include "../../vendor/cuik/c11threads/threads.h"
+#include "../../vendor/c11threads/threads.h"
 #include "../backend/backend.h"
 
 int vm_std_gui_draw(void *arg) {

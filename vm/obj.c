@@ -1,7 +1,7 @@
 #include "./obj.h"
 
 int64_t vm_value_to_i64(vm_std_value_t arg) {
-    switch (vm_type_tag(arg.tag)) {
+    switch (arg.tag) {
         case VM_TAG_I8: {
             return (int64_t)arg.value.i8;
         }
@@ -27,7 +27,7 @@ int64_t vm_value_to_i64(vm_std_value_t arg) {
 }
 
 double vm_value_to_f64(vm_std_value_t arg) {
-    switch (vm_type_tag(arg.tag)) {
+    switch (arg.tag) {
         case VM_TAG_I8: {
             return (double)arg.value.i8;
         }
@@ -53,11 +53,11 @@ double vm_value_to_f64(vm_std_value_t arg) {
 }
 
 bool vm_value_can_to_n64(vm_std_value_t val) {
-    return vm_type_eq(val.tag, VM_TAG_I8) || vm_type_eq(val.tag, VM_TAG_I16) || vm_type_eq(val.tag, VM_TAG_I32) || vm_type_eq(val.tag, VM_TAG_I64) || vm_type_eq(val.tag, VM_TAG_F32) || vm_type_eq(val.tag, VM_TAG_F64);
+    return val.tag == VM_TAG_I8 || val.tag == VM_TAG_I16 || val.tag == VM_TAG_I32 || val.tag == VM_TAG_I64 || val.tag == VM_TAG_F32 || val.tag == VM_TAG_F64;
 }
 
 bool vm_value_is_int(vm_std_value_t val) {
-    switch (vm_type_tag(val.tag)) {
+    switch (val.tag) {
         case VM_TAG_I8: {
             return true;
         }
@@ -91,15 +91,15 @@ bool vm_value_is_int(vm_std_value_t val) {
 }
 
 bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
-    switch (vm_type_tag(lhs.tag)) {
+    switch (lhs.tag) {
         case VM_TAG_NIL: {
-            return vm_type_eq(rhs.tag, VM_TAG_NIL);
+            return rhs.tag == VM_TAG_NIL;
         }
         case VM_TAG_BOOL: {
-            return vm_type_eq(rhs.tag, VM_TAG_BOOL) && lhs.value.b == rhs.value.b;
+            return rhs.tag == VM_TAG_BOOL && lhs.value.b == rhs.value.b;
         }
         case VM_TAG_I8: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i8 == rhs.value.i8;
                 }
@@ -124,7 +124,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_I16: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i16 == rhs.value.i8;
                 }
@@ -149,7 +149,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_I32: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i32 == rhs.value.i8;
                 }
@@ -174,7 +174,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_I64: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i64 == rhs.value.i8;
                 }
@@ -199,7 +199,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_F32: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.f32 == rhs.value.i8;
                 }
@@ -224,7 +224,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_F64: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.f64 == rhs.value.i8;
                 }
@@ -249,19 +249,19 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_STR: {
-            return vm_type_eq(rhs.tag, VM_TAG_STR) && !strcmp(lhs.value.str, rhs.value.str);
+            return rhs.tag == VM_TAG_STR && !strcmp(lhs.value.str, rhs.value.str);
         }
         case VM_TAG_FUN: {
             return rhs.tag == VM_TAG_FUN && lhs.value.i32 == rhs.value.i32;
         }
         default: {
-            return vm_type_eq(lhs.tag, rhs.tag) && lhs.value.all == rhs.value.all;
+            return lhs.tag == rhs.tag && lhs.value.all == rhs.value.all;
         }
     }
 }
 
 size_t vm_value_hash(vm_std_value_t value) {
-    switch (vm_type_tag(value.tag)) {
+    switch (value.tag) {
         case VM_TAG_NIL: {
             return SIZE_MAX - 2;
         }
@@ -348,7 +348,7 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_t
             .tag = pair->key_tag,
             .value = pair->key_val,
         };
-        if (vm_type_eq(value.tag, VM_TAG_UNK)) {
+        if (value.tag == VM_TAG_UNK) {
             return NULL;
         }
         if (vm_value_eq(key, value)) {
@@ -378,7 +378,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
     size_t next = stop & and;
     do {
         vm_pair_t *pair = &table->pairs[next];
-        if (vm_type_eq(pair->key_tag, VM_TAG_UNK)) {
+        if (pair->key_tag == VM_TAG_UNK) {
             break;
         }
         vm_std_value_t check = (vm_std_value_t){
@@ -386,7 +386,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
             .value = pair->key_val,
         };
         if (vm_value_eq(key, check)) {
-            if (vm_type_eq(val_tag, VM_TAG_NIL)) {
+            if (val_tag == VM_TAG_NIL) {
                 pair->key_tag = VM_TAG_UNK;
                 if (vm_value_is_int(key)) {
                     int64_t i64val = vm_value_to_i64(key);
@@ -407,7 +407,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         vm_table_t *ret = vm_table_new_size(table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
             vm_pair_t *in_pair = &table->pairs[i];
-            if (!vm_type_eq(in_pair->key_tag, VM_TAG_UNK)) {
+            if (in_pair->key_tag != VM_TAG_UNK) {
                 vm_table_set_pair(ret, in_pair);
             }
         }
@@ -415,7 +415,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         *table = *ret;
         return;
     }
-    if (vm_type_eq(val_tag, VM_TAG_NIL)) {
+    if (val_tag == VM_TAG_NIL) {
         __builtin_trap();
         return;
     }

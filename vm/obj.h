@@ -15,11 +15,6 @@ typedef struct vm_table_t vm_table_t;
 struct vm_std_value_t;
 typedef struct vm_std_value_t vm_std_value_t;
 
-struct vm_std_closure_t;
-typedef struct vm_std_closure_t vm_std_closure_t;
-
-#include "ir/tag.h"
-
 union vm_value_t {
     void *all;
     bool b;

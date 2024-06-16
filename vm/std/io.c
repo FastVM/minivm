@@ -92,7 +92,7 @@ static void vm_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {
 }
 
 void vm_io_print_lit(vm_io_buffer_t *out, vm_std_value_t value) {
-    switch (vm_type_tag(value.tag)) {
+    switch (value.tag) {
         case VM_TAG_NIL: {
             vm_io_buffer_format(out, "nil");
             break;
@@ -139,7 +139,7 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_std_value_t value) {
 void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
-        if (vm_type_eq(value.tag, link->value.tag)) {
+        if (value.tag == link->value.tag) {
             if (value.value.all == link->value.value.all) {
                 vm_indent(out, indent, prefix);
                 vm_io_buffer_format(out, "<ref %zu>\n", up);
@@ -153,7 +153,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
         .next = link,
         .value = value,
     };
-    switch (vm_type_tag(value.tag)) {
+    switch (value.tag) {
         case VM_TAG_NIL: {
             vm_indent(out, indent, prefix);
             vm_io_buffer_format(out, "nil\n");
@@ -225,7 +225,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
             size_t len = 1 << tab->alloc;
             for (size_t i = 0; i < len; i++) {
                 vm_pair_t p = tab->pairs[i];
-                switch (vm_type_tag(p.key_tag)) {
+                switch (p.key_tag) {
                     case 0: {
                         break;
                     }
@@ -334,14 +334,14 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
         }
         default: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<0x%zx: %p>\n", (size_t)vm_type_tag(value.tag), value.value.all);
+            vm_io_buffer_format(out, "<0x%zx: %p>\n", (size_t)value.tag, value.value.all);
             break;
         }
     }
 }
 
 void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value) {
-    switch (vm_type_tag(value.tag)) {
+    switch (value.tag) {
         case VM_TAG_NIL: {
             vm_io_buffer_format(buf, "nil");
             break;

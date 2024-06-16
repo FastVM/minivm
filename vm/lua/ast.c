@@ -628,10 +628,6 @@ vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str) {
 
     vm_ast_node_t res = vm_lang_lua_conv(src, root_node);
 
-    if (config->is_repl) {
-        res = vm_ast_build_return(res);
-    }
-
     ts_tree_delete(tree);
 
     ts_parser_delete(parser);

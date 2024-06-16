@@ -16,7 +16,7 @@
 #define VM_INLINE inline
 #endif
 
-#if 1
+#if 0
 #define VM_OPCODE_DEBUG(s) printf("%s\n", #s);
 #else
 #define VM_OPCODE_DEBUG(s)

@@ -19,7 +19,7 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_REG: {
-            if (vm_type_eq(val.reg_tag, VM_TAG_UNK)) {
+            if (val.reg_tag == VM_TAG_UNK) {
                 vm_io_buffer_format(out, "%%%zu", (size_t)val.reg);
             } else {
                 vm_io_buffer_format(out, "%%%zu:", (size_t)val.reg);
@@ -35,15 +35,11 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
             }
             break;
         }
-        case VM_ARG_RFUNC: {
-            vm_io_buffer_format(out, "<rfunc.%zi>", val.rfunc->block->id);
-            break;
-        };
     }
 }
 
 void vm_io_format_type(vm_io_buffer_t *out, vm_tag_t type) {
-    switch (vm_type_tag(type)) {
+    switch (type) {
         case VM_TAG_UNK: {
             vm_io_buffer_format(out, "unk");
             break;
@@ -153,7 +149,7 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             break;
         }
     }
-    if (!vm_type_eq(val.tag, VM_TAG_UNK)) {
+    if (val.tag != VM_TAG_UNK) {
         vm_io_buffer_format(out, ".");
         vm_io_format_type(out, val.tag);
     }
@@ -269,7 +265,7 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
             break;
         }
     }
-    if (!vm_type_eq(val.tag, VM_TAG_UNK)) {
+    if (val.tag != VM_TAG_UNK) {
         vm_io_buffer_format(out, ".");
         vm_io_format_type(out, val.tag);
     }
@@ -489,8 +485,5 @@ void vm_free_block(vm_block_t *block) {
     vm_free(block->branch.args);
     vm_free(block->args);
     vm_free(block->pass);
-    vm_free(block->check);
-    vm_free(block->cache.keys);
-    vm_free(block->cache.values);
     vm_free(block);
 }
