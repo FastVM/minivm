@@ -3,6 +3,7 @@
 #include "ast.h"
 #include "build.h"
 #include "print.h"
+#include "../ir.h"
 
 struct vm_ast_comp_t;
 typedef struct vm_ast_comp_t vm_ast_comp_t;
@@ -42,13 +43,13 @@ struct vm_ast_comp_names_t {
     vm_ast_comp_names_t *next;
 };
 
-void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_lua_comp_op_std_pow(vm_t *vm, vm_std_value_t *args) {
     vm_std_value_t *ret = args;
     double v = vm_value_to_f64(*args++);
     while (args->tag != VM_TAG_UNK) {
         v = pow(v, vm_value_to_f64(*args++));
     }
-    switch (closure->config->use_num) {
+    switch (vm->use_num) {
         case VM_USE_NUM_I8: {
             *ret = (vm_std_value_t){
                 .tag = VM_TAG_I8,
@@ -123,8 +124,8 @@ static void vm_ast_names_free(vm_ast_comp_names_t *names) {
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
 
-extern void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args);
-extern void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args);
+extern void vm_std_vm_closure(vm_t *vm, vm_std_value_t *args);
+extern void vm_std_vm_concat(vm_t *vm, vm_std_value_t *args);
 
 static vm_arg_t *vm_ast_args(size_t nargs, ...) {
     va_list ap;

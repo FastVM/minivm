@@ -316,8 +316,8 @@ size_t vm_value_hash(vm_std_value_t value) {
 
 vm_table_t *vm_table_new_size(size_t pow2) {
     vm_table_t *ret = vm_malloc(sizeof(vm_table_t));
-    ret->pairs = vm_malloc(sizeof(vm_pair_t) * (1 << pow2));
-    memset(ret->pairs, 0, sizeof(vm_pair_t) * (1 << pow2));
+    ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * (1 << pow2));
+    memset(ret->pairs, 0, sizeof(vm_table_pair_t) * (1 << pow2));
     ret->alloc = pow2;
     ret->used = 0;
     ret->len = 0;
@@ -333,7 +333,7 @@ vm_table_t *vm_table_new(void) {
     return vm_table_new_size(2);
 }
 
-vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag) {
+vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag) {
     vm_std_value_t key = (vm_std_value_t){
         .tag = key_tag,
         .value = key_val,
@@ -343,7 +343,7 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_t
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop;
     do {
-        vm_pair_t *pair = &table->pairs[next];
+        vm_table_pair_t *pair = &table->pairs[next];
         vm_std_value_t value = (vm_std_value_t){
             .tag = pair->key_tag,
             .value = pair->key_val,
@@ -377,7 +377,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop & and;
     do {
-        vm_pair_t *pair = &table->pairs[next];
+        vm_table_pair_t *pair = &table->pairs[next];
         if (pair->key_tag == VM_TAG_UNK) {
             break;
         }
@@ -406,7 +406,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
     if ((table->used + 1) * 3 >= 2 * ((uint32_t)1 << table->alloc)) {
         vm_table_t *ret = vm_table_new_size(table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
-            vm_pair_t *in_pair = &table->pairs[i];
+            vm_table_pair_t *in_pair = &table->pairs[i];
             if (in_pair->key_tag != VM_TAG_UNK) {
                 vm_table_set_pair(ret, in_pair);
             }
@@ -420,7 +420,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         return;
     }
     table->used += 1;
-    table->pairs[next] = (vm_pair_t){
+    table->pairs[next] = (vm_table_pair_t){
         .key_tag = key_tag,
         .key_val = key_val,
         .val_tag = val_tag,
@@ -433,7 +433,7 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
     if (vm_value_eq(vlen, key)) {
         while (true) {
             int32_t next = table->len + 1;
-            vm_pair_t *got = vm_table_lookup(table, (vm_value_t){.i32 = next}, VM_TAG_I32);
+            vm_table_pair_t *got = vm_table_lookup(table, (vm_value_t){.i32 = next}, VM_TAG_I32);
             if (got == NULL) {
                 break;
             }
@@ -443,14 +443,14 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
     return;
 }
 
-void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair) {
+void vm_table_set_pair(vm_table_t *table, vm_table_pair_t *pair) {
     vm_table_set(table, pair->key_val, pair->val_val, pair->key_tag, pair->val_tag);
 }
 
-void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
+void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *out) {
     vm_value_t key_val = out->key_val;
     vm_tag_t key_tag = out->key_tag;
-    vm_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
+    vm_table_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
     if (pair != NULL) {
         out->val_val = pair->val_val;
         out->val_tag = pair->val_tag;

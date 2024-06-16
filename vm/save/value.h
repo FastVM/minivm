@@ -13,7 +13,7 @@ struct vm_save_loaded_t {
 };
 
 
-vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg);
-vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t arg);
+vm_save_loaded_t vm_load_value(vm_t *vm, vm_save_t save);
+vm_save_t vm_save_value(vm_t *vm);
 
 #endif

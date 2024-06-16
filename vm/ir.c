@@ -1,7 +1,7 @@
 
 #include "ir.h"
 
-#include "../std/io.h"
+#include "../io.h"
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr) {
     if (block->len + 4 >= block->alloc) {
@@ -484,6 +484,6 @@ void vm_free_block(vm_block_t *block) {
     vm_free(block->instrs);
     vm_free(block->branch.args);
     vm_free(block->args);
-    vm_free(block->pass);
+    vm_free(block->code);
     vm_free(block);
 }

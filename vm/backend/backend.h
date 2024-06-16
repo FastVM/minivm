@@ -1,12 +1,11 @@
 
-#if !defined(VM_HEADER_BACKEND)
-#define VM_HEADER_BACKEND
+#if !defined(VM_HEADER_BACKEND_INTERP)
+#define VM_HEADER_BACKEND_INTERP
 
-#include "../ir/ir.h"
-#include "../obj.h"
-#include "../std/std.h"
+#include "../vm.h"
+#include "../ir.h"
 
-vm_std_value_t vm_run_main(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std);
-vm_std_value_t vm_run_repl(vm_config_t *config, vm_block_t *entry, vm_blocks_t *blocks, vm_table_t *std);
+vm_std_value_t vm_run_main(vm_t *config, vm_block_t *entry);
+vm_std_value_t vm_run_repl(vm_t *config, vm_block_t *entry);
 
 #endif

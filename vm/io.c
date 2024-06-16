@@ -224,7 +224,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
             vm_io_buffer_format(out, "table(%p) {\n", tab);
             size_t len = 1 << tab->alloc;
             for (size_t i = 0; i < len; i++) {
-                vm_pair_t p = tab->pairs[i];
+                vm_table_pair_t p = tab->pairs[i];
                 switch (p.key_tag) {
                     case 0: {
                         break;

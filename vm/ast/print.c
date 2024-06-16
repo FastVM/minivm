@@ -1,5 +1,5 @@
 
-#include "../std/io.h"
+#include "../io.h"
 #include "ast.h"
 
 static void vm_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {

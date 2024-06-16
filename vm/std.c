@@ -4,11 +4,11 @@
 #include "../ast/ast.h"
 #include "./io.h"
 
-vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
+vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
 void vm_ast_comp_more(vm_ast_node_t node, vm_blocks_t *blocks);
 
-static inline void vm_config_add_extern(vm_config_t *config, void *value) {
-    vm_externs_t *last = config->externs;
+static inline void vm_config_add_extern(vm_t *vm, void *value) {
+    vm_externs_t *last = vm->externs;
     for (vm_externs_t *cur = last; cur; cur = cur->last) {
         if (cur->value == value) {
             return;
@@ -18,17 +18,17 @@ static inline void vm_config_add_extern(vm_config_t *config, void *value) {
     next->id = last == NULL ? 0 : last->id + 1;
     next->value = value;
     next->last = last;
-    config->externs = next;
+    vm->externs = next;
 }
 
-void vm_std_os_exit(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_os_exit(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     exit((int)vm_value_to_i64(args[0]));
     return;
 }
 
-void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_load(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     if (args[0].tag == VM_TAG_STR) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
@@ -36,9 +36,9 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
         };
     }
     const char *str = args[0].value.str;
-    vm_ast_node_t node = vm_lang_lua_parse(closure->config, str);
-    vm_blocks_add_src(closure->blocks, str);
-    vm_ast_comp_more(node, closure->blocks);
+    vm_ast_node_t node = vm_lang_lua_parse(vm, str);
+    vm_blocks_add_src(vm->blocks, str);
+    vm_ast_comp_more(node, vm->blocks);
     vm_ast_free_node(node);
 
     vm_std_value_t *vals = vm_malloc(sizeof(vm_std_value_t) * 2);
@@ -49,17 +49,17 @@ void vm_std_load(vm_std_closure_t *closure, vm_std_value_t *args) {
     vals += 1;
     vals[0] = (vm_std_value_t){
         .tag = VM_TAG_FUN,
-        .value.i32 = (int32_t)closure->blocks->entry->id,
+        .value.i32 = (int32_t)vm->blocks->entry->id,
     };
     *args = (vm_std_value_t){
         .tag = VM_TAG_CLOSURE,
-        .value.closure = vals,
+        .value.vm = vals,
     };
     return;
 }
 
-void vm_std_assert(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_assert(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     vm_std_value_t val = args[0];
     if (val.tag == VM_TAG_NIL || (val.tag == VM_TAG_BOOL && !val.value.b)) {
         vm_std_value_t msg = args[1];
@@ -78,7 +78,7 @@ void vm_std_assert(vm_std_closure_t *closure, vm_std_value_t *args) {
     }
 }
 
-void vm_std_error(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_std_error(vm_t *vm, vm_std_value_t *args) {
     if (args[0].tag == VM_TAG_STR) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
@@ -96,8 +96,8 @@ void vm_std_error(vm_std_closure_t *closure, vm_std_value_t *args) {
     return;
 }
 
-void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_vm_closure(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     int64_t nargs = 0;
     for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
         nargs += 1;
@@ -119,13 +119,13 @@ void vm_std_vm_closure(vm_std_closure_t *closure, vm_std_value_t *args) {
     }
     *args = (vm_std_value_t){
         .tag = VM_TAG_CLOSURE,
-        .value.closure = vals,
+        .value.vm = vals,
     };
     return;
 }
 
-void vm_std_vm_print(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_vm_print(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
         vm_io_buffer_t buf = {0};
         vm_io_debug(&buf, 0, "", args[i], NULL);
@@ -136,8 +136,8 @@ void vm_std_vm_print(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_vm_concat(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     size_t len = 1;
     for (size_t i = 0; args[i].tag == VM_TAG_STR; i++) {
         len += strlen(args[i].value.str);
@@ -159,8 +159,8 @@ void vm_std_vm_concat(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_type(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     const char *ret = "unknown";
     switch (args[0].tag) {
         case VM_TAG_NIL: {
@@ -226,8 +226,8 @@ void vm_std_type(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-void vm_std_tostring(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_tostring(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     vm_io_buffer_t out = {0};
     vm_value_buffer_tostring(&out, *args);
     *args = (vm_std_value_t){
@@ -236,40 +236,40 @@ void vm_std_tostring(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-void vm_std_tonumber(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_std_tonumber(vm_t *vm, vm_std_value_t *args) {
     switch (args[0].tag) {
         case VM_TAG_I8: {
-            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i8);
+            args[0] = VM_STD_VALUE_NUMBER(vm, args[0].value.i8);
             return;
         }
         case VM_TAG_I16: {
-            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i16);
+            args[0] = VM_STD_VALUE_NUMBER(vm, args[0].value.i16);
             return;
         }
         case VM_TAG_I32: {
-            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i32);
+            args[0] = VM_STD_VALUE_NUMBER(vm, args[0].value.i32);
             return;
         }
         case VM_TAG_I64: {
-            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.i64);
+            args[0] = VM_STD_VALUE_NUMBER(vm, args[0].value.i64);
             return;
         }
         case VM_TAG_F32: {
-            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.f32);
+            args[0] = VM_STD_VALUE_NUMBER(vm, args[0].value.f32);
             return;
         }
         case VM_TAG_F64: {
-            args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].value.f64);
+            args[0] = VM_STD_VALUE_NUMBER(vm, args[0].value.f64);
             return;
         }
         case VM_TAG_STR: {
-            if (closure->config->use_num == VM_USE_NUM_F32 || closure->config->use_num == VM_USE_NUM_F64) {
+            if (vm->use_num == VM_USE_NUM_F32 || vm->use_num == VM_USE_NUM_F64) {
                 double num;
                 if (sscanf(args[0].value.str, "%lf", &num) == 0) {
                     args[0] = VM_STD_VALUE_NIL;
                     return;
                 }
-                args[0] = VM_STD_VALUE_NUMBER(closure->config, num);
+                args[0] = VM_STD_VALUE_NUMBER(vm, num);
                 return;
             } else {
                 int64_t num;
@@ -277,7 +277,7 @@ void vm_std_tonumber(vm_std_closure_t *closure, vm_std_value_t *args) {
                     args[0] = VM_STD_VALUE_NIL;
                     return;
                 }
-                args[0] = VM_STD_VALUE_NUMBER(closure->config, num);
+                args[0] = VM_STD_VALUE_NUMBER(vm, num);
                 return;
             }
         }
@@ -288,8 +288,8 @@ void vm_std_tonumber(vm_std_closure_t *closure, vm_std_value_t *args) {
     }
 }
 
-void vm_std_print(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_print(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     vm_std_value_t *ret = args;
     vm_io_buffer_t out = {0};
     bool first = true;
@@ -306,8 +306,8 @@ void vm_std_print(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-void vm_std_io_write(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_io_write(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     vm_std_value_t *ret = args;
     vm_io_buffer_t out = {0};
     while (args->tag != VM_TAG_UNK) {
@@ -319,8 +319,8 @@ void vm_std_io_write(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
-    (void)closure;
+void vm_std_string_format(vm_t *vm, vm_std_value_t *args) {
+    (void)vm;
     vm_std_value_t *ret = args;
     vm_io_buffer_t *out = vm_io_buffer_new();
     vm_std_value_t fmt = *args++;
@@ -531,21 +531,21 @@ void vm_std_string_format(vm_std_closure_t *closure, vm_std_value_t *args) {
     };
 }
 
-void vm_std_set_arg(vm_config_t *config, vm_table_t *std, const char *prog, const char *file, int argc, char **argv) {
+void vm_std_set_arg(vm_t *vm, const char *prog, const char *file, int argc, char **argv) {
     vm_table_t *arg = vm_table_new();
     if (prog != NULL) {
-        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, -1), VM_STD_VALUE_LITERAL(str, prog));
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(vm, -1), VM_STD_VALUE_LITERAL(str, prog));
     }
     if (file != NULL) {
-        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, 0), VM_STD_VALUE_LITERAL(str, file));
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(vm, 0), VM_STD_VALUE_LITERAL(str, file));
     }
     for (int64_t i = 0; i < argc; i++) {
-        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(config, i + 1), VM_STD_VALUE_LITERAL(str, argv[i]));
+        VM_TABLE_SET_VALUE(arg, VM_STD_VALUE_NUMBER(vm, i + 1), VM_STD_VALUE_LITERAL(str, argv[i]));
     }
-    VM_TABLE_SET(std, str, "arg", table, arg);
+    VM_TABLE_SET(vm->std, str, "arg", table, arg);
 }
 
-void vm_std_vm_typename(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_std_vm_typename(vm_t *vm, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_STR) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
@@ -555,66 +555,66 @@ void vm_std_vm_typename(vm_std_closure_t *closure, vm_std_value_t *args) {
     }
     const char *str = args[0].value.str;
     if (!strcmp(str, "nil")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_NIL);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_NIL);
         return;
     }
     if (!strcmp(str, "bool")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_BOOL);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_BOOL);
         return;
     }
     if (!strcmp(str, "i8")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_I8);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_I8);
         return;
     }
     if (!strcmp(str, "i16")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_I16);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_I16);
         return;
     }
     if (!strcmp(str, "i32")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_I32);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_I32);
         return;
     }
     if (!strcmp(str, "i64")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_I64);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_I64);
         return;
     }
     if (!strcmp(str, "f32")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_F32);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_F32);
         return;
     }
     if (!strcmp(str, "f64")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_F64);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_F64);
         return;
     }
     if (!strcmp(str, "str")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_STR);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_STR);
         return;
     }
     if (!strcmp(str, "tab")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_TAB);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_TAB);
         return;
     }
-    if (!strcmp(str, "closure")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_CLOSURE);
+    if (!strcmp(str, "vm")) {
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_CLOSURE);
         return;
     }
     if (!strcmp(str, "ffi")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_FFI);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_FFI);
         return;
     }
     if (!strcmp(str, "error")) {
-        *args = VM_STD_VALUE_NUMBER(closure->config, VM_TAG_ERROR);
+        *args = VM_STD_VALUE_NUMBER(vm, VM_TAG_ERROR);
         return;
     }
     *args = VM_STD_VALUE_NIL;
     return;
 }
 
-void vm_std_vm_typeof(vm_std_closure_t *closure, vm_std_value_t *args) {
-    args[0] = VM_STD_VALUE_NUMBER(closure->config, args[0].tag);
+void vm_std_vm_typeof(vm_t *vm, vm_std_value_t *args) {
+    args[0] = VM_STD_VALUE_NUMBER(vm, args[0].tag);
 }
 
-void vm_std_table_keys(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_std_table_keys(vm_t *vm, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_TAB) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
@@ -627,9 +627,9 @@ void vm_std_table_keys(vm_std_closure_t *closure, vm_std_value_t *args) {
     size_t len = 1 << tab->alloc;
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
-        vm_pair_t *pair = &tab->pairs[i];
+        vm_table_pair_t *pair = &tab->pairs[i];
         if (pair->key_tag != VM_TAG_UNK) {
-            vm_std_value_t key = VM_STD_VALUE_NUMBER(closure->config, write_head);
+            vm_std_value_t key = VM_STD_VALUE_NUMBER(vm, write_head);
             vm_std_value_t value = (vm_std_value_t){
                 .tag = pair->key_tag,
                 .value = pair->key_val,
@@ -645,7 +645,7 @@ void vm_std_table_keys(vm_std_closure_t *closure, vm_std_value_t *args) {
     return;
 }
 
-void vm_std_table_values(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_std_table_values(vm_t *vm, vm_std_value_t *args) {
     if (args[0].tag != VM_TAG_TAB) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
@@ -658,9 +658,9 @@ void vm_std_table_values(vm_std_closure_t *closure, vm_std_value_t *args) {
     size_t len = 1 << tab->alloc;
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
-        vm_pair_t *pair = &tab->pairs[i];
+        vm_table_pair_t *pair = &tab->pairs[i];
         if (pair->key_tag != VM_TAG_UNK) {
-            vm_std_value_t key = VM_STD_VALUE_NUMBER(closure->config, write_head);
+            vm_std_value_t key = VM_STD_VALUE_NUMBER(vm, write_head);
             vm_std_value_t value = (vm_std_value_t){
                 .tag = pair->val_tag,
                 .value = pair->val_val,
@@ -676,7 +676,7 @@ void vm_std_table_values(vm_std_closure_t *closure, vm_std_value_t *args) {
     return;
 }
 
-void vm_lua_comp_op_std_pow(vm_std_closure_t *closure, vm_std_value_t *args);
+void vm_lua_comp_op_std_pow(vm_t *vm, vm_std_value_t *args);
 
 #if VM_USE_RAYLIB
 
@@ -690,17 +690,16 @@ int vm_std_gui_draw(void *arg) {
 }
 
 typedef struct  {
-    vm_config_t *config;
-    vm_table_t *std;
+    vm_t *vm;
     vm_blocks_t *blocks;
     mtx_t *mutex;
 } vm_std_gui_repl_t;
 
-void vm_lang_lua_gui_repl(vm_config_t *config, vm_table_t *std, vm_blocks_t *blocks, mtx_t *mutex);
+void vm_lang_lua_gui_repl(vm_t *vm, mtx_t *mutex);
 
 int vm_std_gui_repl(void *arg) {
     vm_std_gui_repl_t *repl = arg;
-    vm_lang_lua_gui_repl(repl->config, repl->std, repl->blocks, repl->mutex);
+    vm_lang_lua_gui_repl(repl->vm, repl->std, repl->blocks, repl->mutex);
     exit(0);
     return 0;
 }
@@ -715,10 +714,10 @@ static Color vm_value_to_color(vm_std_value_t arg) {
             255,
         };
     } else if (arg.tag == VM_TAG_TAB) {
-        vm_pair_t *r = VM_TABLE_LOOKUP_STR(arg.value.table, "red");
-        vm_pair_t *g = VM_TABLE_LOOKUP_STR(arg.value.table, "green");
-        vm_pair_t *b = VM_TABLE_LOOKUP_STR(arg.value.table, "blue");
-        vm_pair_t *a = VM_TABLE_LOOKUP_STR(arg.value.table, "alpha");
+        vm_table_pair_t *r = VM_TABLE_LOOKUP_STR(arg.value.table, "red");
+        vm_table_pair_t *g = VM_TABLE_LOOKUP_STR(arg.value.table, "green");
+        vm_table_pair_t *b = VM_TABLE_LOOKUP_STR(arg.value.table, "blue");
+        vm_table_pair_t *a = VM_TABLE_LOOKUP_STR(arg.value.table, "alpha");
         return (Color) {
             r ? vm_value_to_i64(VM_PAIR_VALUE(*r)) : 0,
             g ? vm_value_to_i64(VM_PAIR_VALUE(*g)) : 0,
@@ -741,8 +740,8 @@ static Vector2 vm_value_to_vector2(vm_std_value_t arg) {
     if (arg.tag != VM_TAG_TAB) {
         return (Vector2) {0, 0};
     }
-    vm_pair_t *x = VM_TABLE_LOOKUP_STR(arg.value.table, "x");
-    vm_pair_t *y = VM_TABLE_LOOKUP_STR(arg.value.table, "y");
+    vm_table_pair_t *x = VM_TABLE_LOOKUP_STR(arg.value.table, "x");
+    vm_table_pair_t *y = VM_TABLE_LOOKUP_STR(arg.value.table, "y");
     return (Vector2) {
         x ? vm_value_to_i64(VM_PAIR_VALUE(*x)) : 0,
         y ? vm_value_to_i64(VM_PAIR_VALUE(*y)) : 0,
@@ -756,9 +755,9 @@ static Vector2 vm_value_field_to_vector2(vm_std_value_t arg, const char *field) 
     return vm_value_to_vector2(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, field)));
 }
 
-static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_std_value_t arg);
+static void vm_std_gui_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg);
 
-static void vm_std_gui_draw_tree_children(vm_std_closure_t *closure, Rectangle rect, vm_table_t *tree) {
+static void vm_std_gui_draw_tree_children(vm_t *vm, Rectangle rect, vm_table_t *tree) {
     int32_t i = 1;
     while (true) {
         vm_std_value_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t) { .i32 = i }, VM_TAG_I32));
@@ -766,11 +765,11 @@ static void vm_std_gui_draw_tree_children(vm_std_closure_t *closure, Rectangle r
             break;
         }
         i += 1;
-        vm_std_gui_draw_tree(closure, rect, child);
+        vm_std_gui_draw_tree(vm, rect, child);
     }
 }
 
-static void vm_std_gui_draw_tree_children_list(vm_std_closure_t *closure, Rectangle rect, vm_table_t *tree) {
+static void vm_std_gui_draw_tree_children_list(vm_t *vm, Rectangle rect, vm_table_t *tree) {
     size_t len = tree->len;
     if (len == 0) {
         return;
@@ -789,12 +788,12 @@ static void vm_std_gui_draw_tree_children_list(vm_std_closure_t *closure, Rectan
             break;
         }
         i += 1;
-        vm_std_gui_draw_tree(closure, child_rect, child);
+        vm_std_gui_draw_tree(vm, child_rect, child);
         child_rect.y += height;
     }
 }
 
-static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_std_value_t arg) {
+static void vm_std_gui_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
     // vm_io_buffer_t *buf = vm_io_buffer_new();
     // vm_io_debug(buf, 0, "", arg, NULL);
     // printf("%s\n", buf->buf);
@@ -806,11 +805,11 @@ static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_s
     if (std_type.tag == VM_TAG_NIL) {
         size_t n = (1 << tree->alloc);
         for (size_t i = 0; i < n; i++) {
-            vm_pair_t *pair = &tree->pairs[i];
+            vm_table_pair_t *pair = &tree->pairs[i];
             if (pair->key_tag == VM_TAG_UNK) {
                 continue;
             }
-            vm_std_gui_draw_tree(closure, rect, (vm_std_value_t){
+            vm_std_gui_draw_tree(vm, rect, (vm_std_value_t){
                 .tag = pair->val_tag,
                 .value = pair->val_val,
             });
@@ -819,13 +818,13 @@ static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_s
         const char *type = std_type.value.str;
         if (!strcmp(type, "rectangle")) {
             DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
-            vm_std_gui_draw_tree_children(closure, rect, tree);
+            vm_std_gui_draw_tree_children(vm, rect, tree);
         } else if (!strcmp(type, "list")) {
             // DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
-            vm_std_gui_draw_tree_children_list(closure, rect, tree);
+            vm_std_gui_draw_tree_children_list(vm, rect, tree);
         } else if (!strcmp(type, "button")) {
             DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
-            vm_std_gui_draw_tree_children(closure, rect, tree);
+            vm_std_gui_draw_tree_children(vm, rect, tree);
             vm_std_value_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "click"));
             vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
             if (button.tag == VM_TAG_STR && run.tag == VM_TAG_CLOSURE) {
@@ -833,19 +832,19 @@ static void vm_std_gui_draw_tree(vm_std_closure_t *closure, Rectangle rect, vm_s
                 if ((!strcmp(name, "left") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                     || (!strcmp(name, "right") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                     || (!strcmp(name, "middle") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
-                    vm_run_repl(closure->config, closure->blocks->blocks[run.value.closure[0].value.i32], closure->blocks, closure->std);
+                    vm_run_repl(vm, vm->blocks->blocks[run.value.vm[0].value.i32], vm->blocks, vm->std);
                 }
             }
         }
     }
 }
 
-void vm_std_gui_init(vm_std_closure_t *closure, vm_std_value_t *args) {
+void vm_std_gui_init(vm_t *vm, vm_std_value_t *args) {
     vm_std_gui_repl_t *repl = vm_malloc(sizeof(vm_std_gui_repl_t));
     *repl = (vm_std_gui_repl_t) {
-        .config = closure->config,
-        .std = closure->std,
-        .blocks = closure->blocks,
+        .vm = vm,
+        .std = vm->std,
+        .blocks = vm->blocks,
         .mutex = vm_malloc(sizeof(mtx_t)),
     };
     mtx_init(repl->mutex, mtx_plain);
@@ -859,14 +858,14 @@ void vm_std_gui_init(vm_std_closure_t *closure, vm_std_value_t *args) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
         mtx_lock(repl->mutex);
-        vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(closure->std, "draw"));
+        vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std, "draw"));
         Rectangle rect = (Rectangle) {
             0,
             0,
             GetScreenWidth(),
             GetScreenHeight(),
         };
-        vm_std_gui_draw_tree(closure, rect, tree);
+        vm_std_gui_draw_tree(vm, rect, tree);
         mtx_unlock(repl->mutex);
         EndDrawing();
     }
@@ -876,62 +875,62 @@ void vm_std_gui_init(vm_std_closure_t *closure, vm_std_value_t *args) {
 
 #endif
 
-vm_table_t *vm_std_new(vm_config_t *config) {
+void vm_std_new(vm_t *vm) {
     vm_table_t *std = vm_table_new();
 
     {
         vm_table_t *io = vm_table_new();
         VM_TABLE_SET(std, str, "io", table, io);
-        VM_TABLE_SET(io, str, "write", ffi, VM_STD_REF(config, vm_std_io_write));
+        VM_TABLE_SET(io, str, "write", ffi, VM_STD_REF(vm, vm_std_io_write));
     }
 
     {
         vm_table_t *string = vm_table_new();
         VM_TABLE_SET(std, str, "string", table, string);
-        VM_TABLE_SET(string, str, "format", ffi, VM_STD_REF(config, vm_std_string_format));
+        VM_TABLE_SET(string, str, "format", ffi, VM_STD_REF(vm, vm_std_string_format));
     }
 
     {
         vm_table_t *vm = vm_table_new();
         VM_TABLE_SET(std, str, "vm", table, vm);
-        VM_TABLE_SET(vm, str, "print", ffi, VM_STD_REF(config, vm_std_vm_print));
+        VM_TABLE_SET(vm, str, "print", ffi, VM_STD_REF(vm, vm_std_vm_print));
         VM_TABLE_SET(vm, str, "version", str, "0.0.4");
-        VM_TABLE_SET(vm, str, "typename", ffi, VM_STD_REF(config, vm_std_vm_typename));
-        VM_TABLE_SET(vm, str, "typeof", ffi, VM_STD_REF(config, vm_std_vm_typeof));
-        VM_TABLE_SET(vm, str, "concat", ffi, VM_STD_REF(config, vm_std_vm_concat));
+        VM_TABLE_SET(vm, str, "typename", ffi, VM_STD_REF(vm, vm_std_vm_typename));
+        VM_TABLE_SET(vm, str, "typeof", ffi, VM_STD_REF(vm, vm_std_vm_typeof));
+        VM_TABLE_SET(vm, str, "concat", ffi, VM_STD_REF(vm, vm_std_vm_concat));
     }
 
     {
         vm_table_t *os = vm_table_new();
-        VM_TABLE_SET(os, str, "exit", ffi, VM_STD_REF(config, vm_std_os_exit));
+        VM_TABLE_SET(os, str, "exit", ffi, VM_STD_REF(vm, vm_std_os_exit));
         VM_TABLE_SET(std, str, "os", table, os);
     }
 
     {
         vm_table_t *table = vm_table_new();
-        VM_TABLE_SET(table, str, "keys", ffi, VM_STD_REF(config, vm_std_table_keys));
-        VM_TABLE_SET(table, str, "values", ffi, VM_STD_REF(config, vm_std_table_values));
+        VM_TABLE_SET(table, str, "keys", ffi, VM_STD_REF(vm, vm_std_table_keys));
+        VM_TABLE_SET(table, str, "values", ffi, VM_STD_REF(vm, vm_std_table_values));
         VM_TABLE_SET(std, str, "table", table, table);
     }
 
-    VM_TABLE_SET(std, str, "error", ffi, VM_STD_REF(config, vm_std_error));
-    VM_TABLE_SET(std, str, "tostring", ffi, VM_STD_REF(config, vm_std_tostring));
-    VM_TABLE_SET(std, str, "tonumber", ffi, VM_STD_REF(config, vm_std_tonumber));
-    VM_TABLE_SET(std, str, "type", ffi, VM_STD_REF(config, vm_std_type));
-    VM_TABLE_SET(std, str, "print", ffi, VM_STD_REF(config, vm_std_print));
-    VM_TABLE_SET(std, str, "assert", ffi, VM_STD_REF(config, vm_std_assert));
-    VM_TABLE_SET(std, str, "load", ffi, VM_STD_REF(config, vm_std_load));
+    VM_TABLE_SET(std, str, "error", ffi, VM_STD_REF(vm, vm_std_error));
+    VM_TABLE_SET(std, str, "tostring", ffi, VM_STD_REF(vm, vm_std_tostring));
+    VM_TABLE_SET(std, str, "tonumber", ffi, VM_STD_REF(vm, vm_std_tonumber));
+    VM_TABLE_SET(std, str, "type", ffi, VM_STD_REF(vm, vm_std_type));
+    VM_TABLE_SET(std, str, "print", ffi, VM_STD_REF(vm, vm_std_print));
+    VM_TABLE_SET(std, str, "assert", ffi, VM_STD_REF(vm, vm_std_assert));
+    VM_TABLE_SET(std, str, "load", ffi, VM_STD_REF(vm, vm_std_load));
     VM_TABLE_SET(std, str, "_G", table, std);
 
-    vm_config_add_extern(config, &vm_lua_comp_op_std_pow);
-    vm_config_add_extern(config, &vm_std_vm_closure);
+    vm_config_add_extern(vm, &vm_lua_comp_op_std_pow);
+    vm_config_add_extern(vm, &vm_std_vm_closure);
 
     #if VM_USE_RAYLIB
     {
-        VM_TABLE_SET(std, str, "app", ffi, VM_STD_REF(config, vm_std_gui_init));
+        VM_TABLE_SET(std, str, "app", ffi, VM_STD_REF(vm, vm_std_gui_init));
         VM_TABLE_SET(std, str, "draw", table, vm_table_new());
     }
     #endif
 
-    return std;
+    vm->std;
 }

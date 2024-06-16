@@ -4,7 +4,7 @@
 #include "../backend/backend.h"
 #include "value.h"
 
-vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str);
+vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
 
 struct vm_save_read_t;
 typedef struct vm_save_read_t vm_save_read_t;
@@ -68,10 +68,10 @@ bool vm_save_read_is_done(vm_save_read_t *read) {
     return read->buf.read == read->buf.len;
 }
 
-vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
+vm_save_loaded_t vm_load_value(vm_t *vm, vm_save_t save) {
     vm_save_read_t read = (vm_save_read_t){
-        .buf.len = arg.len,
-        .buf.bytes = arg.buf,
+        .buf.len = save.len,
+        .buf.bytes = save.buf,
         .buf.read = 0,
         .values.len = 0,
         .values.ptr = NULL,
@@ -135,7 +135,7 @@ vm_save_loaded_t vm_load_value(vm_config_t *config, vm_save_t arg) {
             case VM_TAG_FFI: {
                 size_t id = vm_save_read_uleb(&read);
                 value.all = NULL;
-                for (vm_externs_t *cur = config->externs; cur; cur = cur->last) {
+                for (vm_externs_t *cur = vm->externs; cur; cur = cur->last) {
                     if (cur->id == id) {
                         value.all = cur->value;
                     }
@@ -229,7 +229,7 @@ outer:;
             src[j] = (char)vm_save_read_byte(&read);
         }
         src[len] = '\0';
-        vm_ast_node_t node = vm_lang_lua_parse(config, src);
+        vm_ast_node_t node = vm_lang_lua_parse(vm, src);
         vm_blocks_add_src(blocks, src);
         vm_ast_comp_more(node, blocks);
     }

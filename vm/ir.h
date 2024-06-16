@@ -15,9 +15,8 @@ typedef struct vm_blocks_srcs_t vm_blocks_srcs_t;
 typedef struct vm_branch_t vm_branch_t;
 typedef struct vm_instr_t vm_instr_t;
 
-#include "../lib.h"
-#include "../obj.h"
-#include "../std/io.h"
+#include "./lib.h"
+#include "./io.h"
 
 enum {
     // there are no more args
@@ -80,11 +79,6 @@ struct vm_branch_t {
     vm_arg_t *args;
     vm_arg_t out;
 
-    // struct {
-    //     vm_rblock_t **call_table;
-    //     void **jump_table;
-    // };
-
     uint8_t op;
     vm_tag_t tag;
 };
@@ -109,7 +103,7 @@ struct vm_block_t {
     size_t nargs;
     vm_arg_t *args;
 
-    void *pass;
+    void *code;
 
     bool isfunc : 1;
 };

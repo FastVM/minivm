@@ -77,7 +77,7 @@ void vm_save_write_sleb(vm_save_write_t *write, int64_t value) {
     }
 }
 
-vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t arg) {
+vm_save_t vm_save_value(vm_t *vm) {
     vm_save_write_t write = (vm_save_write_t){
         .buf.len = 0,
         .buf.bytes = NULL,
@@ -87,7 +87,7 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
         .values.buf = NULL,
         .values.alloc = 0,
     };
-    vm_save_write_push(&write, arg);
+    vm_save_write_push(&write, vm->std);
     while (!vm_save_write_is_done(&write)) {
         // printf("object #%zu at [0x%zX]\n", write.values.read, write.buf.len);
         vm_std_value_t value = vm_save_write_shift(&write);
@@ -153,7 +153,7 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
                 uint32_t len = (uint32_t)1 << table->alloc;
                 size_t real = 0;
                 for (size_t i = 0; i < len; i++) {
-                    vm_pair_t pair = table->pairs[i];
+                    vm_table_pair_t pair = table->pairs[i];
                     if (pair.key_tag != VM_TAG_UNK) {
                         vm_save_write_push(&write, (vm_std_value_t){.tag = pair.key_tag, .value = pair.key_val});
                         vm_save_write_push(&write, (vm_std_value_t){.tag = pair.val_tag, .value = pair.val_val});
@@ -162,7 +162,7 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
                 }
                 vm_save_write_uleb(&write, (uint64_t)real);
                 for (size_t i = 0; i < len; i++) {
-                    vm_pair_t pair = table->pairs[i];
+                    vm_table_pair_t pair = table->pairs[i];
                     if (pair.key_tag != VM_TAG_UNK) {
                         size_t key = vm_save_write_push(&write, (vm_std_value_t){.tag = pair.key_tag, .value = pair.key_val});
                         size_t value = vm_save_write_push(&write, (vm_std_value_t){.tag = pair.val_tag, .value = pair.val_val});
@@ -173,7 +173,7 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
                 break;
             }
             case VM_TAG_FFI: {
-                for (vm_externs_t *cur = config->externs; cur; cur = cur->last) {
+                for (vm_externs_t *cur = vm->externs; cur; cur = cur->last) {
                     if (cur->value == value.value.all) {
                         vm_save_write_uleb(&write, cur->id);
                         goto has_ffi;

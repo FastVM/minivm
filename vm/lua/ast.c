@@ -2,13 +2,13 @@
 #include "../ast/ast.h"
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 #include "../ast/build.h"
-#include "../std/io.h"
+#include "../io.h"
 
 const TSLanguage *tree_sitter_lua(void);
 
 typedef struct {
     const char *src;
-    vm_config_t *config;
+    vm_t *config;
     size_t *nsyms;
 } vm_lang_lua_t;
 
@@ -606,7 +606,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     return vm_ast_build_error(vm_io_format("unknown node type: %s", type));
 }
 
-vm_ast_node_t vm_lang_lua_parse(vm_config_t *config, const char *str) {
+vm_ast_node_t vm_lang_lua_parse(vm_t *config, const char *str) {
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_lua());
     TSTree *tree = ts_parser_parse_string(
