@@ -8,9 +8,10 @@ local ys = 9 * s
 
 local grid = gui.Grid.new(xs, ys)
 
-local black = gui.Rectangle.rgb(0, 0, 0)
-local green = gui.Rectangle.rgb(0, 128, 0)
-local red = gui.Rectangle.rgb(200, 0, 0)
+local empty = gui.Rectangle.rgb(0, 0, 0)
+local alive = gui.Rectangle.rgb(0, 128, 0)
+local dead = gui.Rectangle.rgb(128, 128, 128)
+local apple = gui.Rectangle.rgb(200, 0, 0)
 
 local vars = {
     snake = {{2, ys // 2}},
@@ -18,8 +19,8 @@ local vars = {
     time = 1,
     sleep = 4,
     seed = 0,
-    apples = {
-    }
+    apples = {},
+    dead = {}
 }
 
 local n = 5
@@ -38,15 +39,32 @@ local function on_draw()
         for i=0, xs * ys - 1 do
             local x = i % xs + 1
             local y = i // xs + 1
-            grid[x][y] = black
+            grid[x][y] = empty
         end
 
-        local last = vars.snake[#vars.snake]
-
-        vars.snake[0] = {
+        local piece = {
             (vars.snake[1][1] + (vars.dir[1] - 1) - 1 + xs) % xs + 1,
             (vars.snake[1][2] + (vars.dir[2] - 1) - 1 + ys) % ys + 1,
         }
+        
+        for i=1, #vars.snake do
+            local cur = vars.snake[i]
+            if cur[1] == piece[1] then
+                if cur[2] == piece[2] then
+                    local s = {}
+                    for j=1, i do
+                        local copy = vars.snake[j]
+                        s[j] = {copy[1], copy[2]}
+                    end
+                    vars.snake = s
+                    break
+                end
+            end
+        end
+        
+        local last = vars.snake[#vars.snake]
+
+        vars.snake[0] = piece
 
         for i=1, #vars.snake do
             local n = #vars.snake + 1 - i
@@ -62,15 +80,19 @@ local function on_draw()
                 end
             end
         end
-
+        
         for i=1, #vars.snake do
             local p = vars.snake[i]
-            grid[p[1]][p[2]] = green
+            if vars.dead[i] then
+                grid[p[1]][p[2]] = dead
+            else
+                grid[p[1]][p[2]] = alive
+            end
         end
 
         for i=1, #vars.apples do
             local p = vars.apples[i]
-            grid[p[1]][p[2]] = red
+            grid[p[1]][p[2]] = apple
         end
     end
 end
@@ -90,6 +112,9 @@ local onkey = {
     right = gui.Key.down("D", set_dir{2, 1}),
 }
 
-draw = {grid, frame, onkey}
+draw = {}
+draw.draw = grid
+draw.frame = frame
+draw.onkey = onkey
 
 app()
