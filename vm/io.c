@@ -59,9 +59,9 @@ char *vm_io_format(const char *fmt, ...) {
     return r;
 }
 
-char *vm_io_read(const char *vm_io_buffer_tname) {
-    void *vm_io_buffer_t = fopen(vm_io_buffer_tname, "rb");
-    if (vm_io_buffer_t == NULL) {
+char *vm_io_read(const char *buf) {
+    FILE *file = fopen(buf, "rb");
+    if (file == NULL) {
         return NULL;
     }
     size_t nalloc = 512;
@@ -73,14 +73,14 @@ char *vm_io_read(const char *vm_io_buffer_tname) {
             nalloc = (nops + 256) * 2;
             ops = vm_realloc(ops, sizeof(char) * nalloc);
         }
-        size = fread(&ops[nops], 1, 256, vm_io_buffer_t);
+        size = fread(&ops[nops], 1, 256, file);
         nops += size;
         if (size < 256) {
             break;
         }
     }
     ops[nops] = '\0';
-    fclose(vm_io_buffer_t);
+    fclose(file);
     return ops;
 }
 

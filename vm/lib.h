@@ -37,6 +37,16 @@
     exit(1);
 #endif
 
+
+#if 0
+#include "../vendor/bdwgc/include/gc.h"
+#define vm_mem_init() (GC_init())
+#define vm_malloc(s) (GC_malloc(s))
+#define vm_realloc(p, s) (GC_realloc(p, s))
+#define vm_free(s) ((void)(s))
+#define vm_strdup(s) (GC_strdup(s))
+#else
+#define vm_mem_init() ((void) 0)
 static inline void *vm_malloc(size_t size) {
     void *ret = malloc(size);
     if (ret == NULL) {
@@ -63,5 +73,6 @@ static inline char *vm_strdup(const char *str) {
     memcpy(buf, str, len + 1);
     return buf;
 }
+#endif
 
 #endif

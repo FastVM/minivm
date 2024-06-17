@@ -51,11 +51,11 @@ Rectangle.BLACK = Rectangle.new(Color.BLACK)
 
 local Button = {}
 
-function Button.new(click, func)
+function Button.new(click, run)
     return {
         type = "button",
         click = click,
-        run = func,
+        run = run,
     }
 end
 
@@ -81,7 +81,56 @@ function List.new(table)
     return r
 end
 
-_ENV.List = List
-_ENV.Button = Button
-_ENV.Color = Color
-_ENV.Rectangle = Rectangle
+local Split = {}
+
+function Split.new(table)
+    local r = {type="split"}
+    for i=1, #table do
+        r[i] = table[i]
+    end
+    return r
+end
+
+local Grid = {}
+
+function Grid.new(x, y)
+    local ls = {}
+    for i=1, x do
+        local sp = {}
+        for j=1, y do
+            sp[j] = {}
+        end
+        ls[i] = List.new(sp)
+    end
+    return Split.new(ls)
+end
+
+local Frame = {}
+
+function Frame.new(run)
+    return {
+        type = "frame",
+        run = run,
+    }
+end
+
+local Key = {}
+
+function Key.down(key, run)
+    return {
+        type = "keydown",
+        key = key,
+        run = run,
+    }
+end
+
+return {
+    Rectangle = Rectangle,
+    Color = Color,
+    Button = Button,
+    List = List,
+    Split = Split,
+    Grid = Grid,
+    Frame = Frame,
+    Key = Key,
+}

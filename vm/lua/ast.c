@@ -520,7 +520,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * (nargs + 1));
             size_t real_nargs = 0;
             args[real_nargs++] = vm_ast_build_ident(vm_strdup(obj));
-            for (size_t i = 1; i < ts_node_child_count(args_node); i += 1) {
+            for (size_t i = 0; i < ts_node_child_count(args_node); i += 1) {
                 TSNode arg = ts_node_child(args_node, i);
                 const char *name = ts_node_type(arg);
                 if (!strcmp(name, "(") || !strcmp(name, ",") || !strcmp(name, ")")) {
@@ -535,7 +535,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             size_t nargs = ts_node_child_count(args_node);
             vm_ast_node_t *args = vm_malloc(sizeof(vm_ast_node_t) * nargs);
             size_t real_nargs = 0;
-            for (size_t i = 1; i < ts_node_child_count(args_node); i += 1) {
+            for (size_t i = 0; i < ts_node_child_count(args_node); i += 1) {
                 TSNode arg = ts_node_child(args_node, i);
                 const char *name = ts_node_type(arg);
                 if (!strcmp(name, "(") || !strcmp(name, ",") || !strcmp(name, ")")) {

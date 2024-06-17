@@ -49,7 +49,7 @@ static uint64_t vm_save_read_uleb(vm_save_read_t *read) {
 }
 
 static int64_t vm_save_read_sleb(vm_save_read_t *read) {
-    int64_t result = 0;
+    __int128_t result = 0;
     uint8_t shift = 0;
     while (true) {
         uint8_t byte = vm_save_read_byte(read);

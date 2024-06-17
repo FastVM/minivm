@@ -19,6 +19,8 @@
 #include "../vendor/c11threads/threads.h"
 
 int main(int argc, char **argv) {
+    vm_mem_init();
+    
     vm_t val_vm = (vm_t) {
         .use_num = VM_USE_NUM_F64,
         .regs = vm_malloc(sizeof(vm_std_value_t) * 65536),
@@ -129,12 +131,6 @@ int main(int argc, char **argv) {
                 break;
             }
         }
-    }
-
-    if (isrepl) {
-        vm_std_set_arg(vm, argv[0], "<repl>", argc - i, argv + i);
-
-        vm_repl(vm);
     }
 
     return 0;

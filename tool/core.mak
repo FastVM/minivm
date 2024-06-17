@@ -15,6 +15,7 @@ RES_DIR ?= $(BUILD_DIR)/res
 TEST_DIR ?= $(BUILD_DIR)/test
 
 VENDOR_DIR ?= vendor
+GC_DIR ?= $(VENDOR_DIR)/bdwgc
 ISOCLINE_DIR ?= $(VENDOR_DIR)/isocline
 TREE_SITTER_DIR ?= $(VENDOR_DIR)/tree-sitter
 
@@ -40,10 +41,12 @@ THREAD_SRCS_OS_LINUX = vendor/c11threads/threads_posix.c
 THREAD_SRCS_OS_FREEBSD = vendor/c11threads/threads_posix.c
 THREAD_SRCS += $(THREAD_SRCS_OS_$(OS))
 
+GC_SRCS += $(GC_DIR)/alloc.c $(GC_DIR)/allchblk.c $(GC_DIR)/blacklst.c $(GC_DIR)/dbg_mlc.c $(GC_DIR)/dyn_load.c $(GC_DIR)/finalize.c $(GC_DIR)/headers.c $(GC_DIR)/malloc.c $(GC_DIR)/mallocx.c $(GC_DIR)/mark.c $(GC_DIR)/mach_dep.c $(GC_DIR)/mark_rts.c $(GC_DIR)/misc.c $(GC_DIR)/new_hblk.c $(GC_DIR)/obj_map.c $(GC_DIR)/os_dep.c $(GC_DIR)/ptr_chck.c $(GC_DIR)/reclaim.c
+
 ISOCLINE_SRCS += $(ISOCLINE_DIR)/src/isocline.c
 TREES_SRCS += $(TREE_SITTER_DIR)/lib/src/alloc.c $(TREE_SITTER_DIR)/lib/src/get_changed_ranges.c $(TREE_SITTER_DIR)/lib/src/language.c $(TREE_SITTER_DIR)/lib/src/lexer.c $(TREE_SITTER_DIR)/lib/src/node.c $(TREE_SITTER_DIR)/lib/src/parser.c $(TREE_SITTER_DIR)/lib/src/query.c $(TREE_SITTER_DIR)/lib/src/stack.c $(TREE_SITTER_DIR)/lib/src/subtree.c $(TREE_SITTER_DIR)/lib/src/tree_cursor.c $(TREE_SITTER_DIR)/lib/src/tree.c $(TREE_SITTER_DIR)/lib/src/wasm_store.c
 
-VENDOR_SRCS += $(ISOCLINE_SRCS) $(TREES_SRCS) $(THREAD_SRCS)
+VENDOR_SRCS += $(GC_SRCS) $(ISOCLINE_SRCS) $(TREES_SRCS) $(THREAD_SRCS)
 
 VENDOR_OBJS = $(VENDOR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
@@ -59,20 +62,14 @@ VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS = $(VM_OBJS) $(VENDOR_OBJS)
 
-LDFLAGS_GCCJIT_NO =
-LDFLAGS_GCCJIT_YES = -lgccjit
-
-LDFLAGS_MAC_GCCJIT_NO =
-LDFLAGS_MAC_GCCJIT_YES = -L/opt/homebrew/lib/gcc/current
-
 LDFLAGS_WINDOWS = -lSynchronization
-LDFLAGS_MAC = $(LDFLAGS_MAC_GCCJIT_$(GCCJIT))
+LDFLAGS_MAC = 
 LDFLAGS_LINUX = -lm -ldl
 LDFLAGS_FREEBSD = -lm -ldl -lpthread
 
-LDFLAGS := $(LDFLAGS_$(OS)) $(LDFLAGS_GCCJIT_$(GCCJIT)) $(LDFLAGS)
+LDFLAGS := $(LDFLAGS_$(OS)) $(LDFLAGS)
 
-CFLAGS_VENDOR := -I$(TREE_SITTER_DIR)/lib/include -I$(TREE_SITTER_DIR)/lib/src $(CFLAGS_VENDOR)
+CFLAGS_VENDOR := -DNO_EXECUTE_PERMISSION -I$(GC_DIR)/include -I$(TREE_SITTER_DIR)/lib/include -I$(TREE_SITTER_DIR)/lib/src $(CFLAGS_VENDOR)
 
 CFLAGS_MAC = -I/opt/homebrew/include
 CFLAGS := $(CFLAGS_$(OS)) $(CFLAGS)

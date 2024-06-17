@@ -7,3 +7,6 @@
 [submodule "vendor/raylib"]
 	path = vendor/raylib
 	url = https://github.com/raysan5/raylib
+[submodule "vendor/bdwgc"]
+	path = vendor/bdwgc
+	url = https://github.com/ivmai/bdwgc

@@ -4,6 +4,7 @@
 #include "./io.h"
 #include "./ir.h"
 #include "vm.h"
+#include "./backend/backend.h"
 
 #define VM_PAIR_VALUE(PAIR_) ({ \
     vm_table_pair_t pair_ = (PAIR_); \
@@ -691,14 +692,45 @@ void vm_std_table_values(vm_t *vm, vm_std_value_t *args) {
 
 void vm_lua_comp_op_std_pow(vm_t *vm, vm_std_value_t *args);
 
+void vm_std_vm_import(vm_t *vm, vm_std_value_t *args) {
+    if (args[0].tag != VM_TAG_STR) {
+        args[0] = (vm_std_value_t) {
+            .tag = VM_TAG_ERROR,
+            .value.str = "import() must take a string"
+        };
+        return;
+    }
+    const char *src = vm_io_read(args[0].value.str);
+    if (src == NULL) {
+        args[0] = (vm_std_value_t) {
+            .tag = VM_TAG_ERROR,
+            .value.str = "import() no such file",
+        };
+        return;
+    }
+    vm_block_t *block = vm_compile(vm, src);
+    args[0] = vm_run_repl(vm, block);
+    return;
+}
+
 #if VM_USE_RAYLIB
 
 #include "../vendor/raylib/src/raylib.h"
 #include "../vendor/c11threads/threads.h"
 #include "./backend/backend.h"
+#include "./save/value.h"
 
 static int vm_std_app_repl(void *arg) {
     vm_repl(arg);
+    vm_t *vm = arg;
+    if (vm->save_file != NULL) {
+        vm_save_t save = vm_save_value(vm);
+        FILE *f = fopen(vm->save_file, "wb");
+        if (f != NULL) {
+            fwrite(save.buf, 1, save.len, f);
+            fclose(f);
+        }
+    }
     exit(0);
     return 0;
 }
@@ -792,10 +824,31 @@ static void vm_std_app_draw_tree_children_list(vm_t *vm, Rectangle rect, vm_tabl
     }
 }
 
+static void vm_std_app_draw_tree_children_split(vm_t *vm, Rectangle rect, vm_table_t *tree) {
+    size_t len = tree->len;
+    if (len == 0) {
+        return;
+    }
+    float width = rect.width / len;
+    Rectangle child_rect = (Rectangle) {
+        rect.x,
+        rect.y,
+        width,
+        rect.height,
+    };
+    int32_t i = 1;
+    while (true) {
+        vm_std_value_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t) { .i32 = i }, VM_TAG_I32));
+        if (child.tag != VM_TAG_TAB) {
+            break;
+        }
+        i += 1;
+        vm_std_app_draw_tree(vm, child_rect, child);
+        child_rect.x += width;
+    }
+}
+
 static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
-    // vm_io_buffer_t *buf = vm_io_buffer_new();
-    // vm_io_debug(buf, 0, "", arg, NULL);
-    // printf("%s\n", buf->buf);
     if (arg.tag != VM_TAG_TAB) {
         return;
     }
@@ -819,10 +872,11 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
             DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
             vm_std_app_draw_tree_children(vm, rect, tree);
         } else if (!strcmp(type, "list")) {
-            // DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
             vm_std_app_draw_tree_children_list(vm, rect, tree);
+        } else if (!strcmp(type, "split")) {
+            vm_std_app_draw_tree_children_split(vm, rect, tree);
         } else if (!strcmp(type, "button")) {
-            DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
+            // DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
             vm_std_app_draw_tree_children(vm, rect, tree);
             vm_std_value_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "click"));
             vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
@@ -831,6 +885,84 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
                 if ((!strcmp(name, "left") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 || (!strcmp(name, "right") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 || (!strcmp(name, "middle") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
+                    if (CheckCollisionPointRec(GetMousePosition(), rect)) {
+                        vm->regs[0] = run;
+                        vm_run_repl(vm, vm->blocks->blocks[run.value.closure[0].value.i32]);
+                    }
+                }
+            }
+        } else if (!strcmp(type, "frame")) {
+            vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
+            if (run.tag == VM_TAG_CLOSURE) {
+                vm->regs[0] = run;
+                vm_run_repl(vm, vm->blocks->blocks[run.value.closure[0].value.i32]);
+            }
+        } else if (!strcmp(type, "keydown") || !strcmp(type, "keyup")) {
+            vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
+            vm_std_value_t key_obj = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "key"));
+            if (key_obj.tag == VM_TAG_STR && run.tag == VM_TAG_CLOSURE) {
+                const char *key = key_obj.value.str;
+                bool (*func)(int) = NULL;
+                if (!strcmp(type, "keydown")) {
+                    func = IsKeyDown;
+                }
+                if (!strcmp(type, "keyup")) {
+                    func = IsKeyUp;
+                }
+                if (!strcmp(type, "keypressed")) {
+                    func = IsKeyPressed;
+                }
+                if (!strcmp(type, "keyreleased")) {
+                    func = IsKeyReleased;
+                }
+                if ((!strcmp(key, "APOSTROPHE") && func(KEY_APOSTROPHE))
+                || (!strcmp(key, "SPACE") && func(KEY_SPACE))
+                || (!strcmp(key, "COMMA") && func(KEY_COMMA))
+                || (!strcmp(key, "MINUS") && func(KEY_MINUS))
+                || (!strcmp(key, "PERIOD") && func(KEY_PERIOD))
+                || (!strcmp(key, "SLASH") && func(KEY_SLASH))
+                || (!strcmp(key, "ZERO") && func(KEY_ZERO))
+                || (!strcmp(key, "ONE") && func(KEY_ONE))
+                || (!strcmp(key, "TWO") && func(KEY_TWO))
+                || (!strcmp(key, "THREE") && func(KEY_THREE))
+                || (!strcmp(key, "FOUR") && func(KEY_FOUR))
+                || (!strcmp(key, "FIVE") && func(KEY_FIVE))
+                || (!strcmp(key, "SIX") && func(KEY_SIX))
+                || (!strcmp(key, "SEVEN") && func(KEY_SEVEN))
+                || (!strcmp(key, "EIGHT") && func(KEY_EIGHT))
+                || (!strcmp(key, "NINE") && func(KEY_NINE))
+                || (!strcmp(key, "SEMICOLON") && func(KEY_SEMICOLON))
+                || (!strcmp(key, "EQUAL") && func(KEY_EQUAL))
+                || (!strcmp(key, "A") && func(KEY_A))
+                || (!strcmp(key, "B") && func(KEY_B))
+                || (!strcmp(key, "C") && func(KEY_C))
+                || (!strcmp(key, "D") && func(KEY_D))
+                || (!strcmp(key, "E") && func(KEY_E))
+                || (!strcmp(key, "F") && func(KEY_F))
+                || (!strcmp(key, "G") && func(KEY_G))
+                || (!strcmp(key, "H") && func(KEY_H))
+                || (!strcmp(key, "I") && func(KEY_I))
+                || (!strcmp(key, "J") && func(KEY_J))
+                || (!strcmp(key, "K") && func(KEY_K))
+                || (!strcmp(key, "L") && func(KEY_L))
+                || (!strcmp(key, "M") && func(KEY_M))
+                || (!strcmp(key, "N") && func(KEY_N))
+                || (!strcmp(key, "O") && func(KEY_O))
+                || (!strcmp(key, "P") && func(KEY_P))
+                || (!strcmp(key, "Q") && func(KEY_Q))
+                || (!strcmp(key, "R") && func(KEY_R))
+                || (!strcmp(key, "S") && func(KEY_S))
+                || (!strcmp(key, "T") && func(KEY_T))
+                || (!strcmp(key, "U") && func(KEY_U))
+                || (!strcmp(key, "V") && func(KEY_V))
+                || (!strcmp(key, "W") && func(KEY_W))
+                || (!strcmp(key, "X") && func(KEY_X))
+                || (!strcmp(key, "Y") && func(KEY_Y))
+                || (!strcmp(key, "Z") && func(KEY_Z))
+                || (!strcmp(key, "LEFT_BRACKET") && func(KEY_LEFT_BRACKET))
+                || (!strcmp(key, "BACKSLASH") && func(KEY_BACKSLASH))
+                || (!strcmp(key, "RIGHT_BRACKET") && func(KEY_RIGHT_BRACKET))
+                || (!strcmp(key, "GRAVE") && func(KEY_GRAVE))) {
                     vm->regs[0] = run;
                     vm_run_repl(vm, vm->blocks->blocks[run.value.closure[0].value.i32]);
                 }
@@ -843,7 +975,10 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
     thrd_t thrd;
     thrd_create(&thrd, &vm_std_app_repl, vm);
 
+    size_t n = 0;
+
     SetTraceLogLevel(LOG_WARNING);
+    SetTargetFPS(60);
     InitWindow(960, 540, "MiniVM");
     while (!WindowShouldClose()) {
         BeginDrawing();
@@ -857,10 +992,29 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
             GetScreenHeight(),
         };
         vm_std_app_draw_tree(vm, rect, tree);
+        // if (n++ % 16 == 0) {
+        //     if (vm->save_file != NULL) {
+        //         vm_save_t save = vm_save_value(vm);
+        //         FILE *f = fopen(vm->save_file, "wb");
+        //         if (f != NULL) {
+        //             fwrite(save.buf, 1, save.len, f);
+        //             fclose(f);
+        //         }
+        //     }
+        // }
         mtx_unlock(vm->mutex);
         EndDrawing();
     }
     CloseWindow();
+    if (vm->save_file != NULL) {
+        vm_save_t save = vm_save_value(vm);
+        FILE *f = fopen(vm->save_file, "wb");
+        if (f != NULL) {
+            fwrite(save.buf, 1, save.len, f);
+            fclose(f);
+        }
+    }
+    exit(0);
     return;
 }
 
@@ -884,6 +1038,7 @@ void vm_std_new(vm_t *vm) {
     {
         vm_table_t *tvm = vm_table_new();
         VM_TABLE_SET(std, str, "vm", table, tvm);
+        VM_TABLE_SET(tvm, str, "import", ffi, VM_STD_REF(vm, vm_std_vm_import));
         VM_TABLE_SET(tvm, str, "print", ffi, VM_STD_REF(vm, vm_std_vm_print));
         VM_TABLE_SET(tvm, str, "version", str, "0.0.4");
         VM_TABLE_SET(tvm, str, "typename", ffi, VM_STD_REF(vm, vm_std_vm_typename));

@@ -394,11 +394,6 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
 }
 
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
-    {
-        vm_io_buffer_t *buf = vm_io_buffer_new();
-        vm_ast_print_node(buf, 0, "compile = ", node);
-        printf("%s\n", buf->buf);
-    }
     switch (node.type) {
         case VM_AST_NODE_FORM: {
             vm_ast_form_t form = node.value.form;

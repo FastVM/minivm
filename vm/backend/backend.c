@@ -1101,6 +1101,9 @@ new_block:;
                 vm->regs = next_regs;
                 vm_std_value_t got = vm_run_repl(vm, vm->blocks->blocks[v1.value.closure[0].value.i32]);
                 vm->regs = last_regs;
+                if (got.tag == VM_TAG_ERROR) {
+                    return got;
+                }
                 vm_run_repl_out(got);
                 block = vm_run_repl_read(vm_block_t *);
                 goto new_block;
@@ -1127,7 +1130,14 @@ new_block:;
                 }
             call_ffi_end:;
                 next_regs[j].tag = VM_TAG_UNK;
+                vm_std_value_t *last_regs = regs;
+                vm->regs = next_regs;
                 v1.value.ffi(vm, next_regs);
+                vm->regs = last_regs;
+                vm_std_value_t got = next_regs[0];
+                if (got.tag == VM_TAG_ERROR) {
+                    return got;
+                }
                 vm_run_repl_out(next_regs[0]);
                 block = vm_run_repl_read(vm_block_t *);
                 goto new_block;
