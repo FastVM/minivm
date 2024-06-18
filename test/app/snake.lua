@@ -116,5 +116,6 @@ draw = {}
 draw.draw = grid
 draw.frame = frame
 draw.onkey = onkey
+draw.vars = vars
 
 app()

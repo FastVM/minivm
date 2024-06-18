@@ -155,7 +155,17 @@ static VM_INLINE vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t 
     #include "binop.inc"
 }
 
-
+#if VM_ALIGNED
+#define vm_interp_push(T, v_) ({\
+    T val = (v_);\
+    if (len + sizeof(T) >= alloc) { \
+        alloc += (len + sizeof(T)) * 2; \
+        code = vm_realloc(code, sizeof(uint8_t) * alloc); \
+    } \
+    memcpy(&code[len], &val, sizeof(T)); \
+    len += sizeof(T);\
+})
+#else
 #define vm_interp_push_num(size_) ({ \
     size_t size = (size_); \
     if (len + size >= alloc) { \
@@ -168,6 +178,8 @@ static VM_INLINE vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t 
 })
 
 #define vm_interp_push(t, v) (*(t *)vm_interp_push_num(sizeof(t)) = (v))
+#endif
+
 #define vm_interp_push_op(v) vm_interp_push(void *, ptrs[v])
 
 void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
@@ -651,11 +663,20 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
     return code;
 }
 
+#if VM_ALIGNED
+#define vm_run_repl_read(T) ({ \
+ T ptr; \
+ memcpy(&ptr, code, sizeof(T)); \
+ code += sizeof(T); \
+ ptr; \
+})
+#else
 #define vm_run_repl_read(T) ({ \
  T *ptr = (T*) code;\
  code += sizeof(T);\
  *ptr;\
 })
+#endif
 
 #define vm_run_repl_lit() ({ \
     vm_tag_t tag = vm_run_repl_read(vm_interp_tag_t); \
@@ -728,14 +749,14 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
         [VM_OP_GET] = &&VM_OP_GET,
         [VM_OP_CALL] = &&VM_OP_CALL,
     };
+    vm_std_value_t *next_regs = &regs[block->nregs];
 
 new_block:;
-    vm_std_value_t *next_regs = &regs[block->nregs];
     
     uint8_t *code = block->code;
     if (block->code == NULL) {
         code = vm_interp_renumber_block(vm, &ptrs[0], block);
-        block->code = block->code;
+        block->code = code;
     }
 
     vm_run_repl_jump();
@@ -744,6 +765,12 @@ new_block:;
         vm_std_value_t v1 = vm_run_repl_arg();
         vm_std_value_t v2 = vm_run_repl_arg();
         vm_std_value_t v3 = vm_run_repl_arg();
+        if (v1.tag != VM_TAG_TAB) {
+            return (vm_std_value_t) {
+                .tag = VM_TAG_ERROR,
+                .value.str = "can only index tables",
+            };
+        }
         vm_table_set(v1.value.table, v2.value, v3.value, v2.tag, v3.tag);
         vm_run_repl_jump();
     }
@@ -1062,6 +1089,12 @@ new_block:;
             .key_tag = v2.tag,
             .key_val = v2.value,
         };
+        if (v1.tag != VM_TAG_TAB) {
+            return (vm_std_value_t) {
+                .tag = VM_TAG_ERROR,
+                .value.str = "can only index tables",
+            };
+        }
         vm_table_get_pair(v1.value.table, &pair);
         vm_std_value_t v3 = (vm_std_value_t) {
             .tag = pair.val_tag,
