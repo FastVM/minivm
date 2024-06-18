@@ -14,7 +14,7 @@ local function BottomUpTree(item, depth)
 end
 
 local function ItemCheck(tree)
-    if tree[2] then
+    if #tree == 3 then
         return tree[1] + ItemCheck(tree[2]) - ItemCheck(tree[3])
     else
         return tree[1]
@@ -33,6 +33,7 @@ local mindepth = 4
 local maxdepth = 14
 
 local stretchdepth = maxdepth + 1
+
 local stretchtree = BottomUpTree(0, stretchdepth)
 
 local longlivedtree = BottomUpTree(0, maxdepth)
@@ -43,7 +44,8 @@ while depth <= maxdepth do
     local check = 0
     local i = 1
     while i <= iterations do
-        check = check + ItemCheck(BottomUpTree(1, depth)) + ItemCheck(BottomUpTree(-1, depth))
+        local x = ItemCheck(BottomUpTree(1, depth)) 
+        check = check + x + ItemCheck(BottomUpTree(-1, depth))
         i = i + 1
     end
     print(depth, check)

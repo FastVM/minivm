@@ -155,17 +155,7 @@ static VM_INLINE vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t 
     #include "binop.inc"
 }
 
-#if VM_ALIGNED
-#define vm_interp_push(T, v_) ({\
-    T val = (v_);\
-    if (len + sizeof(T) >= alloc) { \
-        alloc += (len + sizeof(T)) * 2; \
-        code = vm_realloc(code, sizeof(uint8_t) * alloc); \
-    } \
-    memcpy(&code[len], &val, sizeof(T)); \
-    len += sizeof(T);\
-})
-#else
+#if VM_UNALIGNED
 #define vm_interp_push_num(size_) ({ \
     size_t size = (size_); \
     if (len + size >= alloc) { \
@@ -176,8 +166,17 @@ static VM_INLINE vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t 
     len += size; \
     base; \
 })
-
 #define vm_interp_push(t, v) (*(t *)vm_interp_push_num(sizeof(t)) = (v))
+#else
+#define vm_interp_push(T, v_) ({\
+    T val = (v_);\
+    if (len + sizeof(T) >= alloc) { \
+        alloc += (len + sizeof(T)) * 2; \
+        code = vm_realloc(code, sizeof(uint8_t) * alloc); \
+    } \
+    memcpy(&code[len], &val, sizeof(T)); \
+    len += sizeof(T);\
+})
 #endif
 
 #define vm_interp_push_op(v) vm_interp_push(void *, ptrs[v])
@@ -614,7 +613,6 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
         }
         case VM_BOP_GET: {
             vm_interp_push_op(VM_OP_GET);
-            size_t c0 = len;
             vm_interp_push(vm_interp_tag_t, branch.args[0].type);
             if (branch.args[0].type == VM_ARG_LIT) {
                 vm_interp_push(vm_interp_tag_t, branch.args[0].lit.tag);
@@ -663,18 +661,18 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
     return code;
 }
 
-#if VM_ALIGNED
+#if VM_UNALIGNED
+#define vm_run_repl_read(T) ({ \
+ T *ptr = (T*) code;\
+ code += sizeof(T);\
+ *ptr;\
+})
+#else
 #define vm_run_repl_read(T) ({ \
  T ptr; \
  memcpy(&ptr, code, sizeof(T)); \
  code += sizeof(T); \
  ptr; \
-})
-#else
-#define vm_run_repl_read(T) ({ \
- T *ptr = (T*) code;\
- code += sizeof(T);\
- *ptr;\
 })
 #endif
 
@@ -783,6 +781,12 @@ new_block:;
     }
     VM_OP_TABLE_LEN:; VM_OPCODE_DEBUG(table_len) {
         vm_std_value_t v1 = vm_run_repl_arg();
+        if (v1.tag != VM_TAG_TAB) {
+            return (vm_std_value_t) {
+                .tag = VM_TAG_ERROR,
+                .value.str = "can only get length on tables",
+            };
+        }
         vm_run_repl_out(VM_STD_VALUE_NUMBER(vm, v1.value.table->len));
         vm_run_repl_jump();
     }
@@ -1090,6 +1094,7 @@ new_block:;
             .key_val = v2.value,
         };
         if (v1.tag != VM_TAG_TAB) {
+            __builtin_trap();
             return (vm_std_value_t) {
                 .tag = VM_TAG_ERROR,
                 .value.str = "can only index tables",
