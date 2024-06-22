@@ -166,18 +166,17 @@ static VM_INLINE vm_std_value_t vm_interp_mod(vm_std_value_t v1, vm_std_value_t 
     len += sizeof(T);\
 })
 #else
-#define vm_interp_push_num(size_) ({ \
-    size_t size = (size_); \
-    if (len + size >= alloc) { \
-        alloc += (len + size) * 2; \
-        code = vm_realloc(code, sizeof(uint8_t) * alloc); \
+static inline void *vm_interp_push_num(uint8_t **pcode, size_t *plen, size_t *palloc, size_t size) {
+    if (*plen + size >= *palloc) { \
+        *palloc += (*plen + size) * 2; \
+        *pcode = vm_realloc(*pcode, sizeof(uint8_t) * *palloc); \
     } \
-    uint8_t *base = &code[len]; \
-    len += size; \
-    base; \
-})
+    uint8_t *base = &(*pcode)[*plen]; \
+    *plen += size; \
+    return base; \
+}
 
-#define vm_interp_push(t, v) (*(t *)vm_interp_push_num(sizeof(t)) = (v))
+#define vm_interp_push(t, v) (*(t *)vm_interp_push_num(&code, &len, &alloc, sizeof(t)) = (v))
 #endif
 
 #define vm_interp_push_op(v) vm_interp_push(void *, ptrs[v])

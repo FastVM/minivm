@@ -230,5 +230,4 @@ outer:;
         vm_compile(vm, src);
     }
 error:;
-    
 }

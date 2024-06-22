@@ -150,28 +150,12 @@ void vm_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
     vm_repl_highlight_walk(henv, &depth, root_node);
     ts_tree_delete(tree);
     ts_parser_delete(parser);
-    // FILE *out = fopen("out.log", "w");
-    // fprintf(out, "%s\n", input);
-    // fclose(out);
-    // ic_highlight(henv, 1, strlen(input) - 2, "keyword");
 }
-
-#if defined(EMSCRIPTEN)
-EM_JS(void, vm_repl_sync, (void), {
-    Module._vm_repl_sync();
-});
-#endif
-
-#include "../../vendor/c11threads/threads.h"
 
 void vm_repl(vm_t *vm) {
     ic_set_history(".minivm-history", 2000);
 
     while (true) {
-#if defined(EMSCRIPTEN)
-        vm_repl_sync();
-#endif
-
         char *input = ic_readline_ex(
             "lua",
             vm_repl_completer,
@@ -183,8 +167,6 @@ void vm_repl(vm_t *vm) {
         if (input == NULL) {
             break;
         }
-
-        mtx_lock(vm->mutex);
 
         if (vm->save_file != NULL) {
             FILE *f = fopen(vm->save_file, "rb");
@@ -217,7 +199,5 @@ void vm_repl(vm_t *vm) {
                 fclose(f);
             }
         }
-
-        mtx_unlock(vm->mutex);
     }
 }

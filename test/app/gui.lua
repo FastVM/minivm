@@ -9,6 +9,7 @@ function Color.new(red, green, blue)
     }
 end
 
+
 Color.RED = Color.new(255, 0, 0)
 Color.ORANGE = Color.new(255, 127, 0)
 Color.YELLOW = Color.new(255, 255, 0)
@@ -49,13 +50,22 @@ Rectangle.WHITE = Rectangle.new(Color.WHITE)
 Rectangle.GRAY = Rectangle.new(Color.GRAY)
 Rectangle.BLACK = Rectangle.new(Color.BLACK)
 
+local Code = {}
+
+function Code.new(run)
+    return {
+        type = "code",
+        run = run,
+    }
+end
+
 local Button = {}
 
-function Button.new(click, run)
+function Button.new(button, run)
     return {
-        type = "button",
-        click = click,
-        run = run,
+        type = "click",
+        button = button,
+        run = Code.new(run),
     }
 end
 
@@ -69,6 +79,39 @@ end
 
 function Button.right(func)
     return Button.new("right", func)
+end
+
+
+local Drag = {}
+
+function Drag.new(button, run)
+    return {
+        type = "drag",
+        button = button,
+        run = Code.new(run),
+    }
+end
+
+function Drag.left(func)
+    return Drag.new("left", func)
+end
+
+function Drag.middle(func)
+    return Drag.new("middle", func)
+end
+
+function Drag.right(func)
+    return Drag.new("right", func)
+end
+
+local Hover = {}
+
+function Hover.new(button)
+    return {
+        type = "hover",
+        button = button,
+        run = Code.new(run),
+    }
 end
 
 local List = {}
@@ -94,24 +137,15 @@ end
 local Grid = {}
 
 function Grid.new(x, y)
-    local ls = {}
+    local ls = Split.new{}
     for i=1, x do
-        local sp = {}
+        local sp = List.new{}
         for j=1, y do
             sp[j] = {}
         end
-        ls[i] = List.new(sp)
+        ls[i] = sp
     end
-    return Split.new(ls)
-end
-
-local Frame = {}
-
-function Frame.new(run)
-    return {
-        type = "frame",
-        run = run,
-    }
+    return ls
 end
 
 local Key = {}
@@ -120,7 +154,41 @@ function Key.down(key, run)
     return {
         type = "keydown",
         key = key,
-        run = run,
+        run = Code.new(run),
+    }
+end
+
+function Key.up(key, run)
+    return {
+        type = "keyup",
+        key = key,
+        run = Code.new(run),
+    }
+end
+
+function Key.pressed(key, run)
+    return {
+        type = "keypressed",
+        key = key,
+        run = Code.new(run),
+    }
+end
+
+function Key.released(key, run)
+    return {
+        type = "keyreleased",
+        key = key,
+        run = Code.new(run),
+    }
+end
+
+local Window = {}
+
+function Window.new(width, height)
+    return {
+        type = "window",
+        width = width,
+        height = height,
     }
 end
 
@@ -128,9 +196,11 @@ return {
     Rectangle = Rectangle,
     Color = Color,
     Button = Button,
+    Drag = Drag,
     List = List,
     Split = Split,
     Grid = Grid,
-    Frame = Frame,
+    Code = Code,
     Key = Key,
+    Window = Window,
 }

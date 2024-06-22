@@ -37,9 +37,9 @@ local function on_draw()
     vars.time = vars.time + 1
     if vars.time % (vars.sleep + 1) == 0 then
         for i=0, xs * ys - 1 do
-            local x = i % xs + 1
-            local y = i // xs + 1
-            grid[x][y] = empty
+            local y = i % xs + 1
+            local x = i // xs + 1
+            grid[y][x] = empty
         end
 
         local piece = {
@@ -103,7 +103,7 @@ local function set_dir(d)
     end
 end
 
-local frame = gui.Frame.new(on_draw)
+local frame = gui.Code.new(on_draw)
 
 local onkey = {
     up = gui.Key.down("W", set_dir{1, 0}),

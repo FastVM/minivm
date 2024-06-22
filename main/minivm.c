@@ -16,8 +16,6 @@
 #include <emscripten.h>
 #endif
 
-#include "../vendor/c11threads/threads.h"
-
 int main(int argc, char **argv) {
     vm_mem_init();
     
@@ -28,7 +26,6 @@ int main(int argc, char **argv) {
     vm_t *vm = &val_vm;
 
     vm_std_new(vm);
-    mtx_init(vm->mutex, mtx_plain);
     
     vm_blocks_t val_blocks = {0};
     vm->blocks = &val_blocks;
@@ -113,6 +110,7 @@ int main(int argc, char **argv) {
 
             if (src == NULL) {
                 fprintf(stderr, "error: no such file: %s\n", arg);
+                return 1;
             }
 
             vm_block_t *entry = vm_compile(vm, src);

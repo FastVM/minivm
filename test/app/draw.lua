@@ -17,7 +17,7 @@ local function square(colors)
     return ret
 end
 
-local s = 4
+local s = 2
 
 local xs = 16 * s
 local ys = 9 * s

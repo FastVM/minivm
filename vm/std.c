@@ -714,7 +714,6 @@ void vm_std_vm_import(vm_t *vm, vm_std_value_t *args) {
 }
 
 #if VM_USE_RAYLIB
-
 #include "../vendor/raylib/src/raylib.h"
 #include "../vendor/c11threads/threads.h"
 #include "./backend/backend.h"
@@ -875,32 +874,48 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
             vm_std_app_draw_tree_children_list(vm, rect, tree);
         } else if (!strcmp(type, "split")) {
             vm_std_app_draw_tree_children_split(vm, rect, tree);
-        } else if (!strcmp(type, "button")) {
-            // DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
+        } else if (!strcmp(type, "click")) {
             vm_std_app_draw_tree_children(vm, rect, tree);
-            vm_std_value_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "click"));
+            vm_std_value_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "button"));
             vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
-            if (button.tag == VM_TAG_STR && run.tag == VM_TAG_CLOSURE) {
+            if (button.tag == VM_TAG_STR) {
                 const char *name = button.value.str;
                 if ((!strcmp(name, "left") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 || (!strcmp(name, "right") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 || (!strcmp(name, "middle") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
                     if (CheckCollisionPointRec(GetMousePosition(), rect)) {
-                        vm->regs[0] = run;
-                        vm_run_repl(vm, vm->blocks->blocks[run.value.closure[0].value.i32]);
+                        vm_std_app_draw_tree(vm, rect, run);
                     }
                 }
             }
-        } else if (!strcmp(type, "frame")) {
+        } else if (!strcmp(type, "drag")) {
+            vm_std_app_draw_tree_children(vm, rect, tree);
+            vm_std_value_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "button"));
+            vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
+            if (button.tag == VM_TAG_STR) {
+                const char *name = button.value.str;
+                if ((!strcmp(name, "left") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+                || (!strcmp(name, "right") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+                || (!strcmp(name, "middle") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))) {
+                    if (CheckCollisionPointRec(GetMousePosition(), rect)) {
+                        vm_std_app_draw_tree(vm, rect, run);
+                    }
+                }
+            }
+        } else if (!strcmp(type, "code")) {
             vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
             if (run.tag == VM_TAG_CLOSURE) {
                 vm->regs[0] = run;
                 vm_run_repl(vm, vm->blocks->blocks[run.value.closure[0].value.i32]);
             }
-        } else if (!strcmp(type, "keydown") || !strcmp(type, "keyup")) {
+        } else if (!strcmp(type, "window")) {
+            int64_t width = vm_value_to_i64(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "width")));
+            int64_t height = vm_value_to_i64(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "height")));
+            SetWindowSize(width, height);
+        } else if (!strcmp(type, "keydown") || !strcmp(type, "keyup") || !strcmp(type, "keypressed") || !strcmp(type, "keyreleased")) {
             vm_std_value_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
             vm_std_value_t key_obj = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "key"));
-            if (key_obj.tag == VM_TAG_STR && run.tag == VM_TAG_CLOSURE) {
+            if (key_obj.tag == VM_TAG_STR) {
                 const char *key = key_obj.value.str;
                 bool (*func)(int) = NULL;
                 if (!strcmp(type, "keydown")) {
@@ -963,23 +978,38 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
                 || (!strcmp(key, "BACKSLASH") && func(KEY_BACKSLASH))
                 || (!strcmp(key, "RIGHT_BRACKET") && func(KEY_RIGHT_BRACKET))
                 || (!strcmp(key, "GRAVE") && func(KEY_GRAVE))) {
-                    vm->regs[0] = run;
-                    vm_run_repl(vm, vm->blocks->blocks[run.value.closure[0].value.i32]);
+                    vm_std_app_draw_tree(vm, rect, run);
                 }
             }
         }
     }
 }
 
+#if defined(EMSCRIPTEN)
+#include <emscripten.h>
+
+EM_JS(void, vm_repl_sync, (void), {
+    Module._vm_repl_sync();
+});
+
+#endif
+
 void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
     thrd_t thrd;
     thrd_create(&thrd, &vm_std_app_repl, vm);
 
-    size_t n = 0;
-
     SetTraceLogLevel(LOG_WARNING);
     SetTargetFPS(60);
     InitWindow(960, 540, "MiniVM");
+    uint64_t n = 0;
+    {
+        FILE *f = fopen("/in.bin", "rb");
+        if (f != NULL) {
+            vm_save_t save = vm_save_load(f);
+            fclose(f);
+            vm_load_value(vm, save);
+        }
+    }
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -992,18 +1022,20 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
             GetScreenHeight(),
         };
         vm_std_app_draw_tree(vm, rect, tree);
-        // if (n++ % 16 == 0) {
-        //     if (vm->save_file != NULL) {
-        //         vm_save_t save = vm_save_value(vm);
-        //         FILE *f = fopen(vm->save_file, "wb");
-        //         if (f != NULL) {
-        //             fwrite(save.buf, 1, save.len, f);
-        //             fclose(f);
-        //         }
-        //     }
-        // }
         mtx_unlock(vm->mutex);
         EndDrawing();
+
+#if defined(EMSCRIPTEN)
+        if (n++ % 16 == 0) {
+            {
+                vm_save_t save = vm_save_value(vm);
+                FILE *f = fopen("/out.bin", "wb");
+                fwrite(save.buf, 1, save.len, f);
+                fclose(f);
+            }
+            vm_repl_sync();
+        }
+#endif
     }
     CloseWindow();
     if (vm->save_file != NULL) {
@@ -1017,7 +1049,6 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
     exit(0);
     return;
 }
-
 #endif
 
 void vm_std_new(vm_t *vm) {
