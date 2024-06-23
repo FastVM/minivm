@@ -17,12 +17,7 @@ void SetTargetFPS(int fps) {
     vm_canvas_target_fps = fps;
 }
 
-EM_JS(void, vm_canvas_frame, (void), {
-    Module._vm_canvas_frame();
-});
-
 bool WindowShouldClose(void) {
-    vm_canvas_frame();
     return false;
 }
 

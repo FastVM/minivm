@@ -115,18 +115,17 @@
                         ctx2d.fillRect(0, 0, w, h);
                     }
                 },
-                _vm_canvas_frame() {
-                    lastKeys = keys;
-                    keys = new Set(keys);
-                    lastButtons = buttons;
-                    buttons = new Set(buttons);
-                    console.log(keys);
-                },
                 _vm_std_app_frame_loop(vm) {
                     let n = 0;
                     const frame = () => {
                         requestAnimationFrame(frame);
+                        const nKeys = new Set(keys);
+                        const nButtons = new Set(buttons);
+                        keys = new Set(keys);
+                        buttons = new Set(buttons);
                         this._vm_std_app_frame(vm);
+                        lastButtons = nButtons;
+                        lastKeys = nKeys;
                         if (n++ % saveInterval === 0) {
                             this._vm_std_app_sync(vm);
                             const s = this.FS.readFile('/out.bin');
