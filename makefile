@@ -22,17 +22,6 @@ freebsd: .dummy
 	$(PRE) gmake -Bj$(J) -C vendor/raylib/src CC="$(CC)" LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
 	$(PRE) gmake -Bj$(J) -f tool/core.mak $(TARGET) OS=FREEBSD CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB $(CFLAGS)" LDFLAGS="-L/usr/local/lib vendor/raylib/src/libraylib.a -lOpenGL -lm -lpthread $(LDFLAGS)" 
 
-EMCC_CFLAGS = -fPIC -DNDEBUG
-EMCC_LDFLAGS = -lnodefs.js -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s MAIN_MODULE=2 -s BINARYEN_ASYNC_COMPILATION=0 -s ASYNCIFY=1 -s EXPORTED_RUNTIME_METHODS=['FS','callMain','NODEFS']
-EMCC = emcc
-node: .dummy
-	$(PRE) make -Bj$(J) -f tool/core.mak build/bin/minivm.mjs OS=LINUX CC=$(EMCC) EXE=.mjs \
-		CFLAGS="$(EMCC_CFLAGS) $(CFLAGS)" \
-		LDFLAGS="$(EMCC_LDFLAGS) $(LDFLAGS)" \
-		TCC=NO \
-		GCCJIT=NO \
-		TARGET=bins
-
 web: .dummy
 	$(PRE) make -Bj$(J) CC=$(EMCC) -C vendor/raylib/src LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -D_DEFAULT_SOURCE -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES2" PLATFORM=PLATFORM_WEB
 	$(PRE) make -Bj$(J) CC=$(EMCC) -f tool/core.mak build/bin/minivm.mjs OS=LINUX EXE=.mjs \
@@ -42,8 +31,10 @@ web: .dummy
 
 web-raw: .dummy
 	$(PRE) make -Bj$(J) CC=$(EMCC) -f tool/core.mak build/bin/minivm.mjs OS=LINUX EXE=.mjs \
-		CFLAGS='-fPIC -DVM_USE_RAYLIB -DNDEBUG' \
-		LDFLAGS='--embed-file test@test -s ASYNCIFY=1 -s BINARYEN_ASYNC_COMPILATION=0 -s EXPORTED_RUNTIME_METHODS=['FS'] -s STACK_SIZE=16mb -s USE_GLFW=3 -s SINGLE_FILE=1 -s MALLOC=mimalloc -s ENVIRONMENT=web -s ALLOW_MEMORY_GROWTH=1'
+		CFLAGS='-fPIC -DVM_USE_RAYLIB -DNDEBUG -DVM_USE_CANVAS -DVM_NO_GC' \
+		LDFLAGS='--embed-file test@test -s ASYNCIFY=0 -s BINARYEN_ASYNC_COMPILATION=0 -s EXPORTED_RUNTIME_METHODS=FS -s STACK_SIZE=4mb -s ENVIRONMENT=web -s ALLOW_MEMORY_GROWTH=1'
+	mv build/bin/minivm.wasm web-raw/minivm.wasm
+	mv build/bin/minivm.mjs web-raw/minivm.js
 
 format: .dummy
 	clang-format -i $$(find vm main -name '*.c' -or -name '*.h')

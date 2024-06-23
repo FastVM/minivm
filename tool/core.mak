@@ -54,10 +54,11 @@ VM_AST_SRCS += vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c
 VM_BACKEND_SRCS += vm/backend/backend.c
 VM_BASE_SRCS += vm/lib.c vm/obj.c
 VM_DATA_SRCS += vm/save/io.c vm/save/write.c vm/save/read.c
+VM_DRAW_SRCS += vm/canvas.c
 VM_IR_SRCS += vm/ir.c
 VM_LUA_SRCS += vm/lua/parser/parser.c vm/lua/parser/scan.c vm/lua/repl.c vm/lua/ast.c
 VM_STD_SRCS += vm/io.c vm/std.c
-VM_SRCS += $(VM_AST_SRCS) $(VM_BASE_SRCS) $(VM_BACKEND_SRCS) $(VM_DATA_SRCS) $(VM_IR_SRCS) $(VM_LUA_SRCS) $(VM_STD_SRCS)
+VM_SRCS += $(VM_AST_SRCS) $(VM_BASE_SRCS) $(VM_BACKEND_SRCS) $(VM_DATA_SRCS) $(VM_DRAW_SRCS) $(VM_IR_SRCS) $(VM_LUA_SRCS) $(VM_STD_SRCS)
 VM_OBJS = $(VM_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 OBJS = $(VM_OBJS) $(VENDOR_OBJS)

@@ -14,13 +14,6 @@
 #include "../../vendor/isocline/include/isocline.h"
 #include "../../vendor/isocline/src/completions.h"
 
-#if defined(EMSCRIPTEN)
-#include "../save/value.h"
-
-#include <emscripten.h>
-#endif
-
-
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
 

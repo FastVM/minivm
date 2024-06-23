@@ -12,10 +12,6 @@
 #include <string.h>
 #include <time.h>
 
-#if defined(EMSCRIPTEN)
-#include <emscripten.h>
-#endif
-
 int main(int argc, char **argv) {
     vm_mem_init();
     

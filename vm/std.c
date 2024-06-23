@@ -988,12 +988,52 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
 #if defined(EMSCRIPTEN)
 #include <emscripten.h>
 
-EM_JS(void, vm_repl_sync, (void), {
-    Module._vm_repl_sync();
+EM_JS(void, vm_std_app_frame_loop, (vm_t *vm), {
+    Module._vm_std_app_frame_loop(vm);
 });
 
-#endif
+void EMSCRIPTEN_KEEPALIVE vm_std_app_frame(vm_t *vm) {
+    BeginDrawing();
+    ClearBackground(RAYWHITE);
+    mtx_lock(vm->mutex);
+    vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std.value.table, "draw"));
+    Rectangle rect = (Rectangle) {
+        0,
+        0,
+        GetScreenWidth(),
+        GetScreenHeight(),
+    };
+    vm_std_app_draw_tree(vm, rect, tree);
+    mtx_unlock(vm->mutex);
+    EndDrawing();
+}
 
+void EMSCRIPTEN_KEEPALIVE vm_std_app_sync(vm_t *vm) {
+    vm_save_t save = vm_save_value(vm);
+    FILE *f = fopen("/out.bin", "wb");
+    fwrite(save.buf, 1, save.len, f);
+    fclose(f);
+}
+
+void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
+    SetTraceLogLevel(LOG_WARNING);
+    SetTargetFPS(60);
+    InitWindow(960, 540, "MiniVM");
+    uint64_t n = 0;
+    {
+        FILE *f = fopen("/in.bin", "rb");
+        if (f != NULL) {
+            vm_save_t save = vm_save_load(f);
+            fclose(f);
+            vm_load_value(vm, save);
+        }
+    }
+    vm_std_app_frame_loop(vm);
+    args[0] = VM_STD_VALUE_NIL;
+    // vm_std_app_repl(vm);
+}
+
+#else
 void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
     thrd_t thrd;
     thrd_create(&thrd, &vm_std_app_repl, vm);
@@ -1024,18 +1064,6 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
         vm_std_app_draw_tree(vm, rect, tree);
         mtx_unlock(vm->mutex);
         EndDrawing();
-
-#if defined(EMSCRIPTEN)
-        if (n++ % 16 == 0) {
-            {
-                vm_save_t save = vm_save_value(vm);
-                FILE *f = fopen("/out.bin", "wb");
-                fwrite(save.buf, 1, save.len, f);
-                fclose(f);
-            }
-            vm_repl_sync();
-        }
-#endif
     }
     CloseWindow();
     if (vm->save_file != NULL) {
@@ -1049,6 +1077,8 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
     exit(0);
     return;
 }
+
+#endif
 #endif
 
 void vm_std_new(vm_t *vm) {
