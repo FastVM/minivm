@@ -13,7 +13,7 @@ MAC_RAYLIB_OBJS = $(RAYLIB_DIR)/rcore.o $(RAYLIB_DIR)/rglfw.o $(RAYLIB_DIR)/rsha
 
 mac: .dummy
 	$(PRE) make -Bj$(J) -C vendor/raylib/src CC="$(CC)" LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
-	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB $(CFLAGS)" LDFLAGS="$(MAC_RAYLIB_OBJS) -framework Cocoa -framework OpenGL -framework IOKit $(LDFLAGS)" 
+	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB -DVM_NO_GC $(CFLAGS)" LDFLAGS="$(MAC_RAYLIB_OBJS) -framework Cocoa -framework OpenGL -framework IOKit $(LDFLAGS)" 
 
 windows: .dummy
 	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=WINDOWS CC="$(CC)" EXE=.exe TEST_LUA="$(TEST_LUA)"

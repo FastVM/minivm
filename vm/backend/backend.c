@@ -749,8 +749,23 @@ vm_std_value_t vm_run_repl(vm_t *vm, vm_block_t *block) {
     };
     vm_std_value_t *next_regs = &regs[block->nregs];
 
+    // {
+    //     vm_io_buffer_t *buf = vm_io_buffer_new();
+    //     vm_io_format_block(buf, block);
+    //     printf("func%s\n", buf->buf);
+    // }
+    goto new_block_no_print;
+
 new_block:;
-    
+
+    // {
+    //     vm_io_buffer_t *buf = vm_io_buffer_new();
+    //     vm_io_format_block(buf, block);
+    //     printf("%s\n", buf->buf);
+    // }
+
+new_block_no_print:;
+
     uint8_t *code = block->code;
     if (block->code == NULL) {
         code = vm_interp_renumber_block(vm, &ptrs[0], block);

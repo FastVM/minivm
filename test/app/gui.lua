@@ -9,7 +9,6 @@ function Color.new(red, green, blue)
     }
 end
 
-
 Color.RED = Color.new(255, 0, 0)
 Color.ORANGE = Color.new(255, 127, 0)
 Color.YELLOW = Color.new(255, 255, 0)
