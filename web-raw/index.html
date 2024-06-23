@@ -14,12 +14,12 @@
 
 <body>
     <script type="module" async>
-        localStorage.clear();
-
         await Promise.all([
             import('./minivm.js'),
             fetch('./minivm.wasm'),
         ]).then(async ([{default: Module}, body]) => {
+            const saveInterval = 1;
+
             const wasmBinary = await body.arrayBuffer();
             const canvas = document.createElement('canvas');
             document.body.appendChild(canvas);
@@ -74,6 +74,9 @@
                 arguments: [`test/app/${app}.lua`],
                 wasmBinary: wasmBinary,
                 preRun(mod) {
+                    if (lastGame !== app) {
+                        return;
+                    }
                     const s = localStorage.getItem(path);
                     if (s == null) {
                         return;
@@ -114,22 +117,22 @@
                 },
                 _vm_canvas_frame() {
                     lastKeys = keys;
-                    keys = new Set();
+                    keys = new Set(keys);
                     lastButtons = buttons;
-                    buttons = new Set();
+                    buttons = new Set(buttons);
+                    console.log(keys);
                 },
                 _vm_std_app_frame_loop(vm) {
                     let n = 0;
                     const frame = () => {
                         requestAnimationFrame(frame);
                         this._vm_std_app_frame(vm);
-                        if (n++ % 16 == 0) {
-                            // this._vm_std_app_sync(vm);
-                            // const s = this.FS.readFile('/out.bin');
-                            // if (s == null) {
-                            //     return;
-                            // }
-                            // localStorage.setItem(path, JSON.stringify(Array.from(s)));
+                        if (n++ % saveInterval === 0) {
+                            this._vm_std_app_sync(vm);
+                            const s = this.FS.readFile('/out.bin');
+                            if (s != null) {
+                                localStorage.setItem(path, JSON.stringify(Array.from(s)));
+                            }
                         }
                     };
                     requestAnimationFrame(frame);

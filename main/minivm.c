@@ -15,16 +15,16 @@
 int main(int argc, char **argv) {
     vm_mem_init();
     
-    vm_t val_vm = (vm_t) {
+    vm_t *vm = vm_malloc(sizeof(vm_t));
+    *vm = (vm_t) {
         .use_num = VM_USE_NUM_F64,
         .regs = vm_malloc(sizeof(vm_std_value_t) * 65536),
     };
-    vm_t *vm = &val_vm;
 
     vm_std_new(vm);
     
-    vm_blocks_t val_blocks = {0};
-    vm->blocks = &val_blocks;
+    vm->blocks = vm_malloc(sizeof(vm_blocks_t));
+    *vm->blocks = (vm_blocks_t) {0};
 
     bool echo = false;
     bool isrepl = true;
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
 
             vm_std_value_t value = vm_run_main(vm, entry);
             if (value.tag == VM_TAG_ERROR) {
-                exit(1);
+                return 1;
             }
             if (echo) {
                 vm_io_buffer_t buf = {0};
