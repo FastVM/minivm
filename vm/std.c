@@ -3,6 +3,7 @@
 
 #include "./io.h"
 #include "./ir.h"
+#include "obj.h"
 #include "vm.h"
 #include "./backend/backend.h"
 
@@ -171,6 +172,10 @@ void vm_std_vm_concat(vm_t *vm, vm_std_value_t *args) {
         .tag = VM_TAG_STR,
         .value.str = buf,
     };
+}
+
+void vm_std_math_rand_int(vm_t *vm, vm_std_value_t *args) {
+    args[0] = VM_STD_VALUE_NUMBER(vm, rand());
 }
 
 void vm_std_type(vm_t *vm, vm_std_value_t *args) {
@@ -985,7 +990,7 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
     }
 }
 
-#if defined(EMSCRIPTEN)
+#if defined(VM_USE_CANVAS)
 #include <emscripten.h>
 
 EM_JS(void, vm_std_app_frame_loop, (vm_t *vm), {
@@ -1084,6 +1089,8 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
 void vm_std_new(vm_t *vm) {
     vm_table_t *std = vm_table_new();
 
+    srand(0);
+
     {
         vm_table_t *io = vm_table_new();
         VM_TABLE_SET(std, str, "io", table, io);
@@ -1105,6 +1112,12 @@ void vm_std_new(vm_t *vm) {
         VM_TABLE_SET(tvm, str, "typename", ffi, VM_STD_REF(vm, vm_std_vm_typename));
         VM_TABLE_SET(tvm, str, "typeof", ffi, VM_STD_REF(vm, vm_std_vm_typeof));
         VM_TABLE_SET(tvm, str, "concat", ffi, VM_STD_REF(vm, vm_std_vm_concat));
+    }
+
+    {
+        vm_table_t *math = vm_table_new();
+        VM_TABLE_SET(std, str, "math", table, math);
+        VM_TABLE_SET(math, str, "randint", ffi, VM_STD_REF(vm, vm_std_math_rand_int));
     }
 
     {

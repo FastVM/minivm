@@ -40,6 +40,7 @@
 
 #if VM_NO_GC
 #define vm_mem_init() ((void) 0)
+
 static inline void *vm_malloc(size_t size) {
     void *ret = malloc(size);
     if (ret == NULL) {

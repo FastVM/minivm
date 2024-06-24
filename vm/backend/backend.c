@@ -9,13 +9,7 @@
 #define CONCAT3_2(x, y, z) x ## _ ## y ## _ ## z
 #define CONCAT3(x, y) CONCAT3_2(x, y)
 
-#define VM_MATH_SWITCH 1
-
-#if VM_MATH_SWITCH
 #define VM_INLINE inline __attribute__((always_inline))
-#else
-#define VM_INLINE inline
-#endif
 
 #if 0
 #define VM_OPCODE_DEBUG(s) printf("%s\n", #s);
@@ -781,7 +775,7 @@ new_block_no_print:;
         if (v1.tag != VM_TAG_TAB) {
             return (vm_std_value_t) {
                 .tag = VM_TAG_ERROR,
-                .value.str = "can only index tables",
+                .value.str = "can only set index on tables",
             };
         }
         vm_table_set(v1.value.table, v2.value, v3.value, v2.tag, v3.tag);
@@ -1109,7 +1103,6 @@ new_block_no_print:;
             .key_val = v2.value,
         };
         if (v1.tag != VM_TAG_TAB) {
-            __builtin_trap();
             return (vm_std_value_t) {
                 .tag = VM_TAG_ERROR,
                 .value.str = "can only index tables",

@@ -9,7 +9,7 @@ canvas.id = 'canvas';
 
 const lastGame = localStorage.getItem('minivm.game');
 
-const app = new URLSearchParams(document.location.search).get('app') ?? lastGame;
+const app = new URLSearchParams(document.location.search).get('app') ?? lastGame ?? 'snake';
 
 localStorage.setItem('minivm.game', app);
 

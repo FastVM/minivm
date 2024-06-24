@@ -3,12 +3,26 @@ local gui = vm.import("test/app/gui.lua")
 
 local debug = false
 
-local s = 20
+local s = 200
 
 local xs = 2 * s + 3
 local ys = 2 * s + 3
 
 local grid = gui.Grid.new(xs, ys)
+
+local solved = {}
+
+for i=1, s do
+    solved[i] = {}
+    for j=1, s do
+        solved[i][j] = false
+    end
+end
+
+local colors = {
+    solved = gui.Rectangle.GREEN,
+    unsolved = gui.Rectangle.WHITE,
+}
 
 local dir = {
     root = 0
@@ -33,16 +47,41 @@ for x=1, s do
     end
 end
 
-local seed = {
-    seed1 = 0
+local vars = {
+    cur = 1,
+    last = 0,
+    seed = 0
 }
 
-local function random(n)
-    seed.seed1 = (3301 * seed.seed1 + 4993) % 6121
-    return (seed.seed1) % n
+local function random4()
+    return math.randint() % 4
+end
+
+local function dir_x(d)
+    if d == dir.px then
+        return 1
+    elseif d == dir.nx then
+        return -1
+    else
+        return 0
+    end
+end
+
+local function dir_y(d)
+    if d == dir.py then
+        return 1
+    elseif d == dir.ny then
+        return -1
+    else
+        return 0
+    end
 end
 
 local function frame()
+    if vars.cur == vars.last then
+        return nil
+    end
+    vars.last = vars.cur
     for x=1, xs do
         for y=1, ys do
             grid[x][y] = gui.Rectangle.BLACK
@@ -54,77 +93,122 @@ local function frame()
             local px = x*2 + 1
             local py = y*2 + 1
             local ent = maze[x][y]
-            grid[px][py] = gui.Rectangle.ORANGE
+            local c = if not solved[x] or not solved[x][y] then
+                colors.unsolved
+            else 
+                colors.solved
+            end
+            grid[px][py] = c
             if ent == dir.root then
-                grid[px][py] = gui.Rectangle.RED
+                grid[px][py] = c
             end
             if ent == dir.nx then
-                grid[px-1][py] = gui.Rectangle.YELLOW
+                grid[px-1][py] = c
             end
             if ent == dir.px then
-                grid[px+1][py] = gui.Rectangle.YELLOW
+                grid[px+1][py] = c
             end
             if ent == dir.ny then
-                grid[px][py-1] = gui.Rectangle.YELLOW
+                grid[px][py-1] = c
             end
             if ent == dir.py then
-                grid[px][py+1] = gui.Rectangle.YELLOW
+                grid[px][py+1] = c
             end
         end
     end
 end
 
-local function maze_iter()
-    for x=1, #maze do
-        for y=1, #maze[x] do
+local function walk(x, y)
+    local v = true
+    solved[x][y] = v
+    local run = true
+    while run do
+        local val = solved[x][y]
+        local ent = maze[x][y]
+        if ent == dir.root or ent == v then
+            run = false
+        end
+        x = x + dir_x(ent)
+        y = y + dir_y(ent)
+        local n = solved[x][y]
+        solved[x][y] = v
+        if n then
+            v = false
+        end
+    end
+end
+
+local points = {
+    start = {1, 1},
+    stop = {s, s},
+}
+
+local function rep(n)
+    return function()
+        vars.cur = vars.cur + 1
+        local x = 0
+        local y = 0
+        for xp=1, #maze do
+            for yp=1, #maze[xp] do
+                if maze[xp][yp] == dir.root then
+                    x = xp
+                    y = yp
+                end
+            end
+        end
+        for i=1, n do
             local ent = maze[x][y]
             if ent == dir.root then
                 local more = true
                 while more do
-                    local v = random(4) + 1
+                    local v = random4() + 1
                     maze[x][y] = v
                     if v == dir.nx and x ~= 1 then
                         maze[x-1][y] = dir.root
+                        x = x - 1
                         more = false
                     end
                     if v == dir.px and x ~= #maze then
                         maze[x+1][y] = dir.root
+                        x = x + 1
                         more = false
                     end
                     if v == dir.ny and y ~= 1 then
                         maze[x][y-1] = dir.root
+                        y = y - 1
                         more = false
                     end
                     if v == dir.py and y ~= #maze[x] then
                         maze[x][y+1] = dir.root
+                        y = y + 1
                         more = false
                     end
                 end
             end
         end
-    end
-end
-
-local function rep(n)
-    return function()
-        for i=1, n do
-            maze_iter()
+        
+        for i=1, s do
+            for j=1, s do
+                solved[i][j] = nil
+            end
         end
+
+        walk(points.start[1], points.start[2])
+        walk(points.stop[1], points.stop[2])
     end
 end
 
 local code = gui.Code.new(frame)
 
+local redo = rep(s * s * 50)
+
+redo()
+
 draw = {}
 draw.code = code
 draw.grid = grid
 draw.keys = {}
-draw.keys.one = gui.Key.pressed("ONE", rep(1))
-draw.keys.two = gui.Key.pressed("TWO", rep(8))
-draw.keys.three = gui.Key.pressed("THREE", rep(64))
-draw.keys.four = gui.Key.pressed("FOUR", rep(512))
-draw.keys.five = gui.Key.pressed("FIVE", rep(2048))
-draw.keys.six = gui.Key.pressed("SIX", rep(16386))
-draw.window = gui.Window.new(600, 600)
+draw.keys.n = gui.Key.pressed("N", redo)
+draw.window = gui.Window.new(800, 800)
 
 app()
