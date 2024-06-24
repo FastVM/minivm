@@ -38,7 +38,7 @@ jobs:
         with:
           version: 12.2.0 
           platform: x64
-      - run: make windows TARGET=test
+      - run: make windows TARGET=test OPT='-O2'
       - run: cat build/test/diff.txt
       - uses: actions/upload-artifact@v4
         with:
