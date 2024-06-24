@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - run: make linux
+      - run: make linux TARGET=test
       - run: cat build/test/diff.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - run: make mac
+      - run: make mac TARGET=test
       - run: cat build/test/diff.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -38,7 +38,7 @@ jobs:
         with:
           version: 12.2.0 
           platform: x64
-      - run: make windows
+      - run: make windows TARGET=test
       - run: cat build/test/diff.txt
       - uses: actions/upload-artifact@v4
         with:
