@@ -1,5 +1,8 @@
 
 #include "value.h"
+#include "../obj.h"
+#include "../io.h"
+#include "../ir.h"
 
 struct vm_save_write_t;
 typedef struct vm_save_write_t vm_save_write_t;
@@ -21,7 +24,7 @@ struct vm_save_write_t {
 
 static size_t vm_save_write_push(vm_save_write_t *write, vm_std_value_t value) {
     for (size_t i = 0; i < write->values.write; i++) {
-        if (vm_value_eq(write->values.buf[i], value)) {
+        if (vm_obj_eq(write->values.buf[i], value)) {
             return i;
         }
     }
@@ -77,7 +80,7 @@ void vm_save_write_sleb(vm_save_write_t *write, int64_t value) {
     }
 }
 
-vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t arg) {
+vm_save_t vm_save_value(vm_t *vm) {
     vm_save_write_t write = (vm_save_write_t){
         .buf.len = 0,
         .buf.bytes = NULL,
@@ -87,7 +90,7 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
         .values.buf = NULL,
         .values.alloc = 0,
     };
-    vm_save_write_push(&write, arg);
+    vm_save_write_push(&write, vm->std);
     while (!vm_save_write_is_done(&write)) {
         // printf("object #%zu at [0x%zX]\n", write.values.read, write.buf.len);
         vm_std_value_t value = vm_save_write_shift(&write);
@@ -104,16 +107,16 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
                 break;
             }
             case VM_TAG_I8: {
-                vm_save_write_sleb(&write, (int64_t) value.value.i8);
+                vm_save_write_sleb(&write, (int64_t)value.value.i8);
                 break;
             }
             case VM_TAG_I16: {
-                vm_save_write_sleb(&write, (int64_t) value.value.i16);
+                vm_save_write_sleb(&write, (int64_t)value.value.i16);
                 break;
             }
             case VM_TAG_FUN:
             case VM_TAG_I32: {
-                vm_save_write_sleb(&write, (int64_t) value.value.i32);
+                vm_save_write_sleb(&write, (int64_t)value.value.i32);
                 break;
             }
             case VM_TAG_I64: {
@@ -121,59 +124,59 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
                 break;
             }
             case VM_TAG_F32: {
-                vm_save_write_uleb(&write, (uint64_t) *(uint32_t *) &value.value.f32);
+                vm_save_write_uleb(&write, (uint32_t)value.value.i32);
                 break;
             }
             case VM_TAG_F64: {
-                vm_save_write_uleb(&write, *(uint64_t *) &value.value.f64);
+                vm_save_write_uleb(&write, (uint64_t)value.value.i64);
                 break;
             }
             case VM_TAG_ERROR:
             case VM_TAG_STR: {
                 const char *buf = value.value.str;
                 size_t len = strlen(buf);
-                vm_save_write_uleb(&write, (uint64_t) len);
+                vm_save_write_uleb(&write, (uint64_t)len);
                 for (size_t i = 0; i < len; i++) {
-                    vm_save_write_byte(&write, (uint8_t) buf[i]);
+                    vm_save_write_byte(&write, (uint8_t)buf[i]);
                 }
                 break;
             }
             case VM_TAG_CLOSURE: {
                 vm_std_value_t *closure = value.value.closure;
                 uint32_t len = closure[-1].value.i32;
-                vm_save_write_uleb(&write, (uint64_t) len);
+                vm_save_write_uleb(&write, (uint64_t)len);
                 for (uint32_t i = 0; i < len; i++) {
                     size_t ent = vm_save_write_push(&write, closure[i]);
-                    vm_save_write_uleb(&write, (uint64_t) ent);
+                    vm_save_write_uleb(&write, (uint64_t)ent);
                 }
                 break;
             }
             case VM_TAG_TAB: {
                 vm_table_t *table = value.value.table;
-                uint32_t len = (uint32_t) 1 << table->alloc;
+                uint32_t len = (uint32_t)1 << table->alloc;
                 size_t real = 0;
                 for (size_t i = 0; i < len; i++) {
-                    vm_pair_t pair = table->pairs[i];
+                    vm_table_pair_t pair = table->pairs[i];
                     if (pair.key_tag != VM_TAG_UNK) {
-                        vm_save_write_push(&write, (vm_std_value_t) {.tag = pair.key_tag, .value = pair.key_val});
-                        vm_save_write_push(&write, (vm_std_value_t) {.tag = pair.val_tag, .value = pair.val_val});
+                        vm_save_write_push(&write, (vm_std_value_t){.tag = pair.key_tag, .value = pair.key_val});
+                        vm_save_write_push(&write, (vm_std_value_t){.tag = pair.val_tag, .value = pair.val_val});
                         real += 1;
                     }
                 }
-                vm_save_write_uleb(&write, (uint64_t) real);
+                vm_save_write_uleb(&write, (uint64_t)real);
                 for (size_t i = 0; i < len; i++) {
-                    vm_pair_t pair = table->pairs[i];
+                    vm_table_pair_t pair = table->pairs[i];
                     if (pair.key_tag != VM_TAG_UNK) {
-                        size_t key = vm_save_write_push(&write, (vm_std_value_t) {.tag = pair.key_tag, .value = pair.key_val});
-                        size_t value = vm_save_write_push(&write, (vm_std_value_t) {.tag = pair.val_tag, .value = pair.val_val});
-                        vm_save_write_uleb(&write, (uint64_t) key);
-                        vm_save_write_uleb(&write, (uint64_t) value);
+                        size_t key = vm_save_write_push(&write, (vm_std_value_t){.tag = pair.key_tag, .value = pair.key_val});
+                        size_t value = vm_save_write_push(&write, (vm_std_value_t){.tag = pair.val_tag, .value = pair.val_val});
+                        vm_save_write_uleb(&write, (uint64_t)key);
+                        vm_save_write_uleb(&write, (uint64_t)value);
                     }
                 }
                 break;
             }
             case VM_TAG_FFI: {
-                for (vm_externs_t *cur = config->externs; cur; cur = cur->last) {
+                for (vm_externs_t *cur = vm->externs; cur; cur = cur->last) {
                     if (cur->value == value.value.all) {
                         vm_save_write_uleb(&write, cur->id);
                         goto has_ffi;
@@ -186,28 +189,27 @@ vm_save_t vm_save_value(vm_config_t *config, vm_blocks_t *blocks, vm_std_value_t
             default: {
                 vm_io_buffer_t *buf = vm_io_buffer_new();
                 vm_io_debug(buf, 0, "error unhandled: ", value, NULL);
-                fprintf(stderr, "%.*s", (int) buf->len, buf->buf);
+                fprintf(stderr, "%.*s", (int)buf->len, buf->buf);
                 break;
             }
         }
     }
-outer:;
     vm_save_write_byte(&write, VM_TAG_UNK);
     uint64_t nsrcs = 0;
-    for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {
+    for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
         nsrcs += 1;
     }
     vm_save_write_uleb(&write, nsrcs);
     const char **srcs = vm_malloc(sizeof(const char *) * nsrcs);
-    for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {
+    for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
         srcs[--nsrcs] = cur->src;
     }
-    for (vm_blocks_srcs_t *cur = blocks->srcs; cur; cur = cur->last) {
+    for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
         const char *src = srcs[nsrcs++];
         size_t len = strlen(src);
-        vm_save_write_uleb(&write, (uint64_t) len);
+        vm_save_write_uleb(&write, (uint64_t)len);
         for (size_t i = 0; i < len; i++) {
-            vm_save_write_byte(&write, (uint8_t) src[i]);
+            vm_save_write_byte(&write, (uint8_t)src[i]);
         }
     }
     vm_free(srcs);

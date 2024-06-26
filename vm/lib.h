@@ -29,13 +29,17 @@
 #include <time.h>
 #include <wctype.h>
 
-#include "config.h"
+#include "./vm.h"
 
 #if 0
 #define __builtin_trap()                                       \
     printf("file %s, line %zu\n", __FILE__, (size_t)__LINE__); \
     exit(1);
 #endif
+
+
+#if VM_NO_GC
+#define vm_mem_init() ((void) 0)
 
 static inline void *vm_malloc(size_t size) {
     void *ret = malloc(size);
@@ -57,31 +61,19 @@ static inline void vm_free(const void *ptr) {
     free((void *)ptr);
 }
 
-static char *vm_strdup(const char *str) {
-    int len = strlen(str);
+static inline char *vm_strdup(const char *str) {
+    size_t len = strlen(str);
     char *buf = vm_malloc(sizeof(char) * (len + 1));
     memcpy(buf, str, len + 1);
     return buf;
 }
-
-#if defined(_WIN32)
-#define VM_CDECL __attribute__((cdecl))
 #else
-#define VM_CDECL
+#include "../vendor/bdwgc/include/gc.h"
+#define vm_mem_init() (GC_init())
+#define vm_malloc(s) (GC_malloc(s))
+#define vm_realloc(p, s) (GC_realloc(p, s))
+#define vm_free(s) (GC_free((void*) (s)))
+#define vm_strdup(s) (GC_strdup(s))
 #endif
-
-static inline void vm_config_add_extern(vm_config_t *config, void *value) {
-    vm_externs_t *last = config->externs;
-    for (vm_externs_t *cur = last; cur; cur = cur->last) {
-        if (cur->value == value) {
-            return;
-        }
-    }
-    vm_externs_t *next = vm_malloc(sizeof(vm_externs_t));
-    next->id = last == NULL ? 0 : last->id + 1;
-    next->value = value;
-    next->last = last;
-    config->externs = next;
-}
 
 #endif

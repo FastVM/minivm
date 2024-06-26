@@ -10,4 +10,4 @@ local function tarai(x, y, z)
     end
 end
 
-print(tarai(20, 19, 33))
+print(tarai(20, 19, 32))

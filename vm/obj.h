@@ -3,66 +3,10 @@
 
 #include "lib.h"
 
-union vm_value_t;
-typedef union vm_value_t vm_value_t;
+struct vm_table_pair_t;
+typedef struct vm_table_pair_t vm_table_pair_t;
 
-struct vm_pair_t;
-typedef struct vm_pair_t vm_pair_t;
-
-struct vm_table_t;
-typedef struct vm_table_t vm_table_t;
-
-struct vm_std_value_t;
-typedef struct vm_std_value_t vm_std_value_t;
-
-struct vm_std_closure_t;
-typedef struct vm_std_closure_t vm_std_closure_t;
-
-#include "ir/tag.h"
-
-union vm_value_t {
-    void *all;
-    bool b;
-    int8_t i8;
-    int16_t i16;
-    int32_t i32;
-    int64_t i64;
-    float f32;
-    double f64;
-    const char *str;
-    vm_table_t *table;
-    vm_std_value_t *closure;
-    void (*ffi)(vm_std_closure_t *closure, vm_std_value_t *args);
-};
-
-struct vm_std_value_t {
-    vm_value_t value;
-    vm_tag_t tag;
-};
-
-struct vm_pair_t {
-    vm_value_t key_val;
-    vm_value_t val_val;
-    vm_tag_t key_tag;
-    vm_tag_t val_tag;
-};
-
-struct vm_table_t {
-    vm_pair_t *pairs;
-    uint32_t len;
-    uint32_t used;
-    uint8_t alloc;
-};
-
-#include "ir/ir.h"
-
-struct vm_std_closure_t {
-    vm_config_t *config;
-    vm_blocks_t *blocks;
-    vm_std_value_t data[];
-};
-
-bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs);
+bool vm_obj_eq(vm_std_value_t lhs, vm_std_value_t rhs);
 bool vm_value_is_int(vm_std_value_t val);
 int64_t vm_value_to_i64(vm_std_value_t arg);
 double vm_value_to_f64(vm_std_value_t arg);
@@ -70,11 +14,11 @@ bool vm_value_can_to_n64(vm_std_value_t val);
 
 void vm_free_table(vm_table_t *table);
 vm_table_t *vm_table_new(void);
-vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag);
+vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag);
 void vm_table_iset(vm_table_t *table, uint64_t key_ival, uint64_t val_ival, vm_tag_t key_tag, vm_tag_t val_tag);
 void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_tag_t key_tag, vm_tag_t val_tag);
-void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair);
-void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
+void vm_table_set_pair(vm_table_t *table, vm_table_pair_t *pair);
+void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *pair);
 
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_b(...) VM_TAG_BOOL
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_i8(...) VM_TAG_I8
@@ -86,6 +30,7 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_str(...) VM_TAG_STR
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_table(...) VM_TAG_TAB
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_ffi(...) VM_TAG_FFI
+#define VM_VALUE_LITERAL_TYPE_TO_TAG_error(...) VM_TAG_ERROR
 
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_CONCAT2_IMPL(X_, Y_) X_##Y_
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_CONCAT2(X_, Y_) VM_VALUE_LITERAL_TYPE_TO_TAG_CONCAT2_IMPL(X_, Y_)
@@ -101,7 +46,7 @@ void vm_table_get_pair(vm_table_t *table, vm_pair_t *pair);
 #define VM_STD_VALUE_NIL ((vm_std_value_t){.tag = (VM_TAG_NIL)})
 
 #define VM_STD_VALUE_NUMBER(CONFIG_, VALUE_) ({                  \
-    vm_config_t *config_ = (CONFIG_);                            \
+    vm_t *config_ = (CONFIG_);                            \
     vm_std_value_t ret_;                                         \
     switch (config_->use_num) {                                  \
         case VM_USE_NUM_I8: {                                    \

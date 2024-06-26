@@ -1,19 +1,12 @@
-[submodule "vendor/tcc"]
-	path = vendor/tcc
-	url = https://github.com/fastvm/minivm-tinycc
-[submodule "vendor/cuik"]
-	path = vendor/cuik
-	url = https://github.com/fastvm/minivm-cuik
-	branch = new-cg
-[submodule "vendor/xxhash"]
-	path = vendor/xxhash
-	url = https://github.com/fastvm/minivm-xxhash
 [submodule "vendor/tree-sitter"]
 	path = vendor/tree-sitter
 	url = https://github.com/fastvm/minivm-tree-sitter
 [submodule "vendor/isocline"]
 	path = vendor/isocline
 	url = https://github.com/fastvm/minivm-isocline
-[submodule "vendor/llvm-box"]
-	path = vendor/llvm-box
-	url = https://github.com/fastvm/llvm-box
+[submodule "vendor/raylib"]
+	path = vendor/raylib
+	url = https://github.com/FastVM/minivm-raylib
+[submodule "vendor/bdwgc"]
+	path = vendor/bdwgc
+	url = https://github.com/FastVM/minivm-bdwgc

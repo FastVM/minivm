@@ -1,7 +1,7 @@
 #include "./obj.h"
 
 int64_t vm_value_to_i64(vm_std_value_t arg) {
-    switch (vm_type_tag(arg.tag)) {
+    switch (arg.tag) {
         case VM_TAG_I8: {
             return (int64_t)arg.value.i8;
         }
@@ -21,13 +21,13 @@ int64_t vm_value_to_i64(vm_std_value_t arg) {
             return (int64_t)arg.value.f64;
         }
         default: {
-            return -1;
+            return 0;
         }
     }
 }
 
 double vm_value_to_f64(vm_std_value_t arg) {
-    switch (vm_type_tag(arg.tag)) {
+    switch (arg.tag) {
         case VM_TAG_I8: {
             return (double)arg.value.i8;
         }
@@ -47,17 +47,17 @@ double vm_value_to_f64(vm_std_value_t arg) {
             return (double)arg.value.f64;
         }
         default: {
-            return -1;
+            return 0;
         }
     }
 }
 
 bool vm_value_can_to_n64(vm_std_value_t val) {
-    return vm_type_eq(val.tag, VM_TAG_I8) || vm_type_eq(val.tag, VM_TAG_I16) || vm_type_eq(val.tag, VM_TAG_I32) || vm_type_eq(val.tag, VM_TAG_I64) || vm_type_eq(val.tag, VM_TAG_F32) || vm_type_eq(val.tag, VM_TAG_F64);
+    return val.tag == VM_TAG_I8 || val.tag == VM_TAG_I16 || val.tag == VM_TAG_I32 || val.tag == VM_TAG_I64 || val.tag == VM_TAG_F32 || val.tag == VM_TAG_F64;
 }
 
 bool vm_value_is_int(vm_std_value_t val) {
-    switch (vm_type_tag(val.tag)) {
+    switch (val.tag) {
         case VM_TAG_I8: {
             return true;
         }
@@ -90,16 +90,16 @@ bool vm_value_is_int(vm_std_value_t val) {
     }
 }
 
-bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
-    switch (vm_type_tag(lhs.tag)) {
+bool vm_obj_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
+    switch (lhs.tag) {
         case VM_TAG_NIL: {
-            return vm_type_eq(rhs.tag, VM_TAG_NIL);
+            return rhs.tag == VM_TAG_NIL;
         }
         case VM_TAG_BOOL: {
-            return vm_type_eq(rhs.tag, VM_TAG_BOOL) && lhs.value.b == rhs.value.b;
+            return rhs.tag == VM_TAG_BOOL && lhs.value.b == rhs.value.b;
         }
         case VM_TAG_I8: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i8 == rhs.value.i8;
                 }
@@ -124,7 +124,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_I16: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i16 == rhs.value.i8;
                 }
@@ -149,7 +149,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_I32: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i32 == rhs.value.i8;
                 }
@@ -174,7 +174,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_I64: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.i64 == rhs.value.i8;
                 }
@@ -199,7 +199,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_F32: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.f32 == rhs.value.i8;
                 }
@@ -224,7 +224,7 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_F64: {
-            switch (vm_type_tag(rhs.tag)) {
+            switch (rhs.tag) {
                 case VM_TAG_I8: {
                     return lhs.value.f64 == rhs.value.i8;
                 }
@@ -249,19 +249,19 @@ bool vm_value_eq(vm_std_value_t lhs, vm_std_value_t rhs) {
             }
         }
         case VM_TAG_STR: {
-            return vm_type_eq(rhs.tag, VM_TAG_STR) && !strcmp(lhs.value.str, rhs.value.str);
+            return rhs.tag == VM_TAG_STR && !strcmp(lhs.value.str, rhs.value.str);
         }
         case VM_TAG_FUN: {
             return rhs.tag == VM_TAG_FUN && lhs.value.i32 == rhs.value.i32;
         }
         default: {
-            return vm_type_eq(lhs.tag, rhs.tag) && lhs.value.all == rhs.value.all;
+            return lhs.tag == rhs.tag && lhs.value.all == rhs.value.all;
         }
     }
 }
 
 size_t vm_value_hash(vm_std_value_t value) {
-    switch (vm_type_tag(value.tag)) {
+    switch (value.tag) {
         case VM_TAG_NIL: {
             return SIZE_MAX - 2;
         }
@@ -284,13 +284,13 @@ size_t vm_value_hash(vm_std_value_t value) {
             if (vm_value_is_int(value)) {
                 return (size_t)(int32_t)value.value.f32 * 1610612741;
             }
-            return (size_t) * (uint32_t *)&value.value.f32;
+            return (size_t)(uint32_t)value.value.i32;
         }
         case VM_TAG_F64: {
             if (vm_value_is_int(value)) {
                 return (size_t)(int64_t)value.value.f64 * 1610612741;
             }
-            return (size_t) * (uint64_t *)&value.value.f64;
+            return (size_t)(uint64_t)value.value.i64;
         }
         case VM_TAG_STR: {
             size_t ret = 1 << 16;
@@ -316,8 +316,8 @@ size_t vm_value_hash(vm_std_value_t value) {
 
 vm_table_t *vm_table_new_size(size_t pow2) {
     vm_table_t *ret = vm_malloc(sizeof(vm_table_t));
-    ret->pairs = vm_malloc(sizeof(vm_pair_t) * (1 << pow2));
-    memset(ret->pairs, 0, sizeof(vm_pair_t) * (1 << pow2));
+    ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * (1 << pow2));
+    memset(ret->pairs, 0, sizeof(vm_table_pair_t) * (1 << pow2));
     ret->alloc = pow2;
     ret->used = 0;
     ret->len = 0;
@@ -333,7 +333,7 @@ vm_table_t *vm_table_new(void) {
     return vm_table_new_size(2);
 }
 
-vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag) {
+vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag) {
     vm_std_value_t key = (vm_std_value_t){
         .tag = key_tag,
         .value = key_val,
@@ -343,15 +343,15 @@ vm_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_t
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop;
     do {
-        vm_pair_t *pair = &table->pairs[next];
+        vm_table_pair_t *pair = &table->pairs[next];
         vm_std_value_t value = (vm_std_value_t){
             .tag = pair->key_tag,
             .value = pair->key_val,
         };
-        if (vm_type_eq(value.tag, VM_TAG_UNK)) {
+        if (value.tag == VM_TAG_UNK || value.tag == VM_TAG_NIL) {
             return NULL;
         }
-        if (vm_value_eq(key, value)) {
+        if (vm_obj_eq(key, value)) {
             return pair;
         }
         next += 1;
@@ -372,25 +372,21 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         .tag = key_tag,
         .value = key_val,
     };
-    vm_std_value_t value = (vm_std_value_t){
-        .tag = val_tag,
-        .value = val_val,
-    };
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop & and;
     do {
-        vm_pair_t *pair = &table->pairs[next];
-        if (vm_type_eq(pair->key_tag, VM_TAG_UNK)) {
+        vm_table_pair_t *pair = &table->pairs[next];
+        if (pair->key_tag == VM_TAG_UNK || pair->key_tag == VM_TAG_NIL) {
             break;
         }
         vm_std_value_t check = (vm_std_value_t){
             .tag = pair->key_tag,
             .value = pair->key_val,
         };
-        if (vm_value_eq(key, check)) {
-            if (vm_type_eq(val_tag, VM_TAG_NIL)) {
+        if (vm_obj_eq(key, check)) {
+            if (val_tag == VM_TAG_NIL) {
                 pair->key_tag = VM_TAG_UNK;
                 if (vm_value_is_int(key)) {
                     int64_t i64val = vm_value_to_i64(key);
@@ -407,54 +403,67 @@ void vm_table_set(vm_table_t *table, vm_value_t key_val, vm_value_t val_val, vm_
         next += 1;
         next &= and;
     } while (next != stop);
-    if ((table->used + 1) * 3 >= 2 * (1 << table->alloc)) {
+    if ((table->used + 1) * 3 >= 2 * ((uint32_t)1 << table->alloc)) {
         vm_table_t *ret = vm_table_new_size(table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
-            vm_pair_t *in_pair = &table->pairs[i];
-            if (!vm_type_eq(in_pair->key_tag, VM_TAG_UNK)) {
+            vm_table_pair_t *in_pair = &table->pairs[i];
+            if (in_pair->key_tag != VM_TAG_UNK && in_pair->key_tag != VM_TAG_NIL) {
                 vm_table_set_pair(ret, in_pair);
             }
         }
         vm_table_set(ret, key_val, val_val, key_tag, val_tag);
         *table = *ret;
-        return;
-    }
-    if (vm_type_eq(val_tag, VM_TAG_NIL)) {
-        __builtin_trap();
-        return;
-    }
-    table->used += 1;
-    table->pairs[next] = (vm_pair_t){
-        .key_tag = key_tag,
-        .key_val = key_val,
-        .val_tag = val_tag,
-        .val_val = val_val,
-    };
-    vm_std_value_t vlen = (vm_std_value_t){
-        .tag = VM_TAG_I32,
-        .value.i32 = table->len + 1,
-    };
-    if (vm_value_eq(vlen, key)) {
-        while (true) {
-            int32_t next = table->len + 1;
-            vm_pair_t *got = vm_table_lookup(table, (vm_value_t){.i32 = next}, VM_TAG_I32);
-            if (got == NULL) {
-                break;
+    } else if (val_tag == VM_TAG_NIL) {
+        table->pairs[next] = (vm_table_pair_t){
+            .key_tag = key_tag,
+            .key_val = key_val,
+            .val_tag = val_tag,
+            .val_val = val_val,
+        };
+
+        vm_std_value_t nv = (vm_std_value_t) {
+            .tag = key_tag,
+            .value = key_val,
+        };
+
+        double n = vm_value_to_f64(nv);
+
+        if (1 <= n && n <= table->len && (double) (size_t) n == n) {
+            table->len = (size_t) (n - 1);
+        }
+    } else {
+        table->used += 1;
+        table->pairs[next] = (vm_table_pair_t){
+            .key_tag = key_tag,
+            .key_val = key_val,
+            .val_tag = val_tag,
+            .val_val = val_val,
+        };
+        vm_std_value_t vlen = (vm_std_value_t){
+            .tag = VM_TAG_I32,
+            .value.i32 = table->len + 1,
+        };
+        if (vm_obj_eq(vlen, key)) {
+            while (true) {
+                int32_t next = table->len + 1;
+                vm_table_pair_t *got = vm_table_lookup(table, (vm_value_t){.i32 = next}, VM_TAG_I32);
+                if (got == NULL) {
+                    break;
+                }
+                table->len = next;
             }
-            table->len = next;
         }
     }
-    return;
 }
 
-void vm_table_set_pair(vm_table_t *table, vm_pair_t *pair) {
+void vm_table_set_pair(vm_table_t *table, vm_table_pair_t *pair) {
     vm_table_set(table, pair->key_val, pair->val_val, pair->key_tag, pair->val_tag);
 }
 
-void vm_table_get_pair(vm_table_t *table, vm_pair_t *out) {
+void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *out) {
     vm_value_t key_val = out->key_val;
     vm_tag_t key_tag = out->key_tag;
-    vm_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
+    vm_table_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
     if (pair != NULL) {
         out->val_val = pair->val_val;
         out->val_tag = pair->val_tag;

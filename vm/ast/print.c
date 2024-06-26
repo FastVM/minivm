@@ -1,5 +1,5 @@
 
-#include "../std/io.h"
+#include "../io.h"
 #include "ast.h"
 
 static void vm_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {
@@ -137,6 +137,10 @@ void vm_ast_print_node(vm_io_buffer_t *out, size_t indent, const char *prefix, v
                 }
                 case VM_AST_FORM_RETURN: {
                     vm_io_buffer_format(out, "return");
+                    break;
+                }
+                case VM_AST_FORM_SCOPE: {
+                    vm_io_buffer_format(out, "scope");
                     break;
                 }
             }

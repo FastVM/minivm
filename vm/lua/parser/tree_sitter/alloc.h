@@ -6,8 +6,6 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 // Allow clients to override allocation functions
 #ifdef TREE_SITTER_REUSE_ALLOCATOR

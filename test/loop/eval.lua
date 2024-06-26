@@ -11,6 +11,3 @@ end
 
 print(t)
 
-if vm and vm.version and vm.version.global then
-    print('compiled ' .. tostring(vm.version.global) .. ' version groups')
-end

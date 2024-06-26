@@ -55,6 +55,9 @@ vm_ast_node_t vm_ast_build_lambda(vm_ast_node_t self, vm_ast_node_t args, vm_ast
 vm_ast_node_t vm_ast_build_call(vm_ast_node_t func, size_t nargs, vm_ast_node_t *args);
 vm_ast_node_t vm_ast_build_return(vm_ast_node_t value);
 
+// scopes
+vm_ast_node_t vm_ast_build_scope(vm_ast_node_t value);
+
 vm_ast_node_t vm_ast_build_block(size_t len, ...);
 
 vm_ast_node_t vm_ast_build_error(const char *str);
