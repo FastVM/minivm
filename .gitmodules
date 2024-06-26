@@ -6,7 +6,7 @@
 	url = https://github.com/fastvm/minivm-isocline
 [submodule "vendor/raylib"]
 	path = vendor/raylib
-	url = https://github.com/raysan5/raylib
+	url = https://github.com/FastVM/minivm-raylib
 [submodule "vendor/bdwgc"]
 	path = vendor/bdwgc
-	url = https://github.com/ivmai/bdwgc
+	url = https://github.com/FastVM/minivm-bdwgc

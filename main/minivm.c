@@ -127,5 +127,9 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (isrepl) {
+        vm_repl(vm);
+    }
+
     return 0;
 }

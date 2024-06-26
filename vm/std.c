@@ -719,9 +719,8 @@ void vm_std_vm_import(vm_t *vm, vm_std_value_t *args) {
 }
 
 #if VM_USE_RAYLIB
-#include "../vendor/raylib/src/raylib.h"
-#include "../vendor/c11threads/threads.h"
 #include "./backend/backend.h"
+#include "./canvas.h"
 #include "./save/value.h"
 
 static int vm_std_app_repl(void *arg) {
@@ -935,54 +934,54 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_std_value_t arg) {
                 if (!strcmp(type, "keyreleased")) {
                     func = IsKeyReleased;
                 }
-                if ((!strcmp(key, "APOSTROPHE") && func(KEY_APOSTROPHE))
-                || (!strcmp(key, "SPACE") && func(KEY_SPACE))
-                || (!strcmp(key, "COMMA") && func(KEY_COMMA))
-                || (!strcmp(key, "MINUS") && func(KEY_MINUS))
-                || (!strcmp(key, "PERIOD") && func(KEY_PERIOD))
-                || (!strcmp(key, "SLASH") && func(KEY_SLASH))
-                || (!strcmp(key, "ZERO") && func(KEY_ZERO))
-                || (!strcmp(key, "ONE") && func(KEY_ONE))
-                || (!strcmp(key, "TWO") && func(KEY_TWO))
-                || (!strcmp(key, "THREE") && func(KEY_THREE))
-                || (!strcmp(key, "FOUR") && func(KEY_FOUR))
-                || (!strcmp(key, "FIVE") && func(KEY_FIVE))
-                || (!strcmp(key, "SIX") && func(KEY_SIX))
-                || (!strcmp(key, "SEVEN") && func(KEY_SEVEN))
-                || (!strcmp(key, "EIGHT") && func(KEY_EIGHT))
-                || (!strcmp(key, "NINE") && func(KEY_NINE))
-                || (!strcmp(key, "SEMICOLON") && func(KEY_SEMICOLON))
-                || (!strcmp(key, "EQUAL") && func(KEY_EQUAL))
-                || (!strcmp(key, "A") && func(KEY_A))
-                || (!strcmp(key, "B") && func(KEY_B))
-                || (!strcmp(key, "C") && func(KEY_C))
-                || (!strcmp(key, "D") && func(KEY_D))
-                || (!strcmp(key, "E") && func(KEY_E))
-                || (!strcmp(key, "F") && func(KEY_F))
-                || (!strcmp(key, "G") && func(KEY_G))
-                || (!strcmp(key, "H") && func(KEY_H))
-                || (!strcmp(key, "I") && func(KEY_I))
-                || (!strcmp(key, "J") && func(KEY_J))
-                || (!strcmp(key, "K") && func(KEY_K))
-                || (!strcmp(key, "L") && func(KEY_L))
-                || (!strcmp(key, "M") && func(KEY_M))
-                || (!strcmp(key, "N") && func(KEY_N))
-                || (!strcmp(key, "O") && func(KEY_O))
-                || (!strcmp(key, "P") && func(KEY_P))
-                || (!strcmp(key, "Q") && func(KEY_Q))
-                || (!strcmp(key, "R") && func(KEY_R))
-                || (!strcmp(key, "S") && func(KEY_S))
-                || (!strcmp(key, "T") && func(KEY_T))
-                || (!strcmp(key, "U") && func(KEY_U))
-                || (!strcmp(key, "V") && func(KEY_V))
-                || (!strcmp(key, "W") && func(KEY_W))
-                || (!strcmp(key, "X") && func(KEY_X))
-                || (!strcmp(key, "Y") && func(KEY_Y))
-                || (!strcmp(key, "Z") && func(KEY_Z))
-                || (!strcmp(key, "LEFT_BRACKET") && func(KEY_LEFT_BRACKET))
-                || (!strcmp(key, "BACKSLASH") && func(KEY_BACKSLASH))
-                || (!strcmp(key, "RIGHT_BRACKET") && func(KEY_RIGHT_BRACKET))
-                || (!strcmp(key, "GRAVE") && func(KEY_GRAVE))) {
+                if ((!strcmp(key, "APOSTROPHE") && func('\''))
+                || (!strcmp(key, "SPACE") && func(' '))
+                || (!strcmp(key, "COMMA") && func(','))
+                || (!strcmp(key, "MINUS") && func('-'))
+                || (!strcmp(key, "PERIOD") && func('.'))
+                || (!strcmp(key, "SLASH") && func('/'))
+                || (!strcmp(key, "ZERO") && func('0'))
+                || (!strcmp(key, "ONE") && func('1'))
+                || (!strcmp(key, "TWO") && func('2'))
+                || (!strcmp(key, "THREE") && func('3'))
+                || (!strcmp(key, "FOUR") && func('4'))
+                || (!strcmp(key, "FIVE") && func('5'))
+                || (!strcmp(key, "SIX") && func('6'))
+                || (!strcmp(key, "SEVEN") && func('7'))
+                || (!strcmp(key, "EIGHT") && func('8'))
+                || (!strcmp(key, "NINE") && func('9'))
+                || (!strcmp(key, "SEMICOLON") && func(';'))
+                || (!strcmp(key, "EQUAL") && func('='))
+                || (!strcmp(key, "A") && func('A'))
+                || (!strcmp(key, "B") && func('B'))
+                || (!strcmp(key, "C") && func('C'))
+                || (!strcmp(key, "D") && func('D'))
+                || (!strcmp(key, "E") && func('E'))
+                || (!strcmp(key, "F") && func('F'))
+                || (!strcmp(key, "G") && func('G'))
+                || (!strcmp(key, "H") && func('H'))
+                || (!strcmp(key, "I") && func('I'))
+                || (!strcmp(key, "J") && func('J'))
+                || (!strcmp(key, "K") && func('K'))
+                || (!strcmp(key, "L") && func('L'))
+                || (!strcmp(key, "M") && func('M'))
+                || (!strcmp(key, "N") && func('N'))
+                || (!strcmp(key, "O") && func('O'))
+                || (!strcmp(key, "P") && func('P'))
+                || (!strcmp(key, "Q") && func('Q'))
+                || (!strcmp(key, "R") && func('R'))
+                || (!strcmp(key, "S") && func('S'))
+                || (!strcmp(key, "T") && func('T'))
+                || (!strcmp(key, "U") && func('U'))
+                || (!strcmp(key, "V") && func('V'))
+                || (!strcmp(key, "W") && func('W'))
+                || (!strcmp(key, "X") && func('X'))
+                || (!strcmp(key, "Y") && func('Y'))
+                || (!strcmp(key, "Z") && func('Z'))
+                || (!strcmp(key, "LEFT_BRACKET") && func('['))
+                || (!strcmp(key, "BACKSLASH") && func('\\'))
+                || (!strcmp(key, "RIGHT_BRACKET") && func(']'))
+                || (!strcmp(key, "GRAVE") && func('`'))) {
                     vm_std_app_draw_tree(vm, rect, run);
                 }
             }
@@ -1000,7 +999,6 @@ EM_JS(void, vm_std_app_frame_loop, (vm_t *vm), {
 void EMSCRIPTEN_KEEPALIVE vm_std_app_frame(vm_t *vm) {
     BeginDrawing();
     ClearBackground(RAYWHITE);
-    mtx_lock(vm->mutex);
     vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std.value.table, "draw"));
     Rectangle rect = (Rectangle) {
         0,
@@ -1009,7 +1007,6 @@ void EMSCRIPTEN_KEEPALIVE vm_std_app_frame(vm_t *vm) {
         GetScreenHeight(),
     };
     vm_std_app_draw_tree(vm, rect, tree);
-    mtx_unlock(vm->mutex);
     EndDrawing();
 }
 
@@ -1040,9 +1037,6 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
 
 #else
 void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
-    thrd_t thrd;
-    thrd_create(&thrd, &vm_std_app_repl, vm);
-
     SetTraceLogLevel(LOG_WARNING);
     SetTargetFPS(60);
     InitWindow(960, 540, "MiniVM");
@@ -1058,7 +1052,6 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        mtx_lock(vm->mutex);
         vm_std_value_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std.value.table, "draw"));
         Rectangle rect = (Rectangle) {
             0,
@@ -1067,7 +1060,6 @@ void vm_std_app_init(vm_t *vm, vm_std_value_t *args) {
             GetScreenHeight(),
         };
         vm_std_app_draw_tree(vm, rect, tree);
-        mtx_unlock(vm->mutex);
         EndDrawing();
     }
     CloseWindow();

@@ -35,12 +35,6 @@ PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 CFLAGS_VM_RAYLIB_YES = -DVM_USE_RAYLIB
 CFLAGS_VM += $(CFLAGS_VM_RAYLIB_$(RAYLIB))
 
-THREAD_SRCS_OS_WINDOWS = vendor/c11threads/threads_msvc.c
-THREAD_SRCS_OS_MAC = vendor/c11threads/threads_posix.c
-THREAD_SRCS_OS_LINUX = vendor/c11threads/threads_posix.c
-THREAD_SRCS_OS_FREEBSD = vendor/c11threads/threads_posix.c
-THREAD_SRCS += $(THREAD_SRCS_OS_$(OS))
-
 GC_SRCS += $(GC_DIR)/alloc.c $(GC_DIR)/allchblk.c $(GC_DIR)/blacklst.c $(GC_DIR)/dbg_mlc.c $(GC_DIR)/dyn_load.c $(GC_DIR)/finalize.c $(GC_DIR)/headers.c $(GC_DIR)/malloc.c $(GC_DIR)/mallocx.c $(GC_DIR)/mark.c $(GC_DIR)/mach_dep.c $(GC_DIR)/mark_rts.c $(GC_DIR)/misc.c $(GC_DIR)/new_hblk.c $(GC_DIR)/obj_map.c $(GC_DIR)/os_dep.c $(GC_DIR)/ptr_chck.c $(GC_DIR)/reclaim.c
 
 ISOCLINE_SRCS += $(ISOCLINE_DIR)/src/isocline.c
