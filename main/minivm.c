@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     vm_t *vm = vm_malloc(sizeof(vm_t));
     *vm = (vm_t) {
         .use_num = VM_USE_NUM_F64,
-        .regs = vm_malloc(sizeof(vm_std_value_t) * 65536),
+        .regs = vm_malloc(sizeof(vm_obj_t) * 65536),
     };
 
     vm_std_new(vm);
@@ -38,6 +38,10 @@ int main(int argc, char **argv) {
             echo = true;
         } else if (!strcmp(arg, "--no-echo")) {
             echo = false;
+        } else if (!strcmp(arg, "--dump-ir")) {
+            vm->dump_ir = true;
+        } else if (!strcmp(arg, "--no-dump-ir")) {
+            vm->dump_ir = false;
         } else if (!strcmp(arg, "--repl")) {
             vm_repl(vm);
             isrepl = false;
@@ -111,7 +115,7 @@ int main(int argc, char **argv) {
 
             vm_block_t *entry = vm_compile(vm, src);
 
-            vm_std_value_t value = vm_run_main(vm, entry);
+            vm_obj_t value = vm_run_main(vm, entry);
             if (value.tag == VM_TAG_ERROR) {
                 return 1;
             }

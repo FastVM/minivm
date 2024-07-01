@@ -11,7 +11,7 @@
 struct vm_t;
 struct vm_blocks_t;
 struct vm_externs_t;
-struct vm_std_value_t;
+struct vm_obj_t;
 union vm_value_t;
 struct vm_table_t;
 struct vm_table_pair_t;
@@ -19,7 +19,7 @@ struct vm_table_pair_t;
 typedef struct vm_t vm_t;
 typedef struct vm_blocks_t vm_blocks_t;
 typedef struct vm_externs_t vm_externs_t;
-typedef struct vm_std_value_t vm_std_value_t;
+typedef struct vm_obj_t vm_obj_t;
 typedef union vm_value_t vm_value_t;
 typedef struct vm_table_t vm_table_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
@@ -54,6 +54,8 @@ enum {
 
 typedef uint8_t vm_tag_t;
 
+typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
+
 union vm_value_t {
     void *all;
     bool b;
@@ -65,11 +67,11 @@ union vm_value_t {
     double f64;
     const char *str;
     vm_table_t *table;
-    vm_std_value_t *closure;
-    void (*ffi)(vm_t *closure, vm_std_value_t *args);
+    vm_obj_t *closure;
+    vm_ffi_t *ffi;
 };
 
-struct vm_std_value_t {
+struct vm_obj_t {
     vm_value_t value;
     vm_tag_t tag;
 };
@@ -101,11 +103,13 @@ struct vm_t {
 
     uint8_t use_num;
 
-    vm_std_value_t std;
+    vm_obj_t std;
 
     void *mutex;
 
-    vm_std_value_t *regs;
+    vm_obj_t *regs;
+
+    bool dump_ir: 1;
 };
 
 void vm_repl(vm_t *config);

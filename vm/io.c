@@ -91,7 +91,7 @@ static void vm_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {
     vm_io_buffer_format(out, "%s", prefix);
 }
 
-void vm_io_print_lit(vm_io_buffer_t *out, vm_std_value_t value) {
+void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
     switch (value.tag) {
         case VM_TAG_NIL: {
             vm_io_buffer_format(out, "nil");
@@ -136,7 +136,7 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_std_value_t value) {
     }
 }
 
-void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_value_t value, vm_io_debug_t *link) {
+void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
         if (value.tag == link->value.tag) {
@@ -233,7 +233,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         __builtin_trap();
                     }
                     case VM_TAG_BOOL: {
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -245,7 +245,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         break;
                     }
                     case VM_TAG_I8: {
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -255,7 +255,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         break;
                     }
                     case VM_TAG_I16: {
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -265,7 +265,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         break;
                     }
                     case VM_TAG_I32: {
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -275,7 +275,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         break;
                     }
                     case VM_TAG_I64: {
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -285,7 +285,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         break;
                     }
                     case VM_TAG_F64: {
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -295,7 +295,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                         break;
                     }
                     case VM_TAG_STR: {
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -308,12 +308,12 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
                     default: {
                         vm_indent(out, indent + 1, "");
                         vm_io_buffer_format(out, "pair {\n");
-                        vm_std_value_t key = (vm_std_value_t){
+                        vm_obj_t key = (vm_obj_t){
                             .tag = p.key_tag,
                             .value = p.key_val,
                         };
                         vm_io_debug(out, indent + 2, "key = ", key, &next);
-                        vm_std_value_t val = (vm_std_value_t){
+                        vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
                         };
@@ -340,7 +340,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_std_
     }
 }
 
-void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_std_value_t value) {
+void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
     switch (value.tag) {
         case VM_TAG_NIL: {
             vm_io_buffer_format(buf, "nil");

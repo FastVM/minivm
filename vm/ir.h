@@ -61,7 +61,7 @@ enum {
 
 struct vm_arg_t {
     union {
-        vm_std_value_t lit;
+        vm_obj_t lit;
         vm_block_t *func;
 
         struct {

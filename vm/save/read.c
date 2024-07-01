@@ -14,7 +14,7 @@ typedef struct vm_save_value_t vm_save_value_t;
 
 struct vm_save_value_t {
     size_t start;
-    vm_std_value_t value;
+    vm_obj_t value;
 };
 
 struct vm_save_read_t {
@@ -144,8 +144,8 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
             }
             case VM_TAG_CLOSURE: {
                 uint64_t len = vm_save_read_uleb(&read);
-                vm_std_value_t *closure = vm_malloc(sizeof(vm_std_value_t) * (len + 1));
-                closure[0] = (vm_std_value_t){
+                vm_obj_t *closure = vm_malloc(sizeof(vm_obj_t) * (len + 1));
+                closure[0] = (vm_obj_t){
                     .tag = VM_TAG_I32,
                     .value.i32 = (int32_t)(uint32_t)len,
                 };
@@ -177,7 +177,7 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
         }
         read.values.ptr[read.values.len++] = (vm_save_value_t){
             .start = start,
-            .value = (vm_std_value_t){
+            .value = (vm_obj_t){
                 .tag = tag,
                 .value = value,
             },
@@ -193,7 +193,7 @@ outer:;
         switch (tag) {
             case VM_TAG_CLOSURE: {
                 uint64_t len = vm_save_read_uleb(&read);
-                vm_std_value_t *closure = value.closure;
+                vm_obj_t *closure = value.closure;
                 for (uint64_t i = 0; i < len; i++) {
                     size_t value_index = vm_save_read_uleb(&read);
                     closure[i] = read.values.ptr[value_index].value;

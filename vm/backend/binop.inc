@@ -40,252 +40,252 @@ LABEL(VM_TAG_TAB, VM_TAG_FFI)
     __builtin_trap();
 }
 LABEL(VM_TAG_I8, VM_TAG_I8) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I8,
         .value.i8 = OP(v1.value.i8, v2.value.i8),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I8, VM_TAG_I16) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I16,
         .value.i16 = (int16_t) OP(v1.value.i8, v2.value.i16),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I8, VM_TAG_I32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I32,
         .value.i32 = (int32_t) OP(v1.value.i8, v2.value.i32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I8, VM_TAG_I64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I64,
         .value.i64 = (int64_t) OP(v1.value.i8, v2.value.i64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I8, VM_TAG_F32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F((float) v1.value.i8, v2.value.f32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I8, VM_TAG_F64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f64 = OP_F((double) v1.value.i8, v2.value.f64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I16, VM_TAG_I8) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I16,
         .value.i16 = OP(v1.value.i16, (int16_t) v2.value.i8),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I16, VM_TAG_I16) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I16,
         .value.i16 = OP(v1.value.i16, v2.value.i16),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I16, VM_TAG_I32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I32,
         .value.i32 = (int32_t) OP(v1.value.i16, v2.value.i32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I16, VM_TAG_I64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I64,
         .value.i64 = (int64_t) OP(v1.value.i16, v2.value.i64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I16, VM_TAG_F32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F((float) v1.value.i16, v2.value.f32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I16, VM_TAG_F64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f64 = OP_F((double) v1.value.i16, v2.value.f64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I32, VM_TAG_I8) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I32,
         .value.i16 = OP(v1.value.i32, (int32_t) v2.value.i8),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I32, VM_TAG_I16) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I32,
         .value.i16 = OP(v1.value.i32, (int32_t) v2.value.i16),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I32, VM_TAG_I32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I32,
         .value.i32 = OP(v1.value.i32, v2.value.i32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I32, VM_TAG_I64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I64,
         .value.i64 = (int64_t) OP(v1.value.i32, v2.value.i64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I32, VM_TAG_F32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F((float) v1.value.i32, v2.value.f32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I32, VM_TAG_F64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f64 = OP_F((double) v1.value.i32, v2.value.f64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I64, VM_TAG_I8) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I64,
         .value.i16 = OP(v1.value.i64, (int64_t) v2.value.i8),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I64, VM_TAG_I16) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I64,
         .value.i16 = OP(v1.value.i64, (int64_t) v2.value.i16),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I64, VM_TAG_I32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I64,
         .value.i32 = OP(v1.value.i64, (int64_t) v2.value.i32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I64, VM_TAG_I64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_I64,
         .value.i64 = OP(v1.value.i64, v2.value.i64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I64, VM_TAG_F32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F((float) v1.value.i64, v2.value.f32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I64, VM_TAG_F64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f64 = OP_F((double) v1.value.i64, v2.value.f64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F32, VM_TAG_I8) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F(v1.value.f32, (float) v2.value.i8),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F32, VM_TAG_I16) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F(v1.value.f32, (float) v2.value.i16),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F32, VM_TAG_I32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F(v1.value.f32, (float) v2.value.i32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F32, VM_TAG_I64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F(v1.value.f32, (float) v2.value.i64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F32, VM_TAG_F32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F32,
         .value.f32 = OP_F(v1.value.f32, v2.value.f32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F32, VM_TAG_F64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f64 = OP_F((double) v1.value.f32, v2.value.f64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F64, VM_TAG_I8) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f32 = OP_F(v1.value.f64, (double) v2.value.i8),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F64, VM_TAG_I16) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f32 = OP_F(v1.value.f64, (double) v2.value.i16),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F64, VM_TAG_I32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f32 = OP_F(v1.value.f64, (double) v2.value.i32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F64, VM_TAG_I64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f32 = OP_F(v1.value.f64, (double) v2.value.i64),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F64, VM_TAG_F32) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f32 = OP_F(v1.value.f64, (double) v2.value.f32),
     };
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_F64, VM_TAG_F64) {
-    WRITE (vm_std_value_t) {
+    WRITE (vm_obj_t) {
         .tag = VM_TAG_F64,
         .value.f64 = OP_F(v1.value.f64, v2.value.f64),
     };

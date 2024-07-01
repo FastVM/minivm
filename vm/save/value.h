@@ -8,7 +8,7 @@ typedef struct vm_save_loaded_t vm_save_loaded_t;
 
 struct vm_save_loaded_t {
     vm_blocks_t *blocks;
-    vm_std_value_t env;
+    vm_obj_t env;
 };
 
 

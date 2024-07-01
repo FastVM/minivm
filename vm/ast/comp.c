@@ -42,50 +42,50 @@ struct vm_ast_comp_names_t {
     vm_ast_comp_names_t *next;
 };
 
-void vm_lua_comp_op_std_pow(vm_t *vm, vm_std_value_t *args) {
-    vm_std_value_t *ret = args;
+void vm_lua_comp_op_std_pow(vm_t *vm, vm_obj_t *args) {
+    vm_obj_t *ret = args;
     double v = vm_value_to_f64(*args++);
     while (args->tag != VM_TAG_UNK) {
         v = pow(v, vm_value_to_f64(*args++));
     }
     switch (vm->use_num) {
         case VM_USE_NUM_I8: {
-            *ret = (vm_std_value_t){
+            *ret = (vm_obj_t){
                 .tag = VM_TAG_I8,
                 .value.i8 = (int8_t)v,
             };
             return;
         }
         case VM_USE_NUM_I16: {
-            *ret = (vm_std_value_t){
+            *ret = (vm_obj_t){
                 .tag = VM_TAG_I16,
                 .value.i16 = (int16_t)v,
             };
             return;
         }
         case VM_USE_NUM_I32: {
-            *ret = (vm_std_value_t){
+            *ret = (vm_obj_t){
                 .tag = VM_TAG_I32,
                 .value.i32 = (int32_t)v,
             };
             return;
         }
         case VM_USE_NUM_I64: {
-            *ret = (vm_std_value_t){
+            *ret = (vm_obj_t){
                 .tag = VM_TAG_I64,
                 .value.i64 = (int64_t)v,
             };
             return;
         }
         case VM_USE_NUM_F32: {
-            *ret = (vm_std_value_t){
+            *ret = (vm_obj_t){
                 .tag = VM_TAG_F32,
                 .value.f32 = (float)v,
             };
             return;
         }
         case VM_USE_NUM_F64: {
-            *ret = (vm_std_value_t){
+            *ret = (vm_obj_t){
                 .tag = VM_TAG_F64,
                 .value.f64 = (double)v,
             };
@@ -123,8 +123,8 @@ static void vm_ast_names_free(vm_ast_comp_names_t *names) {
 static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
 static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
 
-extern void vm_std_vm_closure(vm_t *vm, vm_std_value_t *args);
-extern void vm_std_vm_concat(vm_t *vm, vm_std_value_t *args);
+extern void vm_std_vm_closure(vm_t *vm, vm_obj_t *args);
+extern void vm_std_vm_concat(vm_t *vm, vm_obj_t *args);
 
 static vm_arg_t *vm_ast_args(size_t nargs, ...) {
     va_list ap;
@@ -234,7 +234,7 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     vm_block_t *next = vm_ast_comp_new_block(comp);
     vm_arg_t slot = (vm_arg_t){
         .type = VM_ARG_LIT,
-        .lit = (vm_std_value_t){
+        .lit = (vm_obj_t){
             .tag = VM_TAG_I32,
             .value.i32 = slotnum,
         }};
@@ -362,7 +362,7 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
             break;
         }
         case VM_AST_NODE_LITERAL: {
-            vm_std_value_t value = node.value.literal;
+            vm_obj_t value = node.value.literal;
             if (value.tag == VM_TAG_ERROR) {
                 comp->is_error = true;
                 return;
@@ -524,7 +524,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = iftrue;
                     vm_arg_t true_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t){
+                        .lit = (vm_obj_t){
                             .value.b = true,
                             .tag = VM_TAG_BOOL,
                         },
@@ -548,7 +548,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = iffalse;
                     vm_arg_t false_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t){
+                        .lit = (vm_obj_t){
                             .value.b = false,
                             .tag = VM_TAG_BOOL,
                         },
@@ -602,7 +602,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             vm_ast_free_node(node);
                             vm_arg_t key_arg = (vm_arg_t){
                                 .type = VM_ARG_LIT,
-                                .lit = (vm_std_value_t){
+                                .lit = (vm_obj_t){
                                     .tag = VM_TAG_STR,
                                     .value.str = vm_strdup(target.value.ident),
                                 },
@@ -737,7 +737,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
                     call_args[0] = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t){
+                        .lit = (vm_obj_t){
                             .tag = VM_TAG_FFI,
                             .value.ffi = &vm_std_vm_concat,
                         },
@@ -770,7 +770,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
                     call_args[0] = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t){
+                        .lit = (vm_obj_t){
                             .tag = VM_TAG_FFI,
                             .value.ffi = &vm_lua_comp_op_std_pow,
                         },
@@ -934,7 +934,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * (names->caps.len + 3));
                     call_args[0] = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t){
+                        .lit = (vm_obj_t){
                             .tag = VM_TAG_FFI,
                             .value.ffi = &vm_std_vm_closure,
                         },
@@ -1026,13 +1026,13 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             break;
         }
         case VM_AST_NODE_LITERAL: {
-            vm_std_value_t num = node.value.literal;
+            vm_obj_t num = node.value.literal;
             if (num.tag == VM_TAG_NIL) {
                 return vm_arg_nil();
             } else if (num.tag == VM_TAG_STR) {
                 vm_arg_t str = (vm_arg_t){
                     .type = VM_ARG_LIT,
-                    .lit = (vm_std_value_t){
+                    .lit = (vm_obj_t){
                         .tag = VM_TAG_STR,
                         .value.str = vm_strdup(num.value.str),
                     },
@@ -1071,7 +1071,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 if (got.type != VM_ARG_NONE) {
                     vm_arg_t env_key = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_std_value_t){
+                        .lit = (vm_obj_t){
                             .tag = VM_TAG_STR,
                             .value.str = vm_strdup(lit),
                         },

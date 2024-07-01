@@ -17,20 +17,20 @@
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
 
-vm_std_value_t vm_repl_table_get(vm_table_t *table, const char *key) {
+vm_obj_t vm_repl_table_get(vm_table_t *table, const char *key) {
     vm_table_pair_t pair = (vm_table_pair_t){
         .key_tag = VM_TAG_STR,
         .key_val.str = key,
     };
     vm_table_get_pair(table, &pair);
-    return (vm_std_value_t){
+    return (vm_obj_t){
         .value = pair.val_val,
         .tag = pair.val_tag,
     };
 }
 
 bool vm_repl_table_get_bool(vm_table_t *table, const char *key) {
-    vm_std_value_t got = vm_repl_table_get(table, key);
+    vm_obj_t got = vm_repl_table_get(table, key);
     return got.tag != VM_TAG_NIL && (got.tag != VM_TAG_BOOL || got.value.b);
 }
 
@@ -174,7 +174,7 @@ void vm_repl(vm_t *vm) {
 
         vm_block_t *entry = vm_compile(vm, input);
 
-        vm_std_value_t value = vm_run_repl(vm, entry);
+        vm_obj_t value = vm_run_repl(vm, entry);
 
         if (value.tag == VM_TAG_ERROR) {
             fprintf(stderr, "error: %s\n", value.value.str);
@@ -183,7 +183,7 @@ void vm_repl(vm_t *vm) {
             vm_io_debug(&buf, 0, "", value, NULL);
             printf("%.*s", (int)buf.len, buf.buf);
         }
-
+        
         if (vm->save_file != NULL) {
             vm_save_t save = vm_save_value(vm);
             FILE *f = fopen(vm->save_file, "wb");

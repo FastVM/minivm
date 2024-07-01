@@ -69,7 +69,7 @@ vm_ast_node_t vm_ast_build_nil(void);
 #define vm_ast_build_literal(TYPE_, VALUE_)                   \
     ((vm_ast_node_t){                                         \
         .type = VM_AST_NODE_LITERAL,                          \
-        .value.literal = VM_STD_VALUE_LITERAL(TYPE_, VALUE_), \
+        .value.literal = VM_OBJ_LITERAL(TYPE_, VALUE_), \
     })
 
 #define vm_ast_build_ident(STR_)   \
