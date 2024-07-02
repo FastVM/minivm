@@ -3,6 +3,7 @@
 
 #include "../lib.h"
 #include "../obj.h"
+#include "../errors.h"
 
 struct vm_ast_form_t;
 typedef struct vm_ast_form_t vm_ast_form_t;
@@ -83,6 +84,11 @@ union vm_ast_node_value_t {
 struct vm_ast_node_t {
     vm_ast_node_value_t value;
     vm_ast_node_type_t type;
+
+    struct {
+        const char *type;
+        vm_location_range_t range;
+    } info;
 };
 
 const char *vm_ast_format(vm_ast_node_t *node);

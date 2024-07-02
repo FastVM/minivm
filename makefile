@@ -8,6 +8,8 @@ EMCC = emcc
 RAYLIB_CC ?= $(CC)
 RAYLIB_DIR = vendor/raylib/src
 
+CLANG = clang
+
 linux: .dummy
 	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=LINUX CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)"
 
@@ -42,6 +44,13 @@ web-raw: .dummy
 		LDFLAGS='--embed-file test@test -s EXIT_RUNTIME=0 -s ASYNCIFY=0 -s BINARYEN_ASYNC_COMPILATION=0 -s EXPORTED_RUNTIME_METHODS=FS -s STACK_SIZE=4mb -s ENVIRONMENT=web -s ALLOW_MEMORY_GROWTH=1'
 	mv build/bin/minivm.wasm web-raw/minivm.wasm
 	mv build/bin/minivm.mjs web-raw/minivm.js
+
+SYSROOT = 
+
+web-clang: .dummy
+	$(PRE) make -Bj$(J) CC=$(CLANG) -f tool/core.mak build/bin/minivm.mjs OS=LINUX EXE=.mjs \
+		CFLAGS='-DNDEBUG -DVM_NO_GC -D_WASI_EMULATED_SIGNAL --target=wasm32-unknown-wasi --sysroot $(SYSROOT) $(OPT) $(CFLAGS)' \
+		LDFLAGS='--target=wasm32-unknown-wasi --sysroot $(SYSROOT) $(OPT) $(LDFLAGS)'
 
 format: .dummy
 	clang-format -i $$(find vm main -name '*.c' -or -name '*.h')

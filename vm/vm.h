@@ -15,6 +15,7 @@ struct vm_obj_t;
 union vm_value_t;
 struct vm_table_t;
 struct vm_table_pair_t;
+struct vm_table_pair_t;
 
 typedef struct vm_t vm_t;
 typedef struct vm_blocks_t vm_blocks_t;

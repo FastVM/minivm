@@ -46,7 +46,7 @@ VENDOR_OBJS = $(VENDOR_SRCS:%.c=$(OBJ_DIR)/%.o)
 
 VM_AST_SRCS += vm/ast/build.c vm/ast/ast.c vm/ast/comp.c vm/ast/print.c
 VM_BACKEND_SRCS += vm/backend/backend.c
-VM_BASE_SRCS += vm/lib.c vm/obj.c
+VM_BASE_SRCS += vm/lib.c vm/obj.c vm/errors.c
 VM_DATA_SRCS += vm/save/io.c vm/save/write.c vm/save/read.c
 VM_DRAW_SRCS += vm/canvas.c
 VM_IR_SRCS += vm/ir.c

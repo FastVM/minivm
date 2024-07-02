@@ -18,7 +18,6 @@ struct vm_ast_comp_t {
     vm_block_t *cur;
     vm_ast_comp_names_t *names;
     vm_block_t *on_break;
-    bool is_error : 1;
 };
 
 struct vm_ast_comp_cap_t {
@@ -120,8 +119,33 @@ static void vm_ast_names_free(vm_ast_comp_names_t *names) {
     vm_free(names);
 }
 
-static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node);
-static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
+static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node);
+static vm_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse);
+#define vm_ast_comp_to_rec(comp, node) ({                                                        \
+    vm_ast_comp_t *comp_ = comp;                                                                 \
+    vm_ast_node_t node_ = node;                                                                  \
+    vm_arg_t ret = vm_ast_comp_to_raw(comp_, node_);                                             \
+    if (ret.type == VM_ARG_ERROR && node_.info.range.start.byte != node_.info.range.stop.byte) { \
+        return (vm_arg_t){                                                                       \
+            .type = VM_ARG_ERROR,                                                                \
+            .error = vm_error_from_error(node_.info.range, ret.error),                           \
+        };                                                                                       \
+    }                                                                                            \
+    ret;                                                                                         \
+})
+
+#define vm_ast_comp_br_rec(comp, node, iftrue, iffalse) ({                \
+    vm_ast_comp_t *comp_ = (comp);                                        \
+    vm_ast_node_t node_ = (node);                                         \
+    vm_arg_t ret = vm_ast_comp_br_raw(comp_, node_, (iftrue), (iffalse)); \
+    if (ret.type == VM_ARG_ERROR) {                                       \
+        return (vm_arg_t){                                                \
+            .type = VM_ARG_ERROR,                                         \
+            .error = vm_error_from_error(node_.info.range, ret.error),                           \
+        };                                                                \
+    }                                                                     \
+    ret;                                                                  \
+})
 
 extern void vm_std_vm_closure(vm_t *vm, vm_obj_t *args);
 extern void vm_std_vm_concat(vm_t *vm, vm_obj_t *args);
@@ -237,7 +261,8 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
         .lit = (vm_obj_t){
             .tag = VM_TAG_I32,
             .value.i32 = slotnum,
-        }};
+        }
+    };
     vm_ast_blocks_branch(
         comp,
         (vm_branch_t){
@@ -251,14 +276,14 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     return reg;
 }
 
-static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse) {
+static vm_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *iftrue, vm_block_t *iffalse) {
     switch (node.type) {
         case VM_AST_NODE_FORM: {
             vm_ast_form_t form = node.value.form;
             switch (form.type) {
                 case VM_AST_FORM_LT: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -268,11 +293,11 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                             .targets[1] = iffalse,
                         }
                     );
-                    return;
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_GT: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -282,11 +307,11 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                             .targets[1] = iffalse,
                         }
                     );
-                    return;
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_LE: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -296,11 +321,11 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                             .targets[1] = iffalse,
                         }
                     );
-                    return;
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_GE: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -310,11 +335,11 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                             .targets[1] = iffalse,
                         }
                     );
-                    return;
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_EQ: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -324,11 +349,11 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                             .targets[1] = iffalse,
                         }
                     );
-                    return;
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_NE: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -338,25 +363,25 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                             .targets[1] = iftrue,
                         }
                     );
-                    return;
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_AND: {
                     vm_block_t *mid = vm_ast_comp_new_block(comp);
-                    vm_ast_comp_br(comp, form.args[0], mid, iffalse);
+                    vm_ast_comp_br_rec(comp, form.args[0], mid, iffalse);
                     comp->cur = mid;
-                    vm_ast_comp_br(comp, form.args[1], iftrue, iffalse);
-                    return;
+                    vm_ast_comp_br_rec(comp, form.args[1], iftrue, iffalse);
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_OR: {
                     vm_block_t *mid = vm_ast_comp_new_block(comp);
-                    vm_ast_comp_br(comp, form.args[0], iftrue, mid);
+                    vm_ast_comp_br_rec(comp, form.args[0], iftrue, mid);
                     comp->cur = mid;
-                    vm_ast_comp_br(comp, form.args[1], iftrue, iffalse);
-                    return;
+                    vm_ast_comp_br_rec(comp, form.args[1], iftrue, iffalse);
+                    goto ret_ok;
                 }
                 case VM_AST_FORM_NOT: {
-                    vm_ast_comp_br(comp, form.args[0], iffalse, iftrue);
-                    return;
+                    vm_ast_comp_br_rec(comp, form.args[0], iffalse, iftrue);
+                    goto ret_ok;
                 }
             }
             break;
@@ -364,8 +389,10 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
         case VM_AST_NODE_LITERAL: {
             vm_obj_t value = node.value.literal;
             if (value.tag == VM_TAG_ERROR) {
-                comp->is_error = true;
-                return;
+                return (vm_arg_t){
+                    .type = VM_ARG_ERROR,
+                    .error = vm_error_from_msg(value.value.str),
+                };
             }
             vm_ast_blocks_branch(
                 comp,
@@ -375,13 +402,14 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
                     .targets[0] = iftrue,
                 }
             );
-            return;
+            goto ret_ok;
+            ;
         }
         case VM_AST_NODE_IDENT: {
             break;
         }
     }
-    vm_arg_t bb_arg = vm_ast_comp_to(comp, node);
+    vm_arg_t bb_arg = vm_ast_comp_to_rec(comp, node);
     vm_ast_blocks_branch(
         comp,
         (vm_branch_t){
@@ -391,9 +419,12 @@ static void vm_ast_comp_br(vm_ast_comp_t *comp, vm_ast_node_t node, vm_block_t *
             .targets[1] = iffalse,
         }
     );
+    goto ret_ok;
+ret_ok:;
+    return (vm_arg_t){.type = VM_ARG_NONE};
 }
 
-static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
+static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
     // {
     //     vm_io_buffer_t *buf = vm_io_buffer_new();
     //     vm_ast_print_node(buf, 0, "ast = ", node);
@@ -408,7 +439,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *iftrue = vm_ast_comp_new_block(comp);
                     vm_block_t *iffalse = vm_ast_comp_new_block(comp);
                     vm_block_t *after = vm_ast_comp_new_block(comp);
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -436,7 +467,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     );
                     comp->cur = iftrue;
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
@@ -461,7 +492,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *iftrue = vm_ast_comp_new_block(comp);
                     vm_block_t *iffalse = vm_ast_comp_new_block(comp);
                     vm_block_t *after = vm_ast_comp_new_block(comp);
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -489,7 +520,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     );
                     comp->cur = iffalse;
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
@@ -520,7 +551,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *iftrue = vm_ast_comp_new_block(comp);
                     vm_block_t *iffalse = vm_ast_comp_new_block(comp);
                     vm_block_t *after = vm_ast_comp_new_block(comp);
-                    vm_ast_comp_br(comp, node, iftrue, iffalse);
+                    vm_ast_comp_br_rec(comp, node, iftrue, iffalse);
                     comp->cur = iftrue;
                     vm_arg_t true_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
@@ -573,12 +604,12 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_DO: {
-                    vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     return arg2;
                 }
                 case VM_AST_FORM_LOCAL: {
-                    vm_arg_t value_arg = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t value_arg = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_node_t target = form.args[0];
                     vm_arg_t local = vm_ast_comp_reg_named(comp, target.value.ident);
                     vm_ast_blocks_instr(
@@ -592,13 +623,13 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return vm_arg_nil();
                 }
                 case VM_AST_FORM_SET: {
-                    vm_arg_t value_arg = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t value_arg = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_node_t target = form.args[0];
                     if (target.type == VM_AST_NODE_IDENT) {
                         size_t local = vm_ast_comp_get_local(comp->names, target.value.ident);
                         if (local == SIZE_MAX) {
                             vm_ast_node_t node = vm_ast_build_ident(vm_strdup("_ENV"));
-                            vm_arg_t env_arg = vm_ast_comp_to(comp, node);
+                            vm_arg_t env_arg = vm_ast_comp_to_rec(comp, node);
                             vm_ast_free_node(node);
                             vm_arg_t key_arg = (vm_arg_t){
                                 .type = VM_ARG_LIT,
@@ -634,9 +665,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     }
                     if (target.type == VM_AST_NODE_FORM && target.value.form.type == VM_AST_FORM_LOAD) {
-                        vm_arg_t table = vm_ast_comp_to(comp, target.value.form.args[0]);
-                        vm_arg_t key = vm_ast_comp_to(comp, target.value.form.args[1]);
-                        vm_arg_t val = vm_ast_comp_to(comp, form.args[1]);
+                        vm_arg_t table = vm_ast_comp_to_rec(comp, target.value.form.args[0]);
+                        vm_arg_t key = vm_ast_comp_to_rec(comp, target.value.form.args[1]);
+                        vm_arg_t val = vm_ast_comp_to_rec(comp, form.args[1]);
                         vm_ast_blocks_instr(
                             comp,
                             (vm_instr_t){
@@ -677,7 +708,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 }
                 case VM_AST_FORM_LEN: {
                     vm_arg_t out = vm_ast_comp_reg(comp);
-                    vm_arg_t in = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t in = vm_ast_comp_to_rec(comp, form.args[0]);
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
@@ -689,8 +720,8 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_LOAD: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_arg_t out = vm_ast_comp_reg(comp);
                     vm_block_t *next = vm_ast_comp_new_block(comp);
                     vm_ast_blocks_branch(
@@ -706,11 +737,11 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_CALL: {
-                    vm_arg_t func = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t func = vm_ast_comp_to_rec(comp, form.args[0]);
                     vm_arg_t *args = vm_malloc(sizeof(vm_arg_t) * (form.len + 1));
                     args[0] = func;
                     for (size_t i = 1; i < form.len; i++) {
-                        args[i] = vm_ast_comp_to(comp, form.args[i]);
+                        args[i] = vm_ast_comp_to_rec(comp, form.args[i]);
                     }
                     args[form.len] = (vm_arg_t){
                         .type = VM_ARG_NONE,
@@ -730,8 +761,8 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_CONCAT: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_block_t *with_result = vm_ast_comp_new_block(comp);
 
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
@@ -763,8 +794,8 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return out;
                 }
                 case VM_AST_FORM_POW: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_block_t *with_result = vm_ast_comp_new_block(comp);
 
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
@@ -801,8 +832,8 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 case VM_AST_FORM_DIV:
                 case VM_AST_FORM_IDIV:
                 case VM_AST_FORM_MOD: {
-                    vm_arg_t arg1 = vm_ast_comp_to(comp, form.args[0]);
-                    vm_arg_t arg2 = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
+                    vm_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_arg_t out = vm_ast_comp_reg(comp);
                     uint8_t op;
                     switch (form.type) {
@@ -846,9 +877,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_block_t *iftrue = vm_ast_comp_new_block(comp);
                     vm_block_t *iffalse = vm_ast_comp_new_block(comp);
                     vm_block_t *after = vm_ast_comp_new_block(comp);
-                    vm_ast_comp_br(comp, form.args[0], iftrue, iffalse);
+                    vm_ast_comp_br_rec(comp, form.args[0], iftrue, iffalse);
                     comp->cur = iftrue;
-                    vm_arg_t true_value = vm_ast_comp_to(comp, form.args[1]);
+                    vm_arg_t true_value = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
@@ -866,7 +897,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                     );
                     comp->cur = iffalse;
-                    vm_arg_t false_value = vm_ast_comp_to(comp, form.args[2]);
+                    vm_arg_t false_value = vm_ast_comp_to_rec(comp, form.args[2]);
                     vm_ast_blocks_instr(
                         comp,
                         (vm_instr_t){
@@ -913,7 +944,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
                     vm_block_t *old_break = comp->on_break;
                     comp->on_break = NULL;
-                    vm_ast_comp_to(comp, form.args[2]);
+                    vm_ast_comp_to_rec(comp, form.args[2]);
                     comp->on_break = old_break;
 
                     vm_ast_blocks_branch(
@@ -975,22 +1006,22 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 case VM_AST_FORM_WHILE: {
                     vm_block_t *body = vm_ast_comp_new_block(comp);
                     vm_block_t *after = vm_ast_comp_new_block(comp);
-                    vm_ast_comp_br(comp, form.args[0], body, after);
+                    vm_ast_comp_br_rec(comp, form.args[0], body, after);
                     comp->cur = body;
                     vm_block_t *old_break = comp->on_break;
                     comp->on_break = after;
-                    vm_ast_comp_to(comp, form.args[1]);
+                    vm_ast_comp_to_rec(comp, form.args[1]);
                     comp->on_break = old_break;
-                    vm_ast_comp_br(comp, form.args[0], body, after);
+                    vm_ast_comp_br_rec(comp, form.args[0], body, after);
                     comp->cur = after;
                     return vm_arg_nil();
                 }
                 case VM_AST_FORM_BREAK: {
                     if (comp->on_break == NULL) {
-                        vm_io_buffer_t buf = {0};
-                        vm_ast_print_node(&buf, 0, "error node (break) = ", node);
-                        fprintf(stderr, "%.*s", (int)buf.len, buf.buf);
-                        exit(1);
+                        return (vm_arg_t){
+                            .type = VM_ARG_ERROR,
+                            .error = vm_error_from_msg("break not in block"),
+                        };
                     }
                     vm_block_t *after = vm_ast_comp_new_block(comp);
                     vm_ast_blocks_branch(
@@ -1005,7 +1036,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     return vm_arg_nil();
                 }
                 case VM_AST_FORM_RETURN: {
-                    vm_arg_t arg = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t arg = vm_ast_comp_to_rec(comp, form.args[0]);
                     vm_ast_blocks_branch(
                         comp,
                         (vm_branch_t){
@@ -1018,7 +1049,7 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 }
                 case VM_AST_FORM_SCOPE: {
                     size_t count = comp->names->regs.len;
-                    vm_arg_t ret = vm_ast_comp_to(comp, form.args[0]);
+                    vm_arg_t ret = vm_ast_comp_to_rec(comp, form.args[0]);
                     comp->names->regs.len = count;
                     return ret;
                 }
@@ -1039,9 +1070,9 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 };
                 return str;
             } else if (num.tag == VM_TAG_ERROR) {
-                comp->is_error = true;
                 return (vm_arg_t){
-                    .type = VM_ARG_NONE,
+                    .type = VM_ARG_ERROR,
+                    .error = vm_error_from_msg(num.value.str),
                 };
             } else {
                 return (vm_arg_t){
@@ -1093,10 +1124,10 @@ static vm_arg_t vm_ast_comp_to(vm_ast_comp_t *comp, vm_ast_node_t node) {
             }
         }
     }
-    vm_io_buffer_t buf = {0};
-    vm_ast_print_node(&buf, 0, "error node = ", node);
-    fprintf(stderr, "%.*s", (int)buf.len, buf.buf);
-    exit(1);
+    return (vm_arg_t){
+        .type = VM_ARG_ERROR,
+        .error = vm_error_from_msg("internal error: invalid or unhandled ast node type"),
+    };
 }
 
 vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
@@ -1105,7 +1136,6 @@ vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
         .names = NULL,
         .cur = NULL,
         .on_break = NULL,
-        .is_error = false,
     };
     vm_ast_comp_names_push(&comp);
     vm_block_t *entry = vm_ast_comp_new_block(&comp);
@@ -1119,7 +1149,17 @@ vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
             .args = vm_ast_args(0),
         }
     );
-    vm_ast_comp_to(&comp, node);
+    vm_arg_t result_arg = vm_ast_comp_to_raw(&comp, node);
+    if (result_arg.type == VM_ARG_ERROR) {
+        for (vm_error_t *error = result_arg.error; error != NULL; error = error->child) {
+            if (error->child != NULL) {
+                fprintf(stderr, "range: %zu .. %zu\n", error->range.start, error->range.stop);
+            } else {
+                fprintf(stderr, "error: %s\n", error->msg);
+                break;
+            }
+        }
+    }
     vm_ast_comp_names_t *names = vm_ast_comp_names_pop(&comp);
     for (size_t i = start; i < comp.blocks->len; i++) {
         vm_block_t *block = comp.blocks->blocks[i];

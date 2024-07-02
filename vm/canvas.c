@@ -2,14 +2,15 @@
 #include "./canvas.h"
 
 #if VM_USE_CANVAS
+#if !defined(EMSCRIPTEN)
+#error canvas only works with emscripten/emcc
+#endif
 #include <emscripten.h>
 
 void InitWindow(int width, int height, const char *title) {
     SetWindowSize(width, height);
 }
-void CloseWindow(void) {
-
-}
+void CloseWindow(void) {}
 
 int vm_canvas_target_fps = 60;
 

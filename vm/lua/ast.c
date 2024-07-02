@@ -2,9 +2,9 @@
 #include "../ast/ast.h"
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 #include "../ast/build.h"
+#include "../ast/comp.h"
 #include "../io.h"
 #include "../ir.h"
-#include "../ast/comp.h"
 
 const TSLanguage *tree_sitter_lua(void);
 
@@ -33,7 +33,36 @@ char *vm_lang_lua_gensym(vm_lang_lua_t src) {
     return buf;
 }
 
+vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node);
+
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
+    vm_location_t start = (vm_location_t) {
+        .byte = ts_node_start_byte(node),
+    };
+    vm_ast_node_t ret = vm_lang_lua_conv_raw(src, node);
+    vm_location_t stop = (vm_location_t) {
+        .byte = ts_node_end_byte(node),
+    };
+    ret.info.type = ts_node_type(node);
+    ret.info.range.start = start;
+    ret.info.range.stop = stop;
+    return ret;
+}
+
+vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
+    if (ts_node_is_error(node) || ts_node_is_missing(node)) {
+        vm_io_buffer_t *buf = vm_io_buffer_new();
+        vm_io_buffer_format(buf, "parsing %s node failed", ts_node_type(ts_node_parent(node)));
+        const char *msg = buf->buf;
+        vm_free(buf);
+        return (vm_ast_node_t){
+            .type = VM_AST_NODE_LITERAL,
+            .value.literal = (vm_obj_t){
+                .tag = VM_TAG_ERROR,
+                .value.str = msg
+            },
+        };
+    }
     const char *type = ts_node_type(node);
     size_t num_children = ts_node_child_count(node);
     if (!strcmp(type, "comment")) {
@@ -459,6 +488,7 @@ vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
             }
         }
         *buf++ = '\0';
+        vm_free(val);
         return vm_ast_build_literal(str, ret);
     }
     if (!strcmp(type, "number")) {
@@ -641,13 +671,14 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str) {
 vm_block_t *vm_compile(vm_t *vm, const char *src) {
     vm_ast_node_t ast = vm_lang_lua_parse(vm, src);
     vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
-    *next = (vm_blocks_srcs_t) {
+    *next = (vm_blocks_srcs_t){
         .last = vm->blocks->srcs,
         .src = src,
     };
     vm->blocks->srcs = next;
     size_t len = vm->blocks->len;
     vm_block_t *block = vm_ast_comp_more(vm, ast);
+    vm_ast_free_node(ast);
     if (vm->dump_ir) {
         vm_io_buffer_t *buf = vm_io_buffer_new();
         for (size_t i = len; i < vm->blocks->len; i++) {

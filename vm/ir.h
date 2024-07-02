@@ -2,7 +2,6 @@
 #if !defined(VM_HEADER_IR)
 #define VM_HEADER_IR
 
-
 struct vm_arg_t;
 struct vm_block_t;
 struct vm_blocks_srcs_t;
@@ -17,10 +16,13 @@ typedef struct vm_instr_t vm_instr_t;
 
 #include "./lib.h"
 #include "./io.h"
+#include "./errors.h"
 
 enum {
     // there are no more args
     VM_ARG_NONE,
+    // there was an error generating this arg
+    VM_ARG_ERROR,
     // we dont know
     VM_ARG_UNK,
     // normal args
@@ -63,6 +65,7 @@ struct vm_arg_t {
     union {
         vm_obj_t lit;
         vm_block_t *func;
+        vm_error_t *error;
 
         struct {
             uint64_t reg;
