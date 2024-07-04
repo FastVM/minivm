@@ -199,16 +199,31 @@ vm_save_t vm_save_value(vm_t *vm) {
         nsrcs += 1;
     }
     vm_save_write_uleb(&write, nsrcs);
-    const char **srcs = vm_malloc(sizeof(const char *) * nsrcs);
+    const char **srcs = vm_malloc(sizeof(const char *) * (nsrcs * 2));
     for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
         srcs[--nsrcs] = cur->src;
+        srcs[--nsrcs] = cur->file;
     }
     for (vm_blocks_srcs_t *cur = vm->blocks->srcs; cur; cur = cur->last) {
-        const char *src = srcs[nsrcs++];
-        size_t len = strlen(src);
-        vm_save_write_uleb(&write, (uint64_t)len);
-        for (size_t i = 0; i < len; i++) {
-            vm_save_write_byte(&write, (uint8_t)src[i]);
+        {
+            const char *file = srcs[nsrcs++];
+            if (file == NULL) {
+                vm_save_write_uleb(&write, 0);
+            } else {
+                size_t len = strlen(file);
+                vm_save_write_uleb(&write, (uint64_t)len);
+                for (size_t i = 0; i < len; i++) {
+                    vm_save_write_byte(&write, (uint8_t)file[i]);
+                }
+            }
+        }
+        {
+            const char *src = srcs[nsrcs++];
+            size_t len = strlen(src);
+            vm_save_write_uleb(&write, (uint64_t)len);
+            for (size_t i = 0; i < len; i++) {
+                vm_save_write_byte(&write, (uint8_t)src[i]);
+            }
         }
     }
     vm_free(srcs);

@@ -15,7 +15,7 @@
 #include "../../vendor/isocline/src/completions.h"
 
 const TSLanguage *tree_sitter_lua(void);
-vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
+vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file);
 
 vm_obj_t vm_repl_table_get(vm_table_t *table, const char *key) {
     vm_table_pair_t pair = (vm_table_pair_t){
@@ -172,21 +172,12 @@ void vm_repl(vm_t *vm) {
         
         ic_history_add(input);
 
-        vm_block_t *entry = vm_compile(vm, input);
+        vm_block_t *entry = vm_compile(vm, input, "__repl__");
 
         vm_obj_t value = vm_run_repl(vm, entry);
 
         if (value.tag == VM_TAG_ERROR) {
-            vm_error_t *error = value.value.error;
-            while (error != NULL) {
-                if (error->child != NULL) {
-                    fprintf(stderr, "in: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
-                } else if (error->msg != NULL) {
-                    fprintf(stderr, "at: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
-                    fprintf(stderr, "error: %s\n", error->msg);
-                }
-                error = error->child;
-            }
+            vm_error_report(value.value.error, stderr);
         } else if (value.tag != VM_TAG_NIL) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);

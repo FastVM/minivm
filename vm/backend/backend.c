@@ -1208,16 +1208,7 @@ new_block_no_print:;
 vm_obj_t vm_run_main(vm_t *vm, vm_block_t *entry) {
     vm_obj_t val = vm_run_repl(vm, entry);
     if (val.tag == VM_TAG_ERROR) {
-        vm_error_t *error = val.value.error;
-        while (error != NULL) {
-            if (error->child != NULL) {
-                fprintf(stderr, "in: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
-            } else if (error->msg != NULL) {
-                fprintf(stderr, "at: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
-                fprintf(stderr, "error: %s\n", error->msg);
-            }
-            error = error->child;
-        }
+        vm_error_report(val.value.error, stderr);
     }
     return val;
 }

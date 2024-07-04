@@ -4,7 +4,7 @@
 #include "../backend/backend.h"
 #include "value.h"
 
-vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str);
+vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file);
 
 struct vm_save_read_t;
 typedef struct vm_save_read_t vm_save_read_t;
@@ -220,13 +220,25 @@ outer:;
     vm->std = read.values.ptr[0].value;
     uint64_t nsrcs = vm_save_read_uleb(&read);
     for (uint64_t i = 0; i < nsrcs; i++) {
-        uint64_t len = vm_save_read_uleb(&read);
-        char *src = vm_malloc(sizeof(char) * (len + 1));
-        for (uint64_t j = 0; j < len; j++) {
-            src[j] = (char)vm_save_read_byte(&read);
+        char *file;
+        {
+            uint64_t len = vm_save_read_uleb(&read);
+            file = vm_malloc(sizeof(char) * (len + 1));
+            for (uint64_t j = 0; j < len; j++) {
+                file[j] = (char)vm_save_read_byte(&read);
+            }
+            file[len] = '\0';
         }
-        src[len] = '\0';
-        vm_compile(vm, src);
+        char *src;
+        {
+            uint64_t len = vm_save_read_uleb(&read);
+            src = vm_malloc(sizeof(char) * (len + 1));
+            for (uint64_t j = 0; j < len; j++) {
+                src[j] = (char)vm_save_read_byte(&read);
+            }
+            src[len] = '\0';
+        }
+        vm_compile(vm, src, file);
     }
 error:;
 }

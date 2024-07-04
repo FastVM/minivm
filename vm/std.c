@@ -57,7 +57,7 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
         };
     }
     const char *str = args[0].value.str;
-    vm_block_t *entry = vm_compile(vm, str);
+    vm_block_t *entry = vm_compile(vm, str, "__load__");
 
     vm_obj_t *vals = vm_malloc(sizeof(vm_obj_t) * 2);
     vals[0] = (vm_obj_t){
@@ -716,7 +716,7 @@ void vm_std_vm_import(vm_t *vm, vm_obj_t *args) {
         };
         return;
     }
-    vm_block_t *block = vm_compile(vm, src);
+    vm_block_t *block = vm_compile(vm, src, args[0].value.str);
     args[0] = vm_run_repl(vm, block);
     return;
 }

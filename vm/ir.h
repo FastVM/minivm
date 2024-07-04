@@ -120,6 +120,7 @@ struct vm_block_t {
 
 struct vm_blocks_srcs_t {
     vm_blocks_srcs_t *last;
+    const char *file;
     const char *src;
     void *data;
 };
@@ -148,6 +149,6 @@ void vm_free_block(vm_block_t *block);
 
 #define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL)})
 
-vm_block_t *vm_compile(vm_t *vm, const char *src);
+vm_block_t *vm_compile(vm_t *vm, const char *src, const char *file);
 
 #endif

@@ -34,6 +34,8 @@ struct vm_error_t {
 
 vm_error_t *vm_error_from_msg(vm_location_range_t range, const char *msg);
 vm_error_t *vm_error_from_error(vm_location_range_t range, vm_error_t *child);
+const char *vm_error_report_to_string(vm_error_t *error);
+void vm_error_report(vm_error_t *error, FILE *out);
 
 #define vm_location_unknown ((vm_location_t) {0})
 #define vm_location_range_unknown ((vm_location_range_t) {0})

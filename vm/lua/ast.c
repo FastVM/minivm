@@ -9,6 +9,7 @@
 const TSLanguage *tree_sitter_lua(void);
 
 typedef struct {
+    const char *file;
     const char *src;
     vm_t *vm;
     size_t *nsyms;
@@ -81,6 +82,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node);
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     vm_ast_node_t ret = vm_lang_lua_conv_raw(src, node);
     ret.info.type = ts_node_type(node);
+    ret.info.range.file = src.file;
     ret.info.range.src = src.src;
     ret.info.range.start = (vm_location_t){
         .byte = ts_node_start_byte(node),
@@ -668,7 +670,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
     return vm_ast_build_error(vm_io_format("unknown node type: %s", type));
 }
 
-vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str) {
+vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file) {
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_lua());
     TSTree *tree = ts_parser_parse_string(
@@ -683,6 +685,7 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str) {
     size_t nsyms = 0;
 
     vm_lang_lua_t src = (vm_lang_lua_t){
+        .file = file,
         .src = str,
         .vm = vm,
         .nsyms = &nsyms,
@@ -708,11 +711,12 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str) {
     return vm_ast_build_return(res);
 }
 
-vm_block_t *vm_compile(vm_t *vm, const char *src) {
-    vm_ast_node_t ast = vm_lang_lua_parse(vm, src);
+vm_block_t *vm_compile(vm_t *vm, const char *src, const char *file) {
+    vm_ast_node_t ast = vm_lang_lua_parse(vm, src, file);
     vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
     *next = (vm_blocks_srcs_t){
         .last = vm->blocks->srcs,
+        .file = file,
         .src = src,
     };
     vm->blocks->srcs = next;

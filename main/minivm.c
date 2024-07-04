@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
                 return 1;
             }
 
-            vm_block_t *entry = vm_compile(vm, src);
+            vm_block_t *entry = vm_compile(vm, src, name ? name : "__expr__");
 
             vm_obj_t value = vm_run_main(vm, entry);
             if (value.tag == VM_TAG_ERROR) {
