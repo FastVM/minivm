@@ -18,6 +18,7 @@ struct vm_ast_comp_t {
     vm_block_t *cur;
     vm_ast_comp_names_t *names;
     vm_block_t *on_break;
+    vm_location_range_t range;
 };
 
 struct vm_ast_comp_cap_t {
@@ -199,10 +200,12 @@ static vm_arg_t vm_ast_comp_reg(vm_ast_comp_t *comp) {
 }
 
 static void vm_ast_blocks_instr(vm_ast_comp_t *comp, vm_instr_t instr) {
+    instr.range = comp->range;
     vm_block_realloc(comp->cur, instr);
 }
 
 static void vm_ast_blocks_branch(vm_ast_comp_t *comp, vm_branch_t branch) {
+    branch.range = comp->range;
     if (comp->cur->branch.op != VM_BOP_FALL) {
         __builtin_trap();
     }
@@ -391,7 +394,7 @@ static vm_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, vm_b
             if (value.tag == VM_TAG_ERROR) {
                 return (vm_arg_t){
                     .type = VM_ARG_ERROR,
-                    .error = vm_error_from_msg(value.value.str),
+                    .error = value.value.error,
                 };
             }
             vm_ast_blocks_branch(
@@ -430,6 +433,9 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
     //     vm_ast_print_node(buf, 0, "ast = ", node);
     //     printf("%s\n", buf->buf);
     // }
+    if (node.info.range.start.byte != node.info.range.stop.byte) {
+        comp->range = node.info.range;
+    }
     switch (node.type) {
         case VM_AST_NODE_FORM: {
             vm_ast_form_t form = node.value.form;
@@ -1020,7 +1026,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     if (comp->on_break == NULL) {
                         return (vm_arg_t){
                             .type = VM_ARG_ERROR,
-                            .error = vm_error_from_msg("break not in block"),
+                            .error = vm_error_from_msg(vm_location_range_unknown, "break not in block"),
                         };
                     }
                     vm_block_t *after = vm_ast_comp_new_block(comp);
@@ -1072,7 +1078,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
             } else if (num.tag == VM_TAG_ERROR) {
                 return (vm_arg_t){
                     .type = VM_ARG_ERROR,
-                    .error = vm_error_from_msg(num.value.str),
+                    .error = num.value.error,
                 };
             } else {
                 return (vm_arg_t){
@@ -1126,7 +1132,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
     }
     return (vm_arg_t){
         .type = VM_ARG_ERROR,
-        .error = vm_error_from_msg("internal error: invalid or unhandled ast node type"),
+        .error = vm_error_from_msg(node.info.range, "internal error: invalid or unhandled ast node type"),
     };
 }
 
@@ -1153,7 +1159,7 @@ vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
     if (result_arg.type == VM_ARG_ERROR) {
         for (vm_error_t *error = result_arg.error; error != NULL; error = error->child) {
             if (error->child != NULL) {
-                fprintf(stderr, "range: %zu .. %zu\n", error->range.start, error->range.stop);
+                fprintf(stderr, "range: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
             } else {
                 fprintf(stderr, "error: %s\n", error->msg);
                 break;

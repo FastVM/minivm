@@ -322,6 +322,17 @@ enum {
 void vm_block_info(size_t nblocks, vm_block_t **blocks) {
     for (size_t i = 0; i < nblocks; i++) {
         vm_block_t *block = blocks[i];
+        if (block->len == 0) {
+            block->range = block->branch.range;
+        } else {
+            block->range.file = block->instrs[0].range.file;
+            block->range.src = block->instrs[0].range.src;
+            block->range.start = block->instrs[0].range.start;
+            block->range.stop = block->branch.range.stop;
+        }
+    }
+    for (size_t i = 0; i < nblocks; i++) {
+        vm_block_t *block = blocks[i];
         if (block->id < 0) {
             continue;
         }

@@ -14,7 +14,7 @@ void vm_ast_free_ident(const char *ident) {
 void vm_ast_free_literal(vm_obj_t literal) {
     switch (literal.tag) {
         case VM_TAG_ERROR: {
-            vm_free(literal.value.str);
+            // vm_free(literal.value.error.);
             break;
         }
         case VM_TAG_STR: {

@@ -70,6 +70,7 @@ union vm_value_t {
     vm_table_t *table;
     vm_obj_t *closure;
     vm_ffi_t *ffi;
+    struct vm_error_t *error;
 };
 
 struct vm_obj_t {

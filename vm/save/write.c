@@ -131,7 +131,6 @@ vm_save_t vm_save_value(vm_t *vm) {
                 vm_save_write_uleb(&write, (uint64_t)value.value.i64);
                 break;
             }
-            case VM_TAG_ERROR:
             case VM_TAG_STR: {
                 const char *buf = value.value.str;
                 size_t len = strlen(buf);

@@ -775,7 +775,7 @@ new_block_no_print:;
         if (v1.tag != VM_TAG_TAB) {
             return (vm_obj_t) {
                 .tag = VM_TAG_ERROR,
-                .value.str = "can only set index on tables",
+                .value.error = vm_error_from_msg(block->range, "can only set index on tables"),
             };
         }
         vm_table_set(v1.value.table, v2.value, v3.value, v2.tag, v3.tag);
@@ -793,7 +793,7 @@ new_block_no_print:;
         if (v1.tag != VM_TAG_TAB) {
             return (vm_obj_t) {
                 .tag = VM_TAG_ERROR,
-                .value.str = "can only get length on tables",
+                .value.error = vm_error_from_msg(block->range, "can only get length on tables"),
             };
         }
         vm_run_repl_out(VM_OBJ_NUMBER(vm, v1.value.table->len));
@@ -1105,7 +1105,7 @@ new_block_no_print:;
         if (v1.tag != VM_TAG_TAB) {
             return (vm_obj_t) {
                 .tag = VM_TAG_ERROR,
-                .value.str = "can only index tables",
+                .value.error = vm_error_from_msg(block->range, "can only index tables"),
             };
         }
         vm_table_get_pair(v1.value.table, &pair);
@@ -1148,7 +1148,10 @@ new_block_no_print:;
                 vm_obj_t got = vm_run_repl(vm, vm->blocks->blocks[v1.value.closure[0].value.i32]);
                 vm->regs = last_regs;
                 if (got.tag == VM_TAG_ERROR) {
-                    return got;
+                    return (vm_obj_t) {
+                        .tag = VM_TAG_ERROR,
+                        .value.error = vm_error_from_error(block->range, got.value.error),
+                    };
                 }
                 vm_run_repl_out(got);
                 block = vm_run_repl_read(vm_block_t *);
@@ -1182,7 +1185,10 @@ new_block_no_print:;
                 vm->regs = last_regs;
                 vm_obj_t got = next_regs[0];
                 if (got.tag == VM_TAG_ERROR) {
-                    return got;
+                    return (vm_obj_t) {
+                        .tag = VM_TAG_ERROR,
+                        .value.error = vm_error_from_error(block->range, got.value.error),
+                    };
                 }
                 vm_run_repl_out(next_regs[0]);
                 block = vm_run_repl_read(vm_block_t *);
@@ -1191,7 +1197,7 @@ new_block_no_print:;
             default: {
                 return (vm_obj_t) {
                     .tag = VM_TAG_ERROR,
-                    .value.str = "can only call functions",
+                    .value.error = vm_error_from_msg(block->range, "can only call functions"),
                 };
             }
         }
@@ -1202,7 +1208,16 @@ new_block_no_print:;
 vm_obj_t vm_run_main(vm_t *vm, vm_block_t *entry) {
     vm_obj_t val = vm_run_repl(vm, entry);
     if (val.tag == VM_TAG_ERROR) {
-        fprintf(stderr, "error: %s\n", val.value.str);
+        vm_error_t *error = val.value.error;
+        while (error != NULL) {
+            if (error->child != NULL) {
+                fprintf(stderr, "in: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
+            } else if (error->msg != NULL) {
+                fprintf(stderr, "at: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
+                fprintf(stderr, "error: %s\n", error->msg);
+            }
+            error = error->child;
+        }
     }
     return val;
 }

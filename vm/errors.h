@@ -17,24 +17,26 @@ struct vm_location_t {
 };
 
 struct vm_location_range_t {
+    const char *file;
     const char *src;
+    
     vm_location_t start;
     vm_location_t stop;
 };
 
 struct vm_error_t {
-    union {
-        // if child == NULL
-        const char *msg;
-        // if child != NULL
-        vm_location_range_t range;
-    };
+    const char *msg;
+
+    vm_location_range_t range;
 
     vm_error_t *child;
 };
 
-vm_error_t *vm_error_from_msg(const char *msg);
+vm_error_t *vm_error_from_msg(vm_location_range_t range, const char *msg);
 vm_error_t *vm_error_from_error(vm_location_range_t range, vm_error_t *child);
+
+#define vm_location_unknown ((vm_location_t) {0})
+#define vm_location_range_unknown ((vm_location_range_t) {0})
 
 #endif
 

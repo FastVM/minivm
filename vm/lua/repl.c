@@ -177,7 +177,16 @@ void vm_repl(vm_t *vm) {
         vm_obj_t value = vm_run_repl(vm, entry);
 
         if (value.tag == VM_TAG_ERROR) {
-            fprintf(stderr, "error: %s\n", value.value.str);
+            vm_error_t *error = value.value.error;
+            while (error != NULL) {
+                if (error->child != NULL) {
+                    fprintf(stderr, "in: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
+                } else if (error->msg != NULL) {
+                    fprintf(stderr, "at: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
+                    fprintf(stderr, "error: %s\n", error->msg);
+                }
+                error = error->child;
+            }
         } else if (value.tag != VM_TAG_NIL) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);

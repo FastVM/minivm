@@ -15,7 +15,7 @@ local apple = gui.Rectangle.rgb(200, 0, 0)
 
 local vars = {
     snake = {{2, ys // 2}},
-    dir = {2, 1}
+    dir = {2, 1},
     time = 1,
     sleep = 4,
     seed = 0,

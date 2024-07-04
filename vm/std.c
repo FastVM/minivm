@@ -1,28 +1,31 @@
 
 #include "./std.h"
 
-#include "./io.h"
-#include "./ir.h"
-#include "obj.h"
-#include "vm.h"
 #include "./backend/backend.h"
+#include "./io.h"
+#include "./errors.h"
+#include "./ir.h"
+#include "./obj.h"
+#include "./vm.h"
 
-#define VM_PAIR_VALUE(PAIR_) ({ \
+#define VM_LOCATION_RANGE_FUNC ((vm_location_range_t) { .file =  "<builtins>", .src = __func__ })
+
+#define VM_PAIR_VALUE(PAIR_) ({      \
     vm_table_pair_t pair_ = (PAIR_); \
-    (vm_obj_t) { \
-        .tag = pair_.val_tag, \
-        .value = pair_.val_val, \
-    }; \
+    (vm_obj_t){                      \
+        .tag = pair_.val_tag,        \
+        .value = pair_.val_val,      \
+    };                               \
 })
 
-#define VM_PAIR_PTR_VALUE(PPAIR_) ({ \
+#define VM_PAIR_PTR_VALUE(PPAIR_) ({   \
     vm_table_pair_t *pair_ = (PPAIR_); \
-    pair_ == NULL \
-    ? VM_OBJ_NIL \
-    : (vm_obj_t) { \
-        .tag = pair_->val_tag, \
-        .value = pair_->val_val, \
-    }; \
+    pair_ == NULL                      \
+        ? VM_OBJ_NIL                   \
+        : (vm_obj_t){                  \
+              .tag = pair_->val_tag,   \
+              .value = pair_->val_val, \
+          };                           \
 })
 
 static inline void vm_config_add_extern(vm_t *vm, void *value) {
@@ -50,7 +53,7 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
     if (args[0].tag == VM_TAG_STR) {
         *args = (vm_obj_t){
             .tag = VM_TAG_ERROR,
-            .value.str = "cannot load non-string value",
+            .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "cannot load non-string value"),
         };
     }
     const char *str = args[0].value.str;
@@ -346,7 +349,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
     if (fmt.tag == VM_TAG_STR) {
         *ret = (vm_obj_t){
             .tag = VM_TAG_ERROR,
-            .value.str = "invalid format (not a string)",
+            .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "invalid format (not a string)"),
         };
         return;
     }
@@ -380,7 +383,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
         if ('0' < *str && *str <= '9') {
             *ret = (vm_obj_t){
                 .tag = VM_TAG_ERROR,
-                .value.str = "invalid format (width > 99)",
+                .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "invalid format (width > 99)"),
             };
             return;
         }
@@ -396,7 +399,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
         if ('0' < *str && *str <= '9') {
             *ret = (vm_obj_t){
                 .tag = VM_TAG_ERROR,
-                .value.str = "invalid format (precision > 99)",
+                .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "invalid format (precision > 99)"),
             };
             return;
         }
@@ -404,7 +407,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
         if (!(0 < len || len > 48)) {
             *ret = (vm_obj_t){
                 .tag = VM_TAG_ERROR,
-                .value.str = "invalid format (too long to handle)",
+                .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "invalid format (too long to handle)"),
             };
             return;
         }
@@ -414,7 +417,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
         if (arg.tag == VM_TAG_UNK) {
             *ret = (vm_obj_t){
                 .tag = VM_TAG_ERROR,
-                .value.str = "too few args",
+                .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "too few args"),
             };
             return;
         }
@@ -424,7 +427,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 if (!vm_value_can_to_n64(arg)) {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "expected a number for %c format",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for %c format"),
                     };
                     return;
                 }
@@ -437,7 +440,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 if (!vm_value_can_to_n64(arg)) {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "expected a number for integer format",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for integer format"),
                     };
                     return;
                 }
@@ -449,7 +452,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 if (!vm_value_can_to_n64(arg)) {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "expected a number for %o format",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for %o format"),
                     };
                     return;
                 }
@@ -461,7 +464,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 if (!vm_value_can_to_n64(arg)) {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "expected a number for %u format",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for %u format"),
                     };
                     return;
                 }
@@ -473,7 +476,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 if (!vm_value_can_to_n64(arg)) {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "expected a number for %x format",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for %x format"),
                     };
                     return;
                 }
@@ -485,7 +488,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 if (!vm_value_can_to_n64(arg)) {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "expected a number for %X format",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for %X format"),
                     };
                     return;
                 }
@@ -502,7 +505,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 if (!vm_value_can_to_n64(arg)) {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "expected a number for float format",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for float format"),
                     };
                     return;
                 }
@@ -514,7 +517,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
             case 'q': {
                 *ret = (vm_obj_t){
                     .tag = VM_TAG_ERROR,
-                    .value.str = "unimplemented %q",
+                    .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "unimplemented %q"),
                 };
                 return;
             }
@@ -528,7 +531,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
                 } else {
                     *ret = (vm_obj_t){
                         .tag = VM_TAG_ERROR,
-                        .value.str = "unimplemented %s for a type",
+                        .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "unimplemented %s for a type"),
                     };
                     return;
                 }
@@ -537,7 +540,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
             default: {
                 *ret = (vm_obj_t){
                     .tag = VM_TAG_ERROR,
-                    .value.str = "unknown format type",
+                    .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "unknown format type"),
                 };
                 __builtin_trap();
                 return;
@@ -568,7 +571,7 @@ void vm_std_vm_typename(vm_t *vm, vm_obj_t *args) {
     if (args[0].tag != VM_TAG_STR) {
         *args = (vm_obj_t){
             .tag = VM_TAG_ERROR,
-            .value.str = "vm.type: expected string",
+            .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "vm.type: expected string"),
         };
         return;
     }
@@ -637,7 +640,7 @@ void vm_std_table_keys(vm_t *vm, vm_obj_t *args) {
     if (args[0].tag != VM_TAG_TAB) {
         *args = (vm_obj_t){
             .tag = VM_TAG_ERROR,
-            .value.str = "table.values: expect a table",
+            .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "table.values: expect a table"),
         };
         return;
     }
@@ -668,7 +671,7 @@ void vm_std_table_values(vm_t *vm, vm_obj_t *args) {
     if (args[0].tag != VM_TAG_TAB) {
         *args = (vm_obj_t){
             .tag = VM_TAG_ERROR,
-            .value.str = "table.values: expect a table",
+            .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "table.values: expect a table"),
         };
         return;
     }
@@ -699,7 +702,7 @@ void vm_lua_comp_op_std_pow(vm_t *vm, vm_obj_t *args);
 
 void vm_std_vm_import(vm_t *vm, vm_obj_t *args) {
     if (args[0].tag != VM_TAG_STR) {
-        args[0] = (vm_obj_t) {
+        args[0] = (vm_obj_t){
             .tag = VM_TAG_ERROR,
             .value.str = "import() must take a string"
         };
@@ -707,7 +710,7 @@ void vm_std_vm_import(vm_t *vm, vm_obj_t *args) {
     }
     const char *src = vm_io_read(args[0].value.str);
     if (src == NULL) {
-        args[0] = (vm_obj_t) {
+        args[0] = (vm_obj_t){
             .tag = VM_TAG_ERROR,
             .value.str = "import() no such file",
         };
@@ -741,7 +744,7 @@ static int vm_std_app_repl(void *arg) {
 static Color vm_value_to_color(vm_obj_t arg) {
     if (arg.tag == VM_TAG_I8 || arg.tag == VM_TAG_I16 || arg.tag == VM_TAG_I32 || arg.tag == VM_TAG_I64 || arg.tag == VM_TAG_F32 || arg.tag == VM_TAG_F64) {
         uint8_t c = vm_value_to_i64(arg);
-        return (Color) {
+        return (Color){
             c,
             c,
             c,
@@ -752,7 +755,7 @@ static Color vm_value_to_color(vm_obj_t arg) {
         vm_table_pair_t *g = VM_TABLE_LOOKUP_STR(arg.value.table, "green");
         vm_table_pair_t *b = VM_TABLE_LOOKUP_STR(arg.value.table, "blue");
         vm_table_pair_t *a = VM_TABLE_LOOKUP_STR(arg.value.table, "alpha");
-        return (Color) {
+        return (Color){
             r ? vm_value_to_i64(VM_PAIR_VALUE(*r)) : 0,
             g ? vm_value_to_i64(VM_PAIR_VALUE(*g)) : 0,
             b ? vm_value_to_i64(VM_PAIR_VALUE(*b)) : 0,
@@ -772,11 +775,11 @@ static Color vm_value_field_to_color(vm_obj_t arg, const char *field) {
 
 static Vector2 vm_value_to_vector2(vm_obj_t arg) {
     if (arg.tag != VM_TAG_TAB) {
-        return (Vector2) {0, 0};
+        return (Vector2){0, 0};
     }
     vm_table_pair_t *x = VM_TABLE_LOOKUP_STR(arg.value.table, "x");
     vm_table_pair_t *y = VM_TABLE_LOOKUP_STR(arg.value.table, "y");
-    return (Vector2) {
+    return (Vector2){
         x ? vm_value_to_i64(VM_PAIR_VALUE(*x)) : 0,
         y ? vm_value_to_i64(VM_PAIR_VALUE(*y)) : 0,
     };
@@ -784,7 +787,7 @@ static Vector2 vm_value_to_vector2(vm_obj_t arg) {
 
 static Vector2 vm_value_field_to_vector2(vm_obj_t arg, const char *field) {
     if (arg.tag != VM_TAG_TAB) {
-        return (Vector2) {0, 0};
+        return (Vector2){0, 0};
     }
     return vm_value_to_vector2(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, field)));
 }
@@ -794,7 +797,7 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg);
 static void vm_std_app_draw_tree_children(vm_t *vm, Rectangle rect, vm_table_t *tree) {
     int32_t i = 1;
     while (true) {
-        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t) { .i32 = i }, VM_TAG_I32));
+        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t){.i32 = i}, VM_TAG_I32));
         if (child.tag != VM_TAG_TAB) {
             break;
         }
@@ -809,7 +812,7 @@ static void vm_std_app_draw_tree_children_list(vm_t *vm, Rectangle rect, vm_tabl
         return;
     }
     float height = rect.height / len;
-    Rectangle child_rect = (Rectangle) {
+    Rectangle child_rect = (Rectangle){
         rect.x,
         rect.y,
         rect.width,
@@ -817,7 +820,7 @@ static void vm_std_app_draw_tree_children_list(vm_t *vm, Rectangle rect, vm_tabl
     };
     int32_t i = 1;
     while (true) {
-        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t) { .i32 = i }, VM_TAG_I32));
+        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t){.i32 = i}, VM_TAG_I32));
         if (child.tag != VM_TAG_TAB) {
             break;
         }
@@ -833,7 +836,7 @@ static void vm_std_app_draw_tree_children_split(vm_t *vm, Rectangle rect, vm_tab
         return;
     }
     float width = rect.width / len;
-    Rectangle child_rect = (Rectangle) {
+    Rectangle child_rect = (Rectangle){
         rect.x,
         rect.y,
         width,
@@ -841,7 +844,7 @@ static void vm_std_app_draw_tree_children_split(vm_t *vm, Rectangle rect, vm_tab
     };
     int32_t i = 1;
     while (true) {
-        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t) { .i32 = i }, VM_TAG_I32));
+        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t){.i32 = i}, VM_TAG_I32));
         if (child.tag != VM_TAG_TAB) {
             break;
         }
@@ -865,9 +868,9 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg) {
                 continue;
             }
             vm_std_app_draw_tree(vm, rect, (vm_obj_t){
-                .tag = pair->val_tag,
-                .value = pair->val_val,
-            });
+                                               .tag = pair->val_tag,
+                                               .value = pair->val_val,
+                                           });
         }
     } else if (std_type.tag == VM_TAG_STR) {
         const char *type = std_type.value.str;
@@ -884,9 +887,7 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg) {
             vm_obj_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
             if (button.tag == VM_TAG_STR) {
                 const char *name = button.value.str;
-                if ((!strcmp(name, "left") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-                || (!strcmp(name, "right") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-                || (!strcmp(name, "middle") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
+                if ((!strcmp(name, "left") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "right") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "middle") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
                     if (CheckCollisionPointRec(GetMousePosition(), rect)) {
                         vm_std_app_draw_tree(vm, rect, run);
                     }
@@ -898,9 +899,7 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg) {
             vm_obj_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
             if (button.tag == VM_TAG_STR) {
                 const char *name = button.value.str;
-                if ((!strcmp(name, "left") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
-                || (!strcmp(name, "right") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))
-                || (!strcmp(name, "middle") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))) {
+                if ((!strcmp(name, "left") && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "right") && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "middle") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))) {
                     if (CheckCollisionPointRec(GetMousePosition(), rect)) {
                         vm_std_app_draw_tree(vm, rect, run);
                     }
@@ -934,54 +933,7 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg) {
                 if (!strcmp(type, "keyreleased")) {
                     func = IsKeyReleased;
                 }
-                if ((!strcmp(key, "APOSTROPHE") && func('\''))
-                || (!strcmp(key, "SPACE") && func(' '))
-                || (!strcmp(key, "COMMA") && func(','))
-                || (!strcmp(key, "MINUS") && func('-'))
-                || (!strcmp(key, "PERIOD") && func('.'))
-                || (!strcmp(key, "SLASH") && func('/'))
-                || (!strcmp(key, "ZERO") && func('0'))
-                || (!strcmp(key, "ONE") && func('1'))
-                || (!strcmp(key, "TWO") && func('2'))
-                || (!strcmp(key, "THREE") && func('3'))
-                || (!strcmp(key, "FOUR") && func('4'))
-                || (!strcmp(key, "FIVE") && func('5'))
-                || (!strcmp(key, "SIX") && func('6'))
-                || (!strcmp(key, "SEVEN") && func('7'))
-                || (!strcmp(key, "EIGHT") && func('8'))
-                || (!strcmp(key, "NINE") && func('9'))
-                || (!strcmp(key, "SEMICOLON") && func(';'))
-                || (!strcmp(key, "EQUAL") && func('='))
-                || (!strcmp(key, "A") && func('A'))
-                || (!strcmp(key, "B") && func('B'))
-                || (!strcmp(key, "C") && func('C'))
-                || (!strcmp(key, "D") && func('D'))
-                || (!strcmp(key, "E") && func('E'))
-                || (!strcmp(key, "F") && func('F'))
-                || (!strcmp(key, "G") && func('G'))
-                || (!strcmp(key, "H") && func('H'))
-                || (!strcmp(key, "I") && func('I'))
-                || (!strcmp(key, "J") && func('J'))
-                || (!strcmp(key, "K") && func('K'))
-                || (!strcmp(key, "L") && func('L'))
-                || (!strcmp(key, "M") && func('M'))
-                || (!strcmp(key, "N") && func('N'))
-                || (!strcmp(key, "O") && func('O'))
-                || (!strcmp(key, "P") && func('P'))
-                || (!strcmp(key, "Q") && func('Q'))
-                || (!strcmp(key, "R") && func('R'))
-                || (!strcmp(key, "S") && func('S'))
-                || (!strcmp(key, "T") && func('T'))
-                || (!strcmp(key, "U") && func('U'))
-                || (!strcmp(key, "V") && func('V'))
-                || (!strcmp(key, "W") && func('W'))
-                || (!strcmp(key, "X") && func('X'))
-                || (!strcmp(key, "Y") && func('Y'))
-                || (!strcmp(key, "Z") && func('Z'))
-                || (!strcmp(key, "LEFT_BRACKET") && func('['))
-                || (!strcmp(key, "BACKSLASH") && func('\\'))
-                || (!strcmp(key, "RIGHT_BRACKET") && func(']'))
-                || (!strcmp(key, "GRAVE") && func('`'))) {
+                if ((!strcmp(key, "APOSTROPHE") && func('\'')) || (!strcmp(key, "SPACE") && func(' ')) || (!strcmp(key, "COMMA") && func(',')) || (!strcmp(key, "MINUS") && func('-')) || (!strcmp(key, "PERIOD") && func('.')) || (!strcmp(key, "SLASH") && func('/')) || (!strcmp(key, "ZERO") && func('0')) || (!strcmp(key, "ONE") && func('1')) || (!strcmp(key, "TWO") && func('2')) || (!strcmp(key, "THREE") && func('3')) || (!strcmp(key, "FOUR") && func('4')) || (!strcmp(key, "FIVE") && func('5')) || (!strcmp(key, "SIX") && func('6')) || (!strcmp(key, "SEVEN") && func('7')) || (!strcmp(key, "EIGHT") && func('8')) || (!strcmp(key, "NINE") && func('9')) || (!strcmp(key, "SEMICOLON") && func(';')) || (!strcmp(key, "EQUAL") && func('=')) || (!strcmp(key, "A") && func('A')) || (!strcmp(key, "B") && func('B')) || (!strcmp(key, "C") && func('C')) || (!strcmp(key, "D") && func('D')) || (!strcmp(key, "E") && func('E')) || (!strcmp(key, "F") && func('F')) || (!strcmp(key, "G") && func('G')) || (!strcmp(key, "H") && func('H')) || (!strcmp(key, "I") && func('I')) || (!strcmp(key, "J") && func('J')) || (!strcmp(key, "K") && func('K')) || (!strcmp(key, "L") && func('L')) || (!strcmp(key, "M") && func('M')) || (!strcmp(key, "N") && func('N')) || (!strcmp(key, "O") && func('O')) || (!strcmp(key, "P") && func('P')) || (!strcmp(key, "Q") && func('Q')) || (!strcmp(key, "R") && func('R')) || (!strcmp(key, "S") && func('S')) || (!strcmp(key, "T") && func('T')) || (!strcmp(key, "U") && func('U')) || (!strcmp(key, "V") && func('V')) || (!strcmp(key, "W") && func('W')) || (!strcmp(key, "X") && func('X')) || (!strcmp(key, "Y") && func('Y')) || (!strcmp(key, "Z") && func('Z')) || (!strcmp(key, "LEFT_BRACKET") && func('[')) || (!strcmp(key, "BACKSLASH") && func('\\')) || (!strcmp(key, "RIGHT_BRACKET") && func(']')) || (!strcmp(key, "GRAVE") && func('`'))) {
                     vm_std_app_draw_tree(vm, rect, run);
                 }
             }
@@ -992,7 +944,7 @@ static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg) {
 #if defined(VM_USE_CANVAS)
 #include <emscripten.h>
 
-EM_JS(void, vm_std_app_frame_loop, (vm_t *vm), {
+EM_JS(void, vm_std_app_frame_loop, (vm_t * vm), {
     Module._vm_std_app_frame_loop(vm);
 });
 
@@ -1000,7 +952,7 @@ void EMSCRIPTEN_KEEPALIVE vm_std_app_frame(vm_t *vm) {
     BeginDrawing();
     ClearBackground(RAYWHITE);
     vm_obj_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std.value.table, "draw"));
-    Rectangle rect = (Rectangle) {
+    Rectangle rect = (Rectangle){
         0,
         0,
         GetScreenWidth(),
@@ -1053,7 +1005,7 @@ void vm_std_app_init(vm_t *vm, vm_obj_t *args) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
         vm_obj_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std.value.table, "draw"));
-        Rectangle rect = (Rectangle) {
+        Rectangle rect = (Rectangle){
             0,
             0,
             GetScreenWidth(),
@@ -1137,14 +1089,14 @@ void vm_std_new(vm_t *vm) {
     vm_config_add_extern(vm, &vm_lua_comp_op_std_pow);
     vm_config_add_extern(vm, &vm_std_vm_closure);
 
-    #if VM_USE_RAYLIB
+#if VM_USE_RAYLIB
     {
         VM_TABLE_SET(std, str, "app", ffi, VM_STD_REF(vm, vm_std_app_init));
         VM_TABLE_SET(std, str, "draw", table, vm_table_new());
     }
-    #endif
+#endif
 
-    vm->std = (vm_obj_t) {
+    vm->std = (vm_obj_t){
         .tag = VM_TAG_TAB,
         .value.table = std,
     };

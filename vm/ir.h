@@ -77,6 +77,8 @@ struct vm_arg_t {
 };
 
 struct vm_branch_t {
+    vm_location_range_t range;
+
     vm_block_t *targets[VM_TAG_MAX];
 
     vm_arg_t *args;
@@ -87,13 +89,18 @@ struct vm_branch_t {
 };
 
 struct vm_instr_t {
-    vm_tag_t tag;
+    vm_location_range_t range;
+    
     vm_arg_t *args;
     uint8_t op;
+    
+    vm_tag_t tag;
     vm_arg_t out;
 };
 
 struct vm_block_t {
+    vm_location_range_t range;
+    
     size_t id;
     size_t nregs;
 

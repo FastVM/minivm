@@ -121,7 +121,6 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
                 value.i64 = (int64_t)n;
                 break;
             }
-            case VM_TAG_ERROR:
             case VM_TAG_STR: {
                 uint64_t len = vm_save_read_uleb(&read);
                 char *buf = vm_malloc(sizeof(char) * (len + 1));
