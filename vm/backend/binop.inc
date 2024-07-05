@@ -21,7 +21,11 @@
 
 switch (COMBINE(v1.tag, v2.tag)) {
     default: {
-        __builtin_trap();
+    WRITE (vm_obj_t) {
+        .tag = VM_TAG_ERROR,
+        .value.error = vm_error_from_msg(vm_location_range_unknown, "bad atithmatic"),
+    };
+    goto CONCAT(NAME, END);
     }
 LABEL(VM_TAG_TAB, VM_TAG_NIL)
 LABEL(VM_TAG_TAB, VM_TAG_BOOL)
@@ -37,7 +41,11 @@ LABEL(VM_TAG_TAB, VM_TAG_FUN)
 LABEL(VM_TAG_TAB, VM_TAG_TAB)
 LABEL(VM_TAG_TAB, VM_TAG_FFI)
 {
-    __builtin_trap();
+    WRITE (vm_obj_t) {
+        .tag = VM_TAG_ERROR,
+        .value.error = vm_error_from_msg(vm_location_range_unknown, "metatables not implemented yet"),
+    };
+    goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I8, VM_TAG_I8) {
     WRITE (vm_obj_t) {

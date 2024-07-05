@@ -49,11 +49,15 @@ const char *vm_error_report_to_string(vm_error_t *error) {
         if (error->child != NULL) {
             vm_place_t start = vm_location_get_line_num(error->range.src, error->range.start);
             vm_place_t stop = vm_location_get_line_num(error->range.src, error->range.stop);
-            vm_io_buffer_format(buf, "in: %s:%zu:%zu\n", error->range.file, start.line, start.col);
+            if (error->range.src != NULL) {
+                vm_io_buffer_format(buf, "in: %s:%zu:%zu\n", error->range.file, start.line, start.col);
+            }
         } else if (error->msg != NULL) {
             vm_place_t start = vm_location_get_line_num(error->range.src, error->range.start);
             vm_place_t stop = vm_location_get_line_num(error->range.src, error->range.stop);
-            vm_io_buffer_format(buf, "at: %s:%zu:%zu\n", error->range.file, start.line, start.col);
+            if (error->range.src != NULL) {
+                vm_io_buffer_format(buf, "at: %s:%zu:%zu\n", error->range.file, start.line, start.col);
+            }
             vm_io_buffer_format(buf, "error: %s\n", error->msg);
         }
         error = error->child;

@@ -813,6 +813,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_add(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -820,6 +826,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_add(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -827,6 +839,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_add(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -834,6 +852,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -841,6 +865,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -848,6 +878,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -855,6 +891,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -862,6 +904,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -869,6 +917,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -876,6 +930,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_div(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -883,6 +943,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_div(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -890,6 +956,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_div(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -897,6 +969,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -904,6 +982,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -911,6 +995,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -918,6 +1008,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -925,6 +1021,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
@@ -932,6 +1034,12 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
+        if (v3.tag == VM_TAG_ERROR) {
+            return (vm_obj_t) {
+                .tag = VM_TAG_ERROR,
+                .value.error = vm_error_from_error(block->range, v3.value.error),
+            };
+        }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }

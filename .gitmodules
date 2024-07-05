@@ -10,3 +10,6 @@
 [submodule "vendor/bdwgc"]
 	path = vendor/bdwgc
 	url = https://github.com/FastVM/minivm-bdwgc
+[submodule "vendor/mps"]
+	path = vendor/mps
+	url = https://github.com/Ravenbrook/mps

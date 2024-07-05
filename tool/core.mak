@@ -16,6 +16,7 @@ TEST_DIR ?= $(BUILD_DIR)/test
 
 VENDOR_DIR ?= vendor
 GC_DIR ?= $(VENDOR_DIR)/bdwgc
+MPS_DIR ?= $(VENDOR_DIR)/mps
 ISOCLINE_DIR ?= $(VENDOR_DIR)/isocline
 TREE_SITTER_DIR ?= $(VENDOR_DIR)/tree-sitter
 
@@ -35,7 +36,13 @@ PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 CFLAGS_VM_RAYLIB_YES = -DVM_USE_RAYLIB
 CFLAGS_VM += $(CFLAGS_VM_RAYLIB_$(RAYLIB))
 
-GC_SRCS += $(GC_DIR)/alloc.c $(GC_DIR)/allchblk.c $(GC_DIR)/blacklst.c $(GC_DIR)/dbg_mlc.c $(GC_DIR)/dyn_load.c $(GC_DIR)/finalize.c $(GC_DIR)/headers.c $(GC_DIR)/malloc.c $(GC_DIR)/mallocx.c $(GC_DIR)/mark.c $(GC_DIR)/mach_dep.c $(GC_DIR)/mark_rts.c $(GC_DIR)/misc.c $(GC_DIR)/new_hblk.c $(GC_DIR)/obj_map.c $(GC_DIR)/os_dep.c $(GC_DIR)/ptr_chck.c $(GC_DIR)/reclaim.c
+CFLAGS_VM += -DVM_GC_BDW
+GC_SRCS += $(GC_DIR)/extra/gc.c
+
+# CFLAGS_VM += -DVM_GC_MPS
+# GC_SRCS += $(MPS_DIR)/code/mps.c
+
+# CFLAGS_VM += -DVM_NO_GC
 
 ISOCLINE_SRCS += $(ISOCLINE_DIR)/src/isocline.c
 TREES_SRCS += $(TREE_SITTER_DIR)/lib/src/alloc.c $(TREE_SITTER_DIR)/lib/src/get_changed_ranges.c $(TREE_SITTER_DIR)/lib/src/language.c $(TREE_SITTER_DIR)/lib/src/lexer.c $(TREE_SITTER_DIR)/lib/src/node.c $(TREE_SITTER_DIR)/lib/src/parser.c $(TREE_SITTER_DIR)/lib/src/query.c $(TREE_SITTER_DIR)/lib/src/stack.c $(TREE_SITTER_DIR)/lib/src/subtree.c $(TREE_SITTER_DIR)/lib/src/tree_cursor.c $(TREE_SITTER_DIR)/lib/src/tree.c $(TREE_SITTER_DIR)/lib/src/wasm_store.c
