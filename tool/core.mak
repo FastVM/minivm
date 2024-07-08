@@ -36,13 +36,13 @@ PROG_OBJS = $(PROG_SRCS:%.c=$(OBJ_DIR)/%.o)
 CFLAGS_VM_RAYLIB_YES = -DVM_USE_RAYLIB
 CFLAGS_VM += $(CFLAGS_VM_RAYLIB_$(RAYLIB))
 
-CFLAGS_VM += -DVM_GC_BDW
-GC_SRCS += $(GC_DIR)/extra/gc.c
+# CFLAGS_VM += -DVM_GC_BDW
+# GC_SRCS += $(GC_DIR)/extra/gc.c
 
 # CFLAGS_VM += -DVM_GC_MPS
 # GC_SRCS += $(MPS_DIR)/code/mps.c
 
-# CFLAGS_VM += -DVM_NO_GC
+CFLAGS_VM += -DVM_NO_GC
 
 ISOCLINE_SRCS += $(ISOCLINE_DIR)/src/isocline.c
 TREES_SRCS += $(TREE_SITTER_DIR)/lib/src/alloc.c $(TREE_SITTER_DIR)/lib/src/get_changed_ranges.c $(TREE_SITTER_DIR)/lib/src/language.c $(TREE_SITTER_DIR)/lib/src/lexer.c $(TREE_SITTER_DIR)/lib/src/node.c $(TREE_SITTER_DIR)/lib/src/parser.c $(TREE_SITTER_DIR)/lib/src/query.c $(TREE_SITTER_DIR)/lib/src/stack.c $(TREE_SITTER_DIR)/lib/src/subtree.c $(TREE_SITTER_DIR)/lib/src/tree_cursor.c $(TREE_SITTER_DIR)/lib/src/tree.c $(TREE_SITTER_DIR)/lib/src/wasm_store.c
@@ -113,7 +113,7 @@ bins: $(BIN_DIR)/minivm$(EXE)
 
 minivm$(EXE) $(BIN_DIR)/minivm$(EXE): $(OBJ_DIR)/main/minivm.o $(OBJS)
 	$(MKDIR) $(dir $(@))
-	$(CC) $(OPT) $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) $(LDFLAGS)
+	$(CC) $(OBJ_DIR)/main/minivm.o $(OBJS) -o $(@) $(LDFLAGS)
 
 # tests
 
@@ -133,11 +133,11 @@ $(TEST_TEXTS): $(BIN_DIR)/minivm$(EXE) $(@:$(TEST_DIR)/%.diff=%.lua)
 
 $(VENDOR_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	$(MKDIR) $(dir $(@))
-	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) $(CFLAGS_VENDOR)
+	$(CC) -c $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) $(CFLAGS_VENDOR)
 
 $(PROG_OBJS) $(VM_OBJS): $(@:$(OBJ_DIR)/%.o=%.c)
 	$(MKDIR) $(dir $(@))
-	$(CC) -c $(OPT) $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) $(CFLAGS_VM)
+	$(CC) -c $(@:$(OBJ_DIR)/%.o=%.c) -o $(@) $(CFLAGS) $(CFLAGS_VM)
 
 # cleanup
 
