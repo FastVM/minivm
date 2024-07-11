@@ -37,8 +37,8 @@
     exit(1);
 #endif
 
+#if defined(VM_NO_GC)
 
-#if VM_NO_GC
 #define vm_mem_init() ((void) 0)
 
 static inline void *vm_malloc(size_t size) {
@@ -67,16 +67,18 @@ static inline char *vm_strdup(const char *str) {
     memcpy(buf, str, len + 1);
     return buf;
 }
-#else
 
-#if VM_GC_BDW
+#elif defined(VM_GC_BDW)
+
 #include "../vendor/bdwgc/include/gc.h"
-#define vm_mem_init() (GC_init())
-#define vm_malloc(s) (GC_malloc(s))
-#define vm_realloc(p, s) (GC_realloc(p, s))
-#define vm_free(s) (GC_free((void*) (s)))
-#define vm_strdup(s) (GC_strdup(s))
-#elif VM_GC_MPS
+#define vm_mem_init() (( GC_INIT() ), GC_start_mark_threads())
+#define vm_malloc(s) (GC_MALLOC(s))
+#define vm_realloc(p, s) (GC_REALLOC(p, s))
+#define vm_free(s) (GC_FREE((void*) (s)))
+#define vm_strdup(s) (GC_STRDUP(s))
+
+#elif defined(VM_GC_MPS)
+
 #include "../vendor/mps/code/mps.h"
 
 void vm_mem_init(void);
@@ -88,8 +90,6 @@ char *vm_strdup(const char *str);
 #else
 
 #error you need one of: VM_GC_BDW, VM_NO_GC, or VM_GC_MPS
-
-#endif
 
 #endif
 

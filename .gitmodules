@@ -13,3 +13,6 @@
 [submodule "vendor/mps"]
 	path = vendor/mps
 	url = https://github.com/Ravenbrook/mps
+[submodule "vendor/libatomic_ops"]
+	path = vendor/libatomic_ops
+	url = https://github.com/ivmai/libatomic_ops

@@ -25,22 +25,34 @@ MAC_RAYLIB_OBJS = $(RAYLIB_DIR)/rcore.o $(RAYLIB_DIR)/rglfw.o $(RAYLIB_DIR)/rsha
 
 MAC_BDWGC_PATH = /usr/local/lib/libgc.dylib
 
-mac-gc: .dummy
-	$(PRE) make -Bj$(J) -C $(BDWGC_DIR) -f makefile.direct base_lib
+mac-dep-bdwgc: .dummy
+	env \
+		CFLAGS_EXTRA="-DGC_THREADS -DPARALLEL_MARK $(OPT) $(CFLAGS)" \
+		LDFLAGS="$(OPT) $(LDFLAGS)" \
+		$(PRE) make -Bj$(J) -C $(BDWGC_DIR) -f Makefile.direct base_lib \
+		AO_SRC_DIR="../libatomic_ops"
 
-mac-raylib: .dummy
+mac-dep-raylib: .dummy
 	$(PRE) make -Bj$(J) -C vendor/raylib/src \
 		CC="$(RAYLIB_CC)" \
 		LDFLAGS="$(OPT)" \
 		CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" \
 		PLATFORM=PLATFORM_DESKTOP
 
-mac: mac-gc mac-raylib
+mac-bdwgc: mac-dep-bdwgc mac-dep-raylib
 	@test -f $(MAC_BDWGC_PATH) || echo "run make mac-gc first" && test -f $(MAC_BDWGC_PATH)
 	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC EXE= \
 		CC="$(CC)" \
-		CFLAGS="-DVM_USE_RAYLIB -DVM_GC_BDW $(CFLAGS)" \
-		LDFLAGS="$(MAC_RAYLIB_OBJS) $(BDWGC_DIR)/libgc.a -framework Cocoa -framework OpenGL -framework IOKit $(LDFLAGS)" \
+		CFLAGS="-DVM_USE_RAYLIB -DVM_GC_BDW -DGC_THREADS $(OPT) $(CFLAGS)" \
+		LDFLAGS="$(MAC_RAYLIB_OBJS) $(BDWGC_DIR)/libgc.a -framework Cocoa -framework OpenGL -framework IOKit $(OPT) $(LDFLAGS)"
+
+mac-basic: .dummy
+	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC EXE= \
+		CC="$(CC)" \
+		CFLAGS="-DVM_NO_GC=1 $(OPT) $(CFLAGS)" \
+		LDFLAGS="$(OPT) $(LDFLAGS)"
+
+mac: mac-bdwgc
 
 WINDOWS_RAYLIB_OBJS = $(RAYLIB_DIR)/rcore.o $(RAYLIB_DIR)/rglfw.o $(RAYLIB_DIR)/rshapes.o $(RAYLIB_DIR)/rtextures.o $(RAYLIB_DIR)/rtext.o $(RAYLIB_DIR)/rmodels.o $(RAYLIB_DIR)/raudio.o $(RAYLIB_DIR)/utils.o
 

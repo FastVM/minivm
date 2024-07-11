@@ -590,7 +590,9 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
                 }
                 args[real_nargs++] = vm_lang_lua_conv(src, arg);
             }
-            return vm_ast_build_do(set_obj, vm_ast_build_call(func, real_nargs, args));
+            vm_ast_node_t ret = vm_ast_build_do(set_obj, vm_ast_build_call(func, real_nargs, args));
+            vm_free(args);
+            return ret;
         } else {
             vm_ast_node_t func = vm_lang_lua_conv(src, func_node);
             TSNode args_node = vm_ts_node_child_checked(node, 1);
@@ -605,7 +607,9 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
                 }
                 args[real_nargs++] = vm_lang_lua_conv(src, arg);
             }
-            return vm_ast_build_call(func, real_nargs, args);
+            vm_ast_node_t ret = vm_ast_build_call(func, real_nargs, args);
+            vm_free(args);
+            return ret;
         }
     }
     if (!strcmp(type, "parenthesized_expression")) {
