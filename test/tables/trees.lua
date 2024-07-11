@@ -30,7 +30,7 @@ local function pow2(n)
 end
 
 local mindepth = 4
-local maxdepth = 14
+local maxdepth = tonumber(arg and arg[1]) or 16
 
 local stretchdepth = maxdepth + 1
 

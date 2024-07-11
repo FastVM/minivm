@@ -72,9 +72,9 @@ static inline char *vm_strdup(const char *str) {
 #if VM_GC_BDW
 #include "../vendor/bdwgc/include/gc.h"
 #define vm_mem_init() (GC_init())
-#define vm_malloc(s) (GC_debug_malloc_replacement(s))
-#define vm_realloc(p, s) (GC_debug_realloc_replacement(p, s))
-#define vm_free(s) ((void) (s))
+#define vm_malloc(s) (GC_malloc(s))
+#define vm_realloc(p, s) (GC_realloc(p, s))
+#define vm_free(s) (GC_free((void*) (s)))
 #define vm_strdup(s) (GC_strdup(s))
 #elif VM_GC_MPS
 #include "../vendor/mps/code/mps.h"

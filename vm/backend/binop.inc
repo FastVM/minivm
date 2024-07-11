@@ -20,12 +20,15 @@
 #define COMBINE(x, y) ((x)*VM_TAG_MAX + (y))
 
 switch (COMBINE(v1.tag, v2.tag)) {
+    // default: {
+    // WRITE (vm_obj_t) {
+    //     .tag = VM_TAG_ERROR,
+    //     .value.error = vm_error_from_msg(vm_location_range_unknown, "bad atithmatic"),
+    // };
+    // goto CONCAT(NAME, END);
+    // }
     default: {
-    WRITE (vm_obj_t) {
-        .tag = VM_TAG_ERROR,
-        .value.error = vm_error_from_msg(vm_location_range_unknown, "bad atithmatic"),
-    };
-    goto CONCAT(NAME, END);
+        __builtin_unreachable();
     }
 LABEL(VM_TAG_TAB, VM_TAG_NIL)
 LABEL(VM_TAG_TAB, VM_TAG_BOOL)
