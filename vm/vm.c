@@ -4,22 +4,26 @@
 
 #include "./ir.h"
 #include "./std.h"
-#include "./gc.h"
 #include "./backend/backend.h"
+#include "./gc.h"
 
 vm_t *vm_state_new(void) {
+    vm_obj_t *base = vm_malloc(sizeof(vm_obj_t) * 65536);
     vm_t *vm = vm_malloc(sizeof(vm_t));
     *vm = (vm_t) {
         .use_num = VM_USE_NUM_F64,
-        .regs = vm_malloc(sizeof(vm_obj_t) * 65536),
+        .base = base,
+        .regs = base,
     };
     vm_std_new(vm);
+    vm_gc_init(vm);
     vm->blocks = vm_malloc(sizeof(vm_blocks_t));
     *vm->blocks = (vm_blocks_t) {0};
     return vm;
 }
 
 void vm_state_delete(vm_t *vm) {
+    vm_gc_deinit(vm);
     for (size_t i = 0; i < vm->blocks->len; i++) {
         vm_block_t *block = vm->blocks->blocks[i];
         for (size_t j = 0; j < block->len; j++) {
@@ -65,10 +69,12 @@ vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename) {
         .value.i32 = (int32_t)entry->id,
     };
 
-    return (vm_obj_t){
+    vm_obj_t ret =  (vm_obj_t) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = closure,
     };
+    vm_gc_add(vm, ret);
+    return ret;
 }
 
 vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args) {

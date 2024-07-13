@@ -2,7 +2,8 @@
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../backend/backend.h"
-#include "value.h"
+#include "../gc.h"
+#include "./value.h"
 
 vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file);
 
@@ -153,7 +154,7 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
             }
             case VM_TAG_TAB: {
                 uint64_t real = vm_save_read_uleb(&read);
-                vm_table_t *table = vm_table_new();
+                vm_table_t *table = vm_table_new(vm);
                 for (size_t i = 0; i < real; i++) {
                     vm_save_read_uleb(&read);
                     vm_save_read_uleb(&read);
@@ -193,6 +194,7 @@ outer:;
                     size_t value_index = vm_save_read_uleb(&read);
                     closure->values[i] = read.values.ptr[value_index].value;
                 }
+                vm_gc_add(vm, (vm_obj_t) {.tag = tag, .value = value});
                 break;
             }
             case VM_TAG_TAB: {
@@ -203,6 +205,7 @@ outer:;
                     size_t value_index = vm_save_read_uleb(&read);
                     VM_TABLE_SET_VALUE(table, read.values.ptr[key_index].value, read.values.ptr[value_index].value);
                 }
+                vm_gc_add(vm, (vm_obj_t) {.tag = tag, .value = value});
                 break;
             }
             default: {

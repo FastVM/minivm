@@ -1,4 +1,5 @@
 #include "./obj.h"
+#include "./gc.h"
 
 int64_t vm_value_to_i64(vm_obj_t arg) {
     switch (arg.tag) {
@@ -323,11 +324,16 @@ void vm_table_init_size(vm_table_t *ret, size_t pow2) {
     ret->alloc = pow2;
     ret->used = 0;
     ret->len = 0;
+    ret->mark = false;
 }
 
-vm_table_t *vm_table_new_size(size_t pow2) {
+vm_table_t *vm_table_new_size(vm_t *vm,size_t pow2) {
     vm_table_t *ret = vm_malloc(sizeof(vm_table_t));
     vm_table_init_size(ret, pow2);
+    vm_gc_add(vm, (vm_obj_t) {
+        .tag = VM_TAG_TAB,
+        .value.table = ret,
+    });
     return ret;
 }
 
@@ -336,8 +342,8 @@ void vm_free_table(vm_table_t *table) {
     vm_free(table);
 }
 
-vm_table_t *vm_table_new(void) {
-    return vm_table_new_size(2);
+vm_table_t *vm_table_new(vm_t *vm) {
+    return vm_table_new_size(vm, 2);
 }
 
 vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag) {

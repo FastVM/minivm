@@ -23,8 +23,6 @@ enum {
     VM_ARG_NONE,
     // there was an error generating this arg
     VM_ARG_ERROR,
-    // we dont know
-    VM_ARG_UNK,
     // normal args
     VM_ARG_REG,
     VM_ARG_LIT,

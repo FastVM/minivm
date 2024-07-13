@@ -6,7 +6,7 @@
 #include "./errors.h"
 #include "./ir.h"
 #include "./obj.h"
-#include "./vm.h"
+#include "./gc.h"
 
 #define VM_LOCATION_RANGE_FUNC ((vm_location_range_t) { .file =  "<builtins>", .src = __func__ })
 
@@ -65,10 +65,12 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
         .tag = VM_TAG_FUN,
         .value.i32 = (int32_t)entry->id,
     };
-    *args = (vm_obj_t){
+    vm_obj_t ret =  (vm_obj_t) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = closure,
     };
+    vm_gc_add(vm, ret);
+    *args = ret;
     return;
 }
 
@@ -127,10 +129,12 @@ void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
     for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
         closure->values[i] = args[i];
     }
-    *args = (vm_obj_t){
+    vm_obj_t ret =  (vm_obj_t) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = closure,
     };
+    vm_gc_add(vm, ret);
+    *args = ret;
     return;
 }
 
@@ -547,7 +551,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
 }
 
 void vm_std_set_arg(vm_t *vm, const char *prog, const char *file, int argc, char **argv) {
-    vm_table_t *arg = vm_table_new();
+    vm_table_t *arg = vm_table_new(vm);
     if (prog != NULL) {
         VM_TABLE_SET_VALUE(arg, VM_OBJ_NUMBER(vm, -1), VM_OBJ_LITERAL(str, prog));
     }
@@ -637,7 +641,7 @@ void vm_std_table_keys(vm_t *vm, vm_obj_t *args) {
         };
         return;
     }
-    vm_table_t *ret = vm_table_new();
+    vm_table_t *ret = vm_table_new(vm);
     vm_table_t *tab = args[0].value.table;
     size_t len = 1 << tab->alloc;
     size_t write_head = 1;
@@ -668,7 +672,7 @@ void vm_std_table_values(vm_t *vm, vm_obj_t *args) {
         };
         return;
     }
-    vm_table_t *ret = vm_table_new();
+    vm_table_t *ret = vm_table_new(vm);
     vm_table_t *tab = args[0].value.table;
     size_t len = 1 << tab->alloc;
     size_t write_head = 1;
@@ -1025,24 +1029,24 @@ void vm_std_app_init(vm_t *vm, vm_obj_t *args) {
 #endif
 
 void vm_std_new(vm_t *vm) {
-    vm_table_t *std = vm_table_new();
+    vm_table_t *std = vm_table_new(vm);
 
     srand(0);
 
     {
-        vm_table_t *io = vm_table_new();
+        vm_table_t *io = vm_table_new(vm);
         VM_TABLE_SET(std, str, "io", table, io);
         VM_TABLE_SET(io, str, "write", ffi, VM_STD_REF(vm, vm_std_io_write));
     }
 
     {
-        vm_table_t *string = vm_table_new();
+        vm_table_t *string = vm_table_new(vm);
         VM_TABLE_SET(std, str, "string", table, string);
         VM_TABLE_SET(string, str, "format", ffi, VM_STD_REF(vm, vm_std_string_format));
     }
 
     {
-        vm_table_t *tvm = vm_table_new();
+        vm_table_t *tvm = vm_table_new(vm);
         VM_TABLE_SET(std, str, "vm", table, tvm);
         VM_TABLE_SET(tvm, str, "import", ffi, VM_STD_REF(vm, vm_std_vm_import));
         VM_TABLE_SET(tvm, str, "print", ffi, VM_STD_REF(vm, vm_std_vm_print));
@@ -1053,19 +1057,19 @@ void vm_std_new(vm_t *vm) {
     }
 
     {
-        vm_table_t *math = vm_table_new();
+        vm_table_t *math = vm_table_new(vm);
         VM_TABLE_SET(std, str, "math", table, math);
         VM_TABLE_SET(math, str, "randint", ffi, VM_STD_REF(vm, vm_std_math_rand_int));
     }
 
     {
-        vm_table_t *os = vm_table_new();
+        vm_table_t *os = vm_table_new(vm);
         VM_TABLE_SET(os, str, "exit", ffi, VM_STD_REF(vm, vm_std_os_exit));
         VM_TABLE_SET(std, str, "os", table, os);
     }
 
     {
-        vm_table_t *table = vm_table_new();
+        vm_table_t *table = vm_table_new(vm);
         VM_TABLE_SET(table, str, "keys", ffi, VM_STD_REF(vm, vm_std_table_keys));
         VM_TABLE_SET(table, str, "values", ffi, VM_STD_REF(vm, vm_std_table_values));
         VM_TABLE_SET(std, str, "table", table, table);
@@ -1086,7 +1090,7 @@ void vm_std_new(vm_t *vm) {
 #if VM_USE_RAYLIB
     {
         VM_TABLE_SET(std, str, "app", ffi, VM_STD_REF(vm, vm_std_app_init));
-        VM_TABLE_SET(std, str, "draw", table, vm_table_new());
+        VM_TABLE_SET(std, str, "draw", table, vm_table_new(vm));
     }
 #endif
 

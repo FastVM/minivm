@@ -784,7 +784,7 @@ new_block_no_print:;
     VM_OP_TABLE_NEW:; VM_OPCODE_DEBUG(table_new) {
         vm_run_repl_out(((vm_obj_t) {
             .tag = VM_TAG_TAB,
-            .value.table = vm_table_new(),
+            .value.table = vm_table_new(vm),
         }));
         vm_run_repl_jump();
     }

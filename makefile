@@ -2,13 +2,15 @@
  # Must be a GCC or Clang
 CC ?= cc
 
+OPT ?= -O2 -flto
+
 # Reset flags for base
-BASE_CFLAGS := -Ivendor/tree-sitter/lib/include
-BASE_LDFLAGS :=
+BASE_CFLAGS := ${OPT} -Ivendor/tree-sitter/lib/include ${CFLAGS}
+BASE_LDFLAGS := ${OPT} ${LDFLAGS}
 
 # object files and depends
 MAIN_SRCS = main/minivm.c
-VM_SRCS != find vm | grep \\.c
+VM_SRCS := $(shell find vm | grep \\.c)
 TS_SRCS += vendor/tree-sitter/lib/src/alloc.c vendor/tree-sitter/lib/src/get_changed_ranges.c vendor/tree-sitter/lib/src/language.c vendor/tree-sitter/lib/src/lexer.c vendor/tree-sitter/lib/src/node.c vendor/tree-sitter/lib/src/parser.c vendor/tree-sitter/lib/src/query.c vendor/tree-sitter/lib/src/stack.c vendor/tree-sitter/lib/src/subtree.c vendor/tree-sitter/lib/src/tree_cursor.c vendor/tree-sitter/lib/src/tree.c vendor/tree-sitter/lib/src/wasm_store.c
 IC_SRCS := vendor/isocline/src/isocline.c
 MAIN_SRCS += ${VM_SRCS} ${TS_SRCS} ${IC_SRCS}

@@ -39,9 +39,15 @@
 
 #if defined(VM_NO_GC)
 
+#if 1
+#define VM_MAYBE_INLINE
+#else
+#define VM_MAYBE_INLINE inline
+#endif
+
 #define vm_mem_init() ((void) 0)
 
-static inline void *vm_malloc(size_t size) {
+static VM_MAYBE_INLINE void *vm_malloc(size_t size) {
     void *ret = malloc(size);
     if (ret == NULL) {
         __builtin_trap();
@@ -49,7 +55,7 @@ static inline void *vm_malloc(size_t size) {
     return ret;
 }
 
-static inline void *vm_realloc(void *ptr, size_t size) {
+static VM_MAYBE_INLINE void *vm_realloc(void *ptr, size_t size) {
     void *ret = realloc(ptr, size);
     if (ret == NULL) {
         __builtin_trap();
@@ -57,11 +63,11 @@ static inline void *vm_realloc(void *ptr, size_t size) {
     return ret;
 }
 
-static inline void vm_free(const void *ptr) {
+static VM_MAYBE_INLINE void vm_free(const void *ptr) {
     free((void *)ptr);
 }
 
-static inline char *vm_strdup(const char *str) {
+static VM_MAYBE_INLINE char *vm_strdup(const char *str) {
     size_t len = strlen(str);
     char *buf = vm_malloc(sizeof(char) * (len + 1));
     memcpy(buf, str, len + 1);

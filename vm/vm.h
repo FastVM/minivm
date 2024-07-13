@@ -77,7 +77,8 @@ union vm_value_t {
 
 struct vm_obj_t {
     vm_value_t value;
-    vm_tag_t tag;
+    vm_tag_t tag: 8;
+    bool collect: 1;
 };
 
 struct vm_table_pair_t {
@@ -92,10 +93,12 @@ struct vm_table_t {
     uint32_t len;
     uint32_t used;
     uint8_t alloc;
+    bool mark: 1;
 };
 
 struct vm_closure_t {
-    uint32_t len;
+    bool mark: 1;
+    uint32_t len: 31;
     vm_obj_t values[];
 };
 
@@ -114,8 +117,9 @@ struct vm_t {
 
     vm_obj_t std;
 
-    void *mutex;
+    void *gc;
 
+    vm_obj_t *base;
     vm_obj_t *regs;
 
     bool dump_ir: 1;
