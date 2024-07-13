@@ -101,20 +101,20 @@ struct vm_instr_t {
 struct vm_block_t {
     vm_location_range_t range;
     
-    size_t id;
-    size_t nregs;
+    uint32_t id;
+    uint32_t nregs;
 
-    size_t alloc;
-    size_t len;
+    uint32_t alloc;
+    uint32_t len;
     vm_instr_t *instrs;
 
     vm_branch_t branch;
 
-    size_t nargs;
     vm_arg_t *args;
 
     void *code;
 
+    uint32_t nargs: 31;
     bool isfunc : 1;
 };
 

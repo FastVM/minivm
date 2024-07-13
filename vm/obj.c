@@ -420,6 +420,7 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
             }
         }
         vm_table_set(&ret, key_val, val_val, key_tag, val_tag);
+        vm_free(table->pairs);
         *table = ret;
     } else if (val_tag == VM_TAG_NIL) {
         table->pairs[next] = (vm_table_pair_t){

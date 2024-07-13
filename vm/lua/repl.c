@@ -174,6 +174,8 @@ void vm_repl(vm_t *vm) {
 
         vm_block_t *entry = vm_compile(vm, input, "__repl__");
 
+        free(input);
+
         vm_obj_t value = vm_run_repl(vm, entry);
 
         if (value.tag == VM_TAG_ERROR) {

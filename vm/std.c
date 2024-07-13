@@ -59,19 +59,15 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
     const char *str = args[0].value.str;
     vm_block_t *entry = vm_compile(vm, str, "__load__");
 
-    vm_obj_t *vals = vm_malloc(sizeof(vm_obj_t) * 2);
-    vals[0] = (vm_obj_t){
-        .tag = VM_TAG_I32,
-        .value.i32 = 1,
-    };
-    vals += 1;
-    vals[0] = (vm_obj_t){
+    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * 1);
+    closure->len = 1;
+    closure->values[0] = (vm_obj_t){
         .tag = VM_TAG_FUN,
         .value.i32 = (int32_t)entry->id,
     };
     *args = (vm_obj_t){
         .tag = VM_TAG_CLOSURE,
-        .value.closure = vals,
+        .value.closure = closure,
     };
     return;
 }
@@ -126,18 +122,14 @@ void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
         };
         return;
     }
-    vm_obj_t *vals = vm_malloc(sizeof(vm_obj_t) * (nargs + 1));
-    vals[0] = (vm_obj_t){
-        .tag = VM_TAG_I32,
-        .value.i32 = (int32_t)nargs,
-    };
-    vals += 1;
+    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * nargs);
+    closure->len = nargs;
     for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
-        vals[i] = args[i];
+        closure->values[i] = args[i];
     }
     *args = (vm_obj_t){
         .tag = VM_TAG_CLOSURE,
-        .value.closure = vals,
+        .value.closure = closure,
     };
     return;
 }
@@ -323,6 +315,7 @@ void vm_std_print(vm_t *vm, vm_obj_t *args) {
         first = false;
     }
     fprintf(stdout, "%.*s\n", (int)out.len, out.buf);
+    vm_free(out.buf);
     *ret = (vm_obj_t){
         .tag = VM_TAG_NIL,
     };
@@ -718,6 +711,7 @@ void vm_std_vm_import(vm_t *vm, vm_obj_t *args) {
     }
     vm_block_t *block = vm_compile(vm, src, args[0].value.str);
     args[0] = vm_run_repl(vm, block);
+    vm_free(src);
     return;
 }
 

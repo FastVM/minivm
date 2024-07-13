@@ -1170,27 +1170,27 @@ new_block_no_print:;
         vm_obj_t v3;
         switch (v2.tag) {
             case VM_TAG_I8: {
-                v3 = v1.value.closure[v2.value.i8];
+                v3 = v1.value.closure->values[v2.value.i8];
                 break;
             }
             case VM_TAG_I16: {
-                v3 = v1.value.closure[v2.value.i16];
+                v3 = v1.value.closure->values[v2.value.i16];
                 break;
             }
             case VM_TAG_I32: {
-                v3 = v1.value.closure[v2.value.i32];
+                v3 = v1.value.closure->values[v2.value.i32];
                 break;
             }
             case VM_TAG_I64: {
-                v3 = v1.value.closure[v2.value.i64];
+                v3 = v1.value.closure->values[v2.value.i64];
                 break;
             }
             case VM_TAG_F32: {
-                v3 = v1.value.closure[(int32_t) v2.value.f32];
+                v3 = v1.value.closure->values[(int32_t) v2.value.f32];
                 break;
             }
             case VM_TAG_F64: {
-                v3 = v1.value.closure[(int32_t) v2.value.f64];
+                v3 = v1.value.closure->values[(int32_t) v2.value.f64];
                 break;
             }
             default: {
@@ -1253,7 +1253,7 @@ new_block_no_print:;
                 next_regs[j].tag = VM_TAG_UNK;
                 vm_obj_t *last_regs = regs;
                 vm->regs = next_regs;
-                vm_obj_t got = vm_run_repl(vm, vm->blocks->blocks[v1.value.closure[0].value.i32]);
+                vm_obj_t got = vm_run_repl(vm, vm->blocks->blocks[v1.value.closure->values[0].value.i32]);
                 vm->regs = last_regs;
                 if (got.tag == VM_TAG_ERROR) {
                     return (vm_obj_t) {

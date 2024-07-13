@@ -15,16 +15,7 @@
 int main(int argc, char **argv) {
     vm_mem_init();
     
-    vm_t *vm = vm_malloc(sizeof(vm_t));
-    *vm = (vm_t) {
-        .use_num = VM_USE_NUM_F64,
-        .regs = vm_malloc(sizeof(vm_obj_t) * 65536),
-    };
-
-    vm_std_new(vm);
-    
-    vm->blocks = vm_malloc(sizeof(vm_blocks_t));
-    *vm->blocks = (vm_blocks_t) {0};
+    vm_t *vm = vm_state_new();
 
     bool echo = false;
     bool isrepl = true;
@@ -86,6 +77,7 @@ int main(int argc, char **argv) {
                 vm->use_num = VM_USE_NUM_F64;
             } else {
                 fprintf(stderr, "error: cannot use have as a number type: %s\n", arg);
+                vm_state_delete(vm);
                 return 1;
             }
         } else {
@@ -110,6 +102,7 @@ int main(int argc, char **argv) {
 
             if (src == NULL) {
                 fprintf(stderr, "error: no such file: %s\n", arg);
+                vm_state_delete(vm);
                 return 1;
             }
 
@@ -117,6 +110,7 @@ int main(int argc, char **argv) {
 
             vm_obj_t value = vm_run_main(vm, entry);
             if (value.tag == VM_TAG_ERROR) {
+                vm_state_delete(vm);
                 return 1;
             }
             if (echo) {
@@ -134,6 +128,8 @@ int main(int argc, char **argv) {
     if (isrepl) {
         vm_repl(vm);
     }
+
+    vm_state_delete(vm);
 
     return 0;
 }

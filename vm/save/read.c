@@ -143,12 +143,8 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
             }
             case VM_TAG_CLOSURE: {
                 uint64_t len = vm_save_read_uleb(&read);
-                vm_obj_t *closure = vm_malloc(sizeof(vm_obj_t) * (len + 1));
-                closure[0] = (vm_obj_t){
-                    .tag = VM_TAG_I32,
-                    .value.i32 = (int32_t)(uint32_t)len,
-                };
-                closure += 1;
+                vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * len);
+                closure->len = len;
                 for (size_t i = 0; i < len; i++) {
                     vm_save_read_uleb(&read);
                 }
@@ -192,10 +188,10 @@ outer:;
         switch (tag) {
             case VM_TAG_CLOSURE: {
                 uint64_t len = vm_save_read_uleb(&read);
-                vm_obj_t *closure = value.closure;
+                vm_closure_t *closure = value.closure;
                 for (uint64_t i = 0; i < len; i++) {
                     size_t value_index = vm_save_read_uleb(&read);
-                    closure[i] = read.values.ptr[value_index].value;
+                    closure->values[i] = read.values.ptr[value_index].value;
                 }
                 break;
             }

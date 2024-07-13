@@ -77,19 +77,9 @@ static inline char *vm_strdup(const char *str) {
 #define vm_free(s) (GC_FREE((void*) (s)))
 #define vm_strdup(s) (GC_STRDUP(s))
 
-#elif defined(VM_GC_MPS)
-
-#include "../vendor/mps/code/mps.h"
-
-void vm_mem_init(void);
-void *vm_malloc(size_t size);
-void *vm_realloc(void *p, size_t size);
-void vm_free(const void *p);
-char *vm_strdup(const char *str);
-
 #else
 
-#error you need one of: VM_GC_BDW, VM_NO_GC, or VM_GC_MPS
+#error you need one of: VM_GC_BDW, VM_NO_GC
 
 #endif
 

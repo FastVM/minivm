@@ -10,6 +10,7 @@
 
 struct vm_t;
 struct vm_blocks_t;
+struct vm_closure_t;
 struct vm_externs_t;
 struct vm_obj_t;
 union vm_value_t;
@@ -19,6 +20,7 @@ struct vm_table_pair_t;
 
 typedef struct vm_t vm_t;
 typedef struct vm_blocks_t vm_blocks_t;
+typedef struct vm_closure_t vm_closure_t;
 typedef struct vm_externs_t vm_externs_t;
 typedef struct vm_obj_t vm_obj_t;
 typedef union vm_value_t vm_value_t;
@@ -68,7 +70,7 @@ union vm_value_t {
     double f64;
     const char *str;
     vm_table_t *table;
-    vm_obj_t *closure;
+    vm_closure_t *closure;
     vm_ffi_t *ffi;
     struct vm_error_t *error;
 };
@@ -92,6 +94,11 @@ struct vm_table_t {
     uint8_t alloc;
 };
 
+struct vm_closure_t {
+    uint32_t len;
+    vm_obj_t values[];
+};
+
 struct vm_externs_t {
     size_t id;
     void *value;
@@ -113,6 +120,12 @@ struct vm_t {
 
     bool dump_ir: 1;
 };
+
+vm_t *vm_state_new(void);
+void vm_state_delete(vm_t *vm);
+
+vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename);
+vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args);
 
 void vm_repl(vm_t *config);
 

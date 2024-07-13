@@ -3,6 +3,6 @@
 
 #include "../lib.h"
 
-void vm_repl(vm_t *config);
+void vm_repl(vm_t *vm);
 
 #endif

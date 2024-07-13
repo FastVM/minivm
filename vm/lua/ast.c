@@ -716,6 +716,8 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file) {
 }
 
 vm_block_t *vm_compile(vm_t *vm, const char *src, const char *file) {
+    src = vm_strdup(src);
+    file = vm_strdup(file);
     vm_ast_node_t ast = vm_lang_lua_parse(vm, src, file);
     vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
     *next = (vm_blocks_srcs_t){

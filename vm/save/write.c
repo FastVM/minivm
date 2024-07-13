@@ -141,11 +141,10 @@ vm_save_t vm_save_value(vm_t *vm) {
                 break;
             }
             case VM_TAG_CLOSURE: {
-                vm_obj_t *closure = value.value.closure;
-                uint32_t len = closure[-1].value.i32;
-                vm_save_write_uleb(&write, (uint64_t)len);
-                for (uint32_t i = 0; i < len; i++) {
-                    size_t ent = vm_save_write_push(&write, closure[i]);
+                vm_closure_t *closure = value.value.closure;
+                vm_save_write_uleb(&write, (uint64_t)closure->len);
+                for (uint32_t i = 0; i < closure->len; i++) {
+                    size_t ent = vm_save_write_push(&write, closure->values[i]);
                     vm_save_write_uleb(&write, (uint64_t)ent);
                 }
                 break;
