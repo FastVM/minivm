@@ -21,19 +21,19 @@
 
 switch (COMBINE(v1.tag, v2.tag)) {
 LABEL(VM_TAG_BOOL, VM_TAG_BOOL) {
-    WRITE OP(v1.value.all, v2.value.all);
+    WRITE OP(v1.value.b, v2.value.b);
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_STR, VM_TAG_STR) {
-    WRITE OP_S(v1.value.str, v2.value.str);
+    WRITE OP_S(v1.value.str->buf, v2.value.str->buf);
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_CLOSURE, VM_TAG_CLOSURE) {
-    WRITE OP(v1.value.str, v2.value.str);
+    WRITE OP(v1.value.all, v2.value.all);
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_TAB, VM_TAG_CLOSURE) {
-    WRITE OP(v1.value.str, v2.value.str);
+    WRITE OP(v1.value.all, v2.value.all);
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_I8, VM_TAG_I8) {

@@ -130,7 +130,7 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
             break;
         }
         case VM_TAG_STR: {
-            vm_io_buffer_format(out, "\"%s\"", value.value.str);
+            vm_io_buffer_format(out, "\"%s\"", value.value.str->buf);
             break;
         }
     }
@@ -200,7 +200,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
         }
         case VM_TAG_STR: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "\"%s\"\n", value.value.str);
+            vm_io_buffer_format(out, "\"%s\"\n", value.value.str->buf);
             break;
         }
         case VM_TAG_CLOSURE: {
@@ -300,7 +300,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
                             .value = p.val_val,
                         };
                         vm_io_buffer_t buf = {0};
-                        vm_io_buffer_format(&buf, "%s = ", p.key_val.str);
+                        vm_io_buffer_format(&buf, "%s = ", p.key_val.str->buf);
                         vm_io_debug(out, indent + 1, buf.buf, val, &next);
                         vm_free(buf.buf);
                         break;
@@ -375,7 +375,7 @@ void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
             break;
         }
         case VM_TAG_STR: {
-            vm_io_buffer_format(buf, "%s", value.value.str);
+            vm_io_buffer_format(buf, "%s", value.value.str->buf);
             break;
         }
         case VM_TAG_CLOSURE: {
@@ -395,4 +395,10 @@ void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
             break;
         }
     }
+}
+
+vm_io_buffer_t *vm_io_buffer_from_str(const char *str) {
+    vm_io_buffer_t *buf = vm_io_buffer_new();
+    vm_io_buffer_format(buf, "%s", str);
+    return buf;
 }

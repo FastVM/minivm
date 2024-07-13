@@ -257,3 +257,11 @@ vm_ast_node_t vm_ast_build_nil(void) {
         },
     };
 }
+
+
+vm_ast_node_t vm_ast_build_obj(vm_obj_t obj) {
+    return (vm_ast_node_t){
+        .type = VM_AST_NODE_LITERAL,
+        .value.literal = obj,
+    };
+}

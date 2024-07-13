@@ -19,6 +19,7 @@ struct vm_ast_comp_t {
     vm_ast_comp_names_t *names;
     vm_block_t *on_break;
     vm_location_range_t range;
+    vm_t *vm;
 };
 
 struct vm_ast_comp_cap_t {
@@ -639,10 +640,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             vm_ast_free_node(node);
                             vm_arg_t key_arg = (vm_arg_t){
                                 .type = VM_ARG_LIT,
-                                .lit = (vm_obj_t){
-                                    .tag = VM_TAG_STR,
-                                    .value.str = vm_strdup(target.value.ident),
-                                },
+                                .lit = vm_str(comp->vm, target.value.ident),
                             };
                             vm_ast_blocks_instr(
                                 comp,
@@ -1056,6 +1054,9 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 case VM_AST_FORM_SCOPE: {
                     size_t count = comp->names->regs.len;
                     vm_arg_t ret = vm_ast_comp_to_rec(comp, form.args[0]);
+                    for (size_t i = count; i < comp->names->regs.len; i++) {
+                        vm_free(comp->names->regs.ptr[i]);
+                    }
                     comp->names->regs.len = count;
                     return ret;
                 }
@@ -1069,10 +1070,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
             } else if (num.tag == VM_TAG_STR) {
                 vm_arg_t str = (vm_arg_t){
                     .type = VM_ARG_LIT,
-                    .lit = (vm_obj_t){
-                        .tag = VM_TAG_STR,
-                        .value.str = vm_strdup(num.value.str),
-                    },
+                    .lit = num,
                 };
                 return str;
             } else if (num.tag == VM_TAG_ERROR) {
@@ -1108,10 +1106,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 if (got.type != VM_ARG_NONE) {
                     vm_arg_t env_key = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_obj_t){
-                            .tag = VM_TAG_STR,
-                            .value.str = vm_strdup(lit),
-                        },
+                        .lit = vm_str(comp->vm, lit),
                     };
                     vm_arg_t out = vm_ast_comp_reg(comp);
                     vm_block_t *next = vm_ast_comp_new_block(comp);
@@ -1142,6 +1137,7 @@ vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
         .names = NULL,
         .cur = NULL,
         .on_break = NULL,
+        .vm = vm,
     };
     vm_ast_comp_names_push(&comp);
     vm_block_t *entry = vm_ast_comp_new_block(&comp);

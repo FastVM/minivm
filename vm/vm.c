@@ -15,8 +15,8 @@ vm_t *vm_state_new(void) {
         .base = base,
         .regs = base,
     };
-    vm_std_new(vm);
     vm_gc_init(vm);
+    vm_std_new(vm);
     vm->blocks = vm_malloc(sizeof(vm_blocks_t));
     *vm->blocks = (vm_blocks_t) {0};
     return vm;
@@ -24,6 +24,7 @@ vm_t *vm_state_new(void) {
 
 void vm_state_delete(vm_t *vm) {
     vm_gc_deinit(vm);
+
     for (size_t i = 0; i < vm->blocks->len; i++) {
         vm_block_t *block = vm->blocks->blocks[i];
         for (size_t j = 0; j < block->len; j++) {
@@ -102,5 +103,14 @@ vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args) {
             break;
         }
     }
+    return ret;
+}
+
+vm_obj_t vm_str(vm_t *vm, const char *str) {
+    vm_obj_t ret = (vm_obj_t) {
+        .tag = VM_TAG_STR,
+        .value.str = vm_io_buffer_from_str(str),
+    };
+    vm_gc_add(vm, ret);
     return ret;
 }

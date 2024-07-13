@@ -203,7 +203,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
                 return vm_ast_build_set(
                     vm_ast_build_load(
                         vm_lang_lua_conv(src, vm_ts_node_child_checked(target, 0)),
-                        vm_ast_build_literal(str, vm_lang_lua_src(src, vm_ts_node_child_checked(target, 2)))
+                        vm_ast_build_obj(vm_str(src.vm, vm_lang_lua_src(src, vm_ts_node_child_checked(target, 2))))
                     ),
                     vm_ast_build_lambda(
                         vm_ast_build_nil(),
@@ -483,7 +483,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         if (ts_node_child_count(node) == 2) {
             char *ret = vm_malloc(sizeof(char) * 1);
             ret[0] = '\0';
-            return vm_ast_build_literal(str, ret);
+            return vm_ast_build_obj(vm_str(src.vm, ret));
         }
         TSNode content = vm_ts_node_child_checked(node, 1);
         char *val = vm_lang_lua_src(src, content);
@@ -521,7 +521,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         }
         *buf++ = '\0';
         vm_free(val_head);
-        return vm_ast_build_literal(str, ret);
+        return vm_ast_build_obj(vm_str(src.vm, ret));
     }
     if (!strcmp(type, "number")) {
         const char *str = vm_lang_lua_src(src, node);
@@ -575,7 +575,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(ts_node_type(func_node), "method_index_expression")) {
             const char *obj = vm_lang_lua_gensym(src);
             vm_ast_node_t set_obj = vm_ast_build_local(vm_ast_build_ident(obj), vm_lang_lua_conv(src, vm_ts_node_child_checked(func_node, 0)));
-            vm_ast_node_t index = vm_ast_build_literal(str, vm_lang_lua_src(src, vm_ts_node_child_checked(func_node, 2)));
+            vm_ast_node_t index = vm_ast_build_obj(vm_str(src.vm, vm_lang_lua_src(src, vm_ts_node_child_checked(func_node, 2))));
             vm_ast_node_t func = vm_ast_build_load(vm_ast_build_ident(vm_strdup(obj)), index);
             TSNode args_node = vm_ts_node_child_checked(node, 1);
             size_t nargs = ts_node_child_count(args_node);
@@ -635,7 +635,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
                     nfields += 1;
                 } else if (sub_children == 3) {
                     char *key_field = vm_lang_lua_src(src, vm_ts_node_child_checked(sub, 0));
-                    vm_ast_node_t key = vm_ast_build_literal(str, key_field);
+                    vm_ast_node_t key = vm_ast_build_obj(vm_str(src.vm, key_field));
                     vm_ast_node_t value = vm_lang_lua_conv(src, vm_ts_node_child_checked(sub, 2));
                     cur = vm_ast_build_set(vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), key), value);
                 } else if (sub_children == 5) {
@@ -660,7 +660,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "dot_index_expression")) {
         vm_ast_node_t table = vm_lang_lua_conv(src, vm_ts_node_child_checked(node, 0));
         char *field = vm_lang_lua_src(src, vm_ts_node_child_checked(node, 2));
-        return vm_ast_build_load(table, vm_ast_build_literal(str, field));
+        return vm_ast_build_load(table, vm_ast_build_obj(vm_str(src.vm, field)));
     }
     if (!strcmp(type, "nil")) {
         return vm_ast_build_nil();

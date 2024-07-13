@@ -1,5 +1,6 @@
 #include "./obj.h"
 #include "./gc.h"
+#include "./io.h"
 
 int64_t vm_value_to_i64(vm_obj_t arg) {
     switch (arg.tag) {
@@ -250,7 +251,7 @@ bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs) {
             }
         }
         case VM_TAG_STR: {
-            return rhs.tag == VM_TAG_STR && !strcmp(lhs.value.str, rhs.value.str);
+            return rhs.tag == VM_TAG_STR && !strcmp(lhs.value.str->buf, rhs.value.str->buf);
         }
         case VM_TAG_FUN: {
             return rhs.tag == VM_TAG_FUN && lhs.value.i32 == rhs.value.i32;
@@ -295,7 +296,7 @@ size_t vm_value_hash(vm_obj_t value) {
         }
         case VM_TAG_STR: {
             uint64_t ret = 0xcbf29ce484222325;
-            const char *head = value.value.str;
+            const char *head = value.value.str->buf;
             while (true) {
                 char c = *head++;
                 if (c == '\0') {

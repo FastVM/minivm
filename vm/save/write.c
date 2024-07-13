@@ -132,11 +132,10 @@ vm_save_t vm_save_value(vm_t *vm) {
                 break;
             }
             case VM_TAG_STR: {
-                const char *buf = value.value.str;
-                size_t len = strlen(buf);
-                vm_save_write_uleb(&write, (uint64_t)len);
-                for (size_t i = 0; i < len; i++) {
-                    vm_save_write_byte(&write, (uint8_t)buf[i]);
+                vm_io_buffer_t *buf = value.value.str;
+                vm_save_write_uleb(&write, (uint64_t)buf->len);
+                for (size_t i = 0; i < buf->len; i++) {
+                    vm_save_write_byte(&write, (uint8_t)buf->buf[i]);
                 }
                 break;
             }

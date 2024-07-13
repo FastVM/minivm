@@ -124,11 +124,10 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
             }
             case VM_TAG_STR: {
                 uint64_t len = vm_save_read_uleb(&read);
-                char *buf = vm_malloc(sizeof(char) * (len + 1));
+                vm_io_buffer_t *buf = vm_io_buffer_new();
                 for (size_t i = 0; i < len; i++) {
-                    buf[i] = vm_save_read_byte(&read);
+                    vm_io_buffer_format(buf, "%c", vm_save_read_byte(&read));
                 }
-                buf[len] = '\0';
                 value.str = buf;
                 break;
             }

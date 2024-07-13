@@ -5,20 +5,11 @@
 struct vm_io_debug_t;
 typedef struct vm_io_debug_t vm_io_debug_t;
 
-struct vm_io_buffer_t;
-typedef struct vm_io_buffer_t vm_io_buffer_t;
-
 #include "./obj.h"
 
 struct vm_io_debug_t {
     vm_io_debug_t *next;
     vm_obj_t value;
-};
-
-struct vm_io_buffer_t {
-    size_t len;
-    char *buf;
-    size_t alloc;
 };
 
 vm_io_buffer_t *vm_io_buffer_new(void);
@@ -31,5 +22,6 @@ void vm_io_buffer_format(vm_io_buffer_t *buf, const char *fmt, ...);
 char *vm_io_vformat(const char *fmt, va_list ap);
 char *vm_io_format(const char *fmt, ...);
 void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value);
+vm_io_buffer_t *vm_io_buffer_from_str(const char *str);
 
 #endif

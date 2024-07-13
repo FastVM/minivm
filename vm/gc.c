@@ -20,46 +20,34 @@ struct vm_gc_t {
 
 static void vm_gc_mark_obj(vm_obj_t obj) {
     switch (obj.tag) {
-        case VM_TAG_NIL: {
-            break;
-        }
-        case VM_TAG_BOOL: {
-            break;
-        }
-        case VM_TAG_I8: {
-            break;
-        }
-        case VM_TAG_I16: {
-            break;
-        }
-        case VM_TAG_I32: {
-            break;
-        }
-        case VM_TAG_I64: {
-            break;
-        }
-        case VM_TAG_F32: {
-            break;
-        }
-        case VM_TAG_F64: {
+        default: {
+            // not allocated
             break;
         }
         case VM_TAG_STR: {
+            vm_io_buffer_t *buffer = obj.value.str;
+            if (buffer->mark == true) {
+                break;
+            }
+            buffer->mark = true;
             break;
         }
         case VM_TAG_CLOSURE: {
             vm_closure_t *closure = obj.value.closure;
+            if (closure->mark == true) {
+                break;
+            }
             closure->mark = true;
             for (size_t i = 0; i < closure->len; i++) {
                 vm_gc_mark_obj(closure->values[i]);
             }
             break;
         }
-        case VM_TAG_FUN: {
-            break;
-        }
         case VM_TAG_TAB: {
             vm_table_t *table = obj.value.table;
+            if (table->mark == true) {
+                break;
+            }
             table->mark = true;
             for (size_t i = 0; i < table->len; i++) {
                 vm_gc_mark_obj((vm_obj_t) {
@@ -73,10 +61,8 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
             }
             break;
         }
-        case VM_TAG_FFI: {
-            break;
-        }
         case VM_TAG_ERROR: {
+            // todo
             break;
         }
     }
@@ -109,7 +95,58 @@ void vm_gc_mark(vm_t *vm) {
 }
 
 void vm_gc_sweep(vm_t *vm) {
-
+    vm_gc_t *gc = vm->gc;
+    size_t write = 0;
+    for (size_t i = 0; i < gc->objs.len; i++) {
+        vm_obj_t obj = gc->objs.objs[i];
+        bool keep = true;
+        switch (obj.tag) {
+            default: {
+                // not allocated
+                break;
+            }
+            case VM_TAG_STR: {
+                vm_io_buffer_t *buffer = obj.value.str;
+                if (!buffer->mark) {
+                    vm_free(buffer->buf);
+                    vm_free(buffer);
+                    keep = false;
+                } else {
+                    buffer->mark = false;
+                }
+                break;
+            }
+            case VM_TAG_CLOSURE: {
+                vm_closure_t *closure = obj.value.closure;
+                if (!closure->mark) {
+                    vm_free(closure);
+                    keep = false;
+                } else {
+                    closure->mark = false;
+                }
+                break;
+            }
+            case VM_TAG_TAB: {
+                vm_table_t *table = obj.value.table;
+                if (!table->mark) {
+                    vm_free_table(table);
+                    keep = false;
+                } else {
+                    table->mark = false;
+                }
+                break;
+            }
+            case VM_TAG_ERROR: {
+                // todo
+                break;
+            }
+        }
+        if (keep) {
+            gc->objs.objs[write++] = obj;
+        }
+    }
+    printf("%zu -> %zu\n", gc->objs.len, write);
+    gc->objs.len = write;
 }
 
 void vm_gc_run(vm_t *vm) {
@@ -119,10 +156,21 @@ void vm_gc_run(vm_t *vm) {
 
 void vm_gc_init(vm_t *vm) {
     vm->gc = vm_malloc(sizeof(vm_gc_t));
+    memset(vm->gc, 0, sizeof(vm_gc_t));
 }
 
 void vm_gc_deinit(vm_t *vm) {
     vm_gc_sweep(vm);
+    vm_gc_t *gc = vm->gc;
+    vm_free(gc->objs.objs);
     vm_free(vm->gc);
 }
 
+void vm_gc_add(vm_t *vm, vm_obj_t obj) {
+    vm_gc_t *gc = vm->gc;
+    if (gc->objs.len + 1 >= gc->objs.alloc) {
+        gc->objs.alloc = (gc->objs.len + 1) * 2;
+        gc->objs.objs = vm_realloc(gc->objs.objs, sizeof(vm_obj_t) * gc->objs.alloc);
+    }
+    gc->objs.objs[gc->objs.len++] = obj;
+}

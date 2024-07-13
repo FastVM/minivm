@@ -17,7 +17,9 @@ union vm_value_t;
 struct vm_table_t;
 struct vm_table_pair_t;
 struct vm_table_pair_t;
+struct vm_io_buffer_t;
 
+typedef struct vm_io_buffer_t vm_io_buffer_t;
 typedef struct vm_t vm_t;
 typedef struct vm_blocks_t vm_blocks_t;
 typedef struct vm_closure_t vm_closure_t;
@@ -68,7 +70,7 @@ union vm_value_t {
     int64_t i64;
     float f32;
     double f64;
-    const char *str;
+    vm_io_buffer_t *str;
     vm_table_t *table;
     vm_closure_t *closure;
     vm_ffi_t *ffi;
@@ -77,8 +79,7 @@ union vm_value_t {
 
 struct vm_obj_t {
     vm_value_t value;
-    vm_tag_t tag: 8;
-    bool collect: 1;
+    vm_tag_t tag;
 };
 
 struct vm_table_pair_t {
@@ -108,6 +109,13 @@ struct vm_externs_t {
     vm_externs_t *last;
 };
 
+struct vm_io_buffer_t {
+    char *buf;
+    bool mark: 1;
+    uint32_t len: 31;
+    uint32_t alloc: 32;
+};
+
 struct vm_t {
     const char *save_file;
     vm_externs_t *externs;
@@ -132,5 +140,6 @@ vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename);
 vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args);
 
 void vm_repl(vm_t *config);
+vm_obj_t vm_str(vm_t *vm, const char *str);
 
 #endif

@@ -62,6 +62,7 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...);
 
 vm_ast_node_t vm_ast_build_error(const char *str);
 vm_ast_node_t vm_ast_build_nil(void);
+vm_ast_node_t vm_ast_build_obj(vm_obj_t obj);
 
 // use this like follows
 // vm_ast_build_literal(i32, 10)

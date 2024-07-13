@@ -17,23 +17,6 @@
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file);
 
-vm_obj_t vm_repl_table_get(vm_table_t *table, const char *key) {
-    vm_table_pair_t pair = (vm_table_pair_t){
-        .key_tag = VM_TAG_STR,
-        .key_val.str = key,
-    };
-    vm_table_get_pair(table, &pair);
-    return (vm_obj_t){
-        .value = pair.val_val,
-        .tag = pair.val_tag,
-    };
-}
-
-bool vm_repl_table_get_bool(vm_table_t *table, const char *key) {
-    vm_obj_t got = vm_repl_table_get(table, key);
-    return got.tag != VM_TAG_NIL && (got.tag != VM_TAG_BOOL || got.value.b);
-}
-
 void vm_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     vm_t *vm = cenv->arg;
     ptrdiff_t len = strlen(prefix);
@@ -48,7 +31,7 @@ with_new_std:;
     for (size_t i = 0; i < ((size_t)1 << std->alloc); i++) {
         vm_table_pair_t *pair = &std->pairs[i];
         if (pair->key_tag == VM_TAG_STR) {
-            const char *got = pair->key_val.str;
+            const char *got = pair->key_val.str->buf;
             size_t i = 0;
             while (got[i] != '\0') {
                 if (last_word[i] == '\0') {
