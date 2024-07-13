@@ -129,6 +129,10 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
                     vm_io_buffer_format(buf, "%c", vm_save_read_byte(&read));
                 }
                 value.str = buf;
+                vm_gc_add(vm, (vm_obj_t) {
+                    .tag = tag,
+                    .value = value,
+                });
                 break;
             }
             case VM_TAG_FFI: {

@@ -50,6 +50,7 @@ while depth <= maxdepth do
     end
     print(depth, check)
     depth = depth + 2
+    -- if vm then vm.gc() end
 end
 
 print(maxdepth, ItemCheck(longlivedtree))

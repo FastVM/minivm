@@ -417,19 +417,7 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         next += 1;
         next &= and;
     } while (next != stop);
-    if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 76) {
-        vm_table_t ret;
-        vm_table_init_size(&ret, table->alloc + 1);
-        for (size_t i = 0; i < len; i++) {
-            vm_table_pair_t *in_pair = &table->pairs[i];
-            if (in_pair->key_tag != VM_TAG_UNK && in_pair->key_tag != VM_TAG_NIL) {
-                vm_table_set_pair(&ret, in_pair);
-            }
-        }
-        vm_table_set(&ret, key_val, val_val, key_tag, val_tag);
-        vm_free(table->pairs);
-        *table = ret;
-    } else if (val_tag == VM_TAG_NIL) {
+    if (val_tag == VM_TAG_NIL) {
         table->pairs[next] = (vm_table_pair_t){
             .key_tag = key_tag,
             .key_val = key_val,
@@ -447,6 +435,18 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         if (1 <= n && n <= table->len && (double) (size_t) n == n) {
             table->len = (size_t) (n - 1);
         }
+    } else if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 76) {
+        vm_table_t ret;
+        vm_table_init_size(&ret, table->alloc + 1);
+        for (size_t i = 0; i < len; i++) {
+            vm_table_pair_t *in_pair = &table->pairs[i];
+            if (in_pair->key_tag != VM_TAG_UNK && in_pair->key_tag != VM_TAG_NIL) {
+                vm_table_set_pair(&ret, in_pair);
+            }
+        }
+        vm_table_set(&ret, key_val, val_val, key_tag, val_tag);
+        vm_free(table->pairs);
+        *table = ret;
     } else {
         table->used += 1;
         table->pairs[next] = (vm_table_pair_t){

@@ -11,19 +11,6 @@ void vm_ast_free_ident(const char *ident) {
     vm_free(ident);
 }
 
-void vm_ast_free_literal(vm_obj_t literal) {
-    switch (literal.tag) {
-        case VM_TAG_ERROR: {
-            // vm_free(literal.value.error.);
-            break;
-        }
-        case VM_TAG_STR: {
-            vm_free(literal.value.str);
-            break;
-        }
-    }
-}
-
 void vm_ast_free_node(vm_ast_node_t node) {
     switch (node.type) {
         case VM_AST_NODE_FORM: {
@@ -35,7 +22,6 @@ void vm_ast_free_node(vm_ast_node_t node) {
             break;
         }
         case VM_AST_NODE_LITERAL: {
-            vm_ast_free_literal(node.value.literal);
             break;
         }
     }

@@ -3,10 +3,10 @@
 
 #include "./lib.h"
 
-void vm_gc_mark(vm_t *vm);
+void vm_gc_mark(vm_t *vm, vm_obj_t *top);
 void vm_gc_sweep(vm_t *vm);
 
-void vm_gc_run(vm_t *vm);
+void vm_gc_run(vm_t *vm, vm_obj_t *top);
 void vm_gc_init(vm_t *vm);
 void vm_gc_deinit(vm_t *vm);
 

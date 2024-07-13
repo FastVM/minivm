@@ -8,7 +8,7 @@
 #include "./gc.h"
 
 vm_t *vm_state_new(void) {
-    vm_obj_t *base = vm_malloc(sizeof(vm_obj_t) * 65536);
+    vm_obj_t *base = vm_malloc(sizeof(vm_obj_t) * (1 << 20));
     vm_t *vm = vm_malloc(sizeof(vm_t));
     *vm = (vm_t) {
         .use_num = VM_USE_NUM_F64,

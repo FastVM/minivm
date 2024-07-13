@@ -91,6 +91,6 @@ void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *pair);
     vm_table_set(table_, key_.value, value_.value, key_.tag, value_.tag); \
 })
 
-#define VM_TABLE_LOOKUP_STR(TABLE_, STR_) (vm_table_lookup((TABLE_), (vm_value_t){.str = (STR_)}, VM_TAG_STR))
+#define VM_TABLE_LOOKUP_STR(TABLE_, STR_) (vm_table_lookup((TABLE_), (vm_value_t){.str = vm_io_buffer_from_str(STR_)}, VM_TAG_STR))
 
 #endif

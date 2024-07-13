@@ -2,6 +2,7 @@
     "files.associations": {
         "*.inc": "c",
         "*.c": "c",
-        "*.h": "c"
+        "*.h": "c",
+        "sstream": "c"
     }
 }

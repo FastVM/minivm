@@ -96,7 +96,7 @@ void vm_std_error(vm_t *vm, vm_obj_t *args) {
     if (args[0].tag == VM_TAG_STR) {
         *args = (vm_obj_t){
             .tag = VM_TAG_ERROR,
-            .value.str = args[0].value.str,
+            .value.error = vm_error_from_msg(vm_location_range_unknown, args[0].value.str->buf),
         };
         return;
     }
@@ -135,7 +135,8 @@ void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
 }
 
 void vm_std_vm_gc(vm_t *vm, vm_obj_t *args) {
-    vm_gc_run(vm);
+    vm_gc_run(vm, vm->regs);
+    *args = VM_OBJ_NIL;
 }
 
 void vm_std_vm_print(vm_t *vm, vm_obj_t *args) {
@@ -1036,7 +1037,7 @@ void vm_std_new(vm_t *vm) {
         VM_TABLE_SET(tvm, str, vm_str(vm, "import").value.str, ffi, VM_STD_REF(vm, vm_std_vm_import));
         VM_TABLE_SET(tvm, str, vm_str(vm, "gc").value.str, ffi, VM_STD_REF(vm, vm_std_vm_gc));
         VM_TABLE_SET(tvm, str, vm_str(vm, "print").value.str, ffi, VM_STD_REF(vm, vm_std_vm_print));
-        VM_TABLE_SET(tvm, str, vm_str(vm, "version").value.str, str, vm_str(vm, "0.0.4").value.str);
+        VM_TABLE_SET(tvm, str, vm_str(vm, "version").value.str, str, vm_str(vm, "0.0.5").value.str);
         VM_TABLE_SET(tvm, str, vm_str(vm, "typename").value.str, ffi, VM_STD_REF(vm, vm_std_vm_typename));
         VM_TABLE_SET(tvm, str, vm_str(vm, "typeof").value.str, ffi, VM_STD_REF(vm, vm_std_vm_typeof));
         VM_TABLE_SET(tvm, str, vm_str(vm, "concat").value.str, ffi, VM_STD_REF(vm, vm_std_vm_concat));

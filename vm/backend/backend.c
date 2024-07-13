@@ -2,6 +2,7 @@
 #include "../vm.h"
 #include "../obj.h"
 #include "../ir.h"
+#include "../gc.h"
 
 #define COMBINE(x, y) ((x)*VM_TAG_MAX + (y))
 #define CONCAT_2(x, y) x ## _ ## y
@@ -786,6 +787,7 @@ new_block_no_print:;
             .tag = VM_TAG_TAB,
             .value.table = vm_table_new(vm),
         }));
+        vm_gc_run(vm, regs + block->nregs);
         vm_run_repl_jump();
     }
     VM_OP_TABLE_LEN:; VM_OPCODE_DEBUG(table_len) {

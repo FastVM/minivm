@@ -15,6 +15,7 @@ struct vm_gc_objs_t {
 };
 
 struct vm_gc_t {
+    size_t last;
     vm_gc_objs_t objs;
 };
 
@@ -26,7 +27,7 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         }
         case VM_TAG_STR: {
             vm_io_buffer_t *buffer = obj.value.str;
-            if (buffer->mark == true) {
+            if (buffer->mark) {
                 break;
             }
             buffer->mark = true;
@@ -34,7 +35,7 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         }
         case VM_TAG_CLOSURE: {
             vm_closure_t *closure = obj.value.closure;
-            if (closure->mark == true) {
+            if (closure->mark) {
                 break;
             }
             closure->mark = true;
@@ -45,11 +46,11 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         }
         case VM_TAG_TAB: {
             vm_table_t *table = obj.value.table;
-            if (table->mark == true) {
+            if (table->mark) {
                 break;
             }
             table->mark = true;
-            for (size_t i = 0; i < table->len; i++) {
+            for (size_t i = 0; i < (1 << table->alloc); i++) {
                 vm_gc_mark_obj((vm_obj_t) {
                     .tag = table->pairs[i].key_tag,
                     .value = table->pairs[i].key_val,
@@ -74,9 +75,9 @@ static void vm_gc_mark_arg(vm_arg_t arg) {
     }
 }
 
-void vm_gc_mark(vm_t *vm) {
+void vm_gc_mark(vm_t *vm, vm_obj_t *top) {
     vm_gc_mark_obj(vm->std);
-    for (vm_obj_t *head = vm->base; head != vm->regs; head++) {
+    for (vm_obj_t *head = vm->base; head < top; head++) {
         vm_gc_mark_obj(*head);
     }
     for (size_t i = 0; i < vm->blocks->len; i++) {
@@ -145,12 +146,17 @@ void vm_gc_sweep(vm_t *vm) {
             gc->objs.objs[write++] = obj;
         }
     }
-    printf("%zu -> %zu\n", gc->objs.len, write);
+    // printf("%zu -> %zu\n", gc->objs.len, write);
     gc->objs.len = write;
+    gc->last = write;
 }
 
-void vm_gc_run(vm_t *vm) {
-    vm_gc_mark(vm);
+void vm_gc_run(vm_t *vm, vm_obj_t *top) {
+    vm_gc_t *gc = vm->gc;
+    if (gc->last * VM_GC_FACTOR >= gc->objs.len) {
+        return;
+    }
+    vm_gc_mark(vm, top);
     vm_gc_sweep(vm);
 }
 

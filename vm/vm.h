@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// #define VM_GC_FACTOR 1.03659
+#define VM_GC_FACTOR 1.25
 #define VM_FORMAT_FLOAT "%.14g"
 
 struct vm_t;
