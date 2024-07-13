@@ -42,6 +42,7 @@ void vm_state_delete(vm_t *vm) {
         while (cur != NULL) {
             vm_blocks_srcs_t *last = cur->last;
             vm_free(cur->data);
+            vm_free(cur);
             cur = last;
         }
     }

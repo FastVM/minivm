@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
             const char *src;
             bool f_flag = true;
             if (!strcmp(arg, "-e")) {
-                src = argv[i++];
+                src = vm_strdup(argv[i++]);
             } else {
                 f_flag = !strcmp(arg, "-f");
                 if (f_flag) {
@@ -118,6 +118,8 @@ int main(int argc, char **argv) {
                 vm_io_debug(&buf, 0, "", value, NULL);
                 printf("%.*s", (int)buf.len, buf.buf);
             }
+
+            vm_free(src);
 
             if (!f_flag) {
                 break;
