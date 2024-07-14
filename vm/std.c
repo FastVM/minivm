@@ -69,6 +69,7 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = closure,
     };
+    vm_gc_run(vm, vm->regs);
     vm_gc_add(vm, ret);
     *args = ret;
     return;
@@ -129,6 +130,7 @@ void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = closure,
     };
+    vm_gc_run(vm, vm->regs);
     vm_gc_add(vm, ret);
     *args = ret;
     return;
@@ -1037,7 +1039,7 @@ void vm_std_new(vm_t *vm) {
         VM_TABLE_SET(tvm, str, vm_str(vm, "import").value.str, ffi, VM_STD_REF(vm, vm_std_vm_import));
         VM_TABLE_SET(tvm, str, vm_str(vm, "gc").value.str, ffi, VM_STD_REF(vm, vm_std_vm_gc));
         VM_TABLE_SET(tvm, str, vm_str(vm, "print").value.str, ffi, VM_STD_REF(vm, vm_std_vm_print));
-        VM_TABLE_SET(tvm, str, vm_str(vm, "version").value.str, str, vm_str(vm, "0.0.5").value.str);
+        VM_TABLE_SET(tvm, str, vm_str(vm, "version").value.str, str, vm_str(vm, VM_VERSION).value.str);
         VM_TABLE_SET(tvm, str, vm_str(vm, "typename").value.str, ffi, VM_STD_REF(vm, vm_std_vm_typename));
         VM_TABLE_SET(tvm, str, vm_str(vm, "typeof").value.str, ffi, VM_STD_REF(vm, vm_std_vm_typeof));
         VM_TABLE_SET(tvm, str, vm_str(vm, "concat").value.str, ffi, VM_STD_REF(vm, vm_std_vm_concat));

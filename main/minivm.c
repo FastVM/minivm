@@ -25,7 +25,9 @@ int main(int argc, char **argv) {
         if (!strcmp(arg, "--")) {
             break;
         }
-        if (!strcmp(arg, "--echo")) {
+        if (!strcmp(arg, "-v")) {
+            printf("MiniVM " VM_VERSION "\n");
+        } else if (!strcmp(arg, "--echo")) {
             echo = true;
         } else if (!strcmp(arg, "--no-echo")) {
             echo = false;

@@ -435,7 +435,7 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         if (1 <= n && n <= table->len && (double) (size_t) n == n) {
             table->len = (size_t) (n - 1);
         }
-    } else if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 76) {
+    } else if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 66) {
         vm_table_t ret;
         vm_table_init_size(&ret, table->alloc + 1);
         for (size_t i = 0; i < len; i++) {

@@ -11,7 +11,7 @@ typedef struct vm_gc_objs_t vm_gc_objs_t;
 struct vm_gc_objs_t {
     size_t alloc;
     size_t len;
-    vm_obj_t *objs;
+    vm_obj_t *restrict objs;
 };
 
 struct vm_gc_t {
@@ -96,7 +96,7 @@ void vm_gc_mark(vm_t *vm, vm_obj_t *top) {
 }
 
 void vm_gc_sweep(vm_t *vm) {
-    vm_gc_t *gc = vm->gc;
+    vm_gc_t *restrict gc = vm->gc;
     size_t write = 0;
     for (size_t i = 0; i < gc->objs.len; i++) {
         vm_obj_t obj = gc->objs.objs[i];
@@ -146,9 +146,12 @@ void vm_gc_sweep(vm_t *vm) {
             gc->objs.objs[write++] = obj;
         }
     }
-    // printf("%zu -> %zu\n", gc->objs.len, write);
     gc->objs.len = write;
-    gc->last = write;
+    if (write < VM_GC_MIN) {
+        gc->last = VM_GC_MIN;
+    } else {
+        gc->last = write;
+    }
 }
 
 void vm_gc_run(vm_t *vm, vm_obj_t *top) {
@@ -162,7 +165,10 @@ void vm_gc_run(vm_t *vm, vm_obj_t *top) {
 
 void vm_gc_init(vm_t *vm) {
     vm->gc = vm_malloc(sizeof(vm_gc_t));
-    memset(vm->gc, 0, sizeof(vm_gc_t));
+    vm_gc_t *gc = vm->gc;
+    *gc = (vm_gc_t) {
+        .last = VM_GC_MIN,
+    };
 }
 
 void vm_gc_deinit(vm_t *vm) {

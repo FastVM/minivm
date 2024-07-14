@@ -743,7 +743,6 @@ vm_obj_t vm_run_repl(vm_t *vm, vm_block_t *block) {
         [VM_OP_CALL] = &&VM_OP_CALL,
     };
     vm_obj_t *next_regs = &regs[block->nregs];
-
     // {
     //     vm_io_buffer_t *buf = vm_io_buffer_new();
     //     vm_io_format_block(buf, block);

@@ -6,8 +6,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// #define VM_GC_FACTOR 1.03659
-#define VM_GC_FACTOR 1.25
+#define VM_GC_MIN 256
+#define VM_VERSION "0.0.5"
+#define VM_GC_FACTOR 2
 #define VM_FORMAT_FLOAT "%.14g"
 
 struct vm_t;
@@ -141,7 +142,7 @@ void vm_state_delete(vm_t *vm);
 vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename);
 vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args);
 
-void vm_repl(vm_t *config);
+void vm_repl(vm_t *vm);
 vm_obj_t vm_str(vm_t *vm, const char *str);
 
 #endif

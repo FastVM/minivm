@@ -27,6 +27,13 @@ default: all
 
 all: build/bin/minivm
 
+pgo: .dummy
+	$(MAKE) -Bj build/bin/minivm OPT="-O3 -ffast-math -fomit-frame-pointer -flto -fprofile-generate"
+	build/bin/minivm test/fib/fib.lua 30
+	build/bin/minivm test/tables/trees.lua 12
+	build/bin/minivm test/closure/funcret.lua
+	$(MAKE) -Bj build/bin/minivm OPT="-O3 -ffast-math -fomit-frame-pointer -flto -fprofile-use"
+
 build/bin/minivm: ${MAIN_OBJS}
 	@mkdir -p ${dir ${@}}
 	${CC} -o ${@} ${MAIN_OBJS} ${BASE_LDFLAGS}
