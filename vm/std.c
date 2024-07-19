@@ -10,24 +10,6 @@
 
 #define VM_LOCATION_RANGE_FUNC ((vm_location_range_t) { .file =  "<builtins>", .src = __func__ })
 
-#define VM_PAIR_VALUE(PAIR_) ({      \
-    vm_table_pair_t pair_ = (PAIR_); \
-    (vm_obj_t){                      \
-        .tag = pair_.val_tag,        \
-        .value = pair_.val_val,      \
-    };                               \
-})
-
-#define VM_PAIR_PTR_VALUE(PPAIR_) ({   \
-    vm_table_pair_t *pair_ = (PPAIR_); \
-    pair_ == NULL                      \
-        ? VM_OBJ_NIL                   \
-        : (vm_obj_t){                  \
-              .tag = pair_->val_tag,   \
-              .value = pair_->val_val, \
-          };                           \
-})
-
 static inline void vm_config_add_extern(vm_t *vm, void *value) {
     vm_externs_t *last = vm->externs;
     for (vm_externs_t *cur = last; cur; cur = cur->last) {
@@ -495,13 +477,13 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
 void vm_std_set_arg(vm_t *vm, const char *prog, const char *file, int argc, char **argv) {
     vm_table_t *arg = vm_table_new(vm);
     if (prog != NULL) {
-        VM_TABLE_SET_VALUE(arg, VM_OBJ_NUMBER(vm, -1), vm_str(vm, prog));
+        vm_table_set(arg, VM_OBJ_NUMBER(vm, -1), vm_str(vm, prog));
     }
     if (file != NULL) {
-        VM_TABLE_SET_VALUE(arg, VM_OBJ_NUMBER(vm, 0), vm_str(vm, file));
+        vm_table_set(arg, VM_OBJ_NUMBER(vm, 0), vm_str(vm, file));
     }
     for (int64_t i = 0; i < argc; i++) {
-        VM_TABLE_SET_VALUE(arg, VM_OBJ_NUMBER(vm, i + 1), vm_str(vm, argv[i]));
+        vm_table_set(arg, VM_OBJ_NUMBER(vm, i + 1), vm_str(vm, argv[i]));
     }
     VM_TABLE_SET(vm->std.value.table, str, vm_str(vm, "arg").value.str, table, arg);
 }
@@ -569,13 +551,9 @@ void vm_std_table_keys(vm_t *vm, vm_obj_t *args) {
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
         vm_table_pair_t *pair = &tab->pairs[i];
-        if (pair->key_tag != VM_TAG_UNK) {
+        if (pair->key.tag != VM_TAG_UNK) {
             vm_obj_t key = VM_OBJ_NUMBER(vm, write_head);
-            vm_obj_t value = (vm_obj_t){
-                .tag = pair->key_tag,
-                .value = pair->key_val,
-            };
-            VM_TABLE_SET_VALUE(ret, key, value);
+            vm_table_set(ret, key, pair->key);
             write_head++;
         }
     }
@@ -600,13 +578,9 @@ void vm_std_table_values(vm_t *vm, vm_obj_t *args) {
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
         vm_table_pair_t *pair = &tab->pairs[i];
-        if (pair->key_tag != VM_TAG_UNK) {
+        if (pair->key.tag != VM_TAG_UNK) {
             vm_obj_t key = VM_OBJ_NUMBER(vm, write_head);
-            vm_obj_t value = (vm_obj_t){
-                .tag = pair->val_tag,
-                .value = pair->val_val,
-            };
-            VM_TABLE_SET_VALUE(ret, key, value);
+            vm_table_set(ret, key, pair->value);
             write_head++;
         }
     }
@@ -634,315 +608,6 @@ void vm_std_vm_import(vm_t *vm, vm_obj_t *args) {
     vm_free(src);
     return;
 }
-
-#if VM_USE_RAYLIB
-#include "./backend/backend.h"
-#include "./canvas.h"
-#include "./save/value.h"
-
-static int vm_std_app_repl(void *arg) {
-    vm_repl(arg);
-    vm_t *vm = arg;
-    if (vm->save_file != NULL) {
-        vm_save_t save = vm_save_value(vm);
-        FILE *f = fopen(vm->save_file, "wb");
-        if (f != NULL) {
-            fwrite(save.buf, 1, save.len, f);
-            fclose(f);
-        }
-    }
-    exit(0);
-    return 0;
-}
-
-static Color vm_value_to_color(vm_obj_t arg) {
-    if (arg.tag == VM_TAG_NUMBER) {
-        uint8_t c = vm_value_to_i64(arg);
-        return (Color){
-            c,
-            c,
-            c,
-            255,
-        };
-    } else if (arg.tag == VM_TAG_TAB) {
-        vm_table_pair_t *r = VM_TABLE_LOOKUP_STR(arg.value.table, "red");
-        vm_table_pair_t *g = VM_TABLE_LOOKUP_STR(arg.value.table, "green");
-        vm_table_pair_t *b = VM_TABLE_LOOKUP_STR(arg.value.table, "blue");
-        vm_table_pair_t *a = VM_TABLE_LOOKUP_STR(arg.value.table, "alpha");
-        return (Color){
-            r ? vm_value_to_i64(VM_PAIR_VALUE(*r)) : 0,
-            g ? vm_value_to_i64(VM_PAIR_VALUE(*g)) : 0,
-            b ? vm_value_to_i64(VM_PAIR_VALUE(*b)) : 0,
-            a ? vm_value_to_i64(VM_PAIR_VALUE(*a)) : 255,
-        };
-    } else {
-        return BLACK;
-    }
-}
-
-static Color vm_value_field_to_color(vm_obj_t arg, const char *field) {
-    if (arg.tag != VM_TAG_TAB) {
-        return BLACK;
-    }
-    return vm_value_to_color(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, field)));
-}
-
-static Vector2 vm_value_to_vector2(vm_obj_t arg) {
-    if (arg.tag != VM_TAG_TAB) {
-        return (Vector2){0, 0};
-    }
-    vm_table_pair_t *x = VM_TABLE_LOOKUP_STR(arg.value.table, "x");
-    vm_table_pair_t *y = VM_TABLE_LOOKUP_STR(arg.value.table, "y");
-    return (Vector2){
-        x ? vm_value_to_i64(VM_PAIR_VALUE(*x)) : 0,
-        y ? vm_value_to_i64(VM_PAIR_VALUE(*y)) : 0,
-    };
-}
-
-static Vector2 vm_value_field_to_vector2(vm_obj_t arg, const char *field) {
-    if (arg.tag != VM_TAG_TAB) {
-        return (Vector2){0, 0};
-    }
-    return vm_value_to_vector2(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, field)));
-}
-
-static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg);
-
-static void vm_std_app_draw_tree_children(vm_t *vm, Rectangle rect, vm_table_t *tree) {
-    int32_t i = 1;
-    while (true) {
-        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t){.i32 = i}, VM_TAG_I32));
-        if (child.tag != VM_TAG_TAB) {
-            break;
-        }
-        i += 1;
-        vm_std_app_draw_tree(vm, rect, child);
-    }
-}
-
-static void vm_std_app_draw_tree_children_list(vm_t *vm, Rectangle rect, vm_table_t *tree) {
-    size_t len = tree->len;
-    if (len == 0) {
-        return;
-    }
-    float height = rect.height / len;
-    Rectangle child_rect = (Rectangle){
-        rect.x,
-        rect.y,
-        rect.width,
-        height,
-    };
-    int32_t i = 1;
-    while (true) {
-        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t){.i32 = i}, VM_TAG_I32));
-        if (child.tag != VM_TAG_TAB) {
-            break;
-        }
-        i += 1;
-        vm_std_app_draw_tree(vm, child_rect, child);
-        child_rect.y += height;
-    }
-}
-
-static void vm_std_app_draw_tree_children_split(vm_t *vm, Rectangle rect, vm_table_t *tree) {
-    size_t len = tree->len;
-    if (len == 0) {
-        return;
-    }
-    float width = rect.width / len;
-    Rectangle child_rect = (Rectangle){
-        rect.x,
-        rect.y,
-        width,
-        rect.height,
-    };
-    int32_t i = 1;
-    while (true) {
-        vm_obj_t child = VM_PAIR_PTR_VALUE(vm_table_lookup(tree, (vm_value_t){.i32 = i}, VM_TAG_I32));
-        if (child.tag != VM_TAG_TAB) {
-            break;
-        }
-        i += 1;
-        vm_std_app_draw_tree(vm, child_rect, child);
-        child_rect.x += width;
-    }
-}
-
-static void vm_std_app_draw_tree(vm_t *vm, Rectangle rect, vm_obj_t arg) {
-    if (arg.tag != VM_TAG_TAB) {
-        return;
-    }
-    vm_table_t *tree = arg.value.table;
-    vm_obj_t std_type = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(tree, "type"));
-    if (std_type.tag == VM_TAG_NIL) {
-        size_t n = (1 << tree->alloc);
-        for (size_t i = 0; i < n; i++) {
-            vm_table_pair_t *pair = &tree->pairs[i];
-            if (pair->key_tag == VM_TAG_UNK) {
-                continue;
-            }
-            vm_std_app_draw_tree(vm, rect, (vm_obj_t){
-                                               .tag = pair->val_tag,
-                                               .value = pair->val_val,
-                                           });
-        }
-    } else if (std_type.tag == VM_TAG_STR) {
-        const char *type = std_type.value.str;
-        if (!strcmp(type, "rectangle")) {
-            DrawRectangleRec(rect, vm_value_field_to_color(arg, "color"));
-            vm_std_app_draw_tree_children(vm, rect, tree);
-        } else if (!strcmp(type, "list")) {
-            vm_std_app_draw_tree_children_list(vm, rect, tree);
-        } else if (!strcmp(type, "split")) {
-            vm_std_app_draw_tree_children_split(vm, rect, tree);
-        } else if (!strcmp(type, "click")) {
-            vm_std_app_draw_tree_children(vm, rect, tree);
-            vm_obj_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "button"));
-            vm_obj_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
-            if (button.tag == VM_TAG_STR) {
-                const char *name = button.value.str;
-                if ((!strcmp(name, "left") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "right") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "middle") && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) {
-                    if (CheckCollisionPointRec(GetMousePosition(), rect)) {
-                        vm_std_app_draw_tree(vm, rect, run);
-                    }
-                }
-            }
-        } else if (!strcmp(type, "drag")) {
-            vm_std_app_draw_tree_children(vm, rect, tree);
-            vm_obj_t button = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "button"));
-            vm_obj_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
-            if (button.tag == VM_TAG_STR) {
-                const char *name = button.value.str;
-                if ((!strcmp(name, "left") && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "right") && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) || (!strcmp(name, "middle") && IsMouseButtonDown(MOUSE_LEFT_BUTTON))) {
-                    if (CheckCollisionPointRec(GetMousePosition(), rect)) {
-                        vm_std_app_draw_tree(vm, rect, run);
-                    }
-                }
-            }
-        } else if (!strcmp(type, "code")) {
-            vm_obj_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
-            if (run.tag == VM_TAG_CLOSURE) {
-                vm->regs[0] = run;
-                vm_run_repl(vm, vm->blocks->blocks[run.value.closure[0].value.i32]);
-            }
-        } else if (!strcmp(type, "window")) {
-            int64_t width = vm_value_to_i64(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "width")));
-            int64_t height = vm_value_to_i64(VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "height")));
-            SetWindowSize(width, height);
-        } else if (!strcmp(type, "keydown") || !strcmp(type, "keyup") || !strcmp(type, "keypressed") || !strcmp(type, "keyreleased")) {
-            vm_obj_t run = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "run"));
-            vm_obj_t key_obj = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(arg.value.table, "key"));
-            if (key_obj.tag == VM_TAG_STR) {
-                const char *key = key_obj.value.str;
-                bool (*func)(int) = NULL;
-                if (!strcmp(type, "keydown")) {
-                    func = IsKeyDown;
-                }
-                if (!strcmp(type, "keyup")) {
-                    func = IsKeyUp;
-                }
-                if (!strcmp(type, "keypressed")) {
-                    func = IsKeyPressed;
-                }
-                if (!strcmp(type, "keyreleased")) {
-                    func = IsKeyReleased;
-                }
-                if ((!strcmp(key, "APOSTROPHE") && func('\'')) || (!strcmp(key, "SPACE") && func(' ')) || (!strcmp(key, "COMMA") && func(',')) || (!strcmp(key, "MINUS") && func('-')) || (!strcmp(key, "PERIOD") && func('.')) || (!strcmp(key, "SLASH") && func('/')) || (!strcmp(key, "ZERO") && func('0')) || (!strcmp(key, "ONE") && func('1')) || (!strcmp(key, "TWO") && func('2')) || (!strcmp(key, "THREE") && func('3')) || (!strcmp(key, "FOUR") && func('4')) || (!strcmp(key, "FIVE") && func('5')) || (!strcmp(key, "SIX") && func('6')) || (!strcmp(key, "SEVEN") && func('7')) || (!strcmp(key, "EIGHT") && func('8')) || (!strcmp(key, "NINE") && func('9')) || (!strcmp(key, "SEMICOLON") && func(';')) || (!strcmp(key, "EQUAL") && func('=')) || (!strcmp(key, "A") && func('A')) || (!strcmp(key, "B") && func('B')) || (!strcmp(key, "C") && func('C')) || (!strcmp(key, "D") && func('D')) || (!strcmp(key, "E") && func('E')) || (!strcmp(key, "F") && func('F')) || (!strcmp(key, "G") && func('G')) || (!strcmp(key, "H") && func('H')) || (!strcmp(key, "I") && func('I')) || (!strcmp(key, "J") && func('J')) || (!strcmp(key, "K") && func('K')) || (!strcmp(key, "L") && func('L')) || (!strcmp(key, "M") && func('M')) || (!strcmp(key, "N") && func('N')) || (!strcmp(key, "O") && func('O')) || (!strcmp(key, "P") && func('P')) || (!strcmp(key, "Q") && func('Q')) || (!strcmp(key, "R") && func('R')) || (!strcmp(key, "S") && func('S')) || (!strcmp(key, "T") && func('T')) || (!strcmp(key, "U") && func('U')) || (!strcmp(key, "V") && func('V')) || (!strcmp(key, "W") && func('W')) || (!strcmp(key, "X") && func('X')) || (!strcmp(key, "Y") && func('Y')) || (!strcmp(key, "Z") && func('Z')) || (!strcmp(key, "LEFT_BRACKET") && func('[')) || (!strcmp(key, "BACKSLASH") && func('\\')) || (!strcmp(key, "RIGHT_BRACKET") && func(']')) || (!strcmp(key, "GRAVE") && func('`'))) {
-                    vm_std_app_draw_tree(vm, rect, run);
-                }
-            }
-        }
-    }
-}
-
-#if defined(VM_USE_CANVAS)
-#include <emscripten.h>
-
-EM_JS(void, vm_std_app_frame_loop, (vm_t * vm), {
-    Module._vm_std_app_frame_loop(vm);
-});
-
-void EMSCRIPTEN_KEEPALIVE vm_std_app_frame(vm_t *vm) {
-    BeginDrawing();
-    ClearBackground(RAYWHITE);
-    vm_obj_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std.value.table, "draw"));
-    Rectangle rect = (Rectangle){
-        0,
-        0,
-        GetScreenWidth(),
-        GetScreenHeight(),
-    };
-    vm_std_app_draw_tree(vm, rect, tree);
-    EndDrawing();
-}
-
-void EMSCRIPTEN_KEEPALIVE vm_std_app_sync(vm_t *vm) {
-    vm_save_t save = vm_save_value(vm);
-    FILE *f = fopen("/out.bin", "wb");
-    fwrite(save.buf, 1, save.len, f);
-    fclose(f);
-}
-
-void vm_std_app_init(vm_t *vm, vm_obj_t *args) {
-    SetTraceLogLevel(LOG_WARNING);
-    SetTargetFPS(60);
-    InitWindow(960, 540, "MiniVM");
-    uint64_t n = 0;
-    {
-        FILE *f = fopen("/in.bin", "rb");
-        if (f != NULL) {
-            vm_save_t save = vm_save_load(f);
-            fclose(f);
-            vm_load_value(vm, save);
-        }
-    }
-    vm_std_app_frame_loop(vm);
-    args[0] = VM_OBJ_NIL;
-    // vm_std_app_repl(vm);
-}
-
-#else
-void vm_std_app_init(vm_t *vm, vm_obj_t *args) {
-    SetTraceLogLevel(LOG_WARNING);
-    SetTargetFPS(60);
-    InitWindow(960, 540, "MiniVM");
-    uint64_t n = 0;
-    {
-        FILE *f = fopen("/in.bin", "rb");
-        if (f != NULL) {
-            vm_save_t save = vm_save_load(f);
-            fclose(f);
-            vm_load_value(vm, save);
-        }
-    }
-    while (!WindowShouldClose()) {
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
-        vm_obj_t tree = VM_PAIR_PTR_VALUE(VM_TABLE_LOOKUP_STR(vm->std.value.table, "draw"));
-        Rectangle rect = (Rectangle){
-            0,
-            0,
-            GetScreenWidth(),
-            GetScreenHeight(),
-        };
-        vm_std_app_draw_tree(vm, rect, tree);
-        EndDrawing();
-    }
-    CloseWindow();
-    if (vm->save_file != NULL) {
-        vm_save_t save = vm_save_value(vm);
-        FILE *f = fopen(vm->save_file, "wb");
-        if (f != NULL) {
-            fwrite(save.buf, 1, save.len, f);
-            fclose(f);
-        }
-    }
-    exit(0);
-    return;
-}
-
-#endif
-#endif
 
 void vm_std_new(vm_t *vm) {
     vm_table_t *std = vm_table_new(vm);

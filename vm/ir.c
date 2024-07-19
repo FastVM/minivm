@@ -18,12 +18,7 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
             break;
         }
         case VM_ARG_REG: {
-            if (val.reg_tag == VM_TAG_UNK) {
-                vm_io_buffer_format(out, "%%%zu", (size_t)val.reg);
-            } else {
-                vm_io_buffer_format(out, "%%%zu:", (size_t)val.reg);
-                vm_io_format_type(out, val.reg_tag);
-            }
+            vm_io_buffer_format(out, "%%%zu", (size_t)val.reg);
             break;
         }
         case VM_ARG_FUN: {
@@ -442,18 +437,6 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks) {
             block->nargs = next_nargs;
             block->args = next_args;
         }
-    }
-}
-
-vm_tag_t vm_arg_to_tag(vm_arg_t arg) {
-    if (arg.type == VM_ARG_REG) {
-        return arg.reg_tag;
-    } else if (arg.type == VM_ARG_LIT) {
-        return arg.lit.tag;
-    } else if (arg.type == VM_ARG_FUN) {
-        return VM_TAG_FUN;
-    } else {
-        return VM_TAG_UNK;
     }
 }
 

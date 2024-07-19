@@ -778,7 +778,7 @@ new_block_no_print:;
                 .value.error = vm_error_from_msg(block->range, "can only set index on tables"),
             };
         }
-        vm_table_set(v1.value.table, v2.value, v3.value, v2.tag, v3.tag);
+        vm_table_set(v1.value.table, v2, v3);
         vm_run_repl_jump();
     }
     VM_OP_TABLE_NEW:; VM_OPCODE_DEBUG(table_new) {
@@ -1187,22 +1187,17 @@ new_block_no_print:;
         uint8_t *c0 = code;
         vm_obj_t v1 = vm_run_repl_arg();
         vm_obj_t v2 = vm_run_repl_arg();
-        vm_table_pair_t pair = (vm_table_pair_t) {
-            .key_tag = v2.tag,
-            .key_val = v2.value,
-        };
         if (v1.tag != VM_TAG_TAB) {
             return (vm_obj_t) {
                 .tag = VM_TAG_ERROR,
                 .value.error = vm_error_from_msg(block->range, "can only index tables"),
             };
         }
-        vm_table_get_pair(v1.value.table, &pair);
-        vm_obj_t v3 = (vm_obj_t) {
-            .tag = pair.val_tag,
-            .value = pair.val_val,
+        vm_table_pair_t pair = (vm_table_pair_t) {
+            .key = v2,
         };
-        vm_run_repl_out(v3);
+        vm_table_get_pair(v1.value.table, &pair);
+        vm_run_repl_out(pair.value);
         block = vm_run_repl_read(vm_block_t *);
         goto new_block;
     }

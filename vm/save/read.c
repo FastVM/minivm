@@ -191,7 +191,7 @@ outer:;
                 for (uint64_t i = 0; i < real; i++) {
                     size_t key_index = vm_save_read_uleb(&read);
                     size_t value_index = vm_save_read_uleb(&read);
-                    VM_TABLE_SET_VALUE(table, read.values.ptr[key_index].value, read.values.ptr[value_index].value);
+                    vm_table_set(table, read.values.ptr[key_index].value, read.values.ptr[value_index].value);
                 }
                 vm_gc_add(vm, (vm_obj_t) {.tag = tag, .value = value});
                 break;

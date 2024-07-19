@@ -57,10 +57,10 @@ union vm_value_t {
     void *all;
     bool b;
     double f64;
+    vm_ffi_t *ffi;
     vm_io_buffer_t *str;
     vm_table_t *table;
     vm_closure_t *closure;
-    vm_ffi_t *ffi;
     struct vm_block_t *fun;
     struct vm_error_t *error;
 };
@@ -71,10 +71,8 @@ struct vm_obj_t {
 };
 
 struct vm_table_pair_t {
-    vm_value_t key_val;
-    vm_value_t val_val;
-    vm_tag_t key_tag;
-    vm_tag_t val_tag;
+    vm_obj_t key;
+    vm_obj_t value;
 };
 
 struct vm_table_t {
@@ -126,10 +124,18 @@ struct vm_t {
 vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
-// vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename);
-// vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args);
-
 void vm_repl(vm_t *vm);
 vm_obj_t vm_str(vm_t *vm, const char *str);
+
+#define vm_obj_of_empty() ((vm_obj_t) {.tag = VM_TAG_UNK})
+#define vm_obj_of_nil() ((vm_obj_t) {.tag = VM_TAG_NIL})
+#define vm_obj_of_bool(b) ((vm_obj_t) {.tag = VM_TAG_BOOL, .value.b = (b)})
+#define vm_obj_of_number(n) ((vm_obj_t) {.tag = VM_TAG_NUMBER, .value.f64 = (n)})
+#define vm_obj_of_str(o) ((vm_obj_t) {.tag = VM_TAG_STR, .value.str = (o)})
+#define vm_obj_of_table(o) ((vm_obj_t) {.tag = VM_TAG_TAB, .value.table = (o)})
+#define vm_obj_of_closure(o) ((vm_obj_t) {.tag = VM_TAG_CLOSURE, .value.closure = (o)})
+#define vm_obj_of_ffi(o) ((vm_obj_t) {.tag = VM_TAG_FFI, .value.ffi = (o)})
+#define vm_obj_of_block(o) ((vm_obj_t) {.tag = VM_TAG_FUN, .value.fun = (o)})
+#define vm_obj_of_error(o) ((vm_obj_t) {.tag = VM_TAG_FUN, .value.error = (o)})
 
 #endif

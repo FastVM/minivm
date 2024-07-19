@@ -59,14 +59,8 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
             }
             table->mark = true;
             for (size_t i = 0; i < (1 << table->alloc); i++) {
-                vm_gc_mark_obj((vm_obj_t) {
-                    .tag = table->pairs[i].key_tag,
-                    .value = table->pairs[i].key_val,
-                });
-                vm_gc_mark_obj((vm_obj_t) {
-                    .tag = table->pairs[i].val_tag,
-                    .value = table->pairs[i].val_val,
-                });
+                vm_gc_mark_obj(table->pairs[i].key);
+                vm_gc_mark_obj(table->pairs[i].value);
             }
             break;
         }

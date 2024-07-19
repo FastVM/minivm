@@ -112,21 +112,14 @@ size_t vm_value_hash(vm_obj_t value) {
     }
 }
 
-vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag) {
-    vm_obj_t key = (vm_obj_t){
-        .tag = key_tag,
-        .value = key_val,
-    };
+vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key) {
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop;
     do {
         vm_table_pair_t *pair = &table->pairs[next];
-        vm_obj_t value = (vm_obj_t){
-            .tag = pair->key_tag,
-            .value = pair->key_val,
-        };
+        vm_obj_t value = pair->key;
         if (value.tag == VM_TAG_UNK || value.tag == VM_TAG_NIL) {
             return NULL;
         }
@@ -139,10 +132,6 @@ vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t
     return NULL;
 }
 
-void vm_table_iset(vm_table_t *table, uint64_t key_ival, uint64_t val_ival, vm_tag_t key_tag, vm_tag_t val_tag) {
-    vm_table_set(table, *(vm_value_t *)&key_ival, *(vm_value_t *)&val_ival, key_tag, val_tag);
-}
-
 void vm_table_init_size(vm_table_t *ret, size_t pow2) {
     ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * (1 << pow2));
     memset(ret->pairs, 0, sizeof(vm_table_pair_t) * (1 << pow2));
@@ -153,30 +142,23 @@ void vm_table_init_size(vm_table_t *ret, size_t pow2) {
     ret->pairs_auto = false;
 }
 
-void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val_val, vm_tag_t key_tag, vm_tag_t val_tag) {
+void vm_table_set(vm_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
     if (table->alloc == 0) {
         return;
     }
-    vm_obj_t key = (vm_obj_t){
-        .tag = key_tag,
-        .value = key_val,
-    };
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
     size_t stop = vm_value_hash(key) & and;
     size_t next = stop & and;
     do {
         vm_table_pair_t *pair = &table->pairs[next];
-        if (pair->key_tag == VM_TAG_UNK || pair->key_tag == VM_TAG_NIL) {
+        if (pair->key.tag == VM_TAG_UNK || pair->key.tag == VM_TAG_NIL) {
             break;
         }
-        vm_obj_t check = (vm_obj_t){
-            .tag = pair->key_tag,
-            .value = pair->key_val,
-        };
+        vm_obj_t check = pair->key;
         if (vm_obj_eq(key, check)) {
-            if (val_tag == VM_TAG_NIL) {
-                pair->key_tag = VM_TAG_UNK;
+            if (value.tag == VM_TAG_NIL) {
+                pair->key.tag = VM_TAG_UNK;
                 if (vm_value_is_int(key)) {
                     int64_t i64val = vm_value_to_i64(key);
                     if (0 < i64val && i64val <= table->len) {
@@ -184,26 +166,21 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
                     }
                 }
             } else {
-                pair->val_val = val_val;
-                pair->val_tag = val_tag;
+                pair->key = key;
+                pair->value = value;
             }
             return;
         }
         next += 1;
         next &= and;
     } while (next != stop);
-    if (val_tag == VM_TAG_NIL) {
+    if (value.tag == VM_TAG_NIL) {
         table->pairs[next] = (vm_table_pair_t){
-            .key_tag = key_tag,
-            .key_val = key_val,
-            .val_tag = val_tag,
-            .val_val = val_val,
+            .key = key,
+            .value = value,
         };
 
-        vm_obj_t nv = (vm_obj_t) {
-            .tag = key_tag,
-            .value = key_val,
-        };
+        vm_obj_t nv = value;
 
         double n = vm_value_to_f64(nv);
 
@@ -215,11 +192,11 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         vm_table_init_size(&ret, table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
             vm_table_pair_t *in_pair = &table->pairs[i];
-            if (in_pair->key_tag != VM_TAG_UNK && in_pair->key_tag != VM_TAG_NIL) {
+            if (in_pair->key.tag != VM_TAG_UNK && in_pair->key.tag != VM_TAG_NIL) {
                 vm_table_set_pair(&ret, in_pair);
             }
         }
-        vm_table_set(&ret, key_val, val_val, key_tag, val_tag);
+        vm_table_set(&ret, key, value);
         if (!table->pairs_auto) {
             vm_free(table->pairs);
         }
@@ -227,10 +204,8 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
     } else {
         table->used += 1;
         table->pairs[next] = (vm_table_pair_t){
-            .key_tag = key_tag,
-            .key_val = key_val,
-            .val_tag = val_tag,
-            .val_val = val_val,
+            .key = key,
+            .value = value,
         };
         vm_obj_t vlen = (vm_obj_t){
             .tag = VM_TAG_NUMBER,
@@ -239,7 +214,7 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         if (vm_obj_eq(vlen, key)) {
             while (true) {
                 int32_t next = table->len + 1;
-                vm_table_pair_t *got = vm_table_lookup(table, (vm_value_t){.f64 = next}, VM_TAG_NUMBER);
+                vm_table_pair_t *got = vm_table_lookup(table, (vm_obj_t){.tag = VM_TAG_NUMBER, .value.f64 = next});
                 if (got == NULL) {
                     break;
                 }
@@ -250,18 +225,15 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
 }
 
 void vm_table_set_pair(vm_table_t *table, vm_table_pair_t *pair) {
-    vm_table_set(table, pair->key_val, pair->val_val, pair->key_tag, pair->val_tag);
+    vm_table_set(table, pair->key, pair->value);
 }
 
 void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *out) {
-    vm_value_t key_val = out->key_val;
-    vm_tag_t key_tag = out->key_tag;
-    vm_table_pair_t *pair = vm_table_lookup(table, key_val, key_tag);
+    vm_table_pair_t *pair = vm_table_lookup(table, out->key);
     if (pair != NULL) {
-        out->val_val = pair->val_val;
-        out->val_tag = pair->val_tag;
+        out->value = pair->value;
         return;
     }
-    out->val_tag = VM_TAG_NIL;
+    out->value = vm_obj_of_nil();
     return;
 }

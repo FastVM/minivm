@@ -65,10 +65,7 @@ struct vm_arg_t {
         vm_block_t *func;
         vm_error_t *error;
 
-        struct {
-            uint64_t reg;
-            vm_tag_t reg_tag;
-        };
+        uint64_t reg;
     };
 
     uint8_t type;
@@ -140,7 +137,6 @@ void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val);
 void vm_io_format_blocks(vm_io_buffer_t *out, vm_blocks_t *val);
 
 void vm_block_info(size_t nblocks, vm_block_t **blocks);
-vm_tag_t vm_arg_to_tag(vm_arg_t arg);
 
 void vm_free_block_sub(vm_block_t *block);
 void vm_free_block(vm_block_t *block);

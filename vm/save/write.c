@@ -136,18 +136,18 @@ vm_save_t vm_save_value(vm_t *vm) {
                 size_t real = 0;
                 for (size_t i = 0; i < len; i++) {
                     vm_table_pair_t pair = table->pairs[i];
-                    if (pair.key_tag != VM_TAG_UNK) {
-                        vm_save_write_push(&write, (vm_obj_t){.tag = pair.key_tag, .value = pair.key_val});
-                        vm_save_write_push(&write, (vm_obj_t){.tag = pair.val_tag, .value = pair.val_val});
+                    if (pair.key.tag != VM_TAG_UNK) {
+                        vm_save_write_push(&write, pair.key);
+                        vm_save_write_push(&write, pair.value);
                         real += 1;
                     }
                 }
                 vm_save_write_uleb(&write, (uint64_t)real);
                 for (size_t i = 0; i < len; i++) {
                     vm_table_pair_t pair = table->pairs[i];
-                    if (pair.key_tag != VM_TAG_UNK) {
-                        size_t key = vm_save_write_push(&write, (vm_obj_t){.tag = pair.key_tag, .value = pair.key_val});
-                        size_t value = vm_save_write_push(&write, (vm_obj_t){.tag = pair.val_tag, .value = pair.val_val});
+                    if (pair.key.tag != VM_TAG_UNK) {
+                        size_t key = vm_save_write_push(&write, pair.key);
+                        size_t value = vm_save_write_push(&write, pair.value);
                         vm_save_write_uleb(&write, (uint64_t)key);
                         vm_save_write_uleb(&write, (uint64_t)value);
                     }

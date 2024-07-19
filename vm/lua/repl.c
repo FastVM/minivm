@@ -30,8 +30,8 @@ void vm_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
 with_new_std:;
     for (size_t i = 0; i < ((size_t)1 << std->alloc); i++) {
         vm_table_pair_t *pair = &std->pairs[i];
-        if (pair->key_tag == VM_TAG_STR) {
-            const char *got = pair->key_val.str->buf;
+        if (pair->key.tag == VM_TAG_STR) {
+            const char *got = pair->key.value.str->buf;
             size_t i = 0;
             while (got[i] != '\0') {
                 if (last_word[i] == '\0') {
@@ -49,9 +49,9 @@ with_new_std:;
                     continue;
                 }
             }
-            if (pair->val_tag == VM_TAG_NIL) {
+            if (pair->value.tag == VM_TAG_NIL) {
                 if (last_word[i] == '.') {
-                    std = pair->val_val.table;
+                    std = pair->key.value.table;
                     last_word = &last_word[i + 1];
                     goto with_new_std;
                 }

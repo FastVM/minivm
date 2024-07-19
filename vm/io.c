@@ -119,12 +119,10 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
 void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
-        if (value.tag == link->value.tag) {
-            if (value.value.all == link->value.value.all) {
-                vm_indent(out, indent, prefix);
-                vm_io_buffer_format(out, "<ref %zu>\n", up);
-                return;
-            }
+        if (vm_obj_eq(value, link->value)) {
+            vm_indent(out, indent, prefix);
+            vm_io_buffer_format(out, "<ref %zu>\n", up);
+            return;
         }
         up += 1;
         link = link->next;
@@ -180,7 +178,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
             size_t len = 1 << tab->alloc;
             for (size_t i = 0; i < len; i++) {
                 vm_table_pair_t p = tab->pairs[i];
-                switch (p.key_tag) {
+                switch (p.key.tag) {
                     case 0: {
                         break;
                     }
@@ -188,51 +186,31 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
                         __builtin_trap();
                     }
                     case VM_TAG_BOOL: {
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
                         if (value.value.b) {
-                            vm_io_debug(out, indent + 1, "true = ", val, &next);
+                            vm_io_debug(out, indent + 1, "true = ", p.value, &next);
                         } else {
-                            vm_io_debug(out, indent + 1, "false = ", val, &next);
+                            vm_io_debug(out, indent + 1, "false = ", p.value, &next);
                         }
                         break;
                     }
                     case VM_TAG_NUMBER: {
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
                         char buf[64];
-                        snprintf(buf, 63, VM_FORMAT_FLOAT " = ", p.key_val.f64);
-                        vm_io_debug(out, indent + 1, buf, val, &next);
+                        snprintf(buf, 63, VM_FORMAT_FLOAT " = ", p.key.value.f64);
+                        vm_io_debug(out, indent + 1, buf, p.value, &next);
                         break;
                     }
                     case VM_TAG_STR: {
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
                         vm_io_buffer_t buf = {0};
-                        vm_io_buffer_format(&buf, "%s = ", p.key_val.str->buf);
-                        vm_io_debug(out, indent + 1, buf.buf, val, &next);
+                        vm_io_buffer_format(&buf, "%s = ", p.key.value.str->buf);
+                        vm_io_debug(out, indent + 1, buf.buf, p.value, &next);
                         vm_free(buf.buf);
                         break;
                     }
                     default: {
                         vm_indent(out, indent + 1, "");
                         vm_io_buffer_format(out, "pair {\n");
-                        vm_obj_t key = (vm_obj_t){
-                            .tag = p.key_tag,
-                            .value = p.key_val,
-                        };
-                        vm_io_debug(out, indent + 2, "key = ", key, &next);
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
-                        vm_io_debug(out, indent + 2, "val = ", val, &next);
+                        vm_io_debug(out, indent + 2, "key = ", p.key, &next);
+                        vm_io_debug(out, indent + 2, "val = ", p.value, &next);
                         vm_indent(out, indent + 1, "");
                         vm_io_buffer_format(out, "}\n");
                     }
