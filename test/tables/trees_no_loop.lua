@@ -29,4 +29,4 @@ local function more(pow)
     end
 end
 
-print(more(1))
+print(more(10))

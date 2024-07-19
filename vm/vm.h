@@ -6,12 +6,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define VM_GC_MIN 256
 #define VM_VERSION "0.0.5"
-#define VM_GC_FACTOR 2
+
+#define VM_GC_MIN 256
+#define VM_GC_FACTOR 1.4
+
 #define VM_FORMAT_FLOAT "%.14g"
 
 struct vm_t;
+struct vm_block_t;
 struct vm_blocks_t;
 struct vm_closure_t;
 struct vm_externs_t;
@@ -36,12 +39,7 @@ enum {
     VM_TAG_UNK,
     VM_TAG_NIL,
     VM_TAG_BOOL,
-    VM_TAG_I8,
-    VM_TAG_I16,
-    VM_TAG_I32,
-    VM_TAG_I64,
-    VM_TAG_F32,
-    VM_TAG_F64,
+    VM_TAG_NUMBER,
     VM_TAG_STR,
     VM_TAG_CLOSURE,
     VM_TAG_FUN,
@@ -51,15 +49,6 @@ enum {
     VM_TAG_MAX,
 };
 
-enum {
-    VM_USE_NUM_I8,
-    VM_USE_NUM_I16,
-    VM_USE_NUM_I32,
-    VM_USE_NUM_I64,
-    VM_USE_NUM_F32,
-    VM_USE_NUM_F64,
-};
-
 typedef uint8_t vm_tag_t;
 
 typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
@@ -67,16 +56,12 @@ typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
 union vm_value_t {
     void *all;
     bool b;
-    int8_t i8;
-    int16_t i16;
-    int32_t i32;
-    int64_t i64;
-    float f32;
     double f64;
     vm_io_buffer_t *str;
     vm_table_t *table;
     vm_closure_t *closure;
     vm_ffi_t *ffi;
+    struct vm_block_t *fun;
     struct vm_error_t *error;
 };
 
@@ -96,11 +81,13 @@ struct vm_table_t {
     vm_table_pair_t *pairs;
     uint32_t len;
     uint32_t used;
-    uint8_t alloc;
+    uint8_t alloc: 8;
     bool mark: 1;
+    bool pairs_auto: 1;
 };
 
 struct vm_closure_t {
+    struct vm_block_t *block;
     bool mark: 1;
     uint32_t len: 31;
     vm_obj_t values[];
@@ -139,8 +126,8 @@ struct vm_t {
 vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
-vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename);
-vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args);
+// vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename);
+// vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args);
 
 void vm_repl(vm_t *vm);
 vm_obj_t vm_str(vm_t *vm, const char *str);

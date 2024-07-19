@@ -49,50 +49,11 @@ void vm_lua_comp_op_std_pow(vm_t *vm, vm_obj_t *args) {
     while (args->tag != VM_TAG_UNK) {
         v = pow(v, vm_value_to_f64(*args++));
     }
-    switch (vm->use_num) {
-        case VM_USE_NUM_I8: {
-            *ret = (vm_obj_t){
-                .tag = VM_TAG_I8,
-                .value.i8 = (int8_t)v,
-            };
-            return;
-        }
-        case VM_USE_NUM_I16: {
-            *ret = (vm_obj_t){
-                .tag = VM_TAG_I16,
-                .value.i16 = (int16_t)v,
-            };
-            return;
-        }
-        case VM_USE_NUM_I32: {
-            *ret = (vm_obj_t){
-                .tag = VM_TAG_I32,
-                .value.i32 = (int32_t)v,
-            };
-            return;
-        }
-        case VM_USE_NUM_I64: {
-            *ret = (vm_obj_t){
-                .tag = VM_TAG_I64,
-                .value.i64 = (int64_t)v,
-            };
-            return;
-        }
-        case VM_USE_NUM_F32: {
-            *ret = (vm_obj_t){
-                .tag = VM_TAG_F32,
-                .value.f32 = (float)v,
-            };
-            return;
-        }
-        case VM_USE_NUM_F64: {
-            *ret = (vm_obj_t){
-                .tag = VM_TAG_F64,
-                .value.f64 = (double)v,
-            };
-            return;
-        }
-    }
+    *ret = (vm_obj_t){
+        .tag = VM_TAG_NUMBER,
+        .value.f64 = (double)v,
+    };
+    return;
 }
 
 static void vm_ast_comp_names_push(vm_ast_comp_t *comp) {
@@ -263,8 +224,8 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     vm_arg_t slot = (vm_arg_t){
         .type = VM_ARG_LIT,
         .lit = (vm_obj_t){
-            .tag = VM_TAG_I32,
-            .value.i32 = slotnum,
+            .tag = VM_TAG_NUMBER,
+            .value.f64 = slotnum - 1,
         }
     };
     vm_ast_blocks_branch(

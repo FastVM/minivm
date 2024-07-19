@@ -301,32 +301,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
             vm_ast_node_t stop_expr = vm_lang_lua_conv(src, vm_ts_node_child_checked(clause, 4));
             vm_ast_node_t step_expr;
             if (len == 5) {
-                switch (src.vm->use_num) {
-                    case VM_USE_NUM_I8: {
-                        step_expr = vm_ast_build_literal(i8, 1);
-                        break;
-                    }
-                    case VM_USE_NUM_I16: {
-                        step_expr = vm_ast_build_literal(i16, 1);
-                        break;
-                    }
-                    case VM_USE_NUM_I32: {
-                        step_expr = vm_ast_build_literal(i32, 1);
-                        break;
-                    }
-                    case VM_USE_NUM_I64: {
-                        step_expr = vm_ast_build_literal(i64, 1);
-                        break;
-                    }
-                    case VM_USE_NUM_F32: {
-                        step_expr = vm_ast_build_literal(f32, 1);
-                        break;
-                    }
-                    case VM_USE_NUM_F64: {
-                        step_expr = vm_ast_build_literal(f64, 1);
-                        break;
-                    }
-                }
+                step_expr = vm_ast_build_literal(f64, 1);
             } else {
                 step_expr = vm_lang_lua_conv(src, vm_ts_node_child_checked(clause, 6));
             }
@@ -401,26 +376,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
             return vm_ast_build_len(right);
         }
         if (!strcmp(op, "-")) {
-            switch (src.vm->use_num) {
-                case VM_USE_NUM_I8: {
-                    return vm_ast_build_sub(vm_ast_build_literal(i8, 0), right);
-                }
-                case VM_USE_NUM_I16: {
-                    return vm_ast_build_sub(vm_ast_build_literal(i16, 0), right);
-                }
-                case VM_USE_NUM_I32: {
-                    return vm_ast_build_sub(vm_ast_build_literal(i32, 0), right);
-                }
-                case VM_USE_NUM_I64: {
-                    return vm_ast_build_sub(vm_ast_build_literal(i64, 0), right);
-                }
-                case VM_USE_NUM_F32: {
-                    return vm_ast_build_sub(vm_ast_build_literal(f32, 0), right);
-                }
-                case VM_USE_NUM_F64: {
-                    return vm_ast_build_sub(vm_ast_build_literal(f64, 0), right);
-                }
-            }
+            return vm_ast_build_sub(vm_ast_build_literal(f64, 0), right);
         }
     }
     if (!strcmp(type, "binary_expression")) {
@@ -526,47 +482,9 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "number")) {
         const char *str = vm_lang_lua_src(src, node);
         vm_ast_node_t ret;
-        switch (src.vm->use_num) {
-            case VM_USE_NUM_F32: {
-                float n;
-                sscanf(str, "%f", &n);
-                ret = vm_ast_build_literal(f32, n);
-                break;
-            }
-            case VM_USE_NUM_F64: {
-                double n;
-                sscanf(str, "%lf", &n);
-                ret = vm_ast_build_literal(f64, n);
-                break;
-            }
-            case VM_USE_NUM_I8: {
-                int8_t n;
-                sscanf(str, "%" SCNi8, &n);
-                ret = vm_ast_build_literal(i8, n);
-                break;
-            }
-            case VM_USE_NUM_I16: {
-                int16_t n;
-                sscanf(str, "%" SCNi16, &n);
-                ret = vm_ast_build_literal(i16, n);
-                break;
-            }
-            case VM_USE_NUM_I32: {
-                int32_t n;
-                sscanf(str, "%" SCNi32, &n);
-                ret = vm_ast_build_literal(i32, n);
-                break;
-            }
-            case VM_USE_NUM_I64: {
-                int64_t n;
-                sscanf(str, "%" SCNi64, &n);
-                ret = vm_ast_build_literal(i64, n);
-                break;
-            }
-            default: {
-                __builtin_trap();
-            }
-        }
+        double n;
+        sscanf(str, "%lf", &n);
+        ret = vm_ast_build_literal(f64, n);
         vm_free(str);
         return ret;
     }
@@ -629,7 +547,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
             if (!strcmp(name, "field")) {
                 size_t sub_children = ts_node_child_count(sub);
                 if (sub_children == 1) {
-                    vm_ast_node_t target = vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), vm_ast_build_literal(i32, nfields));
+                    vm_ast_node_t target = vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), vm_ast_build_literal(f64, nfields));
                     vm_ast_node_t value = vm_lang_lua_conv(src, vm_ts_node_child_checked(sub, 0));
                     cur = vm_ast_build_set(target, value);
                     nfields += 1;

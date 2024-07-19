@@ -101,27 +101,7 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
             vm_io_buffer_format(out, "%s", value.value.b ? "true" : "false");
             break;
         }
-        case VM_TAG_I8: {
-            vm_io_buffer_format(out, "%" PRIi8, value.value.i8);
-            break;
-        }
-        case VM_TAG_I16: {
-            vm_io_buffer_format(out, "%" PRIi16, value.value.i16);
-            break;
-        }
-        case VM_TAG_I32: {
-            vm_io_buffer_format(out, "%" PRIi32, value.value.i32);
-            break;
-        }
-        case VM_TAG_I64: {
-            vm_io_buffer_format(out, "%" PRIi64, value.value.i64);
-            break;
-        }
-        case VM_TAG_F32: {
-            vm_io_buffer_format(out, VM_FORMAT_FLOAT, value.value.f32);
-            break;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             vm_io_buffer_format(out, VM_FORMAT_FLOAT, value.value.f64);
             break;
         }
@@ -168,32 +148,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
             }
             break;
         }
-        case VM_TAG_I8: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%" PRIi8 "\n", value.value.i8);
-            break;
-        }
-        case VM_TAG_I16: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%" PRIi16 "\n", value.value.i16);
-            break;
-        }
-        case VM_TAG_I32: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%" PRIi32 "\n", value.value.i32);
-            break;
-        }
-        case VM_TAG_I64: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "%" PRIi64 "\n", value.value.i64);
-            break;
-        }
-        case VM_TAG_F32: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", value.value.f32);
-            break;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             vm_indent(out, indent, prefix);
             vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", value.value.f64);
             break;
@@ -244,47 +199,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
                         }
                         break;
                     }
-                    case VM_TAG_I8: {
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
-                        char buf[64];
-                        snprintf(buf, 63, "%" PRIi8 " = ", p.key_val.i8);
-                        vm_io_debug(out, indent + 1, buf, val, &next);
-                        break;
-                    }
-                    case VM_TAG_I16: {
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
-                        char buf[64];
-                        snprintf(buf, 63, "%" PRIi16 " = ", p.key_val.i16);
-                        vm_io_debug(out, indent + 1, buf, val, &next);
-                        break;
-                    }
-                    case VM_TAG_I32: {
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
-                        char buf[64];
-                        snprintf(buf, 63, "%" PRIi32 " = ", p.key_val.i32);
-                        vm_io_debug(out, indent + 1, buf, val, &next);
-                        break;
-                    }
-                    case VM_TAG_I64: {
-                        vm_obj_t val = (vm_obj_t){
-                            .tag = p.val_tag,
-                            .value = p.val_val,
-                        };
-                        char buf[64];
-                        snprintf(buf, 63, "%" PRIi64 " = ", p.key_val.i64);
-                        vm_io_debug(out, indent + 1, buf, val, &next);
-                        break;
-                    }
-                    case VM_TAG_F64: {
+                    case VM_TAG_NUMBER: {
                         vm_obj_t val = (vm_obj_t){
                             .tag = p.val_tag,
                             .value = p.val_val,
@@ -350,27 +265,7 @@ void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
             vm_io_buffer_format(buf, "%s", value.value.b ? "true" : "false");
             break;
         }
-        case VM_TAG_I8: {
-            vm_io_buffer_format(buf, "%" PRIi8, value.value.i8);
-            break;
-        }
-        case VM_TAG_I16: {
-            vm_io_buffer_format(buf, "%" PRIi16, value.value.i16);
-            break;
-        }
-        case VM_TAG_I32: {
-            vm_io_buffer_format(buf, "%" PRIi32, value.value.i32);
-            break;
-        }
-        case VM_TAG_I64: {
-            vm_io_buffer_format(buf, "%" PRIi64, value.value.i64);
-            break;
-        }
-        case VM_TAG_F32: {
-            vm_io_buffer_format(buf, VM_FORMAT_FLOAT, value.value.f32);
-            break;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             vm_io_buffer_format(buf, VM_FORMAT_FLOAT, value.value.f64);
             break;
         }

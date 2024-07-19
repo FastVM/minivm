@@ -13,8 +13,6 @@
 #include <time.h>
 
 int main(int argc, char **argv) {
-    vm_mem_init();
-    
     vm_t *vm = vm_state_new();
 
     bool echo = false;
@@ -62,25 +60,6 @@ int main(int argc, char **argv) {
             if (f != NULL) {
                 fwrite(save.buf, 1, save.len, f);
                 fclose(f);
-            }
-        } else if (!strncmp(arg, "--number=", 9)) {
-            arg += 9;
-            if (!strcmp(arg, "i8")) {
-                vm->use_num = VM_USE_NUM_I8;
-            } else if (!strcmp(arg, "i16")) {
-                vm->use_num = VM_USE_NUM_I16;
-            } else if (!strcmp(arg, "i32")) {
-                vm->use_num = VM_USE_NUM_I32;
-            } else if (!strcmp(arg, "i64")) {
-                vm->use_num = VM_USE_NUM_I64;
-            } else if (!strcmp(arg, "f32")) {
-                vm->use_num = VM_USE_NUM_F32;
-            } else if (!strcmp(arg, "f64")) {
-                vm->use_num = VM_USE_NUM_F64;
-            } else {
-                fprintf(stderr, "error: cannot use have as a number type: %s\n", arg);
-                vm_state_delete(vm);
-                return 1;
             }
         } else {
             isrepl = false;

@@ -7,7 +7,7 @@ const VM_TAG_I16 = 4;
 const VM_TAG_I32 = 5;
 const VM_TAG_I64 = 6;
 const VM_TAG_F32 = 7;
-const VM_TAG_F64 = 8;
+const VM_TAG_NUMBER = 8;
 const VM_TAG_STR = 9;
 const VM_TAG_CLOSURE = 10;
 const VM_TAG_FUN = 11;
@@ -104,7 +104,7 @@ export const inspect = (bytes) => {
                 value = f32s[0];
                 break;
             }
-            case VM_TAG_F64: {
+            case VM_TAG_NUMBER: {
                 const u64s = new BigUint64Array(1);
                 u64s[0] = ulebn();
                 const f64s = new Float64Array(u64s.buffer);

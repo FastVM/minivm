@@ -4,22 +4,7 @@
 
 int64_t vm_value_to_i64(vm_obj_t arg) {
     switch (arg.tag) {
-        case VM_TAG_I8: {
-            return (int64_t)arg.value.i8;
-        }
-        case VM_TAG_I16: {
-            return (int64_t)arg.value.i16;
-        }
-        case VM_TAG_I32: {
-            return (int64_t)arg.value.i32;
-        }
-        case VM_TAG_I64: {
-            return (int64_t)arg.value.i64;
-        }
-        case VM_TAG_F32: {
-            return (int64_t)arg.value.f32;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             return (int64_t)arg.value.f64;
         }
         default: {
@@ -30,22 +15,7 @@ int64_t vm_value_to_i64(vm_obj_t arg) {
 
 double vm_value_to_f64(vm_obj_t arg) {
     switch (arg.tag) {
-        case VM_TAG_I8: {
-            return (double)arg.value.i8;
-        }
-        case VM_TAG_I16: {
-            return (double)arg.value.i16;
-        }
-        case VM_TAG_I32: {
-            return (double)arg.value.i32;
-        }
-        case VM_TAG_I64: {
-            return (double)arg.value.i64;
-        }
-        case VM_TAG_F32: {
-            return (double)arg.value.f32;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             return (double)arg.value.f64;
         }
         default: {
@@ -55,31 +25,12 @@ double vm_value_to_f64(vm_obj_t arg) {
 }
 
 bool vm_value_can_to_n64(vm_obj_t val) {
-    return val.tag == VM_TAG_I8 || val.tag == VM_TAG_I16 || val.tag == VM_TAG_I32 || val.tag == VM_TAG_I64 || val.tag == VM_TAG_F32 || val.tag == VM_TAG_F64;
+    return val.tag == VM_TAG_NUMBER;
 }
 
 bool vm_value_is_int(vm_obj_t val) {
     switch (val.tag) {
-        case VM_TAG_I8: {
-            return true;
-        }
-        case VM_TAG_I16: {
-            return true;
-        }
-        case VM_TAG_I32: {
-            return true;
-        }
-        case VM_TAG_I64: {
-            return true;
-        }
-        case VM_TAG_F32: {
-            float v = val.value.f32;
-            if ((float)INT32_MIN <= v && v <= (float)INT32_MAX) {
-                return (float)(int32_t)v == v;
-            }
-            return fmodf(v, 1.0f) == 0.0f;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             double v = val.value.f64;
             if ((double)INT64_MIN <= v && v <= (double)INT64_MAX) {
                 return (double)(int64_t)v == v;
@@ -100,149 +51,9 @@ bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs) {
         case VM_TAG_BOOL: {
             return rhs.tag == VM_TAG_BOOL && lhs.value.b == rhs.value.b;
         }
-        case VM_TAG_I8: {
+        case VM_TAG_NUMBER: {
             switch (rhs.tag) {
-                case VM_TAG_I8: {
-                    return lhs.value.i8 == rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i8 == rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i8 == rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i8 == rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i8 == rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i8 == rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I16: {
-            switch (rhs.tag) {
-                case VM_TAG_I8: {
-                    return lhs.value.i16 == rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i16 == rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i16 == rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i16 == rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i16 == rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i16 == rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I32: {
-            switch (rhs.tag) {
-                case VM_TAG_I8: {
-                    return lhs.value.i32 == rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i32 == rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i32 == rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i32 == rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i32 == rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i32 == rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_I64: {
-            switch (rhs.tag) {
-                case VM_TAG_I8: {
-                    return lhs.value.i64 == rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.i64 == rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.i64 == rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.i64 == rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.i64 == rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.i64 == rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_F32: {
-            switch (rhs.tag) {
-                case VM_TAG_I8: {
-                    return lhs.value.f32 == rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.f32 == rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.f32 == rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.f32 == rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.f32 == rhs.value.f32;
-                }
-                case VM_TAG_F64: {
-                    return lhs.value.f32 == rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_F64: {
-            switch (rhs.tag) {
-                case VM_TAG_I8: {
-                    return lhs.value.f64 == rhs.value.i8;
-                }
-                case VM_TAG_I16: {
-                    return lhs.value.f64 == rhs.value.i16;
-                }
-                case VM_TAG_I32: {
-                    return lhs.value.f64 == rhs.value.i32;
-                }
-                case VM_TAG_I64: {
-                    return lhs.value.f64 == rhs.value.i64;
-                }
-                case VM_TAG_F32: {
-                    return lhs.value.f64 == rhs.value.f32;
-                }
-                case VM_TAG_F64: {
+                case VM_TAG_NUMBER: {
                     return lhs.value.f64 == rhs.value.f64;
                 }
                 default: {
@@ -254,7 +65,7 @@ bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs) {
             return rhs.tag == VM_TAG_STR && !strcmp(lhs.value.str->buf, rhs.value.str->buf);
         }
         case VM_TAG_FUN: {
-            return rhs.tag == VM_TAG_FUN && lhs.value.i32 == rhs.value.i32;
+            return rhs.tag == VM_TAG_FUN && lhs.value.fun == rhs.value.fun;
         }
         default: {
             return lhs.tag == rhs.tag && lhs.value.all == rhs.value.all;
@@ -270,29 +81,11 @@ size_t vm_value_hash(vm_obj_t value) {
         case VM_TAG_BOOL: {
             return SIZE_MAX - (size_t)value.value.b;
         }
-        case VM_TAG_I8: {
-            return (size_t)value.value.i8 * 1610612741;
-        }
-        case VM_TAG_I16: {
-            return (size_t)value.value.i16 * 1610612741;
-        }
-        case VM_TAG_I32: {
-            return (size_t)value.value.i32 * 1610612741;
-        }
-        case VM_TAG_I64: {
-            return (size_t)value.value.i64 * 1610612741;
-        }
-        case VM_TAG_F32: {
-            if (vm_value_is_int(value)) {
-                return (size_t)(int32_t)value.value.f32 * 1610612741;
-            }
-            return (size_t)(uint32_t)value.value.i32;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             if (vm_value_is_int(value)) {
                 return (size_t)(int64_t)value.value.f64 * 1610612741;
             }
-            return (size_t)(uint64_t)value.value.i64;
+            return (size_t)*(uint64_t *)&value.value.f64;
         }
         case VM_TAG_STR: {
             uint64_t ret = 0xcbf29ce484222325;
@@ -317,34 +110,6 @@ size_t vm_value_hash(vm_obj_t value) {
             return SIZE_MAX - 3;
         }
     }
-}
-
-void vm_table_init_size(vm_table_t *ret, size_t pow2) {
-    ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * (1 << pow2));
-    memset(ret->pairs, 0, sizeof(vm_table_pair_t) * (1 << pow2));
-    ret->alloc = pow2;
-    ret->used = 0;
-    ret->len = 0;
-    ret->mark = false;
-}
-
-vm_table_t *vm_table_new_size(vm_t *vm,size_t pow2) {
-    vm_table_t *ret = vm_malloc(sizeof(vm_table_t));
-    vm_table_init_size(ret, pow2);
-    vm_gc_add(vm, (vm_obj_t) {
-        .tag = VM_TAG_TAB,
-        .value.table = ret,
-    });
-    return ret;
-}
-
-void vm_free_table(vm_table_t *table) {
-    vm_free(table->pairs);
-    vm_free(table);
-}
-
-vm_table_t *vm_table_new(vm_t *vm) {
-    return vm_table_new_size(vm, 2);
 }
 
 vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag) {
@@ -376,6 +141,16 @@ vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t
 
 void vm_table_iset(vm_table_t *table, uint64_t key_ival, uint64_t val_ival, vm_tag_t key_tag, vm_tag_t val_tag) {
     vm_table_set(table, *(vm_value_t *)&key_ival, *(vm_value_t *)&val_ival, key_tag, val_tag);
+}
+
+void vm_table_init_size(vm_table_t *ret, size_t pow2) {
+    ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * (1 << pow2));
+    memset(ret->pairs, 0, sizeof(vm_table_pair_t) * (1 << pow2));
+    ret->alloc = pow2;
+    ret->used = 0;
+    ret->len = 0;
+    ret->mark = false;
+    ret->pairs_auto = false;
 }
 
 void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val_val, vm_tag_t key_tag, vm_tag_t val_tag) {
@@ -435,7 +210,7 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
         if (1 <= n && n <= table->len && (double) (size_t) n == n) {
             table->len = (size_t) (n - 1);
         }
-    } else if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 66) {
+    } else if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 76) {
         vm_table_t ret;
         vm_table_init_size(&ret, table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
@@ -445,7 +220,9 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
             }
         }
         vm_table_set(&ret, key_val, val_val, key_tag, val_tag);
-        vm_free(table->pairs);
+        if (!table->pairs_auto) {
+            vm_free(table->pairs);
+        }
         *table = ret;
     } else {
         table->used += 1;
@@ -456,13 +233,13 @@ void vm_table_set(vm_table_t *restrict table, vm_value_t key_val, vm_value_t val
             .val_val = val_val,
         };
         vm_obj_t vlen = (vm_obj_t){
-            .tag = VM_TAG_I32,
-            .value.i32 = table->len + 1,
+            .tag = VM_TAG_NUMBER,
+            .value.f64 = table->len + 1,
         };
         if (vm_obj_eq(vlen, key)) {
             while (true) {
                 int32_t next = table->len + 1;
-                vm_table_pair_t *got = vm_table_lookup(table, (vm_value_t){.i32 = next}, VM_TAG_I32);
+                vm_table_pair_t *got = vm_table_lookup(table, (vm_value_t){.f64 = next}, VM_TAG_NUMBER);
                 if (got == NULL) {
                     break;
                 }

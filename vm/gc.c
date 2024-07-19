@@ -3,15 +3,23 @@
 #include "./ir.h"
 
 struct vm_gc_objs_t;
+struct vm_gc_table_cache_t;
 struct vm_gc_t;
 
 typedef struct vm_gc_t vm_gc_t;
 typedef struct vm_gc_objs_t vm_gc_objs_t;
+typedef struct vm_gc_table_cache_t vm_gc_table_cache_t;
 
 struct vm_gc_objs_t {
     size_t alloc;
     size_t len;
-    vm_obj_t *restrict objs;
+    vm_obj_t *objs;
+};
+
+struct vm_gc_table_cache_t {
+    size_t alloc;
+    size_t len;
+    vm_table_t **tables;
 };
 
 struct vm_gc_t {
@@ -96,7 +104,7 @@ void vm_gc_mark(vm_t *vm, vm_obj_t *top) {
 }
 
 void vm_gc_sweep(vm_t *vm) {
-    vm_gc_t *restrict gc = vm->gc;
+    vm_gc_t *gc = vm->gc;
     size_t write = 0;
     for (size_t i = 0; i < gc->objs.len; i++) {
         vm_obj_t obj = gc->objs.objs[i];
@@ -130,7 +138,10 @@ void vm_gc_sweep(vm_t *vm) {
             case VM_TAG_TAB: {
                 vm_table_t *table = obj.value.table;
                 if (!table->mark) {
-                    vm_free_table(table);
+                    if (!table->pairs_auto) {
+                        vm_free(table->pairs);
+                    }
+                    vm_free(table);
                     keep = false;
                 } else {
                     table->mark = false;
@@ -147,16 +158,38 @@ void vm_gc_sweep(vm_t *vm) {
         }
     }
     gc->objs.len = write;
-    if (write < VM_GC_MIN) {
-        gc->last = VM_GC_MIN;
-    } else {
-        gc->last = write;
+    size_t next = write * VM_GC_FACTOR;
+    if (next >= gc->last) {
+        gc->last = next;
     }
+}
+
+void vm_table_init_size(vm_table_t *ret, size_t pow2);
+
+vm_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
+    vm_gc_t *gc = vm->gc;
+    vm_table_t *ret = vm_malloc(sizeof(vm_table_t) + sizeof(vm_table_pair_t) * (1 << pow2));
+    ret->pairs = (vm_table_pair_t *) &ret[1];
+    memset(ret->pairs, 0, sizeof(vm_table_pair_t) * (1 << pow2));
+    ret->alloc = pow2;
+    ret->used = 0;
+    ret->len = 0;
+    ret->mark = false;
+    ret->pairs_auto = true;
+    vm_gc_add(vm, (vm_obj_t) {
+        .tag = VM_TAG_TAB,
+        .value.table = ret,
+    });
+    return ret;
+}
+
+vm_table_t *vm_table_new(vm_t *vm) {
+    return vm_table_new_size(vm, 2);
 }
 
 void vm_gc_run(vm_t *vm, vm_obj_t *top) {
     vm_gc_t *gc = vm->gc;
-    if (gc->last * VM_GC_FACTOR >= gc->objs.len) {
+    if (gc->last >= gc->objs.len) {
         return;
     }
     vm_gc_mark(vm, top);
@@ -181,7 +214,7 @@ void vm_gc_deinit(vm_t *vm) {
 void vm_gc_add(vm_t *vm, vm_obj_t obj) {
     vm_gc_t *gc = vm->gc;
     if (gc->objs.len + 1 >= gc->objs.alloc) {
-        gc->objs.alloc = (gc->objs.len + 1) * 2;
+        gc->objs.alloc = (gc->objs.len) * VM_GC_FACTOR + 1;
         gc->objs.objs = vm_realloc(gc->objs.objs, sizeof(vm_obj_t) * gc->objs.alloc);
     }
     gc->objs.objs[gc->objs.len++] = obj;

@@ -37,56 +37,20 @@
     exit(1);
 #endif
 
-#if defined(VM_NO_GC)
-
 #if 1
 #define VM_MAYBE_INLINE
 #else
 #define VM_MAYBE_INLINE inline
 #endif
 
-#define vm_mem_init() ((void) 0)
+void *mi_malloc(size_t size);
+void *mi_realloc(void *ptr, size_t size);
+void mi_free(const void *ptr);
+char *mi_strdup(const char *str);
 
-static VM_MAYBE_INLINE void *vm_malloc(size_t size) {
-    void *ret = malloc(size);
-    if (ret == NULL) {
-        __builtin_trap();
-    }
-    return ret;
-}
-
-static VM_MAYBE_INLINE void *vm_realloc(void *ptr, size_t size) {
-    void *ret = realloc(ptr, size);
-    if (ret == NULL) {
-        __builtin_trap();
-    }
-    return ret;
-}
-
-static VM_MAYBE_INLINE void vm_free(const void *ptr) {
-    free((void *)ptr);
-}
-
-static VM_MAYBE_INLINE char *vm_strdup(const char *str) {
-    size_t len = strlen(str);
-    char *buf = vm_malloc(sizeof(char) * (len + 1));
-    memcpy(buf, str, len + 1);
-    return buf;
-}
-
-#elif defined(VM_GC_BDW)
-
-#include "../vendor/bdwgc/include/gc.h"
-#define vm_mem_init() (( GC_INIT() ), GC_start_mark_threads())
-#define vm_malloc(s) (GC_MALLOC(s))
-#define vm_realloc(p, s) (GC_REALLOC(p, s))
-#define vm_free(s) (GC_FREE((void*) (s)))
-#define vm_strdup(s) (GC_STRDUP(s))
-
-#else
-
-#error you need one of: VM_GC_BDW, VM_NO_GC
-
-#endif
+#define vm_malloc(x) mi_malloc(x)
+#define vm_realloc(x, y) mi_realloc(x, y)
+#define vm_free(x) mi_free(x)
+#define vm_strdup(x) mi_strdup(x)
 
 #endif

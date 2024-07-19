@@ -95,31 +95,9 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
                 value.b = vm_save_read_byte(&read) != 0;
                 break;
             }
-            case VM_TAG_I8: {
-                value.i8 = (int8_t)vm_save_read_sleb(&read);
-                break;
-            }
-            case VM_TAG_I16: {
-                value.i16 = (int16_t)vm_save_read_sleb(&read);
-                break;
-            }
-            case VM_TAG_FUN:
-            case VM_TAG_I32: {
-                value.i32 = (int32_t)vm_save_read_sleb(&read);
-                break;
-            }
-            case VM_TAG_I64: {
-                value.i64 = (int64_t)vm_save_read_sleb(&read);
-                break;
-            }
-            case VM_TAG_F32: {
-                uint32_t n = (uint32_t)vm_save_read_uleb(&read);
-                value.i32 = (int32_t)n;
-                break;
-            }
-            case VM_TAG_F64: {
+            case VM_TAG_NUMBER: {
                 uint64_t n = vm_save_read_uleb(&read);
-                value.i64 = (int64_t)n;
+                value.f64 = *(double *)&n;
                 break;
             }
             case VM_TAG_STR: {
@@ -145,14 +123,21 @@ void vm_load_value(vm_t *vm, vm_save_t save) {
                 }
                 break;
             }
+            case VM_TAG_FUN: {
+                value.f64 = (int32_t)vm_save_read_sleb(&read);
+                break;
+            }
             case VM_TAG_CLOSURE: {
                 uint64_t len = vm_save_read_uleb(&read);
                 vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * len);
+                // closure->block =
+                __builtin_trap(); 
                 closure->len = len;
                 for (size_t i = 0; i < len; i++) {
                     vm_save_read_uleb(&read);
                 }
                 value.closure = closure;
+                __builtin_trap();
                 break;
             }
             case VM_TAG_TAB: {
@@ -241,6 +226,18 @@ outer:;
             src[len] = '\0';
         }
         vm_compile(vm, src, file);
+    }
+    for (size_t i = 0; i < read.values.len; i++) {
+        vm_save_value_t save = read.values.ptr[i];
+        vm_value_t value = save.value.value;
+        read.buf.read = save.start;
+        vm_tag_t tag = (vm_tag_t)vm_save_read_byte(&read);
+        if (tag == VM_TAG_FUN) {
+            read.values.ptr[i].value = (vm_obj_t) {
+                .tag = VM_TAG_FUN,
+                .value.fun = vm->blocks->blocks[(int) value.f64],
+            };
+        }
     }
 error:;
 }

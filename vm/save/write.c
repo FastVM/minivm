@@ -106,29 +106,11 @@ vm_save_t vm_save_value(vm_t *vm) {
                 vm_save_write_byte(&write, value.value.b ? 1 : 0);
                 break;
             }
-            case VM_TAG_I8: {
-                vm_save_write_sleb(&write, (int64_t)value.value.i8);
-                break;
+            case VM_TAG_FUN: {
+                vm_save_write_sleb(&write, (int64_t)value.value.fun->id);
             }
-            case VM_TAG_I16: {
-                vm_save_write_sleb(&write, (int64_t)value.value.i16);
-                break;
-            }
-            case VM_TAG_FUN:
-            case VM_TAG_I32: {
-                vm_save_write_sleb(&write, (int64_t)value.value.i32);
-                break;
-            }
-            case VM_TAG_I64: {
-                vm_save_write_sleb(&write, value.value.i64);
-                break;
-            }
-            case VM_TAG_F32: {
-                vm_save_write_uleb(&write, (uint32_t)value.value.i32);
-                break;
-            }
-            case VM_TAG_F64: {
-                vm_save_write_uleb(&write, (uint64_t)value.value.i64);
+            case VM_TAG_NUMBER: {
+                vm_save_write_uleb(&write, *(uint64_t *)&value.value.f64);
                 break;
             }
             case VM_TAG_STR: {

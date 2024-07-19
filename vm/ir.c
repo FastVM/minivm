@@ -30,7 +30,7 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
             if (val.func == NULL) {
                 vm_io_buffer_format(out, "<null.fun>");
             } else {
-                vm_io_buffer_format(out, ".%zi", val.func->id);
+                vm_io_buffer_format(out, ".%zi", (ptrdiff_t) val.func->id);
             }
             break;
         }
@@ -51,27 +51,7 @@ void vm_io_format_type(vm_io_buffer_t *out, vm_tag_t type) {
             vm_io_buffer_format(out, "bool");
             break;
         }
-        case VM_TAG_I8: {
-            vm_io_buffer_format(out, "i8");
-            break;
-        }
-        case VM_TAG_I16: {
-            vm_io_buffer_format(out, "i16");
-            break;
-        }
-        case VM_TAG_I32: {
-            vm_io_buffer_format(out, "i32");
-            break;
-        }
-        case VM_TAG_I64: {
-            vm_io_buffer_format(out, "i64");
-            break;
-        }
-        case VM_TAG_F32: {
-            vm_io_buffer_format(out, "f32");
-            break;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             vm_io_buffer_format(out, "f64");
             break;
         }
@@ -278,7 +258,7 @@ void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val) {
     if (val == NULL) {
         printf("<block: null>\n");
     }
-    vm_io_buffer_format(out, ".%zi(", val->id);
+    vm_io_buffer_format(out, ".%zi(", (ptrdiff_t) val->id);
     for (size_t i = 0; i < val->nargs; i++) {
         if (i != 0) {
             vm_io_buffer_format(out, ", ");

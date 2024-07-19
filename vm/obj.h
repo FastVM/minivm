@@ -12,7 +12,6 @@ int64_t vm_value_to_i64(vm_obj_t arg);
 double vm_value_to_f64(vm_obj_t arg);
 bool vm_value_can_to_n64(vm_obj_t val);
 
-void vm_free_table(vm_table_t *table);
 vm_table_t *vm_table_new(vm_t *vm);
 vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_value_t key_val, vm_tag_t key_tag);
 void vm_table_iset(vm_table_t *table, uint64_t key_ival, uint64_t val_ival, vm_tag_t key_tag, vm_tag_t val_tag);
@@ -21,12 +20,7 @@ void vm_table_set_pair(vm_table_t *table, vm_table_pair_t *pair);
 void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *pair);
 
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_b(...) VM_TAG_BOOL
-#define VM_VALUE_LITERAL_TYPE_TO_TAG_i8(...) VM_TAG_I8
-#define VM_VALUE_LITERAL_TYPE_TO_TAG_i16(...) VM_TAG_I16
-#define VM_VALUE_LITERAL_TYPE_TO_TAG_i32(...) VM_TAG_I32
-#define VM_VALUE_LITERAL_TYPE_TO_TAG_i64(...) VM_TAG_I64
-#define VM_VALUE_LITERAL_TYPE_TO_TAG_f32(...) VM_TAG_F32
-#define VM_VALUE_LITERAL_TYPE_TO_TAG_f64(...) VM_TAG_F64
+#define VM_VALUE_LITERAL_TYPE_TO_TAG_f64(...) VM_TAG_NUMBER
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_str(...) VM_TAG_STR
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_table(...) VM_TAG_TAB
 #define VM_VALUE_LITERAL_TYPE_TO_TAG_ffi(...) VM_TAG_FFI
@@ -48,33 +42,7 @@ void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *pair);
 #define VM_OBJ_NUMBER(CONFIG_, VALUE_) ({                  \
     vm_t *config_ = (CONFIG_);                            \
     vm_obj_t ret_;                                         \
-    switch (config_->use_num) {                                  \
-        case VM_USE_NUM_I8: {                                    \
-            ret_ = VM_OBJ_LITERAL(i8, (int8_t)(VALUE_));   \
-            break;                                               \
-        }                                                        \
-        case VM_USE_NUM_I16: {                                   \
-            ret_ = VM_OBJ_LITERAL(i16, (int16_t)(VALUE_)); \
-            break;                                               \
-        }                                                        \
-        case VM_USE_NUM_I32: {                                   \
-            ret_ = VM_OBJ_LITERAL(i32, (int32_t)(VALUE_)); \
-            break;                                               \
-        }                                                        \
-        case VM_USE_NUM_I64: {                                   \
-            ret_ = VM_OBJ_LITERAL(i64, (int64_t)(VALUE_)); \
-            break;                                               \
-        }                                                        \
-        case VM_USE_NUM_F32: {                                   \
-            ret_ = VM_OBJ_LITERAL(f32, (float)(VALUE_));   \
-            break;                                               \
-        }                                                        \
-        case VM_USE_NUM_F64: {                                   \
-            ret_ = VM_OBJ_LITERAL(f64, (double)(VALUE_));  \
-            break;                                               \
-        }                                                        \
-    }                                                            \
-    ret_;                                                        \
+    VM_OBJ_LITERAL(f64, (double)(VALUE_));  \
 })
 
 #define VM_TABLE_SET_VALUE(TABLE_, KEY_, VALUE_) ({                       \

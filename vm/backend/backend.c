@@ -200,7 +200,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_interp_tag_t, VM_TAG_FUN);
                     vm_interp_push(vm_value_t, (vm_value_t) {
-                        .i32 = instr.args[0].func->id
+                        .fun = instr.args[0].func
                     });
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else {
@@ -639,7 +639,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 } else if (branch.args[i].type == VM_ARG_FUN) {
                     vm_interp_push(vm_interp_tag_t, VM_ARG_LIT);
                     vm_interp_push(vm_interp_tag_t, VM_TAG_FUN);
-                    vm_interp_push(vm_value_t, ((vm_value_t) {.i32 = branch.args[i].func->id}));
+                    vm_interp_push(vm_value_t, ((vm_value_t) {.fun = branch.args[i].func}));
                 } else {
                     __builtin_trap();
                 }
@@ -1170,27 +1170,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_arg();
         vm_obj_t v3;
         switch (v2.tag) {
-            case VM_TAG_I8: {
-                v3 = v1.value.closure->values[v2.value.i8];
-                break;
-            }
-            case VM_TAG_I16: {
-                v3 = v1.value.closure->values[v2.value.i16];
-                break;
-            }
-            case VM_TAG_I32: {
-                v3 = v1.value.closure->values[v2.value.i32];
-                break;
-            }
-            case VM_TAG_I64: {
-                v3 = v1.value.closure->values[v2.value.i64];
-                break;
-            }
-            case VM_TAG_F32: {
-                v3 = v1.value.closure->values[(int32_t) v2.value.f32];
-                break;
-            }
-            case VM_TAG_F64: {
+            case VM_TAG_NUMBER: {
                 v3 = v1.value.closure->values[(int32_t) v2.value.f64];
                 break;
             }
@@ -1254,7 +1234,8 @@ new_block_no_print:;
                 next_regs[j].tag = VM_TAG_UNK;
                 vm_obj_t *last_regs = regs;
                 vm->regs = next_regs;
-                vm_obj_t got = vm_run_repl(vm, vm->blocks->blocks[v1.value.closure->values[0].value.i32]);
+                // printf("%zu : %zu\n", (size_t) v1.value.closure->values[0].value.i32, (size_t) vm->blocks->len);
+                vm_obj_t got = vm_run_repl(vm, v1.value.closure->block);
                 vm->regs = last_regs;
                 if (got.tag == VM_TAG_ERROR) {
                     return (vm_obj_t) {

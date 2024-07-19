@@ -11,7 +11,6 @@ vm_t *vm_state_new(void) {
     vm_obj_t *base = vm_malloc(sizeof(vm_obj_t) * (1 << 20));
     vm_t *vm = vm_malloc(sizeof(vm_t));
     *vm = (vm_t) {
-        .use_num = VM_USE_NUM_F64,
         .base = base,
         .regs = base,
     };
@@ -59,52 +58,6 @@ void vm_state_delete(vm_t *vm) {
     }
     vm_free(vm->regs);
     vm_free(vm);
-}
-
-vm_obj_t vm_state_load(vm_t *vm, const char *str, const char *filename) {
-    vm_block_t *entry = vm_compile(vm, str, filename ? filename : "__no_name__");
-
-    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * 1);
-    closure->len = 1;
-    closure->values[0] = (vm_obj_t){
-        .tag = VM_TAG_FUN,
-        .value.i32 = (int32_t)entry->id,
-    };
-
-    vm_obj_t ret =  (vm_obj_t) {
-        .tag = VM_TAG_CLOSURE,
-        .value.closure = closure,
-    };
-    vm_gc_add(vm, ret);
-    return ret;
-}
-
-vm_obj_t vm_state_invoke(vm_t *vm, vm_obj_t obj, size_t nargs, vm_obj_t *args) {
-    vm_obj_t ret;
-    switch (obj.tag) {
-        case VM_TAG_CLOSURE: {
-            vm->regs[0] = obj;
-            for (size_t i = 0; i < nargs; i++) {
-                vm->regs[i + 1] = args[i];
-            }
-            ret = vm_run_repl(vm, vm->blocks->blocks[obj.value.closure->values[0].value.i32]);
-            break;
-        }
-        case VM_TAG_FFI: {
-            for (size_t i = 0; i < nargs; i++) {
-                vm->regs[i] = args[i];
-            }
-            vm->regs[nargs] = (vm_obj_t) {
-                .tag = VM_TAG_UNK,
-            };
-            vm_obj_t *regs_init = vm->regs;
-            vm->regs += nargs + 1;
-            obj.value.ffi(vm, regs_init);
-            vm->regs = regs_init;
-            break;
-        }
-    }
-    return ret;
 }
 
 vm_obj_t vm_str(vm_t *vm, const char *str) {

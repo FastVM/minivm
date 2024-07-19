@@ -50,21 +50,19 @@ void vm_std_os_exit(vm_t *vm, vm_obj_t *args) {
 
 void vm_std_load(vm_t *vm, vm_obj_t *args) {
     (void)vm;
-    if (args[0].tag == VM_TAG_STR) {
+    if (args[0].tag != VM_TAG_STR) {
         *args = (vm_obj_t){
             .tag = VM_TAG_ERROR,
             .value.error = vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "cannot load non-string value"),
         };
+        return;
     }
     const char *str = args[0].value.str->buf;
     vm_block_t *entry = vm_compile(vm, str, "__load__");
 
-    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * 1);
-    closure->len = 1;
-    closure->values[0] = (vm_obj_t){
-        .tag = VM_TAG_FUN,
-        .value.i32 = (int32_t)entry->id,
-    };
+    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t));
+    closure->block = entry;
+    closure->len = 0;
     vm_obj_t ret =  (vm_obj_t) {
         .tag = VM_TAG_CLOSURE,
         .value.closure = closure,
@@ -110,7 +108,6 @@ void vm_std_error(vm_t *vm, vm_obj_t *args) {
 }
 
 void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
-    (void)vm;
     int64_t nargs = 0;
     for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
         nargs += 1;
@@ -121,10 +118,11 @@ void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
         };
         return;
     }
-    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * nargs);
-    closure->len = nargs;
-    for (size_t i = 0; args[i].tag != VM_TAG_UNK; i++) {
-        closure->values[i] = args[i];
+    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * (nargs - 1));
+    closure->block = args[0].value.fun;
+    closure->len = nargs - 1;
+    for (size_t i = 1; args[i].tag != VM_TAG_UNK; i++) {
+        closure->values[i - 1] = args[i];
     }
     vm_obj_t ret =  (vm_obj_t) {
         .tag = VM_TAG_CLOSURE,
@@ -189,27 +187,7 @@ void vm_std_type(vm_t *vm, vm_obj_t *args) {
             ret = "boolean";
             break;
         }
-        case VM_TAG_I8: {
-            ret = "number";
-            break;
-        }
-        case VM_TAG_I16: {
-            ret = "number";
-            break;
-        }
-        case VM_TAG_I32: {
-            ret = "number";
-            break;
-        }
-        case VM_TAG_I64: {
-            ret = "number";
-            break;
-        }
-        case VM_TAG_F32: {
-            ret = "number";
-            break;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             ret = "number";
             break;
         }
@@ -251,48 +229,18 @@ void vm_std_tostring(vm_t *vm, vm_obj_t *args) {
 
 void vm_std_tonumber(vm_t *vm, vm_obj_t *args) {
     switch (args[0].tag) {
-        case VM_TAG_I8: {
-            args[0] = VM_OBJ_NUMBER(vm, args[0].value.i8);
-            return;
-        }
-        case VM_TAG_I16: {
-            args[0] = VM_OBJ_NUMBER(vm, args[0].value.i16);
-            return;
-        }
-        case VM_TAG_I32: {
-            args[0] = VM_OBJ_NUMBER(vm, args[0].value.i32);
-            return;
-        }
-        case VM_TAG_I64: {
-            args[0] = VM_OBJ_NUMBER(vm, args[0].value.i64);
-            return;
-        }
-        case VM_TAG_F32: {
-            args[0] = VM_OBJ_NUMBER(vm, args[0].value.f32);
-            return;
-        }
-        case VM_TAG_F64: {
+        case VM_TAG_NUMBER: {
             args[0] = VM_OBJ_NUMBER(vm, args[0].value.f64);
             return;
         }
         case VM_TAG_STR: {
-            if (vm->use_num == VM_USE_NUM_F32 || vm->use_num == VM_USE_NUM_F64) {
-                double num;
-                if (sscanf(args[0].value.str->buf, "%lf", &num) == 0) {
-                    args[0] = VM_OBJ_NIL;
-                    return;
-                }
-                args[0] = VM_OBJ_NUMBER(vm, num);
-                return;
-            } else {
-                int64_t num;
-                if (sscanf(args[0].value.str->buf, "%" SCNi64, &num) == 0) {
-                    args[0] = VM_OBJ_NIL;
-                    return;
-                }
-                args[0] = VM_OBJ_NUMBER(vm, num);
+            double num;
+            if (sscanf(args[0].value.str->buf, "%lf", &num) == 0) {
+                args[0] = VM_OBJ_NIL;
                 return;
             }
+            args[0] = VM_OBJ_NUMBER(vm, num);
+            return;
         }
         default: {
             args[0] = VM_OBJ_NIL;
@@ -575,28 +523,8 @@ void vm_std_vm_typename(vm_t *vm, vm_obj_t *args) {
         *args = VM_OBJ_NUMBER(vm, VM_TAG_BOOL);
         return;
     }
-    if (!strcmp(str, "i8")) {
-        *args = VM_OBJ_NUMBER(vm, VM_TAG_I8);
-        return;
-    }
-    if (!strcmp(str, "i16")) {
-        *args = VM_OBJ_NUMBER(vm, VM_TAG_I16);
-        return;
-    }
-    if (!strcmp(str, "i32")) {
-        *args = VM_OBJ_NUMBER(vm, VM_TAG_I32);
-        return;
-    }
-    if (!strcmp(str, "i64")) {
-        *args = VM_OBJ_NUMBER(vm, VM_TAG_I64);
-        return;
-    }
-    if (!strcmp(str, "f32")) {
-        *args = VM_OBJ_NUMBER(vm, VM_TAG_F32);
-        return;
-    }
     if (!strcmp(str, "f64")) {
-        *args = VM_OBJ_NUMBER(vm, VM_TAG_F64);
+        *args = VM_OBJ_NUMBER(vm, VM_TAG_NUMBER);
         return;
     }
     if (!strcmp(str, "str")) {
@@ -728,7 +656,7 @@ static int vm_std_app_repl(void *arg) {
 }
 
 static Color vm_value_to_color(vm_obj_t arg) {
-    if (arg.tag == VM_TAG_I8 || arg.tag == VM_TAG_I16 || arg.tag == VM_TAG_I32 || arg.tag == VM_TAG_I64 || arg.tag == VM_TAG_F32 || arg.tag == VM_TAG_F64) {
+    if (arg.tag == VM_TAG_NUMBER) {
         uint8_t c = vm_value_to_i64(arg);
         return (Color){
             c,
