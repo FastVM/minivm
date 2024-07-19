@@ -32,54 +32,6 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
     }
 }
 
-void vm_io_format_type(vm_io_buffer_t *out, vm_tag_t type) {
-    switch (type) {
-        case VM_TAG_UNK: {
-            vm_io_buffer_format(out, "unk");
-            break;
-        }
-        case VM_TAG_NIL: {
-            vm_io_buffer_format(out, "nil");
-            break;
-        }
-        case VM_TAG_BOOL: {
-            vm_io_buffer_format(out, "bool");
-            break;
-        }
-        case VM_TAG_NUMBER: {
-            vm_io_buffer_format(out, "f64");
-            break;
-        }
-        case VM_TAG_STR: {
-            vm_io_buffer_format(out, "str");
-            break;
-        }
-        case VM_TAG_CLOSURE: {
-            vm_io_buffer_format(out, "closure");
-            break;
-        }
-        case VM_TAG_FUN: {
-            vm_io_buffer_format(out, "rawfunc");
-            break;
-        }
-        case VM_TAG_TAB: {
-            vm_io_buffer_format(out, "table");
-            break;
-        }
-        case VM_TAG_FFI: {
-            vm_io_buffer_format(out, "ffi");
-            break;
-        }
-        case VM_TAG_ERROR: {
-            vm_io_buffer_format(out, "error");
-            break;
-        }
-        default: {
-            vm_io_buffer_format(out, "<tag: invalid>");
-        }
-    }
-}
-
 void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
     if (val.out.type != VM_ARG_NONE) {
         vm_io_format_arg(out, val.out);

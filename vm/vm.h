@@ -8,6 +8,7 @@
 
 #define VM_VERSION "0.0.5"
 
+
 #define VM_GC_MIN 256
 #define VM_GC_FACTOR 1.4
 
@@ -16,6 +17,7 @@
 
 #define VM_FORMAT_FLOAT "%.14g"
 
+#define VM_OBJ_FAST 1
 #define VM_OBJ_FIELD_VALUE _value ## __COUNTER__ 
 #define VM_OBJ_FIELD_TAG _tag ## __COUNTER__
 
@@ -24,7 +26,6 @@ struct vm_block_t;
 struct vm_blocks_t;
 struct vm_closure_t;
 struct vm_externs_t;
-struct vm_obj_t;
 union vm_value_t;
 struct vm_table_t;
 struct vm_table_pair_t;
@@ -36,10 +37,53 @@ typedef struct vm_t vm_t;
 typedef struct vm_blocks_t vm_blocks_t;
 typedef struct vm_closure_t vm_closure_t;
 typedef struct vm_externs_t vm_externs_t;
-typedef struct vm_obj_t vm_obj_t;
 typedef union vm_value_t vm_value_t;
 typedef struct vm_table_t vm_table_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
+
+
+#if VM_OBJ_FAST
+
+#include "nanbox.h"
+
+typedef nanbox_t vm_obj_t;
+
+typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
+#define vm_obj_of_empty() nanbox_empty()
+#define vm_obj_of_nil() nanbox_undefined()
+#define vm_obj_of_boolean(b) ((b) ? nanbox_true() : nanbox_false()) 
+#define vm_obj_of_number(n) nanbox_from_double(n)
+#define vm_obj_of_string(s) nanbox_from_aux1(s)
+#define vm_obj_of_table(o) nanbox_from_aux2(o)
+#define vm_obj_of_closure(o) nanbox_from_aux3(o)
+#define vm_obj_of_ffi(o) nanbox_from_aux4(o)
+#define vm_obj_of_block(o) nanbox_from_aux5(o)
+#define vm_obj_of_error(o) nanbox_from_pointer(o)
+
+#define vm_obj_is_empty(o) nanbox_is_empty(o)
+#define vm_obj_is_nil(o) nanbox_is_undefined(o)
+#define vm_obj_is_boolean(o) nanbox_is_boolean(o)
+#define vm_obj_is_number(o) nanbox_is_number(o)
+#define vm_obj_is_string(o) nanbox_is_aux1(o)
+#define vm_obj_is_table(o) nanbox_is_aux2(o)
+#define vm_obj_is_closure(o) nanbox_is_aux3(o)
+#define vm_obj_is_ffi(o) nanbox_is_aux4(o)
+#define vm_obj_is_block(o) nanbox_is_aux5(o)
+#define vm_obj_is_error(o) nanbox_is_pointer(o)
+
+#define vm_obj_get_boolean(o) nanbox_to_boolean(o)
+#define vm_obj_get_number(o) nanbox_to_double(o)
+#define vm_obj_get_string(o) ((vm_io_buffer_t *) nanbox_to_aux(o))
+#define vm_obj_get_table(o) ((vm_table_t *) nanbox_to_aux(o))
+#define vm_obj_get_closure(o) ((vm_closure_t *) nanbox_to_aux(o))
+#define vm_obj_get_ffi(o) ((vm_ffi_t *) nanbox_to_aux(o))
+#define vm_obj_get_block(o) ((vm_block_t *) nanbox_to_aux(o))
+#define vm_obj_get_error(o) ((vm_error_t *) nanbox_to_pointer(o))
+
+#else
+
+struct vm_obj_t;
+typedef struct vm_obj_t vm_obj_t;
 
 enum {
     VM_TAG_UNK,
@@ -74,6 +118,7 @@ struct vm_obj_t {
     vm_value_t VM_OBJ_FIELD_VALUE;
     vm_tag_t VM_OBJ_FIELD_TAG;
 };
+#endif
 
 struct vm_table_pair_t {
     vm_obj_t key;
@@ -131,7 +176,9 @@ void vm_state_delete(vm_t *vm);
 void vm_repl(vm_t *vm);
 vm_obj_t vm_str(vm_t *vm, const char *str);
 
+#if VM_OBJ_FAST
 
+#else
 #define vm_obj_of_empty() ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_UNK})
 #define vm_obj_of_nil() ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_NIL})
 #define vm_obj_of_boolean(b) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_BOOL, .VM_OBJ_FIELD_VALUE.boolean = (b)})
@@ -162,5 +209,6 @@ vm_obj_t vm_str(vm_t *vm, const char *str);
 #define vm_obj_is_ffi(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_FFI)
 #define vm_obj_is_block(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_FUN)
 #define vm_obj_is_error(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_ERROR)
+#endif
 
 #endif

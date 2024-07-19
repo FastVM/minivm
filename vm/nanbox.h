@@ -67,28 +67,6 @@
 #define NANBOX_POINTER_TYPE void*
 #endif
 
-/*
- * User-defined auxillary types. Default to void*. These types must be pointer
- * types or 32-bit types. (Pointers on 64-bit platforms always begin with 16
- * bits of zero.)
- */
-#ifndef NANBOX_AUX1_TYPE
-#define NANBOX_AUX1_TYPE void*
-#endif
-#ifndef NANBOX_AUX2_TYPE
-#define NANBOX_AUX2_TYPE void*
-#endif
-#ifndef NANBOX_AUX3_TYPE
-#define NANBOX_AUX3_TYPE void*
-#endif
-#ifndef NANBOX_AUX4_TYPE
-#define NANBOX_AUX4_TYPE void*
-#endif
-#ifndef NANBOX_AUX5_TYPE
-#define NANBOX_AUX5_TYPE void*
-#endif
-
-
 #include <stddef.h>  // size_t
 #include <stdint.h>  // int64_t, int32_t
 #include <stdbool.h> // bool, true, false
@@ -255,8 +233,15 @@ typedef union NANBOX_NAME(_u) NANBOX_T;
 
 // There are 5 * 2^48 auxillary values can be stored in the 64-bit integer
 // range NANBOX_MIN_AUX..NANBOX_MAX_AUX.
-#define NANBOX_MIN_AUX_TAG          0x00010000
-#define NANBOX_MAX_AUX_TAG          0x0005ffff
+#define NANBOX_MIN_AUX_TAG          0x0001000000000000llu
+#define NANBOX_MAX_AUX_TAG          0x0005ffff00000000llu
+
+#define NANBOX_MIN_AUX1         0x0001000000000000llu
+#define NANBOX_MIN_AUX2         0x0002000000000000llu
+#define NANBOX_MIN_AUX3         0x0003000000000000llu
+#define NANBOX_MIN_AUX4         0x0004000000000000llu
+#define NANBOX_MIN_AUX5         0x0005000000000000llu
+
 #define NANBOX_MIN_AUX              0x0001000000000000llu
 #define NANBOX_MAX_AUX              0x0005ffffffffffffllu
 
@@ -358,6 +343,68 @@ static inline bool NANBOX_NAME(_is_aux)(NANBOX_T val) {
 	       val.as_int64 <= NANBOX_MAX_AUX;
 }
 
+static inline NANBOX_POINTER_TYPE NANBOX_NAME(_to_aux)(NANBOX_T val) {
+	assert(NANBOX_NAME(_is_aux)(val));
+    return (void *) ((size_t) val.pointer & NANBOX_MASK_POINTER);
+}
+
+static inline bool NANBOX_NAME(_is_aux1)(NANBOX_T val) {
+	return val.as_int64 >= NANBOX_MIN_AUX1 &&
+	       val.as_int64 < NANBOX_MIN_AUX2;
+}
+static inline bool NANBOX_NAME(_is_aux2)(NANBOX_T val) {
+	return val.as_int64 >= NANBOX_MIN_AUX2 &&
+	       val.as_int64 < NANBOX_MIN_AUX3;
+}
+static inline bool NANBOX_NAME(_is_aux3)(NANBOX_T val) {
+	return val.as_int64 >= NANBOX_MIN_AUX3 &&
+	       val.as_int64 < NANBOX_MIN_AUX4;
+}
+static inline bool NANBOX_NAME(_is_aux4)(NANBOX_T val) {
+	return val.as_int64 >= NANBOX_MIN_AUX4 &&
+	       val.as_int64 < NANBOX_MAX_AUX;
+}
+static inline bool NANBOX_NAME(_is_aux5)(NANBOX_T val) {
+	return val.as_int64 >= NANBOX_MIN_AUX5 &&
+	       val.as_int64 <= NANBOX_MAX_AUX;
+}
+
+static inline NANBOX_T NANBOX_NAME(_from_aux1)(void *ptr) {
+	NANBOX_T ret;
+	ret.as_int64 = (uint64_t) ptr | NANBOX_MIN_AUX1;
+	assert(NANBOX_NAME(_is_aux1)(ret));
+	return ret;
+}
+
+static inline NANBOX_T NANBOX_NAME(_from_aux2)(void *ptr) {
+	NANBOX_T ret;
+	int printf(const char *, ...);
+	ret.as_int64 = (uint64_t) ptr | NANBOX_MIN_AUX2;
+	assert(NANBOX_NAME(_is_aux2)(ret));
+	return ret;
+}
+
+static inline NANBOX_T NANBOX_NAME(_from_aux3)(void *ptr) {
+	NANBOX_T ret;
+	ret.as_int64 = (uint64_t) ptr | NANBOX_MIN_AUX3;
+	assert(NANBOX_NAME(_is_aux3)(ret));
+	return ret;
+}
+
+static inline NANBOX_T NANBOX_NAME(_from_aux4)(void *ptr) {
+	NANBOX_T ret;
+	ret.as_int64 = (uint64_t) ptr | NANBOX_MIN_AUX4;
+	assert(NANBOX_NAME(_is_aux4)(ret));
+	return ret;
+}
+
+static inline NANBOX_T NANBOX_NAME(_from_aux5)(void *ptr) {
+	NANBOX_T ret;
+	ret.as_int64 = (uint64_t) ptr | NANBOX_MIN_AUX5;
+	assert(NANBOX_NAME(_is_aux5)(ret));
+	return ret;
+}
+
 /* end if NANBOX_64 */
 #elif defined(NANBOX_32)
 
@@ -369,16 +416,21 @@ static inline bool NANBOX_NAME(_is_aux)(NANBOX_T val) {
  * 'pointer', 'integer' and 'boolean', their values (the 'payload') are store
  * in the lower 32 bits. In the case of all other tags the payload is 0.
  */
-#define NANBOX_MAX_DOUBLE_TAG     0xfff80000
-#define NANBOX_INT_TAG            0xfff80001
-#define NANBOX_MIN_AUX_TAG        0xfff90000
-#define NANBOX_MAX_AUX_TAG        0xfffdffff
-#define NANBOX_POINTER_TAG        0xfffffffa
-#define NANBOX_BOOLEAN_TAG        0xfffffffb
-#define NANBOX_UNDEFINED_TAG      0xfffffffc
-#define NANBOX_NULL_TAG           0xfffffffd
-#define NANBOX_DELETED_VALUE_TAG  0xfffffffe
-#define NANBOX_EMPTY_VALUE_TAG    0xffffffff
+#define NANBOX_MAX_DOUBLE_TAG     0XFFF80000
+#define NANBOX_INT_TAG            0XFFF80001
+#define NANBOX_MIN_AUX_TAG        0XFFF90000
+#define NANBOX_MAX_AUX_TAG        0XFFFDFFFF
+#define NANBOX_MIN_AUX1_TAG       0XFFF90000
+#define NANBOX_MIN_AUX2_TAG       0XFFFA0000
+#define NANBOX_MIN_AUX3_TAG       0XFFFB0000
+#define NANBOX_MIN_AUX4_TAG       0XFFFC0000
+#define NANBOX_MIN_AUX5_TAG       0XFFFD0000
+#define NANBOX_POINTER_TAG        0XFFFFFFFA
+#define NANBOX_BOOLEAN_TAG        0XFFFFFFFB
+#define NANBOX_UNDEFINED_TAG      0XFFFFFFFC
+#define NANBOX_NULL_TAG           0XFFFFFFFD
+#define NANBOX_DELETED_VALUE_TAG  0XFFFFFFFE
+#define NANBOX_EMPTY_VALUE_TAG    0XFFFFFFFF
 
 // The 'empty' value is guarranteed to consist of a repeated single byte,
 // so that it should be easy to memset an array of nanboxes to 'empty' using

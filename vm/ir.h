@@ -74,8 +74,7 @@ struct vm_arg_t {
 struct vm_branch_t {
     vm_location_range_t range;
 
-    // vm_block_t *targets[2];
-    vm_block_t *targets[VM_TAG_MAX];
+    vm_block_t *targets[2];
 
     vm_arg_t *args;
     vm_arg_t out;
@@ -129,7 +128,6 @@ struct vm_blocks_t {
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
 
 void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val);
-void vm_io_format_type(vm_io_buffer_t *out, vm_tag_t tag);
 void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val);
 void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val);
 void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val);

@@ -18,17 +18,20 @@ bool vm_obj_eq(vm_obj_t v1, vm_obj_t v2) {
     } else if (vm_obj_is_ffi(v1) && vm_obj_is_ffi(v2)) {
         return vm_obj_get_ffi(v1) == vm_obj_get_ffi(v2);
     } else {
-        __builtin_trap();
         return false;
     }
 }
 
 size_t vm_value_hash(vm_obj_t value) {
+    if (vm_obj_is_nil(value)) {
+        return 0;
+    }
     if (vm_obj_is_boolean(value)) {
         return SIZE_MAX - (size_t)vm_obj_get_boolean(value);
     }
     if (vm_obj_is_number(value)) {
-        return (size_t)*(uint64_t *)&vm_obj_get_number(value);
+        double n = vm_obj_get_number(value);
+        return (size_t)*(uint64_t *)&n;
     }
     if (vm_obj_is_string(value)) {
         uint64_t ret = 0xcbf29ce484222325;
@@ -53,6 +56,7 @@ size_t vm_value_hash(vm_obj_t value) {
         return (size_t)vm_obj_get_table(value) >> 4;
     }
     __builtin_trap();
+    // return 0;
 }
 
 vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key) {

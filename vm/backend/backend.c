@@ -4,12 +4,6 @@
 #include "../ir.h"
 #include "../gc.h"
 
-#define COMBINE(x, y) ((x)*VM_TAG_MAX + (y))
-#define CONCAT_2(x, y) x ## _ ## y
-#define CONCAT(x, y) CONCAT_2(x, y)
-#define CONCAT3_2(x, y, z) x ## _ ## y ## _ ## z
-#define CONCAT3(x, y) CONCAT3_2(x, y)
-
 #define VM_INLINE inline __attribute__((always_inline))
 
 #if VM_DEBUG_BACKEND_OPCODES

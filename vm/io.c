@@ -1,5 +1,6 @@
 
 #include "./io.h"
+#include "./ir.h"
 
 void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap) {
     if (buf->buf == NULL) {
