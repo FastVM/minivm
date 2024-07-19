@@ -34,47 +34,41 @@ char *vm_lang_lua_gensym(vm_lang_lua_t src) {
     return buf;
 }
 
-#define vm_ts_node_child_checked(xnode, xn) ({                                        \
-    TSNode node_ = (xnode);                                                           \
-    uint32_t n_ = (xn);                                                               \
-    if (n_ >= ts_node_child_count(node_)) {                                           \
-        vm_io_buffer_t *buf = vm_io_buffer_new();                                     \
-        vm_io_buffer_format(buf, "parsing %s missing #%zu", ts_node_type(node_), n_); \
-        const char *msg = buf->buf;                                                   \
-        vm_free(buf);                                                                 \
-        return (vm_ast_node_t){                                                       \
-            .type = VM_AST_NODE_LITERAL,                                              \
-            .value.literal = (vm_obj_t){                                              \
-                .tag = VM_TAG_ERROR,                                                  \
-                .value.error = vm_error_from_msg(vm_location_range_unknown, msg),     \
-            },                                                                        \
-        };                                                                            \
-    }                                                                                 \
-    TSNode ret = ts_node_child(node_, n_);                                            \
-    size_t num_children = ts_node_child_count(ret);                                   \
-    for (size_t i = 0; i < num_children; i++) {                                       \
-        TSNode child = ts_node_child(ret, i);                                         \
-        if (ts_node_is_missing(child)) {                                              \
-            vm_io_buffer_t *buf = vm_io_buffer_new();                                 \
-            vm_io_buffer_format(                                                      \
-                buf,                                                                  \
-                "parsing %s %s missing #%zu",                                         \
-                ts_node_type(node_),                                                  \
-                ts_node_type(ret),                                                    \
-                i                                                                     \
-            );                                                                        \
-            const char *msg = buf->buf;                                               \
-            vm_free(buf);                                                             \
-            return (vm_ast_node_t){                                                   \
-                .type = VM_AST_NODE_LITERAL,                                          \
-                .value.literal = (vm_obj_t){                                          \
-                    .tag = VM_TAG_ERROR,                                              \
-                    .value.error = vm_error_from_msg(vm_location_range_unknown, msg), \
-                },                                                                    \
-            };                                                                        \
-        }                                                                             \
-    }                                                                                 \
-    ret;                                                                              \
+#define vm_ts_node_child_checked(xnode, xn) ({                                                       \
+    TSNode node_ = (xnode);                                                                          \
+    uint32_t n_ = (xn);                                                                              \
+    if (n_ >= ts_node_child_count(node_)) {                                                          \
+        vm_io_buffer_t *buf = vm_io_buffer_new();                                                    \
+        vm_io_buffer_format(buf, "parsing %s missing #%zu", ts_node_type(node_), n_);                \
+        const char *msg = buf->buf;                                                                  \
+        vm_free(buf);                                                                                \
+        return (vm_ast_node_t){                                                                      \
+            .type = VM_AST_NODE_LITERAL,                                                             \
+            .value.literal = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, msg)),     \
+        };                                                                                           \
+    }                                                                                                \
+    TSNode ret = ts_node_child(node_, n_);                                                           \
+    size_t num_children = ts_node_child_count(ret);                                                  \
+    for (size_t i = 0; i < num_children; i++) {                                                      \
+        TSNode child = ts_node_child(ret, i);                                                        \
+        if (ts_node_is_missing(child)) {                                                             \
+            vm_io_buffer_t *buf = vm_io_buffer_new();                                                \
+            vm_io_buffer_format(                                                                     \
+                buf,                                                                                 \
+                "parsing %s %s missing #%zu",                                                        \
+                ts_node_type(node_),                                                                 \
+                ts_node_type(ret),                                                                   \
+                i                                                                                    \
+            );                                                                                       \
+            const char *msg = buf->buf;                                                              \
+            vm_free(buf);                                                                            \
+            return (vm_ast_node_t){                                                                  \
+                .type = VM_AST_NODE_LITERAL,                                                         \
+                .value.literal = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, msg)), \
+            };                                                                                       \
+        }                                                                                            \
+    }                                                                                                \
+    ret;                                                                                             \
 })
 
 vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node);
@@ -301,7 +295,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
             vm_ast_node_t stop_expr = vm_lang_lua_conv(src, vm_ts_node_child_checked(clause, 4));
             vm_ast_node_t step_expr;
             if (len == 5) {
-                step_expr = vm_ast_build_literal(f64, 1);
+                step_expr = vm_ast_build_literal(vm_obj_of_number(1));
             } else {
                 step_expr = vm_lang_lua_conv(src, vm_ts_node_child_checked(clause, 6));
             }
@@ -376,7 +370,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
             return vm_ast_build_len(right);
         }
         if (!strcmp(op, "-")) {
-            return vm_ast_build_sub(vm_ast_build_literal(f64, 0), right);
+            return vm_ast_build_sub(vm_ast_build_literal(vm_obj_of_number(0)), right);
         }
     }
     if (!strcmp(type, "binary_expression")) {
@@ -484,7 +478,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         vm_ast_node_t ret;
         double n;
         sscanf(str, "%lf", &n);
-        ret = vm_ast_build_literal(f64, n);
+        ret = vm_ast_build_literal(vm_obj_of_number(n));
         vm_free(str);
         return ret;
     }
@@ -547,7 +541,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
             if (!strcmp(name, "field")) {
                 size_t sub_children = ts_node_child_count(sub);
                 if (sub_children == 1) {
-                    vm_ast_node_t target = vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), vm_ast_build_literal(f64, nfields));
+                    vm_ast_node_t target = vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), vm_ast_build_literal(vm_obj_of_number(nfields)));
                     vm_ast_node_t value = vm_lang_lua_conv(src, vm_ts_node_child_checked(sub, 0));
                     cur = vm_ast_build_set(target, value);
                     nfields += 1;
@@ -584,10 +578,10 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         return vm_ast_build_nil();
     }
     if (!strcmp(type, "true")) {
-        return vm_ast_build_literal(b, true);
+        return vm_ast_build_literal(vm_obj_of_bool(true));
     }
     if (!strcmp(type, "false")) {
-        return vm_ast_build_literal(b, false);
+        return vm_ast_build_literal(vm_obj_of_bool(false));
     }
     return vm_ast_build_error(vm_io_format("unknown node type: %s", type));
 }
@@ -616,10 +610,7 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file) {
     if (ts_node_is_error(root_node) || ts_node_is_missing(root_node)) {
         return (vm_ast_node_t){
             .type = VM_AST_NODE_LITERAL,
-            .value.literal = (vm_obj_t){
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_msg(vm_location_range_unknown, "parsing root node failed"),
-            },
+            .value.literal = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "parsing root node failed")),
         };
     }
 

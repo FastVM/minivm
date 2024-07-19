@@ -49,7 +49,7 @@ bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs) {
             return rhs.tag == VM_TAG_NIL;
         }
         case VM_TAG_BOOL: {
-            return rhs.tag == VM_TAG_BOOL && lhs.value.b == rhs.value.b;
+            return rhs.tag == VM_TAG_BOOL && lhs.value.boolean == rhs.value.boolean;
         }
         case VM_TAG_NUMBER: {
             switch (rhs.tag) {
@@ -67,8 +67,20 @@ bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs) {
         case VM_TAG_FUN: {
             return rhs.tag == VM_TAG_FUN && lhs.value.fun == rhs.value.fun;
         }
+        case VM_TAG_CLOSURE: {
+            return rhs.tag == VM_TAG_CLOSURE && lhs.value.closure == rhs.value.closure;
+        }
+        case VM_TAG_TAB: {
+            return rhs.tag == VM_TAG_TAB && lhs.value.table == rhs.value.table;
+        }
+        case VM_TAG_FFI: {
+            return rhs.tag == VM_TAG_FFI && lhs.value.ffi == rhs.value.ffi;
+        }
+        case VM_TAG_ERROR: {
+            __builtin_trap();
+        }
         default: {
-            return lhs.tag == rhs.tag && lhs.value.all == rhs.value.all;
+            __builtin_trap();
         }
     }
 }
@@ -79,7 +91,7 @@ size_t vm_value_hash(vm_obj_t value) {
             return SIZE_MAX - 2;
         }
         case VM_TAG_BOOL: {
-            return SIZE_MAX - (size_t)value.value.b;
+            return SIZE_MAX - (size_t)value.value.boolean;
         }
         case VM_TAG_NUMBER: {
             if (vm_value_is_int(value)) {
@@ -100,11 +112,20 @@ size_t vm_value_hash(vm_obj_t value) {
             }
             return (size_t) ret;
         }
-        case VM_TAG_FFI:
-        case VM_TAG_CLOSURE:
-        case VM_TAG_TAB:
+        case VM_TAG_FFI: {
+            return (size_t)value.value.ffi >> 4;
+        }
+        case VM_TAG_CLOSURE: {
+            return (size_t)value.value.closure >> 4;
+        }
+        case VM_TAG_TAB: {
+            return (size_t)value.value.table >> 4;
+        }
         case VM_TAG_FUN: {
-            return (size_t)value.value.all >> 4;
+            return (size_t)value.value.fun >> 4;
+        }
+        case VM_TAG_ERROR: {
+            __builtin_trap();
         }
         default: {
             return SIZE_MAX - 3;
@@ -207,14 +228,11 @@ void vm_table_set(vm_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
             .key = key,
             .value = value,
         };
-        vm_obj_t vlen = (vm_obj_t){
-            .tag = VM_TAG_NUMBER,
-            .value.f64 = table->len + 1,
-        };
+        vm_obj_t vlen = vm_obj_of_number(table->len + 1);
         if (vm_obj_eq(vlen, key)) {
             while (true) {
                 int32_t next = table->len + 1;
-                vm_table_pair_t *got = vm_table_lookup(table, (vm_obj_t){.tag = VM_TAG_NUMBER, .value.f64 = next});
+                vm_table_pair_t *got = vm_table_lookup(table, vm_obj_of_number(next));
                 if (got == NULL) {
                     break;
                 }

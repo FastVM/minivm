@@ -21,7 +21,7 @@
 
 switch (COMBINE(v1.tag, v2.tag)) {
 LABEL(VM_TAG_BOOL, VM_TAG_BOOL) {
-    WRITE OP(v1.value.b, v2.value.b);
+    WRITE OP(v1.value.boolean, v2.value.boolean);
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_STR, VM_TAG_STR) {
@@ -29,11 +29,11 @@ LABEL(VM_TAG_STR, VM_TAG_STR) {
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_CLOSURE, VM_TAG_CLOSURE) {
-    WRITE OP(v1.value.all, v2.value.all);
+    WRITE OP(v1.value.closure, v2.value.closure);
     goto CONCAT(NAME, END);
 }
-LABEL(VM_TAG_TAB, VM_TAG_CLOSURE) {
-    WRITE OP(v1.value.all, v2.value.all);
+LABEL(VM_TAG_TAB, VM_TAG_TAB) {
+    WRITE OP(v1.value.table, v2.value.table);
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_NUMBER, VM_TAG_NUMBER) {

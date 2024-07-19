@@ -64,19 +64,16 @@ vm_ast_node_t vm_ast_build_error(const char *str);
 vm_ast_node_t vm_ast_build_nil(void);
 vm_ast_node_t vm_ast_build_obj(vm_obj_t obj);
 
-// use this like follows
-// vm_ast_build_literal(i32, 10)
-// vm_ast_build_literal(f64, )
-#define vm_ast_build_literal(TYPE_, VALUE_)                   \
+#define vm_ast_build_literal(VALUE_)                   \
     ((vm_ast_node_t){                                         \
         .type = VM_AST_NODE_LITERAL,                          \
-        .value.literal = VM_OBJ_LITERAL(TYPE_, VALUE_), \
+        .value.literal = ( VALUE_ ), \
     })
 
 #define vm_ast_build_ident(STR_)   \
     ((vm_ast_node_t){              \
         .type = VM_AST_NODE_IDENT, \
-        .value.ident = (STR_),     \
+        .value.ident = ( STR_ ),     \
     })
 
 #endif

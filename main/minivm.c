@@ -2,7 +2,6 @@
 #include "../vm/backend/backend.h"
 #include "../vm/vm.h"
 #include "../vm/ir.h"
-#include "../vm/save/value.h"
 #include "../vm/io.h"
 #include "../vm/std.h"
 #include "../vm/lua/repl.h"
@@ -36,31 +35,6 @@ int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--repl")) {
             vm_repl(vm);
             isrepl = false;
-        } else if (!strncmp(arg, "--file=", 7)) {
-            arg += 7;
-            vm->save_file = arg;
-            FILE *f = fopen(vm->save_file, "rb");
-            if (f != NULL) {
-                vm_save_t save = vm_save_load(f);
-                fclose(f);
-                vm_load_value(vm, save);
-            }
-        } else if (!strncmp(arg, "--load=", 7)) {
-            arg += 7;
-            FILE *f = fopen(arg, "rb");
-            if (f != NULL) {
-                vm_save_t save = vm_save_load(f);
-                fclose(f);
-                vm_load_value(vm, save);
-            }
-        } else if (!strncmp(arg, "--save=", 7)) {
-            arg += 7;
-            vm_save_t save = vm_save_value(vm);
-            FILE *f = fopen(arg, "wb");
-            if (f != NULL) {
-                fwrite(save.buf, 1, save.len, f);
-                fclose(f);
-            }
         } else {
             isrepl = false;
 

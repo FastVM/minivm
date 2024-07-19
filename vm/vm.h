@@ -11,6 +11,8 @@
 #define VM_GC_MIN 256
 #define VM_GC_FACTOR 1.4
 
+#define VM_DEBUG_BACKEND 0
+
 #define VM_FORMAT_FLOAT "%.14g"
 
 struct vm_t;
@@ -54,8 +56,7 @@ typedef uint8_t vm_tag_t;
 typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
 
 union vm_value_t {
-    void *all;
-    bool b;
+    bool boolean;
     double f64;
     vm_ffi_t *ffi;
     vm_io_buffer_t *str;
@@ -105,7 +106,6 @@ struct vm_io_buffer_t {
 };
 
 struct vm_t {
-    const char *save_file;
     vm_externs_t *externs;
     vm_blocks_t *blocks;
 
@@ -129,7 +129,7 @@ vm_obj_t vm_str(vm_t *vm, const char *str);
 
 #define vm_obj_of_empty() ((vm_obj_t) {.tag = VM_TAG_UNK})
 #define vm_obj_of_nil() ((vm_obj_t) {.tag = VM_TAG_NIL})
-#define vm_obj_of_bool(b) ((vm_obj_t) {.tag = VM_TAG_BOOL, .value.b = (b)})
+#define vm_obj_of_bool(b) ((vm_obj_t) {.tag = VM_TAG_BOOL, .value.boolean = (b)})
 #define vm_obj_of_number(n) ((vm_obj_t) {.tag = VM_TAG_NUMBER, .value.f64 = (n)})
 #define vm_obj_of_str(o) ((vm_obj_t) {.tag = VM_TAG_STR, .value.str = (o)})
 #define vm_obj_of_table(o) ((vm_obj_t) {.tag = VM_TAG_TAB, .value.table = (o)})

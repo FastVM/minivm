@@ -6,7 +6,6 @@
 #include "../obj.h"
 #include "../ast/ast.h"
 #include "../ast/comp.h"
-#include "../save/value.h"
 #include "../backend/backend.h"
 
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
@@ -143,15 +142,6 @@ void vm_repl(vm_t *vm) {
         if (input == NULL) {
             break;
         }
-
-        if (vm->save_file != NULL) {
-            FILE *f = fopen(vm->save_file, "rb");
-            if (f != NULL) {
-                vm_save_t save = vm_save_load(f);
-                fclose(f);
-                vm_load_value(vm, save);
-            }
-        }
         
         ic_history_add(input);
 
@@ -167,15 +157,6 @@ void vm_repl(vm_t *vm) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);
             printf("%.*s", (int)buf.len, buf.buf);
-        }
-        
-        if (vm->save_file != NULL) {
-            vm_save_t save = vm_save_value(vm);
-            FILE *f = fopen(vm->save_file, "wb");
-            if (f != NULL) {
-                fwrite(save.buf, 1, save.len, f);
-                fclose(f);
-            }
         }
     }
 }

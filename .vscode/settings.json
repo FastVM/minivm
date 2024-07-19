@@ -3,9 +3,5 @@
         "*.inc": "c",
         "*.c": "c",
         "*.h": "c",
-        "sstream": "c",
-        "cwchar": "c",
-        "string": "c",
-        "string_view": "c"
     }
 }

@@ -98,7 +98,7 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
             break;
         }
         case VM_TAG_BOOL: {
-            vm_io_buffer_format(out, "%s", value.value.b ? "true" : "false");
+            vm_io_buffer_format(out, "%s", value.value.boolean ? "true" : "false");
             break;
         }
         case VM_TAG_NUMBER: {
@@ -139,7 +139,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
         }
         case VM_TAG_BOOL: {
             vm_indent(out, indent, prefix);
-            if (value.value.b) {
+            if (value.value.boolean) {
                 vm_io_buffer_format(out, "true\n");
             } else {
                 vm_io_buffer_format(out, "false\n");
@@ -158,12 +158,12 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
         }
         case VM_TAG_CLOSURE: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<function: %p>\n", value.value.all);
+            vm_io_buffer_format(out, "<function: %p>\n", value.value.closure);
             break;
         }
         case VM_TAG_FUN: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<code: %p>\n", value.value.all);
+            vm_io_buffer_format(out, "<code: %p>\n", value.value.fun);
             break;
         }
         case VM_TAG_TAB: {
@@ -186,7 +186,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
                         __builtin_trap();
                     }
                     case VM_TAG_BOOL: {
-                        if (value.value.b) {
+                        if (value.value.boolean) {
                             vm_io_debug(out, indent + 1, "true = ", p.value, &next);
                         } else {
                             vm_io_debug(out, indent + 1, "false = ", p.value, &next);
@@ -222,13 +222,11 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
         }
         case VM_TAG_FFI: {
             vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<function: %p>\n", value.value.all);
+            vm_io_buffer_format(out, "<function: %p>\n", value.value.ffi);
             break;
         }
         default: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<0x%zx: %p>\n", (size_t)value.tag, value.value.all);
-            break;
+            __builtin_trap();
         }
     }
 }
@@ -240,7 +238,7 @@ void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
             break;
         }
         case VM_TAG_BOOL: {
-            vm_io_buffer_format(buf, "%s", value.value.b ? "true" : "false");
+            vm_io_buffer_format(buf, "%s", value.value.boolean ? "true" : "false");
             break;
         }
         case VM_TAG_NUMBER: {
@@ -256,7 +254,7 @@ void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
             break;
         }
         case VM_TAG_FUN: {
-            vm_io_buffer_format(buf, "<code: %p>", value.value.all);
+            vm_io_buffer_format(buf, "<code: %p>", value.value.fun);
             break;
         }
         case VM_TAG_TAB: {
@@ -264,7 +262,7 @@ void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
             break;
         }
         case VM_TAG_FFI: {
-            vm_io_buffer_format(buf, "<function: %p>", value.value.all);
+            vm_io_buffer_format(buf, "<function: %p>", value.value.ffi);
             break;
         }
     }

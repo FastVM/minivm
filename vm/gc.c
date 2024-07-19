@@ -170,10 +170,7 @@ vm_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
     ret->len = 0;
     ret->mark = false;
     ret->pairs_auto = true;
-    vm_gc_add(vm, (vm_obj_t) {
-        .tag = VM_TAG_TAB,
-        .value.table = ret,
-    });
+    vm_gc_add(vm, vm_obj_of_table(ret));
     return ret;
 }
 

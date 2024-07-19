@@ -49,10 +49,7 @@ void vm_lua_comp_op_std_pow(vm_t *vm, vm_obj_t *args) {
     while (args->tag != VM_TAG_UNK) {
         v = pow(v, vm_value_to_f64(*args++));
     }
-    *ret = (vm_obj_t){
-        .tag = VM_TAG_NUMBER,
-        .value.f64 = (double)v,
-    };
+    *ret = vm_obj_of_number(v);
     return;
 }
 
@@ -223,10 +220,7 @@ static vm_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     vm_block_t *next = vm_ast_comp_new_block(comp);
     vm_arg_t slot = (vm_arg_t){
         .type = VM_ARG_LIT,
-        .lit = (vm_obj_t){
-            .tag = VM_TAG_NUMBER,
-            .value.f64 = slotnum - 1,
-        }
+        .lit = vm_obj_of_number(slotnum - 1),
     };
     vm_ast_blocks_branch(
         comp,
@@ -523,10 +517,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = iftrue;
                     vm_arg_t true_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_obj_t){
-                            .value.b = true,
-                            .tag = VM_TAG_BOOL,
-                        },
+                        .lit = vm_obj_of_bool(true),
                     };
                     vm_ast_blocks_instr(
                         comp,
@@ -547,10 +538,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = iffalse;
                     vm_arg_t false_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_obj_t){
-                            .value.b = false,
-                            .tag = VM_TAG_BOOL,
-                        },
+                        .lit = vm_obj_of_bool(false),
                     };
                     vm_ast_blocks_instr(
                         comp,
@@ -733,10 +721,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
                     call_args[0] = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_obj_t){
-                            .tag = VM_TAG_FFI,
-                            .value.ffi = &vm_std_vm_concat,
-                        },
+                        .lit = vm_obj_of_ffi(&vm_std_vm_concat),
                     };
                     call_args[1] = arg1;
                     call_args[2] = arg2;
@@ -766,10 +751,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * 4);
                     call_args[0] = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_obj_t){
-                            .tag = VM_TAG_FFI,
-                            .value.ffi = &vm_lua_comp_op_std_pow,
-                        },
+                        .lit = vm_obj_of_ffi(&vm_lua_comp_op_std_pow),
                     };
                     call_args[1] = arg1;
                     call_args[2] = arg2;
@@ -930,10 +912,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_arg_t *call_args = vm_malloc(sizeof(vm_arg_t) * (names->caps.len + 3));
                     call_args[0] = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = (vm_obj_t){
-                            .tag = VM_TAG_FFI,
-                            .value.ffi = &vm_std_vm_closure,
-                        },
+                        .lit = vm_obj_of_ffi(&vm_std_vm_closure),
                     };
                     call_args[1] = (vm_arg_t){
                         .type = VM_ARG_FUN,

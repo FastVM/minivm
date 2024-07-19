@@ -189,8 +189,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             case VM_IOP_MOVE: {
                 if (instr.args[0].type == VM_ARG_LIT) {
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, instr.args[0].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG) {
                     vm_interp_push_op(VM_OP_MOVE_R);
@@ -198,10 +197,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_FUN) {
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, VM_TAG_FUN);
-                    vm_interp_push(vm_value_t, (vm_value_t) {
-                        .fun = instr.args[0].func
-                    });
+                    vm_interp_push(vm_obj_t, vm_obj_of_block(instr.args[0].func));
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else {
                     __builtin_trap();
@@ -214,19 +210,16 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_add(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, v3.tag);
-                    vm_interp_push(vm_value_t, v3.value);
+                    vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
                     vm_interp_push_op(VM_OP_ADD_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
-                    vm_interp_push(vm_interp_tag_t, instr.args[1].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[1].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
                     vm_interp_push_op(VM_OP_ADD_IR);
-                    vm_interp_push(vm_interp_tag_t, instr.args[0].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
@@ -245,19 +238,16 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_sub(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, v3.tag);
-                    vm_interp_push(vm_value_t, v3.value);
+                    vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
                     vm_interp_push_op(VM_OP_SUB_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
-                    vm_interp_push(vm_interp_tag_t, instr.args[1].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[1].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
                     vm_interp_push_op(VM_OP_SUB_IR);
-                    vm_interp_push(vm_interp_tag_t, instr.args[0].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
@@ -276,19 +266,16 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_mul(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, v3.tag);
-                    vm_interp_push(vm_value_t, v3.value);
+                    vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
                     vm_interp_push_op(VM_OP_MUL_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
-                    vm_interp_push(vm_interp_tag_t, instr.args[1].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[1].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
                     vm_interp_push_op(VM_OP_MUL_IR);
-                    vm_interp_push(vm_interp_tag_t, instr.args[0].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
@@ -307,19 +294,16 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_div(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, v3.tag);
-                    vm_interp_push(vm_value_t, v3.value);
+                    vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
                     vm_interp_push_op(VM_OP_DIV_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
-                    vm_interp_push(vm_interp_tag_t, instr.args[1].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[1].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
                     vm_interp_push_op(VM_OP_DIV_IR);
-                    vm_interp_push(vm_interp_tag_t, instr.args[0].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
@@ -338,19 +322,16 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_idiv(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, v3.tag);
-                    vm_interp_push(vm_value_t, v3.value);
+                    vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
                     vm_interp_push_op(VM_OP_IDIV_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
-                    vm_interp_push(vm_interp_tag_t, instr.args[1].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[1].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
                     vm_interp_push_op(VM_OP_IDIV_IR);
-                    vm_interp_push(vm_interp_tag_t, instr.args[0].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
@@ -369,19 +350,16 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_mod(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
-                    vm_interp_push(vm_interp_tag_t, v3.tag);
-                    vm_interp_push(vm_value_t, v3.value);
+                    vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
                     vm_interp_push_op(VM_OP_MOD_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
-                    vm_interp_push(vm_interp_tag_t, instr.args[1].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[1].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
                     vm_interp_push_op(VM_OP_MOD_IR);
-                    vm_interp_push(vm_interp_tag_t, instr.args[0].lit.tag);
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
@@ -399,8 +377,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 for (size_t i = 0; i < 3; i++) {
                     vm_interp_push(vm_interp_tag_t, instr.args[i].type);
                     if (instr.args[i].type == VM_ARG_LIT) {
-                        vm_interp_push(vm_interp_tag_t, instr.args[i].lit.tag);
-                        vm_interp_push(vm_value_t, instr.args[i].lit.value);
+                        vm_interp_push(vm_obj_t, instr.args[i].lit);
                     } else {
                         vm_interp_push(vm_interp_reg_t, instr.args[i].reg);
                     }
@@ -425,8 +402,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             }
             case VM_IOP_STD: {
                 vm_interp_push_op(VM_OP_MOVE_I);
-                vm_interp_push(vm_interp_tag_t, vm->std.tag);
-                vm_interp_push(vm_value_t, vm->std.value);
+                vm_interp_push(vm_obj_t, vm->std);
                 vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 break;
             }
@@ -448,7 +424,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
         case VM_BOP_BB: {
             if (branch.args[0].type == VM_ARG_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
-                if (v1.tag != VM_TAG_NIL && (v1.tag != VM_TAG_BOOL || v1.value.b)) {
+                if (v1.tag != VM_TAG_NIL && (v1.tag != VM_TAG_BOOL || v1.value.boolean)) {
                     vm_interp_push_op(VM_OP_JUMP);
                     vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 } else {
@@ -479,14 +455,12 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_LIT) {
                 vm_interp_push_op(VM_OP_BLT_RI);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
-                vm_interp_push(vm_interp_tag_t, branch.args[1].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[1].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[1].lit);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[1]->id]);
             } else if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_REG) {
                 vm_interp_push_op(VM_OP_BLT_IR);
-                vm_interp_push(vm_interp_tag_t, branch.args[0].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[0].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[0].lit);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[1]->id]);
@@ -515,14 +489,12 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_LIT) {
                 vm_interp_push_op(VM_OP_BLE_RI);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
-                vm_interp_push(vm_interp_tag_t, branch.args[1].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[1].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[1].lit);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[1]->id]);
             } else if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_REG) {
                 vm_interp_push_op(VM_OP_BLE_IR);
-                vm_interp_push(vm_interp_tag_t, branch.args[0].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[0].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[0].lit);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[1]->id]);
@@ -551,14 +523,12 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_LIT) {
                 vm_interp_push_op(VM_OP_BEQ_RI);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
-                vm_interp_push(vm_interp_tag_t, branch.args[1].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[1].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[1].lit);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[1]->id]);
             } else if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_REG) {
                 vm_interp_push_op(VM_OP_BEQ_IR);
-                vm_interp_push(vm_interp_tag_t, branch.args[0].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[0].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[0].lit);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[1]->id]);
@@ -576,8 +546,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
         case VM_BOP_RET: {
             if (branch.args[0].type == VM_ARG_LIT) {
                 vm_interp_push_op(VM_OP_RET_I);
-                vm_interp_push(vm_interp_tag_t, branch.args[0].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[0].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[0].lit);
             } else if (branch.args[0].type == VM_ARG_REG) {
                 vm_interp_push_op(VM_OP_RET_R);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
@@ -590,15 +559,13 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             vm_interp_push_op(VM_OP_LOAD);
             vm_interp_push(vm_interp_tag_t, branch.args[0].type);
             if (branch.args[0].type == VM_ARG_LIT) {
-                vm_interp_push(vm_interp_tag_t, branch.args[0].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[0].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[0].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
             }
             vm_interp_push(vm_interp_tag_t, branch.args[1].type);
             if (branch.args[1].type == VM_ARG_LIT) {
-                vm_interp_push(vm_interp_tag_t, branch.args[1].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[1].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[1].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
             }
@@ -610,15 +577,13 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             vm_interp_push_op(VM_OP_GET);
             vm_interp_push(vm_interp_tag_t, branch.args[0].type);
             if (branch.args[0].type == VM_ARG_LIT) {
-                vm_interp_push(vm_interp_tag_t, branch.args[0].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[0].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[0].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
             }
             vm_interp_push(vm_interp_tag_t, branch.args[1].type);
             if (branch.args[1].type == VM_ARG_LIT) {
-                vm_interp_push(vm_interp_tag_t, branch.args[1].lit.tag);
-                vm_interp_push(vm_value_t, branch.args[1].lit.value);
+                vm_interp_push(vm_obj_t, branch.args[1].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
             }
@@ -631,15 +596,13 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
                 if (branch.args[i].type == VM_ARG_LIT) {
                     vm_interp_push(vm_interp_tag_t, VM_ARG_LIT);
-                    vm_interp_push(vm_interp_tag_t, branch.args[i].lit.tag);
-                    vm_interp_push(vm_value_t, branch.args[i].lit.value);
+                    vm_interp_push(vm_obj_t, branch.args[i].lit);
                 } else if (branch.args[i].type == VM_ARG_REG) {
                     vm_interp_push(vm_interp_tag_t, VM_ARG_REG);
                     vm_interp_push(vm_interp_reg_t, branch.args[i].reg);
                 } else if (branch.args[i].type == VM_ARG_FUN) {
                     vm_interp_push(vm_interp_tag_t, VM_ARG_LIT);
-                    vm_interp_push(vm_interp_tag_t, VM_TAG_FUN);
-                    vm_interp_push(vm_value_t, ((vm_value_t) {.fun = branch.args[i].func}));
+                    vm_interp_push(vm_obj_t, vm_obj_of_block(branch.args[i].func));
                 } else {
                     __builtin_trap();
                 }
@@ -671,14 +634,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
 })
 #endif
 
-#define vm_run_repl_lit() ({ \
-    vm_tag_t tag = vm_run_repl_read(vm_interp_tag_t); \
-    vm_value_t value = vm_run_repl_read(vm_value_t); \
-    (vm_obj_t) { \
-        .tag = tag, \
-        .value = value, \
-    }; \
-})
+#define vm_run_repl_lit() vm_run_repl_read(vm_obj_t)
 #define vm_run_repl_reg() (regs[vm_run_repl_read(vm_interp_reg_t)])
 
 #if 0
@@ -743,20 +699,24 @@ vm_obj_t vm_run_repl(vm_t *vm, vm_block_t *block) {
         [VM_OP_CALL] = &&VM_OP_CALL,
     };
     vm_obj_t *next_regs = &regs[block->nregs];
-    // {
-    //     vm_io_buffer_t *buf = vm_io_buffer_new();
-    //     vm_io_format_block(buf, block);
-    //     printf("func%s\n", buf->buf);
-    // }
+#if VM_DEBUG_BACKEND
+    {
+        vm_io_buffer_t *buf = vm_io_buffer_new();
+        vm_io_format_block(buf, block);
+        printf("func%s\n", buf->buf);
+    }
+#endif
     goto new_block_no_print;
 
 new_block:;
 
-    // {
-    //     vm_io_buffer_t *buf = vm_io_buffer_new();
-    //     vm_io_format_block(buf, block);
-    //     printf("%s\n", buf->buf);
-    // }
+#if VM_DEBUG_BACKEND
+    {
+        vm_io_buffer_t *buf = vm_io_buffer_new();
+        vm_io_format_block(buf, block);
+        printf("%s\n", buf->buf);
+    }
+#endif
 
 new_block_no_print:;
 
@@ -773,31 +733,22 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_arg();
         vm_obj_t v3 = vm_run_repl_arg();
         if (v1.tag != VM_TAG_TAB) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_msg(block->range, "can only set index on tables"),
-            };
+            return vm_obj_of_error(vm_error_from_msg(block->range, "can only set index on tables"));
         }
         vm_table_set(v1.value.table, v2, v3);
         vm_run_repl_jump();
     }
     VM_OP_TABLE_NEW:; VM_OPCODE_DEBUG(table_new) {
-        vm_run_repl_out(((vm_obj_t) {
-            .tag = VM_TAG_TAB,
-            .value.table = vm_table_new(vm),
-        }));
+        vm_run_repl_out(vm_obj_of_table(vm_table_new(vm)));
         vm_gc_run(vm, regs + block->nregs);
         vm_run_repl_jump();
     }
     VM_OP_TABLE_LEN:; VM_OPCODE_DEBUG(table_len) {
         vm_obj_t v1 = vm_run_repl_arg();
         if (v1.tag != VM_TAG_TAB) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_msg(block->range, "can only get length on tables"),
-            };
+            return vm_obj_of_error(vm_error_from_msg(block->range, "can only get length on tables"));
         }
-        vm_run_repl_out(VM_OBJ_NUMBER(vm, v1.value.table->len));
+        vm_run_repl_out(vm_obj_of_number(v1.value.table->len));
         vm_run_repl_jump();
     }
     VM_OP_MOVE_I:; VM_OPCODE_DEBUG(move_i) {
@@ -815,10 +766,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_add(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -828,10 +776,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_add(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -841,10 +786,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_add(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -854,10 +796,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -867,10 +806,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -880,10 +816,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -893,10 +826,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -906,10 +836,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -919,10 +846,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -932,10 +856,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_div(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -945,10 +866,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_div(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -958,10 +876,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_div(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -971,10 +886,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -984,10 +896,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -997,10 +906,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -1010,10 +916,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -1023,10 +926,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -1036,10 +936,7 @@ new_block_no_print:;
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
         if (v3.tag == VM_TAG_ERROR) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_error(block->range, v3.value.error),
-            };
+            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -1050,7 +947,7 @@ new_block_no_print:;
     }
     VM_OP_BB_R:; VM_OPCODE_DEBUG(bb_r) {
         vm_obj_t v1 = vm_run_repl_reg();
-        if (v1.tag != VM_TAG_NIL && (v1.tag != VM_TAG_BOOL || v1.value.b)) {
+        if (v1.tag != VM_TAG_NIL && (v1.tag != VM_TAG_BOOL || v1.value.boolean)) {
             block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
@@ -1188,10 +1085,7 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_arg();
         vm_obj_t v2 = vm_run_repl_arg();
         if (v1.tag != VM_TAG_TAB) {
-            return (vm_obj_t) {
-                .tag = VM_TAG_ERROR,
-                .value.error = vm_error_from_msg(block->range, "can only index tables"),
-            };
+            return vm_obj_of_error(vm_error_from_msg(block->range, "can only index tables"));
         }
         vm_table_pair_t pair = (vm_table_pair_t) {
             .key = v2,
@@ -1233,10 +1127,7 @@ new_block_no_print:;
                 vm_obj_t got = vm_run_repl(vm, v1.value.closure->block);
                 vm->regs = last_regs;
                 if (got.tag == VM_TAG_ERROR) {
-                    return (vm_obj_t) {
-                        .tag = VM_TAG_ERROR,
-                        .value.error = vm_error_from_error(block->range, got.value.error),
-                    };
+                    return vm_obj_of_error(vm_error_from_error(block->range, got.value.error));
                 }
                 vm_run_repl_out(got);
                 block = vm_run_repl_read(vm_block_t *);
@@ -1270,20 +1161,14 @@ new_block_no_print:;
                 vm->regs = last_regs;
                 vm_obj_t got = next_regs[0];
                 if (got.tag == VM_TAG_ERROR) {
-                    return (vm_obj_t) {
-                        .tag = VM_TAG_ERROR,
-                        .value.error = vm_error_from_error(block->range, got.value.error),
-                    };
+                    return vm_obj_of_error(vm_error_from_error(block->range, got.value.error));
                 }
                 vm_run_repl_out(next_regs[0]);
                 block = vm_run_repl_read(vm_block_t *);
                 goto new_block;
             }
             default: {
-                return (vm_obj_t) {
-                    .tag = VM_TAG_ERROR,
-                    .value.error = vm_error_from_msg(block->range, "can only call functions"),
-                };
+                return vm_obj_of_error(vm_error_from_msg(block->range, "can only call functions"));
             }
         }
         vm_run_repl_jump();
