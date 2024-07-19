@@ -19,13 +19,16 @@
 
 #define COMBINE(x, y) ((x)*VM_TAG_MAX + (y))
 
+if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+    
+}
 switch (COMBINE(v1.tag, v2.tag)) {
     default: {
         WRITE vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad atithmatic"));
         goto CONCAT(NAME, END);
     }
     LABEL(VM_TAG_NUMBER, VM_TAG_NUMBER) {
-        WRITE vm_obj_of_number(OP_F(v1.value.f64, v2.value.f64));
+        WRITE vm_obj_of_number(OP_F(vm_obj_get_number(v1), vm_obj_get_number(v2)));
         goto CONCAT(NAME, END);
     }
 }

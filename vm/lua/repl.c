@@ -25,12 +25,12 @@ void vm_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     }
     head += 1;
     const char *last_word = &prefix[head];
-    vm_table_t *std = vm->std.value.table;
+    vm_table_t *std = vm_obj_get_table(vm->std);
 with_new_std:;
     for (size_t i = 0; i < ((size_t)1 << std->alloc); i++) {
         vm_table_pair_t *pair = &std->pairs[i];
-        if (pair->key.tag == VM_TAG_STR) {
-            const char *got = pair->key.value.str->buf;
+        if (vm_obj_is_table(pair->key)) {
+            const char *got = vm_obj_get_string(pair->key)->buf;
             size_t i = 0;
             while (got[i] != '\0') {
                 if (last_word[i] == '\0') {
@@ -48,9 +48,9 @@ with_new_std:;
                     continue;
                 }
             }
-            if (pair->value.tag == VM_TAG_NIL) {
+            if (vm_obj_is_nil(pair->value)) {
                 if (last_word[i] == '.') {
-                    std = pair->key.value.table;
+                    std = vm_obj_get_table(pair->key);
                     last_word = &last_word[i + 1];
                     goto with_new_std;
                 }
@@ -151,9 +151,9 @@ void vm_repl(vm_t *vm) {
 
         vm_obj_t value = vm_run_repl(vm, entry);
 
-        if (value.tag == VM_TAG_ERROR) {
-            vm_error_report(value.value.error, stderr);
-        } else if (value.tag != VM_TAG_NIL) {
+        if (vm_obj_is_error(value)) {
+            vm_error_report(vm_obj_get_error(value), stderr);
+        } else if (!vm_obj_is_nil(value)) {
             vm_io_buffer_t buf = {0};
             vm_io_debug(&buf, 0, "", value, NULL);
             printf("%.*s", (int)buf.len, buf.buf);

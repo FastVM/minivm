@@ -21,23 +21,23 @@
 
 switch (COMBINE(v1.tag, v2.tag)) {
 LABEL(VM_TAG_BOOL, VM_TAG_BOOL) {
-    WRITE OP(v1.value.boolean, v2.value.boolean);
+    WRITE OP(vm_obj_get_boolean(v1), vm_obj_get_boolean(v2));
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_STR, VM_TAG_STR) {
-    WRITE OP_S(v1.value.str->buf, v2.value.str->buf);
+    WRITE OP_S(vm_obj_get_string(v1)->buf, vm_obj_get_string(v2)->buf);
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_CLOSURE, VM_TAG_CLOSURE) {
-    WRITE OP(v1.value.closure, v2.value.closure);
+    WRITE OP(vm_obj_get_closure(v1), vm_obj_get_closure(v2));
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_TAB, VM_TAG_TAB) {
-    WRITE OP(v1.value.table, v2.value.table);
+    WRITE OP(vm_obj_get_table(v1), vm_obj_get_table(v2));
     goto CONCAT(NAME, END);
 }
 LABEL(VM_TAG_NUMBER, VM_TAG_NUMBER) {
-    WRITE OP(v1.value.f64, v2.value.f64);
+    WRITE OP(vm_obj_get_number(v1), vm_obj_get_number(v2));
     goto CONCAT(NAME, END);
 }
 }

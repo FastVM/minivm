@@ -45,9 +45,9 @@ struct vm_ast_comp_names_t {
 
 void vm_lua_comp_op_std_pow(vm_t *vm, vm_obj_t *args) {
     vm_obj_t *ret = args;
-    double v = vm_value_to_f64(*args++);
-    while (args->tag != VM_TAG_UNK) {
-        v = pow(v, vm_value_to_f64(*args++));
+    double v = vm_obj_get_number(*args++);
+    while (!vm_obj_is_empty(args[0])) {
+        v = pow(v, vm_obj_get_number(*args++));
     }
     *ret = vm_obj_of_number(v);
     return;
@@ -347,10 +347,10 @@ static vm_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, vm_b
         }
         case VM_AST_NODE_LITERAL: {
             vm_obj_t value = node.value.literal;
-            if (value.tag == VM_TAG_ERROR) {
+            if (vm_obj_is_error(value)) {
                 return (vm_arg_t){
                     .type = VM_ARG_ERROR,
-                    .error = value.value.error,
+                    .error = vm_obj_get_error(value),
                 };
             }
             vm_ast_blocks_branch(
@@ -517,7 +517,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = iftrue;
                     vm_arg_t true_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = vm_obj_of_bool(true),
+                        .lit = vm_obj_of_boolean(true),
                     };
                     vm_ast_blocks_instr(
                         comp,
@@ -538,7 +538,7 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = iffalse;
                     vm_arg_t false_value = (vm_arg_t){
                         .type = VM_ARG_LIT,
-                        .lit = vm_obj_of_bool(false),
+                        .lit = vm_obj_of_boolean(false),
                     };
                     vm_ast_blocks_instr(
                         comp,
@@ -1005,18 +1005,10 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
         }
         case VM_AST_NODE_LITERAL: {
             vm_obj_t num = node.value.literal;
-            if (num.tag == VM_TAG_NIL) {
-                return vm_arg_nil();
-            } else if (num.tag == VM_TAG_STR) {
-                vm_arg_t str = (vm_arg_t){
-                    .type = VM_ARG_LIT,
-                    .lit = num,
-                };
-                return str;
-            } else if (num.tag == VM_TAG_ERROR) {
+            if (vm_obj_is_error(num)) {
                 return (vm_arg_t){
                     .type = VM_ARG_ERROR,
-                    .error = num.value.error,
+                    .error = vm_obj_get_error(num),
                 };
             } else {
                 return (vm_arg_t){

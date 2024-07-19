@@ -92,27 +92,20 @@ static void vm_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {
 }
 
 void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
-    switch (value.tag) {
-        case VM_TAG_NIL: {
+    if (vm_obj_is_nil(value)) {
             vm_io_buffer_format(out, "nil");
-            break;
-        }
-        case VM_TAG_BOOL: {
-            vm_io_buffer_format(out, "%s", value.value.boolean ? "true" : "false");
-            break;
-        }
-        case VM_TAG_NUMBER: {
-            vm_io_buffer_format(out, VM_FORMAT_FLOAT, value.value.f64);
-            break;
-        }
-        case VM_TAG_FFI: {
-            vm_io_buffer_format(out, "<function: %p>", value.value.ffi);
-            break;
-        }
-        case VM_TAG_STR: {
-            vm_io_buffer_format(out, "\"%s\"", value.value.str->buf);
-            break;
-        }
+    }
+    if (vm_obj_is_boolean(value)) {
+        vm_io_buffer_format(out, "%s", vm_obj_get_boolean(value) ? "true" : "false");
+    }
+    if (vm_obj_is_number(value)) {
+        vm_io_buffer_format(out, VM_FORMAT_FLOAT, vm_obj_get_number(value));
+    }
+    if (vm_obj_is_ffi(value)) {
+        vm_io_buffer_format(out, "<function: %p>", vm_obj_get_ffi(value));
+    }
+    if (vm_obj_is_string(value)) {
+        vm_io_buffer_format(out, "\"%s\"", vm_obj_get_string(value)->buf);
     }
 }
 
@@ -131,140 +124,106 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
         .next = link,
         .value = value,
     };
-    switch (value.tag) {
-        case VM_TAG_NIL: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "nil\n");
-            break;
+    if (vm_obj_is_nil(value)) {
+        vm_indent(out, indent, prefix);
+        vm_io_buffer_format(out, "nil\n");
+    }
+    if (vm_obj_is_boolean(value)) {
+        vm_indent(out, indent, prefix);
+        if (vm_obj_get_boolean(value)) {
+            vm_io_buffer_format(out, "true\n");
+        } else {
+            vm_io_buffer_format(out, "false\n");
         }
-        case VM_TAG_BOOL: {
+    }
+    if (vm_obj_is_number(value)) {
+        vm_indent(out, indent, prefix);
+        vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", vm_obj_get_number(value));
+    }
+    if (vm_obj_is_string(value)) {
+        vm_indent(out, indent, prefix);
+        vm_io_buffer_format(out, "\"%s\"\n", vm_obj_get_string(value)->buf);
+    }
+    if (vm_obj_is_closure(value)) {
+        vm_indent(out, indent, prefix);
+        vm_io_buffer_format(out, "<function: %p>\n", vm_obj_get_closure(value));
+    }
+    if (vm_obj_is_block(value)) {
+        vm_indent(out, indent, prefix);
+        vm_io_buffer_format(out, "<code: %p>\n", vm_obj_get_block(value));
+    }
+    if (vm_obj_is_table(value)) {
+        vm_table_t *tab = vm_obj_get_table(value);
+        if (tab == NULL) {
             vm_indent(out, indent, prefix);
-            if (value.value.boolean) {
-                vm_io_buffer_format(out, "true\n");
-            } else {
-                vm_io_buffer_format(out, "false\n");
-            }
-            break;
-        }
-        case VM_TAG_NUMBER: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", value.value.f64);
-            break;
-        }
-        case VM_TAG_STR: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "\"%s\"\n", value.value.str->buf);
-            break;
-        }
-        case VM_TAG_CLOSURE: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<function: %p>\n", value.value.closure);
-            break;
-        }
-        case VM_TAG_FUN: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<code: %p>\n", value.value.fun);
-            break;
-        }
-        case VM_TAG_TAB: {
-            vm_table_t *tab = value.value.table;
-            if (tab == NULL) {
-                vm_indent(out, indent, prefix);
-                vm_io_buffer_format(out, "table(NULL)\n");
-                break;
-            }
+            vm_io_buffer_format(out, "table(NULL)\n");
+        } else {
             vm_indent(out, indent, prefix);
             vm_io_buffer_format(out, "table(%p) {\n", tab);
             size_t len = 1 << tab->alloc;
             for (size_t i = 0; i < len; i++) {
                 vm_table_pair_t p = tab->pairs[i];
-                switch (p.key.tag) {
-                    case 0: {
-                        break;
+                if (vm_obj_is_empty(p.key) || vm_obj_is_nil(p.key)) {
+                    // no print for empty keys
+                } else if (vm_obj_is_boolean(value)) {
+                    if (vm_obj_get_boolean(value)) {
+                        vm_io_debug(out, indent + 1, "true = ", p.value, &next);
+                    } else {
+                        vm_io_debug(out, indent + 1, "false = ", p.value, &next);
                     }
-                    case VM_TAG_NIL: {
-                        __builtin_trap();
-                    }
-                    case VM_TAG_BOOL: {
-                        if (value.value.boolean) {
-                            vm_io_debug(out, indent + 1, "true = ", p.value, &next);
-                        } else {
-                            vm_io_debug(out, indent + 1, "false = ", p.value, &next);
-                        }
-                        break;
-                    }
-                    case VM_TAG_NUMBER: {
-                        char buf[64];
-                        snprintf(buf, 63, VM_FORMAT_FLOAT " = ", p.key.value.f64);
-                        vm_io_debug(out, indent + 1, buf, p.value, &next);
-                        break;
-                    }
-                    case VM_TAG_STR: {
-                        vm_io_buffer_t buf = {0};
-                        vm_io_buffer_format(&buf, "%s = ", p.key.value.str->buf);
-                        vm_io_debug(out, indent + 1, buf.buf, p.value, &next);
-                        vm_free(buf.buf);
-                        break;
-                    }
-                    default: {
-                        vm_indent(out, indent + 1, "");
-                        vm_io_buffer_format(out, "pair {\n");
-                        vm_io_debug(out, indent + 2, "key = ", p.key, &next);
-                        vm_io_debug(out, indent + 2, "val = ", p.value, &next);
-                        vm_indent(out, indent + 1, "");
-                        vm_io_buffer_format(out, "}\n");
-                    }
+                } else if (vm_obj_is_number(value)) {
+                    char buf[64];
+                    snprintf(buf, 63, VM_FORMAT_FLOAT " = ", vm_obj_get_number(p.key));
+                    vm_io_debug(out, indent + 1, buf, p.value, &next);
+                }
+                else if (vm_obj_is_string(value)) {
+                    vm_io_buffer_t buf = {0};
+                    vm_io_buffer_format(&buf, "%s = ", vm_obj_get_string(p.key)->buf);
+                    vm_io_debug(out, indent + 1, buf.buf, p.value, &next);
+                    vm_free(buf.buf);
+                } else {
+                    vm_indent(out, indent + 1, "");
+                    vm_io_buffer_format(out, "pair {\n");
+                    vm_io_debug(out, indent + 2, "key = ", p.key, &next);
+                    vm_io_debug(out, indent + 2, "val = ", p.value, &next);
+                    vm_indent(out, indent + 1, "");
+                    vm_io_buffer_format(out, "}\n");
                 }
             }
-            vm_indent(out, indent, "");
-            vm_io_buffer_format(out, "}\n");
-            break;
         }
-        case VM_TAG_FFI: {
-            vm_indent(out, indent, prefix);
-            vm_io_buffer_format(out, "<function: %p>\n", value.value.ffi);
-            break;
-        }
-        default: {
-            __builtin_trap();
-        }
+        vm_indent(out, indent, "");
+        vm_io_buffer_format(out, "}\n");
+    }
+    if (vm_obj_is_ffi(value)) {
+        vm_indent(out, indent, prefix);
+        vm_io_buffer_format(out, "<function: %p>\n", vm_obj_get_ffi(value));
     }
 }
 
 void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
-    switch (value.tag) {
-        case VM_TAG_NIL: {
-            vm_io_buffer_format(buf, "nil");
-            break;
-        }
-        case VM_TAG_BOOL: {
-            vm_io_buffer_format(buf, "%s", value.value.boolean ? "true" : "false");
-            break;
-        }
-        case VM_TAG_NUMBER: {
-            vm_io_buffer_format(buf, VM_FORMAT_FLOAT, value.value.f64);
-            break;
-        }
-        case VM_TAG_STR: {
-            vm_io_buffer_format(buf, "%s", value.value.str->buf);
-            break;
-        }
-        case VM_TAG_CLOSURE: {
-            vm_io_buffer_format(buf, "<function: %p>", value.value.closure);
-            break;
-        }
-        case VM_TAG_FUN: {
-            vm_io_buffer_format(buf, "<code: %p>", value.value.fun);
-            break;
-        }
-        case VM_TAG_TAB: {
-            vm_io_buffer_format(buf, "<table: %p>", value.value.table);
-            break;
-        }
-        case VM_TAG_FFI: {
-            vm_io_buffer_format(buf, "<function: %p>", value.value.ffi);
-            break;
-        }
+    if (vm_obj_is_nil(value)) {
+        vm_io_buffer_format(buf, "nil");
+    }
+    if (vm_obj_is_boolean(value)) {
+        vm_io_buffer_format(buf, "%s", vm_obj_get_boolean(value) ? "true" : "false");
+    }
+    if (vm_obj_is_number(value)) {
+        vm_io_buffer_format(buf, VM_FORMAT_FLOAT, vm_obj_get_number(value));
+    }
+    if (vm_obj_is_string(value)) {
+        vm_io_buffer_format(buf, "%s", vm_obj_get_string(value)->buf);
+    }
+    if (vm_obj_is_closure(value)) {
+        vm_io_buffer_format(buf, "<function: %p>", vm_obj_get_closure(value));
+    }
+    if (vm_obj_is_block(value)) {
+        vm_io_buffer_format(buf, "<code: %p>", vm_obj_get_block(value));
+    }
+    if (vm_obj_is_table(value)) {
+        vm_io_buffer_format(buf, "<table: %p>", vm_obj_get_table(value));
+    }
+    if (vm_obj_is_ffi(value)) {
+        vm_io_buffer_format(buf, "<function: %p>", vm_obj_get_ffi(value));
     }
 }
 

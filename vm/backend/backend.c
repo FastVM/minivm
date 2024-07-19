@@ -12,7 +12,7 @@
 
 #define VM_INLINE inline __attribute__((always_inline))
 
-#if 0
+#if VM_DEBUG_BACKEND_OPCODES
 #define VM_OPCODE_DEBUG(s) printf("%s\n", #s);
 #else
 #define VM_OPCODE_DEBUG(s)
@@ -80,74 +80,94 @@ enum {
 };
 
 static VM_INLINE bool vm_interp_value_eq(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)==(y))
-    #define OP_S(x, y) (strcmp((x), (y)) == 0)
-    #define WRITE return
-    #define NAME EQ
-    #include "test.inc"
-    __builtin_trap();
+    if (vm_obj_is_nil(v1) && vm_obj_is_nil(v2)) {
+        return true;
+    } else if (vm_obj_is_boolean(v1) && vm_obj_is_boolean(v2)) {
+        return vm_obj_get_boolean(v1) == vm_obj_get_boolean(v2);
+    } else if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_get_number(v1) == vm_obj_get_number(v2);
+    } else if (vm_obj_is_string(v1) && vm_obj_is_string(v2)) {
+        return strcmp(vm_obj_get_string(v1)->buf, vm_obj_get_string(v2)->buf) == 0;
+    } else if (vm_obj_is_table(v1) && vm_obj_is_table(v2)) {
+        return vm_obj_get_table(v1) == vm_obj_get_table(v2);
+    } else if (vm_obj_is_closure(v1) && vm_obj_is_closure(v2)) {
+        return vm_obj_get_closure(v1) == vm_obj_get_closure(v2);
+    } else if (vm_obj_is_ffi(v1) && vm_obj_is_ffi(v2)) {
+        return vm_obj_get_ffi(v1) == vm_obj_get_ffi(v2);
+    } else {
+        __builtin_trap();
+        return false;
+    }
 }
 
 static VM_INLINE bool vm_interp_value_lt(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)<(y))
-    #define OP_S(x, y) (strcmp((x), (y)) < 0)
-    #define WRITE return
-    #define NAME LT
-    #include "test.inc"
-    __builtin_trap();
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_get_number(v1) < vm_obj_get_number(v2);
+    } else if (vm_obj_is_string(v1) && vm_obj_is_string(v2)) {
+        return strcmp(vm_obj_get_string(v1)->buf, vm_obj_get_string(v2)->buf) < 0;
+    } else {
+        __builtin_trap();
+        return false;
+    }
 }
 
 static VM_INLINE bool vm_interp_value_le(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)<=(y))
-    #define OP_S(x, y) (strcmp((x), (y)) <= 0)
-    #define WRITE return
-    #define NAME LE
-    #include "test.inc"
-    __builtin_trap();
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_get_number(v1) <= vm_obj_get_number(v2);
+    } else if (vm_obj_is_string(v1) && vm_obj_is_string(v2)) {
+        return strcmp(vm_obj_get_string(v1)->buf, vm_obj_get_string(v2)->buf) <= 0;
+    } else {
+        __builtin_trap();
+        return false;
+    }
 }
 
 static VM_INLINE vm_obj_t vm_interp_add(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)+(y))
-    #define WRITE return
-    #define NAME ADD
-    #include "binop.inc"
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_of_number(vm_obj_get_number(v1) + vm_obj_get_number(v2));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad addition"));
+    }
 }
 
 static VM_INLINE vm_obj_t vm_interp_sub(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)-(y))
-    #define WRITE return
-    #define NAME SUB
-    #include "binop.inc"
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_of_number(vm_obj_get_number(v1) - vm_obj_get_number(v2));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad subtraction"));
+    }
 }
 
 static VM_INLINE vm_obj_t vm_interp_mul(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)*(y))
-    #define WRITE return
-    #define NAME MUL
-    #include "binop.inc"
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_of_number(vm_obj_get_number(v1) * vm_obj_get_number(v2));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad multiplication"));
+    }
 }
 
 static VM_INLINE vm_obj_t vm_interp_div(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)/(y))
-    #define WRITE return
-    #define NAME DIV
-    #include "binop.inc"
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_of_number(vm_obj_get_number(v1) / vm_obj_get_number(v2));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad division"));
+    }
 }
 
 static VM_INLINE vm_obj_t vm_interp_idiv(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)/(y))
-    #define OP_F(x, y) floor((x)/(y))
-    #define WRITE return
-    #define NAME IDIV
-    #include "binop.inc"
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_of_number(floor(vm_obj_get_number(v1) / vm_obj_get_number(v2)));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad floor division"));
+    }
 }
 
 static VM_INLINE vm_obj_t vm_interp_mod(vm_obj_t v1, vm_obj_t v2) {
-    #define OP(x, y) ((x)%(y))
-    #define OP_F(x, y) fmod((x),(y))
-    #define WRITE return
-    #define NAME MOD
-    #include "binop.inc"
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_of_number(fmod(vm_obj_get_number(v1), vm_obj_get_number(v2)));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad modulo"));
+    }
 }
 
 #if VM_UNALIGNED
@@ -393,7 +413,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 vm_interp_push_op(VM_OP_TABLE_LEN);
                 vm_interp_push(vm_interp_tag_t, instr.args[0].type);
                 if (instr.args[0].type == VM_ARG_LIT) {
-                    vm_interp_push(vm_value_t, instr.args[0].lit.value);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
                 } else {
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                 }
@@ -424,7 +444,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
         case VM_BOP_BB: {
             if (branch.args[0].type == VM_ARG_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
-                if (v1.tag != VM_TAG_NIL && (v1.tag != VM_TAG_BOOL || v1.value.boolean)) {
+                if (!vm_obj_is_nil(v1) && (!vm_obj_is_boolean(v1) || vm_obj_get_boolean(v1))) {
                     vm_interp_push_op(VM_OP_JUMP);
                     vm_interp_push(vm_block_t *, vm->blocks->blocks[branch.targets[0]->id]);
                 } else {
@@ -699,7 +719,7 @@ vm_obj_t vm_run_repl(vm_t *vm, vm_block_t *block) {
         [VM_OP_CALL] = &&VM_OP_CALL,
     };
     vm_obj_t *next_regs = &regs[block->nregs];
-#if VM_DEBUG_BACKEND
+#if VM_DEBUG_BACKEND_BLOCKS
     {
         vm_io_buffer_t *buf = vm_io_buffer_new();
         vm_io_format_block(buf, block);
@@ -710,7 +730,7 @@ vm_obj_t vm_run_repl(vm_t *vm, vm_block_t *block) {
 
 new_block:;
 
-#if VM_DEBUG_BACKEND
+#if VM_DEBUG_BACKEND_BLOCKS
     {
         vm_io_buffer_t *buf = vm_io_buffer_new();
         vm_io_format_block(buf, block);
@@ -732,10 +752,10 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_arg();
         vm_obj_t v2 = vm_run_repl_arg();
         vm_obj_t v3 = vm_run_repl_arg();
-        if (v1.tag != VM_TAG_TAB) {
+        if (!vm_obj_is_table(v1)) {
             return vm_obj_of_error(vm_error_from_msg(block->range, "can only set index on tables"));
         }
-        vm_table_set(v1.value.table, v2, v3);
+        vm_table_set(vm_obj_get_table(v1), v2, v3);
         vm_run_repl_jump();
     }
     VM_OP_TABLE_NEW:; VM_OPCODE_DEBUG(table_new) {
@@ -745,10 +765,10 @@ new_block_no_print:;
     }
     VM_OP_TABLE_LEN:; VM_OPCODE_DEBUG(table_len) {
         vm_obj_t v1 = vm_run_repl_arg();
-        if (v1.tag != VM_TAG_TAB) {
+        if (!vm_obj_is_table(v1)) {
             return vm_obj_of_error(vm_error_from_msg(block->range, "can only get length on tables"));
         }
-        vm_run_repl_out(vm_obj_of_number(v1.value.table->len));
+        vm_run_repl_out(vm_obj_of_number(vm_obj_get_table(v1)->len));
         vm_run_repl_jump();
     }
     VM_OP_MOVE_I:; VM_OPCODE_DEBUG(move_i) {
@@ -765,8 +785,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_add(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -775,8 +795,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_add(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -785,8 +805,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_add(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -795,8 +815,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -805,8 +825,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -815,8 +835,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_sub(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -825,8 +845,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -835,8 +855,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -845,8 +865,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mul(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -855,8 +875,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_div(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -865,8 +885,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_div(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -875,8 +895,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_div(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -885,8 +905,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -895,8 +915,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -905,8 +925,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_idiv(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -915,8 +935,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -925,8 +945,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -935,8 +955,8 @@ new_block_no_print:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         vm_obj_t v3 = vm_interp_mod(v1, v2);
-        if (v3.tag == VM_TAG_ERROR) {
-            return vm_obj_of_error(vm_error_from_error(block->range, v3.value.error));
+        if (vm_obj_is_error(v3)) {
+            return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3)));
         }
         vm_run_repl_out(v3);
         vm_run_repl_jump();
@@ -947,7 +967,7 @@ new_block_no_print:;
     }
     VM_OP_BB_R:; VM_OPCODE_DEBUG(bb_r) {
         vm_obj_t v1 = vm_run_repl_reg();
-        if (v1.tag != VM_TAG_NIL && (v1.tag != VM_TAG_BOOL || v1.value.boolean)) {
+        if (!vm_obj_is_nil(v1) && (!vm_obj_is_boolean(v1) || vm_obj_get_boolean(v1))) {
             block = vm_run_repl_read(vm_block_t *);
         } else {
             vm_run_repl_read(vm_block_t *);
@@ -1065,17 +1085,7 @@ new_block_no_print:;
     VM_OP_LOAD:; VM_OPCODE_DEBUG(load) {
         vm_obj_t v1 = vm_run_repl_arg();
         vm_obj_t v2 = vm_run_repl_arg();
-        vm_obj_t v3;
-        switch (v2.tag) {
-            case VM_TAG_NUMBER: {
-                v3 = v1.value.closure->values[(int32_t) v2.value.f64];
-                break;
-            }
-            default: {
-                __builtin_unreachable();
-                break;
-            }
-        }
+        vm_obj_t v3 = vm_obj_get_closure(v1)->values[(int32_t) vm_obj_get_number(v2)];
         vm_run_repl_out(v3);
         block = vm_run_repl_read(vm_block_t *);
         goto new_block;
@@ -1084,92 +1094,87 @@ new_block_no_print:;
         uint8_t *c0 = code;
         vm_obj_t v1 = vm_run_repl_arg();
         vm_obj_t v2 = vm_run_repl_arg();
-        if (v1.tag != VM_TAG_TAB) {
+        if (!vm_obj_is_table(v1)) {
             return vm_obj_of_error(vm_error_from_msg(block->range, "can only index tables"));
         }
         vm_table_pair_t pair = (vm_table_pair_t) {
             .key = v2,
         };
-        vm_table_get_pair(v1.value.table, &pair);
+        vm_table_get_pair(vm_obj_get_table(v1), &pair);
         vm_run_repl_out(pair.value);
         block = vm_run_repl_read(vm_block_t *);
         goto new_block;
     }
     VM_OP_CALL:; VM_OPCODE_DEBUG(call) {
         vm_obj_t v1 = vm_run_repl_arg();
-        switch (v1.tag) {
-            case VM_TAG_CLOSURE: {
-                next_regs[0] = v1;
-                size_t j = 1;
-            call_closure_next_arg:;
-                uint8_t type = vm_run_repl_read(vm_interp_tag_t);
-                switch (type) {
-                    case VM_ARG_NONE: {
-                        goto call_closure_end;
-                    }
-                    case VM_ARG_REG: {
-                        next_regs[j++] = vm_run_repl_reg();
-                        goto call_closure_next_arg;
-                    }
-                    case VM_ARG_LIT: {
-                        next_regs[j++] = vm_run_repl_lit();
-                        goto call_closure_next_arg;
-                    }
-                    default: {
-                        __builtin_unreachable();
-                    }
+        if (vm_obj_is_closure(v1)) {
+            next_regs[0] = v1;
+            size_t j = 1;
+        call_closure_next_arg:;
+            uint8_t type = vm_run_repl_read(vm_interp_tag_t);
+            switch (type) {
+                case VM_ARG_NONE: {
+                    goto call_closure_end;
                 }
-            call_closure_end:;
-                next_regs[j].tag = VM_TAG_UNK;
-                vm_obj_t *last_regs = regs;
-                vm->regs = next_regs;
-                // printf("%zu : %zu\n", (size_t) v1.value.closure->values[0].value.i32, (size_t) vm->blocks->len);
-                vm_obj_t got = vm_run_repl(vm, v1.value.closure->block);
-                vm->regs = last_regs;
-                if (got.tag == VM_TAG_ERROR) {
-                    return vm_obj_of_error(vm_error_from_error(block->range, got.value.error));
+                case VM_ARG_REG: {
+                    next_regs[j++] = vm_run_repl_reg();
+                    goto call_closure_next_arg;
                 }
-                vm_run_repl_out(got);
-                block = vm_run_repl_read(vm_block_t *);
-                goto new_block;
+                case VM_ARG_LIT: {
+                    next_regs[j++] = vm_run_repl_lit();
+                    goto call_closure_next_arg;
+                }
+                default: {
+                    __builtin_unreachable();
+                }
             }
-            case VM_TAG_FFI: {
-                size_t j = 0;
-            call_ffi_next_arg:;
-                uint8_t type = vm_run_repl_read(vm_interp_tag_t);
-                switch (type) {
-                    case VM_ARG_NONE: {
-                        goto call_ffi_end;
-                    }
-                    case VM_ARG_REG: {
-                        next_regs[j++] = vm_run_repl_reg();
-                        goto call_ffi_next_arg;
-                    }
-                    case VM_ARG_LIT: {
-                        next_regs[j++] = vm_run_repl_lit();
-                        goto call_ffi_next_arg;
-                    }
-                    default: {
-                        __builtin_unreachable();
-                    }
-                }
-            call_ffi_end:;
-                next_regs[j].tag = VM_TAG_UNK;
-                vm_obj_t *last_regs = regs;
-                vm->regs = next_regs;
-                v1.value.ffi(vm, next_regs);
-                vm->regs = last_regs;
-                vm_obj_t got = next_regs[0];
-                if (got.tag == VM_TAG_ERROR) {
-                    return vm_obj_of_error(vm_error_from_error(block->range, got.value.error));
-                }
-                vm_run_repl_out(next_regs[0]);
-                block = vm_run_repl_read(vm_block_t *);
-                goto new_block;
+        call_closure_end:;
+            next_regs[j] = vm_obj_of_empty();
+            vm_obj_t *last_regs = regs;
+            vm->regs = next_regs;
+            // printf("%zu : %zu\n", (size_t) vm_obj_get_closure(v1)->values[0].value.i32, (size_t) vm->blocks->len);
+            vm_obj_t got = vm_run_repl(vm, vm_obj_get_closure(v1)->block);
+            vm->regs = last_regs;
+            if (vm_obj_is_error(got)) {
+                return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(got)));
             }
-            default: {
-                return vm_obj_of_error(vm_error_from_msg(block->range, "can only call functions"));
+            vm_run_repl_out(got);
+            block = vm_run_repl_read(vm_block_t *);
+            goto new_block;
+        }
+        if (vm_obj_is_ffi(v1)) {
+            size_t j = 0;
+        call_ffi_next_arg:;
+            uint8_t type = vm_run_repl_read(vm_interp_tag_t);
+            switch (type) {
+                case VM_ARG_NONE: {
+                    goto call_ffi_end;
+                }
+                case VM_ARG_REG: {
+                    next_regs[j++] = vm_run_repl_reg();
+                    goto call_ffi_next_arg;
+                }
+                case VM_ARG_LIT: {
+                    next_regs[j++] = vm_run_repl_lit();
+                    goto call_ffi_next_arg;
             }
+                default: {
+                    __builtin_unreachable();
+                }
+            }
+        call_ffi_end:;
+            next_regs[j] = vm_obj_of_empty();
+            vm_obj_t *last_regs = regs;
+            vm->regs = next_regs;
+            vm_obj_get_ffi(v1)(vm, next_regs);
+            vm->regs = last_regs;
+            vm_obj_t got = next_regs[0];
+            if (vm_obj_is_error(got)) {
+                return vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(got)));
+            }
+            vm_run_repl_out(next_regs[0]);
+            block = vm_run_repl_read(vm_block_t *);
+            goto new_block;
         }
         vm_run_repl_jump();
     }
@@ -1177,8 +1182,8 @@ new_block_no_print:;
 
 vm_obj_t vm_run_main(vm_t *vm, vm_block_t *entry) {
     vm_obj_t val = vm_run_repl(vm, entry);
-    if (val.tag == VM_TAG_ERROR) {
-        vm_error_report(val.value.error, stderr);
+    if (vm_obj_is_error(val)) {
+        vm_error_report(vm_obj_get_error(val), stderr);
     }
     return val;
 }

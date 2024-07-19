@@ -123,10 +123,6 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
             break;
         }
     }
-    if (val.tag != VM_TAG_UNK) {
-        vm_io_buffer_format(out, ".");
-        vm_io_format_type(out, val.tag);
-    }
     if (val.op == VM_BOP_CALL) {
         vm_io_buffer_format(out, " ");
         vm_io_format_arg(out, val.args[0]);
@@ -238,10 +234,6 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val) {
             vm_io_buffer_format(out, "<instr: %zu>", (size_t)val.op);
             break;
         }
-    }
-    if (val.tag != VM_TAG_UNK) {
-        vm_io_buffer_format(out, ".");
-        vm_io_format_type(out, val.tag);
     }
     for (size_t i = 0; val.args[i].type != VM_ARG_NONE; i++) {
         vm_io_buffer_format(out, " ");

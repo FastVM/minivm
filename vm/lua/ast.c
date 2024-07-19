@@ -578,10 +578,10 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         return vm_ast_build_nil();
     }
     if (!strcmp(type, "true")) {
-        return vm_ast_build_literal(vm_obj_of_bool(true));
+        return vm_ast_build_literal(vm_obj_of_boolean(true));
     }
     if (!strcmp(type, "false")) {
-        return vm_ast_build_literal(vm_obj_of_bool(false));
+        return vm_ast_build_literal(vm_obj_of_boolean(false));
     }
     return vm_ast_build_error(vm_io_format("unknown node type: %s", type));
 }

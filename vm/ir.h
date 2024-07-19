@@ -74,23 +74,22 @@ struct vm_arg_t {
 struct vm_branch_t {
     vm_location_range_t range;
 
+    // vm_block_t *targets[2];
     vm_block_t *targets[VM_TAG_MAX];
 
     vm_arg_t *args;
     vm_arg_t out;
 
     uint8_t op;
-    vm_tag_t tag;
 };
 
 struct vm_instr_t {
     vm_location_range_t range;
     
     vm_arg_t *args;
-    uint8_t op;
-    
-    vm_tag_t tag;
     vm_arg_t out;
+
+    uint8_t op;
 };
 
 struct vm_block_t {
@@ -141,7 +140,7 @@ void vm_block_info(size_t nblocks, vm_block_t **blocks);
 void vm_free_block_sub(vm_block_t *block);
 void vm_free_block(vm_block_t *block);
 
-#define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit.tag = (VM_TAG_NIL)})
+#define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit = vm_obj_of_nil()})
 
 vm_block_t *vm_compile(vm_t *vm, const char *src, const char *file);
 

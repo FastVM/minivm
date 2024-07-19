@@ -28,45 +28,27 @@ struct vm_gc_t {
 };
 
 static void vm_gc_mark_obj(vm_obj_t obj) {
-    switch (obj.tag) {
-        default: {
-            // not allocated
-            break;
-        }
-        case VM_TAG_STR: {
-            vm_io_buffer_t *buffer = obj.value.str;
-            if (buffer->mark) {
-                break;
-            }
-            buffer->mark = true;
-            break;
-        }
-        case VM_TAG_CLOSURE: {
-            vm_closure_t *closure = obj.value.closure;
-            if (closure->mark) {
-                break;
-            }
+    if (vm_obj_is_string(obj)) {
+        vm_io_buffer_t *buffer = vm_obj_get_string(obj);
+        buffer->mark = true;
+    }
+    if (vm_obj_is_closure(obj)) {
+        vm_closure_t *closure = vm_obj_get_closure(obj);
+        if (!closure->mark) {
             closure->mark = true;
             for (size_t i = 0; i < closure->len; i++) {
                 vm_gc_mark_obj(closure->values[i]);
             }
-            break;
         }
-        case VM_TAG_TAB: {
-            vm_table_t *table = obj.value.table;
-            if (table->mark) {
-                break;
-            }
-            table->mark = true;
+    }
+    if (vm_obj_is_table(obj)) {
+        vm_table_t *table = vm_obj_get_table(obj);
+        if (!table->mark) {
+        table->mark = true;
             for (size_t i = 0; i < (1 << table->alloc); i++) {
                 vm_gc_mark_obj(table->pairs[i].key);
                 vm_gc_mark_obj(table->pairs[i].value);
             }
-            break;
-        }
-        case VM_TAG_ERROR: {
-            // todo
-            break;
         }
     }
 }
@@ -102,54 +84,35 @@ void vm_gc_sweep(vm_t *vm) {
     size_t write = 0;
     for (size_t i = 0; i < gc->objs.len; i++) {
         vm_obj_t obj = gc->objs.objs[i];
-        bool keep = true;
-        switch (obj.tag) {
-            default: {
-                // not allocated
-                break;
+        if (vm_obj_is_string(obj)) {
+            vm_io_buffer_t *buffer = vm_obj_get_string(obj);
+            if (!buffer->mark) {
+                vm_free(buffer->buf);
+                vm_free(buffer);
+            } else {
+                buffer->mark = false;
+                gc->objs.objs[write++] = obj;
             }
-            case VM_TAG_STR: {
-                vm_io_buffer_t *buffer = obj.value.str;
-                if (!buffer->mark) {
-                    vm_free(buffer->buf);
-                    vm_free(buffer);
-                    keep = false;
-                } else {
-                    buffer->mark = false;
+        } else if (vm_obj_is_closure(obj)) {
+            vm_closure_t *closure = vm_obj_get_closure(obj);
+            if (!closure->mark) {
+                vm_free(closure);
+            } else {
+                closure->mark = false;
+                gc->objs.objs[write++] = obj;
+            }
+        } else if (vm_obj_is_table(obj)) {
+            vm_table_t *table = vm_obj_get_table(obj);
+            if (!table->mark) {
+                if (!table->pairs_auto) {
+                    vm_free(table->pairs);
                 }
-                break;
+                vm_free(table);
+            } else {
+                table->mark = false;
+                gc->objs.objs[write++] = obj;
             }
-            case VM_TAG_CLOSURE: {
-                vm_closure_t *closure = obj.value.closure;
-                if (!closure->mark) {
-                    vm_free(closure);
-                    keep = false;
-                } else {
-                    closure->mark = false;
-                }
-                break;
-            }
-            case VM_TAG_TAB: {
-                vm_table_t *table = obj.value.table;
-                if (!table->mark) {
-                    if (!table->pairs_auto) {
-                        vm_free(table->pairs);
-                    }
-                    vm_free(table);
-                    keep = false;
-                } else {
-                    table->mark = false;
-                }
-                break;
-            }
-            case VM_TAG_ERROR: {
-                // todo
-                break;
-            }
-        }
-        if (keep) {
-            gc->objs.objs[write++] = obj;
-        }
+        } 
     }
     gc->objs.len = write;
     size_t next = write * VM_GC_FACTOR;

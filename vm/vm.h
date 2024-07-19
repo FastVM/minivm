@@ -11,9 +11,13 @@
 #define VM_GC_MIN 256
 #define VM_GC_FACTOR 1.4
 
-#define VM_DEBUG_BACKEND 0
+#define VM_DEBUG_BACKEND_BLOCKS 0
+#define VM_DEBUG_BACKEND_OPCODES 0
 
 #define VM_FORMAT_FLOAT "%.14g"
+
+#define VM_OBJ_FIELD_VALUE _value ## __COUNTER__ 
+#define VM_OBJ_FIELD_TAG _tag ## __COUNTER__
 
 struct vm_t;
 struct vm_block_t;
@@ -67,8 +71,8 @@ union vm_value_t {
 };
 
 struct vm_obj_t {
-    vm_value_t value;
-    vm_tag_t tag;
+    vm_value_t VM_OBJ_FIELD_VALUE;
+    vm_tag_t VM_OBJ_FIELD_TAG;
 };
 
 struct vm_table_pair_t {
@@ -127,15 +131,36 @@ void vm_state_delete(vm_t *vm);
 void vm_repl(vm_t *vm);
 vm_obj_t vm_str(vm_t *vm, const char *str);
 
-#define vm_obj_of_empty() ((vm_obj_t) {.tag = VM_TAG_UNK})
-#define vm_obj_of_nil() ((vm_obj_t) {.tag = VM_TAG_NIL})
-#define vm_obj_of_bool(b) ((vm_obj_t) {.tag = VM_TAG_BOOL, .value.boolean = (b)})
-#define vm_obj_of_number(n) ((vm_obj_t) {.tag = VM_TAG_NUMBER, .value.f64 = (n)})
-#define vm_obj_of_str(o) ((vm_obj_t) {.tag = VM_TAG_STR, .value.str = (o)})
-#define vm_obj_of_table(o) ((vm_obj_t) {.tag = VM_TAG_TAB, .value.table = (o)})
-#define vm_obj_of_closure(o) ((vm_obj_t) {.tag = VM_TAG_CLOSURE, .value.closure = (o)})
-#define vm_obj_of_ffi(o) ((vm_obj_t) {.tag = VM_TAG_FFI, .value.ffi = (o)})
-#define vm_obj_of_block(o) ((vm_obj_t) {.tag = VM_TAG_FUN, .value.fun = (o)})
-#define vm_obj_of_error(o) ((vm_obj_t) {.tag = VM_TAG_FUN, .value.error = (o)})
+
+#define vm_obj_of_empty() ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_UNK})
+#define vm_obj_of_nil() ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_NIL})
+#define vm_obj_of_boolean(b) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_BOOL, .VM_OBJ_FIELD_VALUE.boolean = (b)})
+#define vm_obj_of_number(n) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_NUMBER, .VM_OBJ_FIELD_VALUE.f64 = (n)})
+#define vm_obj_of_string(o) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_STR, .VM_OBJ_FIELD_VALUE.str = (o)})
+#define vm_obj_of_table(o) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_TAB, .VM_OBJ_FIELD_VALUE.table = (o)})
+#define vm_obj_of_closure(o) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_CLOSURE, .VM_OBJ_FIELD_VALUE.closure = (o)})
+#define vm_obj_of_ffi(o) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_FFI, .VM_OBJ_FIELD_VALUE.ffi = (o)})
+#define vm_obj_of_block(o) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_FUN, .VM_OBJ_FIELD_VALUE.fun = (o)})
+#define vm_obj_of_error(o) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_FUN, .VM_OBJ_FIELD_VALUE.error = (o)})
+
+#define vm_obj_get_boolean(o) ((o).VM_OBJ_FIELD_VALUE.boolean)
+#define vm_obj_get_number(o) ((o).VM_OBJ_FIELD_VALUE.f64)
+#define vm_obj_get_string(o) ((o).VM_OBJ_FIELD_VALUE.str)
+#define vm_obj_get_table(o) ((o).VM_OBJ_FIELD_VALUE.table)
+#define vm_obj_get_closure(o) ((o).VM_OBJ_FIELD_VALUE.closure)
+#define vm_obj_get_ffi(o) ((o).VM_OBJ_FIELD_VALUE.ffi)
+#define vm_obj_get_block(o) ((o).VM_OBJ_FIELD_VALUE.fun)
+#define vm_obj_get_error(o) ((o).VM_OBJ_FIELD_VALUE.error)
+
+#define vm_obj_is_empty(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_UNK)
+#define vm_obj_is_nil(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_NIL)
+#define vm_obj_is_boolean(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_BOOL)
+#define vm_obj_is_number(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_NUMBER)
+#define vm_obj_is_string(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_STR)
+#define vm_obj_is_table(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_TAB)
+#define vm_obj_is_closure(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_CLOSURE)
+#define vm_obj_is_ffi(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_FFI)
+#define vm_obj_is_block(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_FUN)
+#define vm_obj_is_error(o) ((o).VM_OBJ_FIELD_TAG == VM_TAG_ERROR)
 
 #endif

@@ -8,9 +8,6 @@ typedef struct vm_table_pair_t vm_table_pair_t;
 
 bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs);
 bool vm_value_is_int(vm_obj_t val);
-int64_t vm_value_to_i64(vm_obj_t arg);
-double vm_value_to_f64(vm_obj_t arg);
-bool vm_value_can_to_n64(vm_obj_t val);
 
 vm_table_t *vm_table_new(vm_t *vm);
 vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key);

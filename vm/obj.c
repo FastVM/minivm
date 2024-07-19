@@ -2,135 +2,57 @@
 #include "./gc.h"
 #include "./io.h"
 
-int64_t vm_value_to_i64(vm_obj_t arg) {
-    switch (arg.tag) {
-        case VM_TAG_NUMBER: {
-            return (int64_t)arg.value.f64;
-        }
-        default: {
-            return 0;
-        }
-    }
-}
-
-double vm_value_to_f64(vm_obj_t arg) {
-    switch (arg.tag) {
-        case VM_TAG_NUMBER: {
-            return (double)arg.value.f64;
-        }
-        default: {
-            return 0;
-        }
-    }
-}
-
-bool vm_value_can_to_n64(vm_obj_t val) {
-    return val.tag == VM_TAG_NUMBER;
-}
-
-bool vm_value_is_int(vm_obj_t val) {
-    switch (val.tag) {
-        case VM_TAG_NUMBER: {
-            double v = val.value.f64;
-            if ((double)INT64_MIN <= v && v <= (double)INT64_MAX) {
-                return (double)(int64_t)v == v;
-            }
-            return fmod(v, 1.0) == 0.0;
-        }
-        default: {
-            return false;
-        }
-    }
-}
-
-bool vm_obj_eq(vm_obj_t lhs, vm_obj_t rhs) {
-    switch (lhs.tag) {
-        case VM_TAG_NIL: {
-            return rhs.tag == VM_TAG_NIL;
-        }
-        case VM_TAG_BOOL: {
-            return rhs.tag == VM_TAG_BOOL && lhs.value.boolean == rhs.value.boolean;
-        }
-        case VM_TAG_NUMBER: {
-            switch (rhs.tag) {
-                case VM_TAG_NUMBER: {
-                    return lhs.value.f64 == rhs.value.f64;
-                }
-                default: {
-                    return false;
-                }
-            }
-        }
-        case VM_TAG_STR: {
-            return rhs.tag == VM_TAG_STR && !strcmp(lhs.value.str->buf, rhs.value.str->buf);
-        }
-        case VM_TAG_FUN: {
-            return rhs.tag == VM_TAG_FUN && lhs.value.fun == rhs.value.fun;
-        }
-        case VM_TAG_CLOSURE: {
-            return rhs.tag == VM_TAG_CLOSURE && lhs.value.closure == rhs.value.closure;
-        }
-        case VM_TAG_TAB: {
-            return rhs.tag == VM_TAG_TAB && lhs.value.table == rhs.value.table;
-        }
-        case VM_TAG_FFI: {
-            return rhs.tag == VM_TAG_FFI && lhs.value.ffi == rhs.value.ffi;
-        }
-        case VM_TAG_ERROR: {
-            __builtin_trap();
-        }
-        default: {
-            __builtin_trap();
-        }
+bool vm_obj_eq(vm_obj_t v1, vm_obj_t v2) {
+    if (vm_obj_is_nil(v1) && vm_obj_is_nil(v2)) {
+        return true;
+    } else if (vm_obj_is_boolean(v1) && vm_obj_is_boolean(v2)) {
+        return vm_obj_get_boolean(v1) == vm_obj_get_boolean(v2);
+    } else if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_get_number(v1) == vm_obj_get_number(v2);
+    } else if (vm_obj_is_string(v1) && vm_obj_is_string(v2)) {
+        return strcmp(vm_obj_get_string(v1)->buf, vm_obj_get_string(v2)->buf) == 0;
+    } else if (vm_obj_is_table(v1) && vm_obj_is_table(v2)) {
+        return vm_obj_get_table(v1) == vm_obj_get_table(v2);
+    } else if (vm_obj_is_closure(v1) && vm_obj_is_closure(v2)) {
+        return vm_obj_get_closure(v1) == vm_obj_get_closure(v2);
+    } else if (vm_obj_is_ffi(v1) && vm_obj_is_ffi(v2)) {
+        return vm_obj_get_ffi(v1) == vm_obj_get_ffi(v2);
+    } else {
+        __builtin_trap();
+        return false;
     }
 }
 
 size_t vm_value_hash(vm_obj_t value) {
-    switch (value.tag) {
-        case VM_TAG_NIL: {
-            return SIZE_MAX - 2;
-        }
-        case VM_TAG_BOOL: {
-            return SIZE_MAX - (size_t)value.value.boolean;
-        }
-        case VM_TAG_NUMBER: {
-            if (vm_value_is_int(value)) {
-                return (size_t)(int64_t)value.value.f64 * 1610612741;
-            }
-            return (size_t)*(uint64_t *)&value.value.f64;
-        }
-        case VM_TAG_STR: {
-            uint64_t ret = 0xcbf29ce484222325;
-            const char *head = value.value.str->buf;
-            while (true) {
-                char c = *head++;
-                if (c == '\0') {
-                    break;
-                }
-                ret *= 0x00000100000001B3;
-                ret ^= c;
-            }
-            return (size_t) ret;
-        }
-        case VM_TAG_FFI: {
-            return (size_t)value.value.ffi >> 4;
-        }
-        case VM_TAG_CLOSURE: {
-            return (size_t)value.value.closure >> 4;
-        }
-        case VM_TAG_TAB: {
-            return (size_t)value.value.table >> 4;
-        }
-        case VM_TAG_FUN: {
-            return (size_t)value.value.fun >> 4;
-        }
-        case VM_TAG_ERROR: {
-            __builtin_trap();
-        }
-        default: {
-            return SIZE_MAX - 3;
-        }
+    if (vm_obj_is_boolean(value)) {
+        return SIZE_MAX - (size_t)vm_obj_get_boolean(value);
     }
+    if (vm_obj_is_number(value)) {
+        return (size_t)*(uint64_t *)&vm_obj_get_number(value);
+    }
+    if (vm_obj_is_string(value)) {
+        uint64_t ret = 0xcbf29ce484222325;
+        const char *head = vm_obj_get_string(value)->buf;
+        while (true) {
+            char c = *head++;
+            if (c == '\0') {
+                break;
+            }
+            ret *= 0x00000100000001B3;
+            ret ^= c;
+        }
+        return (size_t) ret;
+    }
+    if (vm_obj_is_ffi(value)) {
+        return (size_t)vm_obj_get_ffi(value) >> 4;
+    }
+    if (vm_obj_is_closure(value)) {
+        return (size_t)vm_obj_get_closure(value) >> 4;
+    }
+    if (vm_obj_is_table(value)) {
+        return (size_t)vm_obj_get_table(value) >> 4;
+    }
+    __builtin_trap();
 }
 
 vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key) {
@@ -141,7 +63,7 @@ vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key) {
     do {
         vm_table_pair_t *pair = &table->pairs[next];
         vm_obj_t value = pair->key;
-        if (value.tag == VM_TAG_UNK || value.tag == VM_TAG_NIL) {
+        if (vm_obj_is_empty(value) || vm_obj_is_nil(value)) {
             return NULL;
         }
         if (vm_obj_eq(key, value)) {
@@ -173,17 +95,22 @@ void vm_table_set(vm_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
     size_t next = stop & and;
     do {
         vm_table_pair_t *pair = &table->pairs[next];
-        if (pair->key.tag == VM_TAG_UNK || pair->key.tag == VM_TAG_NIL) {
+        if (vm_obj_is_empty(pair->key) || vm_obj_is_nil(pair->key)) {
             break;
         }
         vm_obj_t check = pair->key;
         if (vm_obj_eq(key, check)) {
-            if (value.tag == VM_TAG_NIL) {
-                pair->key.tag = VM_TAG_UNK;
-                if (vm_value_is_int(key)) {
-                    int64_t i64val = vm_value_to_i64(key);
-                    if (0 < i64val && i64val <= table->len) {
-                        table->len = i64val - 1;
+            if (vm_obj_is_nil(key)) {
+                pair->key = vm_obj_of_empty();
+                if (vm_obj_is_number(key)) {
+                    double f64val = vm_obj_get_number(key);
+                    if ((double) INT64_MIN <= f64val && f64val <= (double) INT64_MAX) {
+                        int64_t i64val = (int64_t) f64val;
+                        if ((double) i64val == f64val) {
+                            if (0 < i64val && i64val <= table->len) {
+                                table->len = i64val - 1;
+                            }
+                        }
                     }
                 }
             } else {
@@ -195,25 +122,25 @@ void vm_table_set(vm_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
         next += 1;
         next &= and;
     } while (next != stop);
-    if (value.tag == VM_TAG_NIL) {
+    if (vm_obj_is_empty(value) || vm_obj_is_nil(value)) {
         table->pairs[next] = (vm_table_pair_t){
-            .key = key,
+            .key = vm_obj_of_empty(),
             .value = value,
         };
 
-        vm_obj_t nv = value;
+        if (vm_obj_is_number(value)) {
+            double n = vm_obj_get_number(value);
 
-        double n = vm_value_to_f64(nv);
-
-        if (1 <= n && n <= table->len && (double) (size_t) n == n) {
-            table->len = (size_t) (n - 1);
+            if (1 <= n && n <= table->len && (double) (size_t) n == n) {
+                table->len = (size_t) (n - 1);
+            }
         }
     } else if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 76) {
         vm_table_t ret;
         vm_table_init_size(&ret, table->alloc + 1);
         for (size_t i = 0; i < len; i++) {
             vm_table_pair_t *in_pair = &table->pairs[i];
-            if (in_pair->key.tag != VM_TAG_UNK && in_pair->key.tag != VM_TAG_NIL) {
+            if (!vm_obj_is_empty(in_pair->key) && !vm_obj_is_nil(in_pair->key)) {
                 vm_table_set_pair(&ret, in_pair);
             }
         }
