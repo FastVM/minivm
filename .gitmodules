@@ -9,4 +9,4 @@
 	url = https://github.com/FastVM/minivm-raylib
 [submodule "vendor/mimalloc"]
 	path = vendor/mimalloc
-	url = https://github.com/microsoft/mimalloc
+	url = https://github.com/shawsumma/mimalloc
