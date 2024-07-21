@@ -5,7 +5,7 @@
 struct vm_io_debug_t;
 typedef struct vm_io_debug_t vm_io_debug_t;
 
-#include "./obj.h"
+#include "obj.h"
 
 struct vm_io_debug_t {
     vm_io_debug_t *next;

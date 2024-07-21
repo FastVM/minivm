@@ -12,9 +12,9 @@ typedef struct vm_block_t vm_block_t;
 typedef struct vm_branch_t vm_branch_t;
 typedef struct vm_instr_t vm_instr_t;
 
-#include "./lib.h"
-#include "./io.h"
-#include "./errors.h"
+#include "lib.h"
+#include "io.h"
+#include "errors.h"
 
 enum {
     // there are no more args

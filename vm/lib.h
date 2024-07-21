@@ -29,7 +29,7 @@
 #include <time.h>
 #include <wctype.h>
 
-#include "./vm.h"
+#include "vm.h"
 
 #if 0
 #define __builtin_trap()                                       \

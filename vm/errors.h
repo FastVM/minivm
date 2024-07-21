@@ -2,7 +2,7 @@
 #if !defined(VM_HEADER_ERRORS)
 #define VM_HEADER_ERRORS
 
-#include "./lib.h"
+#include "lib.h"
 
 struct vm_location_t;
 struct vm_location_range_t;

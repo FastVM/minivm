@@ -1,8 +1,8 @@
 
-#include "./comp.h"
-#include "./ast.h"
-#include "./build.h"
-#include "./print.h"
+#include "comp.h"
+#include "ast.h"
+#include "build.h"
+#include "print.h"
 #include "../gc.h"
 
 struct vm_ast_comp_t;

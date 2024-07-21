@@ -1,12 +1,12 @@
 
-#include "./std.h"
+#include "std.h"
 
-#include "./backend/backend.h"
-#include "./errors.h"
-#include "./ir.h"
-#include "./obj.h"
-#include "./gc.h"
-#include "./io.h"
+#include "backend/backend.h"
+#include "errors.h"
+#include "ir.h"
+#include "obj.h"
+#include "gc.h"
+#include "io.h"
 
 #define VM_LOCATION_RANGE_FUNC ((vm_location_range_t) { .file =  "<builtins>", .src = __func__ })
 

@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "./alloc.h"
+#include "alloc.h"
 
 #include <assert.h>
 #include <stdbool.h>

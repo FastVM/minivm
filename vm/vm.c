@@ -1,11 +1,11 @@
 
-#include "./lib.h"
-#include "./vm.h"
+#include "lib.h"
+#include "vm.h"
 
-#include "./ir.h"
-#include "./std.h"
-#include "./backend/backend.h"
-#include "./gc.h"
+#include "ir.h"
+#include "std.h"
+#include "backend/backend.h"
+#include "gc.h"
 
 vm_t *vm_state_new(void) {
     vm_obj_t *base = vm_malloc(sizeof(vm_obj_t) * (1 << 20));

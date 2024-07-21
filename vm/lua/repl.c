@@ -1,5 +1,5 @@
 
-#include "./repl.h"
+#include "repl.h"
 #include "../ir.h"
 #include "../io.h"
 #include "../vm.h"

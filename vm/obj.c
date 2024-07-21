@@ -1,6 +1,6 @@
-#include "./obj.h"
-#include "./gc.h"
-#include "./io.h"
+#include "obj.h"
+#include "gc.h"
+#include "io.h"
 
 bool vm_obj_eq(vm_obj_t v1, vm_obj_t v2) {
     if (vm_obj_is_nil(v1) && vm_obj_is_nil(v2)) {

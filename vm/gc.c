@@ -1,6 +1,6 @@
 
-#include "./gc.h"
-#include "./ir.h"
+#include "gc.h"
+#include "ir.h"
 
 struct vm_gc_objs_t;
 struct vm_gc_table_cache_t;
