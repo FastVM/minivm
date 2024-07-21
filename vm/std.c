@@ -43,7 +43,6 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
     closure->block = entry;
     closure->len = 0;
     vm_obj_t ret = vm_obj_of_closure(closure);
-    vm_gc_run(vm, vm->regs);
     vm_gc_add(vm, ret);
     *args = ret;
     return;
@@ -94,7 +93,6 @@ void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
         closure->values[i - 1] = args[i];
     }
     vm_obj_t ret = vm_obj_of_closure(closure);
-    vm_gc_run(vm, vm->regs);
     vm_gc_add(vm, ret);
     *args = ret;
     return;

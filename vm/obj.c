@@ -81,7 +81,7 @@ vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key) {
 
 void vm_table_init_size(vm_table_t *ret, size_t pow2) {
     ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * (1 << pow2));
-    memset(ret->pairs, 0, sizeof(vm_table_pair_t) * (1 << pow2));
+    memset(ret->pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * (1 << pow2));
     ret->alloc = pow2;
     ret->used = 0;
     ret->len = 0;

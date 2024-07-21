@@ -37,20 +37,9 @@
     exit(1);
 #endif
 
-#if 1
-#define VM_MAYBE_INLINE
-#else
-#define VM_MAYBE_INLINE inline
-#endif
-
-void *mi_malloc(size_t size);
-void *mi_realloc(void *ptr, size_t size);
-void mi_free(const void *ptr);
-char *mi_strdup(const char *str);
-
-#define vm_malloc(x) mi_malloc(x)
-#define vm_realloc(x, y) mi_realloc(x, y)
-#define vm_free(x) mi_free(x)
-#define vm_strdup(x) mi_strdup(x)
+#define vm_malloc(x) malloc(x)
+#define vm_realloc(x, y) realloc(x, y)
+#define vm_free(x) free((void *) (x))
+#define vm_strdup(x) strdup(x)
 
 #endif

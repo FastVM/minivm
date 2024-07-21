@@ -11,7 +11,17 @@
 #include <string.h>
 #include <time.h>
 
-int main(int argc, char **argv) {
+#if VM_USE_SPALL
+#define SPALL_AUTO_IMPLEMENTATION
+#include "../vendor/spall/auto.h"
+#endif
+
+__attribute__((no_instrument_function)) int main(int argc, char **argv) {
+#if VM_USE_SPALL
+    spall_auto_init("out.spall");
+    spall_auto_thread_init(0, SPALL_DEFAULT_BUFFER_SIZE);
+#endif
+
     vm_t *vm = vm_state_new();
 
     bool echo = false;
@@ -57,16 +67,14 @@ int main(int argc, char **argv) {
 
             if (src == NULL) {
                 fprintf(stderr, "error: no such file: %s\n", arg);
-                vm_state_delete(vm);
-                return 1;
+                exit(1);
             }
 
             vm_block_t *entry = vm_compile(vm, src, name ? name : "__expr__");
 
             vm_obj_t value = vm_run_main(vm, entry);
             if (vm_obj_is_error(value)) {
-                vm_state_delete(vm);
-                return 1;
+                exit(1);
             }
             if (echo) {
                 vm_io_buffer_t buf = {0};
@@ -86,7 +94,9 @@ int main(int argc, char **argv) {
         vm_repl(vm);
     }
 
-    vm_state_delete(vm);
-
+#if VM_USE_SPALL
+    spall_auto_thread_quit();
+    spall_auto_quit();
+#endif
     return 0;
 }

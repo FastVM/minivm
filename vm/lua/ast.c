@@ -626,25 +626,18 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file) {
 
 vm_block_t *vm_compile(vm_t *vm, const char *src, const char *file) {
     vm_ast_node_t ast = vm_lang_lua_parse(vm, src, file);
-    vm_blocks_srcs_t *next = vm_malloc(sizeof(vm_blocks_srcs_t));
-    *next = (vm_blocks_srcs_t){
-        .last = vm->blocks->srcs,
-        .file = file,
-        .src = src,
-    };
-    vm->blocks->srcs = next;
-    size_t len = vm->blocks->len;
+    // size_t len = vm->blocks->len;
     vm_block_t *block = vm_ast_comp_more(vm, ast);
     vm_ast_free_node(ast);
-    if (vm->dump_ir) {
-        vm_io_buffer_t *buf = vm_io_buffer_new();
-        for (size_t i = len; i < vm->blocks->len; i++) {
-            vm_io_format_block(buf, vm->blocks->blocks[i]);
-            vm_io_buffer_format(buf, "\n");
-        }
-        fprintf(stdout, "%s\n", buf->buf);
-        vm_free(buf->buf);
-        vm_free(buf);
-    }
+    // if (vm->dump_ir) {
+    //     vm_io_buffer_t *buf = vm_io_buffer_new();
+    //     for (size_t i = len; i < vm->blocks->len; i++) {
+    //         vm_io_format_block(buf, vm->blocks->blocks[i]);
+    //         vm_io_buffer_format(buf, "\n");
+    //     }
+    //     fprintf(stdout, "%s\n", buf->buf);
+    //     vm_free(buf->buf);
+    //     vm_free(buf);
+    // }
     return block;
 }

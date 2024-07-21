@@ -4,13 +4,11 @@
 
 struct vm_arg_t;
 struct vm_block_t;
-struct vm_blocks_srcs_t;
 struct vm_branch_t;
 struct vm_instr_t;
 
 typedef struct vm_arg_t vm_arg_t;
 typedef struct vm_block_t vm_block_t;
-typedef struct vm_blocks_srcs_t vm_blocks_srcs_t;
 typedef struct vm_branch_t vm_branch_t;
 typedef struct vm_instr_t vm_instr_t;
 
@@ -26,7 +24,6 @@ enum {
     // normal args
     VM_ARG_REG,
     VM_ARG_LIT,
-    VM_ARG_FUN,
 };
 
 enum {
@@ -95,7 +92,6 @@ struct vm_block_t {
     vm_location_range_t range;
     
     uint32_t id;
-    uint32_t nregs;
 
     uint32_t alloc;
     uint32_t len;
@@ -103,26 +99,16 @@ struct vm_block_t {
 
     vm_branch_t branch;
 
-    vm_arg_t *args;
-
     void *code;
 
-    uint32_t nargs: 31;
     bool isfunc : 1;
+    bool mark: 1;
 };
 
-struct vm_blocks_srcs_t {
-    vm_blocks_srcs_t *last;
-    const char *file;
-    const char *src;
-    void *data;
-};
 
 struct vm_blocks_t {
-    size_t len;
-    vm_block_t **blocks;
-    size_t alloc;
-    vm_blocks_srcs_t *srcs;
+    vm_block_t *block;
+    vm_blocks_t *next;
 };
 
 void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
@@ -131,9 +117,6 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val);
 void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val);
 void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val);
 void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val);
-void vm_io_format_blocks(vm_io_buffer_t *out, vm_blocks_t *val);
-
-void vm_block_info(size_t nblocks, vm_block_t **blocks);
 
 void vm_free_block_sub(vm_block_t *block);
 void vm_free_block(vm_block_t *block);

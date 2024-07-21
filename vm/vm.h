@@ -8,14 +8,19 @@
 
 #define VM_VERSION "0.0.5"
 
+#define VM_NREGS 256
 
-#define VM_GC_MIN 256
-#define VM_GC_FACTOR 1.4
+#define VM_GC_MIN (1 << 14)
+// #define VM_GC_MIN 16
+#define VM_GC_FACTOR 1.5
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
 
 #define VM_FORMAT_FLOAT "%.14g"
+
+#define VM_USE_SPALL 0
+#define VM_USE_SPALL_INSTR 0
 
 #define VM_OBJ_FAST 1
 #define VM_OBJ_FIELD_VALUE _value ## __COUNTER__ 
@@ -41,10 +46,11 @@ typedef union vm_value_t vm_value_t;
 typedef struct vm_table_t vm_table_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
 
-
 #if VM_OBJ_FAST
 
 #include "nanbox.h"
+
+#define VM_EMPTY_BYTE NANBOX_EMPTY_BYTE
 
 typedef nanbox_t vm_obj_t;
 
@@ -167,6 +173,8 @@ struct vm_t {
     vm_obj_t *base;
     vm_obj_t *regs;
 
+    uint32_t nblocks;
+
     bool dump_ir: 1;
 };
 
@@ -177,8 +185,9 @@ void vm_repl(vm_t *vm);
 vm_obj_t vm_str(vm_t *vm, const char *str);
 
 #if VM_OBJ_FAST
-
 #else
+#define VM_EMPTY_BYTE 0x00
+
 #define vm_obj_of_empty() ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_UNK})
 #define vm_obj_of_nil() ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_NIL})
 #define vm_obj_of_boolean(b) ((vm_obj_t) {.VM_OBJ_FIELD_TAG = VM_TAG_BOOL, .VM_OBJ_FIELD_VALUE.boolean = (b)})

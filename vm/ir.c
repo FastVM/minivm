@@ -21,14 +21,6 @@ void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val) {
             vm_io_buffer_format(out, "%%%zu", (size_t)val.reg);
             break;
         }
-        case VM_ARG_FUN: {
-            if (val.func == NULL) {
-                vm_io_buffer_format(out, "<null.fun>");
-            } else {
-                vm_io_buffer_format(out, ".%zi", (ptrdiff_t) val.func->id);
-            }
-            break;
-        }
     }
 }
 
@@ -94,36 +86,12 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val) {
     }
     if (val.op == VM_BOP_LOAD || val.op == VM_BOP_GET || val.op == VM_BOP_CALL) {
         vm_io_buffer_format(out, " then .%zi", (size_t)val.targets[0]->id);
-        vm_io_buffer_format(out, "(");
-        for (size_t i = 0; i < val.targets[0]->nargs; i++) {
-            if (i != 0) {
-                vm_io_buffer_format(out, ", ");
-            }
-            vm_io_format_arg(out, val.targets[0]->args[i]);
-        }
-        vm_io_buffer_format(out, ")");
     } else {
         if (val.targets[0]) {
             vm_io_buffer_format(out, " .%zi", (size_t)val.targets[0]->id);
-            vm_io_buffer_format(out, "(");
-            for (size_t i = 0; i < val.targets[0]->nargs; i++) {
-                if (i != 0) {
-                    vm_io_buffer_format(out, ", ");
-                }
-                vm_io_format_arg(out, val.targets[0]->args[i]);
-            }
-            vm_io_buffer_format(out, ")");
         }
         if (val.targets[1]) {
             vm_io_buffer_format(out, " .%zi", (size_t)val.targets[1]->id);
-            vm_io_buffer_format(out, "(");
-            for (size_t i = 0; i < val.targets[1]->nargs; i++) {
-                if (i != 0) {
-                    vm_io_buffer_format(out, ", ");
-                }
-                vm_io_format_arg(out, val.targets[1]->args[i]);
-            }
-            vm_io_buffer_format(out, ")");
         }
     }
 }
@@ -197,14 +165,7 @@ void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val) {
     if (val == NULL) {
         printf("<block: null>\n");
     }
-    vm_io_buffer_format(out, ".%zi(", (ptrdiff_t) val->id);
-    for (size_t i = 0; i < val->nargs; i++) {
-        if (i != 0) {
-            vm_io_buffer_format(out, ", ");
-        }
-        vm_io_format_arg(out, val->args[i]);
-    }
-    vm_io_buffer_format(out, "):\n");
+    vm_io_buffer_format(out, ".%zi:\n", (ptrdiff_t)val->id);
     for (size_t i = 0; i < val->len; i++) {
         if (val->instrs[i].op == VM_IOP_NOP) {
             continue;
@@ -222,185 +183,8 @@ void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val) {
     }
 }
 
-void vm_io_format_blocks(vm_io_buffer_t *out, vm_blocks_t *blocks) {
-    for (size_t i = 0; i < blocks->len; i++) {
-        vm_block_t *block = blocks->blocks[i];
-        if (block->id < 0) {
-            continue;
-        }
-        vm_io_format_block(out, block);
-    }
-}
-
 enum {
     VM_INFO_REG_UNK,
     VM_INFO_REG_DEF,
     VM_INFO_REG_ARG,
 };
-
-void vm_block_info(size_t nblocks, vm_block_t **blocks) {
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = blocks[i];
-        if (block->len == 0) {
-            block->range = block->branch.range;
-        } else {
-            block->range.file = block->instrs[0].range.file;
-            block->range.src = block->instrs[0].range.src;
-            block->range.start = block->instrs[0].range.start;
-            block->range.stop = block->branch.range.stop;
-        }
-    }
-    for (size_t i = 0; i < nblocks; i++) {
-        vm_block_t *block = blocks[i];
-        if (block->id < 0) {
-            continue;
-        }
-        size_t nregs = 1;
-        for (size_t j = 0; j < block->nargs; j++) {
-            vm_arg_t arg = block->args[j];
-            if (arg.type == VM_ARG_REG && arg.reg >= nregs) {
-                nregs = arg.reg + 1;
-            }
-        }
-        for (size_t j = 0; j < block->len; j++) {
-            vm_instr_t *instr = &block->instrs[j];
-            if (instr->out.type == VM_ARG_REG && instr->out.reg >= nregs) {
-                nregs = instr->out.reg + 1;
-            }
-            for (size_t k = 0; instr->args[k].type != VM_ARG_NONE; k++) {
-                vm_arg_t arg = instr->args[k];
-                if (arg.type == VM_ARG_REG && arg.reg >= nregs) {
-                    nregs = arg.reg + 1;
-                }
-            }
-        }
-        if (block->branch.out.type == VM_ARG_REG &&
-            block->branch.out.reg >= nregs) {
-            nregs = block->branch.out.reg + 1;
-        }
-        for (size_t j = 0; block->branch.args[j].type != VM_ARG_NONE; j++) {
-            if (block->branch.args[j].type == VM_ARG_REG && block->branch.args[j].reg >= nregs) {
-                nregs = block->branch.args[j].reg + 1;
-            }
-        }
-        block->nregs = nregs;
-    }
-    bool redo = true;
-    while (redo) {
-        redo = false;
-        for (size_t i = 0; i < nblocks; i++) {
-            vm_block_t *block = blocks[i];
-            for (size_t t = 0; t < 2; t++) {
-                vm_block_t *target = block->branch.targets[t];
-                if (target == NULL) {
-                    break;
-                }
-                if (target->nregs > block->nregs) {
-                    block->nregs = target->nregs;
-                    redo = true;
-                }
-            }
-        }
-    }
-    redo = true;
-    while (redo) {
-        redo = false;
-        for (size_t i = 0; i < nblocks; i++) {
-            vm_block_t *block = blocks[i];
-            if (block->id < 0) {
-                continue;
-            }
-            if (block->isfunc) {
-                continue;
-            }
-            uint8_t *regs = vm_malloc(sizeof(uint8_t) * block->nregs);
-            for (size_t j = 0; j < block->nregs; j++) {
-                regs[j] = VM_INFO_REG_UNK;
-            }
-            size_t nargs = 0;
-            for (size_t j = 0; j < block->len; j++) {
-                vm_instr_t *instr = &block->instrs[j];
-                for (size_t k = 0; instr->args[k].type != VM_ARG_NONE; k++) {
-                    vm_arg_t arg = instr->args[k];
-                    if (arg.type == VM_ARG_REG && regs[arg.reg] == VM_INFO_REG_UNK) {
-                        regs[arg.reg] = VM_INFO_REG_ARG;
-                        nargs += 1;
-                    }
-                }
-                if (instr->out.type == VM_ARG_REG &&
-                    regs[instr->out.reg] == VM_INFO_REG_UNK) {
-                    regs[instr->out.reg] = VM_INFO_REG_DEF;
-                }
-            }
-            for (size_t j = 0; block->branch.args[j].type != VM_ARG_NONE; j++) {
-                if (block->branch.args[j].type == VM_ARG_REG &&
-                    regs[block->branch.args[j].reg] == VM_INFO_REG_UNK) {
-                    regs[block->branch.args[j].reg] = VM_INFO_REG_ARG;
-                    nargs += 1;
-                }
-            }
-            if (block->branch.out.type == VM_ARG_REG &&
-                regs[block->branch.out.reg] == VM_INFO_REG_UNK) {
-                regs[block->branch.out.reg] = VM_INFO_REG_DEF;
-            }
-            for (size_t t = 0; t < 2; t++) {
-                vm_block_t *target = block->branch.targets[t];
-                if (target == NULL) {
-                    break;
-                }
-                for (size_t a = 0; a < target->nargs; a++) {
-                    if (target->args[a].type == VM_ARG_REG &&
-                        regs[target->args[a].reg] == VM_INFO_REG_UNK) {
-                        regs[target->args[a].reg] = VM_INFO_REG_ARG;
-                        nargs += 1;
-                    }
-                }
-            }
-            size_t next_nargs = 0;
-            vm_arg_t *next_args = vm_malloc(sizeof(vm_arg_t) * nargs);
-            for (size_t reg = 0; reg < block->nregs; reg++) {
-                if (regs[reg] == VM_INFO_REG_ARG) {
-                    next_args[next_nargs++] = (vm_arg_t){
-                        .type = VM_ARG_REG,
-                        .reg = (uint32_t)reg,
-                    };
-                }
-            }
-            vm_free(regs);
-            if (next_nargs == block->nargs && !redo) {
-                for (size_t a = 0; a < next_nargs; a++) {
-                    if (next_args[a].reg != block->args[a].reg) {
-                        redo = true;
-                        break;
-                    }
-                }
-            } else {
-                redo = true;
-            }
-            vm_free(block->args);
-            block->nargs = next_nargs;
-            block->args = next_args;
-        }
-    }
-}
-
-void vm_free_block_sub(vm_block_t *block) {
-    for (size_t i = 0; i < block->len; i++) {
-        vm_free(block->instrs[i].args);
-    }
-    vm_free(block->branch.args);
-    vm_free(block->instrs);
-    vm_free(block->args);
-    vm_free(block);
-}
-
-void vm_free_block(vm_block_t *block) {
-    for (size_t i = 0; i < block->len; i++) {
-        vm_free(block->instrs[i].args);
-    }
-    vm_free(block->instrs);
-    vm_free(block->branch.args);
-    vm_free(block->args);
-    vm_free(block->code);
-    vm_free(block);
-}

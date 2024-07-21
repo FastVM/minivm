@@ -1,8 +1,9 @@
 
-#include "comp.h"
-#include "ast.h"
-#include "build.h"
-#include "print.h"
+#include "./comp.h"
+#include "./ast.h"
+#include "./build.h"
+#include "./print.h"
+#include "../gc.h"
 
 struct vm_ast_comp_t;
 typedef struct vm_ast_comp_t vm_ast_comp_t;
@@ -14,7 +15,6 @@ struct vm_ast_comp_names_t;
 typedef struct vm_ast_comp_names_t vm_ast_comp_names_t;
 
 struct vm_ast_comp_t {
-    vm_blocks_t *blocks;
     vm_block_t *cur;
     vm_ast_comp_names_t *names;
     vm_block_t *on_break;
@@ -125,15 +125,12 @@ static vm_arg_t *vm_ast_args(size_t nargs, ...) {
 }
 
 static vm_block_t *vm_ast_comp_new_block(vm_ast_comp_t *comp) {
-    if (comp->blocks->len + 1 >= comp->blocks->alloc) {
-        comp->blocks->alloc = (comp->blocks->len + 1) * 128;
-        comp->blocks->blocks = vm_realloc(comp->blocks->blocks, sizeof(vm_block_t *) * comp->blocks->alloc);
-    }
     vm_block_t *block = vm_malloc(sizeof(vm_block_t));
     *block = (vm_block_t){
-        .id = (ptrdiff_t)comp->blocks->len,
+        .id = (uint32_t)comp->vm->nblocks++,
+        // .nregs = VM_NREGS,
     };
-    comp->blocks->blocks[comp->blocks->len++] = block;
+    vm_gc_add(comp->vm, vm_obj_of_block(block));
     return block;
 }
 
@@ -874,19 +871,18 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
                     vm_ast_form_t args = form.args[1].value.form;
 
-                    body->nargs = args.len + 1;
-                    body->args = vm_malloc(sizeof(vm_arg_t) * body->nargs);
+                    // reserve args
                     if (form.args[0].type == VM_AST_NODE_IDENT) {
-                        body->args[0] = vm_ast_comp_reg_named(comp, form.args[0].value.ident);
+                        vm_ast_comp_reg_named(comp, form.args[0].value.ident);
                     } else {
-                        body->args[0] = vm_ast_comp_reg_named(comp, NULL);
+                        vm_ast_comp_reg_named(comp, NULL);
                     }
                     for (size_t i = 0; i < args.len; i++) {
                         vm_ast_node_t arg = args.args[i];
                         if (arg.type != VM_AST_NODE_IDENT) {
                             __builtin_trap();
                         }
-                        body->args[i + 1] = vm_ast_comp_reg_named(comp, arg.value.ident);
+                        vm_ast_comp_reg_named(comp, arg.value.ident);
                     }
 
                     vm_block_t *old_break = comp->on_break;
@@ -915,8 +911,8 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         .lit = vm_obj_of_ffi(&vm_std_vm_closure),
                     };
                     call_args[1] = (vm_arg_t){
-                        .type = VM_ARG_FUN,
-                        .func = body,
+                        .type = VM_ARG_LIT,
+                        .lit = vm_obj_of_block(body),
                     };
                     for (size_t i = 0; i < names->caps.len; i++) {
                         vm_ast_comp_cap_t cap = names->caps.ptr[i];
@@ -1065,7 +1061,6 @@ static vm_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
 
 vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
     vm_ast_comp_t comp = (vm_ast_comp_t){
-        .blocks = vm->blocks,
         .names = NULL,
         .cur = NULL,
         .on_break = NULL,
@@ -1095,13 +1090,6 @@ vm_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
         }
     }
     vm_ast_comp_names_t *names = vm_ast_comp_names_pop(&comp);
-    for (size_t i = start; i < comp.blocks->len; i++) {
-        vm_block_t *block = comp.blocks->blocks[i];
-        if (block->branch.op == VM_BOP_FALL) {
-            block->branch.args = vm_ast_args(0);
-        }
-    }
     vm_ast_names_free(names);
-    vm_block_info(comp.blocks->len - start, comp.blocks->blocks + start);
     return entry;
 }
