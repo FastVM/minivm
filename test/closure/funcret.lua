@@ -5,8 +5,10 @@ local add = function(x)
     end
 end
 
+local max = tonumber(arg and arg[1]) or 1000000
+
 local i = 0
-while i < 1000 * 1000 * 10 do
+while i < max do
     i = add(i)(1)
 end
 

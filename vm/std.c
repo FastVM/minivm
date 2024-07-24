@@ -37,7 +37,7 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
         return;
     }
     const char *str = vm_obj_get_string(args[0])->buf;
-    vm_block_t *entry = vm_compile(vm, str, "__load__");
+    vm_ir_block_t *entry = vm_lang_lua_compile(vm, str, "__load__");
 
     vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t));
     closure->block = entry;
@@ -446,7 +446,7 @@ void vm_std_vm_import(vm_t *vm, vm_obj_t *args) {
         args[0] = vm_str(vm, "import() no such file");
         return;
     }
-    vm_block_t *block = vm_compile(vm, src, vm_obj_get_string(args[0])->buf);
+    vm_ir_block_t *block = vm_lang_lua_compile(vm, src, vm_obj_get_string(args[0])->buf);
     args[0] = vm_run_repl(vm, block);
     vm_free(src);
     return;

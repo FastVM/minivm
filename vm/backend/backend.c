@@ -10,13 +10,12 @@
 
 #include "../../vendor/spall/auto.h"
 
-static int x = 0;
-
-#define VM_OPCODE_SPALL_BEGIN(s) \
-    x++;                         \
-    spall_auto_buffer_begin(#s, strlen(#s), "", 0)
+#define VM_OPCODE_SPALL_BEGIN(s) ({                                           \
+    char buf[64];                                                             \
+    signed long n = snprintf(buf, 64, "line %" PRIi32 ": %s", block->id, #s); \
+    spall_auto_buffer_begin(buf, n, "", 0);                                   \
+})
 #define VM_OPCODE_SPALL_END() \
-    x--;                      \
     spall_auto_buffer_end()
 
 #else
@@ -27,7 +26,9 @@ static int x = 0;
 #endif
 
 #if f
-#define VM_OPCODE_DEBUG(s) VM_OPCODE_SPALL_BEGIN(s); printf("%s\n", #s);
+#define VM_OPCODE_DEBUG(s)    \
+    VM_OPCODE_SPALL_BEGIN(s); \
+    printf("%s\n", #s);
 #else
 #define VM_OPCODE_DEBUG(s) VM_OPCODE_SPALL_BEGIN(s);
 #endif
@@ -37,8 +38,12 @@ static int x = 0;
     VM_OPCODE_SPALL_END();      \
     return v;                   \
 })
-#define vm_run_repl_jump() VM_OPCODE_SPALL_END(); goto *vm_run_repl_read(void *)
-#define vm_backend_new_block() VM_OPCODE_SPALL_END(); goto new_block
+#define vm_run_repl_jump() \
+    VM_OPCODE_SPALL_END(); \
+    goto *vm_run_repl_read(void *)
+#define vm_backend_new_block() \
+    VM_OPCODE_SPALL_END();     \
+    goto new_block
 
 typedef uint8_t vm_interp_tag_t;
 typedef uint32_t vm_interp_reg_t;
@@ -218,22 +223,22 @@ static VM_INLINE vm_obj_t vm_interp_mod(vm_obj_t v1, vm_obj_t v2) {
 
 #define vm_interp_push_op(v) vm_interp_push(void *, ptrs[v])
 
-void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
+void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
     size_t alloc = 32;
     size_t len = 0;
     uint8_t *code = vm_malloc(sizeof(uint8_t) * alloc);
     for (size_t i = 0; i < block->len; i++) {
-        vm_instr_t instr = block->instrs[i];
+        vm_ir_instr_t instr = block->instrs[i];
         switch (instr.op) {
-            case VM_IOP_NOP: {
+            case VM_IR_INSTR_OPCODE_NOP: {
                 break;
             }
-            case VM_IOP_MOVE: {
-                if (instr.args[0].type == VM_ARG_LIT) {
+            case VM_IR_INSTR_OPCODE_MOVE: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_MOVE_R);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
@@ -242,25 +247,25 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_ADD: {
-                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+            case VM_IR_INSTR_OPCODE_ADD: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_obj_t v1 = instr.args[0].lit;
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_add(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push_op(VM_OP_ADD_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_ADD_IR);
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_ADD_RR);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
@@ -270,25 +275,25 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_SUB: {
-                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+            case VM_IR_INSTR_OPCODE_SUB: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_obj_t v1 = instr.args[0].lit;
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_sub(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push_op(VM_OP_SUB_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_SUB_IR);
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_SUB_RR);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
@@ -298,25 +303,25 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_MUL: {
-                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+            case VM_IR_INSTR_OPCODE_MUL: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_obj_t v1 = instr.args[0].lit;
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_mul(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push_op(VM_OP_MUL_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_MUL_IR);
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_MUL_RR);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
@@ -326,25 +331,25 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_DIV: {
-                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+            case VM_IR_INSTR_OPCODE_DIV: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_obj_t v1 = instr.args[0].lit;
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_div(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push_op(VM_OP_DIV_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_DIV_IR);
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_DIV_RR);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
@@ -354,25 +359,25 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_IDIV: {
-                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+            case VM_IR_INSTR_OPCODE_IDIV: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_obj_t v1 = instr.args[0].lit;
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_idiv(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push_op(VM_OP_IDIV_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_IDIV_IR);
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_IDIV_RR);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
@@ -382,25 +387,25 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_MOD: {
-                if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_LIT) {
+            case VM_IR_INSTR_OPCODE_MOD: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_obj_t v1 = instr.args[0].lit;
                     vm_obj_t v2 = instr.args[1].lit;
                     vm_obj_t v3 = vm_interp_mod(v1, v2);
                     vm_interp_push_op(VM_OP_MOVE_I);
                     vm_interp_push(vm_obj_t, v3);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_LIT) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push_op(VM_OP_MOD_RI);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_obj_t, instr.args[1].lit);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_LIT && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_MOD_IR);
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
-                } else if (instr.args[0].type == VM_ARG_REG && instr.args[1].type == VM_ARG_REG) {
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_MOD_RR);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
@@ -410,11 +415,11 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_TABLE_SET: {
+            case VM_IR_INSTR_OPCODE_TABLE_SET: {
                 vm_interp_push_op(VM_OP_TABLE_SET);
                 for (size_t i = 0; i < 3; i++) {
                     vm_interp_push(vm_interp_tag_t, instr.args[i].type);
-                    if (instr.args[i].type == VM_ARG_LIT) {
+                    if (instr.args[i].type == VM_IR_ARG_TYPE_LIT) {
                         vm_interp_push(vm_obj_t, instr.args[i].lit);
                     } else {
                         vm_interp_push(vm_interp_reg_t, instr.args[i].reg);
@@ -422,15 +427,15 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 }
                 break;
             }
-            case VM_IOP_TABLE_NEW: {
+            case VM_IR_INSTR_OPCODE_TABLE_NEW: {
                 vm_interp_push_op(VM_OP_TABLE_NEW);
                 vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 break;
             }
-            case VM_IOP_TABLE_LEN: {
+            case VM_IR_INSTR_OPCODE_TABLE_LEN: {
                 vm_interp_push_op(VM_OP_TABLE_LEN);
                 vm_interp_push(vm_interp_tag_t, instr.args[0].type);
-                if (instr.args[0].type == VM_ARG_LIT) {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT) {
                     vm_interp_push(vm_obj_t, instr.args[0].lit);
                 } else {
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
@@ -438,7 +443,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
                 vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 break;
             }
-            case VM_IOP_STD: {
+            case VM_IR_INSTR_OPCODE_STD: {
                 vm_interp_push_op(VM_OP_MOVE_I);
                 vm_interp_push(vm_obj_t, vm->std);
                 vm_interp_push(vm_interp_reg_t, instr.out.reg);
@@ -449,143 +454,143 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             }
         }
     }
-    vm_branch_t branch = block->branch;
+    vm_ir_branch_t branch = block->branch;
     switch (branch.op) {
-        case VM_BOP_FALL: {
+        case VM_IR_BRANCH_OPCODE_FALL: {
             break;
         }
-        case VM_BOP_JUMP: {
+        case VM_IR_BRANCH_OPCODE_JUMP: {
             vm_interp_push_op(VM_OP_JUMP);
-            vm_interp_push(vm_block_t *, branch.targets[0]);
+            vm_interp_push(vm_ir_block_t *, branch.targets[0]);
             break;
         }
-        case VM_BOP_BB: {
-            if (branch.args[0].type == VM_ARG_LIT) {
+        case VM_IR_BRANCH_OPCODE_BB: {
+            if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 if (!vm_obj_is_nil(v1) && (!vm_obj_is_boolean(v1) || vm_obj_get_boolean(v1))) {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[0]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[0]);
                 } else {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[1]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[1]);
                 }
-            } else if (branch.args[0].type == VM_ARG_REG) {
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_BB_R);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
             } else {
                 __builtin_trap();
             }
             break;
         }
-        case VM_BOP_BLT: {
-            if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_LIT) {
+        case VM_IR_BRANCH_OPCODE_BLT: {
+            if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 vm_obj_t v2 = branch.args[1].lit;
                 if (vm_interp_value_lt(v1, v2)) {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[0]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[0]);
                 } else {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[1]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[1]);
                 }
-            } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_LIT) {
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push_op(VM_OP_BLT_RI);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
                 vm_interp_push(vm_obj_t, branch.args[1].lit);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
-            } else if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_REG) {
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_BLT_IR);
                 vm_interp_push(vm_obj_t, branch.args[0].lit);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
-            } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG && branch.args[1].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_BLT_RR);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
             } else {
                 __builtin_trap();
             }
             break;
         }
-        case VM_BOP_BLE: {
-            if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_LIT) {
+        case VM_IR_BRANCH_OPCODE_BLE: {
+            if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 vm_obj_t v2 = branch.args[1].lit;
                 if (vm_interp_value_le(v1, v2)) {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[0]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[0]);
                 } else {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[1]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[1]);
                 }
-            } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_LIT) {
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push_op(VM_OP_BLE_RI);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
                 vm_interp_push(vm_obj_t, branch.args[1].lit);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
-            } else if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_REG) {
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_BLE_IR);
                 vm_interp_push(vm_obj_t, branch.args[0].lit);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
-            } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG && branch.args[1].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_BLE_RR);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
             } else {
                 __builtin_trap();
             }
             break;
         }
-        case VM_BOP_BEQ: {
-            if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_LIT) {
+        case VM_IR_BRANCH_OPCODE_BEQ: {
+            if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 vm_obj_t v2 = branch.args[1].lit;
                 if (vm_interp_value_eq(v1, v2)) {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[0]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[0]);
                 } else {
                     vm_interp_push_op(VM_OP_JUMP);
-                    vm_interp_push(vm_block_t *, branch.targets[1]);
+                    vm_interp_push(vm_ir_block_t *, branch.targets[1]);
                 }
-            } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_LIT) {
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push_op(VM_OP_BEQ_RI);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
                 vm_interp_push(vm_obj_t, branch.args[1].lit);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
-            } else if (branch.args[0].type == VM_ARG_LIT && branch.args[1].type == VM_ARG_REG) {
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_BEQ_IR);
                 vm_interp_push(vm_obj_t, branch.args[0].lit);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
-            } else if (branch.args[0].type == VM_ARG_REG && branch.args[1].type == VM_ARG_REG) {
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG && branch.args[1].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_BEQ_RR);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
-                vm_interp_push(vm_block_t *, branch.targets[0]);
-                vm_interp_push(vm_block_t *, branch.targets[1]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[0]);
+                vm_interp_push(vm_ir_block_t *, branch.targets[1]);
             } else {
                 __builtin_trap();
             }
             break;
         }
-        case VM_BOP_RET: {
-            if (branch.args[0].type == VM_ARG_LIT) {
+        case VM_IR_BRANCH_OPCODE_RET: {
+            if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push_op(VM_OP_RET_I);
                 vm_interp_push(vm_obj_t, branch.args[0].lit);
-            } else if (branch.args[0].type == VM_ARG_REG) {
+            } else if (branch.args[0].type == VM_IR_ARG_TYPE_REG) {
                 vm_interp_push_op(VM_OP_RET_R);
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
             } else {
@@ -593,58 +598,58 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
             }
             break;
         }
-        case VM_BOP_LOAD: {
+        case VM_IR_BRANCH_OPCODE_LOAD: {
             vm_interp_push_op(VM_OP_LOAD);
             vm_interp_push(vm_interp_tag_t, branch.args[0].type);
-            if (branch.args[0].type == VM_ARG_LIT) {
+            if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push(vm_obj_t, branch.args[0].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
             }
             vm_interp_push(vm_interp_tag_t, branch.args[1].type);
-            if (branch.args[1].type == VM_ARG_LIT) {
+            if (branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push(vm_obj_t, branch.args[1].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
             }
             vm_interp_push(vm_interp_reg_t, branch.out.reg);
-            vm_interp_push(vm_block_t *, branch.targets[0]);
+            vm_interp_push(vm_ir_block_t *, branch.targets[0]);
             break;
         }
-        case VM_BOP_GET: {
+        case VM_IR_BRANCH_OPCODE_GET: {
             vm_interp_push_op(VM_OP_GET);
             vm_interp_push(vm_interp_tag_t, branch.args[0].type);
-            if (branch.args[0].type == VM_ARG_LIT) {
+            if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push(vm_obj_t, branch.args[0].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[0].reg);
             }
             vm_interp_push(vm_interp_tag_t, branch.args[1].type);
-            if (branch.args[1].type == VM_ARG_LIT) {
+            if (branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push(vm_obj_t, branch.args[1].lit);
             } else {
                 vm_interp_push(vm_interp_reg_t, branch.args[1].reg);
             }
             vm_interp_push(vm_interp_reg_t, branch.out.reg);
-            vm_interp_push(vm_block_t *, branch.targets[0]);
+            vm_interp_push(vm_ir_block_t *, branch.targets[0]);
             break;
         }
-        case VM_BOP_CALL: {
+        case VM_IR_BRANCH_OPCODE_CALL: {
             vm_interp_push_op(VM_OP_CALL);
-            for (size_t i = 0; branch.args[i].type != VM_ARG_NONE; i++) {
-                if (branch.args[i].type == VM_ARG_LIT) {
-                    vm_interp_push(vm_interp_tag_t, VM_ARG_LIT);
+            for (size_t i = 0; branch.args[i].type != VM_IR_ARG_TYPE_NONE; i++) {
+                if (branch.args[i].type == VM_IR_ARG_TYPE_LIT) {
+                    vm_interp_push(vm_interp_tag_t, VM_IR_ARG_TYPE_LIT);
                     vm_interp_push(vm_obj_t, branch.args[i].lit);
-                } else if (branch.args[i].type == VM_ARG_REG) {
-                    vm_interp_push(vm_interp_tag_t, VM_ARG_REG);
+                } else if (branch.args[i].type == VM_IR_ARG_TYPE_REG) {
+                    vm_interp_push(vm_interp_tag_t, VM_IR_ARG_TYPE_REG);
                     vm_interp_push(vm_interp_reg_t, branch.args[i].reg);
                 } else {
                     __builtin_trap();
                 }
             }
-            vm_interp_push(vm_interp_tag_t, VM_ARG_NONE);
+            vm_interp_push(vm_interp_tag_t, VM_IR_ARG_TYPE_NONE);
             vm_interp_push(vm_interp_reg_t, branch.out.reg);
-            vm_interp_push(vm_block_t *, branch.targets[0]);
+            vm_interp_push(vm_ir_block_t *, branch.targets[0]);
             break;
         }
         default: {
@@ -674,13 +679,13 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
 
 #if 0
 #define vm_run_repl_arg() (                         \
-    vm_run_repl_read(vm_interp_tag_t) == VM_ARG_LIT \
+    vm_run_repl_read(vm_interp_tag_t) == VM_IR_ARG_TYPE_LIT \
         ? (printf(":LIT\n"), vm_run_repl_lit())     \
         : (printf(":REG\n"), vm_run_repl_reg())     \
 )
 #else
 #define vm_run_repl_arg() (                         \
-    vm_run_repl_read(vm_interp_tag_t) == VM_ARG_LIT \
+    vm_run_repl_read(vm_interp_tag_t) == VM_IR_ARG_TYPE_LIT \
         ? vm_run_repl_lit()                         \
         : vm_run_repl_reg()                         \
 )
@@ -688,7 +693,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_block_t *block) {
 
 #define vm_run_repl_out(value) (regs[vm_run_repl_read(vm_interp_reg_t)] = (value))
 
-vm_obj_t vm_run_repl_inner(vm_t *vm, vm_block_t *block) {
+vm_obj_t vm_run_repl_inner(vm_t *vm, vm_ir_block_t *block) {
     vm_obj_t *regs = vm->regs;
     static void *ptrs[VM_MAX_OP] = {
         [VM_OP_TABLE_SET] = &&VM_OP_TABLE_SET,
@@ -999,17 +1004,17 @@ VM_OP_MOD_RR:;
     }
 VM_OP_JUMP:;
     VM_OPCODE_DEBUG(jump) {
-        block = vm_run_repl_read(vm_block_t *);
+        block = vm_run_repl_read(vm_ir_block_t *);
         vm_backend_new_block();
     }
 VM_OP_BB_R:;
     VM_OPCODE_DEBUG(bb_r) {
         vm_obj_t v1 = vm_run_repl_reg();
         if (!vm_obj_is_nil(v1) && (!vm_obj_is_boolean(v1) || vm_obj_get_boolean(v1))) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1018,10 +1023,10 @@ VM_OP_BLT_RI:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         if (vm_interp_value_lt(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1030,10 +1035,10 @@ VM_OP_BLT_IR:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         if (vm_interp_value_lt(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1042,10 +1047,10 @@ VM_OP_BLT_RR:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         if (vm_interp_value_lt(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1054,10 +1059,10 @@ VM_OP_BLE_RI:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         if (vm_interp_value_le(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1066,10 +1071,10 @@ VM_OP_BLE_IR:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         if (vm_interp_value_le(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1078,10 +1083,10 @@ VM_OP_BLE_RR:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         if (vm_interp_value_le(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1090,10 +1095,10 @@ VM_OP_BEQ_RI:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_lit();
         if (vm_obj_eq(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1102,10 +1107,10 @@ VM_OP_BEQ_IR:;
         vm_obj_t v1 = vm_run_repl_lit();
         vm_obj_t v2 = vm_run_repl_reg();
         if (vm_obj_eq(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1114,10 +1119,10 @@ VM_OP_BEQ_RR:;
         vm_obj_t v1 = vm_run_repl_reg();
         vm_obj_t v2 = vm_run_repl_reg();
         if (vm_obj_eq(v1, v2)) {
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         } else {
-            vm_run_repl_read(vm_block_t *);
-            block = vm_run_repl_read(vm_block_t *);
+            vm_run_repl_read(vm_ir_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
         }
         vm_backend_new_block();
     }
@@ -1137,7 +1142,7 @@ VM_OP_LOAD:;
         vm_obj_t v2 = vm_run_repl_arg();
         vm_obj_t v3 = vm_obj_get_closure(v1)->values[(int32_t)vm_obj_get_number(v2)];
         vm_run_repl_out(v3);
-        block = vm_run_repl_read(vm_block_t *);
+        block = vm_run_repl_read(vm_ir_block_t *);
         vm_backend_new_block();
     }
 VM_OP_GET:;
@@ -1153,7 +1158,7 @@ VM_OP_GET:;
         };
         vm_table_get_pair(vm_obj_get_table(v1), &pair);
         vm_run_repl_out(pair.value);
-        block = vm_run_repl_read(vm_block_t *);
+        block = vm_run_repl_read(vm_ir_block_t *);
         vm_backend_new_block();
     }
 VM_OP_CALL:;
@@ -1165,14 +1170,14 @@ VM_OP_CALL:;
         call_closure_next_arg:;
             uint8_t type = vm_run_repl_read(vm_interp_tag_t);
             switch (type) {
-                case VM_ARG_NONE: {
+                case VM_IR_ARG_TYPE_NONE: {
                     goto call_closure_end;
                 }
-                case VM_ARG_REG: {
+                case VM_IR_ARG_TYPE_REG: {
                     next_regs[j++] = vm_run_repl_reg();
                     goto call_closure_next_arg;
                 }
-                case VM_ARG_LIT: {
+                case VM_IR_ARG_TYPE_LIT: {
                     next_regs[j++] = vm_run_repl_lit();
                     goto call_closure_next_arg;
                 }
@@ -1190,21 +1195,21 @@ VM_OP_CALL:;
                 vm_backend_return(vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(got))));
             }
             vm_run_repl_out(got);
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
             vm_backend_new_block();
-        } else  if (vm_obj_is_ffi(v1)) {
+        } else if (vm_obj_is_ffi(v1)) {
             size_t j = 0;
         call_ffi_next_arg:;
             uint8_t type = vm_run_repl_read(vm_interp_tag_t);
             switch (type) {
-                case VM_ARG_NONE: {
+                case VM_IR_ARG_TYPE_NONE: {
                     goto call_ffi_end;
                 }
-                case VM_ARG_REG: {
+                case VM_IR_ARG_TYPE_REG: {
                     next_regs[j++] = vm_run_repl_reg();
                     goto call_ffi_next_arg;
                 }
-                case VM_ARG_LIT: {
+                case VM_IR_ARG_TYPE_LIT: {
                     next_regs[j++] = vm_run_repl_lit();
                     goto call_ffi_next_arg;
                 }
@@ -1224,7 +1229,7 @@ VM_OP_CALL:;
             }
             vm_run_repl_out(next_regs[0]);
             vm_gc_run(vm, next_regs);
-            block = vm_run_repl_read(vm_block_t *);
+            block = vm_run_repl_read(vm_ir_block_t *);
             vm_backend_new_block();
         } else {
             vm_backend_return(vm_obj_of_error(vm_error_from_msg(block->range, "can only call functions")));
@@ -1233,8 +1238,8 @@ VM_OP_CALL:;
     }
 }
 
-vm_obj_t vm_run_repl(vm_t *vm, vm_block_t *entry) {
-    vm_blocks_t blocks = (vm_blocks_t) {
+vm_obj_t vm_run_repl(vm_t *vm, vm_ir_block_t *entry) {
+    vm_ir_blocks_t blocks = (vm_ir_blocks_t){
         .next = vm->blocks,
         .block = entry,
     };
@@ -1244,7 +1249,7 @@ vm_obj_t vm_run_repl(vm_t *vm, vm_block_t *entry) {
     return ret;
 }
 
-vm_obj_t vm_run_main(vm_t *vm, vm_block_t *entry) {
+vm_obj_t vm_run_main(vm_t *vm, vm_ir_block_t *entry) {
     vm_obj_t val = vm_run_repl(vm, entry);
     if (vm_obj_is_error(val)) {
         vm_error_report(vm_obj_get_error(val), stderr);

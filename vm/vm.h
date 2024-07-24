@@ -10,9 +10,9 @@
 
 #define VM_NREGS 256
 
-#define VM_GC_MIN (1 << 14)
+#define VM_GC_MIN (1 << 8)
 // #define VM_GC_MIN 16
-#define VM_GC_FACTOR 1.5
+#define VM_GC_FACTOR 2
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
@@ -27,8 +27,8 @@
 #define VM_OBJ_FIELD_TAG _tag ## __COUNTER__
 
 struct vm_t;
-struct vm_block_t;
-struct vm_blocks_t;
+struct vm_ir_block_t;
+struct vm_ir_blocks_t;
 struct vm_closure_t;
 struct vm_externs_t;
 union vm_value_t;
@@ -39,7 +39,7 @@ struct vm_io_buffer_t;
 
 typedef struct vm_io_buffer_t vm_io_buffer_t;
 typedef struct vm_t vm_t;
-typedef struct vm_blocks_t vm_blocks_t;
+typedef struct vm_ir_blocks_t vm_ir_blocks_t;
 typedef struct vm_closure_t vm_closure_t;
 typedef struct vm_externs_t vm_externs_t;
 typedef union vm_value_t vm_value_t;
@@ -48,7 +48,7 @@ typedef struct vm_table_pair_t vm_table_pair_t;
 
 #if VM_OBJ_FAST
 
-#include "nanbox.h"
+#include "../vendor/nanbox/nanbox.h"
 
 #define VM_EMPTY_BYTE NANBOX_EMPTY_BYTE
 
@@ -83,7 +83,7 @@ typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
 #define vm_obj_get_table(o) ((vm_table_t *) nanbox_to_aux(o))
 #define vm_obj_get_closure(o) ((vm_closure_t *) nanbox_to_aux(o))
 #define vm_obj_get_ffi(o) ((vm_ffi_t *) nanbox_to_aux(o))
-#define vm_obj_get_block(o) ((vm_block_t *) nanbox_to_aux(o))
+#define vm_obj_get_block(o) ((vm_ir_block_t *) nanbox_to_aux(o))
 #define vm_obj_get_error(o) ((vm_error_t *) nanbox_to_pointer(o))
 
 #else
@@ -116,7 +116,7 @@ union vm_value_t {
     vm_io_buffer_t *str;
     vm_table_t *table;
     vm_closure_t *closure;
-    struct vm_block_t *fun;
+    struct vm_ir_block_t *fun;
     struct vm_error_t *error;
 };
 
@@ -141,7 +141,7 @@ struct vm_table_t {
 };
 
 struct vm_closure_t {
-    struct vm_block_t *block;
+    struct vm_ir_block_t *block;
     bool mark: 1;
     uint32_t len: 31;
     vm_obj_t values[];
@@ -162,7 +162,7 @@ struct vm_io_buffer_t {
 
 struct vm_t {
     vm_externs_t *externs;
-    vm_blocks_t *blocks;
+    vm_ir_blocks_t *blocks;
 
     uint8_t use_num;
 
@@ -181,7 +181,7 @@ struct vm_t {
 vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
-void vm_repl(vm_t *vm);
+void vm_lang_lua_repl(vm_t *vm);
 vm_obj_t vm_str(vm_t *vm, const char *str);
 
 #if VM_OBJ_FAST

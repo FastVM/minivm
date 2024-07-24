@@ -17,6 +17,21 @@
 #define __section(x) __attribute__((__section__(x)))
 #endif
 
+#define VM_ARCH_IS_AMD64 0
+#define VM_ARCH_IS_ARM64 0
+#define VM_ARCH_IS_OTHER 0
+
+#if defined(__x86_64__) || defined(_M_AMD64)
+#undef VM_ARCH_IS_AMD64
+#define VM_ARCH_IS_AMD64 1
+#elif defined(__aarch64__)
+#undef VM_ARCH_IS_ARM64
+#define VM_ARCH_IS_ARM64 1
+#else
+#undef VM_ARCH_IS_OTHER
+#define VM_ARCH_IS_OTHER 1
+#endif
+
 #include <inttypes.h>
 #include <math.h>
 #include <stdarg.h>

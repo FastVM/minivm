@@ -16,7 +16,7 @@
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file);
 
-void vm_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
+void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     vm_t *vm = cenv->arg;
     ptrdiff_t len = strlen(prefix);
     ptrdiff_t head = len - 1;
@@ -68,7 +68,7 @@ with_new_std:;
 ret:;
 }
 
-void vm_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TSNode node) {
+void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TSNode node) {
     const char *type = ts_node_type(node);
     size_t start = ts_node_start_byte(node);
     size_t end = ts_node_end_byte(node);
@@ -106,11 +106,11 @@ void vm_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TSNode node
     size_t num_children = ts_node_child_count(node);
     for (size_t i = 0; i < num_children; i++) {
         TSNode sub = ts_node_child(node, i);
-        vm_repl_highlight_walk(henv, depth, sub);
+        vm_lang_lua_repl_highlight_walk(henv, depth, sub);
     }
 }
 
-void vm_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
+void vm_lang_lua_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
     (void)arg;
     TSParser *parser = ts_parser_new();
     ts_parser_set_language(parser, tree_sitter_lua());
@@ -122,20 +122,20 @@ void vm_repl_highlight(ic_highlight_env_t *henv, const char *input, void *arg) {
     );
     TSNode root_node = ts_tree_root_node(tree);
     size_t depth = 0;
-    vm_repl_highlight_walk(henv, &depth, root_node);
+    vm_lang_lua_repl_highlight_walk(henv, &depth, root_node);
     ts_tree_delete(tree);
     ts_parser_delete(parser);
 }
 
-void vm_repl(vm_t *vm) {
+void vm_lang_lua_repl(vm_t *vm) {
     ic_set_history(".minivm-history", 2000);
 
     while (true) {
         char *input = ic_readline_ex(
             "lua",
-            vm_repl_completer,
+            vm_lang_lua_repl_completer,
             vm,
-            vm_repl_highlight,
+            vm_lang_lua_repl_highlight,
             vm
         );
 
@@ -145,7 +145,7 @@ void vm_repl(vm_t *vm) {
         
         ic_history_add(input);
 
-        vm_block_t *entry = vm_compile(vm, input, "__repl__");
+        vm_ir_block_t *entry = vm_lang_lua_compile(vm, input, "__repl__");
 
         free(input);
 

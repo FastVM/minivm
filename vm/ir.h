@@ -2,15 +2,15 @@
 #if !defined(VM_HEADER_IR)
 #define VM_HEADER_IR
 
-struct vm_arg_t;
-struct vm_block_t;
-struct vm_branch_t;
-struct vm_instr_t;
+struct vm_ir_arg_t;
+struct vm_ir_block_t;
+struct vm_ir_branch_t;
+struct vm_ir_instr_t;
 
-typedef struct vm_arg_t vm_arg_t;
-typedef struct vm_block_t vm_block_t;
-typedef struct vm_branch_t vm_branch_t;
-typedef struct vm_instr_t vm_instr_t;
+typedef struct vm_ir_arg_t vm_ir_arg_t;
+typedef struct vm_ir_block_t vm_ir_block_t;
+typedef struct vm_ir_branch_t vm_ir_branch_t;
+typedef struct vm_ir_instr_t vm_ir_instr_t;
 
 #include "lib.h"
 #include "io.h"
@@ -18,48 +18,46 @@ typedef struct vm_instr_t vm_instr_t;
 
 enum {
     // there are no more args
-    VM_ARG_NONE,
+    VM_IR_ARG_TYPE_NONE,
     // there was an error generating this arg
-    VM_ARG_ERROR,
+    VM_IR_ARG_TYPE_ERROR,
     // normal args
-    VM_ARG_REG,
-    VM_ARG_LIT,
+    VM_IR_ARG_TYPE_REG,
+    VM_IR_ARG_TYPE_LIT,
 };
 
 enum {
-    VM_BOP_FALL,
-    VM_BOP_JUMP,
-    VM_BOP_BB,
-    VM_BOP_BLT,
-    VM_BOP_BLE,
-    VM_BOP_BEQ,
-    VM_BOP_RET,
-    VM_BOP_LOAD,
-    VM_BOP_GET,
-    VM_BOP_CALL,
-    VM_MAX_BOP,
+    VM_IR_BRANCH_OPCODE_FALL,
+    VM_IR_BRANCH_OPCODE_JUMP,
+    VM_IR_BRANCH_OPCODE_BB,
+    VM_IR_BRANCH_OPCODE_BLT,
+    VM_IR_BRANCH_OPCODE_BLE,
+    VM_IR_BRANCH_OPCODE_BEQ,
+    VM_IR_BRANCH_OPCODE_RET,
+    VM_IR_BRANCH_OPCODE_LOAD,
+    VM_IR_BRANCH_OPCODE_GET,
+    VM_IR_BRANCH_OPCODE_CALL,
 };
 
 enum {
-    VM_IOP_NOP,
-    VM_IOP_MOVE,
-    VM_IOP_ADD,
-    VM_IOP_SUB,
-    VM_IOP_MUL,
-    VM_IOP_DIV,
-    VM_IOP_IDIV,
-    VM_IOP_MOD,
-    VM_IOP_TABLE_SET,
-    VM_IOP_TABLE_NEW,
-    VM_IOP_TABLE_LEN,
-    VM_IOP_STD,
-    VM_MAX_IOP,
+    VM_IR_INSTR_OPCODE_NOP,
+    VM_IR_INSTR_OPCODE_MOVE,
+    VM_IR_INSTR_OPCODE_ADD,
+    VM_IR_INSTR_OPCODE_SUB,
+    VM_IR_INSTR_OPCODE_MUL,
+    VM_IR_INSTR_OPCODE_DIV,
+    VM_IR_INSTR_OPCODE_IDIV,
+    VM_IR_INSTR_OPCODE_MOD,
+    VM_IR_INSTR_OPCODE_TABLE_SET,
+    VM_IR_INSTR_OPCODE_TABLE_NEW,
+    VM_IR_INSTR_OPCODE_TABLE_LEN,
+    VM_IR_INSTR_OPCODE_STD,
 };
 
-struct vm_arg_t {
+struct vm_ir_arg_t {
     union {
         vm_obj_t lit;
-        vm_block_t *func;
+        vm_ir_block_t *func;
         vm_error_t *error;
 
         uint64_t reg;
@@ -68,36 +66,36 @@ struct vm_arg_t {
     uint8_t type;
 };
 
-struct vm_branch_t {
+struct vm_ir_branch_t {
     vm_location_range_t range;
 
-    vm_block_t *targets[2];
+    vm_ir_block_t *targets[2];
 
-    vm_arg_t *args;
-    vm_arg_t out;
+    vm_ir_arg_t *args;
+    vm_ir_arg_t out;
 
     uint8_t op;
 };
 
-struct vm_instr_t {
+struct vm_ir_instr_t {
     vm_location_range_t range;
     
-    vm_arg_t *args;
-    vm_arg_t out;
+    vm_ir_arg_t *args;
+    vm_ir_arg_t out;
 
     uint8_t op;
 };
 
-struct vm_block_t {
+struct vm_ir_block_t {
     vm_location_range_t range;
     
     uint32_t id;
 
     uint32_t alloc;
     uint32_t len;
-    vm_instr_t *instrs;
+    vm_ir_instr_t *instrs;
 
-    vm_branch_t branch;
+    vm_ir_branch_t branch;
 
     void *code;
 
@@ -106,23 +104,20 @@ struct vm_block_t {
 };
 
 
-struct vm_blocks_t {
-    vm_block_t *block;
-    vm_blocks_t *next;
+struct vm_ir_blocks_t {
+    vm_ir_block_t *block;
+    vm_ir_blocks_t *next;
 };
 
-void vm_block_realloc(vm_block_t *block, vm_instr_t instr);
+void vm_block_realloc(vm_ir_block_t *block, vm_ir_instr_t instr);
 
-void vm_io_format_arg(vm_io_buffer_t *out, vm_arg_t val);
-void vm_io_format_branch(vm_io_buffer_t *out, vm_branch_t val);
-void vm_io_format_instr(vm_io_buffer_t *out, vm_instr_t val);
-void vm_io_format_block(vm_io_buffer_t *out, vm_block_t *val);
+void vm_io_format_arg(vm_io_buffer_t *out, vm_ir_arg_t val);
+void vm_io_format_branch(vm_io_buffer_t *out, vm_ir_branch_t val);
+void vm_io_format_instr(vm_io_buffer_t *out, vm_ir_instr_t val);
+void vm_io_format_block(vm_io_buffer_t *out, vm_ir_block_t *val);
 
-void vm_free_block_sub(vm_block_t *block);
-void vm_free_block(vm_block_t *block);
+#define vm_arg_nil() ((vm_ir_arg_t){.type = (VM_IR_ARG_TYPE_LIT), .lit = vm_obj_of_nil()})
 
-#define vm_arg_nil() ((vm_arg_t){.type = (VM_ARG_LIT), .lit = vm_obj_of_nil()})
-
-vm_block_t *vm_compile(vm_t *vm, const char *src, const char *file);
+vm_ir_block_t *vm_lang_lua_compile(vm_t *vm, const char *src, const char *file);
 
 #endif

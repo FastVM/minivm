@@ -3,6 +3,6 @@
 
 #include "../lib.h"
 
-void vm_repl(vm_t *vm);
+void vm_lang_lua_repl(vm_t *vm);
 
 #endif
