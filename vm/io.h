@@ -21,7 +21,7 @@ void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap);
 void vm_io_buffer_format(vm_io_buffer_t *buf, const char *fmt, ...);
 char *vm_io_vformat(const char *fmt, va_list ap);
 char *vm_io_format(const char *fmt, ...);
-void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value);
+void vm_obj_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value);
 vm_io_buffer_t *vm_io_buffer_from_str(const char *str);
 
 #endif

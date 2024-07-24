@@ -39,7 +39,7 @@ void vm_std_load(vm_t *vm, vm_obj_t *args) {
     const char *str = vm_obj_get_string(args[0])->buf;
     vm_ir_block_t *entry = vm_lang_lua_compile(vm, str, "__load__");
 
-    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t));
+    vm_obj_closure_t *closure = vm_malloc(sizeof(vm_obj_closure_t));
     closure->block = entry;
     closure->len = 0;
     vm_obj_t ret = vm_obj_of_closure(closure);
@@ -86,7 +86,7 @@ void vm_std_vm_closure(vm_t *vm, vm_obj_t *args) {
         *args = vm_obj_of_nil();
         return;
     }
-    vm_closure_t *closure = vm_malloc(sizeof(vm_closure_t) + sizeof(vm_obj_t) * (nargs - 1));
+    vm_obj_closure_t *closure = vm_malloc(sizeof(vm_obj_closure_t) + sizeof(vm_obj_t) * (nargs - 1));
     closure->block = vm_obj_get_block(args[0]);
     closure->len = nargs - 1;
     for (size_t i = 1; !vm_obj_is_empty(args[i]); i++) {
@@ -162,7 +162,7 @@ void vm_std_type(vm_t *vm, vm_obj_t *args) {
 void vm_std_tostring(vm_t *vm, vm_obj_t *args) {
     (void)vm;
     vm_io_buffer_t out = {0};
-    vm_value_buffer_tostring(&out, *args);
+    vm_obj_buffer_tostring(&out, *args);
     *args = vm_str(vm, out.buf);
     vm_free(out.buf);
 }
@@ -190,7 +190,7 @@ void vm_std_print(vm_t *vm, vm_obj_t *args) {
         if (!first) {
             vm_io_buffer_format(&out, "\t");
         }
-        vm_value_buffer_tostring(&out, *args++);
+        vm_obj_buffer_tostring(&out, *args++);
         first = false;
     }
     fprintf(stdout, "%.*s\n", (int)out.len, out.buf);
@@ -204,7 +204,7 @@ void vm_std_io_write(vm_t *vm, vm_obj_t *args) {
     vm_obj_t *ret = args;
     vm_io_buffer_t out = {0};
     while (!vm_obj_is_empty(args[0])) {
-        vm_value_buffer_tostring(&out, *args++);
+        vm_obj_buffer_tostring(&out, *args++);
     }
     fprintf(stdout, "%.*s", (int)out.len, out.buf);
     *ret = vm_obj_of_nil();
@@ -378,7 +378,7 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
 }
 
 void vm_std_set_arg(vm_t *vm, const char *prog, const char *file, int argc, char **argv) {
-    vm_table_t *arg = vm_table_new(vm);
+    vm_obj_table_t *arg = vm_table_new(vm);
     if (prog != NULL) {
         vm_table_set(arg, vm_obj_of_number(-1), vm_str(vm, prog));
     }
@@ -397,8 +397,8 @@ void vm_std_table_keys(vm_t *vm, vm_obj_t *args) {
         *args = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "table.values: expect a table"));
         return;
     }
-    vm_table_t *ret = vm_table_new(vm);
-    vm_table_t *tab = vm_obj_get_table(args[0]);
+    vm_obj_table_t *ret = vm_table_new(vm);
+    vm_obj_table_t *tab = vm_obj_get_table(args[0]);
     size_t len = 1 << tab->alloc;
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
@@ -418,8 +418,8 @@ void vm_std_table_values(vm_t *vm, vm_obj_t *args) {
         *args = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "table.values: expect a table"));
         return;
     }
-    vm_table_t *ret = vm_table_new(vm);
-    vm_table_t *tab = vm_obj_get_table(args[0]);
+    vm_obj_table_t *ret = vm_table_new(vm);
+    vm_obj_table_t *tab = vm_obj_get_table(args[0]);
     size_t len = 1 << tab->alloc;
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
@@ -453,24 +453,24 @@ void vm_std_vm_import(vm_t *vm, vm_obj_t *args) {
 }
 
 void vm_std_new(vm_t *vm) {
-    vm_table_t *std = vm_table_new(vm);
+    vm_obj_table_t *std = vm_table_new(vm);
 
     srand(0);
 
     {
-        vm_table_t *io = vm_table_new(vm);
+        vm_obj_table_t *io = vm_table_new(vm);
         vm_table_set(std, vm_str(vm, "io"), vm_obj_of_table(io));
         vm_table_set(io, vm_str(vm, "write"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_io_write)));
     }
 
     {
-        vm_table_t *string = vm_table_new(vm);
+        vm_obj_table_t *string = vm_table_new(vm);
         vm_table_set(std, vm_str(vm, "string"), vm_obj_of_table(string));
         vm_table_set(string, vm_str(vm, "format"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_string_format)));
     }
     
     {
-        vm_table_t *tvm = vm_table_new(vm);
+        vm_obj_table_t *tvm = vm_table_new(vm);
         vm_table_set(std, vm_str(vm, "vm"), vm_obj_of_table(tvm));
         vm_table_set(tvm, vm_str(vm, "import"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_vm_import)));
         vm_table_set(tvm, vm_str(vm, "gc"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_vm_gc)));
@@ -480,19 +480,19 @@ void vm_std_new(vm_t *vm) {
     }
 
     {
-        vm_table_t *math = vm_table_new(vm);
+        vm_obj_table_t *math = vm_table_new(vm);
         vm_table_set(std, vm_str(vm, "math"), vm_obj_of_table(math));
         vm_table_set(math, vm_str(vm, "randint"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_math_rand_int)));
     }
 
     {
-        vm_table_t *os = vm_table_new(vm);
+        vm_obj_table_t *os = vm_table_new(vm);
         vm_table_set(std, vm_str(vm, "os"), vm_obj_of_table(os));
         vm_table_set(os, vm_str(vm, "exit"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_os_exit)));
     }
 
     {
-        vm_table_t *table = vm_table_new(vm);
+        vm_obj_table_t *table = vm_table_new(vm);
         vm_table_set(std, vm_str(vm, "table"), vm_obj_of_table(table));
         vm_table_set(table, vm_str(vm, "keys"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_table_keys)));
         vm_table_set(table, vm_str(vm, "values"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_table_values)));

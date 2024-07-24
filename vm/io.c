@@ -154,7 +154,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
         vm_io_buffer_format(out, "<code: %p>\n", vm_obj_get_block(value));
     }
     if (vm_obj_is_table(value)) {
-        vm_table_t *tab = vm_obj_get_table(value);
+        vm_obj_table_t *tab = vm_obj_get_table(value);
         if (tab == NULL) {
             vm_io_indent(out, indent, prefix);
             vm_io_buffer_format(out, "table(NULL)\n");
@@ -201,7 +201,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
     }
 }
 
-void vm_value_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
+void vm_obj_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
     if (vm_obj_is_nil(value)) {
         vm_io_buffer_format(buf, "nil");
     }

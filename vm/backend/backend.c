@@ -693,6 +693,18 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
 
 #define vm_run_repl_out(value) (regs[vm_run_repl_read(vm_interp_reg_t)] = (value))
 
+void vm_interp_renumber_blocks(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
+    if (block->code == NULL) {
+        block->code = vm_interp_renumber_block(vm, &ptrs[0], block);
+        if (block->branch.targets[0] != NULL) {
+            vm_interp_renumber_blocks(vm, ptrs, block->branch.targets[0]);
+        }
+        if (block->branch.targets[1] != NULL) {
+            vm_interp_renumber_blocks(vm, ptrs, block->branch.targets[1]);
+        }
+    }
+}
+
 vm_obj_t vm_run_repl_inner(vm_t *vm, vm_ir_block_t *block) {
     vm_obj_t *regs = vm->regs;
     static void *ptrs[VM_MAX_OP] = {
@@ -736,6 +748,9 @@ vm_obj_t vm_run_repl_inner(vm_t *vm, vm_ir_block_t *block) {
         [VM_OP_GET] = &&VM_OP_GET,
         [VM_OP_CALL] = &&VM_OP_CALL,
     };
+    
+    vm_interp_renumber_blocks(vm, ptrs, block);
+
     vm_obj_t *next_regs = &regs[VM_NREGS];
 #if VM_DEBUG_BACKEND_BLOCKS
     {
@@ -759,10 +774,6 @@ new_block:;
 new_block_no_print:;
 
     uint8_t *code = block->code;
-    if (block->code == NULL) {
-        code = vm_interp_renumber_block(vm, &ptrs[0], block);
-        block->code = code;
-    }
 
     goto *vm_run_repl_read(void *);
 

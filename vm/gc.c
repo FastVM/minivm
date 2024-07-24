@@ -19,7 +19,7 @@ struct vm_gc_objs_t {
 struct vm_gc_table_cache_t {
     size_t alloc;
     size_t len;
-    vm_table_t **tables;
+    vm_obj_table_t **tables;
 };
 
 struct vm_gc_t {
@@ -59,7 +59,7 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         vm_io_buffer_t *buffer = vm_obj_get_string(obj);
         buffer->mark = true;
     } else if (vm_obj_is_closure(obj)) {
-        vm_closure_t *closure = vm_obj_get_closure(obj);
+        vm_obj_closure_t *closure = vm_obj_get_closure(obj);
         if (!closure->mark) {
             closure->mark = true;
             for (size_t i = 0; i < closure->len; i++) {
@@ -68,7 +68,7 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         }
         vm_gc_mark_block(closure->block);
     } else if (vm_obj_is_table(obj)) {
-        vm_table_t *table = vm_obj_get_table(obj);
+        vm_obj_table_t *table = vm_obj_get_table(obj);
         if (!table->mark) {
             table->mark = true;
             for (size_t i = 0; i < (1 << table->alloc); i++) {
@@ -106,7 +106,7 @@ void vm_gc_sweep(vm_t *vm) {
                 gc->objs.objs[write++] = obj;
             }
         } else if (vm_obj_is_closure(obj)) {
-            vm_closure_t *closure = vm_obj_get_closure(obj);
+            vm_obj_closure_t *closure = vm_obj_get_closure(obj);
             if (!closure->mark) {
                 vm_free(closure);
             } else {
@@ -114,7 +114,7 @@ void vm_gc_sweep(vm_t *vm) {
                 gc->objs.objs[write++] = obj;
             }
         } else if (vm_obj_is_table(obj)) {
-            vm_table_t *table = vm_obj_get_table(obj);
+            vm_obj_table_t *table = vm_obj_get_table(obj);
             if (!table->mark) {
                 if (!table->pairs_auto) {
                     vm_free(table->pairs);
@@ -148,11 +148,9 @@ void vm_gc_sweep(vm_t *vm) {
     }
 }
 
-void vm_table_init_size(vm_table_t *ret, size_t pow2);
-
-vm_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
+vm_obj_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
     vm_gc_t *gc = vm->gc;
-    vm_table_t *ret = vm_malloc(sizeof(vm_table_t) + sizeof(vm_table_pair_t) * (1 << pow2));
+    vm_obj_table_t *ret = vm_malloc(sizeof(vm_obj_table_t) + sizeof(vm_table_pair_t) * (1 << pow2));
     ret->pairs = (vm_table_pair_t *)&ret[1];
     memset(ret->pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * (1 << pow2));
     ret->alloc = pow2;
@@ -164,7 +162,7 @@ vm_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
     return ret;
 }
 
-vm_table_t *vm_table_new(vm_t *vm) {
+vm_obj_table_t *vm_table_new(vm_t *vm) {
     return vm_table_new_size(vm, 2);
 }
 

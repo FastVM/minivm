@@ -22,7 +22,7 @@ bool vm_obj_eq(vm_obj_t v1, vm_obj_t v2) {
     }
 }
 
-size_t vm_value_hash(vm_obj_t value) {
+size_t vm_obj_hash(vm_obj_t value) {
     if (vm_obj_is_nil(value)) {
         return 0;
     }
@@ -59,10 +59,10 @@ size_t vm_value_hash(vm_obj_t value) {
     // return 0;
 }
 
-vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key) {
+vm_table_pair_t *vm_table_lookup(vm_obj_table_t *table, vm_obj_t key) {
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
-    size_t stop = vm_value_hash(key) & and;
+    size_t stop = vm_obj_hash(key) & and;
     size_t next = stop;
     do {
         vm_table_pair_t *pair = &table->pairs[next];
@@ -79,23 +79,13 @@ vm_table_pair_t *vm_table_lookup(vm_table_t *table, vm_obj_t key) {
     return NULL;
 }
 
-void vm_table_init_size(vm_table_t *ret, size_t pow2) {
-    ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * (1 << pow2));
-    memset(ret->pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * (1 << pow2));
-    ret->alloc = pow2;
-    ret->used = 0;
-    ret->len = 0;
-    ret->mark = false;
-    ret->pairs_auto = false;
-}
-
-void vm_table_set(vm_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
+void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
     if (table->alloc == 0) {
         return;
     }
     size_t len = 1 << table->alloc;
     size_t and = len - 1;
-    size_t stop = vm_value_hash(key) & and;
+    size_t stop = vm_obj_hash(key) & and;
     size_t next = stop & and;
     do {
         vm_table_pair_t *pair = &table->pairs[next];
@@ -140,8 +130,14 @@ void vm_table_set(vm_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
             }
         }
     } else if ((table->used + 1) * 100 >= ((uint32_t)1 << table->alloc) * 76) {
-        vm_table_t ret;
-        vm_table_init_size(&ret, table->alloc + 1);
+        vm_obj_table_t ret;
+        ret.pairs = vm_malloc(sizeof(vm_table_pair_t) * (2 << table->alloc));
+        memset(ret.pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * (2 << table->alloc));
+        ret.alloc = table->alloc + 1;
+        ret.used = 0;
+        ret.len = 0;
+        ret.mark = false;
+        ret.pairs_auto = false;
         for (size_t i = 0; i < len; i++) {
             vm_table_pair_t *in_pair = &table->pairs[i];
             if (!vm_obj_is_empty(in_pair->key) && !vm_obj_is_nil(in_pair->key)) {
@@ -173,11 +169,11 @@ void vm_table_set(vm_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
     }
 }
 
-void vm_table_set_pair(vm_table_t *table, vm_table_pair_t *pair) {
+void vm_table_set_pair(vm_obj_table_t *table, vm_table_pair_t *pair) {
     vm_table_set(table, pair->key, pair->value);
 }
 
-void vm_table_get_pair(vm_table_t *table, vm_table_pair_t *out) {
+void vm_table_get_pair(vm_obj_table_t *table, vm_table_pair_t *out) {
     vm_table_pair_t *pair = vm_table_lookup(table, out->key);
     if (pair != NULL) {
         out->value = pair->value;

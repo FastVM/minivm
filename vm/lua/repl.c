@@ -25,7 +25,7 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     }
     head += 1;
     const char *last_word = &prefix[head];
-    vm_table_t *std = vm_obj_get_table(vm->std);
+    vm_obj_table_t *std = vm_obj_get_table(vm->std);
 with_new_std:;
     for (size_t i = 0; i < ((size_t)1 << std->alloc); i++) {
         vm_table_pair_t *pair = &std->pairs[i];
