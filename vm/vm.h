@@ -59,7 +59,7 @@ typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
 #define vm_obj_of_nil() nanbox_undefined()
 #define vm_obj_of_boolean(b) ((b) ? nanbox_true() : nanbox_false()) 
 #define vm_obj_of_number(n) nanbox_from_double(n)
-#define vm_obj_of_string(s) nanbox_from_aux1(s)
+#define vm_obj_of_buffer(s) nanbox_from_aux1(s)
 #define vm_obj_of_table(o) nanbox_from_aux2(o)
 #define vm_obj_of_closure(o) nanbox_from_aux3(o)
 #define vm_obj_of_ffi(o) nanbox_from_aux4(o)
@@ -182,7 +182,7 @@ vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
 void vm_repl(vm_t *vm);
-vm_obj_t vm_str(vm_t *vm, const char *str);
+vm_obj_t vm_obj_of_string(vm_t *vm, const char *str);
 
 #if VM_OBJ_FAST
 #else

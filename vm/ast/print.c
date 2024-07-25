@@ -158,7 +158,7 @@ void vm_ast_print_node(vm_io_buffer_t *out, size_t indent, const char *prefix, v
             break;
         }
         case VM_AST_NODE_LITERAL: {
-            vm_io_debug(out, indent, prefix, node.value.literal, NULL);
+            vm_io_buffer_obj_debug(out, indent, prefix, node.value.literal, NULL);
             break;
         }
     }

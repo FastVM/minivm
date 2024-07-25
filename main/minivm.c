@@ -78,7 +78,7 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
             }
             if (echo) {
                 vm_io_buffer_t buf = {0};
-                vm_io_debug(&buf, 0, "", value, NULL);
+                vm_io_buffer_obj_debug(&buf, 0, "", value, NULL);
                 printf("%.*s", (int)buf.len, buf.buf);
             }
 

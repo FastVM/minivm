@@ -54,7 +54,7 @@ void vm_std_assert(vm_t *vm, vm_obj_t *args) {
     if (vm_obj_is_nil(val) || (vm_obj_is_boolean(val) && !vm_obj_get_boolean(val))) {
         vm_obj_t msg = args[1];
         vm_io_buffer_t buf = {0};
-        vm_io_debug(&buf, 0, "assert failed with mesage: ", msg, NULL);
+        vm_io_buffer_obj_debug(&buf, 0, "assert failed with mesage: ", msg, NULL);
         *args = vm_str(vm, buf.buf);
         vm_free(buf.buf);
         return;
@@ -71,7 +71,7 @@ void vm_std_error(vm_t *vm, vm_obj_t *args) {
     }
     vm_obj_t msg = args[0];
     vm_io_buffer_t buf = {0};
-    vm_io_debug(&buf, 0, "", msg, NULL);
+    vm_io_buffer_obj_debug(&buf, 0, "", msg, NULL);
     *args = vm_str(vm, buf.buf);
     vm_free(buf.buf);
     return;
@@ -107,7 +107,7 @@ void vm_std_vm_print(vm_t *vm, vm_obj_t *args) {
     (void)vm;
     for (size_t i = 0; !vm_obj_is_empty(args[i]); i++) {
         vm_io_buffer_t buf = {0};
-        vm_io_debug(&buf, 0, "", args[i], NULL);
+        vm_io_buffer_obj_debug(&buf, 0, "", args[i], NULL);
         printf("%.*s", (int)buf.len, buf.buf);
     }
     *args = vm_obj_of_nil();
@@ -162,7 +162,7 @@ void vm_std_type(vm_t *vm, vm_obj_t *args) {
 void vm_std_tostring(vm_t *vm, vm_obj_t *args) {
     (void)vm;
     vm_io_buffer_t out = {0};
-    vm_value_buffer_tostring(&out, *args);
+    vm_io_buffer_object_tostring(&out, *args);
     *args = vm_str(vm, out.buf);
     vm_free(out.buf);
 }
@@ -190,7 +190,7 @@ void vm_std_print(vm_t *vm, vm_obj_t *args) {
         if (!first) {
             vm_io_buffer_format(&out, "\t");
         }
-        vm_value_buffer_tostring(&out, *args++);
+        vm_io_buffer_object_tostring(&out, *args++);
         first = false;
     }
     fprintf(stdout, "%.*s\n", (int)out.len, out.buf);
@@ -204,7 +204,7 @@ void vm_std_io_write(vm_t *vm, vm_obj_t *args) {
     vm_obj_t *ret = args;
     vm_io_buffer_t out = {0};
     while (!vm_obj_is_empty(args[0])) {
-        vm_value_buffer_tostring(&out, *args++);
+        vm_io_buffer_object_tostring(&out, *args++);
     }
     fprintf(stdout, "%.*s", (int)out.len, out.buf);
     *ret = vm_obj_of_nil();
