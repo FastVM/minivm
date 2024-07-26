@@ -19,7 +19,7 @@ struct vm_gc_objs_t {
 struct vm_gc_table_cache_t {
     size_t alloc;
     size_t len;
-    vm_table_t **tables;
+    vm_obj_table_t **tables;
 };
 
 struct vm_gc_t {
@@ -29,25 +29,25 @@ struct vm_gc_t {
 
 static void vm_gc_mark_obj(vm_obj_t obj);
 
-static void vm_gc_mark_arg(vm_arg_t arg) {
-    if (arg.type == VM_ARG_LIT) {
+static void vm_gc_mark_arg(vm_ir_arg_t arg) {
+    if (arg.type == VM_IR_ARG_TYPE_LIT) {
         vm_gc_mark_obj(arg.lit);
     }
 }
 
-static void vm_gc_mark_block(vm_block_t *block) {
+static void vm_gc_mark_block(vm_ir_block_t *block) {
     if (!block->mark) {
         block->mark = true;
         for (size_t j = 0; j < block->len; j++) {
-            vm_instr_t *instr = &block->instrs[j];
-            for (size_t k = 0; instr->args[k].type != VM_ARG_NONE; k++) {
+            vm_ir_instr_t *instr = &block->instrs[j];
+            for (size_t k = 0; instr->args[k].type != VM_IR_ARG_TYPE_NONE; k++) {
                 vm_gc_mark_arg(instr->args[k]);
             }
         }
         for (size_t j = 0; j < 2 && block->branch.targets[j] != NULL; j++) {
             vm_gc_mark_block(block->branch.targets[j]);
         }
-        for (size_t k = 0; block->branch.args[k].type != VM_ARG_NONE; k++) {
+        for (size_t k = 0; block->branch.args[k].type != VM_IR_ARG_TYPE_NONE; k++) {
             vm_gc_mark_arg(block->branch.args[k]);
         }
         vm_gc_mark_arg(block->branch.out);
@@ -59,7 +59,7 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         vm_io_buffer_t *buffer = vm_obj_get_string(obj);
         buffer->mark = true;
     } else if (vm_obj_is_closure(obj)) {
-        vm_closure_t *closure = vm_obj_get_closure(obj);
+        vm_obj_closure_t *closure = vm_obj_get_closure(obj);
         if (!closure->mark) {
             closure->mark = true;
             for (size_t i = 0; i < closure->len; i++) {
@@ -68,7 +68,7 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         }
         vm_gc_mark_block(closure->block);
     } else if (vm_obj_is_table(obj)) {
-        vm_table_t *table = vm_obj_get_table(obj);
+        vm_obj_table_t *table = vm_obj_get_table(obj);
         if (!table->mark) {
             table->mark = true;
             for (size_t i = 0; i < (1 << table->alloc); i++) {
@@ -82,7 +82,7 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
 }
 
 void vm_gc_mark(vm_t *vm, vm_obj_t *top) {
-    for (vm_blocks_t *blocks = vm->blocks; blocks; blocks = blocks->next) {
+    for (vm_ir_blocks_t *blocks = vm->blocks; blocks; blocks = blocks->next) {
         vm_gc_mark_block(blocks->block);
     }
     vm_gc_mark_obj(vm->std);
@@ -106,7 +106,7 @@ void vm_gc_sweep(vm_t *vm) {
                 gc->objs.objs[write++] = obj;
             }
         } else if (vm_obj_is_closure(obj)) {
-            vm_closure_t *closure = vm_obj_get_closure(obj);
+            vm_obj_closure_t *closure = vm_obj_get_closure(obj);
             if (!closure->mark) {
                 vm_free(closure);
             } else {
@@ -114,7 +114,7 @@ void vm_gc_sweep(vm_t *vm) {
                 gc->objs.objs[write++] = obj;
             }
         } else if (vm_obj_is_table(obj)) {
-            vm_table_t *table = vm_obj_get_table(obj);
+            vm_obj_table_t *table = vm_obj_get_table(obj);
             if (!table->mark) {
                 if (!table->pairs_auto) {
                     vm_free(table->pairs);
@@ -125,10 +125,10 @@ void vm_gc_sweep(vm_t *vm) {
                 gc->objs.objs[write++] = obj;
             }
         } else if (vm_obj_is_block(obj)) {
-            vm_block_t *block = vm_obj_get_block(obj);
+            vm_ir_block_t *block = vm_obj_get_block(obj);
             if (!block->mark) {
                 for (size_t j = 0; j < block->len; j++) {
-                    vm_instr_t instr = block->instrs[j];
+                    vm_ir_instr_t instr = block->instrs[j];
                     vm_free(instr.args);
                 }
                 vm_free(block->instrs);
@@ -148,11 +148,9 @@ void vm_gc_sweep(vm_t *vm) {
     }
 }
 
-void vm_table_init_size(vm_table_t *ret, size_t pow2);
-
-vm_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
+vm_obj_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
     vm_gc_t *gc = vm->gc;
-    vm_table_t *ret = vm_malloc(sizeof(vm_table_t) + sizeof(vm_table_pair_t) * (1 << pow2));
+    vm_obj_table_t *ret = vm_malloc(sizeof(vm_obj_table_t) + sizeof(vm_table_pair_t) * (1 << pow2));
     ret->pairs = (vm_table_pair_t *)&ret[1];
     memset(ret->pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * (1 << pow2));
     ret->alloc = pow2;
@@ -164,7 +162,7 @@ vm_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
     return ret;
 }
 
-vm_table_t *vm_table_new(vm_t *vm) {
+vm_obj_table_t *vm_table_new(vm_t *vm) {
     return vm_table_new_size(vm, 2);
 }
 

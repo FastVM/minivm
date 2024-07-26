@@ -32,3 +32,4 @@ package-lock.json
 web/minivm.js
 web-raw/minivm.js
 web-raw/minivm.wasm
+.DS_Store

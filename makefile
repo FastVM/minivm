@@ -25,7 +25,9 @@ MAKE_INCLUDE ?=
 # setup targets
 default: all
 
-all: build/bin/minivm${EXE}
+all: minivm
+
+minivm: build/bin/minivm${EXE}
 
 # specific builds
 clean: .dummy

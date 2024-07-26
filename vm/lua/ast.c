@@ -197,7 +197,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
                 return vm_ast_build_set(
                     vm_ast_build_load(
                         vm_lang_lua_conv(src, vm_ts_node_child_checked(target, 0)),
-                        vm_ast_build_obj(vm_str(src.vm, vm_lang_lua_src(src, vm_ts_node_child_checked(target, 2))))
+                        vm_ast_build_obj(vm_obj_of_string(src.vm, vm_lang_lua_src(src, vm_ts_node_child_checked(target, 2))))
                     ),
                     vm_ast_build_lambda(
                         vm_ast_build_nil(),
@@ -433,7 +433,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         if (ts_node_child_count(node) == 2) {
             char *ret = vm_malloc(sizeof(char) * 1);
             ret[0] = '\0';
-            return vm_ast_build_obj(vm_str(src.vm, ret));
+            return vm_ast_build_obj(vm_obj_of_string(src.vm, ret));
         }
         TSNode content = vm_ts_node_child_checked(node, 1);
         char *val = vm_lang_lua_src(src, content);
@@ -471,7 +471,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         }
         *buf++ = '\0';
         vm_free(val_head);
-        return vm_ast_build_obj(vm_str(src.vm, ret));
+        return vm_ast_build_obj(vm_obj_of_string(src.vm, ret));
     }
     if (!strcmp(type, "number")) {
         const char *str = vm_lang_lua_src(src, node);
@@ -487,7 +487,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
         if (!strcmp(ts_node_type(func_node), "method_index_expression")) {
             const char *obj = vm_lang_lua_gensym(src);
             vm_ast_node_t set_obj = vm_ast_build_local(vm_ast_build_ident(obj), vm_lang_lua_conv(src, vm_ts_node_child_checked(func_node, 0)));
-            vm_ast_node_t index = vm_ast_build_obj(vm_str(src.vm, vm_lang_lua_src(src, vm_ts_node_child_checked(func_node, 2))));
+            vm_ast_node_t index = vm_ast_build_obj(vm_obj_of_string(src.vm, vm_lang_lua_src(src, vm_ts_node_child_checked(func_node, 2))));
             vm_ast_node_t func = vm_ast_build_load(vm_ast_build_ident(vm_strdup(obj)), index);
             TSNode args_node = vm_ts_node_child_checked(node, 1);
             size_t nargs = ts_node_child_count(args_node);
@@ -547,7 +547,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
                     nfields += 1;
                 } else if (sub_children == 3) {
                     char *key_field = vm_lang_lua_src(src, vm_ts_node_child_checked(sub, 0));
-                    vm_ast_node_t key = vm_ast_build_obj(vm_str(src.vm, key_field));
+                    vm_ast_node_t key = vm_ast_build_obj(vm_obj_of_string(src.vm, key_field));
                     vm_ast_node_t value = vm_lang_lua_conv(src, vm_ts_node_child_checked(sub, 2));
                     cur = vm_ast_build_set(vm_ast_build_load(vm_ast_build_ident(vm_strdup(var)), key), value);
                 } else if (sub_children == 5) {
@@ -572,7 +572,7 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node) {
     if (!strcmp(type, "dot_index_expression")) {
         vm_ast_node_t table = vm_lang_lua_conv(src, vm_ts_node_child_checked(node, 0));
         char *field = vm_lang_lua_src(src, vm_ts_node_child_checked(node, 2));
-        return vm_ast_build_load(table, vm_ast_build_obj(vm_str(src.vm, field)));
+        return vm_ast_build_load(table, vm_ast_build_obj(vm_obj_of_string(src.vm, field)));
     }
     if (!strcmp(type, "nil")) {
         return vm_ast_build_nil();
@@ -624,10 +624,10 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file) {
     return vm_ast_build_return(res);
 }
 
-vm_block_t *vm_compile(vm_t *vm, const char *src, const char *file) {
+vm_ir_block_t *vm_lang_lua_compile(vm_t *vm, const char *src, const char *file) {
     vm_ast_node_t ast = vm_lang_lua_parse(vm, src, file);
     // size_t len = vm->blocks->len;
-    vm_block_t *block = vm_ast_comp_more(vm, ast);
+    vm_ir_block_t *block = vm_ast_comp_more(vm, ast);
     vm_ast_free_node(ast);
     // if (vm->dump_ir) {
     //     vm_io_buffer_t *buf = vm_io_buffer_new();

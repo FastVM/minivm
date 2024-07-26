@@ -6,11 +6,9 @@
 
 struct vm_location_t;
 struct vm_location_range_t;
-struct vm_error_t;
 
 typedef struct vm_location_t vm_location_t;
 typedef struct vm_location_range_t vm_location_range_t;
-typedef struct vm_error_t vm_error_t;
 
 struct vm_location_t {
     size_t byte;

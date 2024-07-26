@@ -85,7 +85,7 @@ char *vm_io_read(const char *buf) {
     return ops;
 }
 
-static void vm_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {
+static void vm_io_indent(vm_io_buffer_t *out, size_t indent, const char *prefix) {
     while (indent-- > 0) {
         vm_io_buffer_format(out, "    ");
     }
@@ -114,7 +114,7 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
     size_t up = 1;
     while (link != NULL) {
         if (vm_obj_eq(value, link->value)) {
-            vm_indent(out, indent, prefix);
+            vm_io_indent(out, indent, prefix);
             vm_io_buffer_format(out, "<ref %zu>\n", up);
             return;
         }
@@ -126,11 +126,11 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
         .value = value,
     };
     if (vm_obj_is_nil(value)) {
-        vm_indent(out, indent, prefix);
+        vm_io_indent(out, indent, prefix);
         vm_io_buffer_format(out, "nil\n");
     }
     if (vm_obj_is_boolean(value)) {
-        vm_indent(out, indent, prefix);
+        vm_io_indent(out, indent, prefix);
         if (vm_obj_get_boolean(value)) {
             vm_io_buffer_format(out, "true\n");
         } else {
@@ -138,33 +138,33 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
         }
     }
     if (vm_obj_is_number(value)) {
-        vm_indent(out, indent, prefix);
+        vm_io_indent(out, indent, prefix);
         vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", vm_obj_get_number(value));
     }
     if (vm_obj_is_string(value)) {
-        vm_indent(out, indent, prefix);
+        vm_io_indent(out, indent, prefix);
         vm_io_buffer_format(out, "\"%s\"\n", vm_obj_get_string(value)->buf);
     }
     if (vm_obj_is_closure(value)) {
-        vm_indent(out, indent, prefix);
+        vm_io_indent(out, indent, prefix);
         vm_io_buffer_format(out, "<function: %p>\n", vm_obj_get_closure(value));
     }
     if (vm_obj_is_block(value)) {
-        vm_indent(out, indent, prefix);
+        vm_io_indent(out, indent, prefix);
         vm_io_buffer_format(out, "<code: %p>\n", vm_obj_get_block(value));
     }
     if (vm_obj_is_table(value)) {
-        vm_table_t *tab = vm_obj_get_table(value);
+        vm_obj_table_t *tab = vm_obj_get_table(value);
         if (tab == NULL) {
-            vm_indent(out, indent, prefix);
+            vm_io_indent(out, indent, prefix);
             vm_io_buffer_format(out, "table(NULL)\n");
         } else {
-            vm_indent(out, indent, prefix);
+            vm_io_indent(out, indent, prefix);
             vm_io_buffer_format(out, "table(%p) {\n", tab);
             size_t len = 1 << tab->alloc;
             for (size_t i = 0; i < len; i++) {
                 vm_table_pair_t p = tab->pairs[i];
-                if (vm_obj_is_empty(p.key) || vm_obj_is_nil(p.key)) {
+                if (vm_obj_is_nil(p.key)) {
                     // no print for empty keys
                 } else if (vm_obj_is_boolean(value)) {
                     if (vm_obj_get_boolean(value)) {
@@ -183,20 +183,20 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
                     vm_io_buffer_obj_debug(out, indent + 1, buf.buf, p.value, &next);
                     vm_free(buf.buf);
                 } else {
-                    vm_indent(out, indent + 1, "");
+                    vm_io_indent(out, indent + 1, "");
                     vm_io_buffer_format(out, "pair {\n");
                     vm_io_buffer_obj_debug(out, indent + 2, "key = ", p.key, &next);
                     vm_io_buffer_obj_debug(out, indent + 2, "val = ", p.value, &next);
-                    vm_indent(out, indent + 1, "");
+                    vm_io_indent(out, indent + 1, "");
                     vm_io_buffer_format(out, "}\n");
                 }
             }
         }
-        vm_indent(out, indent, "");
+        vm_io_indent(out, indent, "");
         vm_io_buffer_format(out, "}\n");
     }
     if (vm_obj_is_ffi(value)) {
-        vm_indent(out, indent, prefix);
+        vm_io_indent(out, indent, prefix);
         vm_io_buffer_format(out, "<function: %p>\n", vm_obj_get_ffi(value));
     }
 }

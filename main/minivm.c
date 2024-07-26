@@ -43,7 +43,7 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
         } else if (!strcmp(arg, "--no-dump-ir")) {
             vm->dump_ir = false;
         } else if (!strcmp(arg, "--repl")) {
-            vm_repl(vm);
+            vm_lang_lua_repl(vm);
             isrepl = false;
         } else {
             isrepl = false;
@@ -70,7 +70,7 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
                 exit(1);
             }
 
-            vm_block_t *entry = vm_compile(vm, src, name ? name : "__expr__");
+            vm_ir_block_t *entry = vm_lang_lua_compile(vm, src, name ? name : "__expr__");
 
             vm_obj_t value = vm_run_main(vm, entry);
             if (vm_obj_is_error(value)) {
@@ -91,7 +91,7 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
     }
 
     if (isrepl) {
-        vm_repl(vm);
+        vm_lang_lua_repl(vm);
     }
 
 #if VM_USE_SPALL

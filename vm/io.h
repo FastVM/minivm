@@ -14,7 +14,6 @@ struct vm_io_debug_t {
 
 vm_io_buffer_t *vm_io_buffer_new(void);
 vm_io_buffer_t *vm_io_buffer_from_str(const char *str);
-char *vm_io_buffer_get(vm_io_buffer_t *buf);
 
 char *vm_io_format(const char *fmt, ...);
 char *vm_io_read(const char *filename);
