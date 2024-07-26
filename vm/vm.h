@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "../vendor/nanbox/nanbox.h"
 
 #define VM_VERSION "0.0.5"
 
@@ -12,7 +13,7 @@
 
 #define VM_GC_MIN (1 << 8)
 // #define VM_GC_MIN 16
-#define VM_GC_FACTOR 2
+#define VM_GC_FACTOR 1.4
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
@@ -26,7 +27,10 @@
 #define VM_OBJ_FIELD_VALUE _value ## __COUNTER__ 
 #define VM_OBJ_FIELD_TAG _tag ## __COUNTER__
 
+#define VM_EMPTY_BYTE NANBOX_EMPTY_BYTE
+
 struct vm_t;
+struct vm_error_t;
 struct vm_ir_block_t;
 struct vm_ir_blocks_t;
 struct vm_obj_closure_t;
@@ -38,32 +42,15 @@ struct vm_io_buffer_t;
 
 typedef struct vm_io_buffer_t vm_io_buffer_t;
 typedef struct vm_t vm_t;
+typedef struct vm_error_t vm_error_t;
+typedef struct vm_ir_block_t vm_ir_block_t;
 typedef struct vm_ir_blocks_t vm_ir_blocks_t;
 typedef struct vm_obj_closure_t vm_obj_closure_t;
 typedef struct vm_externs_t vm_externs_t;
 typedef struct vm_obj_table_t vm_obj_table_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
 
-#include "../vendor/nanbox/nanbox.h"
-
-#define VM_EMPTY_BYTE NANBOX_EMPTY_BYTE
-
-typedef nanbox_t vm_obj_t;
-
-typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
-#define vm_obj_of_empty() nanbox_empty()
-#define vm_obj_of_nil() nanbox_undefined()
-#define vm_obj_of_boolean(b) ((b) ? nanbox_true() : nanbox_false()) 
-#define vm_obj_of_number(n) nanbox_from_double(n)
-#define vm_obj_of_string(s) nanbox_from_aux1(s)
-#define vm_obj_of_table(o) nanbox_from_aux2(o)
-#define vm_obj_of_closure(o) nanbox_from_aux3(o)
-#define vm_obj_of_ffi(o) nanbox_from_aux4(o)
-#define vm_obj_of_block(o) nanbox_from_aux5(o)
-#define vm_obj_of_error(o) nanbox_from_pointer(o)
-
-#define vm_obj_is_empty(o) nanbox_is_empty(o)
-#define vm_obj_is_nil(o) nanbox_is_undefined(o)
+#define vm_obj_is_nil(o) nanbox_is_empty(o)
 #define vm_obj_is_boolean(o) nanbox_is_boolean(o)
 #define vm_obj_is_number(o) nanbox_is_number(o)
 #define vm_obj_is_string(o) nanbox_is_aux1(o)
@@ -81,6 +68,37 @@ typedef void vm_ffi_t(vm_t *closure, vm_obj_t *args);
 #define vm_obj_get_ffi(o) ((vm_ffi_t *) nanbox_to_aux(o))
 #define vm_obj_get_block(o) ((vm_ir_block_t *) nanbox_to_aux(o))
 #define vm_obj_get_error(o) ((vm_error_t *) nanbox_to_pointer(o))
+
+typedef nanbox_t vm_obj_t;
+typedef void vm_ffi_t(vm_t *vm, size_t nargs, vm_obj_t *args);
+
+static inline vm_obj_t vm_obj_of_nil(void) {
+    return nanbox_empty(); 
+}
+static inline vm_obj_t vm_obj_of_boolean(bool b) {
+    return nanbox_from_boolean(b);
+} 
+static inline vm_obj_t vm_obj_of_number(double n) {
+    return nanbox_from_double(n);
+}
+static inline vm_obj_t vm_obj_of_buffer(vm_io_buffer_t *o) {
+    return nanbox_from_aux1(o);
+}
+static inline vm_obj_t vm_obj_of_table(vm_obj_table_t *o) {
+    return nanbox_from_aux2(o);
+}
+static inline vm_obj_t vm_obj_of_closure(vm_obj_closure_t *o) {
+    return nanbox_from_aux3(o);
+}
+static inline vm_obj_t vm_obj_of_ffi(vm_ffi_t *o) {
+    return nanbox_from_aux4(o);
+}
+static inline vm_obj_t vm_obj_of_block(vm_ir_block_t *o) {
+    return nanbox_from_aux5(o);
+}
+static inline vm_obj_t vm_obj_of_error(vm_error_t *o) {
+    return nanbox_from_pointer(o);
+}
 
 struct vm_table_pair_t {
     vm_obj_t key;
@@ -138,6 +156,6 @@ vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
 void vm_lang_lua_repl(vm_t *vm);
-vm_obj_t vm_str(vm_t *vm, const char *str);
+vm_obj_t vm_obj_of_string(vm_t *vm, const char *str);
 
 #endif

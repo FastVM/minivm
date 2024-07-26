@@ -4,9 +4,3 @@
 [submodule "vendor/isocline"]
 	path = vendor/isocline
 	url = https://github.com/fastvm/minivm-isocline
-[submodule "vendor/raylib"]
-	path = vendor/raylib
-	url = https://github.com/FastVM/minivm-raylib
-[submodule "vendor/mimalloc"]
-	path = vendor/mimalloc
-	url = https://github.com/shawsumma/mimalloc

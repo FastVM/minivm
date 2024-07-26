@@ -3,12 +3,10 @@
 #define VM_HEADER_IR
 
 struct vm_ir_arg_t;
-struct vm_ir_block_t;
 struct vm_ir_branch_t;
 struct vm_ir_instr_t;
 
 typedef struct vm_ir_arg_t vm_ir_arg_t;
-typedef struct vm_ir_block_t vm_ir_block_t;
 typedef struct vm_ir_branch_t vm_ir_branch_t;
 typedef struct vm_ir_instr_t vm_ir_instr_t;
 
@@ -48,6 +46,8 @@ enum {
     VM_IR_INSTR_OPCODE_DIV,
     VM_IR_INSTR_OPCODE_IDIV,
     VM_IR_INSTR_OPCODE_MOD,
+    VM_IR_INSTR_OPCODE_POW,
+    VM_IR_INSTR_OPCODE_CONCAT,
     VM_IR_INSTR_OPCODE_TABLE_SET,
     VM_IR_INSTR_OPCODE_TABLE_NEW,
     VM_IR_INSTR_OPCODE_TABLE_LEN,

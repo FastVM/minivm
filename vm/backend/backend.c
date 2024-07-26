@@ -80,6 +80,14 @@ enum {
     VM_OP_MOD_IR,
     VM_OP_MOD_RR,
 
+    VM_OP_POW_RI,
+    VM_OP_POW_IR,
+    VM_OP_POW_RR,
+
+    VM_OP_CONCAT_RI,
+    VM_OP_CONCAT_IR,
+    VM_OP_CONCAT_RR,
+
     VM_OP_JUMP,
 
     VM_OP_BB_R,
@@ -192,6 +200,27 @@ static VM_INLINE vm_obj_t vm_interp_idiv(vm_obj_t v1, vm_obj_t v2) {
 static VM_INLINE vm_obj_t vm_interp_mod(vm_obj_t v1, vm_obj_t v2) {
     if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
         return vm_obj_of_number(fmod(vm_obj_get_number(v1), vm_obj_get_number(v2)));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad modulo"));
+    }
+}
+
+static VM_INLINE vm_obj_t vm_interp_pow(vm_obj_t v1, vm_obj_t v2) {
+    if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
+        return vm_obj_of_number(pow(vm_obj_get_number(v1), vm_obj_get_number(v2)));
+    } else {
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad modulo"));
+    }
+}
+
+static VM_INLINE vm_obj_t vm_interp_concat(vm_t *vm, vm_obj_t v1, vm_obj_t v2) {
+    if (vm_obj_is_string(v1) && vm_obj_is_string(v2)) {
+        vm_io_buffer_t *buf = vm_io_buffer_new();
+        vm_io_buffer_object_tostring(buf, v1);
+        vm_io_buffer_object_tostring(buf, v2);
+        vm_obj_t ret = vm_obj_of_buffer(buf);
+        vm_gc_add(vm, ret);
+        return ret;
     } else {
         return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad modulo"));
     }
@@ -407,6 +436,62 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
                 } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
                     vm_interp_push_op(VM_OP_MOD_RR);
+                    vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
+                    vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else {
+                    __builtin_trap();
+                }
+                break;
+            }
+            case VM_IR_INSTR_OPCODE_POW: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
+                    vm_obj_t v1 = instr.args[0].lit;
+                    vm_obj_t v2 = instr.args[1].lit;
+                    vm_obj_t v3 = vm_interp_pow(v1, v2);
+                    vm_interp_push_op(VM_OP_MOVE_I);
+                    vm_interp_push(vm_obj_t, v3);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
+                    vm_interp_push_op(VM_OP_POW_RI);
+                    vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
+                    vm_interp_push_op(VM_OP_POW_IR);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
+                    vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
+                    vm_interp_push_op(VM_OP_POW_RR);
+                    vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
+                    vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else {
+                    __builtin_trap();
+                }
+                break;
+            }
+            case VM_IR_INSTR_OPCODE_CONCAT: {
+                if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
+                    vm_obj_t v1 = instr.args[0].lit;
+                    vm_obj_t v2 = instr.args[1].lit;
+                    vm_obj_t v3 = vm_interp_concat(vm, v1, v2);
+                    vm_interp_push_op(VM_OP_MOVE_I);
+                    vm_interp_push(vm_obj_t, v3);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_LIT) {
+                    vm_interp_push_op(VM_OP_CONCAT_RI);
+                    vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
+                    vm_interp_push(vm_obj_t, instr.args[1].lit);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_LIT && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
+                    vm_interp_push_op(VM_OP_CONCAT_IR);
+                    vm_interp_push(vm_obj_t, instr.args[0].lit);
+                    vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
+                    vm_interp_push(vm_interp_reg_t, instr.out.reg);
+                } else if (instr.args[0].type == VM_IR_ARG_TYPE_REG && instr.args[1].type == VM_IR_ARG_TYPE_REG) {
+                    vm_interp_push_op(VM_OP_CONCAT_RR);
                     vm_interp_push(vm_interp_reg_t, instr.args[0].reg);
                     vm_interp_push(vm_interp_reg_t, instr.args[1].reg);
                     vm_interp_push(vm_interp_reg_t, instr.out.reg);
@@ -731,6 +816,12 @@ vm_obj_t vm_run_repl_inner(vm_t *vm, vm_ir_block_t *block) {
         [VM_OP_MOD_RI] = &&VM_OP_MOD_RI,
         [VM_OP_MOD_IR] = &&VM_OP_MOD_IR,
         [VM_OP_MOD_RR] = &&VM_OP_MOD_RR,
+        [VM_OP_POW_RI] = &&VM_OP_POW_RI,
+        [VM_OP_POW_IR] = &&VM_OP_POW_IR,
+        [VM_OP_POW_RR] = &&VM_OP_POW_RR,
+        [VM_OP_CONCAT_RI] = &&VM_OP_CONCAT_RI,
+        [VM_OP_CONCAT_IR] = &&VM_OP_CONCAT_IR,
+        [VM_OP_CONCAT_RR] = &&VM_OP_CONCAT_RR,
         [VM_OP_JUMP] = &&VM_OP_JUMP,
         [VM_OP_BB_R] = &&VM_OP_BB_R,
         [VM_OP_BLT_RI] = &&VM_OP_BLT_RI,
@@ -1013,6 +1104,72 @@ VM_OP_MOD_RR:;
         vm_run_repl_out(v3);
         vm_run_repl_jump();
     }
+VM_OP_POW_RI:;
+    VM_OPCODE_DEBUG(mod_ri) {
+        vm_obj_t v1 = vm_run_repl_reg();
+        vm_obj_t v2 = vm_run_repl_lit();
+        vm_obj_t v3 = vm_interp_pow(v1, v2);
+        if (vm_obj_is_error(v3)) {
+            vm_backend_return(vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3))));
+        }
+        vm_run_repl_out(v3);
+        vm_run_repl_jump();
+    }
+VM_OP_POW_IR:;
+    VM_OPCODE_DEBUG(mod_ir) {
+        vm_obj_t v1 = vm_run_repl_lit();
+        vm_obj_t v2 = vm_run_repl_reg();
+        vm_obj_t v3 = vm_interp_pow(v1, v2);
+        if (vm_obj_is_error(v3)) {
+            vm_backend_return(vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3))));
+        }
+        vm_run_repl_out(v3);
+        vm_run_repl_jump();
+    }
+VM_OP_POW_RR:;
+    VM_OPCODE_DEBUG(mod_rr) {
+        vm_obj_t v1 = vm_run_repl_reg();
+        vm_obj_t v2 = vm_run_repl_reg();
+        vm_obj_t v3 = vm_interp_pow(v1, v2);
+        if (vm_obj_is_error(v3)) {
+            vm_backend_return(vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3))));
+        }
+        vm_run_repl_out(v3);
+        vm_run_repl_jump();
+    }
+VM_OP_CONCAT_RI:;
+    VM_OPCODE_DEBUG(mod_ri) {
+        vm_obj_t v1 = vm_run_repl_reg();
+        vm_obj_t v2 = vm_run_repl_lit();
+        vm_obj_t v3 = vm_interp_concat(vm, v1, v2);
+        if (vm_obj_is_error(v3)) {
+            vm_backend_return(vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3))));
+        }
+        vm_run_repl_out(v3);
+        vm_run_repl_jump();
+    }
+VM_OP_CONCAT_IR:;
+    VM_OPCODE_DEBUG(mod_ir) {
+        vm_obj_t v1 = vm_run_repl_lit();
+        vm_obj_t v2 = vm_run_repl_reg();
+        vm_obj_t v3 = vm_interp_concat(vm, v1, v2);
+        if (vm_obj_is_error(v3)) {
+            vm_backend_return(vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3))));
+        }
+        vm_run_repl_out(v3);
+        vm_run_repl_jump();
+    }
+VM_OP_CONCAT_RR:;
+    VM_OPCODE_DEBUG(mod_rr) {
+        vm_obj_t v1 = vm_run_repl_reg();
+        vm_obj_t v2 = vm_run_repl_reg();
+        vm_obj_t v3 = vm_interp_concat(vm, v1, v2);
+        if (vm_obj_is_error(v3)) {
+            vm_backend_return(vm_obj_of_error(vm_error_from_error(block->range, vm_obj_get_error(v3))));
+        }
+        vm_run_repl_out(v3);
+        vm_run_repl_jump();
+    }
 VM_OP_JUMP:;
     VM_OPCODE_DEBUG(jump) {
         block = vm_run_repl_read(vm_ir_block_t *);
@@ -1197,7 +1354,7 @@ VM_OP_CALL:;
                 }
             }
         call_closure_end:;
-            next_regs[j] = vm_obj_of_empty();
+            next_regs[j] = vm_obj_of_nil();
             vm_obj_t *last_regs = regs;
             vm->regs = next_regs;
             vm_obj_t got = vm_run_repl_inner(vm, vm_obj_get_closure(v1)->block);
@@ -1229,10 +1386,9 @@ VM_OP_CALL:;
                 }
             }
         call_ffi_end:;
-            next_regs[j] = vm_obj_of_empty();
             vm_obj_t *last_regs = regs;
             vm->regs = next_regs;
-            vm_obj_get_ffi(v1)(vm, next_regs);
+            vm_obj_get_ffi(v1)(vm, j, next_regs);
             vm->regs = last_regs;
             vm_obj_t got = next_regs[0];
             if (vm_obj_is_error(got)) {

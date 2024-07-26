@@ -43,16 +43,6 @@ struct vm_ast_comp_names_t {
     vm_ast_comp_names_t *next;
 };
 
-void vm_lua_comp_op_std_pow(vm_t *vm, vm_obj_t *args) {
-    vm_obj_t *ret = args;
-    double v = vm_obj_get_number(*args++);
-    while (!vm_obj_is_empty(args[0])) {
-        v = pow(v, vm_obj_get_number(*args++));
-    }
-    *ret = vm_obj_of_number(v);
-    return;
-}
-
 static void vm_ast_comp_names_push(vm_ast_comp_t *comp) {
     vm_ast_comp_names_t *names = vm_malloc(sizeof(vm_ast_comp_names_t));
     *names = (vm_ast_comp_names_t){
@@ -107,8 +97,8 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
     ret;                                                                  \
 })
 
-extern void vm_std_vm_closure(vm_t *vm, vm_obj_t *args);
-extern void vm_std_vm_concat(vm_t *vm, vm_obj_t *args);
+extern void vm_std_vm_closure(vm_t *vm, size_t nargs, vm_obj_t *args);
+extern void vm_std_vm_concat(vm_t *vm, size_t nargs, vm_obj_t *args);
 
 static vm_ir_arg_t *vm_ast_args(size_t nargs, ...) {
     va_list ap;
@@ -586,7 +576,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             vm_ast_free_node(node);
                             vm_ir_arg_t key_arg = (vm_ir_arg_t){
                                 .type = VM_IR_ARG_TYPE_LIT,
-                                .lit = vm_str(comp->vm, target.value.ident),
+                                .lit = vm_obj_of_string(comp->vm, target.value.ident),
                             };
                             vm_ast_blocks_instr(
                                 comp,
@@ -710,72 +700,14 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     comp->cur = next;
                     return out;
                 }
-                case VM_AST_FORM_CONCAT: {
-                    vm_ir_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
-                    vm_ir_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
-                    vm_ir_block_t *with_result = vm_ast_comp_new_block(comp);
-
-                    vm_ir_arg_t *call_args = vm_malloc(sizeof(vm_ir_arg_t) * 4);
-                    call_args[0] = (vm_ir_arg_t){
-                        .type = VM_IR_ARG_TYPE_LIT,
-                        .lit = vm_obj_of_ffi(&vm_std_vm_concat),
-                    };
-                    call_args[1] = arg1;
-                    call_args[2] = arg2;
-                    call_args[3] = (vm_ir_arg_t){
-                        .type = VM_IR_ARG_TYPE_NONE,
-                    };
-                    vm_ir_arg_t out = vm_ast_comp_reg(comp);
-
-                    vm_ast_blocks_branch(
-                        comp,
-                        (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_CALL,
-                            .out = out,
-                            .args = call_args,
-                            .targets[0] = with_result,
-                        }
-                    );
-
-                    comp->cur = with_result;
-                    return out;
-                }
-                case VM_AST_FORM_POW: {
-                    vm_ir_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
-                    vm_ir_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
-                    vm_ir_block_t *with_result = vm_ast_comp_new_block(comp);
-
-                    vm_ir_arg_t *call_args = vm_malloc(sizeof(vm_ir_arg_t) * 4);
-                    call_args[0] = (vm_ir_arg_t){
-                        .type = VM_IR_ARG_TYPE_LIT,
-                        .lit = vm_obj_of_ffi(&vm_lua_comp_op_std_pow),
-                    };
-                    call_args[1] = arg1;
-                    call_args[2] = arg2;
-                    call_args[3] = (vm_ir_arg_t){
-                        .type = VM_IR_ARG_TYPE_NONE,
-                    };
-                    vm_ir_arg_t out = vm_ast_comp_reg(comp);
-
-                    vm_ast_blocks_branch(
-                        comp,
-                        (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_CALL,
-                            .out = out,
-                            .args = call_args,
-                            .targets[0] = with_result,
-                        }
-                    );
-
-                    comp->cur = with_result;
-                    return out;
-                }
                 case VM_AST_FORM_ADD:
                 case VM_AST_FORM_SUB:
                 case VM_AST_FORM_MUL:
                 case VM_AST_FORM_DIV:
                 case VM_AST_FORM_IDIV:
-                case VM_AST_FORM_MOD: {
+                case VM_AST_FORM_MOD:
+                case VM_AST_FORM_POW:
+                case VM_AST_FORM_CONCAT: {
                     vm_ir_arg_t arg1 = vm_ast_comp_to_rec(comp, form.args[0]);
                     vm_ir_arg_t arg2 = vm_ast_comp_to_rec(comp, form.args[1]);
                     vm_ir_arg_t out = vm_ast_comp_reg(comp);
@@ -803,6 +735,14 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                         }
                         case VM_AST_FORM_MOD: {
                             op = VM_IR_INSTR_OPCODE_MOD;
+                            break;
+                        }
+                        case VM_AST_FORM_POW: {
+                            op = VM_IR_INSTR_OPCODE_POW;
+                            break;
+                        }
+                        case VM_AST_FORM_CONCAT: {
+                            op = VM_AST_FORM_CONCAT;
                             break;
                         }
                     }
@@ -1034,7 +974,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                 if (got.type != VM_IR_ARG_TYPE_NONE) {
                     vm_ir_arg_t env_key = (vm_ir_arg_t){
                         .type = VM_IR_ARG_TYPE_LIT,
-                        .lit = vm_str(comp->vm, lit),
+                        .lit = vm_obj_of_string(comp->vm, lit),
                     };
                     vm_ir_arg_t out = vm_ast_comp_reg(comp);
                     vm_ir_block_t *next = vm_ast_comp_new_block(comp);

@@ -93,7 +93,7 @@ static void vm_io_indent(vm_io_buffer_t *out, size_t indent, const char *prefix)
     vm_io_buffer_format(out, "%s", prefix);
 }
 
-void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
+void vm_io_buffer_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
     if (vm_obj_is_nil(value)) {
             vm_io_buffer_format(out, "nil");
     }
@@ -111,7 +111,7 @@ void vm_io_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
     }
 }
 
-void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_t value, vm_io_debug_t *link) {
+void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
         if (vm_obj_eq(value, link->value)) {
@@ -165,29 +165,29 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
             size_t len = vm_primes_table[tab->size];
             for (size_t i = 0; i < len; i++) {
                 vm_table_pair_t p = tab->pairs[i];
-                if (vm_obj_is_empty(p.key) || vm_obj_is_nil(p.key)) {
+                if (vm_obj_is_nil(p.key)) {
                     // no print for empty keys
                 } else if (vm_obj_is_boolean(value)) {
                     if (vm_obj_get_boolean(value)) {
-                        vm_io_debug(out, indent + 1, "true = ", p.value, &next);
+                        vm_io_buffer_obj_debug(out, indent + 1, "true = ", p.value, &next);
                     } else {
-                        vm_io_debug(out, indent + 1, "false = ", p.value, &next);
+                        vm_io_buffer_obj_debug(out, indent + 1, "false = ", p.value, &next);
                     }
                 } else if (vm_obj_is_number(value)) {
                     char buf[64];
                     snprintf(buf, 63, VM_FORMAT_FLOAT " = ", vm_obj_get_number(p.key));
-                    vm_io_debug(out, indent + 1, buf, p.value, &next);
+                    vm_io_buffer_obj_debug(out, indent + 1, buf, p.value, &next);
                 }
                 else if (vm_obj_is_string(value)) {
                     vm_io_buffer_t buf = {0};
                     vm_io_buffer_format(&buf, "%s = ", vm_obj_get_string(p.key)->buf);
-                    vm_io_debug(out, indent + 1, buf.buf, p.value, &next);
+                    vm_io_buffer_obj_debug(out, indent + 1, buf.buf, p.value, &next);
                     vm_free(buf.buf);
                 } else {
                     vm_io_indent(out, indent + 1, "");
                     vm_io_buffer_format(out, "pair {\n");
-                    vm_io_debug(out, indent + 2, "key = ", p.key, &next);
-                    vm_io_debug(out, indent + 2, "val = ", p.value, &next);
+                    vm_io_buffer_obj_debug(out, indent + 2, "key = ", p.key, &next);
+                    vm_io_buffer_obj_debug(out, indent + 2, "val = ", p.value, &next);
                     vm_io_indent(out, indent + 1, "");
                     vm_io_buffer_format(out, "}\n");
                 }
@@ -202,7 +202,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
     }
 }
 
-void vm_obj_buffer_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
+void vm_io_buffer_object_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
     if (vm_obj_is_nil(value)) {
         vm_io_buffer_format(buf, "nil");
     }

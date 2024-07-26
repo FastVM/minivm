@@ -31,9 +31,9 @@ uint64_t vm_obj_hash(vm_obj_t value) {
     }
     if (vm_obj_is_string(value)) {
         uint64_t ret = 0xcbf29ce484222325;
-        const char *head = vm_obj_get_string(value)->buf;
-        while (true) {
-            char c = *head++;
+        vm_io_buffer_t *restrict buf = vm_obj_get_string(value);
+        for (size_t i = 0; i < buf->len; i++) {
+            char c = buf->buf[i];
             if (c == '\0') {
                 break;
             }
@@ -54,7 +54,7 @@ uint64_t vm_obj_hash(vm_obj_t value) {
     if (vm_obj_is_table(value)) {
         return (uint64_t)(size_t)vm_obj_get_table(value) >> 4;
     }
-    if (vm_obj_is_empty(value) || vm_obj_is_nil(value)) {
+    if (vm_obj_is_nil(value)) {
         return 0;
     }
     __builtin_trap();
@@ -62,11 +62,14 @@ uint64_t vm_obj_hash(vm_obj_t value) {
 }
 
 vm_table_pair_t *vm_table_lookup(vm_obj_table_t *table, vm_obj_t key) {
-    size_t len = vm_primes_table[table->size];
-    size_t look = vm_primes_mod(table->size, vm_obj_hash(key));
-    for (size_t i = 0; i < len; i++) {
-        vm_table_pair_t *pair = &table->pairs[look];
-        if (vm_obj_is_empty(pair->key) || vm_obj_is_nil(pair->key)) {
+    size_t len = 1 << table->alloc;
+    size_t and = len - 1;
+    size_t stop = vm_obj_hash(key) & and;
+    size_t next = stop;
+    do {
+        vm_table_pair_t *pair = &table->pairs[next];
+        vm_obj_t value = pair->key;
+        if (vm_obj_is_empty(value) || vm_obj_is_nil(value)) {
             return NULL;
         }
         if (vm_obj_eq(key, pair->key)) {
@@ -85,12 +88,12 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
     size_t look = vm_primes_mod(table->size, vm_obj_hash(key));
     for (size_t i = 0; i < len; i++) {
         vm_table_pair_t *pair = &table->pairs[look];
-        if (vm_obj_is_empty(pair->key) || vm_obj_is_nil(pair->key)) {
+        if (vm_obj_is_nil(pair->key)) {
             break;
         }
         if (vm_obj_eq(key, pair->key)) {
             if (vm_obj_is_nil(key)) {
-                pair->key = vm_obj_of_empty();
+                pair->key = vm_obj_of_nil();
                 if (vm_obj_is_number(key)) {
                     double f64val = vm_obj_get_number(key);
                     if ((double)INT64_MIN <= f64val && f64val <= (double)INT64_MAX) {
@@ -113,9 +116,9 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
             look = 0;
         }
     }
-    if (vm_obj_is_empty(value) || vm_obj_is_nil(value)) {
+    if (vm_obj_is_nil(value)) {
         table->pairs[look] = (vm_table_pair_t){
-            .key = vm_obj_of_empty(),
+            .key = vm_obj_of_nil(),
             .value = value,
         };
 
@@ -139,7 +142,7 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
         size_t table_len = vm_primes_table[table->size];
         for (size_t i = 0; i < table_len; i++) {
             vm_table_pair_t *in_pair = &table->pairs[i];
-            if (!vm_obj_is_empty(in_pair->key) && !vm_obj_is_nil(in_pair->key)) {
+            if (!vm_obj_is_nil(in_pair->key)) {
                 vm_table_set_pair(&ret, in_pair);
             }
         }

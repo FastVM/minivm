@@ -14,7 +14,7 @@ void vm_block_realloc(vm_ir_block_t *block, vm_ir_instr_t instr) {
 void vm_io_format_arg(vm_io_buffer_t *out, vm_ir_arg_t val) {
     switch (val.type) {
         case VM_IR_ARG_TYPE_LIT: {
-            vm_io_print_lit(out, val.lit);
+            vm_io_buffer_print_lit(out, val.lit);
             break;
         }
         case VM_IR_ARG_TYPE_REG: {
