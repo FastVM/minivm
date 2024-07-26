@@ -1,6 +1,7 @@
 
 #include "io.h"
 #include "ir.h"
+#include "primes.inc"
 
 void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap) {
     if (buf->buf == NULL) {
@@ -161,7 +162,7 @@ void vm_io_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_
         } else {
             vm_io_indent(out, indent, prefix);
             vm_io_buffer_format(out, "table(%p) {\n", tab);
-            size_t len = 1 << tab->alloc;
+            size_t len = vm_primes_table[tab->size];
             for (size_t i = 0; i < len; i++) {
                 vm_table_pair_t p = tab->pairs[i];
                 if (vm_obj_is_empty(p.key) || vm_obj_is_nil(p.key)) {

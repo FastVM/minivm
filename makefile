@@ -6,6 +6,8 @@ OPT ?= -O2 -flto
 
 EXE ?= 
 
+TIME_CMD ?= $(shell which gdate || which date) +%s%3N
+
 # Reset flags for base
 BASE_CFLAGS := ${OPT} -Ivendor/tree-sitter/lib/include -Ivendor/tree-sitter/lib/src ${CFLAGS}
 BASE_LDFLAGS := ${OPT} ${LDFLAGS} -lm
@@ -22,6 +24,11 @@ MAIN_DEPS = ${MAIN_SRCS:%.c=build/dep/%.dep}
 
 MAKE_INCLUDE ?= 
 
+# tests
+
+TEST_LUAS := $(shell find test -name '*.lua')
+TEST_TXTS = ${TEST_LUAS:%.lua=build/test/%.log}
+
 # setup targets
 default: all
 
@@ -29,17 +36,28 @@ all: minivm
 
 minivm: build/bin/minivm${EXE}
 
+test tests: ${TEST_TXTS}
+	find . -name '*.time' | xargs -I{} sh -c 'echo $$(cat {}) {}' | sort -n > build/bench/all.txt
+
 # specific builds
 clean: .dummy
 	rm -rf build
 
 gcc-pgo: .dummy
-	$(MAKE) -Bj build/bin/minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-generate -DNDEBUG"
+	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-generate -DNDEBUG"
 	build/bin/minivm test/fib/fib.lua
 	build/bin/minivm test/tables/trees.lua
 	build/bin/minivm test/closure/funcret.lua
 	build/bin/minivm test/loop/eval.lua
-	$(MAKE) -Bj build/bin/minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-use -DNDEBUG"
+	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-use -DNDEBUG"
+
+clang-pgo: .dummy
+	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fno-exceptions -fomit-frame-pointer -fprofile-generate -DNDEBUG"
+	build/bin/minivm test/fib/fib.lua
+	build/bin/minivm test/tables/trees.lua
+	build/bin/minivm test/closure/funcret.lua
+	build/bin/minivm test/loop/eval.lua
+	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fno-exceptions -fomit-frame-pointer -fprofile-use -DNDEBUG"
 
 wasm: .dummy
 	$(MAKE) -Bj CC=emcc EXE=.wasm \
@@ -50,6 +68,14 @@ wasm: .dummy
 build/bin/minivm${EXE}: ${MAIN_OBJS}
 	@mkdir -p ${dir ${@}}
 	${CC} -o ${@} ${MAIN_OBJS} ${BASE_LDFLAGS}
+
+${TEST_TXTS}: ${@:build/test/%.log=%.lua} minivm
+	@mkdir -p ${dir ${@}}
+	@mkdir -p ${dir ${@:build/test/%.log=build/bench/%.time}}
+	START_TIME=$$(${TIME_CMD}); \
+	build/bin/minivm${EXE} ${@:build/test/%.log=%.lua} > ${@}; \
+	END_TIME=$$(${TIME_CMD}); \
+	echo "$$END_TIME $$START_TIME - p" | dc > ${@:build/test/%.log=build/bench/%.time}
 
 ${MAIN_OBJS}:
 	@mkdir -p ${dir ${@}}

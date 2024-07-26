@@ -7,6 +7,7 @@
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../backend/backend.h"
+#include "../primes.inc"
 
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
@@ -18,16 +19,20 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file);
 
 void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     vm_t *vm = cenv->arg;
-    ptrdiff_t len = strlen(prefix);
-    ptrdiff_t head = len - 1;
-    while (head >= 0 && (iswalnum(prefix[head]) || prefix[head] == '.')) {
-        head -= 1;
+    const char *last_word;
+    {
+        ptrdiff_t len = strlen(prefix);
+        ptrdiff_t head = len - 1;
+        while (head >= 0 && (iswalnum(prefix[head]) || prefix[head] == '.')) {
+            head -= 1;
+        }
+        head += 1;
+        last_word = &prefix[head];
     }
-    head += 1;
-    const char *last_word = &prefix[head];
     vm_obj_table_t *std = vm_obj_get_table(vm->std);
 with_new_std:;
-    for (size_t i = 0; i < ((size_t)1 << std->alloc); i++) {
+    uint64_t len = vm_primes_table[std->size];
+    for (size_t i = 0; i < len; i++) {
         vm_table_pair_t *pair = &std->pairs[i];
         if (vm_obj_is_table(pair->key)) {
             const char *got = vm_obj_get_string(pair->key)->buf;

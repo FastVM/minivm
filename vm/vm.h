@@ -91,7 +91,7 @@ struct vm_obj_table_t {
     vm_table_pair_t *pairs;
     uint32_t len;
     uint32_t used;
-    uint8_t alloc: 8;
+    uint8_t size: 8;
     bool mark: 1;
     bool pairs_auto: 1;
 };

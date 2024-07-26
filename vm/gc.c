@@ -1,6 +1,7 @@
 
 #include "gc.h"
 #include "ir.h"
+#include "primes.inc"
 
 struct vm_gc_objs_t;
 struct vm_gc_table_cache_t;
@@ -54,6 +55,7 @@ static void vm_gc_mark_block(vm_ir_block_t *block) {
     }
 }
 
+
 static void vm_gc_mark_obj(vm_obj_t obj) {
     if (vm_obj_is_string(obj)) {
         vm_io_buffer_t *buffer = vm_obj_get_string(obj);
@@ -71,9 +73,11 @@ static void vm_gc_mark_obj(vm_obj_t obj) {
         vm_obj_table_t *table = vm_obj_get_table(obj);
         if (!table->mark) {
             table->mark = true;
-            for (size_t i = 0; i < (1 << table->alloc); i++) {
-                vm_gc_mark_obj(table->pairs[i].key);
-                vm_gc_mark_obj(table->pairs[i].value);
+            uint64_t len = vm_primes_table[table->size];
+            vm_table_pair_t *pairs = table->pairs;
+            for (size_t i = 0; i < len; i++) {
+                vm_gc_mark_obj(pairs[i].key);
+                vm_gc_mark_obj(pairs[i].value);
             }
         }
     } else if (vm_obj_is_block(obj)) {
@@ -148,22 +152,18 @@ void vm_gc_sweep(vm_t *vm) {
     }
 }
 
-vm_obj_table_t *vm_table_new_size(vm_t *vm, size_t pow2) {
+vm_obj_table_t *vm_table_new(vm_t *vm) {
     vm_gc_t *gc = vm->gc;
-    vm_obj_table_t *ret = vm_malloc(sizeof(vm_obj_table_t) + sizeof(vm_table_pair_t) * (1 << pow2));
+    vm_obj_table_t *ret = vm_malloc(sizeof(vm_obj_table_t) + sizeof(vm_table_pair_t) * vm_primes_table[0]);
     ret->pairs = (vm_table_pair_t *)&ret[1];
-    memset(ret->pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * (1 << pow2));
-    ret->alloc = pow2;
+    memset(ret->pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * vm_primes_table[0]);
+    ret->size = 0;
     ret->used = 0;
     ret->len = 0;
     ret->mark = false;
     ret->pairs_auto = true;
     vm_gc_add(vm, vm_obj_of_table(ret));
     return ret;
-}
-
-vm_obj_table_t *vm_table_new(vm_t *vm) {
-    return vm_table_new_size(vm, 2);
 }
 
 void vm_gc_run(vm_t *vm, vm_obj_t *top) {

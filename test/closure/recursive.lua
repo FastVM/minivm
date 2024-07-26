@@ -1,5 +1,5 @@
 
-local x = 1000 * 1000 * 10
+local x = 1000
 
 local deep = function()
     return "deep closure"

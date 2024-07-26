@@ -8,6 +8,8 @@
 #include "gc.h"
 #include "io.h"
 
+#include "primes.inc"
+
 #define VM_LOCATION_RANGE_FUNC ((vm_location_range_t) { .file =  "<builtins>", .src = __func__ })
 
 static inline void vm_config_add_extern(vm_t *vm, void *value) {
@@ -367,7 +369,6 @@ void vm_std_string_format(vm_t *vm, vm_obj_t *args) {
             }
             default: {
                 *ret = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "expected a number for %u format"));
-                __builtin_trap();
                 return;
             }
         }
@@ -399,7 +400,7 @@ void vm_std_table_keys(vm_t *vm, vm_obj_t *args) {
     }
     vm_obj_table_t *ret = vm_table_new(vm);
     vm_obj_table_t *tab = vm_obj_get_table(args[0]);
-    size_t len = 1 << tab->alloc;
+    size_t len = vm_primes_table[tab->size];
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
         vm_table_pair_t *pair = &tab->pairs[i];
@@ -420,7 +421,7 @@ void vm_std_table_values(vm_t *vm, vm_obj_t *args) {
     }
     vm_obj_table_t *ret = vm_table_new(vm);
     vm_obj_table_t *tab = vm_obj_get_table(args[0]);
-    size_t len = 1 << tab->alloc;
+    size_t len = vm_primes_table[tab->size];
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
         vm_table_pair_t *pair = &tab->pairs[i];

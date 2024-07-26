@@ -12,6 +12,4 @@ void vm_gc_deinit(vm_t *vm);
 
 void vm_gc_add(vm_t *vm, vm_obj_t obj);
 
-vm_obj_table_t *vm_table_new_size(vm_t *vm, size_t pow2);
-
 #endif

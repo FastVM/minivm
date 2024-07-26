@@ -1,10 +1,10 @@
 
 local t = {}
 
-local x = 1
-while x <= 10000000 do
+local n = tonumber(arg and arg[1]) or 1000 * 1000 * 10
+
+for x=1, n do
     t[x * 2] = x
-    x = x + 1
 end
 
-print(t[x * 2 - 2])
+print(t[n  * 2])
