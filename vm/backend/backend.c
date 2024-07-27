@@ -1321,11 +1321,8 @@ VM_OP_GET:;
         if (!vm_obj_is_table(v1)) {
             vm_backend_return(vm_obj_of_error(vm_error_from_msg(block->range, "can only index tables")));
         }
-        vm_table_pair_t pair = (vm_table_pair_t){
-            .key = v2,
-        };
-        vm_table_get_pair(vm_obj_get_table(v1), &pair);
-        vm_run_repl_out(pair.value);
+        vm_obj_t v3 = vm_table_get(vm_obj_get_table(v1), v2);
+        vm_run_repl_out(v3);
         block = vm_run_repl_read(vm_ir_block_t *);
         vm_backend_new_block();
     }

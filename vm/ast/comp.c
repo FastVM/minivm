@@ -622,18 +622,6 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     }
                     break;
                 }
-                case VM_AST_FORM_ENV: {
-                    vm_ir_arg_t out = vm_ast_comp_reg(comp);
-                    vm_ast_blocks_instr(
-                        comp,
-                        (vm_ir_instr_t){
-                            .op = VM_IR_INSTR_OPCODE_STD,
-                            .out = out,
-                            .args = vm_ast_args(0),
-                        }
-                    );
-                    return out;
-                }
                 case VM_AST_FORM_NEW: {
                     vm_ir_arg_t out = vm_ast_comp_reg(comp);
                     vm_ast_blocks_instr(

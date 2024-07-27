@@ -11,9 +11,6 @@ vm_ast_node_t vm_ast_build_do(vm_ast_node_t lhs, vm_ast_node_t rhs);
 vm_ast_node_t vm_ast_build_set(vm_ast_node_t target, vm_ast_node_t value);
 vm_ast_node_t vm_ast_build_local(vm_ast_node_t target, vm_ast_node_t value);
 
-// globals
-vm_ast_node_t vm_ast_build_env(void);
-
 // tables
 vm_ast_node_t vm_ast_build_new(void);
 vm_ast_node_t vm_ast_build_len(vm_ast_node_t table);

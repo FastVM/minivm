@@ -27,10 +27,6 @@ void vm_ast_print_node(vm_io_buffer_t *out, size_t indent, const char *prefix, v
                     vm_io_buffer_format(out, "set");
                     break;
                 }
-                case VM_AST_FORM_ENV: {
-                    vm_io_buffer_format(out, "env");
-                    break;
-                }
                 case VM_AST_FORM_NEW: {
                     vm_io_buffer_format(out, "new");
                     break;

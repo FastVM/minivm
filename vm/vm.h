@@ -148,14 +148,11 @@ struct vm_t {
     vm_obj_t *regs;
 
     uint32_t nblocks;
-
-    bool dump_ir: 1;
 };
 
 vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
-void vm_lang_lua_repl(vm_t *vm);
 vm_obj_t vm_obj_of_string(vm_t *vm, const char *str);
 
 #endif
