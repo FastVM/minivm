@@ -167,18 +167,18 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
                 vm_table_pair_t p = tab->pairs[i];
                 if (vm_obj_is_nil(p.key)) {
                     // no print for empty keys
-                } else if (vm_obj_is_boolean(value)) {
+                } else if (vm_obj_is_boolean(p.key)) {
                     if (vm_obj_get_boolean(value)) {
-                        vm_io_buffer_obj_debug(out, indent + 1, "true = ", p.value, &next);
+                        vm_io_buffer_obj_debug(out, indent + 1, "[[true]] = ", p.value, &next);
                     } else {
-                        vm_io_buffer_obj_debug(out, indent + 1, "false = ", p.value, &next);
+                        vm_io_buffer_obj_debug(out, indent + 1, "[[false]] = ", p.value, &next);
                     }
-                } else if (vm_obj_is_number(value)) {
+                } else if (vm_obj_is_number(p.key)) {
                     char buf[64];
-                    snprintf(buf, 63, VM_FORMAT_FLOAT " = ", vm_obj_get_number(p.key));
+                    snprintf(buf, 63, "[[" VM_FORMAT_FLOAT "]] = ", vm_obj_get_number(p.key));
                     vm_io_buffer_obj_debug(out, indent + 1, buf, p.value, &next);
                 }
-                else if (vm_obj_is_string(value)) {
+                else if (vm_obj_is_string(p.key)) {
                     vm_io_buffer_t buf = {0};
                     vm_io_buffer_format(&buf, "%s = ", vm_obj_get_string(p.key)->buf);
                     vm_io_buffer_obj_debug(out, indent + 1, buf.buf, p.value, &next);

@@ -209,7 +209,7 @@ static VM_INLINE vm_obj_t vm_interp_pow(vm_obj_t v1, vm_obj_t v2) {
     if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
         return vm_obj_of_number(pow(vm_obj_get_number(v1), vm_obj_get_number(v2)));
     } else {
-        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad modulo"));
+        return vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "bad power"));
     }
 }
 

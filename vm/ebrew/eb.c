@@ -29,6 +29,7 @@ struct vm_lang_eb_binding_t {
 struct vm_lang_eb_parser_t {
     vm_lang_eb_bindings_t defs;
     vm_t *vm;
+    vm_obj_t env;
     const char *src;
     const char *file;
     size_t head;
@@ -160,7 +161,6 @@ char *vm_lang_eb_parser_read_name(vm_lang_eb_parser_t *env) {
     }
     char *str = buf->buf;
     vm_free(buf);
-    printf("name = %s\n", str);
     return str;
 }
 
@@ -201,6 +201,11 @@ vm_ast_node_t vm_lang_eb_parser_read_match(vm_lang_eb_parser_t *env, void *data)
         __builtin_trap();
     } else if (first == '\'') {
         __builtin_trap();
+    } else if (first == '&') {
+        vm_lang_eb_parser_skip(env);
+        vm_lang_eb_parser_skip_space(env);
+        char *name = vm_lang_eb_parser_read_name(env);
+        return vm_ast_build_ident(name);
     } else {
         // bool starts_paren = false;
         // while (first == '(') {
@@ -235,7 +240,7 @@ vm_ast_node_t vm_lang_eb_parser_read_match(vm_lang_eb_parser_t *env, void *data)
             return vm_ast_build_lambda(
                 vm_ast_build_nil(),
                 vm_ast_build_args(nargs, args),
-                body
+                vm_ast_build_return(body)
             );
         } else {
             return vm_lang_eb_parser_read_call(env, name);
@@ -245,6 +250,102 @@ vm_ast_node_t vm_lang_eb_parser_read_match(vm_lang_eb_parser_t *env, void *data)
 
 vm_ast_node_t vm_lang_eb_parser_read_call(vm_lang_eb_parser_t *env, void *data) {
     const char *name = data;
+    if (!strcmp(name, "if")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t cond = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t then = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t els = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_if(
+            cond,
+            then,
+            els
+        );
+    }
+    if (!strcmp(name, "do")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_do(lhs, rhs);
+    }
+    if (!strcmp(name, "add")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_add(lhs, rhs);
+    }
+    if (!strcmp(name, "sub")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_sub(lhs, rhs);
+    }
+    if (!strcmp(name, "mul")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_mul(lhs, rhs);
+    }
+    if (!strcmp(name, "div")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_div(lhs, rhs);
+    }
+    if (!strcmp(name, "idiv")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_idiv(lhs, rhs);
+    }
+    if (!strcmp(name, "mod")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_mod(lhs, rhs);
+    }
+    if (!strcmp(name, "eq")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_eq(lhs, rhs);
+    }
+    if (!strcmp(name, "ne")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_ne(lhs, rhs);
+    }
+    if (!strcmp(name, "lt")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_lt(lhs, rhs);
+    }
+    if (!strcmp(name, "le")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_le(lhs, rhs);
+    }
+    if (!strcmp(name, "gt")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_gt(lhs, rhs);
+    }
+    if (!strcmp(name, "ge")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t lhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t rhs = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_ge(lhs, rhs);
+    }
+    if (!strcmp(name, "let")) {
+        vm_lang_eb_binding_t none_bind = vm_lang_eb_binding_of_none();
+        vm_ast_node_t name = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t value = vm_lang_eb_parser_read_match(env, &none_bind);
+        vm_ast_node_t then = vm_lang_eb_parser_read_match(env, &none_bind);
+        return vm_ast_build_scope(vm_ast_build_do(vm_ast_build_local(name, value), then));
+    }
     vm_lang_eb_binding_t *arg_types = vm_lang_eb_bindings_find(&env->defs, name);
     if (arg_types != NULL) {
         if (arg_types->is_func) {
@@ -255,7 +356,16 @@ vm_ast_node_t vm_lang_eb_parser_read_call(vm_lang_eb_parser_t *env, void *data) 
             }
             return vm_ast_build_call(vm_ast_build_ident(name), nargs, args);
         } else {
-            return vm_ast_build_ident(name);
+            vm_ast_node_t ret = vm_ast_build_ident(name);
+            while (true) {
+                if (vm_lang_eb_parser_first(env) != '.') {
+                    break;
+                }
+                vm_lang_eb_parser_skip(env);
+                char *index = vm_lang_eb_parser_read_name(env);
+                ret = vm_ast_build_load(ret, vm_ast_build_literal(vm_obj_of_string(env->vm, index)));
+            }
+            return ret;
         }
     }
     if ('0' <= name[0] && name[0] <= '9') {
@@ -277,9 +387,19 @@ vm_ast_node_t vm_lang_eb_parser_read_def(vm_lang_eb_parser_t *env) {
         vm_lang_eb_bindings_push(&env->defs, bind);
         vm_lang_eb_parser_skip_space(env);
         if (vm_lang_eb_parser_first(env) == '?') {
-            return vm_ast_build_load(
-                vm_ast_build_literal(env->vm->std),
-                vm_ast_build_literal(vm_obj_of_string(env->vm, name))
+            if (!strcmp(name, "add") || !strcmp(name, "sub") || !strcmp(name, "mul")
+                || !strcmp(name, "div") || !strcmp(name, "idiv") || !strcmp(name, "mod")
+                || !strcmp(name, "eq") || !strcmp(name, "ne") || !strcmp(name, "lt")
+                || !strcmp(name, "le") || !strcmp(name, "gt") || !strcmp(name, "ge")
+                || !strcmp(name, "if") || !strcmp(name, "do") || !strcmp(name, "let")
+            ) {
+
+            }
+            vm_lang_eb_parser_skip(env);
+            vm_obj_t got = vm_table_get(vm_obj_get_table(env->env), vm_obj_of_string(env->vm, name));
+            return vm_ast_build_local(
+                vm_ast_build_ident(name),
+                vm_ast_build_literal(got)
             );
         } else {
             size_t nargs = bind.args.len;
@@ -319,19 +439,29 @@ vm_ast_node_t vm_lang_eb_parser_read_defs(vm_lang_eb_parser_t *env) {
         vm_ast_node_t def = vm_lang_eb_parser_read_def(env);
         all = vm_ast_build_do(all, def);
     }
-    return all;
+    return vm_ast_build_scope(all);
 }
 
 vm_ir_block_t *vm_lang_eb_compile(vm_t *vm, const char *src, const char *file) {
     vm_lang_eb_parser_t state = (vm_lang_eb_parser_t) {
         .vm = vm,
         .src = vm_strdup(src),
+        .env = vm_table_get(
+            vm_obj_get_table(
+                vm_table_get(
+                    vm_obj_get_table(vm->std),
+                    vm_obj_of_string(vm, "lang")
+                )
+            ),
+            vm_obj_of_string(vm, "eb")
+        ),
         .file = vm_strdup(file),
+        .head = 0,
     };
     vm_ast_node_t ast = vm_ast_build_return(vm_lang_eb_parser_read_defs(&state));
-    vm_io_buffer_t *out = vm_io_buffer_new();
-    vm_ast_print_node(out, 0, "", ast);
-    printf("%.*s\n", (int) out->len, out->buf);
+    // vm_io_buffer_t *out = vm_io_buffer_new();
+    // vm_ast_print_node(out, 0, "", ast);
+    // printf("%.*s\n", (int) out->len, out->buf);
     vm_ir_block_t *block = vm_ast_comp_more(vm, ast);
     // vm_ast_free_node(ast);
     return block;

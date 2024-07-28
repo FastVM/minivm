@@ -63,12 +63,11 @@ uint64_t vm_obj_hash(vm_obj_t value) {
 
 static vm_table_pair_t *vm_table_lookup(vm_obj_table_t *table, vm_obj_t key) {
     size_t len = vm_primes_table[table->size];
-    size_t init_look = vm_primes_mod(vm_obj_hash(key), table->size);
+    size_t init_look = vm_primes_mod(table->size, vm_obj_hash(key));
     size_t look = init_look;
     do {
         vm_table_pair_t *pair = &table->pairs[look];
-        vm_obj_t value = pair->key;
-        if (vm_obj_is_nil(value)) {
+        if (vm_obj_is_nil(pair->key)) {
             return NULL;
         }
         if (vm_obj_eq(key, pair->key)) {

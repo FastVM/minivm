@@ -50,55 +50,8 @@ typedef struct vm_externs_t vm_externs_t;
 typedef struct vm_obj_table_t vm_obj_table_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
 
-#define vm_obj_is_nil(o) nanbox_is_empty(o)
-#define vm_obj_is_boolean(o) nanbox_is_boolean(o)
-#define vm_obj_is_number(o) nanbox_is_number(o)
-#define vm_obj_is_string(o) nanbox_is_aux1(o)
-#define vm_obj_is_table(o) nanbox_is_aux2(o)
-#define vm_obj_is_closure(o) nanbox_is_aux3(o)
-#define vm_obj_is_ffi(o) nanbox_is_aux4(o)
-#define vm_obj_is_block(o) nanbox_is_aux5(o)
-#define vm_obj_is_error(o) nanbox_is_pointer(o)
-
-#define vm_obj_get_boolean(o) nanbox_to_boolean(o)
-#define vm_obj_get_number(o) nanbox_to_double(o)
-#define vm_obj_get_string(o) ((vm_io_buffer_t *) nanbox_to_aux(o))
-#define vm_obj_get_table(o) ((vm_obj_table_t *) nanbox_to_aux(o))
-#define vm_obj_get_closure(o) ((vm_obj_closure_t *) nanbox_to_aux(o))
-#define vm_obj_get_ffi(o) ((vm_ffi_t *) nanbox_to_aux(o))
-#define vm_obj_get_block(o) ((vm_ir_block_t *) nanbox_to_aux(o))
-#define vm_obj_get_error(o) ((vm_error_t *) nanbox_to_pointer(o))
-
 typedef nanbox_t vm_obj_t;
 typedef void vm_ffi_t(vm_t *vm, size_t nargs, vm_obj_t *args);
-
-static inline vm_obj_t vm_obj_of_nil(void) {
-    return nanbox_empty(); 
-}
-static inline vm_obj_t vm_obj_of_boolean(bool b) {
-    return nanbox_from_boolean(b);
-} 
-static inline vm_obj_t vm_obj_of_number(double n) {
-    return nanbox_from_double(n);
-}
-static inline vm_obj_t vm_obj_of_buffer(vm_io_buffer_t *o) {
-    return nanbox_from_aux1(o);
-}
-static inline vm_obj_t vm_obj_of_table(vm_obj_table_t *o) {
-    return nanbox_from_aux2(o);
-}
-static inline vm_obj_t vm_obj_of_closure(vm_obj_closure_t *o) {
-    return nanbox_from_aux3(o);
-}
-static inline vm_obj_t vm_obj_of_ffi(vm_ffi_t *o) {
-    return nanbox_from_aux4(o);
-}
-static inline vm_obj_t vm_obj_of_block(vm_ir_block_t *o) {
-    return nanbox_from_aux5(o);
-}
-static inline vm_obj_t vm_obj_of_error(vm_error_t *o) {
-    return nanbox_from_pointer(o);
-}
 
 struct vm_table_pair_t {
     vm_obj_t key;
@@ -154,5 +107,7 @@ vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
 vm_obj_t vm_obj_of_string(vm_t *vm, const char *str);
+
+#include "obj.inc"
 
 #endif

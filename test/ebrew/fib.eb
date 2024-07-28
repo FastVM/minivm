@@ -1,0 +1,43 @@
+
+(if x (y) (z)) ?
+
+(do x y) ?
+(add x y) ?
+(sub x y) ?
+(mul x y) ?
+(div x y) ?
+(idiv x y) ?
+(mod x y) ?
+
+(eq x y) ?
+(ne x y) ?
+(lt x y) ?
+(le x y) ?
+(gt x y) ?
+(ge x y) ?
+
+(debug x) ?
+(error s) ?
+(putchar c) ?
+
+(or x (y)) if x x y
+(and x (y)) if x y x
+
+(print-nonzero n)
+do  or  lt n 10
+        print-nonzero idiv n 10
+    putchar add 48 mod n 10
+
+(print n)
+do  if  eq n 0
+        putchar 48
+        print-nonzero n
+    putchar 10
+
+(fib n)
+if  lt n 2
+    n
+    add fib sub n 2
+        fib sub n 1
+
+print fib 35

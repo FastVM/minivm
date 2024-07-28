@@ -445,11 +445,71 @@ void vm_std_vm_import(vm_t *vm, size_t nargs, vm_obj_t *args) {
     return;
 }
 
+// void vm_std_lang_eb_if(vm_t *vm, size_t nargs, vm_obj_t *args) {
+//     if (!vm_obj_is_number(args[0])) {
+//         args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "pass if a number"));
+//         return;
+//     }
+//     vm_obj_t obj;
+//     if (vm_obj_get_number(args[0]) != 0) {
+//         obj = args[1];
+//     } else {
+//         obj = args[2];
+//     }
+//     if (!vm_obj_is_closure(obj)) {
+//         args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "define if like: (if c (t) (f)) ?"));
+//         return;
+//     }
+//     vm_obj_closure_t *closure = vm_obj_get_closure(obj);
+//     for (size_t i = 0; i < closure->len; i++) {
+//         vm->regs[i] = closure->values[i];
+//     }
+//     vm_obj_t ret = vm_run_repl(vm, closure->block);
+//     args[0] = ret;
+//     return;
+// }
+
+void vm_std_lang_eb_error(vm_t *vm, size_t nargs, vm_obj_t *args) {
+    if (nargs == 0) {
+        args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "error"));
+        return;
+    }
+    vm_io_buffer_t *buf = vm_io_buffer_new();
+    vm_io_buffer_obj_debug(buf, 0, "error: ", args[0], NULL);
+    args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, ""));
+    free(buf->buf);
+    free(buf);
+    return;
+}
+
+void vm_std_lang_eb_putchar(vm_t *vm, size_t nargs, vm_obj_t *args) {
+    if (nargs == 0 || !vm_obj_is_number(args[0])) {
+        args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "putchar: takes a number"));
+        return;
+    }
+    printf("%c", (int) vm_obj_get_number(args[0]));
+    args[0] = vm_obj_of_nil();
+    return;
+}
+
 void vm_std_new(vm_t *vm) {
     vm_obj_table_t *std = vm_table_new(vm);
 
     srand(0);
 
+    {
+        vm_obj_table_t *lang = vm_table_new(vm);
+        vm_table_set(std, vm_obj_of_string(vm, "lang"), vm_obj_of_table(lang));
+        
+        {
+            vm_obj_table_t *eb = vm_table_new(vm);
+            vm_table_set(lang, vm_obj_of_string(vm, "eb"), vm_obj_of_table(eb));
+            vm_table_set(eb, vm_obj_of_string(vm, "putchar"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_lang_eb_putchar)));
+            vm_table_set(eb, vm_obj_of_string(vm, "error"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_lang_eb_error)));
+            vm_table_set(eb, vm_obj_of_string(vm, "debug"), vm_obj_of_ffi(VM_STD_REF(vm, vm_std_vm_print)));
+        }
+    }
+    
     {
         vm_obj_table_t *io = vm_table_new(vm);
         vm_table_set(std, vm_obj_of_string(vm, "io"), vm_obj_of_table(io));
