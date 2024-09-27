@@ -75,10 +75,10 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
     vm_ast_comp_t *comp_ = comp;                                                                 \
     vm_ast_node_t node_ = node;                                                                  \
     vm_ir_arg_t ret = vm_ast_comp_to_raw(comp_, node_);                                             \
-    if (ret.type == VM_IR_ARG_TYPE_ERROR && node_.info.range.start.byte != node_.info.range.stop.byte) { \
+    if (ret.type == VM_IR_ARG_TYPE_ERROR && node_.range.start.byte != node_.range.stop.byte) { \
         return (vm_ir_arg_t){                                                                       \
             .type = VM_IR_ARG_TYPE_ERROR,                                                                \
-            .error = vm_error_from_error(node_.info.range, ret.error),                           \
+            .error = vm_error_from_error(node_.range, ret.error),                           \
         };                                                                                       \
     }                                                                                            \
     ret;                                                                                         \
@@ -91,7 +91,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
     if (ret.type == VM_IR_ARG_TYPE_ERROR) {                                       \
         return (vm_ir_arg_t){                                                \
             .type = VM_IR_ARG_TYPE_ERROR,                                         \
-            .error = vm_error_from_error(node_.info.range, ret.error),                           \
+            .error = vm_error_from_error(node_.range, ret.error),                           \
         };                                                                \
     }                                                                     \
     ret;                                                                  \
@@ -118,6 +118,7 @@ static vm_ir_block_t *vm_ast_comp_new_block(vm_ast_comp_t *comp) {
     vm_ir_block_t *block = vm_malloc(sizeof(vm_ir_block_t));
     *block = (vm_ir_block_t){
         .id = (uint32_t)comp->vm->nblocks++,
+        .range = comp->range,
         // .nregs = VM_NREGS,
     };
     vm_gc_add(comp->vm, vm_obj_of_block(block));
@@ -223,6 +224,9 @@ static vm_ir_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
 }
 
 static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, vm_ir_block_t *iftrue, vm_ir_block_t *iffalse) {
+    if (node.range.start.byte != node.range.stop.byte) {
+        comp->range = node.range;
+    }
     switch (node.type) {
         case VM_AST_NODE_FORM: {
             vm_ast_form_t form = node.value.form;
@@ -376,8 +380,8 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
     //     vm_ast_print_node(buf, 0, "ast = ", node);
     //     printf("%s\n", buf->buf);
     // }
-    if (node.info.range.start.byte != node.info.range.stop.byte) {
-        comp->range = node.info.range;
+    if (node.range.start.byte != node.range.stop.byte) {
+        comp->range = node.range;
     }
     switch (node.type) {
         case VM_AST_NODE_FORM: {
@@ -983,7 +987,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
     }
     return (vm_ir_arg_t){
         .type = VM_IR_ARG_TYPE_ERROR,
-        .error = vm_error_from_msg(node.info.range, "internal error: invalid or unhandled ast node type"),
+        .error = vm_error_from_msg(node.range, "internal error: invalid or unhandled ast node type"),
     };
 }
 

@@ -3,5 +3,15 @@
         "*.inc": "c",
         "*.c": "c",
         "*.h": "c",
+        "array": "c",
+        "*.tcc": "c",
+        "algorithm": "c",
+        "memory": "c",
+        "random": "c",
+        "limits": "c",
+        "numeric": "c",
+        "stdexcept": "c",
+        "tuple": "c",
+        "atomic": "c"
     }
 }

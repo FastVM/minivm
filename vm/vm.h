@@ -13,19 +13,15 @@
 
 #define VM_GC_MIN (1 << 8)
 // #define VM_GC_MIN 16
-#define VM_GC_FACTOR 1.4
+#define VM_GC_FACTOR 1.2
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
 
 #define VM_FORMAT_FLOAT "%.14g"
 
-#define VM_USE_SPALL 0
-#define VM_USE_SPALL_INSTR 0
-
-#define VM_OBJ_FAST 1
-#define VM_OBJ_FIELD_VALUE _value ## __COUNTER__ 
-#define VM_OBJ_FIELD_TAG _tag ## __COUNTER__
+#define VM_USE_SPALL 1
+#define VM_USE_SPALL_INSTR 1
 
 #define VM_EMPTY_BYTE NANBOX_EMPTY_BYTE
 
@@ -95,7 +91,7 @@ struct vm_t {
 
     vm_obj_t std;
 
-    void *gc;
+    void *restrict gc;
 
     vm_obj_t *base;
     vm_obj_t *regs;

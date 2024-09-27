@@ -25,7 +25,7 @@
 
 #endif
 
-#if f
+#if VM_DEBUG_BACKEND_OPCODES
 #define VM_OPCODE_DEBUG(s)    \
     VM_OPCODE_SPALL_BEGIN(s); \
     printf("%s\n", #s);

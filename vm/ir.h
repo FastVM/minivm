@@ -119,6 +119,5 @@ void vm_io_format_block(vm_io_buffer_t *out, vm_ir_block_t *val);
 #define vm_arg_nil() ((vm_ir_arg_t){.type = (VM_IR_ARG_TYPE_LIT), .lit = vm_obj_of_nil()})
 
 vm_ir_block_t *vm_lang_lua_compile(vm_t *vm, const char *src, const char *file);
-vm_ir_block_t *vm_lang_eb_compile(vm_t *vm, const char *src, const char *file);
 
 #endif

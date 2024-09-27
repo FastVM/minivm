@@ -55,6 +55,10 @@
 #define vm_malloc(x) malloc(x)
 #define vm_realloc(x, y) realloc(x, y)
 #define vm_free(x) free((void *) (x))
+#if defined(_WIN32)
+#define vm_strdup(x) _strdup(x)
+#else
 #define vm_strdup(x) strdup(x)
+#endif
 
 #endif

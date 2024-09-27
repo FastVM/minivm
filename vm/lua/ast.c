@@ -75,13 +75,12 @@ vm_ast_node_t vm_lang_lua_conv_raw(vm_lang_lua_t src, TSNode node);
 
 vm_ast_node_t vm_lang_lua_conv(vm_lang_lua_t src, TSNode node) {
     vm_ast_node_t ret = vm_lang_lua_conv_raw(src, node);
-    ret.info.type = ts_node_type(node);
-    ret.info.range.file = src.file;
-    ret.info.range.src = src.src;
-    ret.info.range.start = (vm_location_t){
+    ret.range.file = src.file;
+    ret.range.src = src.src;
+    ret.range.start = (vm_location_t){
         .byte = ts_node_start_byte(node),
     };
-    ret.info.range.stop = (vm_location_t){
+    ret.range.stop = (vm_location_t){
         .byte = ts_node_end_byte(node),
     };
     return ret;

@@ -80,13 +80,9 @@ union vm_ast_node_value_t {
 };
 
 struct vm_ast_node_t {
+    vm_location_range_t range;
     vm_ast_node_value_t value;
     vm_ast_node_type_t type;
-
-    struct {
-        const char *type;
-        vm_location_range_t range;
-    } info;
 };
 
 const char *vm_ast_format(vm_ast_node_t *node);

@@ -63,7 +63,7 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
                 exit(1);
             }
 
-            vm_ir_block_t *entry = vm_lang_eb_compile(vm, src, name ? name : "__expr__");
+            vm_ir_block_t *entry = vm_lang_lua_compile(vm, src, name ? name : "__expr__");
 
             vm_obj_t value = vm_run_main(vm, entry);
             if (vm_obj_is_error(value)) {
@@ -82,6 +82,8 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
             }
         }
     }
+
+    vm_state_delete(vm);
 
 #if VM_USE_SPALL
     spall_auto_thread_quit();

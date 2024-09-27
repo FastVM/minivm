@@ -8,9 +8,14 @@ EXE ?=
 
 TIME_CMD ?= $(shell which gdate || which date) +%s%3N
 
+LIBM ?= YES
+LIBM_NO :=
+LIBM_YES := -lm
+LIBM_FLAGS := ${LIBM_${LIBM}}
+
 # Reset flags for base
 BASE_CFLAGS := ${OPT} -Ivendor/tree-sitter/lib/include -Ivendor/tree-sitter/lib/src ${CFLAGS}
-BASE_LDFLAGS := ${OPT} ${LDFLAGS} -lm
+BASE_LDFLAGS := ${OPT} ${LDFLAGS} ${LIBM_FLAGS}
 
 # object files and depends
 MAIN_SRCS = main/minivm.c
@@ -26,8 +31,8 @@ MAKE_INCLUDE ?=
 
 # tests
 
-TEST_LUAS := $(shell find test -name '*.lua')
-TEST_TXTS = ${TEST_LUAS:%.lua=build/test/%.log}
+TEST_SRCS := $(wildcard test/lua/*/*.lua)
+TEST_TXTS = ${TEST_SRCS:%.lua=build/test/%.log}
 
 # setup targets
 default: all
