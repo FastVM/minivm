@@ -13,7 +13,7 @@
 
 #define VM_GC_MIN (1 << 8)
 // #define VM_GC_MIN 16
-#define VM_GC_FACTOR 1.2
+#define VM_GC_FACTOR 1.6
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
@@ -30,6 +30,7 @@ struct vm_error_t;
 struct vm_ir_block_t;
 struct vm_ir_blocks_t;
 struct vm_obj_closure_t;
+struct vm_obj_gc_header_t;
 struct vm_externs_t;
 struct vm_obj_table_t;
 struct vm_table_pair_t;
@@ -42,6 +43,7 @@ typedef struct vm_error_t vm_error_t;
 typedef struct vm_ir_block_t vm_ir_block_t;
 typedef struct vm_ir_blocks_t vm_ir_blocks_t;
 typedef struct vm_obj_closure_t vm_obj_closure_t;
+typedef struct vm_obj_gc_header_t vm_obj_gc_header_t;
 typedef struct vm_externs_t vm_externs_t;
 typedef struct vm_obj_table_t vm_obj_table_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
@@ -54,33 +56,36 @@ struct vm_table_pair_t {
     vm_obj_t value;
 };
 
+struct vm_obj_gc_header_t {
+    uint8_t mark: 1;
+};
+
 struct vm_obj_table_t {
+    vm_obj_gc_header_t header;
     vm_table_pair_t *pairs;
-    uint32_t len;
-    uint32_t used;
-    uint8_t size: 8;
-    bool mark: 1;
-    bool pairs_auto: 1;
+    uint32_t len: 29;
+    uint32_t used: 29;
+    uint8_t size: 6;
 };
 
 struct vm_obj_closure_t {
+    vm_obj_gc_header_t header;
     struct vm_ir_block_t *block;
-    bool mark: 1;
-    uint32_t len: 31;
+    uint32_t len;
     vm_obj_t values[];
+};
+
+struct vm_io_buffer_t {
+    vm_obj_gc_header_t header;
+    char *buf;
+    uint32_t len;
+    uint32_t alloc;
 };
 
 struct vm_externs_t {
     size_t id;
     void *value;
     vm_externs_t *last;
-};
-
-struct vm_io_buffer_t {
-    char *buf;
-    bool mark: 1;
-    uint32_t len: 31;
-    uint32_t alloc: 32;
 };
 
 struct vm_t {

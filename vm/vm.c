@@ -23,14 +23,6 @@ vm_t *vm_state_new(void) {
 void vm_state_delete(vm_t *vm) {
     vm_gc_deinit(vm);
 
-    {
-        vm_externs_t *cur = vm->externs;
-        while (cur != NULL) {
-            vm_externs_t *last = cur->last;
-            vm_free(cur);
-            cur = last;
-        }
-    }
     vm_free(vm->regs);
     vm_free(vm);
 }

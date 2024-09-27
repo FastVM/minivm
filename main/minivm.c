@@ -3,6 +3,7 @@
 #include "../vm/vm.h"
 #include "../vm/ir.h"
 #include "../vm/io.h"
+#include "../vm/gc.h"
 #include "../vm/std.h"
 #include "../vm/lua/repl.h"
 
@@ -70,9 +71,11 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
                 exit(1);
             }
             if (echo) {
-                vm_io_buffer_t buf = {0};
-                vm_io_buffer_obj_debug(&buf, 0, "", value, NULL);
-                printf("%.*s", (int)buf.len, buf.buf);
+                vm_io_buffer_t *buf = vm_io_buffer_new();
+                vm_io_buffer_obj_debug(buf, 0, "", value, NULL);
+                printf("%.*s", (int)buf->len, buf->buf);
+                vm_free(buf->buf);
+                vm_free(buf);
             }
 
             vm_free(src);

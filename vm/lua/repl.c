@@ -159,9 +159,11 @@ void vm_lang_lua_repl(vm_t *vm) {
         if (vm_obj_is_error(value)) {
             vm_error_report(vm_obj_get_error(value), stderr);
         } else if (!vm_obj_is_nil(value)) {
-            vm_io_buffer_t buf = {0};
-            vm_io_buffer_obj_debug(&buf, 0, "", value, NULL);
-            printf("%.*s", (int)buf.len, buf.buf);
+            vm_io_buffer_t *buf = vm_io_buffer_new();
+            vm_io_buffer_obj_debug(buf, 0, "", value, NULL);
+            printf("%.*s", (int)buf->len, buf->buf);
+            vm_free(buf->buf);
+            vm_free(buf);
         }
     }
 }

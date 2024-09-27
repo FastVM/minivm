@@ -48,7 +48,8 @@ void vm_io_buffer_format(vm_io_buffer_t *buf, const char *fmt, ...) {
 }
 
 char *vm_io_vformat(const char *fmt, va_list ap) {
-    vm_io_buffer_t buf = (vm_io_buffer_t){0};
+    vm_io_buffer_t buf;
+    memset(&buf, 0, sizeof(vm_io_buffer_t));
     vm_io_buffer_vformat(&buf, fmt, ap);
     return buf.buf;
 }
@@ -179,10 +180,11 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
                     vm_io_buffer_obj_debug(out, indent + 1, buf, p.value, &next);
                 }
                 else if (vm_obj_is_string(p.key)) {
-                    vm_io_buffer_t buf = {0};
-                    vm_io_buffer_format(&buf, "%s = ", vm_obj_get_string(p.key)->buf);
-                    vm_io_buffer_obj_debug(out, indent + 1, buf.buf, p.value, &next);
-                    vm_free(buf.buf);
+                    vm_io_buffer_t *buf = vm_io_buffer_new();
+                    vm_io_buffer_format(buf, "%s = ", vm_obj_get_string(p.key)->buf);
+                    vm_io_buffer_obj_debug(out, indent + 1, buf->buf, p.value, &next);
+                    vm_free(buf->buf);
+                    vm_free(buf);
                 } else {
                     vm_io_indent(out, indent + 1, "");
                     vm_io_buffer_format(out, "pair {\n");

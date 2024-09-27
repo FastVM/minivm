@@ -87,6 +87,8 @@ struct vm_ir_instr_t {
 };
 
 struct vm_ir_block_t {
+    vm_obj_gc_header_t header;
+
     vm_location_range_t range;
     
     uint32_t id;
@@ -98,9 +100,8 @@ struct vm_ir_block_t {
 
     void *code;
 
-    uint32_t alloc: 30;
+    uint32_t alloc: 31;
     bool isfunc: 1;
-    bool mark: 1;
 };
 
 

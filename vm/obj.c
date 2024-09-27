@@ -135,8 +135,7 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
         memset(ret.pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * ret_len);
         ret.used = 0;
         ret.len = 0;
-        ret.mark = false;
-        ret.pairs_auto = false;
+        ret.header = table->header;
         size_t table_len = vm_primes_table[table->size];
         for (size_t i = 0; i < table_len; i++) {
             vm_table_pair_t *in_pair = &table->pairs[i];
@@ -146,9 +145,7 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
             }
         }
         vm_table_set(&ret, key, value);
-        if (!table->pairs_auto) {
-            vm_free(table->pairs);
-        }
+        vm_free(table->pairs);
         *table = ret;
     } else {
         table->used += 1;
