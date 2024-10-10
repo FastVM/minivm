@@ -2,7 +2,7 @@ import sympy
 
 max_width = 60
 n = 32
-ls = [1, 3, 7, 13]
+ls = [2, 4, 8, 16]
 
 with open('vm/primes.inc', 'w') as f:
     p32 = 2 ** 32

@@ -882,7 +882,7 @@ VM_OP_TABLE_SET:;
 VM_OP_TABLE_NEW:;
     VM_OPCODE_DEBUG(table_new) {
         vm_run_repl_out(vm_obj_of_table(vm_table_new(vm)));
-        vm_gc_run(vm, regs + VM_NREGS);
+        vm_gc_run(vm, next_regs);
         vm_run_repl_jump();
     }
 VM_OP_TABLE_LEN:;

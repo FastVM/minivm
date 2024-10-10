@@ -12,6 +12,21 @@
         "numeric": "c",
         "stdexcept": "c",
         "tuple": "c",
-        "atomic": "c"
+        "atomic": "c",
+        "charconv": "c",
+        "exception": "c",
+        "format": "c",
+        "ios": "c",
+        "iterator": "c",
+        "system_error": "c",
+        "type_traits": "c",
+        "typeinfo": "c",
+        "xiosbase": "c",
+        "xlocale": "c",
+        "xlocmes": "c",
+        "xlocmon": "c",
+        "xlocnum": "c",
+        "xloctime": "c",
+        "xutility": "c"
     }
 }

@@ -61,8 +61,8 @@ extern "C" {
 
 bool spall_auto_init(char *filename);
 void spall_auto_quit(void);
-bool spall_auto_thread_init(uint32_t thread_id, size_t buffer_size);
-void spall_auto_thread_quit(void);
+static bool spall_auto_thread_init(uint32_t thread_id, size_t buffer_size);
+static void spall_auto_thread_quit(void);
 
 bool spall_auto_buffer_begin(const char *name, signed long name_len, const char *args, signed long args_len);
 bool spall_auto_buffer_end(void);
@@ -546,7 +546,7 @@ SPALL_FN void *spall_writer(void *arg) {
 #endif
 }
 
-SPALL_NOINSTRUMENT SPALL_FORCE_INLINE bool spall__file_write(void *p, size_t n) {
+static SPALL_NOINSTRUMENT SPALL_FORCE_INLINE bool spall__file_write(void *p, size_t n) {
     atomic_store(&spall_buffer->writer.size, n);
     atomic_store(&spall_buffer->writer.ptr, (uint64_t)p);
     spall_signal(&spall_buffer->writer.ptr);

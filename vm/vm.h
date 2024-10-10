@@ -12,16 +12,17 @@
 #define VM_NREGS 256
 
 #define VM_GC_MIN (1 << 8)
+// #define VM_GC_MIN (1 << 28)
 // #define VM_GC_MIN 16
-#define VM_GC_FACTOR 1.6
+#define VM_GC_FACTOR 1.4
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
 
 #define VM_FORMAT_FLOAT "%.14g"
 
-#define VM_USE_SPALL 1
-#define VM_USE_SPALL_INSTR 1
+#define VM_USE_SPALL 0
+#define VM_USE_SPALL_INSTR 0
 
 #define VM_EMPTY_BYTE NANBOX_EMPTY_BYTE
 
@@ -57,7 +58,8 @@ struct vm_table_pair_t {
 };
 
 struct vm_obj_gc_header_t {
-    uint8_t mark: 1;
+    bool old: 1;
+    bool mark: 1;
 };
 
 struct vm_obj_table_t {
@@ -70,8 +72,8 @@ struct vm_obj_table_t {
 
 struct vm_obj_closure_t {
     vm_obj_gc_header_t header;
-    struct vm_ir_block_t *block;
     uint32_t len;
+    struct vm_ir_block_t *block;
     vm_obj_t values[];
 };
 

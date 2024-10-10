@@ -127,7 +127,7 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
                 table->len = (size_t)(n - 1);
             }
         }
-    } else if ((table->used + 1) * 100 > vm_primes_table[table->size] * 75) {
+    } else if ((table->used + 1) * 100 > vm_primes_table[table->size] * 60) {
         vm_obj_table_t ret;
         ret.size = table->size + 1;
         uint64_t ret_len = vm_primes_table[ret.size];
