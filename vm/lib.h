@@ -42,7 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <wctype.h>
+#include <ctype.h>
 
 #include "vm.h"
 

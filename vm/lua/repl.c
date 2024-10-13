@@ -23,7 +23,7 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     {
         ptrdiff_t len = strlen(prefix);
         ptrdiff_t head = len - 1;
-        while (head >= 0 && (iswalnum(prefix[head]) || prefix[head] == '.')) {
+        while (head >= 0 && (isalnum(prefix[head]) || prefix[head] == '.')) {
             head -= 1;
         }
         head += 1;
@@ -88,19 +88,19 @@ void vm_lang_lua_repl_highlight_walk(ic_highlight_env_t *henv, size_t *depth, TS
         ic_highlight(henv, start, len, "white");
     }
     const char *keywords[] = {
-        "or",
         "and",
-        "not",
-        "local",
-        "function",
-        "while",
         "do",
-        "if",
-        "then",
-        "return",
         "else",
         "end",
         "for",
+        "function",
+        "if",
+        "local",
+        "not",
+        "or",
+        "return",
+        "then",
+        "while",
         NULL,
     };
     for (size_t i = 0; keywords[i] != NULL; i++) {
