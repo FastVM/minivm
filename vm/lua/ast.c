@@ -44,7 +44,7 @@ char *vm_lang_lua_gensym(vm_lang_lua_t src) {
         vm_free(buf);                                                                                \
         return (vm_ast_node_t){                                                                      \
             .type = VM_AST_NODE_LITERAL,                                                             \
-            .value.literal = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, msg)),     \
+            .value.literal = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, msg)),     \
         };                                                                                           \
     }                                                                                                \
     TSNode ret = ts_node_child(node_, n_);                                                           \
@@ -64,7 +64,7 @@ char *vm_lang_lua_gensym(vm_lang_lua_t src) {
             vm_free(buf);                                                                            \
             return (vm_ast_node_t){                                                                  \
                 .type = VM_AST_NODE_LITERAL,                                                         \
-                .value.literal = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, msg)), \
+                .value.literal = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, msg)), \
             };                                                                                       \
         }                                                                                            \
     }                                                                                                \
@@ -609,7 +609,7 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file) {
     if (ts_node_is_error(root_node) || ts_node_is_missing(root_node)) {
         return (vm_ast_node_t){
             .type = VM_AST_NODE_LITERAL,
-            .value.literal = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "parsing root node failed")),
+            .value.literal = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "parsing root node failed")),
         };
     }
 

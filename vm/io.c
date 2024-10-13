@@ -1,6 +1,7 @@
 
 #include "io.h"
 #include "ir.h"
+#include "math.h"
 #include "primes.inc"
 
 void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap) {
@@ -115,7 +116,7 @@ void vm_io_buffer_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
 void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *prefix, vm_obj_t value, vm_io_debug_t *link) {
     size_t up = 1;
     while (link != NULL) {
-        if (vm_obj_eq(value, link->value)) {
+        if (vm_obj_unsafe_eq(value, link->value)) {
             vm_io_indent(out, indent, prefix);
             vm_io_buffer_format(out, "<ref %zu>\n", up);
             return;

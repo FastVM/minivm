@@ -52,13 +52,11 @@
     exit(1);
 #endif
 
-#define vm_malloc(x) malloc(x)
-#define vm_realloc(x, y) realloc(x, y)
-#define vm_free(x) free((void *) (x))
-#if defined(_WIN32)
-#define vm_strdup(x) _strdup(x)
-#else
-#define vm_strdup(x) strdup(x)
-#endif
+#include "../vendor/mimalloc/include/mimalloc.h"
+
+#define vm_malloc(x) mi_malloc(x)
+#define vm_realloc(x, y) mi_realloc(x, y)
+#define vm_free(x) mi_free((void *) (x))
+#define vm_strdup(x) mi_strdup(x)
 
 #endif

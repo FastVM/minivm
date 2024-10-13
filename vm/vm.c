@@ -28,9 +28,3 @@ void vm_state_delete(vm_t *vm) {
     vm_free(vm->regs);
     vm_free(vm);
 }
-
-vm_obj_t vm_obj_of_string(vm_t *vm, const char *str) {
-    vm_obj_t ret = vm_obj_of_buffer(vm_io_buffer_from_str(str));
-    vm_gc_add(vm, ret);
-    return ret;
-}

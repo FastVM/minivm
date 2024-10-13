@@ -4,3 +4,6 @@
 [submodule "vendor/isocline"]
 	path = vendor/isocline
 	url = https://github.com/fastvm/minivm-isocline
+[submodule "vendor/mimalloc"]
+	path = vendor/mimalloc
+	url = https://github.com/microsoft/mimalloc

@@ -14,15 +14,19 @@ LIBM_YES := -lm
 LIBM_FLAGS := ${LIBM_${LIBM}}
 
 # Reset flags for base
-BASE_CFLAGS := ${OPT} -Ivendor/tree-sitter/lib/include -Ivendor/tree-sitter/lib/src ${CFLAGS}
+BASE_CFLAGS := ${OPT} -Ivendor/tree-sitter/lib/include -Ivendor/mimalloc/include -Ivendor/tree-sitter/lib/src ${CFLAGS}
 BASE_LDFLAGS := ${OPT} ${LDFLAGS} ${LIBM_FLAGS}
+
+# mimalloc
+MI_PRIM_SRC := vendor/mimalloc/src/prim/unix/prim.c
 
 # object files and depends
 MAIN_SRCS = main/minivm.c
 VM_SRCS := $(shell find vm | grep \\.c)
+MI_SRCS := ${MI_PRIM_SRC} vendor/mimalloc/src/alloc-posix.c vendor/mimalloc/src/alloc-aligned.c vendor/mimalloc/src/alloc.c vendor/mimalloc/src/arena.c vendor/mimalloc/src/bitmap.c vendor/mimalloc/src/heap.c vendor/mimalloc/src/init.c vendor/mimalloc/src/libc.c vendor/mimalloc/src/options.c vendor/mimalloc/src/os.c vendor/mimalloc/src/page.c vendor/mimalloc/src/random.c vendor/mimalloc/src/segment-map.c vendor/mimalloc/src/segment.c vendor/mimalloc/src/stats.c
 TS_SRCS += vendor/tree-sitter/lib/src/alloc.c vendor/tree-sitter/lib/src/get_changed_ranges.c vendor/tree-sitter/lib/src/language.c vendor/tree-sitter/lib/src/lexer.c vendor/tree-sitter/lib/src/node.c vendor/tree-sitter/lib/src/parser.c vendor/tree-sitter/lib/src/query.c vendor/tree-sitter/lib/src/stack.c vendor/tree-sitter/lib/src/subtree.c vendor/tree-sitter/lib/src/tree_cursor.c vendor/tree-sitter/lib/src/tree.c vendor/tree-sitter/lib/src/wasm_store.c
 IC_SRCS := vendor/isocline/src/isocline.c
-MAIN_SRCS += ${VM_SRCS} ${TS_SRCS} ${IC_SRCS}
+MAIN_SRCS += ${VM_SRCS} ${TS_SRCS} ${IC_SRCS} ${MI_SRCS}
 MAIN_OBJS = ${MAIN_SRCS:%.c=build/obj/%.o}
 
 MAIN_DEPS = ${MAIN_SRCS:%.c=build/dep/%.dep}
@@ -50,18 +54,16 @@ clean: .dummy
 
 gcc-pgo: .dummy
 	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-generate -DNDEBUG"
-	build/bin/minivm test/fib/fib.lua
-	build/bin/minivm test/tables/trees.lua
-	build/bin/minivm test/closure/funcret.lua
-	build/bin/minivm test/loop/eval.lua
+	build/bin/minivm test/lua/fib/fib.lua
+	build/bin/minivm test/lua/tables/trees.lua
+	build/bin/minivm test/lua/closure/funcret.lua
 	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-use -DNDEBUG"
 
 clang-pgo: .dummy
 	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fno-exceptions -fomit-frame-pointer -fprofile-generate -DNDEBUG"
-	build/bin/minivm test/fib/fib.lua
-	build/bin/minivm test/tables/trees.lua
-	build/bin/minivm test/closure/funcret.lua
-	build/bin/minivm test/loop/eval.lua
+	build/bin/minivm test/lua/fib/fib.lua
+	build/bin/minivm test/lua/tables/trees.lua
+	build/bin/minivm test/lua/closure/funcret.lua
 	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fno-exceptions -fomit-frame-pointer -fprofile-use -DNDEBUG"
 
 wasm: .dummy

@@ -1,27 +1,14 @@
 #include "obj.h"
 #include "gc.h"
 #include "io.h"
+#include "math.h"
 
 #include "primes.inc"
 
-bool vm_obj_eq(vm_obj_t v1, vm_obj_t v2) {
-    if (vm_obj_is_nil(v1) && vm_obj_is_nil(v2)) {
-        return true;
-    } else if (vm_obj_is_boolean(v1) && vm_obj_is_boolean(v2)) {
-        return vm_obj_get_boolean(v1) == vm_obj_get_boolean(v2);
-    } else if (vm_obj_is_number(v1) && vm_obj_is_number(v2)) {
-        return vm_obj_get_number(v1) == vm_obj_get_number(v2);
-    } else if (vm_obj_is_string(v1) && vm_obj_is_string(v2)) {
-        return strcmp(vm_obj_get_string(v1)->buf, vm_obj_get_string(v2)->buf) == 0;
-    } else if (vm_obj_is_table(v1) && vm_obj_is_table(v2)) {
-        return vm_obj_get_table(v1) == vm_obj_get_table(v2);
-    } else if (vm_obj_is_closure(v1) && vm_obj_is_closure(v2)) {
-        return vm_obj_get_closure(v1) == vm_obj_get_closure(v2);
-    } else if (vm_obj_is_ffi(v1) && vm_obj_is_ffi(v2)) {
-        return vm_obj_get_ffi(v1) == vm_obj_get_ffi(v2);
-    } else {
-        return false;
-    }
+vm_obj_t vm_obj_of_string(vm_t *vm, const char *str) {
+    vm_obj_t ret = vm_obj_of_buffer(vm_io_buffer_from_str(str));
+    vm_gc_add(vm, ret);
+    return ret;
 }
 
 uint64_t vm_obj_hash(vm_obj_t value) {
@@ -54,11 +41,7 @@ uint64_t vm_obj_hash(vm_obj_t value) {
     if (vm_obj_is_table(value)) {
         return (uint64_t)(size_t)vm_obj_get_table(value) >> 4;
     }
-    if (vm_obj_is_nil(value)) {
-        return 0;
-    }
-    __builtin_trap();
-    // return 0;
+    return 0;
 }
 
 static vm_table_pair_t *vm_table_lookup(vm_obj_table_t *table, vm_obj_t key) {
@@ -70,7 +53,7 @@ static vm_table_pair_t *vm_table_lookup(vm_obj_table_t *table, vm_obj_t key) {
         if (vm_obj_is_nil(pair->key)) {
             return NULL;
         }
-        if (vm_obj_eq(key, pair->key)) {
+        if (vm_obj_unsafe_eq(key, pair->key)) {
             return pair;
         }
         look += 1;
@@ -89,7 +72,7 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
         if (vm_obj_is_nil(pair->key)) {
             break;
         }
-        if (vm_obj_eq(key, pair->key)) {
+        if (vm_obj_unsafe_eq(key, pair->key)) {
             if (vm_obj_is_nil(key)) {
                 pair->key = vm_obj_of_nil();
                 if (vm_obj_is_number(key)) {
@@ -154,7 +137,7 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
             .value = value,
         };
         vm_obj_t vlen = vm_obj_of_number(table->len + 1);
-        if (vm_obj_eq(vlen, key)) {
+        if (vm_obj_unsafe_eq(vlen, key)) {
             while (true) {
                 int32_t next = table->len + 1;
                 vm_table_pair_t *got = vm_table_lookup(table, vm_obj_of_number(next));

@@ -142,10 +142,6 @@ void vm_io_format_instr(vm_io_buffer_t *out, vm_ir_instr_t val) {
             vm_io_buffer_format(out, "new");
             break;
         }
-        case VM_IR_INSTR_OPCODE_STD: {
-            vm_io_buffer_format(out, "std");
-            break;
-        }
         case VM_IR_INSTR_OPCODE_TABLE_LEN: {
             vm_io_buffer_format(out, "len");
             break;

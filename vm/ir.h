@@ -51,7 +51,6 @@ enum {
     VM_IR_INSTR_OPCODE_TABLE_SET,
     VM_IR_INSTR_OPCODE_TABLE_NEW,
     VM_IR_INSTR_OPCODE_TABLE_LEN,
-    VM_IR_INSTR_OPCODE_STD,
 };
 
 struct vm_ir_arg_t {

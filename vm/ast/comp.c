@@ -892,7 +892,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     if (comp->on_break == NULL) {
                         return (vm_ir_arg_t){
                             .type = VM_IR_ARG_TYPE_ERROR,
-                            .error = vm_error_from_msg(vm_location_range_unknown, "break not in block"),
+                            .error = vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "break not in block"),
                         };
                     }
                     vm_ir_block_t *after = vm_ast_comp_new_block(comp);
@@ -1002,12 +1002,16 @@ vm_ir_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
     vm_ir_block_t *entry = vm_ast_comp_new_block(&comp);
     size_t start = entry->id;
     comp.cur = entry;
+    vm_ir_arg_t std = (vm_ir_arg_t) {
+        .type = VM_IR_ARG_TYPE_LIT,
+        .lit = vm->std,
+    };
     vm_ast_blocks_instr(
         &comp,
         (vm_ir_instr_t){
-            .op = VM_IR_INSTR_OPCODE_STD,
+            .op = VM_IR_INSTR_OPCODE_MOVE,
             .out = vm_ast_comp_reg_named(&comp, "_ENV"),
-            .args = vm_ast_args(0),
+            .args = vm_ast_args(1, std),
         }
     );
     vm_ir_arg_t result_arg = vm_ast_comp_to_raw(&comp, node);

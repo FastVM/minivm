@@ -27,6 +27,7 @@
         "xlocmon": "c",
         "xlocnum": "c",
         "xloctime": "c",
-        "xutility": "c"
+        "xutility": "c",
+        "locale": "c"
     }
 }

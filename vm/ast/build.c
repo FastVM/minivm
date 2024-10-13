@@ -237,7 +237,7 @@ vm_ast_node_t vm_ast_build_block(size_t len, ...) {
 vm_ast_node_t vm_ast_build_error(const char *str) {
     return (vm_ast_node_t){
         .type = VM_AST_NODE_LITERAL,
-        .value.literal = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, str)),
+        .value.literal = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, str)),
     };
 }
 

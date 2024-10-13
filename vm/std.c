@@ -10,8 +10,6 @@
 
 #include "primes.inc"
 
-#define VM_LOCATION_RANGE_FUNC ((vm_location_range_t) { .file =  "<builtins>", .src = __func__ })
-
 void vm_std_os_exit(vm_t *vm, size_t nargs, vm_obj_t *args) {
     (void)vm;
     exit((int)vm_obj_get_number(args[0]));
@@ -56,7 +54,7 @@ void vm_std_assert(vm_t *vm, size_t nargs, vm_obj_t *args) {
 
 void vm_std_error(vm_t *vm, size_t nargs, vm_obj_t *args) {
     if (vm_obj_is_string(args[0])) {
-        *args = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, vm_obj_get_string(args[0])->buf));
+        *args = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, vm_obj_get_string(args[0])->buf));
         return;
     }
     vm_obj_t msg = args[0];
@@ -444,7 +442,7 @@ void vm_std_vm_import(vm_t *vm, size_t nargs, vm_obj_t *args) {
 
 // void vm_std_lang_eb_if(vm_t *vm, size_t nargs, vm_obj_t *args) {
 //     if (!vm_obj_is_number(args[0])) {
-//         args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "pass if a number"));
+//         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "pass if a number"));
 //         return;
 //     }
 //     vm_obj_t obj;
@@ -454,7 +452,7 @@ void vm_std_vm_import(vm_t *vm, size_t nargs, vm_obj_t *args) {
 //         obj = args[2];
 //     }
 //     if (!vm_obj_is_closure(obj)) {
-//         args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "define if like: (if c (t) (f)) ?"));
+//         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "define if like: (if c (t) (f)) ?"));
 //         return;
 //     }
 //     vm_obj_closure_t *closure = vm_obj_get_closure(obj);
@@ -468,12 +466,12 @@ void vm_std_vm_import(vm_t *vm, size_t nargs, vm_obj_t *args) {
 
 void vm_std_lang_eb_error(vm_t *vm, size_t nargs, vm_obj_t *args) {
     if (nargs == 0) {
-        args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "error"));
+        args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "error"));
         return;
     }
     vm_io_buffer_t *buf = vm_io_buffer_new();
     vm_io_buffer_obj_debug(buf, 0, "error: ", args[0], NULL);
-    args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, ""));
+    args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, ""));
     free(buf->buf);
     free(buf);
     return;
@@ -481,7 +479,7 @@ void vm_std_lang_eb_error(vm_t *vm, size_t nargs, vm_obj_t *args) {
 
 void vm_std_lang_eb_putchar(vm_t *vm, size_t nargs, vm_obj_t *args) {
     if (nargs == 0 || !vm_obj_is_number(args[0])) {
-        args[0] = vm_obj_of_error(vm_error_from_msg(vm_location_range_unknown, "putchar: takes a number"));
+        args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "putchar: takes a number"));
         return;
     }
     printf("%c", (int) vm_obj_get_number(args[0]));
