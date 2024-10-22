@@ -98,18 +98,20 @@ static void vm_io_indent(vm_io_buffer_t *out, size_t indent, const char *prefix)
 void vm_io_buffer_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
     if (vm_obj_is_nil(value)) {
             vm_io_buffer_format(out, "nil");
-    }
-    if (vm_obj_is_boolean(value)) {
+    } else if (vm_obj_is_boolean(value)) {
         vm_io_buffer_format(out, "%s", vm_obj_get_boolean(value) ? "true" : "false");
-    }
-    if (vm_obj_is_number(value)) {
+    } else if (vm_obj_is_number(value)) {
         vm_io_buffer_format(out, VM_FORMAT_FLOAT, vm_obj_get_number(value));
-    }
-    if (vm_obj_is_ffi(value)) {
+    } else if (vm_obj_is_ffi(value)) {
         vm_io_buffer_format(out, "<function: %p>", vm_obj_get_ffi(value));
-    }
-    if (vm_obj_is_string(value)) {
+    } else if (vm_obj_is_string(value)) {
         vm_io_buffer_format(out, "\"%s\"", vm_obj_get_string(value)->buf);
+    } else if (vm_obj_is_table(value)) {
+        vm_io_buffer_format(out, "<table: %p>", vm_obj_get_table(value));
+    } else if (vm_obj_is_closure(value)) {
+        vm_io_buffer_format(out, "<closure: %p>", vm_obj_get_closure(value));
+    } else {
+        vm_io_buffer_format(out, "<object>");
     }
 }
 

@@ -7,3 +7,6 @@
 [submodule "vendor/mimalloc"]
 	path = vendor/mimalloc
 	url = https://github.com/microsoft/mimalloc
+[submodule "vendor/light"]
+	path = vendor/light
+	url = https://git.savannah.gnu.org/git/lightning.git

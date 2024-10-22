@@ -1285,7 +1285,7 @@ static const TSSymbol ts_alias_sequences[PRODUCTION_ID_COUNT][MAX_ALIAS_SEQUENCE
     },
 };
 
-static const uint16_t ts_non_terminal_alias_map[] = {
+static uint16_t ts_non_terminal_alias_map[] = {
     aux_sym__doublequote_string_content,
     2,
     aux_sym__doublequote_string_content,
@@ -3423,7 +3423,7 @@ static const TSLexMode ts_lex_modes[STATE_COUNT] = {
     [500] = {(TSStateId)(-1)},
 };
 
-static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
+static uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
     [0] = {
         [sym_comment] = STATE(0),
         [ts_builtin_sym_end] = ACTIONS(1),
@@ -3981,7 +3981,7 @@ static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
     },
 };
 
-static const uint16_t ts_small_parse_table[] = {
+static uint16_t ts_small_parse_table[] = {
     [0] = 45,
     ACTIONS(3),
     1,
@@ -30376,7 +30376,7 @@ static const uint16_t ts_small_parse_table[] = {
     ts_builtin_sym_end,
 };
 
-static const uint32_t ts_small_parse_table_map[] = {
+static uint32_t ts_small_parse_table_map[] = {
     [SMALL_STATE(8)] = 0,
     [SMALL_STATE(9)] = 155,
     [SMALL_STATE(10)] = 310,

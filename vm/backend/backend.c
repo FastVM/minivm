@@ -37,7 +37,7 @@
 #define vm_backend_return(v) ({ \
     vm_obj_t return_ = (v);     \
     VM_OPCODE_SPALL_END();      \
-    return v;                   \
+    return return_;             \
 })
 #define vm_run_repl_jump() \
     VM_OPCODE_SPALL_END(); \
@@ -501,7 +501,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
             vm_interp_push(vm_ir_block_t *, branch.targets[0]);
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BB: {
+        case VM_IR_BRANCH_OPCODE_BOOL: {
             if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 if (!vm_obj_is_nil(v1) && (!vm_obj_is_boolean(v1) || vm_obj_get_boolean(v1))) {
@@ -521,7 +521,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
             }
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BLT: {
+        case VM_IR_BRANCH_OPCODE_IF_LT: {
             if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 vm_obj_t v2 = branch.args[1].lit;
@@ -555,7 +555,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
             }
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BLE: {
+        case VM_IR_BRANCH_OPCODE_IF_LE: {
             if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 vm_obj_t v2 = branch.args[1].lit;
@@ -589,7 +589,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
             }
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BEQ: {
+        case VM_IR_BRANCH_OPCODE_IF_EQ: {
             if (branch.args[0].type == VM_IR_ARG_TYPE_LIT && branch.args[1].type == VM_IR_ARG_TYPE_LIT) {
                 vm_obj_t v1 = branch.args[0].lit;
                 vm_obj_t v2 = branch.args[1].lit;
@@ -623,7 +623,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
             }
             break;
         }
-        case VM_IR_BRANCH_OPCODE_RET: {
+        case VM_IR_BRANCH_OPCODE_RETURN: {
             if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
                 vm_interp_push_op(VM_OP_RET_I);
                 vm_interp_push(vm_obj_t, branch.args[0].lit);
@@ -635,7 +635,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
             }
             break;
         }
-        case VM_IR_BRANCH_OPCODE_LOAD: {
+        case VM_IR_BRANCH_OPCODE_CAPTURE_LOAD: {
             vm_interp_push_op(VM_OP_LOAD);
             vm_interp_push(vm_interp_tag_t, branch.args[0].type);
             if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
@@ -653,7 +653,7 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
             vm_interp_push(vm_ir_block_t *, branch.targets[0]);
             break;
         }
-        case VM_IR_BRANCH_OPCODE_GET: {
+        case VM_IR_BRANCH_OPCODE_TABLE_GET: {
             vm_interp_push_op(VM_OP_GET);
             vm_interp_push(vm_interp_tag_t, branch.args[0].type);
             if (branch.args[0].type == VM_IR_ARG_TYPE_LIT) {
@@ -730,16 +730,23 @@ void *vm_interp_renumber_block(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
 
 #define vm_run_repl_out(value) (regs[vm_run_repl_read(vm_interp_reg_t)] = (value))
 
-void vm_interp_renumber_blocks(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
+size_t vm_interp_renumber_blocks(vm_t *vm, void **ptrs, vm_ir_block_t *block) {
+    size_t nregs = block->nregs;
     if (block->code == NULL) {
         block->code = vm_interp_renumber_block(vm, &ptrs[0], block);
-        if (block->branch.targets[0] != NULL) {
-            vm_interp_renumber_blocks(vm, ptrs, block->branch.targets[0]);
+        for (size_t i = 0; i < 2; i++) {
+            vm_ir_block_t *target = block->branch.targets[i];
+            if (target != NULL) {
+                size_t next_nregs = vm_interp_renumber_blocks(vm, ptrs, target);
+                if (next_nregs > nregs) {
+                    nregs = next_nregs;
+                }
+            }
         }
-        if (block->branch.targets[1] != NULL) {
-            vm_interp_renumber_blocks(vm, ptrs, block->branch.targets[1]);
-        }
+        // printf("bb%zu: %zu regs\n", (size_t) block->id, (size_t) block->nregs);
+        block->nregs = nregs;
     }
+    return nregs;
 }
 
 vm_obj_t vm_run_repl_inner(vm_t *vm, vm_ir_block_t *block) {
@@ -792,9 +799,9 @@ vm_obj_t vm_run_repl_inner(vm_t *vm, vm_ir_block_t *block) {
         [VM_OP_CALL] = &&VM_OP_CALL,
     };
     
-    vm_interp_renumber_blocks(vm, ptrs, block);
+    size_t nregs = vm_interp_renumber_blocks(vm, ptrs, block);
 
-    vm_obj_t *next_regs = &regs[VM_NREGS];
+    vm_obj_t *next_regs = &regs[nregs];
 #if VM_DEBUG_BACKEND_BLOCKS
     {
         vm_io_buffer_t *buf = vm_io_buffer_new();
@@ -1267,7 +1274,6 @@ VM_OP_LOAD:;
     }
 VM_OP_GET:;
     VM_OPCODE_DEBUG(get) {
-        uint8_t *c0 = code;
         vm_obj_t v1 = vm_run_repl_arg();
         vm_obj_t v2 = vm_run_repl_arg();
         if (!vm_obj_is_table(v1)) {

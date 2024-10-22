@@ -2,11 +2,13 @@
  # Must be a GCC or Clang
 CC ?= cc
 
-OPT ?= -O2 -flto
+OPT ?= -O3 -ffast-math -flto -DNDEBUG
 
 EXE ?= 
 
 TIME_CMD ?= $(shell which gdate || which date) +%s%3N
+
+LLVM_PROFDATA ?= llvm-profdata
 
 LIBM ?= YES
 LIBM_NO :=
@@ -18,6 +20,8 @@ BASE_CFLAGS := ${OPT} -Ivendor/tree-sitter/lib/include -Ivendor/mimalloc/include
 BASE_LDFLAGS := ${OPT} ${LDFLAGS} ${LIBM_FLAGS}
 
 # mimalloc
+
+# BASE_LDFLAGS += -lSynchronization
 MI_PRIM_SRC := vendor/mimalloc/src/prim/unix/prim.c
 
 # object files and depends
@@ -30,8 +34,6 @@ MAIN_SRCS += ${VM_SRCS} ${TS_SRCS} ${IC_SRCS} ${MI_SRCS}
 MAIN_OBJS = ${MAIN_SRCS:%.c=build/obj/%.o}
 
 MAIN_DEPS = ${MAIN_SRCS:%.c=build/dep/%.dep}
-
-MAKE_INCLUDE ?= 
 
 # tests
 
@@ -53,18 +55,19 @@ clean: .dummy
 	rm -rf build
 
 gcc-pgo: .dummy
-	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-generate -DNDEBUG"
+	$(MAKE) -Bj minivm OPT="$(OPT) -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-generate"
 	build/bin/minivm test/lua/fib/fib.lua
 	build/bin/minivm test/lua/tables/trees.lua
 	build/bin/minivm test/lua/closure/funcret.lua
-	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-use -DNDEBUG"
+	$(MAKE) -Bj minivm OPT="$(OPT) -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-use"
 
 clang-pgo: .dummy
-	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fno-exceptions -fomit-frame-pointer -fprofile-generate -DNDEBUG"
+	$(MAKE) -Bj minivm OPT="$(OPT) -mllvm -polly -fno-exceptions -fprofile-instr-generate"
 	build/bin/minivm test/lua/fib/fib.lua
 	build/bin/minivm test/lua/tables/trees.lua
 	build/bin/minivm test/lua/closure/funcret.lua
-	$(MAKE) -Bj minivm OPT="-O3 -flto=auto -fno-exceptions -fomit-frame-pointer -fprofile-use -DNDEBUG"
+	$(LLVM_PROFDATA) merge default.profraw -o default.profdata
+	$(MAKE) -Bj minivm OPT="$(OPT) -mllvm -polly -fno-exceptions -fprofile-use"
 
 wasm: .dummy
 	$(MAKE) -Bj CC=emcc EXE=.wasm \
@@ -87,7 +90,7 @@ ${TEST_TXTS}: ${@:build/test/%.log=%.lua} minivm
 ${MAIN_OBJS}:
 	@mkdir -p ${dir ${@}}
 	@mkdir -p ${dir ${@:build/obj/%.o=build/dep/%.dep}}
-	${CC} ${@:build/obj/%.o=%.c}  -c -o ${@} ${BASE_CFLAGS}
+	${CC} ${@:build/obj/%.o=%.c} -c -o ${@} ${BASE_CFLAGS}
 	${CC} ${@:build/obj/%.o=%.c} -MM -MF ${@:build/obj/%.o=build/dep/%.dep} -MT ${@} ${BASE_CFLAGS}
 
 include ${wildcard ${MAIN_DEPS}}

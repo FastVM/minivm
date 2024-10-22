@@ -9,12 +9,9 @@
 
 #define VM_VERSION "0.0.5"
 
-#define VM_NREGS 256
-
-#define VM_GC_MIN (1 << 8)
-// #define VM_GC_MIN (1 << 28)
-// #define VM_GC_MIN 16
-#define VM_GC_FACTOR 1.4
+#define VM_GC_MIN 16
+#define VM_GC_FACTOR 1.7
+#define VM_GC_STATS 0
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
@@ -43,7 +40,6 @@ typedef struct vm_error_t vm_error_t;
 typedef struct vm_ir_block_t vm_ir_block_t;
 typedef struct vm_ir_blocks_t vm_ir_blocks_t;
 typedef struct vm_obj_closure_t vm_obj_closure_t;
-typedef struct vm_obj_gc_header_t vm_obj_gc_header_t;
 typedef struct vm_obj_table_t vm_obj_table_t;
 typedef struct vm_table_pair_t vm_table_pair_t;
 
@@ -55,31 +51,27 @@ struct vm_table_pair_t {
     vm_obj_t value;
 };
 
-struct vm_obj_gc_header_t {
-    bool mark: 1;
-    // uint8_t type: 7;
-};
-
 struct vm_obj_table_t {
-    vm_obj_gc_header_t header;
-    vm_table_pair_t *pairs;
-    uint32_t len: 29;
-    uint32_t used: 29;
-    uint8_t size: 6;
+    vm_table_pair_t *restrict pairs;
+    uint32_t used: 28;
+    uint32_t len: 28;
+    uint8_t size: 5;
+    uint8_t mark: 1;
 };
 
 struct vm_obj_closure_t {
-    vm_obj_gc_header_t header;
-    uint32_t len;
     struct vm_ir_block_t *block;
+    uint32_t len: 31;
+    uint8_t mark: 1;
     vm_obj_t values[];
 };
 
 struct vm_io_buffer_t {
-    vm_obj_gc_header_t header;
-    char *buf;
-    uint32_t len;
     uint32_t alloc;
+    uint32_t len;
+    char *buf;
+    uint32_t hash;
+    uint8_t mark: 1;
 };
 
 struct vm_t {

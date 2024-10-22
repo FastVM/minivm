@@ -8,8 +8,12 @@
 #include "gc.h"
 
 vm_t *vm_state_new(void) {
+#if VM_EMPTY_BYTE == 0
+    vm_obj_t *base = vm_calloc(sizeof(vm_obj_t) * (1 << 20));
+#else
     vm_obj_t *base = vm_malloc(sizeof(vm_obj_t) * (1 << 20));
     memset(base, VM_EMPTY_BYTE, sizeof(vm_obj_t) * (1 << 20));
+#endif
     
     vm_t *vm = vm_malloc(sizeof(vm_t));
     *vm = (vm_t) {

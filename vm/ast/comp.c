@@ -136,6 +136,9 @@ static vm_ir_arg_t vm_ast_comp_reg_named(vm_ast_comp_t *comp, const char *name) 
     } else {
         comp->names->regs.ptr[reg] = vm_strdup(name);
     }
+    if (reg >= comp->cur->nregs) {
+        comp->cur->nregs = reg + 1;
+    }
     return (vm_ir_arg_t){
         .type = VM_IR_ARG_TYPE_REG,
         .reg = reg,
@@ -213,7 +216,7 @@ static vm_ir_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     vm_ast_blocks_branch(
         comp,
         (vm_ir_branch_t){
-            .op = VM_IR_BRANCH_OPCODE_LOAD,
+            .op = VM_IR_BRANCH_OPCODE_CAPTURE_LOAD,
             .out = reg,
             .args = vm_ast_args(2, cap, slot),
             .targets[0] = next,
@@ -237,7 +240,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BLT,
+                            .op = VM_IR_BRANCH_OPCODE_IF_LT,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iftrue,
                             .targets[1] = iffalse,
@@ -251,7 +254,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BLT,
+                            .op = VM_IR_BRANCH_OPCODE_IF_LT,
                             .args = vm_ast_args(2, arg2, arg1),
                             .targets[0] = iftrue,
                             .targets[1] = iffalse,
@@ -265,7 +268,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BLE,
+                            .op = VM_IR_BRANCH_OPCODE_IF_LE,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iftrue,
                             .targets[1] = iffalse,
@@ -279,7 +282,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BLE,
+                            .op = VM_IR_BRANCH_OPCODE_IF_LE,
                             .args = vm_ast_args(2, arg2, arg1),
                             .targets[0] = iftrue,
                             .targets[1] = iffalse,
@@ -293,7 +296,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BEQ,
+                            .op = VM_IR_BRANCH_OPCODE_IF_EQ,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iftrue,
                             .targets[1] = iffalse,
@@ -307,7 +310,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BEQ,
+                            .op = VM_IR_BRANCH_OPCODE_IF_EQ,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = iffalse,
                             .targets[1] = iftrue,
@@ -344,16 +347,21 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
                     .error = vm_obj_get_error(value),
                 };
             }
+            vm_ir_block_t *target;
+            if (!vm_obj_is_nil(value) && (!vm_obj_is_boolean(value) || vm_obj_get_boolean(value))) {
+                target = iftrue;   
+            } else {
+                target = iffalse;
+            }
             vm_ast_blocks_branch(
                 comp,
                 (vm_ir_branch_t){
                     .op = VM_IR_BRANCH_OPCODE_JUMP,
                     .args = vm_ast_args(0),
-                    .targets[0] = iftrue,
+                    .targets[0] = target,
                 }
             );
             goto ret_ok;
-            ;
         }
         case VM_AST_NODE_IDENT: {
             break;
@@ -363,7 +371,7 @@ static vm_ir_arg_t vm_ast_comp_br_raw(vm_ast_comp_t *comp, vm_ast_node_t node, v
     vm_ast_blocks_branch(
         comp,
         (vm_ir_branch_t){
-            .op = VM_IR_BRANCH_OPCODE_BB,
+            .op = VM_IR_BRANCH_OPCODE_BOOL,
             .args = vm_ast_args(1, bb_arg),
             .targets[0] = iftrue,
             .targets[1] = iffalse,
@@ -396,7 +404,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BB,
+                            .op = VM_IR_BRANCH_OPCODE_BOOL,
                             .args = vm_ast_args(1, arg1),
                             .targets[0] = iftrue,
                             .targets[1] = iffalse,
@@ -449,7 +457,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_BB,
+                            .op = VM_IR_BRANCH_OPCODE_BOOL,
                             .args = vm_ast_args(1, arg1),
                             .targets[0] = iftrue,
                             .targets[1] = iffalse,
@@ -659,7 +667,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_GET,
+                            .op = VM_IR_BRANCH_OPCODE_TABLE_GET,
                             .out = out,
                             .args = vm_ast_args(2, arg1, arg2),
                             .targets[0] = next,
@@ -825,7 +833,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_RET,
+                            .op = VM_IR_BRANCH_OPCODE_RETURN,
                             .args = vm_ast_args(1, vm_arg_nil()),
                         }
                     );
@@ -912,7 +920,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_RET,
+                            .op = VM_IR_BRANCH_OPCODE_RETURN,
                             .args = vm_ast_args(1, arg),
                         }
                     );
@@ -925,6 +933,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     for (size_t i = count; i < comp->names->regs.len; i++) {
                         vm_free(comp->names->regs.ptr[i]);
                     }
+                    comp->cur->nregs = comp->names->regs.len;
                     comp->names->regs.len = count;
                     return ret;
                 }
@@ -973,7 +982,7 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                     vm_ast_blocks_branch(
                         comp,
                         (vm_ir_branch_t){
-                            .op = VM_IR_BRANCH_OPCODE_GET,
+                            .op = VM_IR_BRANCH_OPCODE_TABLE_GET,
                             .out = out,
                             .args = vm_ast_args(2, got, env_key),
                             .targets[0] = next,
@@ -992,6 +1001,9 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
 }
 
 vm_ir_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
+    // vm_io_buffer_t *buf = vm_io_buffer_new();
+    // vm_ast_print_node(buf, 0, "ast = ", node);
+    // printf("%.*s", buf->len, buf->buf);
     vm_ast_comp_t comp = (vm_ast_comp_t){
         .names = NULL,
         .cur = NULL,
@@ -1000,7 +1012,6 @@ vm_ir_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
     };
     vm_ast_comp_names_push(&comp);
     vm_ir_block_t *entry = vm_ast_comp_new_block(&comp);
-    size_t start = entry->id;
     comp.cur = entry;
     vm_ir_arg_t std = (vm_ir_arg_t) {
         .type = VM_IR_ARG_TYPE_LIT,

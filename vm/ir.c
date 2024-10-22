@@ -34,31 +34,31 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_ir_branch_t val) {
             vm_io_buffer_format(out, "jump");
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BB: {
+        case VM_IR_BRANCH_OPCODE_BOOL: {
             vm_io_buffer_format(out, "bb");
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BLT: {
+        case VM_IR_BRANCH_OPCODE_IF_LT: {
             vm_io_buffer_format(out, "blt");
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BLE: {
+        case VM_IR_BRANCH_OPCODE_IF_LE: {
             vm_io_buffer_format(out, "ble");
             break;
         }
-        case VM_IR_BRANCH_OPCODE_BEQ: {
+        case VM_IR_BRANCH_OPCODE_IF_EQ: {
             vm_io_buffer_format(out, "beq");
             break;
         }
-        case VM_IR_BRANCH_OPCODE_RET: {
+        case VM_IR_BRANCH_OPCODE_RETURN: {
             vm_io_buffer_format(out, "ret");
             break;
         }
-        case VM_IR_BRANCH_OPCODE_GET: {
+        case VM_IR_BRANCH_OPCODE_TABLE_GET: {
             vm_io_buffer_format(out, "get");
             break;
         }
-        case VM_IR_BRANCH_OPCODE_LOAD: {
+        case VM_IR_BRANCH_OPCODE_CAPTURE_LOAD: {
             vm_io_buffer_format(out, "load");
             break;
         }
@@ -84,7 +84,7 @@ void vm_io_format_branch(vm_io_buffer_t *out, vm_ir_branch_t val) {
             vm_io_format_arg(out, val.args[i]);
         }
     }
-    if (val.op == VM_IR_BRANCH_OPCODE_LOAD || val.op == VM_IR_BRANCH_OPCODE_GET || val.op == VM_IR_BRANCH_OPCODE_CALL) {
+    if (val.op == VM_IR_BRANCH_OPCODE_CAPTURE_LOAD || val.op == VM_IR_BRANCH_OPCODE_TABLE_GET || val.op == VM_IR_BRANCH_OPCODE_CALL) {
         vm_io_buffer_format(out, " then .%zi", (size_t)val.targets[0]->id);
     } else {
         if (val.targets[0]) {

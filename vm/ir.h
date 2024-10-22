@@ -27,13 +27,13 @@ enum {
 enum {
     VM_IR_BRANCH_OPCODE_FALL,
     VM_IR_BRANCH_OPCODE_JUMP,
-    VM_IR_BRANCH_OPCODE_BB,
-    VM_IR_BRANCH_OPCODE_BLT,
-    VM_IR_BRANCH_OPCODE_BLE,
-    VM_IR_BRANCH_OPCODE_BEQ,
-    VM_IR_BRANCH_OPCODE_RET,
-    VM_IR_BRANCH_OPCODE_LOAD,
-    VM_IR_BRANCH_OPCODE_GET,
+    VM_IR_BRANCH_OPCODE_BOOL,
+    VM_IR_BRANCH_OPCODE_IF_LT,
+    VM_IR_BRANCH_OPCODE_IF_LE,
+    VM_IR_BRANCH_OPCODE_IF_EQ,
+    VM_IR_BRANCH_OPCODE_RETURN,
+    VM_IR_BRANCH_OPCODE_CAPTURE_LOAD,
+    VM_IR_BRANCH_OPCODE_TABLE_GET,
     VM_IR_BRANCH_OPCODE_CALL,
 };
 
@@ -48,6 +48,7 @@ enum {
     VM_IR_INSTR_OPCODE_MOD,
     VM_IR_INSTR_OPCODE_POW,
     VM_IR_INSTR_OPCODE_CONCAT,
+    VM_IR_INSTR_OPCODE_CAPTURE_NEW,
     VM_IR_INSTR_OPCODE_TABLE_SET,
     VM_IR_INSTR_OPCODE_TABLE_NEW,
     VM_IR_INSTR_OPCODE_TABLE_LEN,
@@ -86,8 +87,6 @@ struct vm_ir_instr_t {
 };
 
 struct vm_ir_block_t {
-    vm_obj_gc_header_t header;
-
     vm_location_range_t range;
     
     uint32_t id;
@@ -99,8 +98,10 @@ struct vm_ir_block_t {
 
     void *code;
 
-    uint32_t alloc: 31;
+    uint32_t nregs: 32;
+    uint32_t alloc: 30;
     bool isfunc: 1;
+    uint8_t mark: 1;
 };
 
 

@@ -26,7 +26,7 @@ void vm_std_load(vm_t *vm, size_t nargs, vm_obj_t *args) {
     vm_ir_block_t *entry = vm_lang_lua_compile(vm, str, "__load__");
 
     vm_obj_closure_t *closure = vm_malloc(sizeof(vm_obj_closure_t));
-    closure->header = (vm_obj_gc_header_t) {0};
+    closure->mark = 0;
     closure->block = entry;
     closure->len = 0;
     vm_obj_t ret = vm_obj_of_closure(closure);
@@ -72,7 +72,7 @@ void vm_std_vm_closure(vm_t *vm, size_t nargs, vm_obj_t *args) {
         return;
     }
     vm_obj_closure_t *closure = vm_malloc(sizeof(vm_obj_closure_t) + sizeof(vm_obj_t) * (nargs - 1));
-    closure->header = (vm_obj_gc_header_t) {0};
+    closure->mark = 0;
     closure->block = vm_obj_get_block(args[0]);
     closure->len = nargs - 1;
     for (size_t i = 0; i < nargs - 1; i++) {

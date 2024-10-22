@@ -11,35 +11,41 @@ vm_obj_t vm_obj_of_string(vm_t *vm, const char *str) {
     return ret;
 }
 
-uint64_t vm_obj_hash(vm_obj_t value) {
+uint32_t vm_obj_hash(vm_obj_t value) {
     if (vm_obj_is_number(value)) {
         double n = vm_obj_get_number(value);
-        return *(uint64_t *)&n;
+        if (n == floor(n) && INT32_MIN <= n && n <= INT32_MAX) {
+            return (uint32_t) (int32_t) n * 31;
+        }
+        return (uint32_t) (*(uint64_t *)&n >> 12) * 37;
     }
     if (vm_obj_is_string(value)) {
-        uint64_t ret = 0xcbf29ce484222325;
         vm_io_buffer_t *restrict buf = vm_obj_get_string(value);
-        for (size_t i = 0; i < buf->len; i++) {
-            char c = buf->buf[i];
-            if (c == '\0') {
-                break;
+        if (buf->hash == 0) {
+            uint32_t ret = 0x811c9dc5;
+            for (size_t i = 0; i < buf->len; i++) {
+                char c = buf->buf[i];
+                if (c == '\0') {
+                    break;
+                }
+                ret *= 0x01000193;
+                ret ^= c;
             }
-            ret *= 0x00000100000001B3;
-            ret ^= c;
+            buf->hash = ret;
         }
-        return ret;
+        return buf->hash;
     }
     if (vm_obj_is_boolean(value)) {
-        return UINT64_MAX - (uint64_t)vm_obj_get_boolean(value);
+        return UINT32_MAX - (uint32_t)vm_obj_get_boolean(value);
     }
     if (vm_obj_is_ffi(value)) {
-        return (uint64_t)(size_t)vm_obj_get_ffi(value) >> 4;
+        return (uint32_t)(size_t)vm_obj_get_ffi(value) >> 4;
     }
     if (vm_obj_is_closure(value)) {
-        return (uint64_t)(size_t)vm_obj_get_closure(value) >> 4;
+        return (uint32_t)(size_t)vm_obj_get_closure(value) >> 4;
     }
     if (vm_obj_is_table(value)) {
-        return (uint64_t)(size_t)vm_obj_get_table(value) >> 4;
+        return (uint32_t)(size_t)vm_obj_get_table(value) >> 4;
     }
     return 0;
 }
@@ -110,15 +116,19 @@ void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) 
                 table->len = (size_t)(n - 1);
             }
         }
-    } else if ((table->used + 1) * 100 > vm_primes_table[table->size] * 60) {
+    } else if (vm_primes_table[table->size] <= 4 ? table->used == vm_primes_table[table->size] : (table->used) * 100u > vm_primes_table[table->size] * 75u) {
         vm_obj_table_t ret;
         ret.size = table->size + 1;
         uint64_t ret_len = vm_primes_table[ret.size];
+#if VM_EMPTY_BYTE == 0
+        ret.pairs = vm_calloc(sizeof(vm_table_pair_t) * ret_len);
+#else
         ret.pairs = vm_malloc(sizeof(vm_table_pair_t) * ret_len);
         memset(ret.pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * ret_len);
+#endif
         ret.used = 0;
         ret.len = 0;
-        ret.header = table->header;
+        ret.mark = table->mark;
         size_t table_len = vm_primes_table[table->size];
         for (size_t i = 0; i < table_len; i++) {
             vm_table_pair_t *in_pair = &table->pairs[i];

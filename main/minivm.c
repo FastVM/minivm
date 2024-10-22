@@ -7,17 +7,17 @@
 #include "../vm/std.h"
 #include "../vm/lua/repl.h"
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-
 #if VM_USE_SPALL
 #define SPALL_AUTO_IMPLEMENTATION
 #include "../vendor/spall/auto.h"
 #endif
 
-__attribute__((no_instrument_function)) int main(int argc, char **argv) {
+#if VM_USE_SPALL
+int __attribute__((no_instrument_function))
+#else
+int
+#endif
+    main(int argc, char **argv) {
 #if VM_USE_SPALL
     spall_auto_init("out.spall");
     spall_auto_thread_init(0, SPALL_DEFAULT_BUFFER_SIZE);
@@ -41,8 +41,6 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
             echo = false;
         } else {
             isrepl = false;
-
-            clock_t start = clock();
 
             const char *name = NULL;
             const char *src;
@@ -84,6 +82,10 @@ __attribute__((no_instrument_function)) int main(int argc, char **argv) {
                 break;
             }
         }
+    }
+
+    if (isrepl) {
+        vm_lang_lua_repl(vm);
     }
 
     vm_state_delete(vm);
