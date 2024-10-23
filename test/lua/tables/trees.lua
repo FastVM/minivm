@@ -35,6 +35,7 @@ local maxdepth = tonumber(arg and arg[1]) or 16
 local stretchdepth = maxdepth + 1
 
 local stretchtree = BottomUpTree(0, stretchdepth)
+print(stretchdepth, ItemCheck(stretchtree))
 
 local longlivedtree = BottomUpTree(0, maxdepth)
 

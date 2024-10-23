@@ -2,7 +2,6 @@
 #include "io.h"
 #include "ir.h"
 #include "math.h"
-#include "primes.inc"
 
 void vm_io_buffer_vformat(vm_io_buffer_t *buf, const char *fmt, va_list ap) {
     if (buf->buf == NULL) {
@@ -168,31 +167,31 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
             vm_io_buffer_format(out, "table(%p) {\n", tab);
             size_t len = vm_primes_table[tab->size];
             for (size_t i = 0; i < len; i++) {
-                vm_table_pair_t p = tab->pairs[i];
-                if (vm_obj_is_nil(p.key)) {
+                vm_obj_t key = tab->entries[i];
+                if (vm_obj_is_nil(key)) {
                     // no print for empty keys
-                } else if (vm_obj_is_boolean(p.key)) {
+                } else if (vm_obj_is_boolean(key)) {
                     if (vm_obj_get_boolean(value)) {
-                        vm_io_buffer_obj_debug(out, indent + 1, "[[true]] = ", p.value, &next);
+                        vm_io_buffer_obj_debug(out, indent + 1, "[[true]] = ", tab->entries[vm_primes_table[tab->size] + i], &next);
                     } else {
-                        vm_io_buffer_obj_debug(out, indent + 1, "[[false]] = ", p.value, &next);
+                        vm_io_buffer_obj_debug(out, indent + 1, "[[false]] = ", tab->entries[vm_primes_table[tab->size] + i], &next);
                     }
-                } else if (vm_obj_is_number(p.key)) {
+                } else if (vm_obj_is_number(key)) {
                     char buf[64];
-                    snprintf(buf, 63, "[[" VM_FORMAT_FLOAT "]] = ", vm_obj_get_number(p.key));
-                    vm_io_buffer_obj_debug(out, indent + 1, buf, p.value, &next);
+                    snprintf(buf, 63, "[[" VM_FORMAT_FLOAT "]] = ", vm_obj_get_number(key));
+                    vm_io_buffer_obj_debug(out, indent + 1, buf, tab->entries[vm_primes_table[tab->size] + i], &next);
                 }
-                else if (vm_obj_is_string(p.key)) {
+                else if (vm_obj_is_string(key)) {
                     vm_io_buffer_t *buf = vm_io_buffer_new();
-                    vm_io_buffer_format(buf, "%s = ", vm_obj_get_string(p.key)->buf);
-                    vm_io_buffer_obj_debug(out, indent + 1, buf->buf, p.value, &next);
+                    vm_io_buffer_format(buf, "%s = ", vm_obj_get_string(key)->buf);
+                    vm_io_buffer_obj_debug(out, indent + 1, buf->buf, tab->entries[vm_primes_table[tab->size] + i], &next);
                     vm_free(buf->buf);
                     vm_free(buf);
                 } else {
                     vm_io_indent(out, indent + 1, "");
                     vm_io_buffer_format(out, "pair {\n");
-                    vm_io_buffer_obj_debug(out, indent + 2, "key = ", p.key, &next);
-                    vm_io_buffer_obj_debug(out, indent + 2, "val = ", p.value, &next);
+                    vm_io_buffer_obj_debug(out, indent + 2, "key = ", key, &next);
+                    vm_io_buffer_obj_debug(out, indent + 2, "val = ", tab->entries[vm_primes_table[tab->size] + i], &next);
                     vm_io_indent(out, indent + 1, "");
                     vm_io_buffer_format(out, "}\n");
                 }

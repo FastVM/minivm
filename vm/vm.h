@@ -9,9 +9,14 @@
 
 #define VM_VERSION "0.0.5"
 
-#define VM_GC_MIN 16
-#define VM_GC_FACTOR 1.7
+#define VM_MALLOC_MI 0
+#define VM_MALLOC_SYS 1
+
+#define VM_GC_MIN 256
+#define VM_GC_FACTOR 1.4
 #define VM_GC_STATS 0
+#define VM_GC_STATS_DEBUG 0
+#define VM_GC_DISABLED 1
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
@@ -30,8 +35,6 @@ struct vm_ir_blocks_t;
 struct vm_obj_closure_t;
 struct vm_obj_gc_header_t;
 struct vm_obj_table_t;
-struct vm_table_pair_t;
-struct vm_table_pair_t;
 struct vm_io_buffer_t;
 
 typedef struct vm_io_buffer_t vm_io_buffer_t;
@@ -41,18 +44,12 @@ typedef struct vm_ir_block_t vm_ir_block_t;
 typedef struct vm_ir_blocks_t vm_ir_blocks_t;
 typedef struct vm_obj_closure_t vm_obj_closure_t;
 typedef struct vm_obj_table_t vm_obj_table_t;
-typedef struct vm_table_pair_t vm_table_pair_t;
 
 typedef nanbox_t vm_obj_t;
 typedef void vm_ffi_t(vm_t *vm, size_t nargs, vm_obj_t *args);
 
-struct vm_table_pair_t {
-    vm_obj_t key;
-    vm_obj_t value;
-};
-
 struct vm_obj_table_t {
-    vm_table_pair_t *restrict pairs;
+    vm_obj_t *restrict entries;
     uint32_t used: 28;
     uint32_t len: 28;
     uint8_t size: 5;
@@ -91,5 +88,6 @@ vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
 
 #include "obj.inc"
+#include "primes.inc"
 
 #endif

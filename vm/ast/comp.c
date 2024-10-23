@@ -4,6 +4,7 @@
 #include "build.h"
 #include "print.h"
 #include "../gc.h"
+#include "../errors.h"
 
 struct vm_ast_comp_t;
 typedef struct vm_ast_comp_t vm_ast_comp_t;
@@ -1027,14 +1028,8 @@ vm_ir_block_t *vm_ast_comp_more(vm_t *vm, vm_ast_node_t node) {
     );
     vm_ir_arg_t result_arg = vm_ast_comp_to_raw(&comp, node);
     if (result_arg.type == VM_IR_ARG_TYPE_ERROR) {
-        for (vm_error_t *error = result_arg.error; error != NULL; error = error->child) {
-            if (error->child != NULL) {
-                fprintf(stderr, "range: %zu .. %zu\n", error->range.start.byte, error->range.stop.byte);
-            } else {
-                fprintf(stderr, "error: %s\n", error->msg);
-                break;
-            }
-        }
+        vm_error_report(result_arg.error, stderr);
+        return NULL;
     }
     vm_ast_comp_names_t *names = vm_ast_comp_names_pop(&comp);
     vm_ast_names_free(names);

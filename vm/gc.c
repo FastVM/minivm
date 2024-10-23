@@ -1,7 +1,6 @@
 
 #include "gc.h"
 #include "ir.h"
-#include "primes.inc"
 
 struct vm_gc_objs_t;
 struct vm_gc_t;
@@ -40,7 +39,7 @@ struct vm_gc_t {
             } block;
         } by_type;
     } stats;
-    #endif
+#endif
 };
 
 static inline void vm_gc_objs_add(vm_gc_objs_t *restrict objs, vm_obj_t obj) {
@@ -88,10 +87,8 @@ static inline void vm_gc_mark_obj(vm_obj_t obj) {
         if (!table->mark) {
             table->mark = true;
             uint32_t len = vm_primes_table[table->size];
-            vm_table_pair_t *pairs = table->pairs;
-            for (uint32_t i = 0; i < len; i++) {
-                vm_gc_mark_obj(pairs[i].key);
-                vm_gc_mark_obj(pairs[i].value);
+            for (uint32_t i = 0; i < len * 2; i++) {
+                vm_gc_mark_obj(table->entries[i]);
             }
         }
     } else if (vm_obj_is_closure(obj)) {
@@ -113,7 +110,7 @@ void vm_gc_mark(vm_t *vm, vm_obj_t *top) {
         vm_gc_mark_block(blocks->block);
     }
     vm_gc_mark_obj(vm->std);
-    for (vm_obj_t *head = vm->base; head < top; head++) {
+    for (vm_obj_t *restrict head = vm->base; head < top; head++) {
         vm_gc_mark_obj(*head);
     }
 }
@@ -144,7 +141,7 @@ void vm_gc_sweep(vm_t *vm) {
         } else if (vm_obj_is_table(obj)) {
             vm_obj_table_t *table = vm_obj_get_table(obj);
             if (!table->mark) {
-                vm_free(table->pairs);
+                vm_free(table->entries);
                 vm_free(table);
             } else {
                 table->mark = false;
@@ -184,39 +181,40 @@ void vm_gc_sweep(vm_t *vm) {
             }
         }
     }
-    // printf("\n");
-    // printf("--- gc#%zu: %f%% keep ---\n", gc->runs, (double) write / gc->objs.len * 100.0);
-    // printf("strings: %zu\n", gc->stats.by_type.string.count);
-    // printf("tables: %zu\n", gc->stats.by_type.table.count);
-    // printf("closures: %zu\n", gc->stats.by_type.closure.count);
-    // printf("blocks: %zu\n", gc->stats.by_type.block.count);
-    // printf("\n");
+#if VM_GC_STATS && VM_GC_STATS_DEBUG
+    printf("--- gc#%zu: %f%% keep ---\n", gc->runs, (double) write / gc->objs.len * 100.0);
+    printf("strings: %zu\n", gc->stats.by_type.string.count);
+    printf("tables: %zu\n", gc->stats.by_type.table.count);
+    printf("closures: %zu\n", gc->stats.by_type.closure.count);
+    printf("blocks: %zu\n", gc->stats.by_type.block.count);
+    printf("\n");
+#endif
     gc->objs.len = write;
     size_t next = write * VM_GC_FACTOR;
-    // if (next >= gc->last) {
+    if (next >= gc->last) {
         gc->last = next;
-    // }
+    }
 }
 
 vm_obj_table_t *vm_table_new(vm_t *vm) {
-    vm_obj_table_t *ret = vm_malloc(sizeof(vm_obj_table_t));
-#if VM_EMPTY_BYTE == 0
-    ret->pairs = vm_calloc(sizeof(vm_table_pair_t) * vm_primes_table[0]);
-#else
-    ret->pairs = vm_malloc(sizeof(vm_table_pair_t) * vm_primes_table[0]);
-    memset(ret->pairs, VM_EMPTY_BYTE, sizeof(vm_table_pair_t) * vm_primes_table[0]);
-#endif
+    vm_obj_table_t *restrict ret = vm_malloc(sizeof(vm_obj_table_t));
     ret->size = 0;
     ret->used = 0;
     ret->len = 0;
     ret->mark = false;
+#if VM_EMPTY_BYTE == 0
+    ret->entries = vm_calloc(sizeof(vm_obj_t) * vm_primes_table[ret->size] * 2);
+#else
+    ret->entries = vm_malloc(sizeof(vm_obj_t) * vm_primes_table[ret->size] * 2);
+    memset(ret->entries, VM_EMPTY_BYTE, sizeof(vm_obj_t) * vm_primes_table[ret->size] * 2);
+#endif
     vm_gc_add(vm, vm_obj_of_table(ret));
     return ret;
 }
 
 void vm_gc_run(vm_t *vm, vm_obj_t *top) {
     vm_gc_t *restrict gc = vm->gc;
-    if (gc->last >= gc->objs.len) {
+    if (gc->last >= gc->objs.len || VM_GC_DISABLED) {
         return;
     }
     gc->runs += 1;
@@ -225,11 +223,11 @@ void vm_gc_run(vm_t *vm, vm_obj_t *top) {
 }
 
 void vm_gc_init(vm_t *vm) {
-    vm->gc = vm_malloc(sizeof(vm_gc_t));
-    vm_gc_t *restrict gc = vm->gc;
+    vm_gc_t *gc = vm_malloc(sizeof(vm_gc_t));
     *gc = (vm_gc_t){
         .last = VM_GC_MIN,
     };
+    vm->gc = gc;
 }
 
 void vm_gc_deinit(vm_t *vm) {

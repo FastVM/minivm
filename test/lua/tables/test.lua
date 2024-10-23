@@ -19,4 +19,4 @@ local function ItemCheck(tree)
 end
 
 local stretchtree = BottomUpTree(0, 12)
-print(ItemCheck(stretchtree))
+print(stretchdepth, ItemCheck(stretchtree))

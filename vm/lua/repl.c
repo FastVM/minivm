@@ -7,7 +7,6 @@
 #include "../ast/ast.h"
 #include "../ast/comp.h"
 #include "../backend/backend.h"
-#include "../primes.inc"
 
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
@@ -33,9 +32,9 @@ void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
 with_new_std:;
     uint64_t len = vm_primes_table[std->size];
     for (size_t i = 0; i < len; i++) {
-        vm_table_pair_t *pair = &std->pairs[i];
-        if (vm_obj_is_table(pair->key)) {
-            const char *got = vm_obj_get_string(pair->key)->buf;
+        vm_obj_t std_key = std->entries[i];
+        if (vm_obj_is_table(std_key)) {
+            const char *got = vm_obj_get_string(std_key)->buf;
             size_t i = 0;
             while (got[i] != '\0') {
                 if (last_word[i] == '\0') {
@@ -53,9 +52,9 @@ with_new_std:;
                     continue;
                 }
             }
-            if (vm_obj_is_nil(pair->value)) {
+            if (vm_obj_is_nil(std_key)) {
                 if (last_word[i] == '.') {
-                    std = vm_obj_get_table(pair->key);
+                    std = vm_obj_get_table(std_key);
                     last_word = &last_word[i + 1];
                     goto with_new_std;
                 }

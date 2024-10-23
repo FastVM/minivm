@@ -3,9 +3,6 @@
 
 #include "lib.h"
 
-struct vm_table_pair_t;
-typedef struct vm_table_pair_t vm_table_pair_t;
-
 vm_obj_t vm_obj_of_string(vm_t *vm, const char *str);
 uint32_t vm_obj_hash(vm_obj_t value);
 

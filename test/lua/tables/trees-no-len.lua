@@ -1,37 +1,24 @@
-
+-- The Computer Language Benchmarks Game
+-- http://benchmarksgame.alioth.debian.org/
+-- contributed by Mike Pall
 local function BottomUpTree(item, depth)
     if depth > 0 then
         local i = item + item
         depth = depth - 1
         local left = BottomUpTree(i - 1, depth)
         local right = BottomUpTree(i, depth)
-        return function(n)
-            if n == 1 then
-                return item
-            elseif n == 2 then
-                return left
-            elseif n == 3 then
-                return right
-            else
-                return nil
-            end
-        end
+        return {item, left, right}
     else
-        return function(n)
-            if n == 1 then
-                return item
-            else
-                return nil
-            end
-        end
+        return {item}
     end
 end
 
 local function ItemCheck(tree)
-    if tree(2) then
-        return tree(1) + ItemCheck(tree(2)) - ItemCheck(tree(3))
+    local t2 = tree[2]
+    if t2 then
+        return tree[1] + ItemCheck(t2) - ItemCheck(tree[3])
     else
-        return tree(1)
+        return tree[1]
     end
 end
 
@@ -44,7 +31,7 @@ local function pow2(n)
 end
 
 local mindepth = 4
-local maxdepth = tonumber(arg and arg[1]) or 12
+local maxdepth = tonumber(arg and arg[1]) or 16
 
 local stretchdepth = maxdepth + 1
 
@@ -59,7 +46,7 @@ while depth <= maxdepth do
     local check = 0
     local i = 1
     while i <= iterations do
-        local x = ItemCheck(BottomUpTree(1, depth))
+        local x = ItemCheck(BottomUpTree(1, depth)) 
         check = check + x + ItemCheck(BottomUpTree(-1, depth))
         i = i + 1
     end

@@ -54,10 +54,20 @@
 
 #include "../vendor/mimalloc/include/mimalloc.h"
 
+#if VM_MALLOC_MI
 #define vm_malloc(x) mi_malloc(x)
 #define vm_calloc(x) mi_calloc(x, 1)
 #define vm_realloc(x, y) mi_realloc(x, y)
 #define vm_free(x) mi_free((void *) (x))
 #define vm_strdup(x) mi_strdup(x)
+#endif
+
+#if VM_MALLOC_SYS
+#define vm_malloc(x) malloc(x)
+#define vm_calloc(x) calloc(x, 1)
+#define vm_realloc(x, y) realloc(x, y)
+#define vm_free(x) free((void *) (x))
+#define vm_strdup(x) strdup(x)
+#endif
 
 #endif

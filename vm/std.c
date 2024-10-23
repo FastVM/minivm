@@ -8,8 +8,6 @@
 #include "gc.h"
 #include "io.h"
 
-#include "primes.inc"
-
 void vm_std_os_exit(vm_t *vm, size_t nargs, vm_obj_t *args) {
     (void)vm;
     exit((int)vm_obj_get_number(args[0]));
@@ -104,22 +102,14 @@ void vm_std_vm_print(vm_t *vm, size_t nargs, vm_obj_t *args) {
 
 void vm_std_vm_concat(vm_t *vm, size_t nargs, vm_obj_t *args) {
     (void)vm;
-    size_t len = 1;
+    vm_io_buffer_t *buf = vm_io_buffer_new();
     for (size_t i = 0; i < nargs; i++) {
-        len += vm_obj_get_string(args[i])->len;
+        vm_io_buffer_object_tostring(buf, args[i]);
     }
-    char *buf = vm_malloc(sizeof(char) * len);
-    size_t head = 0;
-    for (size_t i = 0; vm_obj_is_string(args[i]); i++) {
-        size_t len = vm_obj_get_string(args[i])->len;
-        if (len == 0) {
-            continue;
-        }
-        memcpy(&buf[head], vm_obj_get_string(args[i])->buf, len);
-        head += len;
-    }
-    buf[len - 1] = '\0';
-    *args = vm_obj_of_string(vm, buf);
+    vm_obj_t ret = vm_obj_of_buffer(buf);
+    vm_gc_add(vm, ret);
+    *args = ret;
+    return;
 }
 
 void vm_std_math_rand_int(vm_t *vm, size_t nargs, vm_obj_t *args) {
@@ -152,7 +142,7 @@ void vm_std_tostring(vm_t *vm, size_t nargs, vm_obj_t *args) {
     vm_io_buffer_t *buf = vm_io_buffer_new();
     vm_io_buffer_object_tostring(buf, *args);
     vm_obj_t ret = vm_obj_of_buffer(buf);
-    vm_gc_add(vm->gc, ret);
+    vm_gc_add(vm, ret);
     *args = ret;
     return;
 }
@@ -202,15 +192,48 @@ void vm_std_io_write(vm_t *vm, size_t nargs, vm_obj_t *args) {
     return;
 }
 
+void vm_std_string_sub(vm_t *vm, size_t nargs, vm_obj_t *args) {
+    if (nargs == 0 || !vm_obj_is_string(args[0])) {
+        args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: first argument not a string"));
+        return;
+    }
+    vm_io_buffer_t *buf = vm_obj_get_string(args[0]);
+    if (nargs == 1 || !vm_obj_is_number(args[1])) {
+        args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: second argument not a number"));
+        return;
+    }
+    int32_t start = (int32_t) vm_obj_get_number(args[1]);
+    if (nargs == 2) {
+        vm_io_buffer_t *out = vm_io_buffer_new();
+        for (int32_t i = start-1; i <= out->len-1; i++) {
+            vm_io_buffer_format(out, "%c", (int) buf->buf[i]);
+        }
+        vm_gc_add(vm, args[0] = vm_obj_of_buffer(out));
+        return;
+    } else {
+        if (!vm_obj_is_number(args[2])) {
+            args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: third argument not a number"));
+            return;
+        }
+        int32_t stop = (int32_t) vm_obj_get_number(args[2]);
+        vm_io_buffer_t *out = vm_io_buffer_new();
+        for (int32_t i = start-1; i <= stop-1; i++) {
+            vm_io_buffer_format(out, "%c", (int) buf->buf[i]);
+        }
+        vm_gc_add(vm, args[0] = vm_obj_of_buffer(out));
+        return;
+    }
+}
+
 void vm_std_string_format(vm_t *vm, size_t nargs, vm_obj_t *args) {
     (void)vm;
-    vm_io_buffer_t *out = vm_io_buffer_new();
     size_t argnum = 0;
     vm_obj_t fmt = args[argnum++];
     if (!vm_obj_is_string(fmt)) {
         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "invalid format (not a string)"));
         return;
     }
+    vm_io_buffer_t *out = vm_io_buffer_new();
     const char *str = vm_obj_get_string(fmt)->buf;
     while (*str != '\0') {
         const char *head = str;
@@ -362,9 +385,7 @@ void vm_std_string_format(vm_t *vm, size_t nargs, vm_obj_t *args) {
             }
         }
     }
-    args[0] = vm_obj_of_string(vm, out->buf);
-    vm_free(out->buf);
-    vm_free(out);
+    vm_gc_add(vm, args[0] = vm_obj_of_buffer(out));
 }
 
 void vm_std_set_arg(vm_t *vm, const char *prog, const char *file, int argc, char **argv) {
@@ -392,10 +413,10 @@ void vm_std_table_keys(vm_t *vm, size_t nargs, vm_obj_t *args) {
     size_t len = vm_primes_table[tab->size];
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
-        vm_table_pair_t *pair = &tab->pairs[i];
-        if (!vm_obj_is_nil(pair->key)) {
-            vm_obj_t key = vm_obj_of_number(write_head);
-            vm_table_set(ret, key, pair->key);
+        vm_obj_t key = tab->entries[i];
+        if (!vm_obj_is_nil(key)) {
+            vm_obj_t nth = vm_obj_of_number(write_head);
+            vm_table_set(ret, nth, key);
             write_head++;
         }
     }
@@ -413,10 +434,9 @@ void vm_std_table_values(vm_t *vm, size_t nargs, vm_obj_t *args) {
     size_t len = vm_primes_table[tab->size];
     size_t write_head = 1;
     for (size_t i = 0; i < len; i++) {
-        vm_table_pair_t *pair = &tab->pairs[i];
-        if (!vm_obj_is_nil(pair->key)) {
-            vm_obj_t key = vm_obj_of_number(write_head);
-            vm_table_set(ret, key, pair->value);
+        if (!vm_obj_is_nil(tab->entries[i])) {
+            vm_obj_t nth = vm_obj_of_number(write_head);
+            vm_table_set(ret, nth, tab->entries[vm_primes_table[tab->size] + i]);
             write_head++;
         }
     }
@@ -440,70 +460,10 @@ void vm_std_vm_import(vm_t *vm, size_t nargs, vm_obj_t *args) {
     return;
 }
 
-// void vm_std_lang_eb_if(vm_t *vm, size_t nargs, vm_obj_t *args) {
-//     if (!vm_obj_is_number(args[0])) {
-//         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "pass if a number"));
-//         return;
-//     }
-//     vm_obj_t obj;
-//     if (vm_obj_get_number(args[0]) != 0) {
-//         obj = args[1];
-//     } else {
-//         obj = args[2];
-//     }
-//     if (!vm_obj_is_closure(obj)) {
-//         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "define if like: (if c (t) (f)) ?"));
-//         return;
-//     }
-//     vm_obj_closure_t *closure = vm_obj_get_closure(obj);
-//     for (size_t i = 0; i < closure->len; i++) {
-//         vm->regs[i] = closure->values[i];
-//     }
-//     vm_obj_t ret = vm_run_repl(vm, closure->block);
-//     args[0] = ret;
-//     return;
-// }
-
-void vm_std_lang_eb_error(vm_t *vm, size_t nargs, vm_obj_t *args) {
-    if (nargs == 0) {
-        args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "error"));
-        return;
-    }
-    vm_io_buffer_t *buf = vm_io_buffer_new();
-    vm_io_buffer_obj_debug(buf, 0, "error: ", args[0], NULL);
-    args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, ""));
-    free(buf->buf);
-    free(buf);
-    return;
-}
-
-void vm_std_lang_eb_putchar(vm_t *vm, size_t nargs, vm_obj_t *args) {
-    if (nargs == 0 || !vm_obj_is_number(args[0])) {
-        args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, "putchar: takes a number"));
-        return;
-    }
-    printf("%c", (int) vm_obj_get_number(args[0]));
-    args[0] = vm_obj_of_nil();
-    return;
-}
-
 void vm_std_new(vm_t *vm) {
     vm_obj_table_t *std = vm_table_new(vm);
 
     srand(0);
-
-    {
-        vm_obj_table_t *lang = vm_table_new(vm);
-        vm_table_set(std, vm_obj_of_string(vm, "lang"), vm_obj_of_table(lang));
-        
-        {
-            vm_obj_table_t *eb = vm_table_new(vm);
-            vm_table_set(lang, vm_obj_of_string(vm, "eb"), vm_obj_of_table(eb));
-            vm_table_set(eb, vm_obj_of_string(vm, "putchar"), vm_obj_of_ffi(vm_std_lang_eb_putchar));
-            vm_table_set(eb, vm_obj_of_string(vm, "error"), vm_obj_of_ffi(vm_std_lang_eb_error));
-            vm_table_set(eb, vm_obj_of_string(vm, "debug"), vm_obj_of_ffi(vm_std_vm_print));
-        }
-    }
     
     {
         vm_obj_table_t *io = vm_table_new(vm);
@@ -515,6 +475,7 @@ void vm_std_new(vm_t *vm) {
         vm_obj_table_t *string = vm_table_new(vm);
         vm_table_set(std, vm_obj_of_string(vm, "string"), vm_obj_of_table(string));
         vm_table_set(string, vm_obj_of_string(vm, "format"), vm_obj_of_ffi(vm_std_string_format));
+        vm_table_set(string, vm_obj_of_string(vm, "sub"), vm_obj_of_ffi(vm_std_string_sub));
     }
     
     {
@@ -524,7 +485,7 @@ void vm_std_new(vm_t *vm) {
         vm_table_set(tvm, vm_obj_of_string(vm, "gc"), vm_obj_of_ffi(vm_std_vm_gc));
         vm_table_set(tvm, vm_obj_of_string(vm, "print"), vm_obj_of_ffi(vm_std_vm_print));
         vm_table_set(tvm, vm_obj_of_string(vm, "version"), vm_obj_of_string(vm, VM_VERSION));
-        vm_table_set(tvm, vm_obj_of_string(vm, "conacat"), vm_obj_of_ffi(vm_std_vm_concat));
+        vm_table_set(tvm, vm_obj_of_string(vm, "concat"), vm_obj_of_ffi(vm_std_vm_concat));
     }
 
     {
