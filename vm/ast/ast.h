@@ -25,6 +25,7 @@ enum {
 typedef uint8_t vm_ast_form_type_t;
 
 enum {
+    // blocks
     VM_AST_FORM_DO,
     // locals
     VM_AST_FORM_SET,

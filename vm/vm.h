@@ -9,14 +9,14 @@
 
 #define VM_VERSION "0.0.5"
 
-#define VM_MALLOC_MI 0
-#define VM_MALLOC_SYS 1
+#define VM_MALLOC_MI 1
+#define VM_MALLOC_SYS 0
 
 #define VM_GC_MIN 256
 #define VM_GC_FACTOR 1.4
 #define VM_GC_STATS 0
 #define VM_GC_STATS_DEBUG 0
-#define VM_GC_DISABLED 1
+#define VM_GC_DISABLED 0
 
 #define VM_DEBUG_BACKEND_BLOCKS 0
 #define VM_DEBUG_BACKEND_OPCODES 0
@@ -50,8 +50,8 @@ typedef void vm_ffi_t(vm_t *vm, size_t nargs, vm_obj_t *args);
 
 struct vm_obj_table_t {
     vm_obj_t *restrict entries;
-    uint32_t used: 28;
-    uint32_t len: 28;
+    uint32_t used: 29;
+    uint32_t len: 29;
     uint8_t size: 5;
     uint8_t mark: 1;
 };

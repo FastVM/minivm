@@ -619,24 +619,12 @@ vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file) {
 
     ts_parser_delete(parser);
 
-    // return vm_ast_build_do(res, vm_ast_build_return(vm_ast_build_nil()));
     return vm_ast_build_return(res);
 }
 
 vm_ir_block_t *vm_lang_lua_compile(vm_t *vm, const char *src, const char *file) {
     vm_ast_node_t ast = vm_lang_lua_parse(vm, src, file);
-    // size_t len = vm->blocks->len;
     vm_ir_block_t *block = vm_ast_comp_more(vm, ast);
     vm_ast_free_node(ast);
-    // if (vm->dump_ir) {
-    //     vm_io_buffer_t *buf = vm_io_buffer_new();
-    //     for (size_t i = len; i < vm->blocks->len; i++) {
-    //         vm_io_format_block(buf, vm->blocks->blocks[i]);
-    //         vm_io_buffer_format(buf, "\n");
-    //     }
-    //     fprintf(stdout, "%s\n", buf->buf);
-    //     vm_free(buf->buf);
-    //     vm_free(buf);
-    // }
     return block;
 }

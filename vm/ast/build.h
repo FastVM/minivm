@@ -4,6 +4,7 @@
 
 #include "ast.h"
 
+vm_ast_node_t vm_ast_build_empty(vm_ast_node_t lhs, vm_ast_node_t rhs);
 // blocks
 vm_ast_node_t vm_ast_build_do(vm_ast_node_t lhs, vm_ast_node_t rhs);
 

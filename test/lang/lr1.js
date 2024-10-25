@@ -174,6 +174,9 @@ function parse(G, { action, goTo }, input) {
             nodes.push({ symbol: lookahead, offset })
             stack.push(n)
             lookahead = input[++offset]
+            if (lookahead == null) {
+                lookahead = '$'
+            }
         } else if (/^r/.test(a)) {
             let symbol = G[n][0]
             let arity = G[n].length - 1
@@ -189,20 +192,49 @@ function parse(G, { action, goTo }, input) {
             if (gt === undefined) throw new Error(`undefined goto for state=${state} symbol=${symbol}`)
             stack.push(gt)
         } else if (a === 'acc') {
-            return { symbol: firstSymbol, children: nodes }
+            return nodes.pop()
         } else {
             throw new Error(`unexpected value for action ${a}`)
         }
     }
 }
 
+function format(ast) {
+    if (ast.children != null) {
+        return '(' + [ast.symbol, ...ast.children.map(format)].join(' ') + ')'
+    } else {
+        return ast.symbol
+    }
+} 
+
 let grammar = [
-    [ "S", "S" ],
-    [ "S", "X", "X" ],
-    [ "X", "a", "X" ],
-    [ "X", "b" ]
+    [ "START", "E" ],
+    [ "E", "2", "E", "E" ],
+    [ "E", "1", "E" ],
+    [ "E", "0" ],
 ]
 let sets = itemSets(grammar)
 // console.log(sets)
 let tab = createTable(grammar, sets)
-console.log(tab)
+
+let input = []
+
+function add(n) {
+    if (n == 0) {
+        input.push('0')
+    } else {
+        input.push('2')
+        input.push('1')
+        add(n-1)
+        input.push('1')
+        add(n-1)
+    }
+}
+
+add(process.argv[2] || 16)
+
+parse(grammar, tab, input)
+
+console.log(format(parse(grammar, tab, ['2', '1', '0', '1', '0'])))
+
+// console.log(tab)

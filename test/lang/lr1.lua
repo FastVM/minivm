@@ -1,54 +1,6 @@
 
-
-local tag = {}
-if not vm then
-    vm = {}
-
-    function vm.concat(...)
-        local r = {}
-        for i=1, select('#', ...) do
-            r[i] = tostring(select(i, ...))
-        end
-        return table.concat(r)
-    end
-
-    local function debug(pre, ind, val, done)
-        if type(val) == 'table' then
-            if done[val] then
-                print(ind .. pre .. '...')
-            else
-                done[val] = true
-                if val[tag] == 'array' then
-                    print(ind .. pre .. '[')
-                    for k=1, val.len do
-                        debug('', ind .. '  ', val[k], done)
-                    end
-                    print(ind .. ']')
-                else
-                    print(ind .. pre .. '{')
-                    for k,v in pairs(val) do
-                        if type(v) ~= 'function' then
-                            debug(tostring(k) .. ' = ', ind .. '  ', v, done)
-                        end
-                    end
-                    print(ind .. '}')
-                end
-                done[val] = false
-            end
-        else
-            print(ind .. pre .. tostring(val))
-        end
-    end
-
-    function vm.print(x)
-        debug('', '', x, {})
-    end
-end
-
 local function array(r)
     local t = {}
-
-    t[tag] = 'array'
 
     t.len = 0
 
@@ -96,7 +48,7 @@ local function array(r)
             if i == 1 then
                 r = t[i]
             else
-                r = vm.concat(r, j, t[i])
+                r = string.format('%s%s%s', r, j, t[i])
             end
         end
         return r
@@ -203,7 +155,7 @@ local function closure(g, items)
 
     while stack.len ~= 0 do
         local item = stack.shift()
-        local key = vm.concat(tostring(item.rule), ',', tostring(item.dot), ',', tostring(item.lookahead))
+        local key = string.format('%s,%s,%s', item.rule, item.dot, item.lookahead)
         if not visited.has(key) then
             visited.add(key)
             state.push(item)
@@ -228,7 +180,6 @@ local function closure(g, items)
                             next = -1,
                             index = -1,
                         }
-                        local key = vm.concat(tostring(i), ',', '1', ',', ls.keys[j])
                     end
                 end
             end
@@ -242,7 +193,7 @@ local function key(items)
     local t = set {}
     for i=1, items.len do
         local item = items[i]
-        t.add(vm.concat(tostring(item.rule), ',', tostring(item.dot), ',', tostring(item.lookahead)))
+        t.add(string.format('%s,%s,%s', item.rule, item.dot, item.lookahead))
     end
     return t.keys.sorted().join('_')
 end
@@ -339,6 +290,10 @@ local function item_sets(g)
     return states.states
 end
 
+local op_s = 1
+local op_r = 2
+local op_acc = 3
+
 local function make_table(g, states)
     local action = array {}
     local go_to = array {}
@@ -355,12 +310,12 @@ local function make_table(g, states)
             if item.rule == 1
                 and item.dot == gi.len
                 and item.lookahead == '$' then
-                action[i]['$'] = 'acc'
+                action[i]['$'] = {op_acc}
             elseif item.dot == gi.len then
                 local a = item.lookahead
-                action[i][a] = vm.concat('r', item.rule)
+                action[i][a] = {op_r, item.rule}
             else
-                action[i][gi[item.dot + 1]] = vm.concat('s', item.next)
+                action[i][gi[item.dot + 1]] = {op_s, item.next}
             end
             local a = gi[item.dot + 1]
             if a then
@@ -384,86 +339,97 @@ local function parse(g, ag, input)
 
     local first_symbol = g[1][1]
     local offset = 1
-    local stack = array { 1 }
-    local nodes = array {}
+    local stack = { 1 }
+    local stack_len = 1
+    local nodes = {}
+    local nodes_len = 0
     local lookahead = input[1] or '$'
 
     while true do
-        local state = stack[stack.len]
+        local state = stack[stack_len]
         local a = action[state][lookahead]
         if not a then
-            print('bad job; you did an error... #1')
+            error(string.format('err(+%s): no action for %s', offset, state))
         end
 
-        local n = tonumber(string.sub(a, 2))
-        local char0 = string.sub(a, 1, 1)
-        if char0 == 's' then
-            nodes.push {
-                symbol = lookahead,
-                offset = offset,
-            }
+        local op = a[1]
+        if op == op_s then
+            nodes_len = nodes_len + 1
+            nodes[nodes_len] = offset
 
-            stack.push(n)
+            stack_len = stack_len + 1
+            stack[stack_len] = a[2]
             offset = offset + 1 
             lookahead = input[offset] or '$'
-        elseif char0 == 'r' then
+        elseif op == op_r then
+            local n = a[2]
             local symbol = g[n][1]
             local arity = g[n].len - 1
-            local children = array {}
+            local ast = { symbol = symbol }
             for i=1, arity do
-                children.push(nodes[nodes.len - arity + i])
-                stack.pop()
+                ast[i] = nodes[nodes_len - arity + i]
             end
-            for i=1, arity do
-                nodes.pop()
-            end
-            nodes.push {
-                symbol = symbol,
-                children = children,
-            }
-            state = stack[stack.len]
+            stack_len = stack_len - arity
+            nodes_len = nodes_len - arity + 1
+            nodes[nodes_len] = ast
+            local state = stack[stack_len]
             local gt = go_to[state][symbol]
             
             if not gt then
-                print('bad job; you did an error... #2')
+                error('err#2')
             end
 
-            stack.push(gt)
-        elseif a == 'acc' then
-            return {
-                symbol = first_symbol,
-                children = nodes,
-            }
+            stack_len = stack_len + 1
+            stack[stack_len] = gt
+        elseif op == op_acc then
+            return nodes[nodes_len]
         else
-            print('bad job; you did an error... #3')
+            error('err#3')
         end
     end
 end
 
-local function format(ast)
-    if ast.children then
+local function format(ast, input)
+    if type(ast) == 'table' then
         local parts = array {}
         parts.push(ast.symbol)
-        for i=1, ast.children.len do
-            parts.push(format(ast.children[i]))
+        for i=1, #ast do
+            parts.push(format(ast[i], input))
         end
-        return vm.concat('(', parts.join(' '), ')')
+        return string.format('(%s)', parts.join(' '))
     else
-        return ast.symbol
+        return input[ast]
     end
 end
 
 local grammar = array {
-    array { 'S', 'S' },
-    array { 'S', 'X', 'X' },
-    array { 'X', 'a', 'X' },
-    array { 'X', 'b' },
+    array { 'START', 'E' },
+    array { 'E', '2', 'E', 'E' },
+    array { 'E', '1', 'E' },
+    array { 'E', '0' },
 }
-
-local input = array { 'a', 'a', 'b', 'b' }
 
 local sets = item_sets(grammar)
 local tab = make_table(grammar, sets)
-local ast = parse(grammar, tab, input)
 
-print(format(ast))
+local input = array { }
+
+local function add(n)
+    if n == 0 then
+        input.push('0')
+    else
+        input.push('2')
+        input.push('1')
+        add(n-1)
+        input.push('1')
+        add(n-1)
+    end
+end
+
+add(tonumber(arg and arg[1]) or 16)
+
+parse(grammar, tab, input)
+
+local input = array {'2', '1', '0', '1', '0'}
+
+print(format(parse(grammar, tab, input), input))

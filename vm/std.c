@@ -192,6 +192,15 @@ void vm_std_io_write(vm_t *vm, size_t nargs, vm_obj_t *args) {
     return;
 }
 
+void vm_std_string_len(vm_t *vm, size_t nargs, vm_obj_t *args) {
+    if (nargs == 0 || !vm_obj_is_string(args[0])) {
+        args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: first argument not a string"));
+        return;
+    }
+    args[0] = vm_obj_of_number(vm_obj_get_string(args[0])->len);
+    return;
+}
+
 void vm_std_string_sub(vm_t *vm, size_t nargs, vm_obj_t *args) {
     if (nargs == 0 || !vm_obj_is_string(args[0])) {
         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: first argument not a string"));
@@ -369,9 +378,9 @@ void vm_std_string_format(vm_t *vm, size_t nargs, vm_obj_t *args) {
             case 's': {
                 if (vm_obj_is_string(arg)) {
                     strcpy(&format[len], "s");
-                    vm_io_buffer_format(out, format, vm_obj_get_string(arg));
+                    vm_io_buffer_format(out, format, vm_obj_get_string(arg)->buf);
                 } else if (vm_obj_is_number(arg)) {
-                    strcpy(&format[len], "f");
+                    strcpy(&format[len], &VM_FORMAT_FLOAT[1]);
                     vm_io_buffer_format(out, format, vm_obj_get_number(arg));
                 } else {
                     args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "unimplemented %s for a type"));
@@ -476,6 +485,7 @@ void vm_std_new(vm_t *vm) {
         vm_table_set(std, vm_obj_of_string(vm, "string"), vm_obj_of_table(string));
         vm_table_set(string, vm_obj_of_string(vm, "format"), vm_obj_of_ffi(vm_std_string_format));
         vm_table_set(string, vm_obj_of_string(vm, "sub"), vm_obj_of_ffi(vm_std_string_sub));
+        vm_table_set(string, vm_obj_of_string(vm, "len"), vm_obj_of_ffi(vm_std_string_len));
     }
     
     {

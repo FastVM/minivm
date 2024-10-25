@@ -180,6 +180,9 @@ static vm_ir_arg_t vm_ast_comp_get_var(vm_ast_comp_t *comp, const char *name) {
     }
     size_t got = vm_ast_comp_get_local(comp->names, name);
     if (got != SIZE_MAX) {
+        if (got >= comp->cur->nregs) {
+            comp->cur->nregs = got + 1;
+        }
         return (vm_ir_arg_t){
             .type = VM_IR_ARG_TYPE_REG,
             .reg = got,
@@ -603,6 +606,9 @@ static vm_ir_arg_t vm_ast_comp_to_raw(vm_ast_comp_t *comp, vm_ast_node_t node) {
                             );
                             return vm_arg_nil();
                         } else {
+                            if (local >= comp->cur->nregs) {
+                                comp->cur->nregs = local + 1;
+                            }
                             vm_ast_blocks_instr(
                                 comp,
                                 (vm_ir_instr_t){

@@ -67,13 +67,13 @@ static inline void vm_gc_mark_block(vm_ir_block_t *restrict block) {
                 vm_gc_mark_arg(instr->args[k]);
             }
         }
-        for (size_t j = 0; j < 2 && block->branch.targets[j] != NULL; j++) {
-            vm_gc_mark_block(block->branch.targets[j]);
-        }
         for (size_t k = 0; block->branch.args[k].type != VM_IR_ARG_TYPE_NONE; k++) {
             vm_gc_mark_arg(block->branch.args[k]);
         }
         vm_gc_mark_arg(block->branch.out);
+        for (size_t j = 0; j < 2 && block->branch.targets[j] != NULL; j++) {
+            vm_gc_mark_block(block->branch.targets[j]);
+        }
     }
 }
 
@@ -110,7 +110,7 @@ void vm_gc_mark(vm_t *vm, vm_obj_t *top) {
         vm_gc_mark_block(blocks->block);
     }
     vm_gc_mark_obj(vm->std);
-    for (vm_obj_t *restrict head = vm->base; head < top; head++) {
+    for (vm_obj_t *head = vm->base; head < top; head++) {
         vm_gc_mark_obj(*head);
     }
 }
@@ -153,7 +153,7 @@ void vm_gc_sweep(vm_t *vm) {
         } else if (vm_obj_is_closure(obj)) {
             vm_obj_closure_t *closure = vm_obj_get_closure(obj);
             if (!closure->mark) {
-                vm_free(closure);
+                // vm_free(closure);
             } else {
                 closure->mark = false;
                 gc->objs.objs[write++] = obj;
