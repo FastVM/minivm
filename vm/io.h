@@ -2,10 +2,12 @@
 #if !defined(VM_HEADER_STD_LIBS_IO)
 #define VM_HEADER_STD_LIBS_IO
 
+#include <stdarg.h>
+
+#include "vm.h"
+
 struct vm_io_debug_t;
 typedef struct vm_io_debug_t vm_io_debug_t;
-
-#include "obj.h"
 
 struct vm_io_debug_t {
     vm_io_debug_t *next;

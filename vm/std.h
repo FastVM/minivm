@@ -1,7 +1,7 @@
 #if !defined(VM_HEADER_STD_STD)
 #define VM_HEADER_STD_STD
 
-#include "io.h"
+#include "vm.h"
 
 #define VM_STD_REF(vm, x) (&(x))
 

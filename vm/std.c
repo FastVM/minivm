@@ -1,4 +1,8 @@
 
+#include <stdlib.h>
+#include <inttypes.h>
+#include <stdio.h>
+
 #include "std.h"
 
 #include "backend/backend.h"
@@ -7,6 +11,7 @@
 #include "obj.h"
 #include "gc.h"
 #include "io.h"
+#include "lib.h"
 
 void vm_std_os_exit(vm_t *vm, size_t nargs, vm_obj_t *args) {
     (void)vm;

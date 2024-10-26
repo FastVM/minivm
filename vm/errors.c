@@ -1,4 +1,5 @@
 
+#include "lib.h"
 #include "errors.h"
 #include "io.h"
 

@@ -1,7 +1,11 @@
+
+#include <math.h>
+
 #include "obj.h"
 #include "gc.h"
 #include "io.h"
 #include "math.h"
+#include "lib.h"
 
 vm_obj_t vm_obj_of_string(vm_t *vm, const char *str) {
     vm_obj_t ret = vm_obj_of_buffer(vm_io_buffer_from_str(str));

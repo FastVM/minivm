@@ -1,7 +1,7 @@
 #if !defined(VM_HEADER_OBJ)
 #define VM_HEADER_OBJ
 
-#include "lib.h"
+#include "vm.h"
 
 vm_obj_t vm_obj_of_string(vm_t *vm, const char *str);
 uint32_t vm_obj_hash(vm_obj_t value);

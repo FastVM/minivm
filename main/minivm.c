@@ -1,11 +1,12 @@
-#include "../vm/ast/comp.h"
 #include "../vm/backend/backend.h"
 #include "../vm/vm.h"
 #include "../vm/ir.h"
 #include "../vm/io.h"
-#include "../vm/gc.h"
 #include "../vm/std.h"
 #include "../vm/lua/repl.h"
+#include "../vm/lib.h"
+
+#include <stdlib.h>
 
 #if VM_USE_SPALL
 #define SPALL_AUTO_IMPLEMENTATION

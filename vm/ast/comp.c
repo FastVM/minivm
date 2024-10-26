@@ -1,8 +1,10 @@
 
+#include <stdarg.h>
+
 #include "comp.h"
 #include "ast.h"
 #include "build.h"
-#include "print.h"
+#include "../ir.h"
 #include "../gc.h"
 #include "../errors.h"
 
@@ -116,10 +118,12 @@ static vm_ir_arg_t *vm_ast_args(size_t nargs, ...) {
 }
 
 static vm_ir_block_t *vm_ast_comp_new_block(vm_ast_comp_t *comp) {
+    static const int64_t no_code[1] = { 0 };
     vm_ir_block_t *block = vm_malloc(sizeof(vm_ir_block_t));
     *block = (vm_ir_block_t){
         .id = (uint32_t)comp->vm->nblocks++,
         .range = comp->range,
+        .code = &no_code[0],
         // .nregs = VM_NREGS,
     };
     vm_gc_add(comp->vm, vm_obj_of_block(block));

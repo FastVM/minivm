@@ -1,10 +1,10 @@
 
-#include "lib.h"
-#include "vm.h"
+#include <stdarg.h>
 
-#include "ir.h"
+#include "vm.h"
+#include "lib.h"
+
 #include "std.h"
-#include "backend/backend.h"
 #include "gc.h"
 
 vm_t *vm_state_new(void) {

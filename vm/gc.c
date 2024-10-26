@@ -1,6 +1,8 @@
 
 #include "gc.h"
 #include "ir.h"
+#include "lib.h"
+#include <stddef.h>
 
 struct vm_gc_objs_t;
 struct vm_gc_t;
@@ -170,7 +172,9 @@ void vm_gc_sweep(vm_t *vm) {
                 }
                 vm_free(block->instrs);
                 vm_free(block->branch.args);
-                vm_free(block->code);
+                if (* (const int64_t *) block->code != 0) {
+                    vm_free(block->code);
+                }
                 vm_free(block);
             } else {
                 block->mark = false;

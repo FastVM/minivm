@@ -1,6 +1,4 @@
 
-#include "vm.h"
-
 static inline bool vm_obj_is_nil(vm_obj_t o) {
     return nanbox_is_empty(o);
 }

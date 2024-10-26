@@ -1,23 +1,22 @@
 
+#include <ctype.h>
+
 #include "repl.h"
 #include "../ir.h"
 #include "../io.h"
 #include "../vm.h"
-#include "../obj.h"
 #include "../ast/ast.h"
-#include "../ast/comp.h"
 #include "../backend/backend.h"
 
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 
 #include "../../vendor/isocline/include/isocline.h"
-#include "../../vendor/isocline/src/completions.h"
 
 const TSLanguage *tree_sitter_lua(void);
 vm_ast_node_t vm_lang_lua_parse(vm_t *vm, const char *str, const char *file);
 
 void vm_lang_lua_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
-    vm_t *vm = cenv->arg;
+    vm_t *vm = ic_completion_arg(cenv);
     const char *last_word;
     {
         ptrdiff_t len = strlen(prefix);

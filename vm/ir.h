@@ -10,8 +10,6 @@ typedef struct vm_ir_arg_t vm_ir_arg_t;
 typedef struct vm_ir_branch_t vm_ir_branch_t;
 typedef struct vm_ir_instr_t vm_ir_instr_t;
 
-#include "lib.h"
-#include "io.h"
 #include "errors.h"
 
 enum {
@@ -96,10 +94,11 @@ struct vm_ir_block_t {
 
     vm_ir_branch_t branch;
 
-    void *code;
+    const void *code;
 
-    uint32_t nregs: 32;
+    uint32_t nregs: 31;
     uint32_t alloc: 30;
+    bool done: 1;
     bool isfunc: 1;
     uint8_t mark: 1;
 };

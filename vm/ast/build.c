@@ -1,4 +1,5 @@
 
+#include <stdarg.h>
 #include "build.h"
 
 #define VM_MACRO_SELECT(_0, _1, _2, NAME, ...) NAME
