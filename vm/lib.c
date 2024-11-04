@@ -1,5 +1,7 @@
 
 #include "vm.h"
+#include "lib.h"
+#include <assert.h>
 
 #if VM_MALLOC_MI
 #include "../vendor/mimalloc/include/mimalloc.h"
@@ -29,22 +31,42 @@ char *vm_strdup(const char *x) {
 #include <stdlib.h>
 
 void *vm_malloc(size_t x) {
-    return malloc(x);
+    if (x == 0) {
+        return NULL;
+    }
+    void *ret = malloc(x);
+    assert(ret != NULL);
+    return ret;
 }
 
 void *vm_calloc(size_t x) {
-    return calloc(x, 1);
+    if (x == 0) {
+        return NULL;
+    }
+    void *ret = calloc(x, 1);
+    assert(ret != NULL);
+    return ret;
 }
 
 void *vm_realloc(void *x, size_t y) {
-    return realloc(x, y);
+    if (y == 0) {
+        vm_free(x);
+    }
+    void *ret = realloc(x, y);
+    assert(ret != NULL);
+    return ret;
 }
 
 void vm_free(const void *x) {
-    free((void *) (x));
+    if (x != NULL) {
+        free((void *) (x));
+    }
 }
 
 char *vm_strdup(const char *x) {
-    return strdup(x);
+    assert(x != NULL);
+    char *ret = strdup(x);
+    assert(ret != NULL);
+    return ret;
 }
 #endif

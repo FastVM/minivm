@@ -26,7 +26,7 @@ with open('vm/primes.inc', 'w') as f:
         if i % n == n - 1:
             f.write('\n    ')
     f.write('\n};\n\n')
-    f.write('static uint32_t vm_primes_mod(uint8_t p, uint32_t n) {\n')
+    f.write('static inline uint32_t vm_primes_mod(uint8_t p, uint32_t n) {\n')
     f.write('    switch (p) {\n')
     f.write('    default:\n')
     f.write('        __builtin_unreachable();\n')

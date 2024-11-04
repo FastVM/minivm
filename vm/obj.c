@@ -1,18 +1,100 @@
 
 #include <math.h>
 
-#include "obj.h"
-#include "gc.h"
+#include "vm.h"
 #include "io.h"
-#include "math.h"
-#include "lib.h"
+#include "gc.h"
 
-vm_obj_t vm_obj_of_string(vm_t *vm, const char *str) {
-    vm_obj_t ret = vm_obj_of_buffer(vm_io_buffer_from_str(str));
-    vm_gc_add(vm, ret);
-    return ret;
+bool vm_obj_is_nil(vm_obj_t o) {
+    return nanbox_is_empty(o);
+}
+bool vm_obj_is_boolean(vm_obj_t o) {
+    return nanbox_is_boolean(o);
+}
+bool vm_obj_is_number(vm_obj_t o) {
+    return nanbox_is_number(o);
+}
+bool vm_obj_is_buffer(vm_obj_t o) {
+    return nanbox_is_aux1(o);
+}
+bool vm_obj_is_table(vm_obj_t o) {
+    return nanbox_is_aux2(o);
+}
+bool vm_obj_is_closure(vm_obj_t o) {
+    return nanbox_is_aux3(o);
+}
+bool vm_obj_is_ffi(vm_obj_t o) {
+    return nanbox_is_aux4(o);
+}
+bool vm_obj_is_block(vm_obj_t o) {
+    return nanbox_is_aux5(o);
+}
+bool vm_obj_is_error(vm_obj_t o) {
+    return nanbox_is_pointer(o);
 }
 
+bool vm_obj_get_boolean(vm_obj_t o) {
+    assert(vm_obj_is_boolean(o));
+    return nanbox_to_boolean(o);
+}
+double vm_obj_get_number(vm_obj_t o) {
+    assert(vm_obj_is_number(o));
+    return nanbox_to_double(o);
+}
+vm_io_buffer_t *vm_obj_get_buffer(vm_obj_t o) {
+    assert(vm_obj_is_buffer(o));
+    return ((vm_io_buffer_t *) nanbox_to_aux(o));
+}
+vm_obj_table_t *vm_obj_get_table(vm_obj_t o) {
+    assert(vm_obj_is_table(o));
+    return ((vm_obj_table_t *) nanbox_to_aux(o));
+}
+vm_obj_closure_t *vm_obj_get_closure(vm_obj_t o) {
+    assert(vm_obj_is_closure(o));
+    return ((vm_obj_closure_t *) nanbox_to_aux(o));
+}
+vm_ffi_t *vm_obj_get_ffi(vm_obj_t o) {
+    assert(vm_obj_is_ffi(o));
+    return ((vm_ffi_t *) nanbox_to_aux(o));
+}
+vm_ir_block_t *vm_obj_get_block(vm_obj_t o) {
+    assert(vm_obj_is_block(o));
+    return ((vm_ir_block_t *) nanbox_to_aux(o));
+}
+vm_error_t *vm_obj_get_error(vm_obj_t o) {
+    assert(vm_obj_is_error(o));
+    return ((vm_error_t *) nanbox_to_pointer(o));
+}
+
+vm_obj_t vm_obj_of_nil(void) {
+    return nanbox_empty(); 
+}
+vm_obj_t vm_obj_of_boolean(bool b) {
+    return nanbox_from_boolean(b);
+} 
+vm_obj_t vm_obj_of_number(double n) {
+    return nanbox_from_double(n);
+}
+vm_obj_t vm_obj_of_buffer(vm_io_buffer_t *o) {
+    return nanbox_from_aux1(o);
+}
+vm_obj_t vm_obj_of_table(vm_obj_table_t *o) {
+    return nanbox_from_aux2(o);
+}
+vm_obj_t vm_obj_of_closure(vm_obj_closure_t *o) {
+    return nanbox_from_aux3(o);
+}
+vm_obj_t vm_obj_of_ffi(vm_ffi_t *o) {
+    return nanbox_from_aux4(o);
+}
+vm_obj_t vm_obj_of_block(vm_ir_block_t *o) {
+    return nanbox_from_aux5(o);
+}
+vm_obj_t vm_obj_of_error(vm_error_t *o) {
+    return nanbox_from_pointer(o);
+}
+
+// extras
 uint32_t vm_obj_hash(vm_obj_t value) {
     if (vm_obj_is_number(value)) {
         double n = vm_obj_get_number(value);
@@ -21,8 +103,8 @@ uint32_t vm_obj_hash(vm_obj_t value) {
         }
         return (uint32_t) (*(uint64_t *)&n >> 12) * 37;
     }
-    if (vm_obj_is_string(value)) {
-        vm_io_buffer_t *restrict buf = vm_obj_get_string(value);
+    if (vm_obj_is_buffer(value)) {
+        vm_io_buffer_t *restrict buf = vm_obj_get_buffer(value);
         if (buf->hash == 0) {
             uint32_t ret = 0x811c9dc5;
             for (size_t i = 0; i < buf->len; i++) {
@@ -52,91 +134,8 @@ uint32_t vm_obj_hash(vm_obj_t value) {
     return 0;
 }
 
-vm_obj_t vm_table_get(vm_obj_table_t *table, vm_obj_t key) {
-    size_t len = vm_primes_table[table->size];
-    size_t init_look = vm_primes_mod(table->size, vm_obj_hash(key));
-    size_t look = init_look;
-    do {
-        vm_obj_t found_key = table->entries[look];
-        if (vm_obj_is_nil(found_key)) {
-            return vm_obj_of_nil();
-        }
-        if (vm_obj_unsafe_eq(key, found_key)) {
-            return table->entries[vm_primes_table[table->size] + look];
-        }
-        look += 1;
-        if (look == len) {
-            look = 0;
-        }
-    } while (look != init_look);
-
-    return vm_obj_of_nil();
-}
-
-void vm_table_set(vm_obj_table_t *restrict table, vm_obj_t key, vm_obj_t value) {
-    size_t len = vm_primes_table[table->size];
-    size_t look = vm_primes_mod(table->size, vm_obj_hash(key));
-    for (size_t i = 0; i < len; i++) {
-        vm_obj_t table_key = table->entries[look];
-        if (vm_obj_is_nil(table_key)) {
-            break;
-        }
-        if (vm_obj_unsafe_eq(key, table_key)) {
-            if (vm_obj_is_nil(value)) {
-                if (vm_obj_is_number(key)) {
-                    double f64val = vm_obj_get_number(key);
-                    if (1 <= f64val && f64val <= table->len) {
-                        int32_t i64val = (int32_t)f64val;
-                        if ((double)i64val == f64val) {
-                            table->len = i64val - 1;
-                        }
-                    }
-                }
-                table->entries[look] = value;
-            }
-            table->entries[vm_primes_table[table->size] + look] = value;
-            return;
-        }
-        look += 1;
-        if (look == len) {
-            look = 0;
-        }
-    }
-    if ((table->used) * 100u > vm_primes_table[table->size] * 75u) {
-        vm_obj_table_t ret;
-        ret.size = table->size + 1;
-        ret.used = 0;
-        ret.len = 0;
-        ret.mark = table->mark;
-#if VM_EMPTY_BYTE == 0
-        ret.entries = vm_calloc(sizeof(vm_obj_t) * vm_primes_table[ret.size] * 2);
-#else
-        ret.entries = vm_malloc(sizeof(vm_obj_t) * vm_primes_table[ret.size] * 2);
-        memset(ret.entries, VM_EMPTY_BYTE, sizeof(vm_obj_t) * vm_primes_table[ret.size] * 2);
-#endif
-        for (size_t i = 0; i < vm_primes_table[table->size]; i++) {
-            vm_obj_t in_key = table->entries[i];
-            if (!vm_obj_is_nil(in_key)) {
-                vm_table_set(&ret, in_key, table->entries[vm_primes_table[table->size] + i]);
-            }
-        }
-        vm_table_set(&ret, key, value);
-        vm_free(table->entries);
-        *table = ret;
-    } else {
-        table->used += 1;
-        table->entries[look] = key;
-        table->entries[vm_primes_table[table->size] + look] = value;
-        int32_t next = table->len + 1;
-        if (vm_obj_is_number(key) && vm_obj_get_number(key) == next) {
-            while (true) {
-                vm_obj_t got = vm_table_get(table, vm_obj_of_number(next + 1));
-                if (vm_obj_is_nil(got)) {
-                    break;
-                }
-                next += 1;
-            }
-            table->len = next;
-        }
-    }
+vm_obj_t vm_obj_of_string(vm_t *vm, const char *str) {
+    vm_obj_t ret = vm_obj_of_buffer(vm_io_buffer_from_str(str));
+    vm_gc_add(vm, ret);
+    return ret;
 }

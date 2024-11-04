@@ -2,6 +2,8 @@
 #include "io.h"
 #include "math.h"
 #include "lib.h"
+#include "obj.h"
+#include "tables.h"
 
 #include <stdio.h>
 
@@ -105,8 +107,8 @@ void vm_io_buffer_print_lit(vm_io_buffer_t *out, vm_obj_t value) {
         vm_io_buffer_format(out, VM_FORMAT_FLOAT, vm_obj_get_number(value));
     } else if (vm_obj_is_ffi(value)) {
         vm_io_buffer_format(out, "<function: %p>", vm_obj_get_ffi(value));
-    } else if (vm_obj_is_string(value)) {
-        vm_io_buffer_format(out, "\"%s\"", vm_obj_get_string(value)->buf);
+    } else if (vm_obj_is_buffer(value)) {
+        vm_io_buffer_format(out, "\"%s\"", vm_obj_get_buffer(value)->buf);
     } else if (vm_obj_is_table(value)) {
         vm_io_buffer_format(out, "<table: %p>", vm_obj_get_table(value));
     } else if (vm_obj_is_closure(value)) {
@@ -147,9 +149,9 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
         vm_io_indent(out, indent, prefix);
         vm_io_buffer_format(out, VM_FORMAT_FLOAT "\n", vm_obj_get_number(value));
     }
-    if (vm_obj_is_string(value)) {
+    if (vm_obj_is_buffer(value)) {
         vm_io_indent(out, indent, prefix);
-        vm_io_buffer_format(out, "\"%s\"\n", vm_obj_get_string(value)->buf);
+        vm_io_buffer_format(out, "\"%s\"\n", vm_obj_get_buffer(value)->buf);
     }
     if (vm_obj_is_closure(value)) {
         vm_io_indent(out, indent, prefix);
@@ -183,9 +185,9 @@ void vm_io_buffer_obj_debug(vm_io_buffer_t *out, size_t indent, const char *pref
                     snprintf(buf, 63, "[[" VM_FORMAT_FLOAT "]] = ", vm_obj_get_number(key));
                     vm_io_buffer_obj_debug(out, indent + 1, buf, tab->entries[vm_primes_table[tab->size] + i], &next);
                 }
-                else if (vm_obj_is_string(key)) {
+                else if (vm_obj_is_buffer(key)) {
                     vm_io_buffer_t *buf = vm_io_buffer_new();
-                    vm_io_buffer_format(buf, "%s = ", vm_obj_get_string(key)->buf);
+                    vm_io_buffer_format(buf, "%s = ", vm_obj_get_buffer(key)->buf);
                     vm_io_buffer_obj_debug(out, indent + 1, buf->buf, tab->entries[vm_primes_table[tab->size] + i], &next);
                     vm_free(buf->buf);
                     vm_free(buf);
@@ -218,8 +220,8 @@ void vm_io_buffer_object_tostring(vm_io_buffer_t *buf, vm_obj_t value) {
     if (vm_obj_is_number(value)) {
         vm_io_buffer_format(buf, VM_FORMAT_FLOAT, vm_obj_get_number(value));
     }
-    if (vm_obj_is_string(value)) {
-        vm_io_buffer_format(buf, "%s", vm_obj_get_string(value)->buf);
+    if (vm_obj_is_buffer(value)) {
+        vm_io_buffer_format(buf, "%s", vm_obj_get_buffer(value)->buf);
     }
     if (vm_obj_is_closure(value)) {
         vm_io_buffer_format(buf, "<function: %p>", vm_obj_get_closure(value));

@@ -1,8 +1,6 @@
 #if !defined(VM_HEADER_AST_AST)
 #define VM_HEADER_AST_AST
 
-#include "../lib.h"
-#include "../obj.h"
 #include "../errors.h"
 
 struct vm_ast_form_t;

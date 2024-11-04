@@ -3,6 +3,7 @@
 #define VM_HEADER_LANG_BUILD
 
 #include "ast.h"
+#include "../vm.h"
 
 vm_ast_node_t vm_ast_build_empty(vm_ast_node_t lhs, vm_ast_node_t rhs);
 // blocks

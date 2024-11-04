@@ -1,5 +1,5 @@
 #include "../vm/backend/backend.h"
-#include "../vm/vm.h"
+#include "../vm/obj.h"
 #include "../vm/ir.h"
 #include "../vm/io.h"
 #include "../vm/std.h"

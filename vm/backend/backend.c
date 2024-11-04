@@ -6,14 +6,13 @@
 #include "../gc.h"
 #include "../ir.h"
 #include "../obj.h"
-#include "../vm.h"
+#include "../tables.h"
 #include "../math.h"
 #include "../io.h"
 
 #define VM_INLINE inline
 
 #if VM_USE_SPALL_INSTR
-
 #include "../../vendor/spall/auto.h"
 
 #define VM_OPCODE_SPALL_BEGIN(s) ({                                           \
@@ -182,7 +181,7 @@ static VM_INLINE vm_obj_t vm_interp_pow(vm_t *vm, vm_obj_t v1, vm_obj_t v2) {
 }
 
 static VM_INLINE vm_obj_t vm_interp_concat(vm_t *vm, vm_obj_t v1, vm_obj_t v2) {
-    if (vm_obj_is_string(v1) && vm_obj_is_string(v2)) {
+    if (vm_obj_is_buffer(v1) && vm_obj_is_buffer(v2)) {
         vm_io_buffer_t *buf = vm_io_buffer_new();
         vm_io_buffer_object_tostring(buf, v1);
         vm_io_buffer_object_tostring(buf, v2);

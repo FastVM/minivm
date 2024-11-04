@@ -22,7 +22,7 @@ BASE_LDFLAGS := ${OPT} ${LDFLAGS} ${LIBM_FLAGS}
 # object files and depends
 MAIN_SRCS = main/minivm.c
 VM_SRCS := $(shell find vm | grep \\.c)
-MI_SRCS := vendor/mimalloc/src/prim/prim.c vendor/mimalloc/src/alloc-posix.c vendor/mimalloc/src/alloc-aligned.c vendor/mimalloc/src/alloc.c vendor/mimalloc/src/arena.c vendor/mimalloc/src/bitmap.c vendor/mimalloc/src/heap.c vendor/mimalloc/src/init.c vendor/mimalloc/src/libc.c vendor/mimalloc/src/options.c vendor/mimalloc/src/os.c vendor/mimalloc/src/page.c vendor/mimalloc/src/random.c vendor/mimalloc/src/segment-map.c vendor/mimalloc/src/segment.c vendor/mimalloc/src/stats.c
+# MI_SRCS := vendor/mimalloc/src/prim/prim.c vendor/mimalloc/src/alloc-posix.c vendor/mimalloc/src/alloc-aligned.c vendor/mimalloc/src/alloc.c vendor/mimalloc/src/arena.c vendor/mimalloc/src/bitmap.c vendor/mimalloc/src/heap.c vendor/mimalloc/src/init.c vendor/mimalloc/src/libc.c vendor/mimalloc/src/options.c vendor/mimalloc/src/os.c vendor/mimalloc/src/page.c vendor/mimalloc/src/random.c vendor/mimalloc/src/segment-map.c vendor/mimalloc/src/segment.c vendor/mimalloc/src/stats.c
 TS_SRCS += vendor/tree-sitter/lib/src/alloc.c vendor/tree-sitter/lib/src/get_changed_ranges.c vendor/tree-sitter/lib/src/language.c vendor/tree-sitter/lib/src/lexer.c vendor/tree-sitter/lib/src/node.c vendor/tree-sitter/lib/src/parser.c vendor/tree-sitter/lib/src/query.c vendor/tree-sitter/lib/src/stack.c vendor/tree-sitter/lib/src/subtree.c vendor/tree-sitter/lib/src/tree_cursor.c vendor/tree-sitter/lib/src/tree.c vendor/tree-sitter/lib/src/wasm_store.c
 IC_SRCS := vendor/isocline/src/isocline.c
 MAIN_SRCS += ${VM_SRCS} ${TS_SRCS} ${IC_SRCS} ${MI_SRCS}
@@ -50,12 +50,12 @@ clean: .dummy
 	rm -rf build
 
 gcc-pgo: .dummy
-	$(MAKE) -Bj minivm OPT="$(OPT) -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-generate"
+	$(MAKE) -Bj minivm OPT="-g3 $(OPT) -fprofile-generate"
 	build/bin/minivm test/lua/fib/fib.lua
 	build/bin/minivm test/lua/tables/trees.lua
 	build/bin/minivm test/lua/closure/funcret.lua
 	build/bin/minivm test/lang/lr1.lua
-	$(MAKE) -Bj minivm OPT="$(OPT) -fgcse-sm -fgcse-las -fipa-pta -fdevirtualize-at-ltrans -fdevirtualize-speculatively -fno-exceptions -fomit-frame-pointer -fprofile-use"
+	$(MAKE) -Bj minivm OPT="$(OPT) -fgcse-sm -fgcse-las -fipa-pta -fomit-frame-pointer -fno-reorder-functions -fprofile-use"
 
 clang-pgo: .dummy
 	$(MAKE) -Bj minivm OPT="$(OPT) -mllvm -polly -fno-exceptions -fprofile-instr-generate"

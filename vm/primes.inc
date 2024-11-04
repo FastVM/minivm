@@ -3,82 +3,82 @@
 #include <stdint.h>
 
 static uint32_t vm_primes_table[32] = {
-             1,         3,         7,        13,        29,
-            53,        89,       157,       283,       491,
-           863,      1511,      2663,      4657,      8147,
-         14251,     24979,     43721,     76519,    133877,
-        234331,    410093,    717659,   1255913,   2197849,
-       3846239,   6730909,  11779121,  20613457,  36073561,
-      63128731, 110475283,
+             2,         5,        11,        23,        53,
+            89,       157,       283,       491,       863,
+          1511,      2663,      4657,      8147,     14251,
+         24979,     43721,     76519,    133877,    234331,
+        410093,    717659,   1255913,   2197849,   3846239,
+       6730909,  11779121,  20613457,  36073561,  63128731,
+     110475283, 193331729,
 };
 
-static uint32_t vm_primes_mod(uint8_t p, uint32_t n) {
+static inline uint32_t vm_primes_mod(uint8_t p, uint32_t n) {
     switch (p) {
     default:
         __builtin_unreachable();
     case 0:
-        return n % 1;
+        return n % 2;
     case 1:
-        return n % 3;
+        return n % 5;
     case 2:
-        return n % 7;
+        return n % 11;
     case 3:
-        return n % 13;
+        return n % 23;
     case 4:
-        return n % 29;
-    case 5:
         return n % 53;
-    case 6:
+    case 5:
         return n % 89;
-    case 7:
+    case 6:
         return n % 157;
-    case 8:
+    case 7:
         return n % 283;
-    case 9:
+    case 8:
         return n % 491;
-    case 10:
+    case 9:
         return n % 863;
-    case 11:
+    case 10:
         return n % 1511;
-    case 12:
+    case 11:
         return n % 2663;
-    case 13:
+    case 12:
         return n % 4657;
-    case 14:
+    case 13:
         return n % 8147;
-    case 15:
+    case 14:
         return n % 14251;
-    case 16:
+    case 15:
         return n % 24979;
-    case 17:
+    case 16:
         return n % 43721;
-    case 18:
+    case 17:
         return n % 76519;
-    case 19:
+    case 18:
         return n % 133877;
-    case 20:
+    case 19:
         return n % 234331;
-    case 21:
+    case 20:
         return n % 410093;
-    case 22:
+    case 21:
         return n % 717659;
-    case 23:
+    case 22:
         return n % 1255913;
-    case 24:
+    case 23:
         return n % 2197849;
-    case 25:
+    case 24:
         return n % 3846239;
-    case 26:
+    case 25:
         return n % 6730909;
-    case 27:
+    case 26:
         return n % 11779121;
-    case 28:
+    case 27:
         return n % 20613457;
-    case 29:
+    case 28:
         return n % 36073561;
-    case 30:
+    case 29:
         return n % 63128731;
-    case 31:
+    case 30:
         return n % 110475283;
+    case 31:
+        return n % 193331729;
     }
 }

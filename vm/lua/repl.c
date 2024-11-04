@@ -5,6 +5,9 @@
 #include "../ir.h"
 #include "../io.h"
 #include "../vm.h"
+#include "../lib.h"
+#include "../obj.h"
+#include "../tables.h"
 #include "../ast/ast.h"
 #include "../backend/backend.h"
 
@@ -33,7 +36,7 @@ with_new_std:;
     for (size_t i = 0; i < len; i++) {
         vm_obj_t std_key = std->entries[i];
         if (vm_obj_is_table(std_key)) {
-            const char *got = vm_obj_get_string(std_key)->buf;
+            const char *got = vm_obj_get_buffer(std_key)->buf;
             size_t i = 0;
             while (got[i] != '\0') {
                 if (last_word[i] == '\0') {

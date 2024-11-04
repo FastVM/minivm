@@ -1,6 +1,8 @@
 
 #include <stdarg.h>
 #include "build.h"
+#include "../lib.h"
+#include "../obj.h"
 
 #define VM_MACRO_SELECT(_0, _1, _2, NAME, ...) NAME
 #define vm_ast_form(TYPE_, ...)        \

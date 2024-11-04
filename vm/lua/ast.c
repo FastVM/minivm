@@ -1,10 +1,12 @@
 
-#include "../ast/ast.h"
 #include "../../vendor/tree-sitter/lib/include/tree_sitter/api.h"
 #include "../ast/build.h"
 #include "../ast/comp.h"
 #include "../io.h"
 #include "../ir.h"
+#include "../lib.h"
+#include "../obj.h"
+#include "../tables.h"
 
 const TSLanguage *tree_sitter_lua(void);
 

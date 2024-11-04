@@ -14,5 +14,4 @@ void *vm_realloc(void *ptr, size_t size);
 void vm_free(const void *ptr);
 char *vm_strdup(const char *str);
 
-
 #endif

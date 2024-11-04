@@ -9,8 +9,8 @@
 
 #define VM_VERSION "0.0.5"
 
-#define VM_MALLOC_MI 1
-#define VM_MALLOC_SYS 0
+#define VM_MALLOC_MI 0
+#define VM_MALLOC_SYS 1
 
 #define VM_GC_MIN 256
 #define VM_GC_FACTOR 1.4
@@ -86,8 +86,5 @@ struct vm_t {
 
 vm_t *vm_state_new(void);
 void vm_state_delete(vm_t *vm);
-
-#include "obj.inc"
-#include "primes.inc"
 
 #endif

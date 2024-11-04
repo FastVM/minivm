@@ -7,6 +7,8 @@
 #include "../ir.h"
 #include "../gc.h"
 #include "../errors.h"
+#include "../lib.h"
+#include "../obj.h"
 
 struct vm_ast_comp_t;
 typedef struct vm_ast_comp_t vm_ast_comp_t;

@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "../lib.h"
 
 void vm_ast_free_form(vm_ast_form_t form) {
     for (size_t i = 0; i < form.len; i++) {

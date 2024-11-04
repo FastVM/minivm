@@ -9,6 +9,7 @@
 #include "errors.h"
 #include "ir.h"
 #include "obj.h"
+#include "tables.h"
 #include "gc.h"
 #include "io.h"
 #include "lib.h"
@@ -21,11 +22,11 @@ void vm_std_os_exit(vm_t *vm, size_t nargs, vm_obj_t *args) {
 
 void vm_std_load(vm_t *vm, size_t nargs, vm_obj_t *args) {
     (void)vm;
-    if (!vm_obj_is_string(args[0])) {
+    if (!vm_obj_is_buffer(args[0])) {
         *args = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "cannot load non-string value"));
         return;
     }
-    const char *str = vm_obj_get_string(args[0])->buf;
+    const char *str = vm_obj_get_buffer(args[0])->buf;
     vm_ir_block_t *entry = vm_lang_lua_compile(vm, str, "__load__");
 
     vm_obj_closure_t *closure = vm_malloc(sizeof(vm_obj_closure_t));
@@ -56,8 +57,8 @@ void vm_std_assert(vm_t *vm, size_t nargs, vm_obj_t *args) {
 }
 
 void vm_std_error(vm_t *vm, size_t nargs, vm_obj_t *args) {
-    if (vm_obj_is_string(args[0])) {
-        *args = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, vm_obj_get_string(args[0])->buf));
+    if (vm_obj_is_buffer(args[0])) {
+        *args = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_UNKNOWN, vm_obj_get_buffer(args[0])->buf));
         return;
     }
     vm_obj_t msg = args[0];
@@ -130,7 +131,7 @@ void vm_std_type(vm_t *vm, size_t nargs, vm_obj_t *args) {
         ret = "booolean";
     } else if (vm_obj_is_number(args[0])) {
         ret = "number";
-    } else if (vm_obj_is_string(args[0])) {
+    } else if (vm_obj_is_buffer(args[0])) {
         ret = "string";
     } else if (vm_obj_is_table(args[0])) {
         ret = "table";
@@ -154,9 +155,9 @@ void vm_std_tostring(vm_t *vm, size_t nargs, vm_obj_t *args) {
 
 void vm_std_tonumber(vm_t *vm, size_t nargs, vm_obj_t *args) {
     if (vm_obj_is_number(args[0])) {
-    } else if (vm_obj_is_string(args[0])) {
+    } else if (vm_obj_is_buffer(args[0])) {
         double num;
-        if (sscanf(vm_obj_get_string(args[0])->buf, "%lf", &num) == 0) {
+        if (sscanf(vm_obj_get_buffer(args[0])->buf, "%lf", &num) == 0) {
             args[0] = vm_obj_of_nil();
             return;
         }
@@ -198,20 +199,20 @@ void vm_std_io_write(vm_t *vm, size_t nargs, vm_obj_t *args) {
 }
 
 void vm_std_string_len(vm_t *vm, size_t nargs, vm_obj_t *args) {
-    if (nargs == 0 || !vm_obj_is_string(args[0])) {
+    if (nargs == 0 || !vm_obj_is_buffer(args[0])) {
         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: first argument not a string"));
         return;
     }
-    args[0] = vm_obj_of_number(vm_obj_get_string(args[0])->len);
+    args[0] = vm_obj_of_number(vm_obj_get_buffer(args[0])->len);
     return;
 }
 
 void vm_std_string_sub(vm_t *vm, size_t nargs, vm_obj_t *args) {
-    if (nargs == 0 || !vm_obj_is_string(args[0])) {
+    if (nargs == 0 || !vm_obj_is_buffer(args[0])) {
         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: first argument not a string"));
         return;
     }
-    vm_io_buffer_t *buf = vm_obj_get_string(args[0]);
+    vm_io_buffer_t *buf = vm_obj_get_buffer(args[0]);
     if (nargs == 1 || !vm_obj_is_number(args[1])) {
         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "string.sub: second argument not a number"));
         return;
@@ -243,12 +244,12 @@ void vm_std_string_format(vm_t *vm, size_t nargs, vm_obj_t *args) {
     (void)vm;
     size_t argnum = 0;
     vm_obj_t fmt = args[argnum++];
-    if (!vm_obj_is_string(fmt)) {
+    if (!vm_obj_is_buffer(fmt)) {
         args[0] = vm_obj_of_error(vm_error_from_msg(VM_LOCATION_RANGE_FUNC, "invalid format (not a string)"));
         return;
     }
     vm_io_buffer_t *out = vm_io_buffer_new();
-    const char *str = vm_obj_get_string(fmt)->buf;
+    const char *str = vm_obj_get_buffer(fmt)->buf;
     while (*str != '\0') {
         const char *head = str;
         char got = *str++;
@@ -381,9 +382,9 @@ void vm_std_string_format(vm_t *vm, size_t nargs, vm_obj_t *args) {
                 return;
             }
             case 's': {
-                if (vm_obj_is_string(arg)) {
+                if (vm_obj_is_buffer(arg)) {
                     strcpy(&format[len], "s");
-                    vm_io_buffer_format(out, format, vm_obj_get_string(arg)->buf);
+                    vm_io_buffer_format(out, format, vm_obj_get_buffer(arg)->buf);
                 } else if (vm_obj_is_number(arg)) {
                     strcpy(&format[len], &VM_FORMAT_FLOAT[1]);
                     vm_io_buffer_format(out, format, vm_obj_get_number(arg));
@@ -459,16 +460,16 @@ void vm_std_table_values(vm_t *vm, size_t nargs, vm_obj_t *args) {
 }
 
 void vm_std_vm_import(vm_t *vm, size_t nargs, vm_obj_t *args) {
-    if (!vm_obj_is_string(args[0])) {
+    if (!vm_obj_is_buffer(args[0])) {
         args[0] = vm_obj_of_string(vm, "import() must take a string");
         return;
     }
-    const char *src = vm_io_read(vm_obj_get_string(args[0])->buf);
+    const char *src = vm_io_read(vm_obj_get_buffer(args[0])->buf);
     if (src == NULL) {
         args[0] = vm_obj_of_string(vm, "import() no such file");
         return;
     }
-    vm_ir_block_t *block = vm_lang_lua_compile(vm, src, vm_obj_get_string(args[0])->buf);
+    vm_ir_block_t *block = vm_lang_lua_compile(vm, src, vm_obj_get_buffer(args[0])->buf);
     args[0] = vm_run_repl(vm, block);
     vm_free(src);
     return;

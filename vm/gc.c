@@ -1,7 +1,10 @@
 
 #include "gc.h"
+#include "obj.h"
 #include "ir.h"
 #include "lib.h"
+#include "tables.h"
+
 #include <stddef.h>
 
 struct vm_gc_objs_t;
@@ -81,8 +84,8 @@ static inline void vm_gc_mark_block(vm_ir_block_t *restrict block) {
 
 
 static inline void vm_gc_mark_obj(vm_obj_t obj) {
-    if (vm_obj_is_string(obj)) {
-        vm_io_buffer_t *buffer = vm_obj_get_string(obj);
+    if (vm_obj_is_buffer(obj)) {
+        vm_io_buffer_t *buffer = vm_obj_get_buffer(obj);
         buffer->mark = true;
     } else if (vm_obj_is_table(obj)) {
         vm_obj_table_t *restrict table = vm_obj_get_table(obj);
@@ -112,7 +115,7 @@ void vm_gc_mark(vm_t *vm, vm_obj_t *top) {
         vm_gc_mark_block(blocks->block);
     }
     vm_gc_mark_obj(vm->std);
-    for (vm_obj_t *head = vm->base; head < top; head++) {
+    for (vm_obj_t *head = vm->base; head <= top; head++) {
         vm_gc_mark_obj(*head);
     }
 }
@@ -128,8 +131,8 @@ void vm_gc_sweep(vm_t *vm) {
 #endif
     for (size_t i = 0; i < gc->objs.len; i++) {
         vm_obj_t obj = gc->objs.objs[i];
-        if (vm_obj_is_string(obj)) {
-            vm_io_buffer_t *buffer = vm_obj_get_string(obj);
+        if (vm_obj_is_buffer(obj)) {
+            vm_io_buffer_t *buffer = vm_obj_get_buffer(obj);
             if (!buffer->mark) {
                 vm_free(buffer->buf);
                 vm_free(buffer);
@@ -246,7 +249,7 @@ void vm_gc_add(vm_t *vm, vm_obj_t obj) {
     vm_gc_t *restrict gc = vm->gc;
     vm_gc_objs_add(&gc->objs, obj);
 #if VM_GC_STATS
-    if (vm_obj_is_string(obj)) {
+    if (vm_obj_is_buffer(obj)) {
         gc->stats.by_type.string.count += 1;
     } else if (vm_obj_is_table(obj)) {
         gc->stats.by_type.table.count += 1;
