@@ -47,11 +47,12 @@ void vm_std_os_exit(vm_t *vm, vm_std_value_t *args) {
 
 void vm_std_load(vm_t *vm, vm_std_value_t *args) {
     (void)vm;
-    if (args[0].tag == VM_TAG_STR) {
+    if (args[0].tag != VM_TAG_STR) {
         *args = (vm_std_value_t){
             .tag = VM_TAG_ERROR,
             .value.str = "cannot load non-string value",
         };
+        return;
     }
     const char *str = args[0].value.str;
     vm_block_t *entry = vm_compile(vm, str);
