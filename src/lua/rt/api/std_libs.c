@@ -3,6 +3,7 @@
 #include "../cont.h"
 #include "../lua.h"
 #include "../meta.h"
+#include "../prim.h"
 #include "../../../vm/gc.h"
 #include "../../../value/kind.h"
 #include "../../../value/obj.h"
@@ -13,12 +14,16 @@ const mx_ffi_fast_reg_t mx_std_fasts[] = {
     {mx_ffi_base_getmetatable, mx_ffi_base_getmetatable_fast},
     {mx_ffi_base_next, mx_ffi_base_next_fast},
     {mx_ffi_base_inext, mx_ffi_base_inext_fast},
+    {mx_ffi_base_select, mx_ffi_base_select_fast},
     {mx_ffi_string_byte, mx_ffi_string_byte_fast},
     {mx_ffi_string_char, mx_ffi_string_char_fast},
     {mx_ffi_string_sub, mx_ffi_string_sub_fast},
     {mx_ffi_string_rep, mx_ffi_string_rep_fast},
     {mx_ffi_table_insert, mx_ffi_table_insert_fast},
     {mx_ffi_table_concat, mx_ffi_table_concat_fast},
+    {mx_prim_forprep_initial, mx_prim_forprep_initial_fast},
+    {mx_prim_forprep_limit, mx_prim_forprep_limit_fast},
+    {mx_prim_forprep_step, mx_prim_forprep_step_fast},
     {NULL, NULL},
 };
 

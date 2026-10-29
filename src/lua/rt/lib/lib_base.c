@@ -559,7 +559,36 @@ void mx_ffi_base_rawset(mx_t *vm, size_t nargs, mx_obj_t *args) {
 }
 
 void mx_ffi_base_select(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_std_dispatch(vm, mx_std_base_select, "select", args, (int32_t)nargs);
+    if (!mx_ffi_base_select_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_base_select, "select", args, (int32_t)nargs);
+    }
+}
+
+bool mx_ffi_base_select_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs == 0) {
+        return false;
+    }
+    int64_t n = (int64_t)nargs;
+    if (mx_obj_is_string(args[0]) && mx_obj_get_string(args[0])->buf[0] == '#') {
+        args[0] = mx_obj_of_int(n - 1);
+        vm->rets.len = 1;
+        return true;
+    } else if (!mx_obj_is_int(args[0])) {
+        return false;
+    }
+    int64_t idx = mx_obj_get_int(args[0]);
+    if (idx < 0) {
+        idx = n + idx;
+    } else if (idx > n) {
+        idx = n;
+    }
+    if (idx < 1) {
+        return false;
+    }
+    uint32_t count = (uint32_t)(n - idx);
+    memmove(args, args + idx, sizeof(mx_obj_t) * count);
+    vm->rets.len = count;
+    return true;
 }
 
 void mx_ffi_base_setmetatable(mx_t *vm, size_t nargs, mx_obj_t *args) {

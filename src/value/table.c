@@ -49,7 +49,7 @@ mx_obj_table_t *mx_table_new_sized(mx_t *vm, uint32_t narray, uint32_t nhash) {
     return tbl;
 }
 
-mx_obj_table_t *mx_table_new_pack(mx_t *vm, const mx_obj_t *src, uint32_t count) {
+mx_obj_table_t *mx_table_new_pack(mx_t *vm, const mx_obj_t *src, uint32_t count, bool has_n) {
     mx_obj_table_t *pack;
     if (count >= 1 && count <= MX_TABLE_INLINE_ARRAY) {
         pack = mx_table_new(vm);
@@ -64,7 +64,7 @@ mx_obj_table_t *mx_table_new_pack(mx_t *vm, const mx_obj_t *src, uint32_t count)
         } else {
             arr = mx_gc_pool_alloc(vm, sizeof(mx_obj_t) * count);
             mx_gc_note_bytes(vm, sizeof(mx_obj_t) * count);
-            mx_gc_note_final(vm, &pack->head);
+            mx_gc_note_final_owned(&pack->head);
             pack->array_cap = count;
         }
         for (uint32_t i = 0; i < count; i++) {
@@ -77,6 +77,9 @@ mx_obj_table_t *mx_table_new_pack(mx_t *vm, const mx_obj_t *src, uint32_t count)
             border -= 1;
         }
         pack->len = border;
+    }
+    if (!has_n) {
+        return pack;
     }
     mx_obj_t nkey = vm->char_strs[(uint8_t)'n'];
     if (nkey.kind == MX_KIND_NIL) {
@@ -274,7 +277,7 @@ void mx_table_hash_reserve(mx_t *vm, mx_obj_table_t *restrict tbl, uint32_t coun
         }
         tbl->size = nsize;
         tbl->entries = mx_table_entries_new(vm, nsize);
-        mx_gc_note_final(vm, &tbl->head);
+        mx_gc_note_final_owned(&tbl->head);
     }
 }
 
@@ -336,7 +339,7 @@ int32_t mx_table_hash_set(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t key, 
             return -1;
         }
         tbl->entries = mx_table_entries_new(vm, tbl->size);
-        mx_gc_note_final(vm, &tbl->head);
+        mx_gc_note_final_owned(&tbl->head);
     }
     mx_gc_write_barrier(vm, tbl, value);
     mx_gc_write_barrier(vm, tbl, key);
@@ -450,7 +453,7 @@ void mx_table_array_push(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t value)
         if (tbl->array_cap == 0 && tbl->is_short) {
             tbl->array = mx_gc_pool_alloc(vm, sizeof(mx_obj_t) * MX_TABLE_INLINE_ARRAY);
             mx_gc_note_bytes(vm, sizeof(mx_obj_t) * MX_TABLE_INLINE_ARRAY);
-            mx_gc_note_final(vm, &tbl->head);
+            mx_gc_note_final_owned(&tbl->head);
             tbl->array_cap = MX_TABLE_INLINE_ARRAY;
         } else if (tbl->array_cap == 0) {
             tbl->array = tbl->inline_array;
@@ -463,7 +466,7 @@ void mx_table_array_push(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t value)
             } else {
                 mx_obj_t *narray = mx_gc_pool_alloc(vm, sizeof(mx_obj_t) * ncap);
                 memcpy(narray, tbl->array, sizeof(mx_obj_t) * tbl->array_len);
-                mx_gc_note_final(vm, &tbl->head);
+                mx_gc_note_final_owned(&tbl->head);
                 tbl->array = narray;
             }
             tbl->array_cap = ncap;
@@ -491,7 +494,7 @@ void mx_table_array_reserve(mx_t *vm, mx_obj_table_t *restrict tbl, uint32_t cap
             if (tbl->array != NULL) {
                 memcpy(narray, tbl->array, sizeof(mx_obj_t) * tbl->array_len);
             }
-            mx_gc_note_final(vm, &tbl->head);
+            mx_gc_note_final_owned(&tbl->head);
             tbl->array = narray;
         }
         tbl->array_cap = cap;

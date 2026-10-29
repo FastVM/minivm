@@ -18,7 +18,7 @@ void mx_prim_table_append(mx_t *vm, size_t nargs, mx_obj_t *args) {
 }
 
 void mx_prim_pack(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    args[0] = mx_obj_of_table(mx_table_new_pack(vm, args, (uint32_t)nargs));
+    args[0] = mx_obj_of_table(mx_table_new_pack(vm, args, (uint32_t)nargs, true));
     vm->rets.len = 1;
 }
 
@@ -56,7 +56,9 @@ int64_t mx_prim_for_stop(int64_t step, mx_obj_t limit) {
 
 int64_t mx_prim_for_last(int64_t init, int64_t step, mx_obj_t limit) {
     int64_t stop = mx_prim_for_stop(step, limit);
-    if (step > 0) {
+    if (step == 1) {
+        return stop;
+    } else if (step > 0) {
         if (init > stop) {
             return stop;
         } else {
@@ -103,6 +105,33 @@ void mx_prim_forprep_step(mx_t *vm, size_t nargs, mx_obj_t *args) {
     } else {
         args[0] = step.value;
     }
+}
+
+bool mx_prim_forprep_initial_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_obj_is_number(args[0])) {
+        return false;
+    }
+    mx_prim_forprep_initial(vm, nargs, args);
+    return true;
+}
+
+bool mx_prim_forprep_limit_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (mx_obj_is_int(args[0]) && mx_obj_is_int(args[1]) && mx_obj_is_int(args[2])) {
+        args[0] = mx_obj_of_int(mx_prim_for_last(mx_obj_get_int(args[1]), mx_obj_get_int(args[2]), args[0]));
+        return true;
+    } else if (!mx_obj_is_number(args[0])) {
+        return false;
+    }
+    mx_prim_forprep_limit(vm, nargs, args);
+    return true;
+}
+
+bool mx_prim_forprep_step_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_obj_is_number(args[0]) || mx_obj_get_number(args[0]) == 0) {
+        return false;
+    }
+    mx_prim_forprep_step(vm, nargs, args);
+    return true;
 }
 
 void mx_prim_global_fresh(mx_t *vm, size_t nargs, mx_obj_t *args) {

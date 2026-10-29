@@ -628,6 +628,7 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
         case MX_IR_INSTR_OPCODE_VARARGS: {
             mx_lower_hop(l, MX_HOP_VARARGS);
             mx_lower_word(l, (uintptr_t)in->out.reg);
+            mx_lower_word(l, !mx_ir_func_has_hidden_pack(l->block->func));
             mx_lower_write(l, (uint32_t)in->out.reg, l->vm->kinds.table);
             break;
         }
@@ -636,6 +637,7 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
             mx_lower_hop(l, MX_HOP_UNPACK);
             mx_lower_word(l, (uintptr_t)in->args[0].reg);
             mx_lower_rec_word(l, rec);
+            mx_lower_word(l, !mx_ir_func_has_hidden_pack(l->block->func));
             break;
         }
         case MX_IR_INSTR_OPCODE_UPVAL_SET: {

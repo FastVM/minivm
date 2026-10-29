@@ -16,6 +16,20 @@ const char *const mx_varhint_names[] = {
 };
 
 uint32_t mx_source_scan(const char *src, uint32_t len, uint32_t *lines) {
+    if (memchr(src, '\r', len) == NULL) {
+        uint32_t n = 1;
+        const char *end = src + len;
+        const char *at = memchr(src, '\n', len);
+        while (at != NULL) {
+            at += 1;
+            if (lines != NULL) {
+                lines[n] = (uint32_t)(at - src);
+            }
+            n += 1;
+            at = memchr(at, '\n', (size_t)(end - at));
+        }
+        return n;
+    }
     uint32_t n = 1;
     uint32_t i = 0;
     while (i < len) {
@@ -69,13 +83,19 @@ mx_error_chunkid_t mx_error_chunkid(const char *file) {
     mx_error_chunkid_t got;
     size_t cap = sizeof(got.id);
     if (file == NULL) {
-        snprintf(got.id, cap, "?");
+        memcpy(got.id, "?", 2);
     } else if (file[0] == '=' || file[0] == '@') {
         size_t len = strlen(file + 1);
         if (file[0] == '@' && len >= cap) {
-            snprintf(got.id, cap, "...%s", file + 1 + len - (cap - 4));
+            memcpy(got.id, "...", 3);
+            memcpy(got.id + 3, file + 1 + len - (cap - 4), cap - 4);
+            got.id[cap - 1] = '\0';
         } else {
-            snprintf(got.id, cap, "%s", file + 1);
+            if (len > cap - 1) {
+                len = cap - 1;
+            }
+            memcpy(got.id, file + 1, len);
+            got.id[len] = '\0';
         }
     } else {
         const char *nl = strchr(file, '\n');
@@ -109,8 +129,7 @@ mx_error_t *mx_error_new(mx_t *vm, mx_obj_t payload) {
 }
 
 mx_obj_t mx_error_raw_vformat(mx_t *vm, mx_error_operand_t operand, const char *fmt, va_list ap) {
-    mx_str_t *msg = mx_str_new_gc(vm);
-    mx_str_vformat(msg, fmt, ap);
+    mx_str_t *msg = mx_str_new_gc_vformat(vm, fmt, ap);
     mx_error_t *err = mx_error_new(vm, mx_obj_of_string(msg));
     err->is_raw = true;
     err->operand = operand;
@@ -140,7 +159,10 @@ mx_obj_t mx_error_value(mx_t *vm, mx_obj_t payload) {
 void mx_error_where(mx_str_t *out, const mx_location_range_t *range) {
     if (range != NULL && range->source != NULL) {
         mx_error_chunkid_t id = mx_error_chunkid(range->source->file);
-        mx_str_format(out, "%s:%u: ", id.id, mx_source_line(range->source, range->start));
+        mx_str_append(out, id.id, (uint32_t)strlen(id.id));
+        mx_str_append_byte(out, ':');
+        mx_str_append_int(out, mx_source_line(range->source, range->start));
+        mx_str_append(out, ": ", 2);
     }
 }
 
@@ -157,7 +179,16 @@ mx_obj_t mx_error_message(mx_t *vm, const mx_location_range_t *range, const char
 void mx_error_locate(mx_t *vm, mx_error_t *err, const mx_location_range_t *range) {
     if (err->is_raw) {
         mx_str_t *raw = mx_str_flat((mx_str_t *)mx_ref_obj(err->payload.ref));
-        mx_str_t *msg = mx_str_new_gc(vm);
+        mx_varname_t name = {0};
+        if (err->operand != MX_ERROR_OPERAND_NONE && range != NULL && range->names[err->operand - MX_ERROR_OPERAND_LHS].name != NULL) {
+            name = range->names[err->operand - MX_ERROR_OPERAND_LHS];
+        }
+        size_t hint_len = 0;
+        if (name.kind != MX_VARHINT_NONE) {
+            hint_len = strlen(mx_varhint_names[name.kind]) + strlen(name.name) + 6;
+        }
+        size_t where_len = sizeof(mx_error_chunkid_t) + MX_STR_INT_DIGITS + 3;
+        mx_str_t *msg = mx_str_new_gc_sized(vm, (uint32_t)(where_len + raw->len + hint_len));
         mx_error_where(msg, range);
         uint32_t split = raw->len;
         const char *space = memchr(raw->buf, ' ', raw->len);
@@ -165,11 +196,13 @@ void mx_error_locate(mx_t *vm, mx_error_t *err, const mx_location_range_t *range
             split = (uint32_t)(space - raw->buf);
         }
         mx_str_append(msg, raw->buf, split);
-        if (err->operand != MX_ERROR_OPERAND_NONE && range != NULL) {
-            mx_varname_t name = range->names[err->operand - MX_ERROR_OPERAND_LHS];
-            if (name.kind != MX_VARHINT_NONE) {
-                mx_str_format(msg, " (%s '%s')", mx_varhint_names[name.kind], name.name);
-            }
+        if (name.kind != MX_VARHINT_NONE) {
+            const char *hint = mx_varhint_names[name.kind];
+            mx_str_append(msg, " (", 2);
+            mx_str_append(msg, hint, (uint32_t)strlen(hint));
+            mx_str_append(msg, " '", 2);
+            mx_str_append(msg, name.name, (uint32_t)strlen(name.name));
+            mx_str_append(msg, "')", 2);
         }
         mx_str_append(msg, raw->buf + split, raw->len - split);
         err->payload_kind = MX_KIND_STRING;

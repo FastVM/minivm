@@ -115,24 +115,19 @@ void mx_str_vformat(mx_str_t *buf, const char *fmt, va_list ap) {
     if (buf->buf == NULL) {
         mx_str_reserve(buf, 16);
     }
-    while (true) {
-        size_t avail = 0;
-        if (buf->cap > buf->len) {
-            avail = (size_t)(buf->cap - buf->len);
-        }
-        va_list ap_copy;
-        va_copy(ap_copy, ap);
-        int32_t written = vsnprintf(&buf->buf[buf->len], avail, fmt, ap_copy);
-        va_end(ap_copy);
-        if (written < 0) {
-            break;
-        }
-        if (avail <= (size_t)written) {
-            mx_str_reserve(buf, buf->len + (uint32_t)written + 1);
-            continue;
-        }
+    char stage[MX_STR_FORMAT_STAGE];
+    va_list ap_copy;
+    va_copy(ap_copy, ap);
+    int32_t written = vsnprintf(stage, sizeof(stage), fmt, ap_copy);
+    va_end(ap_copy);
+    if (written < 0) {
+        return;
+    } else if ((size_t)written < sizeof(stage)) {
+        mx_str_append(buf, stage, (uint32_t)written);
+    } else {
+        mx_str_reserve(buf, buf->len + (uint32_t)written + 1);
+        vsnprintf(&buf->buf[buf->len], (size_t)written + 1, fmt, ap);
         buf->len += (uint32_t)written;
-        break;
     }
 }
 
@@ -526,6 +521,24 @@ mx_str_t *mx_str_new_gc_sized(mx_t *vm, uint32_t len) {
         }
         ret->buf[0] = '\0';
         return ret;
+    }
+}
+
+mx_str_t *mx_str_new_gc_vformat(mx_t *vm, const char *fmt, va_list ap) {
+    char stage[MX_STR_FORMAT_STAGE];
+    va_list ap_copy;
+    va_copy(ap_copy, ap);
+    int32_t written = vsnprintf(stage, sizeof(stage), fmt, ap_copy);
+    va_end(ap_copy);
+    if (written >= 0 && (size_t)written < sizeof(stage)) {
+        mx_str_t *out = mx_str_new_gc_sized(vm, (uint32_t)written);
+        memcpy(out->buf, stage, (size_t)written + 1);
+        out->len = (uint32_t)written;
+        return out;
+    } else {
+        mx_str_t *out = mx_str_new_gc(vm);
+        mx_str_vformat(out, fmt, ap);
+        return out;
     }
 }
 

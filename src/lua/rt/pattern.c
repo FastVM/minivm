@@ -250,6 +250,19 @@ const mx_pattern_prog_t *mx_pattern_prog(mx_pattern_cache_t *cache, mx_pattern_p
     return &e->prog;
 }
 
+// For callers that run Lua while matching: a callback can recompile the cache
+// slot that mx_pattern_prog returned, so they take a private copy.
+void mx_pattern_prog_own(mx_pattern_cache_t *cache, mx_pattern_prog_t *own, const char *pat, size_t plen) {
+    const mx_pattern_prog_t *prog = mx_pattern_prog(cache, own, pat, plen);
+    if (prog != own) {
+        own->items = own->inline_items;
+        own->len = prog->len;
+        own->ncap = prog->ncap;
+        own->first_byte = prog->first_byte;
+        memcpy(own->inline_items, prog->items, sizeof(mx_pattern_item_t) * prog->len);
+    }
+}
+
 void mx_pattern_prog_free(mx_pattern_prog_t *prog) {
     if (prog->items != prog->inline_items) {
         mx_mem_free(prog->items);

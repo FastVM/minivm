@@ -7,7 +7,7 @@ base: str = os.path.dirname(os.path.abspath(__file__))
 root: str = os.path.abspath(os.path.join(base, "..", ".."))
 minivm: str = os.path.join(root, "build", "bin", "minivm")
 
-usage: str = "usage: profile.py [--top N] [--only FUNCTION] [--lines FUNCTION] [--calls] [--cwd DIR] [--exe INTERPRETER] [--event EVENT] -- ARGS..."
+usage: str = "usage: profile.py [--top N] [--only FUNCTION] [--lines FUNCTION] [--calls] [--callers FUNCTION] [--inclusive] [--cwd DIR] [--exe INTERPRETER] [--event EVENT] -- ARGS..."
 
 cost_line: re.Pattern[str] = re.compile(r"^\d+( \d+)+$")
 
@@ -19,7 +19,10 @@ def event_cost(fields: list[str], column: int) -> int:
         return 0
 
 
-def collect(text: str, event: str, target: str | None) -> tuple[dict[str, int], int]:
+# With is_inclusive, the cost of each call is charged to the calling function
+# or line as well. Recursive functions (mx_run_body re-entered through C) count
+# their nested calls again, so their totals can pass 100%.
+def collect(text: str, event: str, target: str | None, is_inclusive: bool) -> tuple[dict[str, int], int]:
     costs: dict[str, int] = {}
     total: int = 0
     column: int = 0
@@ -41,9 +44,11 @@ def collect(text: str, event: str, target: str | None) -> tuple[dict[str, int], 
         elif line.startswith("summary:"):
             total = event_cost(line.split()[1:], column)
         elif current is not None and cost_line.match(line):
-            if after_call:
+            if after_call and not is_inclusive:
                 after_call = False
-            elif target is None:
+                continue
+            after_call = False
+            if target is None:
                 costs[current] = costs.get(current, 0) + event_cost(line.split()[1:], column)
             elif current == target:
                 fields: list[str] = line.split()
@@ -63,6 +68,31 @@ def collect_calls(text: str) -> dict[str, int]:
     return calls
 
 
+def collect_callers(text: str, event: str, target: str) -> dict[str, tuple[int, int]]:
+    callers: dict[str, tuple[int, int]] = {}
+    column: int = 0
+    current: str | None = None
+    callee: str | None = None
+    count: int = 0
+    after_call: bool = False
+    for line in text.splitlines():
+        if line.startswith("events:"):
+            column = line.split()[1:].index(event)
+        elif line.startswith("fn="):
+            current = re.sub(r"'\d+$", "", line[3:])
+        elif line.startswith("cfn="):
+            callee = re.sub(r"'\d+$", "", line[4:])
+        elif line.startswith("calls="):
+            count = int(line[6:].split()[0])
+            after_call = True
+        elif after_call and cost_line.match(line):
+            after_call = False
+            if callee == target and current is not None:
+                calls, cost = callers.get(current, (0, 0))
+                callers[current] = (calls + count, cost + event_cost(line.split()[1:], column))
+    return callers
+
+
 def main() -> None:
     argv: list[str] = sys.argv[1:]
     if "--" not in argv:
@@ -78,11 +108,17 @@ def main() -> None:
     exe: str = minivm
     event: str = "Ir"
     is_calls: bool = False
+    is_inclusive: bool = False
+    callers_of: str | None = None
     i: int = 0
     while i < len(opts):
         match opts[i]:
             case "--calls":
                 is_calls = True
+                i += 1
+                continue
+            case "--inclusive":
+                is_inclusive = True
                 i += 1
                 continue
             case "--top":
@@ -91,10 +127,14 @@ def main() -> None:
                 only = opts[i + 1]
             case "--lines":
                 lines = opts[i + 1]
+            case "--callers":
+                callers_of = opts[i + 1]
             case "--cwd":
                 cwd = opts[i + 1]
             case "--exe":
-                exe = os.path.abspath(opts[i + 1])
+                exe = opts[i + 1]
+                if os.path.sep in exe:
+                    exe = os.path.abspath(exe)
             case "--event":
                 event = opts[i + 1]
             case other:
@@ -118,12 +158,17 @@ def main() -> None:
     command.append(exe)
     command.extend(args)
     proc = subprocess.run(command, cwd=cwd, capture_output=True, text=True, errors="replace")
+    if callers_of is not None:
+        ranked_callers: list[tuple[str, tuple[int, int]]] = sorted(collect_callers(proc.stderr, event, callers_of).items(), key=lambda kv: kv[1][1], reverse=True)
+        for name, (count, cost) in ranked_callers[:top]:
+            print(f"{count:>12,} {cost:>16,} {name}")
+        return
     if is_calls:
         ranked_calls: list[tuple[str, int]] = sorted(collect_calls(proc.stderr).items(), key=lambda kv: kv[1], reverse=True)
         for name, count in ranked_calls[:top]:
             print(f"{count:>12,} {name}")
         return
-    costs, total = collect(proc.stderr, event, lines)
+    costs, total = collect(proc.stderr, event, lines, is_inclusive)
     print(f"total {event} {total:,}")
     ranked: list[tuple[str, int]] = sorted(costs.items(), key=lambda kv: kv[1], reverse=True)
     for name, cost in ranked[:top]:

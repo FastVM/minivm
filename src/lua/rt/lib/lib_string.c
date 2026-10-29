@@ -317,6 +317,34 @@ void mx_std_fmt_addlenmod(char *spec, const char *mod) {
     spec[len + modlen] = '\0';
 }
 
+bool mx_std_fmt_int_g(mx_std_buf_t *buf, const char *spec, size_t speclen, double d) {
+    if (speclen < 3 || spec[1] != '.') {
+        return false;
+    }
+    int64_t precision = 0;
+    for (size_t i = 2; i < speclen; i++) {
+        if (isdigit((uint8_t)spec[i]) == 0) {
+            return false;
+        }
+        precision = precision * 10 + (spec[i] - '0');
+    }
+    if (precision == 0) {
+        precision = 1;
+    }
+    double bound = 1;
+    for (int64_t i = 0; i < precision && i < 15; i++) {
+        bound *= 10;
+    }
+    if (!(fabs(d) < bound) || floor(d) != d) {
+        return false;
+    } else if (d == 0 && signbit(d)) {
+        mx_std_buf_addlstring(buf, "-0", 2);
+    } else {
+        mx_std_buf_addint(buf, (int64_t)d);
+    }
+    return true;
+}
+
 mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const char *p, const char *end, int32_t arg) {
     arg += 1;
     if (arg > mx_std_top(ls)) {
@@ -368,6 +396,9 @@ mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const ch
             }
             if (!mx_std_fmt_valid(spec, flags, true)) {
                 return mx_std_fmt_badspec(ls, spec);
+            } else if (!has_mods && (conv == 'd' || conv == 'i')) {
+                mx_std_buf_addint(buf, v);
+                break;
             }
             mx_std_fmt_addlenmod(spec, "ll");
             if (conv == 'd' || conv == 'i') {
@@ -393,6 +424,8 @@ mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const ch
             double d = mx_std_checkfloat(ls, arg);
             if (!mx_std_fmt_valid(spec, "-+ #0", true)) {
                 return mx_std_fmt_badspec(ls, spec);
+            } else if (conv == 'g' && mx_std_fmt_int_g(buf, spec, speclen, d)) {
+                break;
             }
             mx_std_buf_addfmt(buf, spec, d);
             break;
@@ -725,7 +758,7 @@ int32_t mx_std_string_gsub(mx_std_state_t *ls) {
     mx_pattern_prog_t own;
     const mx_pattern_prog_t *prog;
     if (tr == MX_LUA_TYPE_FUNCTION || tr == MX_LUA_TYPE_TABLE) {
-        mx_pattern_compile(cache, &own, sp, splen);
+        mx_pattern_prog_own(cache, &own, sp, splen);
         prog = &own;
     } else {
         prog = mx_pattern_prog(cache, &own, sp, splen);

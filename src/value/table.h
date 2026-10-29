@@ -111,7 +111,7 @@ mx_obj_table_t *mx_table_init(mx_t *vm, size_t bytes, bool is_short);
 mx_obj_table_t *mx_table_new(mx_t *vm);
 mx_obj_table_t *mx_table_new_short(mx_t *vm);
 mx_obj_table_t *mx_table_new_sized(mx_t *vm, uint32_t narray, uint32_t nhash);
-mx_obj_table_t *mx_table_new_pack(mx_t *vm, const mx_obj_t *src, uint32_t count);
+mx_obj_table_t *mx_table_new_pack(mx_t *vm, const mx_obj_t *src, uint32_t count, bool has_n);
 mx_table_entry_t *mx_table_entries_new(mx_t *vm, uint8_t size);
 void mx_table_entries_free(mx_t *vm, mx_table_entry_t *entries, uint8_t size);
 void mx_table_set(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t value);

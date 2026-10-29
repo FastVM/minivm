@@ -249,7 +249,12 @@ mx_obj_table_t *mx_std_debug_varargs(mx_t *vm, const mx_frame_t *f, int64_t i) {
             if (!mx_obj_is_table(pack)) {
                 return NULL;
             }
-            mx_obj_t count = mx_table_get(mx_obj_get_table(pack), mx_std_char_str(vm, 'n'));
+            mx_obj_t count;
+            if (mx_ir_local_is_hidden_pack(&func->locals.ptr[l])) {
+                count = mx_obj_of_int((int64_t)mx_obj_get_table(pack)->array_len);
+            } else {
+                count = mx_table_get(mx_obj_get_table(pack), mx_std_char_str(vm, 'n'));
+            }
             if (mx_obj_is_int(count) && i >= 1 && i <= mx_obj_get_int(count)) {
                 return mx_obj_get_table(pack);
             } else {
@@ -311,16 +316,12 @@ int32_t mx_std_debug_getlocal(mx_std_state_t *ls) {
         return 1;
     }
     mx_std_pushstring(ls, local->name);
-    if (mx_std_debug_is_hidden_pack(local)) {
+    if (mx_ir_local_is_hidden_pack(local)) {
         mx_std_pushnil(ls);
     } else {
         mx_std_push(ls, mx_frame_reg(&f, local->reg));
     }
     return 2;
-}
-
-bool mx_std_debug_is_hidden_pack(const mx_ir_local_t *local) {
-    return local->is_pack && strcmp(local->name, "(vararg table)") == 0;
 }
 
 int32_t mx_std_debug_setlocal(mx_std_state_t *ls) {

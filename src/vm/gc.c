@@ -323,6 +323,8 @@ mx_gc_block_t *mx_gc_new_block(mx_gc_t *gc) {
     block->has_young = true;
     memset(block->line_mark, 0, MX_GC_LINES_PER_BLOCK);
     memset(block->obj_start, 0, MX_GC_OBJ_BITMAP_BYTES);
+    memset(block->card, 0, sizeof(block->card));
+    memset(block->old_only, 0, sizeof(block->old_only));
     block->next = gc->blocks.live;
     gc->blocks.live = block;
     gc->blocks.count += 1;
@@ -497,10 +499,23 @@ void mx_gc_dirty_block(mx_gc_t *gc, mx_gc_block_t *b) {
     }
 }
 
+void mx_gc_card_set(mx_gc_block_t *b, void *ptr) {
+    size_t line = mx_gc_line_of(b, ptr);
+    b->card[line >> 3] |= (uint8_t)(1u << (line & 7));
+}
+
+bool mx_gc_card_test(const uint8_t *cards, mx_gc_block_t *b, void *ptr) {
+    size_t line = mx_gc_line_of(b, ptr);
+    return (cards[line >> 3] & (1u << (line & 7))) != 0;
+}
+
 void mx_gc_write_barrier_slow(mx_t *vm, void *container) {
     mx_gc_t *gc = vm->gc;
     uintptr_t base = (uintptr_t)container & ~(MX_GC_BLOCK_SIZE - 1);
-    if (base != gc->dirty.last_base && mx_gc_block_owned(gc, container)) {
+    if (base == gc->dirty.last_base) {
+        mx_gc_card_set((mx_gc_block_t *)base, container);
+    } else if (mx_gc_block_owned(gc, container)) {
+        mx_gc_card_set((mx_gc_block_t *)base, container);
         mx_gc_dirty_block(gc, (mx_gc_block_t *)base);
         gc->dirty.last_base = base;
     }
@@ -848,6 +863,7 @@ void mx_gc_promote_block(mx_gc_t *gc, mx_obj_head_t *head, mx_gc_block_t *block)
     if (head->is_old) {
         if (!gc->is_minor && block != NULL) {
             block->is_old = true;
+            mx_gc_card_set(block, head);
             mx_gc_dirty_block(gc, block);
             mx_gc_old_record_block(block, head);
         }
@@ -857,6 +873,7 @@ void mx_gc_promote_block(mx_gc_t *gc, mx_obj_head_t *head, mx_gc_block_t *block)
         head->is_old = true;
         if (block != NULL) {
             block->is_old = true;
+            mx_gc_card_set(block, head);
             mx_gc_dirty_block(gc, block);
             mx_gc_old_record_block(block, head);
         }
@@ -1097,7 +1114,17 @@ void mx_gc_mark_entry(mx_gc_t *gc, mx_kind_t kind, mx_val_t *val) {
 void mx_gc_mark_ref(mx_gc_t *gc, mx_obj_t *slot) {
     mx_kind_t kind = slot->kind;
     void *ptr = mx_ref_obj(slot->val.ref);
-    if (ptr == NULL || !mx_gc_kind_is_ref(gc->vm, kind) || !mx_gc_is_heap(gc, ptr)) {
+    if (ptr == NULL || !mx_gc_kind_is_ref(gc->vm, kind)) {
+        return;
+    }
+    mx_obj_head_t *seen = ptr;
+    if (seen->mark == gc->mark_value && !seen->is_forwarded) {
+        if (gc->is_scanning_dirty && !seen->is_old) {
+            gc->has_found_young = true;
+        }
+        return;
+    }
+    if (!mx_gc_is_heap(gc, ptr)) {
         return;
     }
     if (gc->is_evacuating && (kind == MX_KIND_CLOSURE || kind >= MX_KIND_FIRST_DATA)) {
@@ -1152,8 +1179,8 @@ mx_obj_head_t *mx_gc_heap_head(mx_t *vm, mx_obj_t v) {
     }
 }
 
-void mx_gc_pin_roots(mx_t *vm, mx_gc_t *gc) {
-    for (size_t t = 0; t < gc->threads.len; t++) {
+void mx_gc_pin_roots(mx_t *vm, mx_gc_t *gc, bool is_evac) {
+    for (size_t t = 0; t < gc->threads.len && is_evac; t++) {
         mx_gc_scan_stack(gc, gc->threads.ptr[t], true);
     }
     for (uint32_t i = 0; i < vm->consts.len; i++) {
@@ -1267,13 +1294,21 @@ void mx_gc_scan_dirty_cards(mx_gc_t *gc) {
             mx_gc_block_t *b = pending[bi];
             if (b->is_old && b->is_dirty) {
                 b->is_dirty = false;
-                gc->has_found_young = false;
+                uint8_t cards[sizeof(b->card)];
+                memcpy(cards, b->card, sizeof(cards));
+                memset(b->card, 0, sizeof(b->card));
+                bool is_kept = false;
                 for (mx_obj_head_t *h = b->old_head; h != NULL; h = *mx_gc_next_slot(h)) {
-                    if (h->is_old && !h->is_forwarded && h->kind != gc->vm->kinds.thread) {
+                    if (h->is_old && !h->is_forwarded && h->kind != gc->vm->kinds.thread && mx_gc_card_test(cards, b, h)) {
+                        gc->has_found_young = false;
                         mx_gc_scan_obj(gc, h, true);
+                        if (gc->has_found_young) {
+                            mx_gc_card_set(b, h);
+                            is_kept = true;
+                        }
                     }
                 }
-                if (gc->has_found_young) {
+                if (is_kept) {
                     mx_gc_dirty_block(gc, b);
                 }
             }
@@ -1326,7 +1361,7 @@ void mx_gc_mark_roots(mx_t *vm) {
     bool want_evac = gc->is_evacuating;
     gc->is_evacuating = false;
     gc->pinned.len = 0;
-    mx_gc_pin_roots(vm, gc);
+    mx_gc_pin_roots(vm, gc, want_evac);
     mx_gc_drain(gc);
     gc->is_evacuating = want_evac;
     if (gc->is_minor) {
@@ -1617,11 +1652,12 @@ void mx_gc_finalize(mx_t *vm, mx_obj_head_t *head) {
     }
 }
 
-void mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
+bool mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
     uint32_t bits = block->obj_start[line * 2] | ((uint32_t)block->obj_start[line * 2 + 1] << 8);
     uint32_t keep = bits;
     uint8_t mark = gc->mark_value;
     bool is_minor = gc->is_minor;
+    bool has_young = false;
     uint8_t *first = (uint8_t *)block + line * MX_GC_LINE_SIZE;
     while (bits != 0) {
         uint32_t k = (uint32_t)__builtin_ctz(bits);
@@ -1634,10 +1670,13 @@ void mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
                 mx_gc_finalize(gc->vm, head);
             }
             keep &= ~((uint32_t)1 << k);
+        } else if (!head->is_old) {
+            has_young = true;
         }
     }
     block->obj_start[line * 2] = (uint8_t)keep;
     block->obj_start[line * 2 + 1] = (uint8_t)(keep >> 8);
+    return has_young;
 }
 
 void mx_gc_finalize_dead_line(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
@@ -1677,13 +1716,21 @@ void mx_gc_sweep(mx_gc_t *gc) {
         size_t live_lines = 0;
         size_t block_young = 0;
         for (size_t i = MX_GC_BLOCK_HEADER_LINES; i < MX_GC_LINES_PER_BLOCK; i++) {
+            uint8_t bit = (uint8_t)(1u << (i & 7));
             if (mx_gc_line_is_live(gc, block->line_mark[i])) {
                 live_lines += 1;
                 if (block->line_mark[i] == gc->mark_value) {
                     block_young += 1;
                 }
-                mx_gc_retire_obj_starts(gc, block, i);
+                bool is_old_line = block->line_mark[i] == MX_GC_MARK_OLD;
+                if (!(gc->is_minor && is_old_line && (block->old_only[i >> 3] & bit) != 0)) {
+                    bool has_young = mx_gc_retire_obj_starts(gc, block, i);
+                    if (is_old_line && !has_young) {
+                        block->old_only[i >> 3] |= bit;
+                    }
+                }
             } else {
+                block->old_only[i >> 3] &= (uint8_t)~bit;
 #if MX_GC_VERIFY
                 for (size_t s = i * 2; s < i * 2 + 2; s++) {
                     for (size_t k = 0; k < 8; k++) {
@@ -1894,6 +1941,8 @@ bool mx_gc_collect(mx_t *vm) {
             b->is_old = false;
             b->is_dirty = false;
             b->old_head = NULL;
+            memset(b->card, 0, sizeof(b->card));
+            memset(b->old_only, 0, sizeof(b->old_only));
         }
         gc->dirty.len = 0;
         gc->dirty.last_base = 0;

@@ -133,6 +133,15 @@ int32_t mx_std_table_unpack(mx_std_state_t *ls) {
     if (n >= INT32_MAX || !mx_std_checkstack(ls, (int32_t)n + 1)) {
         return mx_std_error(ls, "too many results to unpack");
     }
+    mx_obj_t t = *mx_std_at(ls, 1);
+    if (t.kind == ls->vm->kinds.table && mx_obj_get_table(t)->is_plain && mx_obj_get_table(t)->meta == NULL
+        && i >= 1 && e <= (int64_t)mx_obj_get_table(t)->array_len) {
+        mx_obj_table_t *tbl = mx_obj_get_table(t);
+        for (; i <= e; i++) {
+            mx_std_push(ls, tbl->array[i - 1]);
+        }
+        return (int32_t)n + 1;
+    }
     for (; i < e && !ls->vm->std_error.is_set; i++) {
         mx_std_geti(ls, 1, i);
     }
@@ -142,7 +151,7 @@ int32_t mx_std_table_unpack(mx_std_state_t *ls) {
 
 int32_t mx_std_table_pack(mx_std_state_t *ls) {
     int32_t n = mx_std_top(ls);
-    mx_std_push(ls, mx_obj_of_table(mx_table_new_pack(ls->vm, mx_std_slots(ls), (uint32_t)n)));
+    mx_std_push(ls, mx_obj_of_table(mx_table_new_pack(ls->vm, mx_std_slots(ls), (uint32_t)n, true)));
     return 1;
 }
 

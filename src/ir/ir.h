@@ -14,6 +14,7 @@
 #define MX_IR_BRANCH_MAX_ARGS 260
 #define MX_IR_FRAME_WORDS 2
 #define MX_IR_WANT_MULTI UINT32_MAX
+#define MX_IR_HIDDEN_PACK_NAME "(vararg table)"
 
 typedef uint8_t mx_ir_arg_type_t;
 enum {
@@ -200,6 +201,19 @@ static inline void mx_ir_note_seen(mx_kind_t *seen, mx_kind_t kind) {
 
 static inline void mx_ir_func_note_upval(mx_ir_func_t *func, uint32_t index, mx_kind_t kind) {
     mx_ir_note_seen(&func->upval_seen[index], kind);
+}
+
+static inline bool mx_ir_local_is_hidden_pack(const mx_ir_local_t *local) {
+    return local->is_pack && local->name != NULL && strcmp(local->name, MX_IR_HIDDEN_PACK_NAME) == 0;
+}
+
+static inline bool mx_ir_func_has_hidden_pack(const mx_ir_func_t *func) {
+    for (uint32_t i = 0; i < func->locals.len; i++) {
+        if (func->locals.ptr[i].is_pack) {
+            return mx_ir_local_is_hidden_pack(&func->locals.ptr[i]);
+        }
+    }
+    return false;
 }
 
 static inline uint32_t mx_ir_block_cap(const mx_ir_block_t *block) {

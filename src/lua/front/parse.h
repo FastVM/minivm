@@ -64,6 +64,7 @@ typedef struct mx_parse_labels_t mx_parse_labels_t;
 typedef struct mx_parse_upvals_t mx_parse_upvals_t;
 typedef struct mx_parse_locals_t mx_parse_locals_t;
 typedef struct mx_parse_names_t mx_parse_names_t;
+typedef struct mx_parse_binds_t mx_parse_binds_t;
 typedef struct mx_parse_call_t mx_parse_call_t;
 typedef struct mx_parse_exp_t mx_parse_exp_t;
 typedef struct mx_parse_found_t mx_parse_found_t;
@@ -75,6 +76,7 @@ struct mx_parse_var_t {
     mx_obj_t value;
     uint32_t reg;
     uint32_t local;
+    uint32_t shadow;
     bool is_const: 1;
     bool is_close: 1;
     bool is_global: 1;
@@ -137,6 +139,13 @@ struct mx_parse_upvals_t {
 struct mx_parse_locals_t {
     mx_ir_local_t *ptr;
     uint32_t len;
+    uint32_t cap;
+};
+
+struct mx_parse_binds_t {
+    const char **keys;
+    uint32_t *vals;
+    uint32_t used;
     uint32_t cap;
 };
 
@@ -222,6 +231,8 @@ struct mx_parse_t {
     mx_parse_gotos_t gotos;
     mx_parse_labels_t labels;
     mx_parse_names_t names;
+    mx_parse_binds_t binds;
+    uint32_t nglobals;
     mx_ir_blocks_t blocks;
     const char *env_name;
     const char *break_name;
@@ -317,6 +328,8 @@ mx_parse_label_t *mx_parse_label_find(mx_parse_t *d, const char *name, uint32_t 
 void mx_parse_label_push(mx_parse_t *d, mx_parse_label_t label);
 mx_ir_block_t *mx_parse_here_block(mx_parse_t *d);
 mx_error_t *mx_parse_gotos_solve(mx_parse_t *d, mx_parse_scope_t *scope);
+uint32_t mx_parse_bind_home(const mx_parse_binds_t *binds, const char *name);
+uint32_t mx_parse_bind_slot(mx_parse_t *d, const char *name);
 void mx_parse_vars_pop(mx_parse_t *d, uint32_t to);
 mx_error_t *mx_parse_var_push(mx_parse_t *d, mx_parse_var_t var);
 mx_error_t *mx_parse_var_new(mx_parse_t *d, const char *name, uint32_t reg, bool is_const, bool is_close, uint32_t start);

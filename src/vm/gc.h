@@ -102,11 +102,15 @@ struct mx_gc_block_t {
     mx_obj_head_t *old_head;
     uint8_t line_mark[MX_GC_LINES_PER_BLOCK];
     uint8_t obj_start[MX_GC_OBJ_BITMAP_BYTES];
+    uint8_t card[MX_GC_LINES_PER_BLOCK / 8];
+    uint8_t old_only[MX_GC_LINES_PER_BLOCK / 8];
     bool is_evac: 1;
     bool is_old: 1;
     bool is_dirty: 1;
     bool has_young: 1;
 };
+
+_Static_assert(sizeof(mx_gc_block_t) <= MX_GC_BLOCK_HEADER_LINES * MX_GC_LINE_SIZE, "block header");
 
 struct mx_gc_large_t {
     mx_gc_large_t *next;
@@ -307,6 +311,8 @@ mx_gc_large_t *mx_gc_large_of(void *payload);
 bool mx_gc_large_owns(mx_gc_t *gc, void *ptr);
 bool mx_gc_is_heap(mx_gc_t *gc, void *ptr);
 void mx_gc_dirty_block(mx_gc_t *gc, mx_gc_block_t *b);
+void mx_gc_card_set(mx_gc_block_t *b, void *ptr);
+bool mx_gc_card_test(const uint8_t *cards, mx_gc_block_t *b, void *ptr);
 int32_t mx_gc_pool_class(size_t bytes);
 size_t mx_gc_large_index_slot(mx_gc_t *gc, uintptr_t payload);
 void mx_gc_large_index_rebuild(mx_gc_t *gc);
@@ -401,7 +407,7 @@ void mx_gc_mark_entry(mx_gc_t *gc, mx_kind_t kind, mx_val_t *val);
 void mx_gc_mark_holds(mx_gc_t *gc, mx_holds_t *holds);
 void mx_gc_mark_rets(mx_gc_t *gc, mx_rets_t *rets);
 mx_obj_head_t *mx_gc_heap_head(mx_t *vm, mx_obj_t v);
-void mx_gc_pin_roots(mx_t *vm, mx_gc_t *gc);
+void mx_gc_pin_roots(mx_t *vm, mx_gc_t *gc, bool is_evac);
 void mx_gc_mark_threads(mx_t *vm, mx_gc_t *gc);
 void mx_gc_mark_precise_roots(mx_t *vm);
 void mx_gc_mark_roots(mx_t *vm);
@@ -421,7 +427,7 @@ bool mx_gc_run_finalizers(mx_t *vm);
 void mx_gc_scan_dirty_cards(mx_gc_t *gc);
 void mx_gc_scan_old_child(mx_gc_t *gc, mx_obj_t *slot);
 
-void mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line);
+bool mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line);
 void mx_gc_finalize_dead_line(mx_gc_t *gc, mx_gc_block_t *block, size_t line);
 void mx_gc_finalize(mx_t *vm, mx_obj_head_t *head);
 void mx_gc_sweep(mx_gc_t *gc);

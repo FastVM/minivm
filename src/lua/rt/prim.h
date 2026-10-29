@@ -16,6 +16,9 @@ int64_t mx_prim_for_last(int64_t init, int64_t step, mx_obj_t limit);
 void mx_prim_forprep_initial(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_prim_forprep_limit(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_prim_forprep_step(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_prim_forprep_initial_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_prim_forprep_limit_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_prim_forprep_step_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_prim_global_fresh(mx_t *vm, size_t nargs, mx_obj_t *args);
 
 mx_obj_t mx_prim_close_handler(mx_t *vm, mx_obj_t v);

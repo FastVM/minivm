@@ -268,11 +268,58 @@ mx_error_t *mx_parse_gotos_solve(mx_parse_t *d, mx_parse_scope_t *scope) {
     return NULL;
 }
 
+uint32_t mx_parse_bind_home(const mx_parse_binds_t *binds, const char *name) {
+    return (uint32_t)(((uint64_t)(uintptr_t)name * UINT64_C(0x9E3779B97F4A7C15)) >> 32) & (binds->cap - 1);
+}
+
+uint32_t mx_parse_bind_slot(mx_parse_t *d, const char *name) {
+    mx_parse_binds_t *binds = &d->binds;
+    if ((binds->used + 1) * 2 > binds->cap) {
+        uint32_t ocap = binds->cap;
+        const char **okeys = binds->keys;
+        uint32_t *ovals = binds->vals;
+        if (ocap == 0) {
+            binds->cap = 64;
+        } else {
+            binds->cap = ocap * 2;
+        }
+        binds->keys = mx_mem_calloc(sizeof(const char *) * binds->cap);
+        binds->vals = mx_mem_alloc(sizeof(uint32_t) * binds->cap);
+        for (uint32_t i = 0; i < ocap; i++) {
+            if (okeys[i] != NULL) {
+                uint32_t at = mx_parse_bind_home(binds, okeys[i]);
+                while (binds->keys[at] != NULL) {
+                    at = (at + 1) & (binds->cap - 1);
+                }
+                binds->keys[at] = okeys[i];
+                binds->vals[at] = ovals[i];
+            }
+        }
+        mx_mem_free(okeys);
+        mx_mem_free(ovals);
+    }
+    uint32_t at = mx_parse_bind_home(binds, name);
+    while (binds->keys[at] != NULL && binds->keys[at] != name) {
+        at = (at + 1) & (binds->cap - 1);
+    }
+    if (binds->keys[at] == NULL) {
+        binds->keys[at] = name;
+        binds->vals[at] = UINT32_MAX;
+        binds->used += 1;
+    }
+    return at;
+}
+
 void mx_parse_vars_pop(mx_parse_t *d, uint32_t to) {
     mx_parse_fn_t *fn = d->fn;
     while (d->vars.len > to) {
         d->vars.len -= 1;
         mx_parse_var_t *var = &d->vars.ptr[d->vars.len];
+        uint32_t slot = mx_parse_bind_slot(d, var->name);
+        d->binds.vals[slot] = var->shadow;
+        if (var->is_global) {
+            d->nglobals -= 1;
+        }
         if (var->local != UINT32_MAX) {
             fn->locals.ptr[var->local].stop = d->lex.last_stop;
         }
@@ -316,6 +363,12 @@ mx_error_t *mx_parse_var_push(mx_parse_t *d, mx_parse_var_t var) {
     if (d->vars.len == d->vars.cap) {
         d->vars.cap = d->vars.cap * 2 + 32;
         d->vars.ptr = mx_mem_realloc(d->vars.ptr, sizeof(mx_parse_var_t) * d->vars.cap);
+    }
+    uint32_t slot = mx_parse_bind_slot(d, var.name);
+    var.shadow = d->binds.vals[slot];
+    d->binds.vals[slot] = d->vars.len;
+    if (var.is_global) {
+        d->nglobals += 1;
     }
     d->vars.ptr[d->vars.len] = var;
     d->vars.len += 1;
@@ -418,7 +471,17 @@ mx_error_t *mx_parse_upval_new(mx_parse_t *d, mx_parse_fn_t *fn, const char *nam
 }
 
 mx_error_t *mx_parse_resolve(mx_parse_t *d, mx_parse_fn_t *fn, const char *name, bool is_base, int64_t *coll, mx_parse_found_t *out) {
-    for (uint32_t i = d->vars.len; i > fn->first_var; i--) {
+    uint32_t scan_from = d->vars.len;
+    if (d->nglobals == 0) {
+        uint32_t slot = mx_parse_bind_slot(d, name);
+        uint32_t bound = d->binds.vals[slot];
+        if (bound != UINT32_MAX && bound >= fn->first_var) {
+            scan_from = bound + 1;
+        } else {
+            scan_from = fn->first_var;
+        }
+    }
+    for (uint32_t i = scan_from; i > fn->first_var; i--) {
         mx_parse_var_t *var = &d->vars.ptr[i - 1];
         if (var->is_global) {
             if (var->name == d->gall) {
@@ -1226,10 +1289,10 @@ mx_error_t *mx_parse_constructor(mx_parse_t *d, mx_parse_exp_t *e) {
 
 void mx_parse_fn_abandon(mx_parse_t *d) {
     mx_parse_fn_t *fn = d->fn;
+    mx_parse_vars_pop(d, fn->first_var);
     mx_mem_free(fn->upvals.ptr);
     mx_mem_free(fn->upvals.is_const);
     mx_mem_free(fn->locals.ptr);
-    d->vars.len = fn->first_var;
     d->fn = fn->prev;
 }
 
@@ -2479,7 +2542,7 @@ void mx_parse_init(mx_parse_t *d, mx_t *vm, const mx_source_t *source) {
     d->env_name = mx_scratch_intern(vm, "_ENV");
     d->break_name = mx_scratch_intern(vm, "break");
     d->self_name = mx_scratch_intern(vm, "self");
-    d->pack_name = mx_scratch_intern(vm, "(vararg table)");
+    d->pack_name = mx_scratch_intern(vm, MX_IR_HIDDEN_PACK_NAME);
     d->gall = mx_scratch_intern(vm, "*");
 }
 
@@ -2496,6 +2559,8 @@ void mx_parse_free(mx_parse_t *d) {
     mx_mem_free(d->labels.ptr);
     mx_mem_free(d->names.from);
     mx_mem_free(d->names.to);
+    mx_mem_free(d->binds.keys);
+    mx_mem_free(d->binds.vals);
     mx_lex_free(&d->lex);
 }
 

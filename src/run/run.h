@@ -86,7 +86,19 @@ static inline uintptr_t mx_run_key1(mx_t *vm, mx_kind_t kind, bool is_resumed) {
     return mx_version_kinds_key(&kind, 1) | mx_run_key_flags(vm, is_resumed);
 }
 
-uintptr_t *mx_run_cache_find(const mx_resume_cache_t *cache, uintptr_t key);
+static inline uintptr_t *mx_run_cache_find(const mx_resume_cache_t *cache, uintptr_t key) {
+    if (cache->code != 0 && cache->key == key) {
+        return (uintptr_t *)cache->code;
+    } else if (cache->more != NULL) {
+        for (uint32_t i = 0; i < MX_RESUME_WAYS - 1; i++) {
+            if (cache->more[2 * i + 1] != 0 && cache->more[2 * i] == key) {
+                return (uintptr_t *)cache->more[2 * i + 1];
+            }
+        }
+    }
+    return NULL;
+}
+
 void mx_run_cache_put(mx_t *vm, mx_resume_cache_t *cache, uintptr_t key, uintptr_t code);
 mx_ffi_fast_t *mx_run_fast_of(const mx_t *vm, mx_ffi_t *fn);
 bool mx_run_cells_stale(const mx_resume_t *rec, const mx_val_t *base);

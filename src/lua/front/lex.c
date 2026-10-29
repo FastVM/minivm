@@ -557,15 +557,104 @@ mx_error_t *mx_lex_number(mx_lex_t *lex, mx_lex_token_t *tok) {
 
 mx_lex_type_t mx_lex_keyword(const char *src, uint32_t start, uint32_t stop) {
     uint32_t len = stop - start;
-    if (len < 2 || len > 8 || src[start] < 'a' || src[start] > 'w') {
+    if (len < 2 || len > 8) {
         return MX_LEX_TYPE_NAME;
-    } else {
-        for (mx_lex_type_t type = MX_LEX_TYPE_AND; type <= MX_LEX_TYPE_WHILE; type++) {
-            const char *word = mx_lex_type_names[type];
-            if (word[0] == src[start] && strncmp(word, &src[start], len) == 0 && word[len] == '\0') {
-                return type;
-            }
+    }
+    const char *s = &src[start];
+    mx_lex_type_t type;
+    switch (s[0]) {
+        case 'a': {
+            type = MX_LEX_TYPE_AND;
+            break;
         }
+        case 'b': {
+            type = MX_LEX_TYPE_BREAK;
+            break;
+        }
+        case 'd': {
+            type = MX_LEX_TYPE_DO;
+            break;
+        }
+        case 'e': {
+            if (len == 4) {
+                type = MX_LEX_TYPE_ELSE;
+            } else if (len == 6) {
+                type = MX_LEX_TYPE_ELSEIF;
+            } else {
+                type = MX_LEX_TYPE_END;
+            }
+            break;
+        }
+        case 'f': {
+            if (len == 5) {
+                type = MX_LEX_TYPE_FALSE;
+            } else if (len == 3) {
+                type = MX_LEX_TYPE_FOR;
+            } else {
+                type = MX_LEX_TYPE_FUNCTION;
+            }
+            break;
+        }
+        case 'g': {
+            type = MX_LEX_TYPE_GOTO;
+            break;
+        }
+        case 'i': {
+            if (s[1] == 'f') {
+                type = MX_LEX_TYPE_IF;
+            } else {
+                type = MX_LEX_TYPE_IN;
+            }
+            break;
+        }
+        case 'l': {
+            type = MX_LEX_TYPE_LOCAL;
+            break;
+        }
+        case 'n': {
+            if (s[1] == 'i') {
+                type = MX_LEX_TYPE_NIL;
+            } else {
+                type = MX_LEX_TYPE_NOT;
+            }
+            break;
+        }
+        case 'o': {
+            type = MX_LEX_TYPE_OR;
+            break;
+        }
+        case 'r': {
+            if (len > 2 && s[2] == 'p') {
+                type = MX_LEX_TYPE_REPEAT;
+            } else {
+                type = MX_LEX_TYPE_RETURN;
+            }
+            break;
+        }
+        case 't': {
+            if (s[1] == 'h') {
+                type = MX_LEX_TYPE_THEN;
+            } else {
+                type = MX_LEX_TYPE_TRUE;
+            }
+            break;
+        }
+        case 'u': {
+            type = MX_LEX_TYPE_UNTIL;
+            break;
+        }
+        case 'w': {
+            type = MX_LEX_TYPE_WHILE;
+            break;
+        }
+        default: {
+            return MX_LEX_TYPE_NAME;
+        }
+    }
+    const char *word = mx_lex_type_names[type];
+    if (strlen(word) == len && memcmp(word, s, len) == 0) {
+        return type;
+    } else {
         return MX_LEX_TYPE_NAME;
     }
 }

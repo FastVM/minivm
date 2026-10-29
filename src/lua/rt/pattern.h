@@ -215,6 +215,7 @@ mx_pattern_item_t *mx_pattern_emit(mx_pattern_prog_t *prog, mx_pattern_op_t op);
 void mx_pattern_emit_fail(mx_pattern_prog_t *prog, const char *error, uint8_t arg);
 void mx_pattern_compile(mx_pattern_cache_t *cache, mx_pattern_prog_t *prog, const char *pat, size_t plen);
 const mx_pattern_prog_t *mx_pattern_prog(mx_pattern_cache_t *cache, mx_pattern_prog_t *own, const char *pat, size_t plen);
+void mx_pattern_prog_own(mx_pattern_cache_t *cache, mx_pattern_prog_t *own, const char *pat, size_t plen);
 void mx_pattern_prog_free(mx_pattern_prog_t *prog);
 void mx_pattern_save(mx_pattern_run_t *r, uint32_t *nundo, uint32_t idx);
 int64_t mx_pattern_exec(mx_pattern_run_t *r, size_t start);
