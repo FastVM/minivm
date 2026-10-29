@@ -91,6 +91,11 @@ static inline mx_obj_t mx_table_entry_val(const mx_table_entry_t *e) {
     return mx_obj_of_raw(e->val_kind, e->val);
 }
 
+static inline bool mx_table_entry_was_key(const mx_table_entry_t *e, mx_obj_t key) {
+    return e->key_kind == MX_KIND_DEAD_KEY && e->key.bits == key.val.bits
+        && (mx_obj_is_string(key) || mx_obj_is_closure(key) || mx_obj_is_data(key));
+}
+
 static inline void mx_table_entry_set_key(mx_table_entry_t *e, mx_obj_t k, uint32_t hash) {
     e->key_kind = k.kind;
     e->key = k.val;

@@ -104,14 +104,8 @@ uint32_t mx_table_key_hash(mx_obj_t key) {
         return mx_str_content_hash(mx_obj_get_string(key));
     } else if (mx_obj_is_boolean(key)) {
         return UINT32_MAX - (uint32_t)mx_obj_get_boolean(key);
-    } else if (mx_obj_is_ffi(key)) {
-        return (uint32_t)(size_t)mx_obj_get_ffi(key) >> MX_TABLE_HASH_PTR_SHIFT;
-    } else if (mx_obj_is_closure(key)) {
-        return (uint32_t)(size_t)mx_obj_get_closure(key) >> MX_TABLE_HASH_PTR_SHIFT;
-    } else if (mx_obj_is_table(key)) {
-        return (uint32_t)(size_t)mx_obj_get_table(key) >> MX_TABLE_HASH_PTR_SHIFT;
     } else {
-        return 0;
+        return (uint32_t)(size_t)mx_ref_obj(key.val.ref) >> MX_TABLE_HASH_PTR_SHIFT;
     }
 }
 
@@ -613,7 +607,7 @@ mx_table_step_t mx_table_next_into(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, 
         if (tbl->head.kind == vm->kinds.table && tbl->hidden != 0 && tbl->hidden <= len) {
             size_t hint = (size_t)tbl->hidden - 1;
             const mx_table_entry_t *he = &tbl->entries[hint];
-            if (he->key_kind == key.kind && he->key.bits == key.val.bits) {
+            if ((he->key_kind == key.kind && he->key.bits == key.val.bits) || mx_table_entry_was_key(he, key)) {
                 hslot = hint + 1;
                 found = true;
             }
@@ -662,7 +656,7 @@ mx_table_pair_t mx_table_pairs_next(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key)
     if (tbl->head.kind == vm->kinds.table && tbl->hidden != 0 && tbl->hidden <= len) {
         size_t hint = (size_t)tbl->hidden - 1;
         const mx_table_entry_t *he = &tbl->entries[hint];
-        if (he->key_kind == key.kind && he->key.bits == key.val.bits) {
+        if ((he->key_kind == key.kind && he->key.bits == key.val.bits) || mx_table_entry_was_key(he, key)) {
             return mx_table_pairs_hash_from(vm, tbl, hint + 1);
         }
     }
@@ -673,7 +667,7 @@ mx_table_pair_t mx_table_pairs_next(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key)
         if (mx_obj_is_nil(found_key)) {
             break;
         }
-        if (mx_table_key_eq(key, found_key)) {
+        if (mx_table_key_eq(key, found_key) || mx_table_entry_was_key(&tbl->entries[look], key)) {
             return mx_table_pairs_hash_from(vm, tbl, look + 1);
         }
         look = (look + 1) & (len - 1);

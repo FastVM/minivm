@@ -59,12 +59,8 @@ struct mx_str_debug_t {
 static inline uint32_t mx_str_hashn(const char *bytes, size_t len) {
     uint32_t ret = MX_VM_FNV_OFFSET;
     for (size_t i = 0; i < len; i++) {
-        char c = bytes[i];
-        if (c == '\0') {
-            break;
-        }
         ret *= MX_VM_FNV_PRIME;
-        ret ^= c;
+        ret ^= (uint8_t)bytes[i];
     }
     if (ret == 0) {
         ret = 1;

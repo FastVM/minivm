@@ -8,6 +8,7 @@
 
 #define MX_VERSION "0.1.0"
 #define MX_KIND_MIXED ((mx_kind_t)0xffff)
+#define MX_KIND_DEAD_KEY ((mx_kind_t)0xfffd)
 #define MX_ARENA_CHUNK_BYTES ((size_t)1 << 20)
 #define MX_ARENA_ALIGN 8
 #define MX_VM_FNV_OFFSET 0x811c9dc5

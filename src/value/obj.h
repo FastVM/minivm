@@ -286,19 +286,28 @@ static inline bool mx_obj_num_le(mx_obj_t a, mx_obj_t b) {
 }
 
 static inline int32_t mx_obj_str_cmp(const mx_str_t *a, const mx_str_t *b) {
-    size_t min = b->len;
-    if (a->len < b->len) {
-        min = a->len;
-    }
-    int32_t c = memcmp(a->buf, b->buf, min);
-    if (c != 0) {
-        return c;
-    } else if (a->len < b->len) {
-        return -1;
-    } else if (a->len > b->len) {
-        return 1;
-    } else {
-        return 0;
+    const char *s1 = a->buf;
+    const char *s2 = b->buf;
+    size_t rest1 = a->len;
+    size_t rest2 = b->len;
+    while (true) {
+        int32_t c = strcoll(s1, s2);
+        if (c != 0) {
+            return c;
+        }
+        size_t seg1 = strlen(s1);
+        size_t seg2 = strlen(s2);
+        if (seg2 == rest2 && seg1 == rest1) {
+            return 0;
+        } else if (seg2 == rest2) {
+            return 1;
+        } else if (seg1 == rest1) {
+            return -1;
+        }
+        s1 += seg1 + 1;
+        s2 += seg2 + 1;
+        rest1 -= seg1 + 1;
+        rest2 -= seg2 + 1;
     }
 }
 

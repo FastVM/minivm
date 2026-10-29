@@ -1392,6 +1392,10 @@ void mx_gc_scan_table(mx_gc_t *gc, mx_obj_table_t *table, bool is_old_scan) {
         size_t len = mx_table_hash_cap(table);
         for (size_t i = 0; i < len; i++) {
             mx_table_entry_t *e = &table->entries[i];
+            if (e->val_kind == MX_KIND_NIL && mx_gc_kind_is_ref(gc->vm, e->key_kind)) {
+                e->key_kind = MX_KIND_DEAD_KEY;
+                continue;
+            }
             mx_obj_t key = mx_table_entry_key(e);
             bool is_key_live;
             if (!weak_keys || !mx_gc_slot_collectable(gc, key)) {
@@ -1445,7 +1449,7 @@ bool mx_gc_ephemeron_pass(mx_gc_t *gc) {
 
 bool mx_gc_slot_collectable(mx_gc_t *gc, mx_obj_t slot) {
     mx_kind_t kind = slot.kind;
-    if (kind != MX_KIND_CLOSURE && (kind < MX_KIND_FIRST_DATA || kind == MX_KIND_ERROR)) {
+    if (kind != MX_KIND_CLOSURE && (kind < MX_KIND_FIRST_DATA || kind >= gc->vm->kinds.len)) {
         return false;
     }
     void *ptr = mx_ref_obj(slot.val.ref);
@@ -1488,7 +1492,7 @@ void mx_gc_weak_clear_table(mx_gc_t *gc, mx_obj_table_t *table, bool weak_keys, 
                 bool dead = mx_gc_slot_is_dead(gc, &key);
                 e->key = key.val;
                 if (dead) {
-                    mx_table_entry_set_key(e, mx_obj_of_boolean(false), mx_table_key_hash(mx_obj_of_boolean(false)));
+                    e->key_kind = MX_KIND_DEAD_KEY;
                     mx_table_entry_set_val(e, mx_obj_of_nil());
                     continue;
                 }

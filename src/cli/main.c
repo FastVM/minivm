@@ -119,7 +119,7 @@ void mx_main_msgh(mx_t *vm, size_t nargs, mx_obj_t *args) {
     }
     mx_str_t *out = mx_str_new();
     if (mx_obj_is_string(v) || mx_obj_is_number(v)) {
-        mx_str_object_tostring(vm, out, v);
+        mx_meta_render(vm, out, v);
     } else {
         mx_obj_t meta = mx_meta_handler_of(vm, v, mx_lua_of(vm)->meta_keys[MX_LUA_META_KEY_TOSTRING]);
         mx_obj_t got = mx_obj_of_nil();
@@ -175,7 +175,11 @@ mx_main_exit_t mx_main_run_file(mx_t *vm, const char *prog, const char *fname) {
         mx_str_format(name, "@%s", fname);
     }
     if (text.ptr == NULL) {
-        fprintf(stderr, "%s: cannot open %s\n", prog, fname);
+        if (fname == NULL) {
+            fprintf(stderr, "%s: cannot read stdin\n", prog);
+        } else {
+            fprintf(stderr, "%s: cannot open %s\n", prog, fname);
+        }
         mx_str_free(name);
         return MX_MAIN_EXIT_ERROR;
     }
