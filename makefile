@@ -1,49 +1,70 @@
 
-OPT = -Os -flto
-PRE = 
-TARGET = bins
-J != nproc
-EMCC = emcc
+CC ?= cc
 
-RAYLIB_CC ?= $(CC)
-RAYLIB_DIR = vendor/raylib/src
+NO_CROSSJUMPING := ${shell ${CC} -fno-crossjumping -E -x c /dev/null -o /dev/null 2>/dev/null && echo -fno-crossjumping}
+ALIGN_LABELS := ${shell ${CC} -Werror -falign-labels=16 -c -x c /dev/null -o /dev/null 2>/dev/null && echo -falign-labels=16}
 
-linux: .dummy
-	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=LINUX CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)"
+OPT ?= -O3 -fno-math-errno -fno-trapping-math ${NO_CROSSJUMPING} ${ALIGN_LABELS}
 
-MAC_RAYLIB_OBJS = $(RAYLIB_DIR)/rcore.o $(RAYLIB_DIR)/rglfw.o $(RAYLIB_DIR)/rshapes.o $(RAYLIB_DIR)/rtextures.o $(RAYLIB_DIR)/rtext.o $(RAYLIB_DIR)/rmodels.o $(RAYLIB_DIR)/raudio.o $(RAYLIB_DIR)/utils.o
+DEFINES ?= -DNDEBUG
 
-mac: .dummy
-	$(PRE) make -Bj$(J) -C vendor/raylib/src CC="$(RAYLIB_CC)" LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
-	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=MAC CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB -DVM_NO_GC $(CFLAGS)" LDFLAGS="$(MAC_RAYLIB_OBJS) -framework Cocoa -framework OpenGL -framework IOKit $(LDFLAGS)" 
+EXE ?=
 
-WINDOWS_RAYLIB_OBJS = $(RAYLIB_DIR)/rcore.o $(RAYLIB_DIR)/rglfw.o $(RAYLIB_DIR)/rshapes.o $(RAYLIB_DIR)/rtextures.o $(RAYLIB_DIR)/rtext.o $(RAYLIB_DIR)/rmodels.o $(RAYLIB_DIR)/raudio.o $(RAYLIB_DIR)/utils.o
 
-windows: .dummy
-	$(PRE) make -j$(J) -C vendor/raylib/src CC="$(RAYLIB_CC)" LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP OS=WINDOWS_NT
-	$(PRE) make -Bj$(J) -f tool/core.mak $(TARGET) OS=WINDOWS CC="$(CC)" EXE=.exe TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB -DVM_NO_GC -DWIN32_LEAN_AND_MEAN $(CFLAGS)" LDFLAGS="$(RAYLIB_DIR)/libraylib.a -lopengl32 -lgdi32 -lwinmm"
+LIBM ?= YES
+LIBM_NO :=
+LIBM_YES := -lm
+LIBM_FLAGS := ${LIBM_${LIBM}}
 
-freebsd: .dummy
-	$(PRE) gmake -Bj$(J) -C vendor/raylib/src CC="$(RAYLIB_CC)" LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -DPLATFORM_DESKTOP" PLATFORM=PLATFORM_DESKTOP
-	$(PRE) gmake -Bj$(J) -f tool/core.mak $(TARGET) OS=FREEBSD CC="$(CC)" EXE= TEST_LUA="$(TEST_LUA)" CFLAGS="-DVM_USE_RAYLIB $(CFLAGS)" LDFLAGS="-L/usr/local/lib vendor/raylib/src/libraylib.a -lOpenGL -lm -lpthread $(LDFLAGS)" 
+EXPORT_DYNAMIC ?= -rdynamic
+LIBDL ?= -ldl
 
-WEB_RAYLIB_OBJS = $(RAYLIB_DIR)/rcore.o $(RAYLIB_DIR)/rshapes.o $(RAYLIB_DIR)/rtextures.o $(RAYLIB_DIR)/rtext.o $(RAYLIB_DIR)/rmodels.o $(RAYLIB_DIR)/raudio.o $(RAYLIB_DIR)/utils.o
+PREFIX ?= /usr/local
+DESTDIR ?=
 
-web: .dummy
-	$(PRE) make -Bj$(J) CC=$(EMCC) -C vendor/raylib/src LDFLAGS="$(OPT)" CFLAGS="-w $(OPT) $(CLFAGS) -D_DEFAULT_SOURCE -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES2" PLATFORM=PLATFORM_WEB $(WEB_RAYLIB_OBJS:$(RAYLIB_DIR)/%=%)
-	$(PRE) make -Bj$(J) CC=$(EMCC) -f tool/core.mak build/bin/minivm.mjs OS=LINUX EXE=.mjs \
-		CFLAGS='-fPIC -DVM_USE_RAYLIB -DNDEBUG -DVM_NO_GC' \
-		LDFLAGS='--embed-file test@test -lglfw -lGL -s ASYNCIFY=1 -s BINARYEN_ASYNC_COMPILATION=0 -s EXPORTED_RUNTIME_METHODS=['FS'] -s STACK_SIZE=16mb -s USE_GLFW=3 -s SINGLE_FILE=1 $(WEB_RAYLIB_OBJS) -s ENVIRONMENT=web -s ALLOW_MEMORY_GROWTH=1'
-	mv build/bin/minivm.mjs web/minivm.js
+BASE_CFLAGS := ${OPT} -fwrapv ${DEFINES} ${CFLAGS}
+BASE_LDFLAGS := ${OPT} ${LDFLAGS} ${LIBM_FLAGS} ${LIBDL} ${EXPORT_DYNAMIC}
 
-web-raw: .dummy
-	$(PRE) make -Bj$(J) CC=$(EMCC) -f tool/core.mak build/bin/minivm.mjs OS=LINUX EXE=.mjs \
-		CFLAGS='-fPIC -DVM_USE_RAYLIB -DNDEBUG -DVM_USE_CANVAS -DVM_NO_GC' \
-		LDFLAGS='--embed-file test@test -s EXIT_RUNTIME=0 -s ASYNCIFY=0 -s BINARYEN_ASYNC_COMPILATION=0 -s EXPORTED_RUNTIME_METHODS=FS -s STACK_SIZE=4mb -s ENVIRONMENT=web -s ALLOW_MEMORY_GROWTH=1'
-	mv build/bin/minivm.wasm web-raw/minivm.wasm
-	mv build/bin/minivm.mjs web-raw/minivm.js
+CMODS := build/cmod/luamod.so build/cmod/luajson.so build/cmod/luaabi.so build/cmod/mxmod.so
+CMOD_LDFLAGS ?=
 
-format: .dummy
-	clang-format -i $$(find vm main -name '*.c' -or -name '*.h')
+SRCS := ${shell find src -name '*.c'}
+IC_SRCS := vendor/isocline/src/isocline.c
+MAIN_SRCS = ${SRCS} ${IC_SRCS}
+MAIN_OBJS = ${MAIN_SRCS:%.c=build/obj/%.o}
+
+MAIN_DEPS = ${MAIN_SRCS:%.c=build/dep/%.dep}
+
+default: all
+
+all: minivm
+
+minivm: build/bin/minivm${EXE}
+
+cmod: ${CMODS}
+
+clean: .dummy
+	rm -rf build
+
+install: build/bin/minivm .dummy
+	install -d ${DESTDIR}${PREFIX}/bin ${DESTDIR}${PREFIX}/include/minivm
+	install -m 755 build/bin/minivm ${DESTDIR}${PREFIX}/bin/minivm
+	install -m 644 include/lua.h include/lauxlib.h include/lualib.h include/luaconf.h ${DESTDIR}${PREFIX}/include/minivm
+
+build/cmod/%.so: test/cmod/%.c include/lua.h include/lauxlib.h include/luaconf.h
+	@mkdir -p ${dir ${@}}
+	${CC} -shared -fPIC -Iinclude ${OPT} -o ${@} ${<} ${CMOD_LDFLAGS}
+
+build/bin/minivm${EXE}: ${MAIN_OBJS}
+	@mkdir -p ${dir ${@}}
+	${CC} -o ${@} ${MAIN_OBJS} ${BASE_LDFLAGS}
+
+${MAIN_OBJS}:
+	@mkdir -p ${dir ${@}}
+	@mkdir -p ${dir ${@:build/obj/%.o=build/dep/%.dep}}
+	${CC} ${@:build/obj/%.o=%.c} -c -o ${@} ${BASE_CFLAGS}
+	@${CC} ${@:build/obj/%.o=%.c} -MM -MP -MF ${@:build/obj/%.o=build/dep/%.dep} -MT ${@} ${BASE_CFLAGS}
+
+include ${wildcard ${MAIN_DEPS}}
 
 .dummy:

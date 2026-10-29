@@ -1,0 +1,12 @@
+false	boom
+false	sem_pcall_c_errors.lua:2: lvl2
+false	bad argument #1 to 'string.rep' (string expected, got no value)
+false	bad argument #1 to 'math.floor' (number expected, got string)
+false	handled: bad argument #1 to 'string.rep' (string expected, got no value)
+false	bad argument #1 to 'setmetatable' (table expected, got number)
+
+1
+true	nil
+true	nil
+false	bad argument #1 to 'pcall' (value expected)
+true	false	msgh e

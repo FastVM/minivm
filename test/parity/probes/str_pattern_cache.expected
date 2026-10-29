@@ -1,0 +1,13 @@
+1	abc:5 abc:6 abc:7 abc:4 abc:5 abc:6 abc:7 abc:4
+2	abc:5 abc:6 abc:7 abc:4 abc:5 abc:6 abc:7 abc:4
+3	abc:5 abc:6 abc:7 abc:4 abc:5 abc:6 abc:7 abc:4
+nil	nil	2	2
+false	malformed pattern (missing ']')
+false	malformed pattern (ends with '%')
+false	malformed pattern (missing ']')
+false	malformed pattern (ends with '%')
+ABC1234 DE56 F7 GHIJ	abc,de,f,ghij
+a/b/c	a/b/c	2
+hell0 w0rld	2
+a	1	a
+b	2	b

@@ -1,0 +1,19 @@
+0
+1000
+1	256	257	1000	nil
+1002	a	b	1	256	257	1000
+1000
+900	901
+1000
+1000	1
+600	BCDEF	YZABC
+1000
+1	2	3
+1
+true	257
+true	256
+true	255
+true	200
+1 2
+rounds ok
+false	too many results to unpack

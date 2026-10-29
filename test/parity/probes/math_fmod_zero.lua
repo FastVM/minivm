@@ -1,0 +1,27 @@
+local function show(x)
+    print(string.format("%.14g", x), 1 / x)
+end
+local big = -9223372036854775809
+show(big % 1)
+show((big + 0) % 1)
+show(-4.0 % 2)
+show(-4.0 % -2)
+show(4.0 % -2)
+show(4.0 % 2)
+show(-0.0 % 1)
+show(0.0 % -1)
+show(-6 % 3.0)
+show(6 % -3.0)
+show(5.5 % -2)
+show(-5.5 % 2)
+show(-5.5 % math.huge)
+show(5.5 % -math.huge)
+local function dyn(a, b)
+    return a % b
+end
+show(dyn(big, 1))
+show(dyn(-4.0, 2))
+show(dyn(4.0, -2))
+show(dyn(-4, 2.0))
+show(math.fmod(-4.0, 2))
+show(math.fmod(4.0, -2))

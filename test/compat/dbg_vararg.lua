@@ -1,0 +1,11 @@
+local function f(a, ...)
+    local i = debug.getinfo(1, "Sl")
+    print(i.what, i.currentline, i.linedefined)
+    local n, v = debug.getlocal(1, 1)
+    print(n, v)
+    n, v = debug.getlocal(1, 2)
+    print(n, v)
+    n, v = debug.getlocal(1, -1)
+    print(n, v)
+end
+f(7, "va", "vb")

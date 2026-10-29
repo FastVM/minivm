@@ -1,0 +1,5 @@
+false	bad argument #1 to 'warn' (string expected, got no value)
+false	bad argument #2 to 'warn' (string expected, got table)
+Lua warning: one two three
+Lua warning: @off is not a control here
+Lua warning: x

@@ -1,0 +1,7 @@
+local env = setmetatable({items = {1, 2}}, {__index = _G})
+local f = load("local n = 0 for _, v in ipairs(items) do n = n + v end return n, type(ipairs), tostring(1)", "t", "t", env)
+print(f())
+local env2 = setmetatable({}, {__index = function(t, k) return _G[k] end})
+print(load("return type(ipairs), type(print)", "t", "t", env2)())
+local chained = setmetatable({}, {__index = env})
+print(load("return type(ipairs), #items", "t", "t", chained)())

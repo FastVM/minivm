@@ -1,0 +1,1292 @@
+"" "a"	true	nil
+  m	true	nil
+"" "a*"	true	1	0
+  m	true	
+"" "a+"	true	nil
+  m	true	nil
+"" "a-"	true	1	0
+  m	true	
+"" "a?"	true	1	0
+  m	true	
+"" "^a"	true	nil
+  m	true	nil
+"" "a$"	true	nil
+  m	true	nil
+"" "^$"	true	1	0
+  m	true	
+"" "."	true	nil
+  m	true	nil
+"" ".-"	true	1	0
+  m	true	
+"" "(a*)"	true	1	0	
+  m	true	
+"" "()"	true	1	0	1
+  m	true	1
+"" "(a)(a)"	true	nil
+  m	true	nil
+"" "%a+"	true	nil
+  m	true	nil
+"" "%A+"	true	nil
+  m	true	nil
+"" "%d"	true	nil
+  m	true	nil
+"" "%s*(.-)%s*$"	true	1	0	
+  m	true	
+"" "%w+"	true	nil
+  m	true	nil
+"" "%p"	true	nil
+  m	true	nil
+"" "%x+"	true	nil
+  m	true	nil
+"" "%z"	true	nil
+  m	true	nil
+"" "[%a_]+"	true	nil
+  m	true	nil
+"" "[^%s]+"	true	nil
+  m	true	nil
+"" "[a-]"	true	nil
+  m	true	nil
+"" "[]]"	true	nil
+  m	true	nil
+"" "[^]]+"	true	nil
+  m	true	nil
+"" "[a%-c]+"	true	nil
+  m	true	nil
+"" "[%a-z]"	true	nil
+  m	true	nil
+"" "%bxy"	true	nil
+  m	true	nil
+"" "%b()"	true	nil
+  m	true	nil
+"" "%b[]"	true	nil
+  m	true	nil
+"" "%f[%w]%w+"	true	nil
+  m	true	nil
+"" "%f[%W]"	true	nil
+  m	true	nil
+"" "(%w)%1"	true	nil
+  m	true	nil
+"" "((a)%2)"	true	nil
+  m	true	nil
+"" "(.)%1"	true	nil
+  m	true	nil
+"" "[a-c]+"	true	nil
+  m	true	nil
+"" "[c-a]"	true	nil
+  m	true	nil
+"" "a.-b"	true	nil
+  m	true	nil
+"" "^(%w+)"	true	nil
+  m	true	nil
+"" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"" "%."	true	nil
+  m	true	nil
+"" "%%"	true	nil
+  m	true	nil
+"" "x*$"	true	1	0
+  m	true	
+"" "[%]]"	true	nil
+  m	true	nil
+"" "^[^,]*"	true	1	0
+  m	true	
+"" ",(,?)"	true	nil
+  m	true	nil
+"" "(%s*)$"	true	1	0	
+  m	true	
+"" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"" "(a"	true	nil
+  m	true	nil
+"" "a)"	true	nil
+  m	true	nil
+"" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"" "(a)%2"	true	nil
+  m	true	nil
+"" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"a" "a"	true	1	1
+  m	true	a
+"a" "a*"	true	1	1
+  m	true	a
+"a" "a+"	true	1	1
+  m	true	a
+"a" "a-"	true	1	0
+  m	true	
+"a" "a?"	true	1	1
+  m	true	a
+"a" "^a"	true	1	1
+  m	true	a
+"a" "a$"	true	1	1
+  m	true	a
+"a" "^$"	true	nil
+  m	true	nil
+"a" "."	true	1	1
+  m	true	a
+"a" ".-"	true	1	0
+  m	true	
+"a" "(a*)"	true	1	1	a
+  m	true	a
+"a" "()"	true	1	0	1
+  m	true	1
+"a" "(a)(a)"	true	nil
+  m	true	nil
+"a" "%a+"	true	1	1
+  m	true	a
+"a" "%A+"	true	nil
+  m	true	nil
+"a" "%d"	true	nil
+  m	true	nil
+"a" "%s*(.-)%s*$"	true	1	1	a
+  m	true	a
+"a" "%w+"	true	1	1
+  m	true	a
+"a" "%p"	true	nil
+  m	true	nil
+"a" "%x+"	true	1	1
+  m	true	a
+"a" "%z"	true	nil
+  m	true	nil
+"a" "[%a_]+"	true	1	1
+  m	true	a
+"a" "[^%s]+"	true	1	1
+  m	true	a
+"a" "[a-]"	true	1	1
+  m	true	a
+"a" "[]]"	true	nil
+  m	true	nil
+"a" "[^]]+"	true	1	1
+  m	true	a
+"a" "[a%-c]+"	true	1	1
+  m	true	a
+"a" "[%a-z]"	true	1	1
+  m	true	a
+"a" "%bxy"	true	nil
+  m	true	nil
+"a" "%b()"	true	nil
+  m	true	nil
+"a" "%b[]"	true	nil
+  m	true	nil
+"a" "%f[%w]%w+"	true	1	1
+  m	true	a
+"a" "%f[%W]"	true	2	1
+  m	true	
+"a" "(%w)%1"	true	nil
+  m	true	nil
+"a" "((a)%2)"	true	nil
+  m	true	nil
+"a" "(.)%1"	true	nil
+  m	true	nil
+"a" "[a-c]+"	true	1	1
+  m	true	a
+"a" "[c-a]"	true	nil
+  m	true	nil
+"a" "a.-b"	true	nil
+  m	true	nil
+"a" "^(%w+)"	true	1	1	a
+  m	true	a
+"a" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"a" "%."	true	nil
+  m	true	nil
+"a" "%%"	true	nil
+  m	true	nil
+"a" "x*$"	true	2	1
+  m	true	
+"a" "[%]]"	true	nil
+  m	true	nil
+"a" "^[^,]*"	true	1	1
+  m	true	a
+"a" ",(,?)"	true	nil
+  m	true	nil
+"a" "(%s*)$"	true	2	1	
+  m	true	
+"a" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"a" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"a" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"a" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"a" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"a" "(a"	false	unfinished capture
+  m	false	unfinished capture
+"a" "a)"	true	nil
+  m	false	invalid pattern capture
+"a" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"a" "(a)%2"	false	invalid capture index %2
+  m	false	invalid capture index %2
+"a" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"aaa" "a"	true	1	1
+  m	true	a
+"aaa" "a*"	true	1	3
+  m	true	aaa
+"aaa" "a+"	true	1	3
+  m	true	aaa
+"aaa" "a-"	true	1	0
+  m	true	
+"aaa" "a?"	true	1	1
+  m	true	a
+"aaa" "^a"	true	1	1
+  m	true	a
+"aaa" "a$"	true	3	3
+  m	true	a
+"aaa" "^$"	true	nil
+  m	true	nil
+"aaa" "."	true	1	1
+  m	true	a
+"aaa" ".-"	true	1	0
+  m	true	
+"aaa" "(a*)"	true	1	3	aaa
+  m	true	aaa
+"aaa" "()"	true	1	0	1
+  m	true	1
+"aaa" "(a)(a)"	true	1	2	a	a
+  m	true	a	a
+"aaa" "%a+"	true	1	3
+  m	true	aaa
+"aaa" "%A+"	true	nil
+  m	true	nil
+"aaa" "%d"	true	nil
+  m	true	nil
+"aaa" "%s*(.-)%s*$"	true	1	3	aaa
+  m	true	aaa
+"aaa" "%w+"	true	1	3
+  m	true	aaa
+"aaa" "%p"	true	nil
+  m	true	nil
+"aaa" "%x+"	true	1	3
+  m	true	aaa
+"aaa" "%z"	true	nil
+  m	true	nil
+"aaa" "[%a_]+"	true	1	3
+  m	true	aaa
+"aaa" "[^%s]+"	true	1	3
+  m	true	aaa
+"aaa" "[a-]"	true	1	1
+  m	true	a
+"aaa" "[]]"	true	nil
+  m	true	nil
+"aaa" "[^]]+"	true	1	3
+  m	true	aaa
+"aaa" "[a%-c]+"	true	1	3
+  m	true	aaa
+"aaa" "[%a-z]"	true	1	1
+  m	true	a
+"aaa" "%bxy"	true	nil
+  m	true	nil
+"aaa" "%b()"	true	nil
+  m	true	nil
+"aaa" "%b[]"	true	nil
+  m	true	nil
+"aaa" "%f[%w]%w+"	true	1	3
+  m	true	aaa
+"aaa" "%f[%W]"	true	4	3
+  m	true	
+"aaa" "(%w)%1"	true	1	2	a
+  m	true	a
+"aaa" "((a)%2)"	true	1	2	aa	a
+  m	true	aa	a
+"aaa" "(.)%1"	true	1	2	a
+  m	true	a
+"aaa" "[a-c]+"	true	1	3
+  m	true	aaa
+"aaa" "[c-a]"	true	nil
+  m	true	nil
+"aaa" "a.-b"	true	nil
+  m	true	nil
+"aaa" "^(%w+)"	true	1	3	aaa
+  m	true	aaa
+"aaa" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"aaa" "%."	true	nil
+  m	true	nil
+"aaa" "%%"	true	nil
+  m	true	nil
+"aaa" "x*$"	true	4	3
+  m	true	
+"aaa" "[%]]"	true	nil
+  m	true	nil
+"aaa" "^[^,]*"	true	1	3
+  m	true	aaa
+"aaa" ",(,?)"	true	nil
+  m	true	nil
+"aaa" "(%s*)$"	true	4	3	
+  m	true	
+"aaa" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"aaa" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"aaa" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"aaa" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"aaa" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"aaa" "(a"	false	unfinished capture
+  m	false	unfinished capture
+"aaa" "a)"	true	nil
+  m	false	invalid pattern capture
+"aaa" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"aaa" "(a)%2"	false	invalid capture index %2
+  m	false	invalid capture index %2
+"aaa" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"hello world" "a"	true	nil
+  m	true	nil
+"hello world" "a*"	true	1	0
+  m	true	
+"hello world" "a+"	true	nil
+  m	true	nil
+"hello world" "a-"	true	1	0
+  m	true	
+"hello world" "a?"	true	1	0
+  m	true	
+"hello world" "^a"	true	nil
+  m	true	nil
+"hello world" "a$"	true	nil
+  m	true	nil
+"hello world" "^$"	true	nil
+  m	true	nil
+"hello world" "."	true	1	1
+  m	true	h
+"hello world" ".-"	true	1	0
+  m	true	
+"hello world" "(a*)"	true	1	0	
+  m	true	
+"hello world" "()"	true	1	0	1
+  m	true	1
+"hello world" "(a)(a)"	true	nil
+  m	true	nil
+"hello world" "%a+"	true	1	5
+  m	true	hello
+"hello world" "%A+"	true	6	6
+  m	true	 
+"hello world" "%d"	true	nil
+  m	true	nil
+"hello world" "%s*(.-)%s*$"	true	1	11	hello world
+  m	true	hello world
+"hello world" "%w+"	true	1	5
+  m	true	hello
+"hello world" "%p"	true	nil
+  m	true	nil
+"hello world" "%x+"	true	2	2
+  m	true	e
+"hello world" "%z"	true	nil
+  m	true	nil
+"hello world" "[%a_]+"	true	1	5
+  m	true	hello
+"hello world" "[^%s]+"	true	1	5
+  m	true	hello
+"hello world" "[a-]"	true	nil
+  m	true	nil
+"hello world" "[]]"	true	nil
+  m	true	nil
+"hello world" "[^]]+"	true	1	11
+  m	true	hello world
+"hello world" "[a%-c]+"	true	nil
+  m	true	nil
+"hello world" "[%a-z]"	true	1	1
+  m	true	h
+"hello world" "%bxy"	true	nil
+  m	true	nil
+"hello world" "%b()"	true	nil
+  m	true	nil
+"hello world" "%b[]"	true	nil
+  m	true	nil
+"hello world" "%f[%w]%w+"	true	1	5
+  m	true	hello
+"hello world" "%f[%W]"	true	6	5
+  m	true	
+"hello world" "(%w)%1"	true	3	4	l
+  m	true	l
+"hello world" "((a)%2)"	true	nil
+  m	true	nil
+"hello world" "(.)%1"	true	3	4	l
+  m	true	l
+"hello world" "[a-c]+"	true	nil
+  m	true	nil
+"hello world" "[c-a]"	true	nil
+  m	true	nil
+"hello world" "a.-b"	true	nil
+  m	true	nil
+"hello world" "^(%w+)"	true	1	5	hello
+  m	true	hello
+"hello world" "(h)(e)(l)(l)(o)"	true	1	5	h	e	l	l	o
+  m	true	h	e	l	l	o
+"hello world" "%."	true	nil
+  m	true	nil
+"hello world" "%%"	true	nil
+  m	true	nil
+"hello world" "x*$"	true	12	11
+  m	true	
+"hello world" "[%]]"	true	nil
+  m	true	nil
+"hello world" "^[^,]*"	true	1	11
+  m	true	hello world
+"hello world" ",(,?)"	true	nil
+  m	true	nil
+"hello world" "(%s*)$"	true	12	11	
+  m	true	
+"hello world" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"hello world" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"hello world" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"hello world" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"hello world" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"hello world" "(a"	true	nil
+  m	true	nil
+"hello world" "a)"	true	nil
+  m	true	nil
+"hello world" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"hello world" "(a)%2"	true	nil
+  m	true	nil
+"hello world" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"x = [[a]] (b) {c}" "a"	true	7	7
+  m	true	a
+"x = [[a]] (b) {c}" "a*"	true	1	0
+  m	true	
+"x = [[a]] (b) {c}" "a+"	true	7	7
+  m	true	a
+"x = [[a]] (b) {c}" "a-"	true	1	0
+  m	true	
+"x = [[a]] (b) {c}" "a?"	true	1	0
+  m	true	
+"x = [[a]] (b) {c}" "^a"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "a$"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "^$"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "."	true	1	1
+  m	true	x
+"x = [[a]] (b) {c}" ".-"	true	1	0
+  m	true	
+"x = [[a]] (b) {c}" "(a*)"	true	1	0	
+  m	true	
+"x = [[a]] (b) {c}" "()"	true	1	0	1
+  m	true	1
+"x = [[a]] (b) {c}" "(a)(a)"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "%a+"	true	1	1
+  m	true	x
+"x = [[a]] (b) {c}" "%A+"	true	2	6
+  m	true	 = [[
+"x = [[a]] (b) {c}" "%d"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "%s*(.-)%s*$"	true	1	17	x = [[a]] (b) {c}
+  m	true	x = [[a]] (b) {c}
+"x = [[a]] (b) {c}" "%w+"	true	1	1
+  m	true	x
+"x = [[a]] (b) {c}" "%p"	true	3	3
+  m	true	=
+"x = [[a]] (b) {c}" "%x+"	true	7	7
+  m	true	a
+"x = [[a]] (b) {c}" "%z"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "[%a_]+"	true	1	1
+  m	true	x
+"x = [[a]] (b) {c}" "[^%s]+"	true	1	1
+  m	true	x
+"x = [[a]] (b) {c}" "[a-]"	true	7	7
+  m	true	a
+"x = [[a]] (b) {c}" "[]]"	true	8	8
+  m	true	]
+"x = [[a]] (b) {c}" "[^]]+"	true	1	7
+  m	true	x = [[a
+"x = [[a]] (b) {c}" "[a%-c]+"	true	7	7
+  m	true	a
+"x = [[a]] (b) {c}" "[%a-z]"	true	1	1
+  m	true	x
+"x = [[a]] (b) {c}" "%bxy"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "%b()"	true	11	13
+  m	true	(b)
+"x = [[a]] (b) {c}" "%b[]"	true	5	9
+  m	true	[[a]]
+"x = [[a]] (b) {c}" "%f[%w]%w+"	true	1	1
+  m	true	x
+"x = [[a]] (b) {c}" "%f[%W]"	true	2	1
+  m	true	
+"x = [[a]] (b) {c}" "(%w)%1"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "((a)%2)"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "(.)%1"	true	5	6	[
+  m	true	[
+"x = [[a]] (b) {c}" "[a-c]+"	true	7	7
+  m	true	a
+"x = [[a]] (b) {c}" "[c-a]"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "a.-b"	true	7	12
+  m	true	a]] (b
+"x = [[a]] (b) {c}" "^(%w+)"	true	1	1	x
+  m	true	x
+"x = [[a]] (b) {c}" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "%."	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "%%"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "x*$"	true	18	17
+  m	true	
+"x = [[a]] (b) {c}" "[%]]"	true	8	8
+  m	true	]
+"x = [[a]] (b) {c}" "^[^,]*"	true	1	17
+  m	true	x = [[a]] (b) {c}
+"x = [[a]] (b) {c}" ",(,?)"	true	nil
+  m	true	nil
+"x = [[a]] (b) {c}" "(%s*)$"	true	18	17	
+  m	true	
+"x = [[a]] (b) {c}" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"x = [[a]] (b) {c}" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"x = [[a]] (b) {c}" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"x = [[a]] (b) {c}" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"x = [[a]] (b) {c}" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"x = [[a]] (b) {c}" "(a"	false	unfinished capture
+  m	false	unfinished capture
+"x = [[a]] (b) {c}" "a)"	true	nil
+  m	false	invalid pattern capture
+"x = [[a]] (b) {c}" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"x = [[a]] (b) {c}" "(a)%2"	false	invalid capture index %2
+  m	false	invalid capture index %2
+"x = [[a]] (b) {c}" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"THE (quick) fox" "a"	true	nil
+  m	true	nil
+"THE (quick) fox" "a*"	true	1	0
+  m	true	
+"THE (quick) fox" "a+"	true	nil
+  m	true	nil
+"THE (quick) fox" "a-"	true	1	0
+  m	true	
+"THE (quick) fox" "a?"	true	1	0
+  m	true	
+"THE (quick) fox" "^a"	true	nil
+  m	true	nil
+"THE (quick) fox" "a$"	true	nil
+  m	true	nil
+"THE (quick) fox" "^$"	true	nil
+  m	true	nil
+"THE (quick) fox" "."	true	1	1
+  m	true	T
+"THE (quick) fox" ".-"	true	1	0
+  m	true	
+"THE (quick) fox" "(a*)"	true	1	0	
+  m	true	
+"THE (quick) fox" "()"	true	1	0	1
+  m	true	1
+"THE (quick) fox" "(a)(a)"	true	nil
+  m	true	nil
+"THE (quick) fox" "%a+"	true	1	3
+  m	true	THE
+"THE (quick) fox" "%A+"	true	4	5
+  m	true	 (
+"THE (quick) fox" "%d"	true	nil
+  m	true	nil
+"THE (quick) fox" "%s*(.-)%s*$"	true	1	15	THE (quick) fox
+  m	true	THE (quick) fox
+"THE (quick) fox" "%w+"	true	1	3
+  m	true	THE
+"THE (quick) fox" "%p"	true	5	5
+  m	true	(
+"THE (quick) fox" "%x+"	true	3	3
+  m	true	E
+"THE (quick) fox" "%z"	true	nil
+  m	true	nil
+"THE (quick) fox" "[%a_]+"	true	1	3
+  m	true	THE
+"THE (quick) fox" "[^%s]+"	true	1	3
+  m	true	THE
+"THE (quick) fox" "[a-]"	true	nil
+  m	true	nil
+"THE (quick) fox" "[]]"	true	nil
+  m	true	nil
+"THE (quick) fox" "[^]]+"	true	1	15
+  m	true	THE (quick) fox
+"THE (quick) fox" "[a%-c]+"	true	9	9
+  m	true	c
+"THE (quick) fox" "[%a-z]"	true	1	1
+  m	true	T
+"THE (quick) fox" "%bxy"	true	nil
+  m	true	nil
+"THE (quick) fox" "%b()"	true	5	11
+  m	true	(quick)
+"THE (quick) fox" "%b[]"	true	nil
+  m	true	nil
+"THE (quick) fox" "%f[%w]%w+"	true	1	3
+  m	true	THE
+"THE (quick) fox" "%f[%W]"	true	4	3
+  m	true	
+"THE (quick) fox" "(%w)%1"	true	nil
+  m	true	nil
+"THE (quick) fox" "((a)%2)"	true	nil
+  m	true	nil
+"THE (quick) fox" "(.)%1"	true	nil
+  m	true	nil
+"THE (quick) fox" "[a-c]+"	true	9	9
+  m	true	c
+"THE (quick) fox" "[c-a]"	true	nil
+  m	true	nil
+"THE (quick) fox" "a.-b"	true	nil
+  m	true	nil
+"THE (quick) fox" "^(%w+)"	true	1	3	THE
+  m	true	THE
+"THE (quick) fox" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"THE (quick) fox" "%."	true	nil
+  m	true	nil
+"THE (quick) fox" "%%"	true	nil
+  m	true	nil
+"THE (quick) fox" "x*$"	true	15	15
+  m	true	x
+"THE (quick) fox" "[%]]"	true	nil
+  m	true	nil
+"THE (quick) fox" "^[^,]*"	true	1	15
+  m	true	THE (quick) fox
+"THE (quick) fox" ",(,?)"	true	nil
+  m	true	nil
+"THE (quick) fox" "(%s*)$"	true	16	15	
+  m	true	
+"THE (quick) fox" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"THE (quick) fox" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"THE (quick) fox" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"THE (quick) fox" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"THE (quick) fox" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"THE (quick) fox" "(a"	true	nil
+  m	true	nil
+"THE (quick) fox" "a)"	true	nil
+  m	true	nil
+"THE (quick) fox" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"THE (quick) fox" "(a)%2"	true	nil
+  m	true	nil
+"THE (quick) fox" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"a.b-c_d" "a"	true	1	1
+  m	true	a
+"a.b-c_d" "a*"	true	1	1
+  m	true	a
+"a.b-c_d" "a+"	true	1	1
+  m	true	a
+"a.b-c_d" "a-"	true	1	0
+  m	true	
+"a.b-c_d" "a?"	true	1	1
+  m	true	a
+"a.b-c_d" "^a"	true	1	1
+  m	true	a
+"a.b-c_d" "a$"	true	nil
+  m	true	nil
+"a.b-c_d" "^$"	true	nil
+  m	true	nil
+"a.b-c_d" "."	true	1	1
+  m	true	a
+"a.b-c_d" ".-"	true	1	0
+  m	true	
+"a.b-c_d" "(a*)"	true	1	1	a
+  m	true	a
+"a.b-c_d" "()"	true	1	0	1
+  m	true	1
+"a.b-c_d" "(a)(a)"	true	nil
+  m	true	nil
+"a.b-c_d" "%a+"	true	1	1
+  m	true	a
+"a.b-c_d" "%A+"	true	2	2
+  m	true	.
+"a.b-c_d" "%d"	true	nil
+  m	true	nil
+"a.b-c_d" "%s*(.-)%s*$"	true	1	7	a.b-c_d
+  m	true	a.b-c_d
+"a.b-c_d" "%w+"	true	1	1
+  m	true	a
+"a.b-c_d" "%p"	true	2	2
+  m	true	.
+"a.b-c_d" "%x+"	true	1	1
+  m	true	a
+"a.b-c_d" "%z"	true	nil
+  m	true	nil
+"a.b-c_d" "[%a_]+"	true	1	1
+  m	true	a
+"a.b-c_d" "[^%s]+"	true	1	7
+  m	true	a.b-c_d
+"a.b-c_d" "[a-]"	true	1	1
+  m	true	a
+"a.b-c_d" "[]]"	true	nil
+  m	true	nil
+"a.b-c_d" "[^]]+"	true	1	7
+  m	true	a.b-c_d
+"a.b-c_d" "[a%-c]+"	true	1	1
+  m	true	a
+"a.b-c_d" "[%a-z]"	true	1	1
+  m	true	a
+"a.b-c_d" "%bxy"	true	nil
+  m	true	nil
+"a.b-c_d" "%b()"	true	nil
+  m	true	nil
+"a.b-c_d" "%b[]"	true	nil
+  m	true	nil
+"a.b-c_d" "%f[%w]%w+"	true	1	1
+  m	true	a
+"a.b-c_d" "%f[%W]"	true	2	1
+  m	true	
+"a.b-c_d" "(%w)%1"	true	nil
+  m	true	nil
+"a.b-c_d" "((a)%2)"	true	nil
+  m	true	nil
+"a.b-c_d" "(.)%1"	true	nil
+  m	true	nil
+"a.b-c_d" "[a-c]+"	true	1	1
+  m	true	a
+"a.b-c_d" "[c-a]"	true	nil
+  m	true	nil
+"a.b-c_d" "a.-b"	true	1	3
+  m	true	a.b
+"a.b-c_d" "^(%w+)"	true	1	1	a
+  m	true	a
+"a.b-c_d" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"a.b-c_d" "%."	true	2	2
+  m	true	.
+"a.b-c_d" "%%"	true	nil
+  m	true	nil
+"a.b-c_d" "x*$"	true	8	7
+  m	true	
+"a.b-c_d" "[%]]"	true	nil
+  m	true	nil
+"a.b-c_d" "^[^,]*"	true	1	7
+  m	true	a.b-c_d
+"a.b-c_d" ",(,?)"	true	nil
+  m	true	nil
+"a.b-c_d" "(%s*)$"	true	8	7	
+  m	true	
+"a.b-c_d" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"a.b-c_d" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"a.b-c_d" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"a.b-c_d" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"a.b-c_d" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"a.b-c_d" "(a"	false	unfinished capture
+  m	false	unfinished capture
+"a.b-c_d" "a)"	true	nil
+  m	false	invalid pattern capture
+"a.b-c_d" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"a.b-c_d" "(a)%2"	false	invalid capture index %2
+  m	false	invalid capture index %2
+"a.b-c_d" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"  trim  " "a"	true	nil
+  m	true	nil
+"  trim  " "a*"	true	1	0
+  m	true	
+"  trim  " "a+"	true	nil
+  m	true	nil
+"  trim  " "a-"	true	1	0
+  m	true	
+"  trim  " "a?"	true	1	0
+  m	true	
+"  trim  " "^a"	true	nil
+  m	true	nil
+"  trim  " "a$"	true	nil
+  m	true	nil
+"  trim  " "^$"	true	nil
+  m	true	nil
+"  trim  " "."	true	1	1
+  m	true	 
+"  trim  " ".-"	true	1	0
+  m	true	
+"  trim  " "(a*)"	true	1	0	
+  m	true	
+"  trim  " "()"	true	1	0	1
+  m	true	1
+"  trim  " "(a)(a)"	true	nil
+  m	true	nil
+"  trim  " "%a+"	true	3	6
+  m	true	trim
+"  trim  " "%A+"	true	1	2
+  m	true	  
+"  trim  " "%d"	true	nil
+  m	true	nil
+"  trim  " "%s*(.-)%s*$"	true	1	8	trim
+  m	true	trim
+"  trim  " "%w+"	true	3	6
+  m	true	trim
+"  trim  " "%p"	true	nil
+  m	true	nil
+"  trim  " "%x+"	true	nil
+  m	true	nil
+"  trim  " "%z"	true	nil
+  m	true	nil
+"  trim  " "[%a_]+"	true	3	6
+  m	true	trim
+"  trim  " "[^%s]+"	true	3	6
+  m	true	trim
+"  trim  " "[a-]"	true	nil
+  m	true	nil
+"  trim  " "[]]"	true	nil
+  m	true	nil
+"  trim  " "[^]]+"	true	1	8
+  m	true	  trim  
+"  trim  " "[a%-c]+"	true	nil
+  m	true	nil
+"  trim  " "[%a-z]"	true	3	3
+  m	true	t
+"  trim  " "%bxy"	true	nil
+  m	true	nil
+"  trim  " "%b()"	true	nil
+  m	true	nil
+"  trim  " "%b[]"	true	nil
+  m	true	nil
+"  trim  " "%f[%w]%w+"	true	3	6
+  m	true	trim
+"  trim  " "%f[%W]"	true	7	6
+  m	true	
+"  trim  " "(%w)%1"	true	nil
+  m	true	nil
+"  trim  " "((a)%2)"	true	nil
+  m	true	nil
+"  trim  " "(.)%1"	true	1	2	 
+  m	true	 
+"  trim  " "[a-c]+"	true	nil
+  m	true	nil
+"  trim  " "[c-a]"	true	nil
+  m	true	nil
+"  trim  " "a.-b"	true	nil
+  m	true	nil
+"  trim  " "^(%w+)"	true	nil
+  m	true	nil
+"  trim  " "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"  trim  " "%."	true	nil
+  m	true	nil
+"  trim  " "%%"	true	nil
+  m	true	nil
+"  trim  " "x*$"	true	9	8
+  m	true	
+"  trim  " "[%]]"	true	nil
+  m	true	nil
+"  trim  " "^[^,]*"	true	1	8
+  m	true	  trim  
+"  trim  " ",(,?)"	true	nil
+  m	true	nil
+"  trim  " "(%s*)$"	true	7	8	  
+  m	true	  
+"  trim  " "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"  trim  " "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"  trim  " "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"  trim  " "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"  trim  " "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"  trim  " "(a"	true	nil
+  m	true	nil
+"  trim  " "a)"	true	nil
+  m	true	nil
+"  trim  " "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"  trim  " "(a)%2"	true	nil
+  m	true	nil
+"  trim  " "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"]" "a"	true	nil
+  m	true	nil
+"]" "a*"	true	1	0
+  m	true	
+"]" "a+"	true	nil
+  m	true	nil
+"]" "a-"	true	1	0
+  m	true	
+"]" "a?"	true	1	0
+  m	true	
+"]" "^a"	true	nil
+  m	true	nil
+"]" "a$"	true	nil
+  m	true	nil
+"]" "^$"	true	nil
+  m	true	nil
+"]" "."	true	1	1
+  m	true	]
+"]" ".-"	true	1	0
+  m	true	
+"]" "(a*)"	true	1	0	
+  m	true	
+"]" "()"	true	1	0	1
+  m	true	1
+"]" "(a)(a)"	true	nil
+  m	true	nil
+"]" "%a+"	true	nil
+  m	true	nil
+"]" "%A+"	true	1	1
+  m	true	]
+"]" "%d"	true	nil
+  m	true	nil
+"]" "%s*(.-)%s*$"	true	1	1	]
+  m	true	]
+"]" "%w+"	true	nil
+  m	true	nil
+"]" "%p"	true	1	1
+  m	true	]
+"]" "%x+"	true	nil
+  m	true	nil
+"]" "%z"	true	nil
+  m	true	nil
+"]" "[%a_]+"	true	nil
+  m	true	nil
+"]" "[^%s]+"	true	1	1
+  m	true	]
+"]" "[a-]"	true	nil
+  m	true	nil
+"]" "[]]"	true	1	1
+  m	true	]
+"]" "[^]]+"	true	nil
+  m	true	nil
+"]" "[a%-c]+"	true	nil
+  m	true	nil
+"]" "[%a-z]"	true	nil
+  m	true	nil
+"]" "%bxy"	true	nil
+  m	true	nil
+"]" "%b()"	true	nil
+  m	true	nil
+"]" "%b[]"	true	nil
+  m	true	nil
+"]" "%f[%w]%w+"	true	nil
+  m	true	nil
+"]" "%f[%W]"	true	nil
+  m	true	nil
+"]" "(%w)%1"	true	nil
+  m	true	nil
+"]" "((a)%2)"	true	nil
+  m	true	nil
+"]" "(.)%1"	true	nil
+  m	true	nil
+"]" "[a-c]+"	true	nil
+  m	true	nil
+"]" "[c-a]"	true	nil
+  m	true	nil
+"]" "a.-b"	true	nil
+  m	true	nil
+"]" "^(%w+)"	true	nil
+  m	true	nil
+"]" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"]" "%."	true	nil
+  m	true	nil
+"]" "%%"	true	nil
+  m	true	nil
+"]" "x*$"	true	2	1
+  m	true	
+"]" "[%]]"	true	1	1
+  m	true	]
+"]" "^[^,]*"	true	1	1
+  m	true	]
+"]" ",(,?)"	true	nil
+  m	true	nil
+"]" "(%s*)$"	true	2	1	
+  m	true	
+"]" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"]" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"]" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"]" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"]" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"]" "(a"	true	nil
+  m	true	nil
+"]" "a)"	true	nil
+  m	true	nil
+"]" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"]" "(a)%2"	true	nil
+  m	true	nil
+"]" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"a,b,,c" "a"	true	1	1
+  m	true	a
+"a,b,,c" "a*"	true	1	1
+  m	true	a
+"a,b,,c" "a+"	true	1	1
+  m	true	a
+"a,b,,c" "a-"	true	1	0
+  m	true	
+"a,b,,c" "a?"	true	1	1
+  m	true	a
+"a,b,,c" "^a"	true	1	1
+  m	true	a
+"a,b,,c" "a$"	true	nil
+  m	true	nil
+"a,b,,c" "^$"	true	nil
+  m	true	nil
+"a,b,,c" "."	true	1	1
+  m	true	a
+"a,b,,c" ".-"	true	1	0
+  m	true	
+"a,b,,c" "(a*)"	true	1	1	a
+  m	true	a
+"a,b,,c" "()"	true	1	0	1
+  m	true	1
+"a,b,,c" "(a)(a)"	true	nil
+  m	true	nil
+"a,b,,c" "%a+"	true	1	1
+  m	true	a
+"a,b,,c" "%A+"	true	2	2
+  m	true	,
+"a,b,,c" "%d"	true	nil
+  m	true	nil
+"a,b,,c" "%s*(.-)%s*$"	true	1	6	a,b,,c
+  m	true	a,b,,c
+"a,b,,c" "%w+"	true	1	1
+  m	true	a
+"a,b,,c" "%p"	true	2	2
+  m	true	,
+"a,b,,c" "%x+"	true	1	1
+  m	true	a
+"a,b,,c" "%z"	true	nil
+  m	true	nil
+"a,b,,c" "[%a_]+"	true	1	1
+  m	true	a
+"a,b,,c" "[^%s]+"	true	1	6
+  m	true	a,b,,c
+"a,b,,c" "[a-]"	true	1	1
+  m	true	a
+"a,b,,c" "[]]"	true	nil
+  m	true	nil
+"a,b,,c" "[^]]+"	true	1	6
+  m	true	a,b,,c
+"a,b,,c" "[a%-c]+"	true	1	1
+  m	true	a
+"a,b,,c" "[%a-z]"	true	1	1
+  m	true	a
+"a,b,,c" "%bxy"	true	nil
+  m	true	nil
+"a,b,,c" "%b()"	true	nil
+  m	true	nil
+"a,b,,c" "%b[]"	true	nil
+  m	true	nil
+"a,b,,c" "%f[%w]%w+"	true	1	1
+  m	true	a
+"a,b,,c" "%f[%W]"	true	2	1
+  m	true	
+"a,b,,c" "(%w)%1"	true	nil
+  m	true	nil
+"a,b,,c" "((a)%2)"	true	nil
+  m	true	nil
+"a,b,,c" "(.)%1"	true	4	5	,
+  m	true	,
+"a,b,,c" "[a-c]+"	true	1	1
+  m	true	a
+"a,b,,c" "[c-a]"	true	nil
+  m	true	nil
+"a,b,,c" "a.-b"	true	1	3
+  m	true	a,b
+"a,b,,c" "^(%w+)"	true	1	1	a
+  m	true	a
+"a,b,,c" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"a,b,,c" "%."	true	nil
+  m	true	nil
+"a,b,,c" "%%"	true	nil
+  m	true	nil
+"a,b,,c" "x*$"	true	7	6
+  m	true	
+"a,b,,c" "[%]]"	true	nil
+  m	true	nil
+"a,b,,c" "^[^,]*"	true	1	1
+  m	true	a
+"a,b,,c" ",(,?)"	true	2	2	
+  m	true	
+"a,b,,c" "(%s*)$"	true	7	6	
+  m	true	
+"a,b,,c" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"a,b,,c" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"a,b,,c" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"a,b,,c" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"a,b,,c" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"a,b,,c" "(a"	false	unfinished capture
+  m	false	unfinished capture
+"a,b,,c" "a)"	true	nil
+  m	false	invalid pattern capture
+"a,b,,c" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"a,b,,c" "(a)%2"	false	invalid capture index %2
+  m	false	invalid capture index %2
+"a,b,,c" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+"\0z\0" "a"	true	nil
+  m	true	nil
+"\0z\0" "a*"	true	1	0
+  m	true	
+"\0z\0" "a+"	true	nil
+  m	true	nil
+"\0z\0" "a-"	true	1	0
+  m	true	
+"\0z\0" "a?"	true	1	0
+  m	true	
+"\0z\0" "^a"	true	nil
+  m	true	nil
+"\0z\0" "a$"	true	nil
+  m	true	nil
+"\0z\0" "^$"	true	nil
+  m	true	nil
+"\0z\0" "."	true	1	1
+  m	true	 
+"\0z\0" ".-"	true	1	0
+  m	true	
+"\0z\0" "(a*)"	true	1	0	
+  m	true	
+"\0z\0" "()"	true	1	0	1
+  m	true	1
+"\0z\0" "(a)(a)"	true	nil
+  m	true	nil
+"\0z\0" "%a+"	true	2	2
+  m	true	z
+"\0z\0" "%A+"	true	1	1
+  m	true	 
+"\0z\0" "%d"	true	nil
+  m	true	nil
+"\0z\0" "%s*(.-)%s*$"	true	1	3	 z 
+  m	true	 z 
+"\0z\0" "%w+"	true	2	2
+  m	true	z
+"\0z\0" "%p"	true	nil
+  m	true	nil
+"\0z\0" "%x+"	true	nil
+  m	true	nil
+"\0z\0" "%z"	true	1	1
+  m	true	 
+"\0z\0" "[%a_]+"	true	2	2
+  m	true	z
+"\0z\0" "[^%s]+"	true	1	3
+  m	true	 z 
+"\0z\0" "[a-]"	true	nil
+  m	true	nil
+"\0z\0" "[]]"	true	nil
+  m	true	nil
+"\0z\0" "[^]]+"	true	1	3
+  m	true	 z 
+"\0z\0" "[a%-c]+"	true	nil
+  m	true	nil
+"\0z\0" "[%a-z]"	true	2	2
+  m	true	z
+"\0z\0" "%bxy"	true	nil
+  m	true	nil
+"\0z\0" "%b()"	true	nil
+  m	true	nil
+"\0z\0" "%b[]"	true	nil
+  m	true	nil
+"\0z\0" "%f[%w]%w+"	true	2	2
+  m	true	z
+"\0z\0" "%f[%W]"	true	3	2
+  m	true	
+"\0z\0" "(%w)%1"	true	nil
+  m	true	nil
+"\0z\0" "((a)%2)"	true	nil
+  m	true	nil
+"\0z\0" "(.)%1"	true	nil
+  m	true	nil
+"\0z\0" "[a-c]+"	true	nil
+  m	true	nil
+"\0z\0" "[c-a]"	true	nil
+  m	true	nil
+"\0z\0" "a.-b"	true	nil
+  m	true	nil
+"\0z\0" "^(%w+)"	true	nil
+  m	true	nil
+"\0z\0" "(h)(e)(l)(l)(o)"	true	nil
+  m	true	nil
+"\0z\0" "%."	true	nil
+  m	true	nil
+"\0z\0" "%%"	true	nil
+  m	true	nil
+"\0z\0" "x*$"	true	4	3
+  m	true	
+"\0z\0" "[%]]"	true	nil
+  m	true	nil
+"\0z\0" "^[^,]*"	true	1	3
+  m	true	 z 
+"\0z\0" ",(,?)"	true	nil
+  m	true	nil
+"\0z\0" "(%s*)$"	true	4	3	
+  m	true	
+"\0z\0" "%"	false	malformed pattern (ends with '%')
+  m	false	malformed pattern (ends with '%')
+"\0z\0" "[a"	false	malformed pattern (missing ']')
+  m	false	malformed pattern (missing ']')
+"\0z\0" "%b"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"\0z\0" "%bx"	false	malformed pattern (missing arguments to '%b')
+  m	false	malformed pattern (missing arguments to '%b')
+"\0z\0" "%fa"	false	missing '[' after '%f' in pattern
+  m	false	missing '[' after '%f' in pattern
+"\0z\0" "(a"	true	nil
+  m	true	nil
+"\0z\0" "a)"	true	nil
+  m	true	nil
+"\0z\0" "%1"	false	invalid capture index %1
+  m	false	invalid capture index %1
+"\0z\0" "(a)%2"	true	nil
+  m	true	nil
+"\0z\0" "%0"	false	invalid capture index %0
+  m	false	invalid capture index %0
+gmatch	%w+	true	nil	one/nil two/nil three/nil
+gmatch	a*	true	nil	/nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil
+gmatch		true	nil	/nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil
+gmatch	(%w)(%w)	true	nil	o/n t/w t/h r/e
+gmatch	%f[%w]	true	nil	/nil /nil /nil
+gmatch	.-	true	nil	/nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil /nil
+gsub	true	hell0 w0rld	2
+gsub	true	aabbcc	3
+gsub	true	-a-b-c-	4
+gsub	true	xbc	1
+gsub	true	a%b	1
+gsub	true	a[b]c	1
+gsub	true	heLLo	1
+false	too many captures
+false	pattern too complex
+true	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab

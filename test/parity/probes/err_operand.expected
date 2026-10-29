@@ -1,0 +1,30 @@
+attempt to perform bitwise operation on a string value (constant '3')
+attempt to perform bitwise operation on a string value (constant '3')
+attempt to perform arithmetic on a nil value (field 'x')
+attempt to perform arithmetic on a nil value (field 'x')
+attempt to index a nil value (field 'a')
+attempt to concatenate a nil value (local 'a')
+attempt to concatenate a nil value (local 'b')
+attempt to perform arithmetic on a nil value (local 'b')
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to perform arithmetic on a nil value (upvalue 'up')
+attempt to perform arithmetic on a nil value (upvalue 'up')
+attempt to perform arithmetic on a nil value (global 'undefinedglobal')
+attempt to perform arithmetic on a nil value (field 'y')
+attempt to perform arithmetic on a nil value
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to perform arithmetic on a boolean value
+attempt to perform arithmetic on a table value
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to get length of a nil value (local 'a')
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to perform arithmetic on a nil value (field 'q')
+attempt to index a nil value (field 'x')
+attempt to index a nil value (field 'c')
+attempt to call a nil value (field 'nope')
+attempt to call a nil value (method 'nope')
+attempt to add a 'string' with a 'number'
+attempt to concatenate a table value
+attempt to perform arithmetic on a nil value (field 'z')

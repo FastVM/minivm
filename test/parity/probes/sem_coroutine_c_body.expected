@@ -1,0 +1,14 @@
+true	11
+true	true	42
+dead
+first	pair
+back
+false	body error
+dead
+true	deep
+true	true	true	resumed
+3
+true	1
+true	false	handled late
+in
+false	cannot resume dead coroutine

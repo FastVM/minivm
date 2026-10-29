@@ -1,0 +1,43 @@
+local co = coroutine.wrap(function(a)
+    print('got', a)
+    print('pcall', pcall(coroutine.yield, 'y1'))
+    print('xpcall', xpcall(coroutine.yield, debug.traceback, 'y2'))
+    print('nested', pcall(pcall, coroutine.yield, 'y3'))
+    local inner = coroutine.wrap(function() coroutine.yield('in1') return 'in2' end)
+    print('wrap', pcall(inner))
+    print('wrap', pcall(inner))
+    print('err', pcall(error, 'boom'))
+    print('select', pcall(select, '#', 1, 2, 3))
+    return 'done'
+end)
+print('main', co('start'))
+print('main', co('r1'))
+print('main', co('r2'))
+print('main', co('r3'))
+
+local co2 = coroutine.create(function()
+    local ok, err = pcall(coroutine.yield, 'a')
+    print('co2', ok, err)
+    error('after')
+end)
+print(coroutine.resume(co2))
+print(coroutine.resume(co2, 'b'))
+print(coroutine.status(co2))
+
+local co3 = coroutine.create(function()
+    return xpcall(function()
+        coroutine.yield('x')
+        error({code = 1})
+    end, function(e) return type(e) == 'table' and e.code end)
+end)
+print(coroutine.resume(co3))
+print(coroutine.resume(co3))
+
+local co4 = coroutine.wrap(function()
+    for i = 1, 3 do
+        local ok, v = pcall(coroutine.yield, i)
+        print('loop', ok, v)
+    end
+    return 'end'
+end)
+print(co4(), co4('a'), co4('b'), co4('c'))

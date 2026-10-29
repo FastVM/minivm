@@ -1,0 +1,13 @@
+attempt to index a nil value (local 't')
+attempt to index a nil value (global 'undef')
+attempt to index a nil value (field 'a')
+attempt to call a nil value (local 'n')
+attempt to call a nil value (field 'bad')
+attempt to get length of a nil value (local 't')
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to concatenate a table value (local 'a')
+attempt to index a nil value (local 't')
+attempt to call a nil value (global 'nofunc')
+attempt to call a nil value (method 'nope')
+attempt to perform arithmetic on a nil value (local 'a')
+attempt to compare nil with number

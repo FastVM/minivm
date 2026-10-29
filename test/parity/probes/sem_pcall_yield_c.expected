@@ -1,0 +1,22 @@
+got	start
+main	y1
+pcall	true	r1
+main	y2
+xpcall	true	r2
+main	y3
+nested	true	true	r3
+wrap	true	in1
+wrap	true	in2
+err	false	boom
+select	true	3
+main	done
+true	a
+co2	true	b
+false	sem_pcall_yield_c.lua:21: after
+dead
+true	x
+true	false	1
+loop	true	a
+loop	true	b
+loop	true	c
+1	2	3	end

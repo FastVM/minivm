@@ -1,0 +1,7 @@
+2
+3
+5	5
+nil	[string "local k <const> = 1; do local k = 2; k = 3 en..."]:1: attempt to assign to const variable 'k'
+nil	[string "local k <const> = 1; local function g() k = 2..."]:1: attempt to assign to const variable 'k'
+function
+4

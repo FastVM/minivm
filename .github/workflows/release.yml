@@ -1,0 +1,76 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-22.04
+            args: CC=gcc
+          - target: linux-arm64
+            os: ubuntu-22.04-arm
+            args: CC=gcc
+          - target: macos-arm64
+            os: macos-26
+            args: CC=clang CMOD_LDFLAGS="-undefined dynamic_lookup"
+          - target: macos-x64
+            os: macos-26-intel
+            args: CC=clang CMOD_LDFLAGS="-undefined dynamic_lookup"
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Name the package
+        run: echo "PKG=minivm-${GITHUB_REF_NAME#v}-${{ matrix.target }}" >> "$GITHUB_ENV"
+      - name: Build
+        run: make -s -j ${{ matrix.args }}
+      - name: Check the version matches the tag
+        run: build/bin/minivm -v | grep -F "MiniVM ${GITHUB_REF_NAME#v} for"
+      - name: Build C modules
+        run: make -s ${{ matrix.args }} cmod
+      - name: Parity
+        run: python3 test/parity/run.py
+      - name: lua-Harness
+        run: python3 test/harness/run.py
+      - name: C modules
+        run: python3 test/cmod/run.py
+      - name: Package
+        run: |
+          make -s ${{ matrix.args }} install DESTDIR="$PWD/stage" PREFIX="/$PKG"
+          cp LICENSE README.md COMPATIBILITY.md "stage/$PKG"
+          cp vendor/isocline/LICENSE "stage/$PKG/LICENSE.isocline"
+          tar -C stage -czf "$PKG.tar.gz" "$PKG"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PKG }}
+          path: ${{ env.PKG }}.tar.gz
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum minivm-*.tar.gz > SHA256SUMS
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "MiniVM ${GITHUB_REF_NAME#v}" --generate-notes

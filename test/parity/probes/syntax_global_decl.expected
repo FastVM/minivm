@@ -1,0 +1,12 @@
+false	[string "global x = 1"]:1: global 'x' already defined
+true	1
+[string "global a; b = 1"]:1: variable 'b' not declared
+[string "global<const> c; c = 1"]:1: attempt to assign to const variable 'c'
+function
+true	7
+function
+10
+[string "global z <close>"]:1: global variables cannot be to-be-closed
+function
+[string "global<const> *; w = 1"]:1: attempt to assign to const variable 'w'
+[string "global k; local function h() return m end"]:1: variable 'm' not declared

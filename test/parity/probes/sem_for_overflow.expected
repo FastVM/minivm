@@ -1,0 +1,10 @@
+2
+2
+2
+3
+integer
+false	'for' step is zero
+false	bad 'for' initial value (number expected, got string)
+false	bad 'for' limit (number expected, got table)
+false	bad 'for' step (number expected, got string)
+1.0 2.0 1 2 1.0 2.0 

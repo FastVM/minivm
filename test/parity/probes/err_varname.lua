@@ -1,0 +1,18 @@
+local function try(f)
+  local ok, err = pcall(f)
+  print((err:gsub("^.*:%d+: ", "")))
+end
+
+try(function() local t; return t.x end)
+try(function() return undef.x end)
+try(function() local t = {}; return t.a.b end)
+try(function() local n; return n() end)
+try(function() local t = {}; return t.bad() end)
+try(function() local t; return #t end)
+try(function() local a; return a + 1 end)
+try(function() local a = {}; return "x" .. a end)
+try(function() local t; t.x = 1 end)
+try(function() return nofunc() end)
+try(function() local s = {}; return s:nope() end)
+try(function() local a; return -a end)
+try(function() local a; return a < 1 end)

@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64 gcc
+            os: ubuntu-24.04
+            args: CC=gcc
+          - name: linux-x64 clang
+            os: ubuntu-24.04
+            args: CC=clang
+          - name: linux-arm64 gcc
+            os: ubuntu-24.04-arm
+            args: CC=gcc
+          - name: macos-arm64 clang
+            os: macos-26
+            args: CC=clang CMOD_LDFLAGS="-undefined dynamic_lookup"
+          - name: macos-x64 clang
+            os: macos-26-intel
+            args: CC=clang CMOD_LDFLAGS="-undefined dynamic_lookup"
+          - name: linux-x64 sanitize
+            os: ubuntu-24.04
+            args: CC=gcc OPT="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" DEFINES=
+          - name: linux-x64 gc-stress
+            os: ubuntu-24.04
+            args: CC=gcc DEFINES="-DNDEBUG -DMX_GC_STRESS=1 -DMX_GC_VERIFY=1"
+    env:
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v7
+      - name: Allow ASan's shadow mapping
+        if: matrix.name == 'linux-x64 sanitize'
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Build
+        run: make -s -j ${{ matrix.args }}
+      - name: Build C modules
+        run: make -s ${{ matrix.args }} cmod
+      - name: Parity
+        run: python3 test/parity/run.py
+      - name: lua-Harness
+        run: python3 test/harness/run.py
+      - name: C modules
+        run: python3 test/cmod/run.py
