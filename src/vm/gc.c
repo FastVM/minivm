@@ -26,8 +26,32 @@ mx_gc_t *mx_gc_new(void) {
 
 #if MX_GC_STAT
 
+size_t mx_gc_stat_arena_bytes(const mx_arena_t *arena) {
+    size_t bytes = 0;
+    for (const mx_arena_chunk_t *c = arena->chunks; c != NULL; c = c->next) {
+        bytes += c->size;
+    }
+    for (const mx_arena_chunk_t *c = arena->spare; c != NULL; c = c->next) {
+        bytes += c->size;
+    }
+    return bytes;
+}
+
 void mx_gc_stat_dump(mx_t *vm) {
     mx_gc_t *gc = vm->gc;
+    size_t pool_slabs = 0;
+    for (void *s = gc->pool.slabs; s != NULL; s = *(void **)s) {
+        pool_slabs += 1;
+    }
+    fprintf(
+        stderr,
+        "mem: arena_ir=%zu arena_code=%zu arena_scratch=%zu gc_slabs=%zu pool_slabs=%zu\n",
+        mx_gc_stat_arena_bytes(&vm->arenas.ir),
+        mx_gc_stat_arena_bytes(&vm->arenas.code),
+        mx_gc_stat_arena_bytes(&vm->arenas.scratch),
+        gc->slabs.len * MX_GC_SLAB_BYTES,
+        pool_slabs * MX_GC_POOL_SLAB_BYTES
+    );
     size_t nlarge = 0;
     size_t nfree = 0;
     for (mx_gc_large_t *l = gc->larges.list; l != NULL; l = l->next) {
@@ -738,6 +762,29 @@ size_t mx_gc_obj_size(mx_t *vm, mx_obj_head_t *head) {
     return 0;
 }
 
+size_t mx_gc_obj_payload_size(mx_obj_head_t *head) {
+    if (head->kind == MX_KIND_STRING) {
+        mx_str_t *buf = (mx_str_t *)head;
+        if (buf->is_rope || buf->is_sso || buf->is_tail) {
+            return 0;
+        } else {
+            return buf->cap;
+        }
+    } else if (head->kind >= MX_KIND_FIRST_DATA && head->is_container) {
+        mx_obj_table_t *table = (mx_obj_table_t *)head;
+        size_t bytes = 0;
+        if (table->entries != NULL) {
+            bytes += mx_table_hash_cap(table) * sizeof(mx_table_entry_t);
+        }
+        if (table->array != NULL && table->array != table->inline_array) {
+            bytes += table->array_cap * sizeof(mx_obj_t);
+        }
+        return bytes;
+    } else {
+        return 0;
+    }
+}
+
 void *mx_gc_forward_get(mx_obj_head_t *head) {
     return *(void **)((uint8_t *)head + 8);
 }
@@ -837,6 +884,10 @@ void *mx_gc_maybe_evacuate(mx_t *vm, mx_gc_t *gc, void *obj) {
     size_t size = mx_gc_obj_size(vm, head);
     void *to = mx_gc_evac_alloc(gc, size);
     memcpy(to, obj, size);
+    if (head->is_final) {
+        gc->evac.block->final_count += 1;
+        block->final_count -= 1;
+    }
     if (head->kind >= MX_KIND_FIRST_DATA && head->is_container) {
         mx_obj_table_t *from_table = obj;
         mx_obj_table_t *to_table = to;
@@ -877,7 +928,7 @@ void mx_gc_promote_block(mx_gc_t *gc, mx_obj_head_t *head, mx_gc_block_t *block)
             mx_gc_dirty_block(gc, block);
             mx_gc_old_record_block(block, head);
         }
-        gc->cycle.promoted_bytes += mx_gc_obj_size(gc->vm, head);
+        gc->cycle.promoted_bytes += mx_gc_obj_size(gc->vm, head) + mx_gc_obj_payload_size(head);
     }
 }
 
@@ -936,7 +987,7 @@ void mx_gc_mark_obj(mx_gc_t *gc, mx_obj_head_t *head) {
             } else if (!((mx_str_t *)head)->is_rope) {
                 head->is_old = true;
                 block->is_old = true;
-                gc->cycle.promoted_bytes += size;
+                gc->cycle.promoted_bytes += size + mx_gc_obj_payload_size(head);
             }
         }
         if (((mx_str_t *)head)->is_rope) {
@@ -1918,11 +1969,11 @@ void mx_gc_verify(mx_t *vm) {
 bool mx_gc_collect(mx_t *vm) {
     mx_gc_t *gc = vm->gc;
     memset(vm->str_cache, 0, sizeof(vm->str_cache));
-    size_t grow_limit = gc->cycle.old_live_after_major * 2;
+    size_t grow_limit = gc->cycle.old_live_after_major;
     if (grow_limit < MX_GC_INITIAL_THRESHOLD) {
         grow_limit = MX_GC_INITIAL_THRESHOLD;
     }
-    grow_limit = grow_limit / 68 * gc->params[MX_GC_PARAM_MINORMAJOR];
+    grow_limit = grow_limit / 100 * gc->params[MX_GC_PARAM_MINORMAJOR];
     bool need_major = gc->is_major_forced
         || !gc->is_generational
         || gc->is_major_mode

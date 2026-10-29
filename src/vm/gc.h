@@ -17,11 +17,11 @@
 #define MX_GC_BLOCK_MAGIC 0x47434D56
 
 #if !defined(MX_GC_INITIAL_THRESHOLD)
-#define MX_GC_INITIAL_THRESHOLD (4 * 1024 * 1024)
+#define MX_GC_INITIAL_THRESHOLD (1024 * 1024)
 #endif
 
 #if !defined(MX_GC_NURSERY)
-#define MX_GC_NURSERY (4 * 1024 * 1024)
+#define MX_GC_NURSERY (2 * 1024 * 1024)
 #endif
 
 #if !defined(MX_GC_NURSERY_MIN)
@@ -290,6 +290,7 @@ void mx_gc_finalize_all(mx_t *vm, mx_gc_t *gc);
 void mx_gc_free(mx_t *vm, mx_gc_t *gc);
 
 #if MX_GC_STAT
+size_t mx_gc_stat_arena_bytes(const mx_arena_t *arena);
 void mx_gc_stat_dump(mx_t *vm);
 #endif
 
@@ -317,6 +318,7 @@ int32_t mx_gc_pool_class(size_t bytes);
 size_t mx_gc_large_index_slot(mx_gc_t *gc, uintptr_t payload);
 void mx_gc_large_index_rebuild(mx_gc_t *gc);
 size_t mx_gc_obj_size(mx_t *vm, mx_obj_head_t *head);
+size_t mx_gc_obj_payload_size(mx_obj_head_t *head);
 void *mx_gc_forward_get(mx_obj_head_t *head);
 void mx_gc_forward_set(mx_obj_head_t *head, void *to);
 void *mx_gc_evac_alloc(mx_gc_t *gc, size_t size);
@@ -360,14 +362,16 @@ void mx_gc_note_final_owned(mx_obj_head_t *head);
 void mx_gc_note_thread(mx_t *vm, mx_thread_t *th);
 void mx_gc_write_barrier_slow(mx_t *vm, void *container);
 
-static inline void mx_gc_write_barrier(mx_t *vm, void *container, mx_obj_t value) {
+// Forced inline: GCC otherwise leaves out-of-line copies inside mx_run_body,
+// which turns every table store into a call.
+static inline __attribute__((always_inline)) void mx_gc_write_barrier(mx_t *vm, void *container, mx_obj_t value) {
     mx_obj_head_t *ch = container;
     if (ch->is_old) {
         mx_gc_write_barrier_slow(vm, container);
     }
 }
 
-static inline void mx_gc_write_barrier_slot(mx_t *vm, void *container, mx_obj_t value) {
+static inline __attribute__((always_inline)) void mx_gc_write_barrier_slot(mx_t *vm, void *container, mx_obj_t value) {
     mx_obj_head_t *ch = container;
     bool is_ref = value.kind == MX_KIND_STRING || value.kind == MX_KIND_CLOSURE || value.kind == MX_KIND_ERROR || value.kind >= MX_KIND_FIRST_DATA;
     if (ch->is_old && is_ref) {

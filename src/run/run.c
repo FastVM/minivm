@@ -395,16 +395,24 @@ bool mx_run_collect(mx_t *vm) {
         const mx_obj_t *dr_vals = (vals); \
         uint32_t dr_n = (n); \
         if (dr_rec->kind == MX_RESUME_VALUES && dr_rec->want <= 3 && !dr_rec->has_cell_out) { \
-            uintptr_t dr_key = (uintptr_t)(dr_rec->want + 1) << 48; \
-            for (uint32_t dr_i = 0; dr_i < dr_rec->want; dr_i++) { \
-                mx_obj_t dr_v = mx_obj_of_nil(); \
-                if (dr_i < dr_n) { \
-                    dr_v = dr_vals[dr_i]; \
+            uintptr_t dr_key = ((uintptr_t)(dr_rec->want + 1) << 48) | mx_run_key_flags(vm, true); \
+            if (dr_rec->want == 1 && dr_n != 0) { \
+                base[dr_rec->out] = dr_vals[0].val; \
+                dr_key |= dr_vals[0].kind; \
+            } else { \
+                for (uint32_t dr_i = 0; dr_i < dr_rec->want; dr_i++) { \
+                    mx_obj_t dr_v = mx_obj_of_nil(); \
+                    if (dr_i < dr_n) { \
+                        dr_v = dr_vals[dr_i]; \
+                    } \
+                    base[dr_rec->out + dr_i] = dr_v.val; \
+                    dr_key |= (uintptr_t)dr_v.kind << (16 * dr_i); \
                 } \
-                base[dr_rec->out + dr_i] = dr_v.val; \
-                dr_key |= (uintptr_t)dr_v.kind << (16 * dr_i); \
             } \
-            dr_key |= mx_run_key_flags(vm, true); \
+            if (dr_rec->cache.key == dr_key) { \
+                MX_STAT(deliver_resumed_fast); \
+                MX_ENTER(dr_rec->cache.code); \
+            } \
             uintptr_t *dr_code = mx_run_cache_find(&dr_rec->cache, dr_key); \
             if (dr_code != NULL) { \
                 MX_STAT(deliver_resumed_fast); \
