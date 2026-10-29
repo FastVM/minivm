@@ -27,8 +27,6 @@ export*.txt
 info.txt
 libminivm.a
 libminivm.lib
-lua
-luajit
 minivm
 minivm.exe
 out.*
