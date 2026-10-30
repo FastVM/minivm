@@ -47,6 +47,7 @@ mx_obj_t mx_meta_typed_error(mx_t *vm, const char *fmt, mx_obj_t bad);
 mx_obj_t mx_meta_operand_error(mx_t *vm, const char *fmt, mx_obj_t a, mx_obj_t b, bool is_lhs_fine);
 mx_obj_table_t *mx_meta_table_of(mx_t *vm, mx_obj_t v);
 mx_obj_t mx_meta_handler_of(mx_t *vm, mx_obj_t v, mx_obj_t key);
+mx_obj_t mx_meta_handler_either(mx_t *vm, mx_obj_t a, mx_obj_t b, mx_obj_t key);
 mx_obj_num_t mx_meta_coerce_num(mx_t *vm, mx_obj_t v);
 mx_obj_t mx_meta_arith_core(mx_t *vm, mx_op_t op, mx_obj_t a, mx_obj_t b);
 mx_obj_t mx_meta_arith_event(mx_t *vm, mx_op_t op, mx_obj_t a, mx_obj_t b);
@@ -80,6 +81,7 @@ void mx_meta_op_le(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_meta_op_get(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_meta_op_set(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_meta_op_call(mx_t *vm, size_t nargs, mx_obj_t *args);
+void mx_meta_call_with(mx_t *vm, mx_obj_t handler, uint32_t cn, mx_obj_t *cargs);
 void mx_meta_op_len(mx_t *vm, size_t nargs, mx_obj_t *args);
 
 bool mx_meta_run_finalizers(mx_t *vm);

@@ -12,38 +12,34 @@
 #include "../value/string.h"
 #include "../value/table.h"
 
+void mx_repl_complete_in(ic_completion_env_t *cenv, mx_t *vm, mx_obj_table_t *t, const char *tail) {
+    size_t plen = strlen(tail);
+    mx_table_pair_t pair = mx_table_pairs_next(vm, t, mx_obj_of_nil());
+    bool room = true;
+    while (room && pair.is_valid && !mx_obj_is_nil(pair.key)) {
+        if (mx_obj_is_string(pair.key)) {
+            mx_str_t *buf = mx_obj_get_string(pair.key);
+            if (buf->len >= plen && memcmp(buf->buf, tail, plen) == 0) {
+                room = ic_add_completion(cenv, buf->buf + plen);
+            }
+        }
+        if (room) {
+            pair = mx_table_pairs_next(vm, t, pair.key);
+        }
+    }
+}
+
 void mx_repl_completer(ic_completion_env_t *cenv, const char *prefix) {
     mx_t *vm = ic_completion_arg(cenv);
     const char *dot = strrchr(prefix, '.');
-    mx_obj_table_t *t = mx_obj_get_table(mx_lua_of(vm)->std);
-    const char *tail = prefix;
-    bool ok = true;
-    if (dot != NULL) {
-        size_t hlen = (size_t)(dot - prefix);
-        mx_obj_t head = mx_table_get(t, mx_obj_intern_strn(vm, prefix, (uint32_t)hlen));
-        ok = mx_obj_is_table(head);
-        if (ok) {
-            t = mx_obj_get_table(head);
-            tail = dot + 1;
-        }
+    mx_obj_table_t *globals = mx_obj_get_table(mx_lua_of(vm)->std);
+    if (dot == NULL) {
+        mx_repl_complete_in(cenv, vm, globals, prefix);
+        return;
     }
-    if (ok) {
-        size_t plen = strlen(tail);
-        mx_obj_t key = mx_obj_of_nil();
-        mx_table_pair_t pair = mx_table_pairs_next(vm, t, key);
-        bool room = true;
-        while (room && pair.is_valid && !mx_obj_is_nil(pair.key)) {
-            key = pair.key;
-            if (mx_obj_is_string(pair.key)) {
-                mx_str_t *buf = mx_obj_get_string(pair.key);
-                if (buf->len >= plen && memcmp(buf->buf, tail, plen) == 0) {
-                    room = ic_add_completion(cenv, buf->buf + plen);
-                }
-            }
-            if (room) {
-                pair = mx_table_pairs_next(vm, t, key);
-            }
-        }
+    mx_obj_t head = mx_table_get(globals, mx_obj_intern_strn(vm, prefix, (uint32_t)(dot - prefix)));
+    if (mx_obj_is_table(head)) {
+        mx_repl_complete_in(cenv, vm, mx_obj_get_table(head), dot + 1);
     }
 }
 

@@ -8,7 +8,6 @@
 #include "../../value/error.h"
 #include "../../vm/vm.h"
 
-// Larger chunks are compiled again when loaded again, so their text isn't kept.
 #define MX_CHUNK_CACHE_MAX_LEN (64 * 1024)
 
 typedef struct mx_chunk_compiled_t mx_chunk_compiled_t;

@@ -159,9 +159,11 @@ int32_t mx_std_table_move(mx_std_state_t *ls) {
     int64_t f = mx_std_checkinteger(ls, 2);
     int64_t e = mx_std_checkinteger(ls, 3);
     int64_t t = mx_std_checkinteger(ls, 4);
-    int32_t tt = 1;
+    int32_t tt;
     if (!mx_std_isnoneornil(ls, 5)) {
         tt = 5;
+    } else {
+        tt = 1;
     }
     mx_std_table_check(ls, 1, MX_STD_TABLE_READ);
     mx_std_table_check(ls, tt, MX_STD_TABLE_WRITE);
@@ -289,13 +291,15 @@ int32_t mx_std_table_sort(mx_std_state_t *ls) {
     } else if (n >= INT32_MAX) {
         return mx_std_argerror(ls, 1, "array too big");
     }
-    mx_obj_t cmp = mx_obj_of_nil();
+    mx_obj_t cmp;
     if (!mx_std_isnoneornil(ls, 2)) {
         mx_std_checktype(ls, 2, MX_LUA_TYPE_FUNCTION);
         if (vm->std_error.is_set) {
             return 0;
         }
         cmp = *mx_std_at(ls, 2);
+    } else {
+        cmp = mx_obj_of_nil();
     }
     mx_std_settop(ls, 2);
     uint32_t base = vm->holds.len;
@@ -416,28 +420,35 @@ bool mx_ffi_table_concat_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (!t->is_plain || t->meta != NULL || t->len > t->array_len) {
         return false;
     }
-    mx_str_t *sep = NULL;
-    uint64_t seplen = 0;
+    mx_str_t *sep;
+    uint64_t seplen;
     if (nargs == 2) {
         sep = mx_obj_get_string(args[1]);
         seplen = sep->len;
+    } else {
+        sep = NULL;
+        seplen = 0;
     }
     uint32_t n = t->len;
-    uint64_t total = 0;
+    uint64_t chars = 0;
     for (uint32_t k = 0; k < n; k++) {
         mx_obj_t v = t->array[k];
         if (mx_obj_is_string(v)) {
-            total += mx_obj_get_string(v)->len;
+            chars += mx_obj_get_string(v)->len;
         } else if (mx_obj_is_int(v)) {
             char tmp[MX_STR_INT_DIGITS];
-            total += MX_STR_INT_DIGITS - mx_str_int_digits(tmp, mx_obj_get_int(v));
+            chars += MX_STR_INT_DIGITS - mx_str_int_digits(tmp, mx_obj_get_int(v));
         } else {
             return false;
         }
     }
+    uint64_t seps;
     if (n > 0) {
-        total += seplen * (n - 1);
+        seps = seplen * (n - 1);
+    } else {
+        seps = 0;
     }
+    uint64_t total = chars + seps;
     if (total > MX_STD_MAX_STRING || !mx_mem_fits(sizeof(mx_str_t) + (size_t)total + 1)) {
         return false;
     }
@@ -473,7 +484,6 @@ void mx_ffi_table_concat(mx_t *vm, size_t nargs, mx_obj_t *args) {
     }
 }
 
-// Only short runs of the array part: the results replace the arguments.
 bool mx_ffi_table_unpack_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs < 1 || nargs > 3 || args[0].kind != vm->kinds.table) {
         return false;
@@ -482,17 +492,21 @@ bool mx_ffi_table_unpack_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (!t->is_plain || t->meta != NULL) {
         return false;
     }
-    int64_t i = 1;
-    int64_t e = (int64_t)t->len;
+    int64_t i;
     if (nargs >= 2 && mx_obj_is_int(args[1])) {
         i = mx_obj_get_int(args[1]);
     } else if (nargs >= 2 && !mx_obj_is_nil(args[1])) {
         return false;
+    } else {
+        i = 1;
     }
+    int64_t e;
     if (nargs == 3 && mx_obj_is_int(args[2])) {
         e = mx_obj_get_int(args[2]);
     } else if (nargs == 3 && !mx_obj_is_nil(args[2])) {
         return false;
+    } else {
+        e = (int64_t)t->len;
     }
     if (i > e) {
         vm->rets.len = 0;

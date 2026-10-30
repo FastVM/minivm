@@ -18,11 +18,14 @@ void mx_lua_close(mx_t *vm) {
 void mx_lua_set_arg(mx_t *vm, int32_t argc, char **argv, int32_t script) {
     mx_lua_t *lua = mx_lua_of(vm);
     mx_obj_table_t *arg = mx_table_new(vm);
+    int32_t zero;
     if (script >= argc) {
-        script = 0;
+        zero = 0;
+    } else {
+        zero = script;
     }
     for (int32_t i = 0; i < argc; i++) {
-        mx_table_set(vm, arg, mx_obj_of_int(i - script), mx_obj_new_string(vm, argv[i]));
+        mx_table_set(vm, arg, mx_obj_of_int(i - zero), mx_obj_new_string(vm, argv[i]));
     }
     mx_table_set(vm, mx_obj_get_table(lua->std), mx_obj_intern(vm, "arg"), mx_obj_of_table(arg));
 }

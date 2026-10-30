@@ -5,8 +5,7 @@
 #include "../../ir/scratch.h"
 
 uint32_t mx_chunk_hash(const char *src, uint32_t len) {
-    uint32_t h = MX_VM_FNV_OFFSET;
-    h = (h ^ len) * MX_VM_FNV_PRIME;
+    uint32_t h = (MX_VM_FNV_OFFSET ^ len) * MX_VM_FNV_PRIME;
     uint32_t stride = len / 1024 + 1;
     for (uint32_t i = 0; i < len; i += stride) {
         h = (h ^ (uint8_t)src[i]) * MX_VM_FNV_PRIME;

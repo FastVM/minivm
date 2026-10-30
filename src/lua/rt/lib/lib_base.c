@@ -22,37 +22,36 @@ void mx_std_tostr_into(mx_t *vm, mx_str_t *buf, mx_obj_t value) {
 }
 
 bool mx_std_tostring_meta_handler(mx_std_state_t *ls, mx_std_slot_t slot) {
-    bool done = false;
-    if (mx_std_getmetatable(ls, slot)) {
-        mx_std_getmetakey(ls, -1, MX_LUA_META_KEY_TOSTRING);
-        if (!mx_std_isnil(ls, -1)) {
-            mx_std_pushvalue(ls, slot);
-            mx_std_call(ls, 1, 1);
-            if (ls->vm->std_error.is_set) {
-                mx_std_remove(ls, -2);
-            } else if (!mx_std_isstring(ls, -1)) {
-                mx_std_error(ls, "'__tostring' must return a string");
-            } else {
-                mx_std_remove(ls, -2);
-            }
-            done = true;
-        } else {
-            mx_std_getmetakey(ls, -2, MX_LUA_META_KEY_NAME);
-            if (mx_std_isstring(ls, -1)) {
-                mx_std_str_t nm = mx_std_tostring(ls, -1);
-                mx_str_t *nbuf = mx_str_new();
-                mx_str_append(nbuf, nm.ptr, (uint32_t)nm.len);
-                mx_str_format(nbuf, ": %p", mx_obj_data_head(*mx_std_at(ls, slot)));
-                mx_std_pop(ls, 3);
-                mx_std_pushlstring(ls, nbuf->buf, nbuf->len);
-                mx_str_free(nbuf);
-                done = true;
-            } else {
-                mx_std_pop(ls, 3);
-            }
-        }
+    if (!mx_std_getmetatable(ls, slot)) {
+        return false;
     }
-    return done;
+    mx_std_getmetakey(ls, -1, MX_LUA_META_KEY_TOSTRING);
+    if (!mx_std_isnil(ls, -1)) {
+        mx_std_pushvalue(ls, slot);
+        mx_std_call(ls, 1, 1);
+        if (ls->vm->std_error.is_set) {
+            mx_std_remove(ls, -2);
+        } else if (!mx_std_isstring(ls, -1)) {
+            mx_std_error(ls, "'__tostring' must return a string");
+        } else {
+            mx_std_remove(ls, -2);
+        }
+        return true;
+    }
+    mx_std_getmetakey(ls, -2, MX_LUA_META_KEY_NAME);
+    if (mx_std_isstring(ls, -1)) {
+        mx_std_str_t nm = mx_std_tostring(ls, -1);
+        mx_str_t *nbuf = mx_str_new();
+        mx_str_append(nbuf, nm.ptr, (uint32_t)nm.len);
+        mx_str_format(nbuf, ": %p", mx_obj_data_head(*mx_std_at(ls, slot)));
+        mx_std_pop(ls, 3);
+        mx_std_pushlstring(ls, nbuf->buf, nbuf->len);
+        mx_str_free(nbuf);
+        return true;
+    } else {
+        mx_std_pop(ls, 3);
+        return false;
+    }
 }
 
 void mx_std_tostring_meta(mx_std_state_t *ls, mx_std_slot_t slot) {
@@ -174,20 +173,23 @@ int32_t mx_std_base_tonumber(mx_std_state_t *ls) {
         if (base < MX_STD_MIN_RADIX || base > MX_STD_MAX_RADIX) {
             return mx_std_argerror(ls, 2, "base out of range");
         }
-        const char *scan = mx_std_skip_space(str);
-        bool neg = false;
-        if (*scan == '+' || *scan == '-') {
-            neg = *scan == '-';
-            scan += 1;
+        const char *lead = mx_std_skip_space(str);
+        bool neg = *lead == '-';
+        const char *digits;
+        if (*lead == '+' || *lead == '-') {
+            digits = lead + 1;
+        } else {
+            digits = lead;
         }
         uint64_t acc = 0;
         bool any = false;
-        for (; *scan != '\0' && mx_std_base_digit(*scan) < base; scan++) {
+        const char *scan;
+        for (scan = digits; *scan != '\0' && mx_std_base_digit(*scan) < base; scan++) {
             acc = acc * (uint64_t)base + (uint64_t)mx_std_base_digit(*scan);
             any = true;
         }
-        scan = mx_std_skip_space(scan);
-        if (!any || scan != str + sv.len) {
+        const char *rest = mx_std_skip_space(scan);
+        if (!any || rest != str + sv.len) {
             mx_std_pushnil(ls);
         } else if (neg) {
             mx_std_pushinteger(ls, (int64_t)((uint64_t)0 - acc));
@@ -273,15 +275,18 @@ int32_t mx_std_base_select(mx_std_state_t *ls) {
         }
     }
     int64_t idx = mx_std_checkinteger(ls, 1);
+    int64_t pos;
     if (idx < 0) {
-        idx = n + idx;
+        pos = n + idx;
     } else if (idx > n) {
-        idx = n;
+        pos = n;
+    } else {
+        pos = idx;
     }
-    if (idx < 1) {
+    if (pos < 1) {
         return mx_std_argerror(ls, 1, "index out of range");
     }
-    return n - (int32_t)idx;
+    return n - (int32_t)pos;
 }
 
 int32_t mx_std_base_rawequal(mx_std_state_t *ls) {
@@ -365,21 +370,26 @@ int32_t mx_std_base_getmetatable(mx_std_state_t *ls) {
 }
 
 int32_t mx_std_base_error(mx_std_state_t *ls) {
-    mx_obj_t val = mx_obj_of_nil();
+    mx_obj_t raw;
     if (!mx_std_isnone(ls, 1)) {
-        val = *mx_std_at(ls, 1);
+        raw = *mx_std_at(ls, 1);
+    } else {
+        raw = mx_obj_of_nil();
     }
     int64_t level = mx_std_optinteger(ls, 2, 1);
-    if (mx_obj_is_nil(val)) {
+    mx_obj_t val;
+    if (mx_obj_is_nil(raw)) {
         val = mx_obj_new_string(ls->vm, "<no error object>");
-    } else if (mx_obj_is_string(val) && level > 0) {
+    } else if (mx_obj_is_string(raw) && level > 0) {
         mx_str_t *msg = mx_str_new_gc(ls->vm);
         if (level <= UINT32_MAX) {
             mx_std_where(ls, (uint32_t)level, msg);
         }
-        mx_str_t *src = mx_obj_get_string(val);
+        mx_str_t *src = mx_obj_get_string(raw);
         mx_str_append(msg, src->buf, src->len);
         val = mx_obj_of_string(msg);
+    } else {
+        val = raw;
     }
     ls->error = mx_error_value(ls->vm, val);
     mx_std_raise(ls);
@@ -425,11 +435,14 @@ int32_t mx_std_base_collectgarbage(mx_std_state_t *ls) {
             break;
         }
         case 4: {
-            int64_t kilobytes = mx_std_optinteger(ls, 2, 0);
-            if (kilobytes < 0) {
+            int64_t want = mx_std_optinteger(ls, 2, 0);
+            size_t kilobytes;
+            if (want < 0) {
                 kilobytes = 0;
+            } else {
+                kilobytes = (size_t)want;
             }
-            mx_std_pushboolean(ls, mx_gc_step(vm, (size_t)kilobytes));
+            mx_std_pushboolean(ls, mx_gc_step(vm, kilobytes));
             break;
         }
         case 5: {
@@ -456,12 +469,12 @@ int32_t mx_std_base_collectgarbage(mx_std_state_t *ls) {
             if (!mx_std_isnoneornil(ls, 3)) {
                 int64_t v = mx_std_checkinteger(ls, 3);
                 if (v < 0) {
-                    v = 0;
+                    gc->params[which] = 0;
+                } else if (v > UINT32_MAX) {
+                    gc->params[which] = UINT32_MAX;
+                } else {
+                    gc->params[which] = (uint32_t)v;
                 }
-                if (v > UINT32_MAX) {
-                    v = UINT32_MAX;
-                }
-                gc->params[which] = (uint32_t)v;
             }
             mx_std_pushinteger(ls, prev);
             break;
@@ -499,32 +512,33 @@ void mx_ffi_base_getmetatable(mx_t *vm, size_t nargs, mx_obj_t *args) {
     }
 }
 
+mx_obj_t mx_std_base_visible_meta(mx_t *vm, mx_obj_table_t *meta) {
+    if (meta == NULL) {
+        return mx_obj_of_nil();
+    }
+    mx_obj_t field = mx_table_get(meta, mx_lua_of(vm)->meta_keys[MX_LUA_META_KEY_METATABLE]);
+    if (mx_obj_is_nil(field)) {
+        return mx_obj_of_table(meta);
+    } else {
+        return field;
+    }
+}
+
 bool mx_ffi_base_getmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs == 0) {
         return false;
     } else if (mx_obj_is_table(args[0])) {
-        mx_obj_table_t *meta = mx_obj_get_table(args[0])->meta;
-        mx_obj_t out = mx_obj_of_nil();
-        if (meta != NULL) {
-            out = mx_table_get(meta, mx_lua_of(vm)->meta_keys[MX_LUA_META_KEY_METATABLE]);
-            if (mx_obj_is_nil(out)) {
-                out = mx_obj_of_table(meta);
-            }
-        }
-        args[0] = out;
+        args[0] = mx_std_base_visible_meta(vm, mx_obj_get_table(args[0])->meta);
         vm->rets.len = 1;
     } else {
         mx_obj_table_t *meta = mx_meta_table_of(vm, args[0]);
-        mx_obj_t out = mx_obj_of_nil();
         if (meta != NULL) {
-            out = mx_table_get(meta, mx_lua_of(vm)->meta_keys[MX_LUA_META_KEY_METATABLE]);
-            if (mx_obj_is_nil(out)) {
-                out = mx_obj_of_table(meta);
-            }
+            args[0] = mx_std_base_visible_meta(vm, meta);
         } else if (mx_obj_is_string(args[0])) {
-            out = mx_lua_of(vm)->string_meta;
+            args[0] = mx_lua_of(vm)->string_meta;
+        } else {
+            args[0] = mx_obj_of_nil();
         }
-        args[0] = out;
         vm->rets.len = 1;
     }
     return true;
@@ -619,16 +633,19 @@ bool mx_ffi_base_select_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         return false;
     }
     int64_t idx = mx_obj_get_int(args[0]);
+    int64_t pos;
     if (idx < 0) {
-        idx = n + idx;
+        pos = n + idx;
     } else if (idx > n) {
-        idx = n;
+        pos = n;
+    } else {
+        pos = idx;
     }
-    if (idx < 1) {
+    if (pos < 1) {
         return false;
     }
-    uint32_t count = (uint32_t)(n - idx);
-    memmove(args, args + idx, sizeof(mx_obj_t) * count);
+    uint32_t count = (uint32_t)(n - pos);
+    memmove(args, args + pos, sizeof(mx_obj_t) * count);
     vm->rets.len = count;
     return true;
 }
@@ -639,7 +656,6 @@ void mx_ffi_base_setmetatable(mx_t *vm, size_t nargs, mx_obj_t *args) {
     }
 }
 
-// Anything that would raise an error is left to mx_std_base_setmetatable.
 bool mx_ffi_base_setmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs < 2 || args[0].kind != vm->kinds.table || (args[1].kind != vm->kinds.table && !mx_obj_is_nil(args[1]))) {
         return false;
@@ -649,10 +665,12 @@ bool mx_ffi_base_setmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (t->meta != NULL && !mx_obj_is_nil(mx_table_get(t->meta, lua->meta_keys[MX_LUA_META_KEY_METATABLE]))) {
         return false;
     }
-    mx_obj_table_t *meta = NULL;
+    mx_obj_table_t *meta;
     if (!mx_obj_is_nil(args[1])) {
         meta = mx_obj_get_table(args[1]);
         mx_gc_write_barrier(vm, t, args[1]);
+    } else {
+        meta = NULL;
     }
     t->meta = meta;
     if (meta != NULL && !mx_obj_is_nil(mx_table_get(meta, lua->meta_keys[MX_LUA_META_KEY_GC]))) {
@@ -723,9 +741,11 @@ bool mx_ffi_base_next_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs == 0 || args[0].kind != vm->kinds.table) {
         return false;
     }
-    mx_obj_t key = mx_obj_of_nil();
+    mx_obj_t key;
     if (nargs >= 2) {
-        key = mx_obj_of_raw(args[1].kind, args[1].val);
+        key = args[1];
+    } else {
+        key = mx_obj_of_nil();
     }
     mx_table_step_t step = mx_table_next_into(vm, mx_obj_get_table(args[0]), key, args);
     if (step == MX_TABLE_STEP_PAIR) {

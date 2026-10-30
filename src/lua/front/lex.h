@@ -20,6 +20,7 @@ typedef struct mx_lex_token_t mx_lex_token_t;
 typedef struct mx_lex_long_t mx_lex_long_t;
 typedef struct mx_lex_check_t mx_lex_check_t;
 typedef struct mx_lex_name_t mx_lex_name_t;
+typedef struct mx_lex_scan_t mx_lex_scan_t;
 
 typedef uint8_t mx_lex_type_t;
 enum {
@@ -95,6 +96,11 @@ struct mx_lex_token_t {
     mx_lex_type_t type;
 };
 
+struct mx_lex_scan_t {
+    mx_lex_token_t tok;
+    mx_error_t *error;
+};
+
 struct mx_lex_long_t {
     mx_error_t *error;
     uint32_t content_start;
@@ -129,7 +135,7 @@ extern const char *const mx_lex_type_names[];
 extern const mx_lex_class_t mx_lex_classes[256];
 
 mx_obj_t mx_lex_tok_value(const mx_lex_token_t *tok);
-void mx_lex_tok_set_value(mx_lex_token_t *tok, mx_obj_t v);
+mx_lex_scan_t mx_lex_scan_value(mx_lex_type_t type, uint32_t start, uint32_t stop, mx_obj_t v);
 bool mx_lex_byte_is_name_start(uint8_t c);
 bool mx_lex_byte_is_name(uint8_t c);
 bool mx_lex_byte_is_digit(uint8_t c);
@@ -145,12 +151,12 @@ mx_obj_t mx_lex_long_value(mx_lex_t *lex, uint32_t start, uint32_t stop);
 void mx_lex_utf8_encode(mx_str_t *buf, uint64_t cp);
 mx_error_t *mx_lex_escape_error(mx_lex_t *lex, uint32_t start, const char *msg);
 mx_error_t *mx_lex_escape(mx_lex_t *lex, mx_str_t *buf, uint32_t start);
-mx_error_t *mx_lex_short_string(mx_lex_t *lex, mx_lex_token_t *tok);
-mx_error_t *mx_lex_number(mx_lex_t *lex, mx_lex_token_t *tok);
+mx_lex_scan_t mx_lex_short_string(mx_lex_t *lex);
+mx_lex_scan_t mx_lex_number(mx_lex_t *lex);
 mx_lex_type_t mx_lex_keyword(const char *src, uint32_t start, uint32_t stop);
-mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, uint8_t c);
-mx_error_t *mx_lex_scan_raw(mx_lex_t *lex, mx_lex_token_t *tok);
-mx_error_t *mx_lex_scan(mx_lex_t *lex, mx_lex_token_t *tok);
+mx_lex_scan_t mx_lex_operator(mx_lex_t *lex, uint32_t start, uint8_t c);
+mx_lex_scan_t mx_lex_scan_raw(mx_lex_t *lex);
+mx_lex_scan_t mx_lex_scan(mx_lex_t *lex);
 
 void mx_lex_init(mx_lex_t *lex, mx_t *vm, const mx_source_t *source, const char *src);
 void mx_lex_free(mx_lex_t *lex);

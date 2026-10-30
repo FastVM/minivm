@@ -12,8 +12,6 @@
 #define MX_IR_TABLE_HINT_BITS 16
 #define MX_IR_TABLE_HINT_MASK ((1 << MX_IR_TABLE_HINT_BITS) - 1)
 #define MX_IR_TABLE_HINT_BYTES 5
-// The encoded tag of an integer literal, which is stored as a zigzag varint
-// after it. The argument decodes to MX_IR_ARG_TYPE_LIT.
 #define MX_IR_ENC_INT 4
 #define MX_IR_BRANCH_MAX_ARGS 260
 #define MX_IR_FRAME_WORDS 2
@@ -82,6 +80,7 @@ typedef struct mx_ir_cursor_t mx_ir_cursor_t;
 typedef struct mx_ir_arg_read_t mx_ir_arg_read_t;
 typedef struct mx_ir_step_t mx_ir_step_t;
 typedef struct mx_ir_uv_t mx_ir_uv_t;
+typedef struct mx_ir_range_read_t mx_ir_range_read_t;
 typedef struct mx_ir_blocks_t mx_ir_blocks_t;
 
 struct mx_ir_local_t {
@@ -104,11 +103,6 @@ struct mx_ir_upval_t {
     bool is_local: 1;
 };
 
-// A block's id is its index among the function's blocks. Versions and
-// liveness are only made for functions that run, so they live here, indexed
-// by block id, instead of in every block. Each word of versions is 0, the
-// block's only version, or its mx_version_cache_t with the low bit set.
-// entry1 is the version last entered with the arguments in entry1_key.
 struct mx_ir_func_t {
     mx_ir_block_t *head;
     const mx_source_t *source;
@@ -160,8 +154,6 @@ struct mx_ir_cursor_t {
     mx_ir_arg_t args[MX_IR_INSTR_MAX_ARGS + 1];
 };
 
-// code holds code_len bytes of instructions followed by branch_len bytes of
-// encoded branch, when the branch has one.
 struct mx_ir_block_t {
     uint8_t *code;
     mx_ir_block_t *branch_targets[2];
@@ -187,6 +179,11 @@ struct mx_ir_step_t {
 
 struct mx_ir_uv_t {
     uint64_t value;
+    const uint8_t *next;
+};
+
+struct mx_ir_range_read_t {
+    mx_location_range_t range;
     const uint8_t *next;
 };
 
@@ -287,11 +284,16 @@ size_t mx_ir_uv_size(uint64_t v);
 uint8_t *mx_ir_put_uv(uint8_t *p, uint64_t v);
 uint8_t *mx_ir_put_uv_wide(uint8_t *p, uint64_t v, size_t n);
 mx_ir_uv_t mx_ir_get_uv(const uint8_t *p);
+uint8_t *mx_ir_put_u16(uint8_t *p, uint16_t v);
+uint16_t mx_ir_get_u16(const uint8_t *p);
+uint8_t *mx_ir_put_u64(uint8_t *p, uint64_t v);
+uint64_t mx_ir_get_u64(const uint8_t *p);
 uint64_t mx_ir_zigzag(int64_t v);
 int64_t mx_ir_unzigzag(uint64_t v);
-size_t mx_ir_range_size(const mx_location_range_t *range, uint8_t *flags);
+uint8_t mx_ir_range_flags(const mx_location_range_t *range);
+size_t mx_ir_range_size(const mx_location_range_t *range, uint8_t flags);
 uint8_t *mx_ir_range_write(uint8_t *p, const mx_location_range_t *range, uint8_t flags);
-const uint8_t *mx_ir_range_read(const uint8_t *p, mx_location_range_t *range, uint8_t flags);
+mx_ir_range_read_t mx_ir_range_read(const uint8_t *p, uint8_t flags, const mx_source_t *source);
 size_t mx_ir_arg_size(mx_ir_arg_t arg);
 uint8_t *mx_ir_arg_write(uint8_t *p, mx_ir_arg_t arg);
 mx_ir_arg_read_t mx_ir_arg_read(const uint8_t *p);

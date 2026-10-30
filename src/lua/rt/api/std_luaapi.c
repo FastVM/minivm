@@ -114,11 +114,10 @@ void mx_luaapi_call(mx_t *vm, size_t nargs, mx_obj_t *args) {
     mx_thread_t *th = vm->thread;
     uint32_t at = th->frame;
     mx_obj_cfn_t *cfn = (mx_obj_cfn_t *)mx_ref_obj(mx_thread_objs(th, at + 2)->val.ref);
-    mx_luaapi_frame_t frame = { .extra = lua->foreign.extra };
-    mx_std_state_enter(&frame.ls, vm, args, (int32_t)nargs);
-    frame.ls.fnname = "?";
-    frame.ls.fn = cfn->std_fn;
-    frame.ls.can_pend = vm->pending.is_ok;
+    mx_luaapi_frame_t frame = {
+        .extra = lua->foreign.extra,
+        .ls = mx_std_state_enter(vm, args, (int32_t)nargs, "?", cfn->std_fn, vm->pending.is_ok),
+    };
     vm->pending.is_ok = false;
     int32_t nret = mx_luaapi_protect(lua, cfn->std_fn, &frame.ls);
     lua->foreign.extra = frame.extra;
@@ -137,8 +136,7 @@ void mx_luaapi_push_cfn(mx_std_state_t *ls, mx_std_fn_t *fn, uint32_t nup) {
         mx_luaapi_check(ls);
         return;
     }
-    mx_obj_t obj = mx_std_cfn_new(ls->vm, mx_luaapi_call, nup, mx_std_slots(ls) + ls->top - (int32_t)nup);
-    ((mx_obj_cfn_t *)mx_obj_data_head(obj))->std_fn = fn;
+    mx_obj_t obj = mx_std_cfn_alloc(ls->vm, mx_luaapi_call, fn, NULL, nup, mx_std_slots(ls) + ls->top - (int32_t)nup);
     ls->top -= (int32_t)nup;
     mx_std_push(ls, obj);
 }
@@ -167,11 +165,13 @@ void lua_close(lua_State *L) {
 }
 
 mx_std_state_t *mx_luaapi_thread_state(mx_t *vm, mx_thread_t *co) {
-    mx_luaapi_frame_t *frame = co->api;
-    if (frame == NULL) {
+    mx_luaapi_frame_t *frame;
+    if (co->api == NULL) {
         frame = mx_mem_calloc(sizeof(mx_luaapi_frame_t));
         frame->extra = mx_lua_of(vm)->foreign.extra;
         co->api = frame;
+    } else {
+        frame = co->api;
     }
     mx_std_state_t *ls = &frame->ls;
     uint32_t base;
@@ -211,9 +211,9 @@ int lua_closethread(lua_State *L, lua_State *from) {
         return LUA_ERRRUN;
     }
     mx_obj_t err = mx_coro_kill(ls->vm, co);
-    ls = mx_luaapi_thread_state(ls->vm, co);
+    mx_std_state_t *fresh = mx_luaapi_thread_state(ls->vm, co);
     if (mx_obj_is_error(err)) {
-        mx_std_push(ls, mx_error_payload(err));
+        mx_std_push(fresh, mx_error_payload(err));
         return LUA_ERRRUN;
     } else {
         return LUA_OK;
@@ -351,9 +351,7 @@ lua_Unsigned lua_rawlen(lua_State *L, int idx) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_obj_t *at = mx_std_at(ls, idx);
     if (at != NULL && mx_std_udata_is(ls->vm, *at)) {
-        uint64_t size;
-        memcpy(&size, (uint8_t *)mx_std_udata_payload(*at) - MX_STD_UDATA_HEADER, sizeof(size));
-        return size;
+        return ((const mx_std_udata_header_t *)(uintptr_t)mx_obj_get_table(*at)->hidden)->size;
     } else {
         return mx_std_rawlen(ls, idx);
     }
@@ -378,7 +376,7 @@ void *mx_std_udata_payload(mx_obj_t v) {
     if (t->hidden == 0) {
         return NULL;
     } else {
-        return (uint8_t *)(uintptr_t)t->hidden + MX_STD_UDATA_HEADER;
+        return (uint8_t *)(uintptr_t)t->hidden + sizeof(mx_std_udata_header_t);
     }
 }
 
@@ -387,9 +385,7 @@ uint64_t mx_std_udata_nuv(mx_obj_t v) {
     if (t->hidden == 0) {
         return 0;
     } else {
-        uint64_t nuv;
-        memcpy(&nuv, (uint8_t *)(uintptr_t)t->hidden + sizeof(uint64_t), sizeof(nuv));
-        return nuv;
+        return ((const mx_std_udata_header_t *)(uintptr_t)t->hidden)->nuv;
     }
 }
 
@@ -541,9 +537,12 @@ const char *lua_pushvfstring(lua_State *L, const char *fmt, va_list argp) {
         mx_str_append(out, fmt, (uint32_t)(e - fmt));
         switch (e[1]) {
             case 's': {
-                const char *s = va_arg(argp, char *);
-                if (s == NULL) {
+                const char *arg = va_arg(argp, char *);
+                const char *s;
+                if (arg == NULL) {
                     s = "(null)";
+                } else {
+                    s = arg;
                 }
                 mx_str_append(out, s, (uint32_t)strlen(s));
                 break;
@@ -673,13 +672,17 @@ int lua_rawgetp(lua_State *L, int idx, const void *p) {
 
 void lua_createtable(lua_State *L, int narr, int nrec) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
-    uint32_t na = 0;
-    uint32_t nh = 0;
+    uint32_t na;
     if (narr > 0) {
         na = (uint32_t)narr;
+    } else {
+        na = 0;
     }
+    uint32_t nh;
     if (nrec > 0) {
         nh = (uint32_t)nrec;
+    } else {
+        nh = 0;
     }
     mx_std_createtable(ls, na, nh);
     mx_luaapi_check(ls);
@@ -691,20 +694,21 @@ void *lua_newuserdatauv(lua_State *L, size_t sz, int nuvalue) {
     mx_obj_table_t *t = mx_table_new(vm);
     t->head.kind = vm->kinds.udata;
     t->is_plain = false;
-    uint8_t *block = mx_mem_alloc(sz + MX_STD_UDATA_HEADER);
-    uint64_t size = sz;
-    uint64_t nuv = 0;
+    uint64_t nuv;
     if (nuvalue > 0) {
         nuv = (uint64_t)nuvalue;
+    } else {
+        nuv = 0;
     }
-    memcpy(block, &size, sizeof(size));
-    memcpy(block + sizeof(size), &nuv, sizeof(nuv));
-    memset(block + MX_STD_UDATA_HEADER, 0, sz);
-    t->hidden = (uint64_t)(uintptr_t)block;
+    mx_std_udata_header_t *header = mx_mem_alloc(sizeof(mx_std_udata_header_t) + sz);
+    *header = (mx_std_udata_header_t) { .size = sz, .nuv = nuv };
+    uint8_t *payload = (uint8_t *)(header + 1);
+    memset(payload, 0, sz);
+    t->hidden = (uint64_t)(uintptr_t)header;
     mx_gc_note_final(vm, &t->head);
     mx_std_push(ls, mx_obj_of_table(t));
     mx_luaapi_check(ls);
-    return block + MX_STD_UDATA_HEADER;
+    return payload;
 }
 
 int lua_getmetatable(lua_State *L, int objindex) {
@@ -818,13 +822,19 @@ int lua_load(lua_State *L, lua_Reader reader, void *dt, const char *chunkname, c
             mx_str_append(buf, piece, (uint32_t)size);
         }
     }
+    const char *name;
     if (chunkname == NULL) {
-        chunkname = "?";
+        name = "?";
+    } else {
+        name = chunkname;
     }
+    const char *how;
     if (mode == NULL) {
-        mode = "bt";
+        how = "bt";
+    } else {
+        how = mode;
     }
-    int32_t n = mx_std_load_chunk(ls, buf->buf, buf->len, chunkname, mode, mx_lua_of(ls->vm)->std);
+    int32_t n = mx_std_load_chunk(ls, buf->buf, buf->len, name, how, mx_lua_of(ls->vm)->std);
     mx_str_free(buf);
     return mx_luaapi_load_status(ls, n, LUA_ERRSYNTAX);
 }
@@ -865,10 +875,13 @@ int lua_resume(lua_State *L, lua_State *from, int narg, int *nres) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_t *vm = ls->vm;
     mx_thread_t *co = ls->th;
-    const char *why = mx_coro_resume_check(vm, co);
+    const char *checked = mx_coro_resume_check(vm, co);
     bool is_fresh = co->status == MX_THREAD_FRESH;
-    if (why == NULL && is_fresh && ls->top < narg + 1) {
+    const char *why;
+    if (checked == NULL && is_fresh && ls->top < narg + 1) {
         why = "cannot resume dead coroutine";
+    } else {
+        why = checked;
     }
     if (why != NULL) {
         mx_std_pushstring(ls, why);
@@ -884,14 +897,14 @@ int lua_resume(lua_State *L, lua_State *from, int narg, int *nres) {
     ls->top -= narg;
     mx_std_sync(ls);
     mx_run_result_t res = mx_resume(vm, co, (uint32_t)narg, args);
-    ls = mx_luaapi_thread_state(vm, co);
+    mx_std_state_t *fresh = mx_luaapi_thread_state(vm, co);
     if (res.status == MX_RUN_ERROR) {
-        mx_std_push(ls, mx_error_payload(res.error));
+        mx_std_push(fresh, mx_error_payload(res.error));
         *nres = 1;
         return LUA_ERRRUN;
     }
     for (uint32_t i = 0; i < vm->rets.len; i++) {
-        mx_std_push(ls, vm->rets.vals[i]);
+        mx_std_push(fresh, vm->rets.vals[i]);
     }
     *nres = (int)vm->rets.len;
     if (res.status == MX_RUN_YIELD) {
@@ -968,9 +981,11 @@ int lua_gc(lua_State *L, int what, ...) {
 int lua_error(lua_State *L) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_obj_t *at = mx_std_at(ls, -1);
-    mx_obj_t v = mx_obj_of_nil();
+    mx_obj_t v;
     if (at != NULL) {
         v = *at;
+    } else {
+        v = mx_obj_of_nil();
     }
     ls->error = mx_error_value(ls->vm, v);
     mx_std_raise(ls);
@@ -1009,9 +1024,11 @@ void lua_concat(lua_State *L, int n) {
 void lua_len(lua_State *L, int idx) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_obj_t *at = mx_std_at(ls, idx);
-    mx_obj_t v = mx_obj_of_nil();
+    mx_obj_t v;
     if (at != NULL) {
         v = *at;
+    } else {
+        v = mx_obj_of_nil();
     }
     mx_obj_t got = mx_meta_len(ls->vm, v);
     if (mx_obj_is_error(got)) {
@@ -1036,9 +1053,11 @@ unsigned lua_numbertocstring(lua_State *L, int idx, char *buff) {
     } else {
         mx_str_float(out, mx_obj_get_float(*at));
     }
-    uint32_t len = out->len;
-    if (len >= LUA_N2SBUFFSZ) {
+    uint32_t len;
+    if (out->len >= LUA_N2SBUFFSZ) {
         len = LUA_N2SBUFFSZ - 1;
+    } else {
+        len = out->len;
     }
     memcpy(buff, out->buf, len);
     buff[len] = '\0';
@@ -1070,10 +1089,13 @@ void lua_setallocf(lua_State *L, lua_Alloc f, void *ud) {
 void lua_toclose(lua_State *L, int idx) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_obj_t *at = mx_std_at(ls, idx);
-    mx_obj_t args[2] = {mx_obj_of_nil(), mx_obj_intern(ls->vm, "?")};
+    mx_obj_t v;
     if (at != NULL) {
-        args[0] = *at;
+        v = *at;
+    } else {
+        v = mx_obj_of_nil();
     }
+    mx_obj_t args[2] = {v, mx_obj_intern(ls->vm, "?")};
     mx_prim_close_check(ls->vm, 2, args);
     if (mx_obj_is_error(args[0])) {
         mx_error_locate(ls->vm, mx_obj_get_error(args[0]), NULL);
@@ -1113,36 +1135,48 @@ void lua_closeslot(lua_State *L, int idx) {
 
 int lua_getstack(lua_State *L, int level, lua_Debug *ar) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
+    int32_t at;
     if (ls->is_hook && level >= 0) {
-        level += 1;
+        at = level + 1;
+    } else {
+        at = level;
     }
-    if (level < 0 || !mx_frame_at_level(ls->th, (uint32_t)level).is_valid) {
+    if (at < 0 || !mx_frame_at_level(ls->th, (uint32_t)at).is_valid) {
         return 0;
     }
-    ar->i_ci = (struct CallInfo *)(uintptr_t)((uint32_t)level + 1);
+    ar->i_ci = (struct CallInfo *)(uintptr_t)((uint32_t)at + 1);
     return 1;
 }
 
 int lua_getinfo(lua_State *L, const char *what, lua_Debug *ar) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
-    mx_frame_t f = { .is_valid = false };
-    mx_obj_t fn;
-    if (what[0] == '>') {
-        fn = *mx_std_at(ls, -1);
-        mx_std_pop(ls, 1);
-        what += 1;
+    bool is_fn = what[0] == '>';
+    mx_frame_t f;
+    if (is_fn) {
+        f = (mx_frame_t) { .is_valid = false };
     } else {
         f = mx_frame_at_level(ls->th, (uint32_t)((uintptr_t)ar->i_ci - 1));
-        if (!f.is_valid) {
-            return 0;
-        }
-        fn = mx_frame_fn(&f);
     }
-    const mx_ir_block_t *head = NULL;
+    if (!is_fn && !f.is_valid) {
+        return 0;
+    }
+    mx_obj_t fn;
+    const char *opts;
+    if (is_fn) {
+        fn = *mx_std_at(ls, -1);
+        mx_std_pop(ls, 1);
+        opts = what + 1;
+    } else {
+        fn = mx_frame_fn(&f);
+        opts = what;
+    }
+    const mx_ir_block_t *head;
     if (mx_obj_is_closure(fn)) {
         head = mx_obj_get_closure(fn)->block;
+    } else {
+        head = NULL;
     }
-    for (const char *c = what; *c != '\0'; c++) {
+    for (const char *c = opts; *c != '\0'; c++) {
         switch (*c) {
             case 'S': {
                 if (head == NULL) {
@@ -1194,9 +1228,11 @@ int lua_getinfo(lua_State *L, const char *what, lua_Debug *ar) {
                 break;
             }
             case 'n': {
-                mx_trace_name_t named = { .what = NULL, .name = NULL };
+                mx_trace_name_t named;
                 if (f.is_valid) {
                     named = mx_trace_namewhat(&f);
+                } else {
+                    named = (mx_trace_name_t) { .what = NULL, .name = NULL };
                 }
                 ar->name = named.name;
                 if (named.what == NULL) {
@@ -1247,9 +1283,11 @@ const char *lua_getlocal(lua_State *L, const lua_Debug *ar, int n) {
         }
     }
     mx_frame_t f = mx_frame_at_level(ls->th, (uint32_t)((uintptr_t)ar->i_ci - 1));
-    const mx_ir_local_t *local = NULL;
+    const mx_ir_local_t *local;
     if (f.is_valid) {
         local = mx_frame_local(&f, n);
+    } else {
+        local = NULL;
     }
     if (local == NULL) {
         return NULL;
@@ -1262,9 +1300,11 @@ const char *lua_getlocal(lua_State *L, const lua_Debug *ar, int n) {
 const char *lua_setlocal(lua_State *L, const lua_Debug *ar, int n) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_frame_t f = mx_frame_at_level(ls->th, (uint32_t)((uintptr_t)ar->i_ci - 1));
-    const mx_ir_local_t *local = NULL;
+    const mx_ir_local_t *local;
     if (f.is_valid) {
         local = mx_frame_local(&f, n);
+    } else {
+        local = NULL;
     }
     if (local != NULL && !local->is_pack) {
         mx_frame_set_reg(ls->vm, &f, local->reg, *mx_std_at(ls, -1));
@@ -1335,19 +1375,19 @@ const char *lua_setupvalue(lua_State *L, int funcindex, int n) {
     mx_obj_t v = *mx_std_at(ls, -1);
     mx_obj_t *cv = mx_luaapi_cfn_upval(ls, funcindex, n);
     mx_obj_upval_t **lv = mx_luaapi_lua_upval(ls, funcindex, n);
-    const char *name = NULL;
     if (cv != NULL) {
         mx_gc_write_barrier(ls->vm, mx_obj_data_head(*mx_std_at(ls, funcindex)), v);
         *cv = v;
-        name = "";
+        mx_std_pop(ls, 1);
+        return "";
     } else if (lv != NULL) {
         mx_upval_set(ls->vm, *lv, v);
-        name = mx_luaapi_upval_name(ls, funcindex, n);
-    }
-    if (name != NULL) {
+        const char *name = mx_luaapi_upval_name(ls, funcindex, n);
         mx_std_pop(ls, 1);
+        return name;
+    } else {
+        return NULL;
     }
-    return name;
 }
 
 void *lua_upvalueid(lua_State *L, int fidx, int n) {
@@ -1375,16 +1415,17 @@ void lua_upvaluejoin(lua_State *L, int fidx1, int n1, int fidx2, int n2) {
 
 int32_t mx_luaapi_hook_adapter(mx_std_state_t *ls) {
     const char *const events[] = {"call", "return", "line", "count", "tail call", NULL};
-    lua_Debug ar = { .event = 0 };
     const char *name = mx_std_tostring(ls, 1).ptr;
-    while (events[ar.event] != NULL && strcmp(events[ar.event], name) != 0) {
-        ar.event += 1;
+    int event = 0;
+    while (events[event] != NULL && strcmp(events[event], name) != 0) {
+        event += 1;
     }
-    ar.currentline = (int)mx_std_optinteger(ls, 2, -1);
-    ar.i_ci = (struct CallInfo *)(uintptr_t)2;
-    lua_Hook hook;
-    void *ptr = mx_obj_get_lightuserdata(mx_std_upval(ls, 0));
-    memcpy(&hook, &ptr, sizeof(hook));
+    lua_Debug ar = {
+        .event = event,
+        .currentline = (int)mx_std_optinteger(ls, 2, -1),
+        .i_ci = (struct CallInfo *)(uintptr_t)2,
+    };
+    lua_Hook hook = (lua_Hook)(uintptr_t)mx_obj_get_lightuserdata(mx_std_upval(ls, 0));
     ls->is_hook = true;
     hook((lua_State *)ls, &ar);
     return 0;
@@ -1392,41 +1433,43 @@ int32_t mx_luaapi_hook_adapter(mx_std_state_t *ls) {
 
 lua_Hook mx_luaapi_hook_of(mx_t *vm) {
     mx_obj_t fn = mx_lua_of(vm)->hook.fn;
-    lua_Hook hook = NULL;
     if (fn.kind == vm->kinds.cfn && ((mx_obj_cfn_t *)mx_obj_data_head(fn))->std_fn == mx_luaapi_hook_adapter) {
-        void *ptr = mx_obj_get_lightuserdata(((mx_obj_cfn_t *)mx_obj_data_head(fn))->values[0]);
-        memcpy(&hook, &ptr, sizeof(hook));
+        return (lua_Hook)(uintptr_t)mx_obj_get_lightuserdata(((mx_obj_cfn_t *)mx_obj_data_head(fn))->values[0]);
+    } else {
+        return NULL;
     }
-    return hook;
 }
 
 void lua_sethook(lua_State *L, lua_Hook func, int mask, int count) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_t *vm = ls->vm;
     mx_lua_hook_t *hook = &mx_lua_of(vm)->hook;
+    int counted;
     if (count <= 0) {
-        mask &= ~LUA_MASKCOUNT;
-    }
-    if (func == NULL || mask == 0) {
-        hook->fn = mx_obj_of_nil();
-        mask = 0;
+        counted = mask & ~LUA_MASKCOUNT;
     } else {
-        void *ptr;
-        memcpy(&ptr, &func, sizeof(ptr));
-        mx_std_push(ls, mx_obj_of_lightuserdata(ptr));
+        counted = mask;
+    }
+    int active;
+    if (func == NULL || counted == 0) {
+        hook->fn = mx_obj_of_nil();
+        active = 0;
+    } else {
+        mx_std_push(ls, mx_obj_of_lightuserdata((void *)(uintptr_t)func));
         mx_luaapi_push_cfn(ls, mx_luaapi_hook_adapter, 1);
         hook->fn = *mx_std_at(ls, -1);
         mx_std_pop(ls, 1);
+        active = counted;
     }
-    ls->th->has_hook = mask != 0;
-    hook->mask = (uint32_t)mask;
+    ls->th->has_hook = active != 0;
+    hook->mask = (uint32_t)active;
     hook->count = count;
     hook->counter = count;
     hook->is_tail = false;
     hook->thread = NULL;
     hook->last_frame = MX_THREAD_NONE;
     vm->hooks.debug = mx_std_debug_hook;
-    vm->is_hooked = mask != 0;
+    vm->is_hooked = active != 0;
     vm->interrupt = 1;
 }
 
@@ -1478,11 +1521,11 @@ int luaL_getmetafield(lua_State *L, int obj, const char *e) {
 }
 
 int luaL_callmeta(lua_State *L, int obj, const char *e) {
-    obj = lua_absindex(L, obj);
-    if (luaL_getmetafield(L, obj, e) == LUA_TNIL) {
+    int abs = lua_absindex(L, obj);
+    if (luaL_getmetafield(L, abs, e) == LUA_TNIL) {
         return 0;
     }
-    lua_pushvalue(L, obj);
+    lua_pushvalue(L, abs);
     lua_callk(L, 1, 1, 0, NULL);
     return 1;
 }
@@ -1679,40 +1722,45 @@ int luaL_ref(lua_State *L, int t) {
         lua_settop(L, -2);
         return LUA_REFNIL;
     }
-    t = lua_absindex(L, t);
-    int32_t ref;
-    if (lua_rawgeti(L, t, 1) == LUA_TNUMBER) {
-        ref = (int32_t)lua_tointegerx(L, -1, NULL);
+    int tab = lua_absindex(L, t);
+    int32_t free_ref;
+    if (lua_rawgeti(L, tab, 1) == LUA_TNUMBER) {
+        free_ref = (int32_t)lua_tointegerx(L, -1, NULL);
     } else {
-        ref = 0;
+        free_ref = 0;
         lua_pushinteger(L, 0);
-        lua_rawseti(L, t, 1);
+        lua_rawseti(L, tab, 1);
     }
     lua_settop(L, -2);
-    if (ref != 0) {
-        lua_rawgeti(L, t, ref);
-        lua_rawseti(L, t, 1);
+    int32_t ref;
+    if (free_ref != 0) {
+        lua_rawgeti(L, tab, free_ref);
+        lua_rawseti(L, tab, 1);
+        ref = free_ref;
     } else {
-        ref = (int32_t)lua_rawlen(L, t) + 1;
+        ref = (int32_t)lua_rawlen(L, tab) + 1;
     }
-    lua_rawseti(L, t, ref);
+    lua_rawseti(L, tab, ref);
     return ref;
 }
 
 void luaL_unref(lua_State *L, int t, int ref) {
     if (ref >= 0) {
-        t = lua_absindex(L, t);
-        lua_rawgeti(L, t, 1);
-        lua_rawseti(L, t, ref);
+        int tab = lua_absindex(L, t);
+        lua_rawgeti(L, tab, 1);
+        lua_rawseti(L, tab, ref);
         lua_pushinteger(L, ref);
-        lua_rawseti(L, t, 1);
+        lua_rawseti(L, tab, 1);
     }
 }
 
 int luaL_loadfilex(lua_State *L, const char *filename, const char *mode) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
+    const char *how;
     if (mode == NULL) {
-        mode = "bt";
+        how = "bt";
+    } else {
+        how = mode;
     }
     int32_t failed;
     if (filename != NULL && !mx_std_package_readable(filename)) {
@@ -1720,20 +1768,26 @@ int luaL_loadfilex(lua_State *L, const char *filename, const char *mode) {
     } else {
         failed = LUA_ERRSYNTAX;
     }
-    int32_t n = mx_std_load_file(ls, filename, mode, mx_lua_of(ls->vm)->std);
+    int32_t n = mx_std_load_file(ls, filename, how, mx_lua_of(ls->vm)->std);
     mx_luaapi_check(ls);
     return mx_luaapi_load_status(ls, n, failed);
 }
 
 int luaL_loadbufferx(lua_State *L, const char *buff, size_t sz, const char *name, const char *mode) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
+    const char *chunkname;
     if (name == NULL) {
-        name = "?";
+        chunkname = "?";
+    } else {
+        chunkname = name;
     }
+    const char *how;
     if (mode == NULL) {
-        mode = "bt";
+        how = "bt";
+    } else {
+        how = mode;
     }
-    int32_t n = mx_std_load_chunk(ls, buff, sz, name, mode, mx_lua_of(ls->vm)->std);
+    int32_t n = mx_std_load_chunk(ls, buff, sz, chunkname, how, mx_lua_of(ls->vm)->std);
     mx_luaapi_check(ls);
     return mx_luaapi_load_status(ls, n, LUA_ERRSYNTAX);
 }
@@ -1798,10 +1852,10 @@ int luaL_getsubtable(lua_State *L, int idx, const char *fname) {
         return 1;
     }
     lua_settop(L, -2);
-    idx = lua_absindex(L, idx);
+    int abs = lua_absindex(L, idx);
     lua_createtable(L, 0, 0);
     lua_pushvalue(L, -1);
-    lua_setfield(L, idx, fname);
+    lua_setfield(L, abs, fname);
     return 0;
 }
 
@@ -1811,10 +1865,13 @@ void luaL_traceback(lua_State *L, lua_State *L1, const char *msg, int level) {
     if (msg != NULL) {
         mx_str_format(out, "%s\n", msg);
     }
+    uint32_t from;
     if (level < 0) {
-        level = 0;
+        from = 0;
+    } else {
+        from = (uint32_t)level;
     }
-    mx_trace_append(ls->vm, out, ((mx_std_state_t *)L1)->th, (uint32_t)level);
+    mx_trace_append(ls->vm, out, ((mx_std_state_t *)L1)->th, from);
     mx_std_pushlstring(ls, out->buf, out->len);
     mx_str_free(out);
     mx_luaapi_check(ls);
@@ -1844,9 +1901,10 @@ void *mx_luaapi_box_resize(lua_State *L, int32_t idx, size_t size) {
     if (box->size == size) {
         return box->data;
     }
-    void *got = NULL;
+    void *got;
     if (size == 0) {
         mx_mem_free(box->data);
+        got = NULL;
     } else if (mx_mem_fits(size)) {
         got = mx_mem_realloc(box->data, size);
     } else {
@@ -1889,9 +1947,11 @@ char *mx_luaapi_buf_prep(luaL_Buffer *B, size_t sz, int32_t boxidx) {
         luaL_error(L, "resulting string too large");
         return NULL;
     }
-    size_t size = B->size + (B->size >> 1);
-    if (size < B->n + sz + 1) {
+    size_t size;
+    if (B->size + (B->size >> 1) < B->n + sz + 1) {
         size = B->n + sz + 1;
+    } else {
+        size = B->size + (B->size >> 1);
     }
     char *data;
     if (B->b != B->init.b) {
@@ -1910,9 +1970,10 @@ char *mx_luaapi_buf_prep(luaL_Buffer *B, size_t sz, int32_t boxidx) {
     if (data != NULL) {
         B->b = data;
         B->size = size;
-        data += B->n;
+        return data + B->n;
+    } else {
+        return NULL;
     }
-    return data;
 }
 
 void luaL_buffinit(lua_State *L, luaL_Buffer *B) {

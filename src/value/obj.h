@@ -101,17 +101,11 @@ static inline int64_t mx_obj_get_int(mx_obj_t o) {
 }
 
 static inline mx_obj_t mx_obj_of_raw(mx_kind_t kind, mx_val_t val) {
-    mx_obj_t out;
-    out.kind = kind;
-    out.val = val;
-    return out;
+    return (mx_obj_t) { .kind = kind, .val = val };
 }
 
 static inline mx_obj_t mx_obj_of_int(int64_t v) {
-    mx_obj_t out;
-    out.kind = MX_KIND_INT;
-    out.val = mx_val_i64(v);
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_INT, .val = mx_val_i64(v) };
 }
 
 static inline bool mx_obj_float_fits_int(double d) {
@@ -135,10 +129,7 @@ static inline bool mx_obj_is_table(mx_obj_t o) {
 }
 
 static inline mx_obj_t mx_obj_of_data(void *o) {
-    mx_obj_t out;
-    out.kind = ((mx_obj_head_t *)o)->kind;
-    out.val = mx_val_ref(mx_ref_pin(o));
-    return out;
+    return (mx_obj_t) { .kind = ((mx_obj_head_t *)o)->kind, .val = mx_val_ref(mx_ref_pin(o)) };
 }
 
 static inline bool mx_obj_is_closure(mx_obj_t o) {
@@ -158,10 +149,7 @@ static inline bool mx_obj_is_lightuserdata(mx_obj_t o) {
 }
 
 static inline mx_obj_t mx_obj_of_lightuserdata(void *p) {
-    mx_obj_t out;
-    out.kind = MX_KIND_LIGHTUSERDATA;
-    out.val = mx_val_ref(mx_ref_pin(p));
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_LIGHTUSERDATA, .val = mx_val_ref(mx_ref_pin(p)) };
 }
 
 static inline void *mx_obj_get_lightuserdata(mx_obj_t o) {
@@ -352,66 +340,39 @@ static inline mx_kind_t mx_obj_kind(mx_obj_t o) {
 }
 
 static inline mx_obj_t mx_obj_of_nil(void) {
-    mx_obj_t out;
-    out.kind = MX_KIND_NIL;
-    out.val = mx_val_nil();
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_NIL, .val = mx_val_nil() };
 }
 
 static inline mx_obj_t mx_obj_of_boolean(bool b) {
-    mx_obj_t out;
-    out.kind = MX_KIND_BOOLEAN;
-    out.val = mx_val_bool(b);
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_BOOLEAN, .val = mx_val_bool(b) };
 }
 
 static inline mx_obj_t mx_obj_of_number(double n) {
-    mx_obj_t out;
-    out.kind = MX_KIND_FLOAT;
-    out.val = mx_val_f64(n);
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_FLOAT, .val = mx_val_f64(n) };
 }
 
 static inline mx_obj_t mx_obj_of_string(mx_str_t *o) {
-    mx_obj_t out;
-    out.kind = MX_KIND_STRING;
-    out.val = mx_val_ref(mx_ref_pin(o));
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_STRING, .val = mx_val_ref(mx_ref_pin(o)) };
 }
 
 static inline mx_obj_t mx_obj_of_table(mx_obj_table_t *o) {
-    mx_obj_t out;
-    out.kind = ((mx_obj_head_t *)o)->kind;
-    out.val = mx_val_ref(mx_ref_pin(o));
-    return out;
+    return (mx_obj_t) { .kind = ((mx_obj_head_t *)o)->kind, .val = mx_val_ref(mx_ref_pin(o)) };
 }
 
 static inline mx_obj_t mx_obj_of_closure(mx_obj_closure_t *o) {
-    mx_obj_t out;
-    out.kind = MX_KIND_CLOSURE;
-    out.val = mx_val_ref(mx_ref_pin(o));
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_CLOSURE, .val = mx_val_ref(mx_ref_pin(o)) };
 }
 
 static inline mx_obj_t mx_obj_of_ffi(mx_ffi_t *o) {
-    mx_obj_t out;
-    out.kind = MX_KIND_FFI;
-    out.val = mx_val_ref(mx_ref_pin(o));
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_FFI, .val = mx_val_ref(mx_ref_pin(o)) };
 }
 
 static inline mx_obj_t mx_obj_of_block(mx_ir_block_t *o) {
-    mx_obj_t out;
-    out.kind = MX_KIND_BLOCK;
-    out.val = mx_val_ref(mx_ref_pin(o));
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_BLOCK, .val = mx_val_ref(mx_ref_pin(o)) };
 }
 
 static inline mx_obj_t mx_obj_of_error(mx_error_t *o) {
-    mx_obj_t out;
-    out.kind = MX_KIND_ERROR;
-    out.val = mx_val_ref(mx_ref_pin(o));
-    return out;
+    return (mx_obj_t) { .kind = MX_KIND_ERROR, .val = mx_val_ref(mx_ref_pin(o)) };
 }
 
 #endif

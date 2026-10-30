@@ -55,5 +55,6 @@ mx_main_exit_t mx_main_run_file(mx_t *vm, const char *prog, const char *fname);
 mx_main_exit_t mx_main_require(mx_t *vm, const char *prog, const char *spec);
 mx_main_exit_t mx_main_run_init(mx_t *vm, const char *prog);
 mx_main_exit_t mx_main_run_steps(mx_t *vm, const char *prog, const mx_main_cmd_t *cmd);
+mx_main_exit_t mx_main_run_all(mx_t *vm, const char *prog, const mx_main_cmd_t *cmd, char **argv, bool is_interactive, bool is_version);
 
 #endif

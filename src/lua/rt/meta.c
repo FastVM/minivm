@@ -143,6 +143,15 @@ mx_obj_t mx_meta_handler_of(mx_t *vm, mx_obj_t v, mx_obj_t key) {
     }
 }
 
+mx_obj_t mx_meta_handler_either(mx_t *vm, mx_obj_t a, mx_obj_t b, mx_obj_t key) {
+    mx_obj_t first = mx_meta_handler_of(vm, a, key);
+    if (mx_obj_is_nil(first)) {
+        return mx_meta_handler_of(vm, b, key);
+    } else {
+        return first;
+    }
+}
+
 mx_obj_num_t mx_meta_coerce_num(mx_t *vm, mx_obj_t v) {
     if (mx_obj_is_number(v)) {
         return (mx_obj_num_t) { .value = v, .is_num = true };
@@ -248,9 +257,12 @@ bool mx_meta_is_default_op(mx_obj_t handler, mx_op_t op) {
 mx_obj_t mx_meta_arith_event(mx_t *vm, mx_op_t op, mx_obj_t a, mx_obj_t b) {
     mx_lua_t *lua = mx_lua_of(vm);
     mx_obj_t key = lua->meta_keys[MX_LUA_META_KEY_ARITH_BASE + (op - MX_OP_ADD)];
-    mx_obj_t handler = mx_meta_handler_of(vm, a, key);
-    if (mx_obj_is_nil(handler) || mx_meta_is_default_op(handler, op)) {
+    mx_obj_t first = mx_meta_handler_of(vm, a, key);
+    mx_obj_t handler;
+    if (mx_obj_is_nil(first) || mx_meta_is_default_op(first, op)) {
         handler = mx_meta_handler_of(vm, b, key);
+    } else {
+        handler = first;
     }
     if (!mx_obj_is_nil(handler) && !mx_meta_is_default_op(handler, op) && mx_meta_lua_type(vm, handler) != MX_LUA_TYPE_FUNCTION && mx_obj_is_nil(mx_meta_handler_of(vm, handler, lua->meta_keys[MX_LUA_META_KEY_CALL]))) {
         return mx_error_raw(vm, "attempt to call a %s value (metamethod '%s')", mx_meta_typename(vm, handler), mx_op_names[op]);
@@ -316,13 +328,11 @@ mx_obj_t mx_meta_compare(mx_t *vm, mx_op_t op, mx_obj_t a, mx_obj_t b) {
             return mx_obj_of_boolean(true);
         }
         bool is_same_class = a.kind == b.kind && mx_obj_is_table(a) && mx_obj_is_table(b);
-        mx_obj_t handler = mx_obj_of_nil();
+        mx_obj_t handler;
         if (is_same_class) {
-            mx_obj_t key = lua->meta_keys[MX_LUA_META_KEY_EQ];
-            handler = mx_meta_handler_of(vm, a, key);
-            if (mx_obj_is_nil(handler)) {
-                handler = mx_meta_handler_of(vm, b, key);
-            }
+            handler = mx_meta_handler_either(vm, a, b, lua->meta_keys[MX_LUA_META_KEY_EQ]);
+        } else {
+            handler = mx_obj_of_nil();
         }
         if (mx_obj_is_nil(handler)) {
             return mx_obj_of_boolean(false);
@@ -352,10 +362,7 @@ mx_obj_t mx_meta_compare(mx_t *vm, mx_op_t op, mx_obj_t a, mx_obj_t b) {
     } else {
         key = lua->meta_keys[MX_LUA_META_KEY_LE];
     }
-    mx_obj_t handler = mx_meta_handler_of(vm, a, key);
-    if (mx_obj_is_nil(handler)) {
-        handler = mx_meta_handler_of(vm, b, key);
-    }
+    mx_obj_t handler = mx_meta_handler_either(vm, a, b, key);
     if (mx_obj_is_nil(handler)) {
         return mx_meta_cmp_fail(vm, a, b);
     } else if (mx_meta_lua_type(vm, handler) != MX_LUA_TYPE_FUNCTION && mx_obj_is_nil(mx_meta_handler_of(vm, handler, lua->meta_keys[MX_LUA_META_KEY_CALL]))) {
@@ -575,27 +582,30 @@ void mx_meta_op_call(mx_t *vm, size_t nargs, mx_obj_t *args) {
         vm->rets.len = 1;
         return;
     }
-    mx_obj_t *cargs = args;
-    uint32_t cn = (uint32_t)nargs;
     mx_obj_t next = mx_run_call_handler(vm, handler);
-    if (!mx_obj_is_nil(next)) {
-        mx_obj_t *tmp = mx_vm_tmp_reserve(vm, cn + 15);
-        memmove(tmp + 15, args, sizeof(mx_obj_t) * cn);
-        uint32_t at = 15;
-        while (!mx_obj_is_nil(next) && at > 1) {
-            at -= 1;
-            tmp[at] = handler;
-            handler = next;
-            next = mx_run_call_handler(vm, handler);
-        }
-        if (!mx_obj_is_nil(next)) {
-            args[0] = mx_error_raw(vm, "'__call' chain too long");
-            vm->rets.len = 1;
-            return;
-        }
-        cargs = tmp + at;
-        cn += 15 - at;
+    if (mx_obj_is_nil(next)) {
+        mx_meta_call_with(vm, handler, (uint32_t)nargs, args);
+        return;
     }
+    mx_obj_t *tmp = mx_vm_tmp_reserve(vm, (uint32_t)nargs + 15);
+    memmove(tmp + 15, args, sizeof(mx_obj_t) * nargs);
+    uint32_t at = 15;
+    mx_obj_t fn = handler;
+    while (!mx_obj_is_nil(next) && at > 1) {
+        at -= 1;
+        tmp[at] = fn;
+        fn = next;
+        next = mx_run_call_handler(vm, fn);
+    }
+    if (!mx_obj_is_nil(next)) {
+        args[0] = mx_error_raw(vm, "'__call' chain too long");
+        vm->rets.len = 1;
+        return;
+    }
+    mx_meta_call_with(vm, fn, (uint32_t)nargs + 15 - at, tmp + at);
+}
+
+void mx_meta_call_with(mx_t *vm, mx_obj_t handler, uint32_t cn, mx_obj_t *cargs) {
     if (vm->pending.is_ok && mx_obj_is_closure(handler)) {
         mx_call_pend(vm, MX_RUN_PENDING_KIND_CALL, handler, mx_obj_of_nil(), NULL, cn, cargs);
         return;

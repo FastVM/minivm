@@ -9,29 +9,30 @@
 #include "../../../value/string.h"
 #include "../../../value/table.h"
 
-void mx_std_state_enter(mx_std_state_t *ls, mx_t *vm, mx_obj_t *args, int32_t nargs) {
+mx_std_state_t mx_std_state_enter(mx_t *vm, mx_obj_t *args, int32_t nargs, const char *fnname, mx_std_fn_t *fn, bool can_pend) {
     mx_thread_t *th = vm->thread;
-    *ls = (mx_std_state_t) {
+    uint32_t base = (uint32_t)((mx_val_t *)args - th->slots);
+    mx_obj_cfn_t *upvals;
+    if (th->frame != MX_THREAD_NONE && th->frame + 4 == base && mx_thread_objs(th, th->frame + 2)->kind == vm->kinds.cfn) {
+        upvals = (mx_obj_cfn_t *)mx_ref_obj(mx_thread_objs(th, th->frame + 2)->val.ref);
+    } else {
+        upvals = NULL;
+    }
+    return (mx_std_state_t) {
         .vm = vm,
         .th = th,
-        .base = (uint32_t)((mx_val_t *)args - th->slots),
+        .base = base,
         .top = nargs,
         .error = mx_obj_of_nil(),
+        .fnname = fnname,
+        .upvals = upvals,
+        .fn = fn,
+        .can_pend = can_pend,
     };
-    if (th->frame != MX_THREAD_NONE && th->frame + 4 == ls->base) {
-        mx_obj_t fn = *mx_thread_objs(th, th->frame + 2);
-        if (fn.kind == vm->kinds.cfn) {
-            ls->upvals = (mx_obj_cfn_t *)mx_ref_obj(fn.val.ref);
-        }
-    }
 }
 
 void mx_std_dispatch(mx_t *vm, mx_std_fn_t *fn, const char *fnname, mx_obj_t *args, int32_t nargs) {
-    mx_std_state_t ls;
-    mx_std_state_enter(&ls, vm, args, nargs);
-    ls.fnname = fnname;
-    ls.fn = fn;
-    ls.can_pend = vm->pending.is_ok;
+    mx_std_state_t ls = mx_std_state_enter(vm, args, nargs, fnname, fn, vm->pending.is_ok);
     vm->pending.is_ok = false;
     mx_std_dispatch_finish(&ls, fn(&ls));
 }
@@ -50,19 +51,22 @@ void mx_std_dispatch_finish(mx_std_state_t *ls, int32_t nret) {
         vm->rets.len = 1;
         return;
     }
+    int32_t n;
     if (nret < 0) {
-        nret = 0;
+        n = 0;
+    } else {
+        n = nret;
     }
-    int32_t first = ls->top - nret;
-    if (first != 0 && nret == 1) {
+    int32_t first = ls->top - n;
+    if (first != 0 && n == 1) {
         res[0] = res[first];
     } else if (first != 0) {
-        memmove(res, res + first, sizeof(mx_obj_t) * (size_t)nret);
+        memmove(res, res + first, sizeof(mx_obj_t) * (size_t)n);
     }
-    if (nret == 0) {
+    if (n == 0) {
         res[0] = mx_obj_of_nil();
     }
-    vm->rets.len = (uint32_t)nret;
+    vm->rets.len = (uint32_t)n;
 }
 
 mx_obj_t *mx_std_slots(mx_std_state_t *ls) {
@@ -102,14 +106,18 @@ mx_varname_t mx_std_site_name(mx_std_state_t *ls) {
 }
 
 void mx_std_where(mx_std_state_t *ls, uint32_t level, mx_str_t *out) {
-    const mx_resume_t *site = NULL;
+    const mx_resume_t *site;
     if (level == 1) {
         site = mx_std_site(ls);
     } else if (level > 1) {
         mx_frame_t f = mx_frame_at_level(ls->th, level);
         if (f.is_valid && f.is_lua) {
             site = f.at;
+        } else {
+            site = NULL;
         }
+    } else {
+        site = NULL;
     }
     if (site != NULL) {
         mx_location_range_t range = mx_resume_range(site);
@@ -163,9 +171,11 @@ mx_std_slot_t mx_std_top(mx_std_state_t *ls) {
 }
 
 void mx_std_settop(mx_std_state_t *ls, mx_std_slot_t n) {
-    mx_std_slot_t want = n;
-    if (want < 0) {
+    mx_std_slot_t want;
+    if (n < 0) {
         want = ls->top + n + 1;
+    } else {
+        want = n;
     }
     if (want > ls->top) {
         if (!mx_std_grow(ls, want - ls->top)) {
@@ -197,11 +207,11 @@ void mx_std_push(mx_std_state_t *ls, mx_obj_t value) {
 
 void mx_std_pushvalue(mx_std_state_t *ls, mx_std_slot_t slot) {
     mx_obj_t *src = mx_std_at(ls, slot);
-    mx_obj_t v = mx_obj_of_nil();
     if (src != NULL) {
-        v = *src;
+        mx_std_push(ls, *src);
+    } else {
+        mx_std_push(ls, mx_obj_of_nil());
     }
-    mx_std_push(ls, v);
 }
 
 void mx_std_rotate(mx_std_state_t *ls, mx_std_slot_t slot, mx_std_slot_t n) {
@@ -210,9 +220,11 @@ void mx_std_rotate(mx_std_state_t *ls, mx_std_slot_t slot, mx_std_slot_t n) {
     if (count <= 0) {
         return;
     }
-    mx_std_slot_t shift = n % count;
-    if (shift < 0) {
-        shift += count;
+    mx_std_slot_t shift;
+    if (n % count < 0) {
+        shift = n % count + count;
+    } else {
+        shift = n % count;
     }
     mx_obj_t *seg = &mx_std_slots(ls)[abs - 1];
     for (mx_std_slot_t i = 0; i < shift; i++) {
@@ -461,11 +473,11 @@ void mx_std_createtable(mx_std_state_t *ls, uint32_t narr, uint32_t nhash) {
 mx_lua_type_t mx_std_rawget(mx_std_state_t *ls, mx_std_slot_t table) {
     mx_obj_t *t = mx_std_at(ls, table);
     mx_obj_t *slots = mx_std_slots(ls);
-    mx_obj_t got = mx_obj_of_nil();
     if (t != NULL && mx_obj_is_table(*t)) {
-        got = mx_table_get(mx_obj_get_table(*t), slots[ls->top - 1]);
+        slots[ls->top - 1] = mx_table_get(mx_obj_get_table(*t), slots[ls->top - 1]);
+    } else {
+        slots[ls->top - 1] = mx_obj_of_nil();
     }
-    slots[ls->top - 1] = got;
     return mx_std_type(ls, -1);
 }
 
@@ -491,11 +503,11 @@ void mx_std_rawset(mx_std_state_t *ls, mx_std_slot_t table) {
 
 mx_lua_type_t mx_std_rawgeti(mx_std_state_t *ls, mx_std_slot_t table, int64_t i) {
     mx_obj_t *t = mx_std_at(ls, table);
-    mx_obj_t got = mx_obj_of_nil();
     if (t != NULL && mx_obj_is_table(*t)) {
-        got = mx_table_get(mx_obj_get_table(*t), mx_obj_of_int(i));
+        mx_std_push(ls, mx_table_get(mx_obj_get_table(*t), mx_obj_of_int(i)));
+    } else {
+        mx_std_push(ls, mx_obj_of_nil());
     }
-    mx_std_push(ls, got);
     return mx_std_type(ls, -1);
 }
 
@@ -602,9 +614,11 @@ bool mx_std_getmetatable(mx_std_state_t *ls, mx_std_slot_t slot) {
 void mx_std_setmetatable(mx_std_state_t *ls, mx_std_slot_t slot) {
     mx_obj_t *at = mx_std_at(ls, slot);
     mx_obj_t mt = mx_std_slots(ls)[ls->top - 1];
-    mx_obj_table_t *nmeta = NULL;
+    mx_obj_table_t *nmeta;
     if (mx_obj_is_table(mt)) {
         nmeta = mx_obj_get_table(mt);
+    } else {
+        nmeta = NULL;
     }
     if (at != NULL && mx_obj_is_table(*at)) {
         mx_obj_table_t *t = mx_obj_get_table(*at);
@@ -623,9 +637,11 @@ void mx_std_setmetatable(mx_std_state_t *ls, mx_std_slot_t slot) {
 
 mx_lua_type_t mx_std_gettable(mx_std_state_t *ls, mx_std_slot_t table) {
     mx_obj_t *t = mx_std_at(ls, table);
-    mx_obj_t tv = mx_obj_of_nil();
+    mx_obj_t tv;
     if (t != NULL) {
         tv = *t;
+    } else {
+        tv = mx_obj_of_nil();
     }
     mx_obj_t key = mx_std_slots(ls)[ls->top - 1];
     mx_obj_t got = mx_meta_index(ls->vm, tv, key);
@@ -633,17 +649,20 @@ mx_lua_type_t mx_std_gettable(mx_std_state_t *ls, mx_std_slot_t table) {
         mx_error_locate(ls->vm, mx_obj_get_error(got), NULL);
         ls->error = got;
         mx_std_raise(ls);
-        got = mx_obj_of_nil();
+        mx_std_slots(ls)[ls->top - 1] = mx_obj_of_nil();
+    } else {
+        mx_std_slots(ls)[ls->top - 1] = got;
     }
-    mx_std_slots(ls)[ls->top - 1] = got;
     return mx_std_type(ls, -1);
 }
 
 void mx_std_settable(mx_std_state_t *ls, mx_std_slot_t table) {
     mx_obj_t *t = mx_std_at(ls, table);
-    mx_obj_t tv = mx_obj_of_nil();
+    mx_obj_t tv;
     if (t != NULL) {
         tv = *t;
+    } else {
+        tv = mx_obj_of_nil();
     }
     mx_obj_t *slots = mx_std_slots(ls);
     mx_obj_t key = slots[ls->top - 2];
@@ -684,9 +703,11 @@ void mx_std_take_rets(mx_std_state_t *ls, int32_t from, mx_std_slot_t nresults) 
     mx_t *vm = ls->vm;
     ls->top = from;
     uint32_t got = vm->rets.len;
-    uint32_t want = (uint32_t)nresults;
+    uint32_t want;
     if (nresults == MX_STD_MULTRET) {
         want = got;
+    } else {
+        want = (uint32_t)nresults;
     }
     if (!mx_std_grow(ls, (int32_t)want)) {
         mx_std_error(ls, "too many results");
@@ -718,12 +739,17 @@ void mx_std_call(mx_std_state_t *ls, mx_std_slot_t nargs, mx_std_slot_t nresults
 }
 
 mx_std_status_t mx_std_pcall(mx_std_state_t *ls, mx_std_slot_t nargs, mx_std_slot_t nresults, mx_std_slot_t msgh) {
-    mx_obj_t handler = mx_obj_of_nil();
+    mx_obj_t *at;
     if (msgh != 0) {
-        mx_obj_t *at = mx_std_at(ls, msgh);
-        if (at != NULL) {
-            handler = *at;
-        }
+        at = mx_std_at(ls, msgh);
+    } else {
+        at = NULL;
+    }
+    mx_obj_t handler;
+    if (at != NULL) {
+        handler = *at;
+    } else {
+        handler = mx_obj_of_nil();
     }
     int32_t fn_slot = ls->top - nargs - 1;
     mx_std_sync(ls);

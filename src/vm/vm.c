@@ -66,27 +66,36 @@ mx_arena_t mx_arena_new(bool is_tracking) {
 
 void *mx_arena_take(mx_arena_t *arena, size_t size, size_t align) {
     size_t header = (sizeof(mx_arena_chunk_t) + MX_ARENA_ALIGN - 1) & ~(size_t)(MX_ARENA_ALIGN - 1);
-    mx_arena_chunk_t *chunk = arena->chunks;
-    size_t at = 0;
-    if (chunk != NULL) {
-        at = (chunk->used + align - 1) & ~(align - 1);
+    mx_arena_chunk_t *cur = arena->chunks;
+    size_t aligned;
+    if (cur != NULL) {
+        aligned = (cur->used + align - 1) & ~(align - 1);
+    } else {
+        aligned = 0;
     }
-    if (chunk == NULL || at + size > chunk->size) {
+    mx_arena_chunk_t *chunk;
+    size_t at;
+    if (cur == NULL || aligned + size > cur->size) {
+        mx_arena_chunk_t *fresh;
         if (arena->spare != NULL && arena->spare->size >= size + header) {
-            chunk = arena->spare;
-            arena->spare = chunk->next;
+            fresh = arena->spare;
+            arena->spare = fresh->next;
         } else {
             size_t bytes = MX_ARENA_CHUNK_BYTES;
             while (bytes < size + header) {
                 bytes *= 2;
             }
-            chunk = mx_mem_alloc(bytes);
-            chunk->size = bytes;
+            fresh = mx_mem_alloc(bytes);
+            fresh->size = bytes;
         }
-        chunk->next = arena->chunks;
-        chunk->used = header;
-        arena->chunks = chunk;
+        fresh->next = arena->chunks;
+        fresh->used = header;
+        arena->chunks = fresh;
+        chunk = fresh;
         at = header;
+    } else {
+        chunk = cur;
+        at = aligned;
     }
     void *ret = (uint8_t *)chunk + at;
     if (arena->is_tracking) {
@@ -193,12 +202,17 @@ void mx_vm_free(mx_t *vm) {
     mx_mem_free(vm);
 }
 
+uint32_t mx_vm_grown_cap(uint32_t cap, uint32_t n) {
+    if (cap * 2 + 16 < n) {
+        return n;
+    } else {
+        return cap * 2 + 16;
+    }
+}
+
 mx_obj_t *mx_vm_rets_reserve(mx_t *vm, uint32_t n) {
     if (n > vm->rets.cap) {
-        uint32_t cap = vm->rets.cap * 2 + 16;
-        if (cap < n) {
-            cap = n;
-        }
+        uint32_t cap = mx_vm_grown_cap(vm->rets.cap, n);
         vm->rets.vals = mx_mem_realloc(vm->rets.vals, sizeof(mx_obj_t) * cap);
         vm->rets.cap = cap;
     }
@@ -247,10 +261,7 @@ void mx_vm_rets_pop(mx_t *vm) {
 
 mx_obj_t *mx_vm_tmp_reserve(mx_t *vm, uint32_t n) {
     if (n > vm->tmp.cap) {
-        uint32_t cap = vm->tmp.cap * 2 + 16;
-        if (cap < n) {
-            cap = n;
-        }
+        uint32_t cap = mx_vm_grown_cap(vm->tmp.cap, n);
         vm->tmp.vals = mx_mem_realloc(vm->tmp.vals, sizeof(mx_obj_t) * cap);
         vm->tmp.cap = cap;
     }
@@ -290,10 +301,7 @@ void mx_vm_keep(mx_t *vm, mx_obj_t v) {
 
 mx_obj_t *mx_vm_pending_args(mx_t *vm, uint32_t n) {
     if (n > vm->pending.cap) {
-        uint32_t cap = vm->pending.cap * 2 + 16;
-        if (cap < n) {
-            cap = n;
-        }
+        uint32_t cap = mx_vm_grown_cap(vm->pending.cap, n);
         vm->pending.args = mx_mem_realloc(vm->pending.args, sizeof(mx_obj_t) * cap);
         vm->pending.cap = cap;
     }

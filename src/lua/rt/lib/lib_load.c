@@ -48,10 +48,13 @@ mx_obj_t mx_std_load_closure(mx_t *vm, mx_ir_block_t *entry, mx_obj_t env) {
     uint32_t n = entry->func->nupvals;
     mx_obj_closure_t *cl = mx_obj_closure_new(vm, entry, n);
     for (uint32_t i = 0; i < n; i++) {
-        cl->upvals[i] = mx_obj_upval_new_closed(vm, mx_obj_of_nil());
-    }
-    if (n > 0) {
-        cl->upvals[0]->value = env;
+        mx_obj_t value;
+        if (i == 0) {
+            value = env;
+        } else {
+            value = mx_obj_of_nil();
+        }
+        cl->upvals[i] = mx_obj_upval_new_closed(vm, value);
     }
     return mx_obj_of_closure(cl);
 }
@@ -125,23 +128,33 @@ int32_t mx_std_load_file(mx_std_state_t *ls, const char *fname, const char *mode
         mx_str_free(name);
         return 2;
     }
-    char *body = text.ptr;
-    size_t len = text.len;
-    if (len >= 3 && memcmp(body, "\xEF\xBB\xBF", 3) == 0) {
-        body += 3;
-        len -= 3;
+    char *start;
+    size_t avail;
+    if (text.len >= 3 && memcmp(text.ptr, "\xEF\xBB\xBF", 3) == 0) {
+        start = text.ptr + 3;
+        avail = text.len - 3;
+    } else {
+        start = text.ptr;
+        avail = text.len;
     }
-    if (len > 0 && body[0] == '#') {
+    char *body;
+    size_t len;
+    if (avail > 0 && start[0] == '#') {
         size_t eol = 0;
-        while (eol < len && body[eol] != '\n') {
+        while (eol < avail && start[eol] != '\n') {
             eol += 1;
         }
-        if (eol + 1 < len && body[eol + 1] == MX_DUMP_MAGIC[0]) {
-            body += eol + 1;
-            len -= eol + 1;
+        if (eol + 1 < avail && start[eol + 1] == MX_DUMP_MAGIC[0]) {
+            body = start + eol + 1;
+            len = avail - eol - 1;
         } else {
-            memset(body, ' ', eol);
+            memset(start, ' ', eol);
+            body = start;
+            len = avail;
         }
+    } else {
+        body = start;
+        len = avail;
     }
     int32_t n = mx_std_load_chunk(ls, body, len, name->buf, mode, env);
     mx_mem_free(text.ptr);
@@ -151,9 +164,11 @@ int32_t mx_std_load_file(mx_std_state_t *ls, const char *fname, const char *mode
 
 int32_t mx_std_base_load(mx_std_state_t *ls) {
     mx_t *vm = ls->vm;
-    mx_obj_t env = mx_lua_of(vm)->std;
+    mx_obj_t env;
     if (!mx_std_isnone(ls, 4)) {
         env = *mx_std_at(ls, 4);
+    } else {
+        env = mx_lua_of(vm)->std;
     }
     const char *mode = mx_std_optstring(ls, 3, "bt").ptr;
     if (mode != NULL && strchr(mode, 'B') != NULL) {
@@ -203,9 +218,11 @@ int32_t mx_std_base_load(mx_std_state_t *ls) {
 int32_t mx_std_base_loadfile(mx_std_state_t *ls) {
     const char *fname = mx_std_optstring(ls, 1, NULL).ptr;
     const char *mode = mx_std_optstring(ls, 2, "bt").ptr;
-    mx_obj_t env = mx_lua_of(ls->vm)->std;
+    mx_obj_t env;
     if (!mx_std_isnone(ls, 3)) {
         env = *mx_std_at(ls, 3);
+    } else {
+        env = mx_lua_of(ls->vm)->std;
     }
     if (ls->vm->std_error.is_set) {
         return 0;
@@ -260,9 +277,12 @@ int32_t mx_std_package_searchpath_aux(mx_std_state_t *ls, const char *name, cons
     const char *p = path;
     bool is_found = false;
     while (*p != '\0' && !is_found) {
-        const char *end = strchr(p, ';');
-        if (end == NULL) {
+        const char *semi = strchr(p, ';');
+        const char *end;
+        if (semi == NULL) {
             end = p + strlen(p);
+        } else {
+            end = semi;
         }
         file->len = 0;
         for (const char *c = p; c < end; c++) {
@@ -275,9 +295,10 @@ int32_t mx_std_package_searchpath_aux(mx_std_state_t *ls, const char *name, cons
         if (end != p && mx_std_package_readable(file->buf)) {
             is_found = true;
         }
-        p = end;
-        if (*p == ';') {
-            p += 1;
+        if (*end == ';') {
+            p = end + 1;
+        } else {
+            p = end;
         }
     }
     if (!is_found) {
@@ -360,12 +381,14 @@ mx_std_libstat_t mx_std_package_loadfunc(mx_std_state_t *ls, const char *filenam
         st = mx_std_package_lookforfunc(ls, filename, sym->buf);
     } else {
         mx_str_format(sym, "luaopen_%.*s", (int32_t)(mark - name->buf), name->buf);
-        st = mx_std_package_lookforfunc(ls, filename, sym->buf);
-        if (st == MX_STD_LIBSTAT_FUNC) {
+        mx_std_libstat_t first = mx_std_package_lookforfunc(ls, filename, sym->buf);
+        if (first == MX_STD_LIBSTAT_FUNC) {
             mx_std_pop(ls, 1);
             sym->len = 0;
             mx_str_format(sym, "luaopen_%s", mark + 1);
             st = mx_std_package_lookforfunc(ls, filename, sym->buf);
+        } else {
+            st = first;
         }
     }
     mx_str_free(sym);
@@ -562,17 +585,22 @@ const mx_std_reg_t mx_std_load_regs[] = {
 void mx_std_package_setpath(mx_std_state_t *ls, const char *field, const char *env, const char *dft) {
     mx_str_t *versioned = mx_str_new();
     mx_str_format(versioned, "%s_5_5", env);
-    const char *path = getenv(versioned->buf);
+    const char *exact = getenv(versioned->buf);
     mx_str_free(versioned);
-    if (path == NULL) {
+    const char *path;
+    if (exact == NULL) {
         path = getenv(env);
+    } else {
+        path = exact;
     }
     mx_std_getfield(ls, MX_STD_REGISTRYINDEX, "LUA_NOENV");
     bool is_noenv = mx_std_toboolean(ls, -1);
     mx_std_pop(ls, 1);
-    const char *mark = NULL;
+    const char *mark;
     if (path != NULL) {
         mark = strstr(path, ";;");
+    } else {
+        mark = NULL;
     }
     if (path == NULL || is_noenv) {
         mx_std_pushstring(ls, dft);

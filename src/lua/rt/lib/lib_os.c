@@ -98,13 +98,15 @@ int32_t mx_std_os_time(mx_std_state_t *ls) {
 }
 
 const char *mx_std_os_checkoption(mx_std_state_t *ls, const char *conv, ptrdiff_t convlen, char *buff) {
-    ptrdiff_t n = 0;
+    ptrdiff_t n;
     if (convlen >= 1 && conv[0] != '\0' && strchr("aAbBcCdDeFgGhHIjmMnprRStTuUVwWxXyYzZ%", conv[0]) != NULL) {
         n = 1;
     } else if (convlen >= 2 && conv[0] == 'E' && conv[1] != '\0' && strchr("cCxXyY", conv[1]) != NULL) {
         n = 2;
     } else if (convlen >= 2 && conv[0] == 'O' && conv[1] != '\0' && strchr("deHImMSuUVwWy", conv[1]) != NULL) {
         n = 2;
+    } else {
+        n = 0;
     }
     if (n == 0) {
         mx_std_pushfstring(ls, "invalid conversion specifier '%%%s'", conv);
@@ -118,33 +120,33 @@ const char *mx_std_os_checkoption(mx_std_state_t *ls, const char *conv, ptrdiff_
 
 int32_t mx_std_os_date(mx_std_state_t *ls) {
     mx_std_str_t sv = mx_std_optstring(ls, 1, "%c");
-    const char *s = sv.ptr;
-    size_t slen = sv.len;
     time_t t;
     if (mx_std_isnoneornil(ls, 2)) {
         t = time(NULL);
     } else {
         t = (time_t)mx_std_checkinteger(ls, 2);
     }
-    const char *se = s + slen;
+    const char *se = sv.ptr + sv.len;
     struct tm *stm;
-    if (*s == '!') {
+    const char *fmt;
+    if (sv.ptr[0] == '!') {
         stm = gmtime(&t);
-        s += 1;
+        fmt = sv.ptr + 1;
     } else {
         stm = localtime(&t);
+        fmt = sv.ptr;
     }
     if (stm == NULL) {
         return mx_std_error(ls, "date result cannot be represented in this installation");
-    } else if (strcmp(s, "*t") == 0) {
+    } else if (strcmp(fmt, "*t") == 0) {
         mx_std_createtable(ls, 0, 9);
         mx_std_os_setallfields(ls, stm);
         return 1;
     } else {
-        char cc[4];
-        cc[0] = '%';
+        char cc[4] = {'%'};
         mx_std_buf_t b;
         mx_std_buf_init(ls, &b);
+        const char *s = fmt;
         while (s < se && !ls->vm->std_error.is_set) {
             if (*s != '%') {
                 mx_std_buf_addchar(&b, *s);

@@ -143,8 +143,10 @@ int32_t mx_coro_running(mx_std_state_t *ls) {
 
 int32_t mx_coro_isyieldable(mx_std_state_t *ls) {
     mx_t *vm = ls->vm;
-    mx_thread_t *co = vm->thread;
-    if (!mx_std_isnone(ls, 1)) {
+    mx_thread_t *co;
+    if (mx_std_isnone(ls, 1)) {
+        co = vm->thread;
+    } else {
         co = mx_coro_check(ls, 1);
         if (co == NULL) {
             return 0;
@@ -194,14 +196,16 @@ int32_t mx_coro_close(mx_std_state_t *ls) {
 }
 
 mx_obj_t mx_coro_kill(mx_t *vm, mx_thread_t *co) {
-    mx_obj_t err = mx_obj_of_nil();
+    mx_obj_t failure;
     if (co->is_failed) {
-        err = co->failure;
+        failure = co->failure;
         co->is_failed = false;
         co->failure = mx_obj_of_nil();
+    } else {
+        failure = mx_obj_of_nil();
     }
-    mx_vm_hold(vm, err);
-    err = mx_prim_tbc_unwind(vm, co, 0, err);
+    mx_vm_hold(vm, failure);
+    mx_obj_t err = mx_prim_tbc_unwind(vm, co, 0, failure);
     mx_vm_release(vm);
     mx_thread_close_upvals(vm, co, 0);
     co->status = MX_THREAD_DEAD;
@@ -225,8 +229,6 @@ int32_t mx_coro_wrap(mx_std_state_t *ls) {
     return 1;
 }
 
-// The common resume of a wrapped coroutine, without setting up the stack API;
-// anything else goes through mx_coro_wrap_call.
 void mx_ffi_coro_wrap_call(mx_t *vm, size_t nargs, mx_obj_t *args) {
     mx_thread_t *th = vm->thread;
     mx_obj_cfn_t *cfn = (mx_obj_cfn_t *)mx_ref_obj(mx_thread_objs(th, th->frame + 2)->val.ref);

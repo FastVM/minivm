@@ -16,9 +16,10 @@ static inline int64_t mx_num_idiv(int64_t a, int64_t b) {
     } else {
         int64_t q = a / b;
         if ((a % b != 0) && ((a < 0) != (b < 0))) {
-            q -= 1;
+            return q - 1;
+        } else {
+            return q;
         }
-        return q;
     }
 }
 
@@ -28,9 +29,10 @@ static inline int64_t mx_num_imod(int64_t a, int64_t b) {
     } else {
         int64_t r = a % b;
         if (r != 0 && (r < 0) != (b < 0)) {
-            r += b;
+            return r + b;
+        } else {
+            return r;
         }
-        return r;
     }
 }
 

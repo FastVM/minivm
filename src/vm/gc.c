@@ -10,17 +10,23 @@
 #include "../version/version.h"
 
 mx_gc_t *mx_gc_new(void) {
-    mx_gc_t *gc = mx_mem_calloc(sizeof(mx_gc_t));
-    gc->mark_value = 1;
-    gc->cycle.threshold = MX_GC_NURSERY_MIN;
-    gc->cycle.major_growth_factor = 2;
-    gc->is_generational = true;
-    gc->params[MX_GC_PARAM_PAUSE] = 250;
-    gc->params[MX_GC_PARAM_STEPMUL] = 200;
-    gc->params[MX_GC_PARAM_STEPSIZE] = 9600;
-    gc->params[MX_GC_PARAM_MINORMUL] = 20;
-    gc->params[MX_GC_PARAM_MAJORMINOR] = 50;
-    gc->params[MX_GC_PARAM_MINORMAJOR] = 68;
+    mx_gc_t *gc = mx_mem_alloc(sizeof(mx_gc_t));
+    *gc = (mx_gc_t) {
+        .cycle = (mx_gc_cycle_t) {
+            .major_growth_factor = 2,
+            .threshold = MX_GC_NURSERY_MIN,
+        },
+        .params = {
+            [MX_GC_PARAM_PAUSE] = 250,
+            [MX_GC_PARAM_STEPMUL] = 200,
+            [MX_GC_PARAM_STEPSIZE] = 9600,
+            [MX_GC_PARAM_MINORMUL] = 20,
+            [MX_GC_PARAM_MAJORMINOR] = 50,
+            [MX_GC_PARAM_MINORMAJOR] = 68,
+        },
+        .mark_value = 1,
+        .is_generational = true,
+    };
     return gc;
 }
 
@@ -140,8 +146,7 @@ void mx_gc_stat_dump(mx_t *vm) {
         vm->stats.call_ffi,
         vm->stats.call_fast
     );
-    size_t hist[6] = {0};
-    hist[0] = vm->stats.versions;
+    size_t hist[6] = {vm->stats.versions};
     const mx_version_cache_t *top[8] = {NULL};
     for (const mx_version_cache_t *c = vm->version_caches; c != NULL; c = c->next) {
         uint32_t n = c->list.len;
@@ -177,15 +182,19 @@ void mx_gc_stat_dump(mx_t *vm) {
         uint32_t nregs = block->func->nregs;
         uint32_t varying = 0;
         for (uint32_t r = 0; r < nregs; r++) {
-            mx_kind_t first = MX_KIND_NIL;
+            mx_kind_t first;
             if (r < list->ptr[0]->nkinds) {
                 first = list->ptr[0]->kinds[r];
+            } else {
+                first = MX_KIND_NIL;
             }
             bool is_varying = false;
             for (uint32_t v = 1; v < list->len && !is_varying; v++) {
-                mx_kind_t k = MX_KIND_NIL;
+                mx_kind_t k;
                 if (r < list->ptr[v]->nkinds) {
                     k = list->ptr[v]->kinds[r];
+                } else {
+                    k = MX_KIND_NIL;
                 }
                 is_varying = k != first;
             }
@@ -200,13 +209,12 @@ void mx_gc_stat_dump(mx_t *vm) {
 
 void mx_gc_finalize_all(mx_t *vm, mx_gc_t *gc) {
     for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
-        for (size_t s = 0; s < MX_GC_OBJ_BITMAP_BYTES; s += sizeof(uint64_t)) {
-            uint64_t bits;
-            memcpy(&bits, &b->obj_start[s], sizeof(bits));
+        for (size_t line = 0; line < MX_GC_LINES_PER_BLOCK; line++) {
+            uint32_t bits = b->starts[line];
             while (bits != 0) {
-                size_t k = (size_t)__builtin_ctzll(bits);
+                uint32_t k = (uint32_t)__builtin_ctz(bits);
                 bits &= bits - 1;
-                mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + (s * 8 + k) * 8);
+                mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + line * MX_GC_LINE_SIZE + k * 8);
                 if (h->kind == MX_KIND_STRING) {
                     mx_str_t *buf = (mx_str_t *)h;
                     buf->is_interned = false;
@@ -326,12 +334,12 @@ bool mx_gc_block_owned(mx_gc_t *gc, void *ptr) {
 
 void mx_gc_obj_start_set(mx_gc_block_t *block, void *ptr) {
     size_t slot = ((uintptr_t)ptr - (uintptr_t)block) / 8;
-    block->obj_start[slot >> 3] |= (uint8_t)((uint32_t)1 << (slot & 7));
+    block->starts[slot >> 4] |= (uint16_t)(1u << (slot & 15));
 }
 
 bool mx_gc_obj_start_test(mx_gc_block_t *block, void *ptr) {
     size_t slot = ((uintptr_t)ptr - (uintptr_t)block) / 8;
-    return (block->obj_start[slot >> 3] & (uint8_t)((uint32_t)1 << (slot & 7))) != 0;
+    return (block->starts[slot >> 4] & (1u << (slot & 15))) != 0;
 }
 
 uint8_t *mx_gc_block_data(mx_gc_block_t *block) {
@@ -371,19 +379,11 @@ mx_gc_block_t *mx_gc_new_block(mx_gc_t *gc) {
     } else {
         block = mx_gc_map_aligned_block(gc);
     }
-    block->magic = MX_GC_BLOCK_MAGIC;
-    block->final_count = 0;
-    block->old_head = NULL;
-    block->is_evac = false;
-    block->is_old = false;
-    block->is_dirty = false;
-    block->has_young = true;
-    memset(block->line_mark, 0, MX_GC_LINES_PER_BLOCK);
-    memset(block->obj_start, 0, MX_GC_OBJ_BITMAP_BYTES);
-    memset(block->card, 0, sizeof(block->card));
-    memset(block->old_only, 0, sizeof(block->old_only));
-    memset(block->final_lines, 0, sizeof(block->final_lines));
-    block->next = gc->blocks.live;
+    *block = (mx_gc_block_t) {
+        .magic = MX_GC_BLOCK_MAGIC,
+        .next = gc->blocks.live,
+        .has_young = true,
+    };
     gc->blocks.live = block;
     gc->blocks.count += 1;
     if (gc->blocks.count > gc->stats.peak_blocks) {
@@ -403,19 +403,24 @@ mx_gc_block_t *mx_gc_new_block(mx_gc_t *gc) {
 }
 
 bool mx_gc_next_hole_in_block(mx_gc_t *gc, mx_gc_block_t *block, size_t from_line) {
+    size_t first;
     if (from_line < MX_GC_BLOCK_HEADER_LINES) {
-        from_line = MX_GC_BLOCK_HEADER_LINES;
+        first = MX_GC_BLOCK_HEADER_LINES;
+    } else {
+        first = from_line;
     }
-    for (size_t i = from_line; i < MX_GC_LINES_PER_BLOCK; i++) {
+    for (size_t i = first; i < MX_GC_LINES_PER_BLOCK; i++) {
         if (block->line_mark[i] == 0) {
             size_t end = i + 1;
             while (end < MX_GC_LINES_PER_BLOCK && block->line_mark[end] == 0) {
                 end += 1;
             }
             block->has_young = true;
-            gc->small.block = block;
-            gc->small.cursor = (uint8_t *)block + i * MX_GC_LINE_SIZE;
-            gc->small.limit = (uint8_t *)block + end * MX_GC_LINE_SIZE;
+            gc->small = (mx_gc_bump_t) {
+                .cursor = (uint8_t *)block + i * MX_GC_LINE_SIZE,
+                .limit = (uint8_t *)block + end * MX_GC_LINE_SIZE,
+                .block = block,
+            };
             return true;
         }
     }
@@ -423,10 +428,11 @@ bool mx_gc_next_hole_in_block(mx_gc_t *gc, mx_gc_block_t *block, size_t from_lin
 }
 
 void mx_gc_find_hole(mx_gc_t *gc) {
-    bool found = false;
+    bool found;
     if (gc->small.block != NULL && gc->small.limit != NULL) {
-        size_t next_line = mx_gc_line_of(gc->small.block, gc->small.limit);
-        found = mx_gc_next_hole_in_block(gc, gc->small.block, next_line);
+        found = mx_gc_next_hole_in_block(gc, gc->small.block, mx_gc_line_of(gc->small.block, gc->small.limit));
+    } else {
+        found = false;
     }
     while (!found && gc->blocks.recycle != NULL) {
         mx_gc_block_t *block = gc->blocks.recycle;
@@ -435,9 +441,11 @@ void mx_gc_find_hole(mx_gc_t *gc) {
     }
     if (!found) {
         mx_gc_block_t *block = mx_gc_new_block(gc);
-        gc->small.block = block;
-        gc->small.cursor = mx_gc_block_data(block);
-        gc->small.limit = (uint8_t *)block + MX_GC_BLOCK_SIZE;
+        gc->small = (mx_gc_bump_t) {
+            .cursor = mx_gc_block_data(block),
+            .limit = (uint8_t *)block + MX_GC_BLOCK_SIZE,
+            .block = block,
+        };
     }
 }
 
@@ -460,9 +468,11 @@ void *mx_gc_alloc_large(mx_t *vm, size_t size) {
     size_t header = MX_GC_LARGE_HEADER;
     size_t total = header + size;
     mx_gc_large_t *lg = mx_mem_calloc(total);
-    lg->size = total;
-    lg->mark = 0;
-    lg->next = gc->larges.list;
+    *lg = (mx_gc_large_t) {
+        .next = gc->larges.list,
+        .size = total,
+        .mark = 0,
+    };
     gc->larges.list = lg;
     gc->larges.index.is_dirty = true;
     void *payload = (uint8_t *)lg + header;
@@ -482,9 +492,11 @@ void *mx_gc_alloc_slow(mx_t *vm, size_t size) {
     } else if (size > MX_GC_LINE_SIZE) {
         while (gc->overflow.cursor == NULL || gc->overflow.cursor + size > gc->overflow.limit) {
             mx_gc_block_t *block = mx_gc_new_block(gc);
-            gc->overflow.block = block;
-            gc->overflow.cursor = mx_gc_block_data(block);
-            gc->overflow.limit = (uint8_t *)block + MX_GC_BLOCK_SIZE;
+            gc->overflow = (mx_gc_bump_t) {
+                .cursor = mx_gc_block_data(block),
+                .limit = (uint8_t *)block + MX_GC_BLOCK_SIZE,
+                .block = block,
+            };
         }
         void *ret = gc->overflow.cursor;
         gc->overflow.cursor += size;
@@ -602,8 +614,6 @@ int32_t mx_gc_pool_class(size_t bytes) {
     }
 }
 
-// Chunks are carved from the newest slab of their class only as they are
-// needed, so a slab's untouched pages stay out of the resident set.
 void *mx_gc_pool_slab_take(mx_gc_t *gc, int32_t cls) {
     size_t chunk = (size_t)1 << (cls + MX_GC_POOL_MIN_SHIFT);
     if (gc->pool.bump[cls] == NULL || gc->pool.bump[cls] + chunk > gc->pool.bump_end[cls]) {
@@ -686,11 +696,14 @@ size_t mx_gc_bytes(mx_t *vm) {
 size_t mx_gc_budget(const mx_gc_t *gc, size_t live_bytes) {
     size_t budget;
     if (gc->is_generational) {
-        size_t nursery = live_bytes * 2 + gc->pool.bytes / 4;
-        if (nursery < MX_GC_NURSERY_MIN) {
+        size_t want = live_bytes * 2 + gc->pool.bytes / 4;
+        size_t nursery;
+        if (want < MX_GC_NURSERY_MIN) {
             nursery = MX_GC_NURSERY_MIN;
-        } else if (nursery > MX_GC_NURSERY) {
+        } else if (want > MX_GC_NURSERY) {
             nursery = MX_GC_NURSERY;
+        } else {
+            nursery = want;
         }
         budget = (live_bytes + nursery + gc->cycle.old_live_after_major / 16) / 20 * gc->params[MX_GC_PARAM_MINORMUL];
     } else if (gc->params[MX_GC_PARAM_PAUSE] > 100) {
@@ -831,10 +844,11 @@ void mx_gc_forward_set(mx_obj_head_t *head, void *to) {
 void *mx_gc_evac_alloc(mx_gc_t *gc, size_t size) {
     while (gc->evac.cursor == NULL || gc->evac.cursor + size > gc->evac.limit) {
         mx_gc_block_t *block = mx_gc_new_block(gc);
-        block->is_evac = false;
-        gc->evac.block = block;
-        gc->evac.cursor = mx_gc_block_data(block);
-        gc->evac.limit = (uint8_t *)block + MX_GC_BLOCK_SIZE;
+        gc->evac = (mx_gc_bump_t) {
+            .cursor = mx_gc_block_data(block),
+            .limit = (uint8_t *)block + MX_GC_BLOCK_SIZE,
+            .block = block,
+        };
     }
     void *ret = gc->evac.cursor;
     gc->evac.cursor += size;
@@ -869,9 +883,10 @@ void mx_gc_note_ident_key(mx_t *vm, void *obj) {
         if (gc->ident_keys.len * 2 >= gc->ident_keys.cap) {
             size_t ocap = gc->ident_keys.cap;
             uintptr_t *old = gc->ident_keys.ptr;
-            gc->ident_keys.cap = ocap * 2;
             if (ocap == 0) {
                 gc->ident_keys.cap = MX_GC_IDENT_KEYS_INITIAL;
+            } else {
+                gc->ident_keys.cap = ocap * 2;
             }
             gc->ident_keys.ptr = mx_mem_calloc(sizeof(uintptr_t) * gc->ident_keys.cap);
             gc->ident_keys.len = 0;
@@ -998,7 +1013,7 @@ void mx_gc_mark_obj(mx_gc_t *gc, mx_obj_head_t *head) {
         return;
     }
     size_t size = mx_gc_obj_size(gc->vm, head);
-    mx_gc_block_t *block = NULL;
+    mx_gc_block_t *block;
     if (mx_gc_block_owned(gc, head)) {
         block = (mx_gc_block_t *)((uintptr_t)head & ~(MX_GC_BLOCK_SIZE - 1));
 #if MX_GC_VERIFY
@@ -1009,6 +1024,9 @@ void mx_gc_mark_obj(mx_gc_t *gc, mx_obj_head_t *head) {
 #endif
     } else if (mx_gc_large_owns(gc, head)) {
         mx_gc_large_of(head)->mark = gc->mark_value;
+        block = NULL;
+    } else {
+        block = NULL;
     }
     if (head->kind == MX_KIND_STRING) {
         if (block != NULL) {
@@ -1086,9 +1104,11 @@ void mx_gc_scan_lua_frame(mx_gc_t *gc, mx_val_t *base, const mx_kind_t *kinds, u
     mx_gc_stack_value(gc, MX_KIND_CLOSURE, &base[0], is_pin);
     const mx_ir_func_t *func = ((mx_obj_closure_t *)mx_ref_obj(base[0].ref))->block->func;
     for (uint32_t r = 1; r < nkinds && r < func->nregs; r++) {
-        mx_kind_t kind = kinds[r];
-        if (mx_kind_is_cell(kind)) {
+        mx_kind_t kind;
+        if (mx_kind_is_cell(kinds[r])) {
             kind = (mx_kind_t)base[func->nregs + r].bits;
+        } else {
+            kind = kinds[r];
         }
         if (mx_gc_kind_is_ref(gc->vm, kind)) {
             mx_gc_stack_value(gc, kind, &base[r], is_pin);
@@ -1214,20 +1234,21 @@ void mx_gc_mark_ref(mx_gc_t *gc, mx_obj_t *slot) {
     if (!mx_gc_is_heap(gc, ptr)) {
         return;
     }
+    void *live;
     if (gc->is_evacuating && (kind == MX_KIND_CLOSURE || kind >= MX_KIND_FIRST_DATA)) {
-        void *to = mx_gc_maybe_evacuate(gc->vm, gc, ptr);
-        if (to != ptr) {
-            slot->val.ref = mx_ref_pin(to);
-            ptr = to;
-        }
+        live = mx_gc_maybe_evacuate(gc->vm, gc, ptr);
     } else if (((mx_obj_head_t *)ptr)->is_forwarded) {
-        ptr = mx_gc_forward_get(ptr);
-        slot->val.ref = mx_ref_pin(ptr);
+        live = mx_gc_forward_get(ptr);
+    } else {
+        live = ptr;
     }
-    if (gc->is_scanning_dirty && !((mx_obj_head_t *)ptr)->is_old) {
+    if (live != ptr) {
+        slot->val.ref = mx_ref_pin(live);
+    }
+    if (gc->is_scanning_dirty && !((mx_obj_head_t *)live)->is_old) {
         gc->has_found_young = true;
     }
-    mx_gc_mark_obj(gc, ptr);
+    mx_gc_mark_obj(gc, live);
     mx_gc_drain(gc);
 }
 
@@ -1270,9 +1291,11 @@ void mx_gc_pin_roots(mx_t *vm, mx_gc_t *gc, bool is_evac) {
     for (size_t t = 0; t < gc->threads.len && is_evac; t++) {
         mx_gc_scan_stack(gc, gc->threads.ptr[t], true);
     }
-    uint32_t from = 0;
+    uint32_t from;
     if (gc->is_minor) {
         from = gc->consts_old;
+    } else {
+        from = 0;
     }
     for (uint32_t i = from; i < vm->consts.len; i++) {
         mx_obj_head_t *head = mx_gc_heap_head(vm, vm->consts.ptr[i]);
@@ -1281,8 +1304,6 @@ void mx_gc_pin_roots(mx_t *vm, mx_gc_t *gc, bool is_evac) {
             mx_gc_mark_obj(gc, head);
         }
     }
-    // Constants are never removed or moved, and an old one stays old, so a
-    // minor collection can skip the prefix that has already been promoted.
     while (gc->consts_old < vm->consts.len) {
         mx_obj_head_t *head = mx_gc_heap_head(vm, vm->consts.ptr[gc->consts_old]);
         if (head != NULL && !head->is_old) {
@@ -1442,13 +1463,16 @@ void mx_gc_interns_sweep(mx_t *vm, mx_gc_t *gc) {
         uint32_t w = 0;
         for (uint32_t i = 0; i < vm->interns.young.len; i++) {
             mx_str_t *b = vm->interns.young.ptr[i];
+            mx_str_t *live;
             if (b->head.is_forwarded) {
-                b = mx_gc_forward_get(&b->head);
+                live = mx_gc_forward_get(&b->head);
             } else if (b->head.mark != gc->mark_value) {
-                b = NULL;
+                live = NULL;
+            } else {
+                live = b;
             }
-            if (b != NULL) {
-                vm->interns.young.ptr[w] = b;
+            if (live != NULL) {
+                vm->interns.young.ptr[w] = live;
                 w += 1;
             }
         }
@@ -1507,10 +1531,12 @@ void mx_gc_weak_note(mx_gc_t *gc, mx_obj_table_t *table) {
 }
 
 void mx_gc_scan_table(mx_gc_t *gc, mx_obj_table_t *table, bool is_old_scan) {
-    mx_gc_weak_t weak = { .is_weak_keys = false, .is_weak_vals = false };
+    mx_gc_weak_t weak;
     if (table->meta != NULL) {
         mx_gc_visit_ptr(gc, table->meta->head.kind, (void **)&table->meta, is_old_scan);
         weak = mx_gc_table_weak_mode(gc, table);
+    } else {
+        weak = (mx_gc_weak_t) { .is_weak_keys = false, .is_weak_vals = false };
     }
     bool weak_keys = weak.is_weak_keys;
     bool weak_vals = weak.is_weak_vals;
@@ -1555,9 +1581,11 @@ void mx_gc_scan_table(mx_gc_t *gc, mx_obj_table_t *table, bool is_old_scan) {
 bool mx_gc_ephemeron_pass(mx_gc_t *gc) {
     bool is_changed = false;
     for (size_t i = 0; i < gc->weaks.len; i++) {
-        mx_obj_table_t *table = gc->weaks.ptr[i];
-        if (table->head.is_forwarded) {
-            table = mx_gc_forward_get(&table->head);
+        mx_obj_table_t *table;
+        if (gc->weaks.ptr[i]->head.is_forwarded) {
+            table = mx_gc_forward_get(&gc->weaks.ptr[i]->head);
+        } else {
+            table = gc->weaks.ptr[i];
         }
         mx_gc_weak_t weak = mx_gc_table_weak_mode(gc, table);
         if (!weak.is_weak_keys || weak.is_weak_vals || table->entries == NULL) {
@@ -1599,11 +1627,14 @@ bool mx_gc_slot_collectable(mx_gc_t *gc, mx_obj_t slot) {
 
 bool mx_gc_slot_is_dead(mx_gc_t *gc, mx_obj_t *slot) {
     mx_obj_head_t *head = mx_ref_obj(slot->val.ref);
+    mx_obj_head_t *live;
     if (head->is_forwarded) {
-        head = mx_gc_forward_get(head);
-        slot->val.ref = mx_ref_pin(head);
+        live = mx_gc_forward_get(head);
+        slot->val.ref = mx_ref_pin(live);
+    } else {
+        live = head;
     }
-    return !(gc->is_minor && head->is_old) && head->mark != gc->mark_value;
+    return !(gc->is_minor && live->is_old) && live->mark != gc->mark_value;
 }
 
 void mx_gc_weak_clear_table(mx_gc_t *gc, mx_obj_table_t *table, bool weak_keys, bool weak_vals) {
@@ -1650,9 +1681,11 @@ void mx_gc_weak_clear_table(mx_gc_t *gc, mx_obj_table_t *table, bool weak_keys, 
 void mx_gc_weak_clear(mx_gc_t *gc) {
     size_t w = 0;
     for (size_t i = 0; i < gc->weaks.len; i++) {
-        mx_obj_table_t *table = gc->weaks.ptr[i];
-        if (table->head.is_forwarded) {
-            table = mx_gc_forward_get(&table->head);
+        mx_obj_table_t *table;
+        if (gc->weaks.ptr[i]->head.is_forwarded) {
+            table = mx_gc_forward_get(&gc->weaks.ptr[i]->head);
+        } else {
+            table = gc->weaks.ptr[i];
         }
         bool table_dead = !(gc->is_minor && table->head.is_old) && table->head.mark != gc->mark_value;
         if (table_dead) {
@@ -1720,8 +1753,6 @@ void mx_gc_finalizers_separate(mx_gc_t *gc) {
     gc->finobjs.len = w;
 }
 
-// Runs the finalizer of every object that still has one, live or not, as
-// closing a state does. A finalizer set while these run never runs.
 void mx_gc_finalize_on_close(mx_t *vm) {
     mx_gc_t *gc = vm->gc;
     gc->is_closing = true;
@@ -1771,7 +1802,7 @@ void mx_gc_finalize(mx_t *vm, mx_obj_head_t *head) {
 }
 
 bool mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
-    uint32_t bits = block->obj_start[line * 2] | ((uint32_t)block->obj_start[line * 2 + 1] << 8);
+    uint32_t bits = block->starts[line];
     uint32_t keep = bits;
     uint8_t mark = gc->mark_value;
     bool is_minor = gc->is_minor;
@@ -1792,13 +1823,12 @@ bool mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
             has_young = true;
         }
     }
-    block->obj_start[line * 2] = (uint8_t)keep;
-    block->obj_start[line * 2 + 1] = (uint8_t)(keep >> 8);
+    block->starts[line] = (uint16_t)keep;
     return has_young;
 }
 
 void mx_gc_finalize_dead_line(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
-    uint32_t bits = block->obj_start[line * 2] | ((uint32_t)block->obj_start[line * 2 + 1] << 8);
+    uint32_t bits = block->starts[line];
     uint8_t *first = (uint8_t *)block + line * MX_GC_LINE_SIZE;
     while (bits != 0) {
         uint32_t k = (uint32_t)__builtin_ctz(bits);
@@ -1834,14 +1864,17 @@ void mx_gc_sweep(mx_gc_t *gc) {
         size_t live_lines = 0;
         size_t block_young = 0;
         for (size_t i = MX_GC_BLOCK_HEADER_LINES; i < MX_GC_LINES_PER_BLOCK; i++) {
-            // Eight lines that were never marked hold nothing live; without a
-            // finalizable object among them they are cleared all at once.
-            uint64_t marks = 1;
+            uint8_t marks;
             if ((i & 7) == 0) {
-                memcpy(&marks, &block->line_mark[i], sizeof(marks));
+                marks = 0;
+                for (size_t j = 0; j < 8; j++) {
+                    marks |= block->line_mark[i + j];
+                }
+            } else {
+                marks = 1;
             }
             if (!MX_GC_VERIFY && marks == 0 && (block->final_count == 0 || block->final_lines[i >> 3] == 0)) {
-                memset(&block->obj_start[i * 2], 0, 16);
+                memset(&block->starts[i], 0, sizeof(uint16_t) * 8);
                 block->old_only[i >> 3] = 0;
                 block->final_lines[i >> 3] = 0;
                 i += 7;
@@ -1863,13 +1896,11 @@ void mx_gc_sweep(mx_gc_t *gc) {
             } else {
                 block->old_only[i >> 3] &= (uint8_t)~bit;
 #if MX_GC_VERIFY
-                for (size_t s = i * 2; s < i * 2 + 2; s++) {
-                    for (size_t k = 0; k < 8; k++) {
-                        mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)block + (s * 8 + k) * 8);
-                        if ((block->obj_start[s] & (1u << k)) != 0 && gc->is_minor && h->is_old && !h->is_forwarded) {
-                            fprintf(stderr, "gc: old object %p kind=%u on dead line %zu mark=%u collection=%zu\n", (void *)h, h->kind, i, block->line_mark[i], gc->stats.collections);
-                            mx_fatal("gc: old object on a dead line");
-                        }
+                for (size_t k = 0; k < 16; k++) {
+                    mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)block + i * MX_GC_LINE_SIZE + k * 8);
+                    if ((block->starts[i] & (1u << k)) != 0 && gc->is_minor && h->is_old && !h->is_forwarded) {
+                        fprintf(stderr, "gc: old object %p kind=%u on dead line %zu mark=%u collection=%zu\n", (void *)h, h->kind, i, block->line_mark[i], gc->stats.collections);
+                        mx_fatal("gc: old object on a dead line");
                     }
                 }
 #endif
@@ -1878,8 +1909,7 @@ void mx_gc_sweep(mx_gc_t *gc) {
                 }
                 block->final_lines[i >> 3] &= (uint8_t)~bit;
                 block->line_mark[i] = 0;
-                block->obj_start[i * 2] = 0;
-                block->obj_start[i * 2 + 1] = 0;
+                block->starts[i] = 0;
             }
         }
         total_live_lines += live_lines;
@@ -1946,13 +1976,11 @@ void mx_gc_select_evac(mx_gc_t *gc) {
                 live += 1;
             }
         }
-        b->is_evac = false;
-#if MX_GC_EVAC_ENABLED
-        if (live > 0 && live * 2 < MX_GC_USABLE_LINES) {
-            b->is_evac = true;
+        bool is_evac = MX_GC_EVAC_ENABLED && live > 0 && live * 2 < MX_GC_USABLE_LINES;
+        b->is_evac = is_evac;
+        if (is_evac) {
             gc->is_evacuating = true;
         }
-#endif
     }
 }
 
@@ -2033,11 +2061,11 @@ void mx_gc_verify(mx_t *vm) {
         }
     }
     for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
-        for (size_t s = 0; s < MX_GC_OBJ_BITMAP_BYTES; s++) {
-            uint8_t bits = b->obj_start[s];
-            for (size_t k = 0; k < 8; k++) {
-                if ((bits & (uint8_t)((uint32_t)1 << k)) != 0) {
-                    mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + (s * 8 + k) * 8);
+        for (size_t line = 0; line < MX_GC_LINES_PER_BLOCK; line++) {
+            uint32_t bits = b->starts[line];
+            for (size_t k = 0; k < 16; k++) {
+                if ((bits & (1u << k)) != 0) {
+                    mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + line * MX_GC_LINE_SIZE + k * 8);
                     if (h->mark == gc->mark_value && !h->is_forwarded) {
                         mx_gc_verify_obj(gc, h);
                     }
@@ -2050,21 +2078,21 @@ void mx_gc_verify(mx_t *vm) {
 bool mx_gc_collect(mx_t *vm) {
     mx_gc_t *gc = vm->gc;
     memset(vm->str_cache, 0, sizeof(vm->str_cache));
-    size_t grow_limit = gc->cycle.old_live_after_major;
-    if (grow_limit < MX_GC_INITIAL_THRESHOLD) {
-        grow_limit = MX_GC_INITIAL_THRESHOLD;
+    size_t old_live;
+    if (gc->cycle.old_live_after_major < MX_GC_INITIAL_THRESHOLD) {
+        old_live = MX_GC_INITIAL_THRESHOLD;
+    } else {
+        old_live = gc->cycle.old_live_after_major;
     }
-    grow_limit = grow_limit / 100 * gc->params[MX_GC_PARAM_MINORMAJOR];
-    bool need_major = gc->is_major_forced
+    size_t grow_limit = old_live / 100 * gc->params[MX_GC_PARAM_MINORMAJOR];
+    bool need_major = !MX_GC_MINOR_ENABLED
+        || gc->is_major_forced
         || !gc->is_generational
         || gc->is_major_mode
         || gc->cycle.promoted_bytes > grow_limit
         || gc->cycle.minors_since_major >= MX_GC_MINORS_PER_MAJOR
         || gc->cycle.old_live_after_major == 0
         || gc->blocks.count > gc->cycle.blocks_after_major * gc->cycle.major_growth_factor + 64;
-#if !MX_GC_MINOR_ENABLED
-    need_major = true;
-#endif
     gc->is_major_forced = false;
     gc->is_minor = !need_major;
     if (need_major) {
@@ -2089,9 +2117,11 @@ bool mx_gc_collect(mx_t *vm) {
     } else {
         gc->is_evacuating = false;
     }
-    gc->evac.cursor = NULL;
-    gc->evac.limit = NULL;
-    gc->evac.block = NULL;
+    gc->evac = (mx_gc_bump_t) {
+        .cursor = NULL,
+        .limit = NULL,
+        .block = NULL,
+    };
     gc->evac_bytes = 0;
     if (gc->mark_value >= MX_GC_MARK_WRAP) {
         for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
@@ -2100,13 +2130,12 @@ bool mx_gc_collect(mx_t *vm) {
                     b->line_mark[i] = MX_GC_MARK_STALE;
                 }
             }
-            for (size_t s = 0; s < MX_GC_OBJ_BITMAP_BYTES; s += sizeof(uint64_t)) {
-                uint64_t bits;
-                memcpy(&bits, &b->obj_start[s], sizeof(bits));
+            for (size_t line = 0; line < MX_GC_LINES_PER_BLOCK; line++) {
+                uint32_t bits = b->starts[line];
                 while (bits != 0) {
-                    size_t k = (size_t)__builtin_ctzll(bits);
+                    uint32_t k = (uint32_t)__builtin_ctz(bits);
                     bits &= bits - 1;
-                    mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + (s * 8 + k) * 8);
+                    mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + line * MX_GC_LINE_SIZE + k * 8);
                     h->mark = MX_GC_MARK_STALE;
                 }
             }
@@ -2134,8 +2163,6 @@ bool mx_gc_collect(mx_t *vm) {
     mx_gc_weak_clear(gc);
     mx_gc_threads_sweep(gc);
     if (!gc->is_minor) {
-        // A minor collection marks every young interned string as a root and
-        // never frees an old one, so it has nothing to remove from the table.
         mx_gc_interns_sweep(vm, gc);
     }
     mx_gc_sweep(gc);
@@ -2145,12 +2172,16 @@ bool mx_gc_collect(mx_t *vm) {
         gc->cycle.live_line_bytes = 0;
     }
     mx_gc_sweep_large(gc);
-    gc->small.block = NULL;
-    gc->small.cursor = NULL;
-    gc->small.limit = NULL;
-    gc->overflow.block = NULL;
-    gc->overflow.cursor = NULL;
-    gc->overflow.limit = NULL;
+    gc->small = (mx_gc_bump_t) {
+        .cursor = NULL,
+        .limit = NULL,
+        .block = NULL,
+    };
+    gc->overflow = (mx_gc_bump_t) {
+        .cursor = NULL,
+        .limit = NULL,
+        .block = NULL,
+    };
     gc->cycle.bytes_since_major += gc->cycle.bytes_since_gc;
     gc->cycle.bytes_since_gc = 0;
     vm->gc_pending = 0;
@@ -2159,9 +2190,11 @@ bool mx_gc_collect(mx_t *vm) {
         gc->cycle.minors_since_major += 1;
     } else {
         size_t before = gc->cycle.old_live_after_major + gc->cycle.bytes_since_major;
-        size_t freed = 0;
+        size_t freed;
         if (before > gc->cycle.live_line_bytes) {
             freed = before - gc->cycle.live_line_bytes;
+        } else {
+            freed = 0;
         }
         gc->is_major_mode = gc->is_generational
             && freed * 100 < gc->cycle.bytes_since_major * gc->params[MX_GC_PARAM_MAJORMINOR];

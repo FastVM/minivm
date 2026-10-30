@@ -34,6 +34,7 @@ enum {
 typedef struct mx_run_entry_t mx_run_entry_t;
 typedef struct mx_run_result_t mx_run_result_t;
 typedef struct mx_run_found_t mx_run_found_t;
+typedef struct mx_run_eq_t mx_run_eq_t;
 
 struct mx_run_entry_t {
     mx_thread_t *thread;
@@ -54,25 +55,21 @@ struct mx_run_found_t {
     bool is_found: 1;
 };
 
+struct mx_run_eq_t {
+    bool is_eq: 1;
+    bool is_known: 1;
+};
+
 static inline mx_obj_t mx_run_arg(const uintptr_t *p, const mx_val_t *base) {
-    mx_val_t v;
     if ((p[1] & 1) != 0) {
-        v.bits = p[0];
+        return mx_obj_of_raw((mx_kind_t)(p[1] >> 1), (mx_val_t) { .bits = p[0] });
     } else {
-        v = base[p[0]];
+        return mx_obj_of_raw((mx_kind_t)(p[1] >> 1), base[p[0]]);
     }
-    return mx_obj_of_raw((mx_kind_t)(p[1] >> 1), v);
 }
 
 static inline uintptr_t mx_run_key_flags(mx_t *vm, bool is_resumed) {
-    uintptr_t flags = 0;
-    if (vm->is_hooked) {
-        flags |= MX_RUN_KEY_HOOKED;
-    }
-    if (is_resumed) {
-        flags |= MX_RUN_KEY_RESUMED;
-    }
-    return flags;
+    return ((uintptr_t)vm->is_hooked * MX_RUN_KEY_HOOKED) | ((uintptr_t)is_resumed * MX_RUN_KEY_RESUMED);
 }
 
 static inline mx_val_t *mx_run_reserve(mx_t *vm, mx_val_t *base, uint32_t above) {
@@ -110,7 +107,7 @@ bool mx_run_set_is_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key);
 int32_t mx_run_set_str(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t value);
 mx_obj_t mx_run_set_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t value, uintptr_t *slot);
 const mx_resume_t *mx_run_void_rec(mx_t *vm, mx_version_t *rb, uintptr_t *desc, uintptr_t *next_ip);
-bool mx_run_eq_raw(mx_t *vm, mx_obj_t a, mx_obj_t b, bool *out);
+mx_run_eq_t mx_run_eq_raw(mx_t *vm, mx_obj_t a, mx_obj_t b);
 mx_version_t *mx_run_push(mx_t *vm, mx_thread_t *th, uint32_t p, uintptr_t link, const mx_resume_t *rec, mx_obj_t fn, const mx_obj_t *args, uint32_t n);
 void mx_run_spill(mx_val_t *base, uint32_t frame, const mx_obj_t *extra, uint32_t n);
 bool mx_run_site_is_prim(const mx_resume_t *rec) __attribute__((noinline));

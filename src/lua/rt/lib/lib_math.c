@@ -18,11 +18,12 @@ int32_t mx_std_math_unary(mx_std_state_t *ls, double (*fn)(double)) {
 
 int32_t mx_std_math_abs(mx_std_state_t *ls) {
     if (mx_std_isinteger(ls, 1)) {
-        uint64_t n = (uint64_t)mx_std_checkinteger(ls, 1);
-        if ((int64_t)n < 0) {
-            n = ~n + 1;
+        int64_t n = mx_std_checkinteger(ls, 1);
+        if (n < 0) {
+            mx_std_pushinteger(ls, (int64_t)((uint64_t)0 - (uint64_t)n));
+        } else {
+            mx_std_pushinteger(ls, n);
         }
-        mx_std_pushinteger(ls, (int64_t)n);
         return 1;
     } else {
         return mx_std_math_unary(ls, fabs);
@@ -435,11 +436,10 @@ void mx_ffi_math_ceil(mx_t *vm, size_t nargs, mx_obj_t *args) {
 
 void mx_ffi_math_abs(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs >= 1 && mx_obj_is_int(args[0])) {
-        uint64_t n = (uint64_t)mx_obj_get_int(args[0]);
-        if ((int64_t)n < 0) {
-            n = ~n + 1;
+        int64_t n = mx_obj_get_int(args[0]);
+        if (n < 0) {
+            args[0] = mx_obj_of_int((int64_t)((uint64_t)0 - (uint64_t)n));
         }
-        args[0] = mx_obj_of_int((int64_t)n);
         vm->rets.len = 1;
     } else if (nargs >= 1 && mx_obj_is_float(args[0])) {
         args[0] = mx_obj_of_number(fabs(mx_obj_get_float(args[0])));

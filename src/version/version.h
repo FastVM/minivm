@@ -94,7 +94,6 @@ struct mx_version_table_t {
     uint32_t cap;
 };
 
-// The versions of a block that has more than one.
 struct mx_version_cache_t {
     mx_version_cache_t *next;
     mx_versions_t list;

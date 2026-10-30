@@ -70,6 +70,8 @@ typedef struct mx_parse_exp_t mx_parse_exp_t;
 typedef struct mx_parse_found_t mx_parse_found_t;
 typedef struct mx_parse_prios_t mx_parse_prios_t;
 typedef struct mx_parse_compiled_t mx_parse_compiled_t;
+typedef struct mx_parse_fold_t mx_parse_fold_t;
+typedef struct mx_parse_upval_t mx_parse_upval_t;
 
 struct mx_parse_var_t {
     const char *name;
@@ -247,6 +249,16 @@ struct mx_parse_compiled_t {
     mx_error_t *error;
 };
 
+struct mx_parse_fold_t {
+    mx_obj_t value;
+    bool is_folded: 1;
+};
+
+struct mx_parse_upval_t {
+    mx_error_t *error;
+    uint32_t index;
+};
+
 uint32_t mx_gen_name_slot(const mx_parse_names_t *names, const char *name);
 const char *mx_gen_name(mx_parse_t *d, const char *name);
 mx_varname_t mx_gen_varname(mx_parse_t *d, const char *name, mx_varhint_t kind);
@@ -300,8 +312,9 @@ void mx_gen_not(mx_parse_t *d, mx_parse_exp_t *e);
 uint32_t mx_gen_cond(mx_parse_t *d, mx_parse_exp_t *e);
 mx_ir_arg_t mx_gen_call_prim(mx_parse_t *d, mx_ffi_t *fn, mx_ir_arg_t *args, uint32_t nargs, uint32_t start);
 void mx_gen_store(mx_parse_t *d, const mx_parse_exp_t *target, mx_parse_exp_t *value);
-bool mx_gen_fold_int(mx_obj_t v, int64_t *out);
-bool mx_gen_fold_arith(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b, mx_obj_t *out);
+mx_parse_fold_t mx_gen_fold_bits(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b);
+mx_obj_t mx_gen_fold_ints(mx_ir_instr_opcode_t op, int64_t x, int64_t y);
+mx_parse_fold_t mx_gen_fold_arith(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b);
 
 mx_error_t *mx_parse_semerror(mx_parse_t *d, const char *fmt, ...);
 mx_error_t *mx_parse_limit(mx_parse_t *d, uint32_t limit, const char *what);
@@ -336,7 +349,7 @@ mx_error_t *mx_parse_var_new(mx_parse_t *d, const char *name, uint32_t reg, bool
 mx_error_t *mx_parse_var_const(mx_parse_t *d, const char *name, mx_obj_t value);
 mx_error_t *mx_parse_var_global(mx_parse_t *d, const char *name, bool is_const);
 void mx_parse_mark_capture(mx_parse_fn_t *fn, uint32_t index);
-mx_error_t *mx_parse_upval_new(mx_parse_t *d, mx_parse_fn_t *fn, const char *name, uint32_t index, bool is_local, bool is_const, uint32_t *out);
+mx_parse_upval_t mx_parse_upval_new(mx_parse_t *d, mx_parse_fn_t *fn, const char *name, uint32_t index, bool is_local, bool is_const);
 mx_error_t *mx_parse_resolve(mx_parse_t *d, mx_parse_fn_t *fn, const char *name, bool is_base, int64_t *coll, mx_parse_found_t *out);
 mx_error_t *mx_parse_var_exp(mx_parse_t *d, const char *name, uint32_t start, mx_parse_found_t found, mx_parse_exp_t *e);
 mx_error_t *mx_parse_env_exp(mx_parse_t *d, const char *name, uint32_t start, mx_parse_exp_t *e);

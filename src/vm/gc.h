@@ -11,8 +11,6 @@
 #define MX_GC_LINES_PER_BLOCK (MX_GC_BLOCK_SIZE / MX_GC_LINE_SIZE)
 #define MX_GC_BLOCK_HEADER_LINES 8
 #define MX_GC_USABLE_LINES (MX_GC_LINES_PER_BLOCK - MX_GC_BLOCK_HEADER_LINES)
-#define MX_GC_OBJ_SLOTS (MX_GC_BLOCK_SIZE / 8)
-#define MX_GC_OBJ_BITMAP_BYTES (MX_GC_OBJ_SLOTS / 8)
 #define MX_GC_MEDIUM_MAX 2048
 #define MX_GC_BLOCK_MAGIC 0x47434D56
 
@@ -100,11 +98,9 @@ struct mx_gc_block_t {
     mx_gc_block_t *recycle_next;
     mx_obj_head_t *old_head;
     uint8_t line_mark[MX_GC_LINES_PER_BLOCK];
-    uint8_t obj_start[MX_GC_OBJ_BITMAP_BYTES];
+    uint16_t starts[MX_GC_LINES_PER_BLOCK];
     uint8_t card[MX_GC_LINES_PER_BLOCK / 8];
     uint8_t old_only[MX_GC_LINES_PER_BLOCK / 8];
-    // A set bit means a finalizable object may start on that line, so the
-    // sweep only reads the heads of dead objects on those lines.
     uint8_t final_lines[MX_GC_LINES_PER_BLOCK / 8];
     bool is_evac: 1;
     bool is_old: 1;
@@ -185,8 +181,6 @@ struct mx_gc_pinned_t {
     size_t cap;
 };
 
-// Chunks of the small classes come from slabs and are recycled through free
-// lists; larger power-of-two chunks go straight to malloc and back.
 struct mx_gc_pool_t {
     void *free[MX_GC_POOL_SLAB_CLASSES];
     uint8_t *bump[MX_GC_POOL_SLAB_CLASSES];
@@ -354,38 +348,30 @@ static inline bool mx_gc_line_is_live(const mx_gc_t *gc, uint8_t mark) {
 
 static inline void mx_gc_head_clear_flags(void *obj) {
     mx_obj_head_t *head = obj;
-    head->is_container = false;
-    head->is_pinned = false;
-    head->is_forwarded = false;
-    head->is_old = false;
-    head->is_final = false;
-    head->age = 0;
-    head->mark = 0;
+    *head = (mx_obj_head_t) { .kind = head->kind };
 }
 
 void *mx_gc_alloc_slow(mx_t *vm, size_t size) __attribute__((noinline));
 void mx_gc_note_bytes(mx_t *vm, size_t bytes);
 
-// The bump path is inline so a small allocation saves no registers; anything
-// that needs a new hole, a block or a large object goes to mx_gc_alloc_slow.
 static inline void *mx_gc_alloc(mx_t *vm, size_t size) {
     mx_gc_t *gc = vm->gc;
-    size = (size + 7) & ~(size_t)7;
+    size_t bytes = (size + 7) & ~(size_t)7;
     uint8_t *ret = gc->small.cursor;
-    if (size <= MX_GC_LINE_SIZE && ret != NULL && size <= (size_t)(gc->small.limit - ret)) {
-        gc->small.cursor = ret + size;
+    if (bytes <= MX_GC_LINE_SIZE && ret != NULL && bytes <= (size_t)(gc->small.limit - ret)) {
+        gc->small.cursor = ret + bytes;
         mx_gc_block_t *block = gc->small.block;
         size_t slot = ((uintptr_t)ret - (uintptr_t)block) / 8;
-        block->obj_start[slot >> 3] |= (uint8_t)((uint32_t)1 << (slot & 7));
-        memset(ret, 0, sizeof(mx_obj_head_t));
-        gc->cycle.bytes_since_gc += size;
+        block->starts[slot >> 4] |= (uint16_t)(1u << (slot & 15));
+        *(mx_obj_head_t *)ret = (mx_obj_head_t) {0};
+        gc->cycle.bytes_since_gc += bytes;
         if (MX_GC_STRESS || gc->cycle.bytes_since_gc >= gc->cycle.threshold) {
             vm->gc_pending = 1;
             vm->interrupt = 1;
         }
         return ret;
     } else {
-        return mx_gc_alloc_slow(vm, size);
+        return mx_gc_alloc_slow(vm, bytes);
     }
 }
 void mx_gc_note_final(mx_t *vm, mx_obj_head_t *head);
@@ -394,8 +380,6 @@ void mx_gc_final_line_set(mx_gc_block_t *b, void *ptr);
 void mx_gc_note_thread(mx_t *vm, mx_thread_t *th);
 void mx_gc_write_barrier_slow(mx_t *vm, void *container);
 
-// Forced inline: GCC otherwise leaves out-of-line copies inside mx_run_body,
-// which turns every table store into a call.
 static inline __attribute__((always_inline)) void mx_gc_write_barrier(mx_t *vm, void *container, mx_obj_t value) {
     mx_obj_head_t *ch = container;
     if (ch->is_old) {

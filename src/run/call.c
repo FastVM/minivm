@@ -66,13 +66,16 @@ mx_obj_t mx_pcall(mx_t *vm, mx_obj_t fn, uint32_t nargs, const mx_obj_t *args, m
     uintptr_t lo = (uintptr_t)th->slots;
     bool is_inside = th->slots != NULL && argp >= lo && argp < lo + sizeof(mx_val_t) * th->cap;
     mx_thread_reserve(vm, th, at + 6 + 2 * nargs + MX_RUN_SLACK);
+    const mx_obj_t *src;
     if (is_inside) {
-        args = (const mx_obj_t *)((uintptr_t)th->slots + (argp - lo));
+        src = (const mx_obj_t *)((uintptr_t)th->slots + (argp - lo));
+    } else {
+        src = args;
     }
     mx_obj_t out;
     if (mx_obj_is_closure(fn)) {
         *mx_thread_objs(th, at) = handler;
-        mx_version_t *rb = mx_run_push(vm, th, at + 2, mx_link_make(th->frame, MX_LINK_ENTRY), NULL, fn, args, nargs);
+        mx_version_t *rb = mx_run_push(vm, th, at + 2, mx_link_make(th->frame, MX_LINK_ENTRY), NULL, fn, src, nargs);
         if (rb == NULL) {
             out = mx_error_raw(vm, "stack overflow");
         } else {
@@ -88,19 +91,21 @@ mx_obj_t mx_pcall(mx_t *vm, mx_obj_t fn, uint32_t nargs, const mx_obj_t *args, m
         }
     } else {
         mx_ffi_t *ffi;
-        uint32_t n = nargs;
+        uint32_t n;
         mx_obj_t *dst = mx_thread_objs(th, at + 4);
         if (fn.kind == MX_KIND_FFI) {
             ffi = mx_obj_get_ffi(fn);
-            memmove(dst, args, sizeof(mx_obj_t) * nargs);
+            n = nargs;
+            memmove(dst, src, sizeof(mx_obj_t) * nargs);
         } else if (fn.kind == vm->kinds.cfn) {
             ffi = ((mx_obj_cfn_t *)mx_ref_obj(fn.val.ref))->fn;
-            memmove(dst, args, sizeof(mx_obj_t) * nargs);
+            n = nargs;
+            memmove(dst, src, sizeof(mx_obj_t) * nargs);
         } else {
             mx_obj_t op = vm->kinds.ptr[fn.kind].ops[MX_OP_CALL];
             ffi = mx_obj_get_ffi(op);
             n = nargs + 1;
-            memmove(dst + 1, args, sizeof(mx_obj_t) * nargs);
+            memmove(dst + 1, src, sizeof(mx_obj_t) * nargs);
             dst[0] = fn;
         }
         th->slots[at].bits = mx_link_make(th->frame, MX_LINK_C);
@@ -115,13 +120,15 @@ mx_obj_t mx_pcall(mx_t *vm, mx_obj_t fn, uint32_t nargs, const mx_obj_t *args, m
         vm->no_gc -= 1;
         mx_obj_t *res = mx_thread_objs(th, at + 4);
         if (mx_obj_is_error(res[0])) {
-            out = res[0];
-            mx_error_t *e = mx_obj_get_error(out);
+            mx_obj_t err = res[0];
+            mx_error_t *e = mx_obj_get_error(err);
             if (e->is_raw) {
                 mx_error_locate(vm, e, NULL);
             }
             if (!mx_obj_is_nil(handler) && !e->is_handled) {
-                out = mx_run_msgh(vm, handler, out);
+                out = mx_run_msgh(vm, handler, err);
+            } else {
+                out = err;
             }
         } else {
             mx_vm_rets_set(vm, res, vm->rets.len);
@@ -132,9 +139,8 @@ mx_obj_t mx_pcall(mx_t *vm, mx_obj_t fn, uint32_t nargs, const mx_obj_t *args, m
             }
         }
     }
-    th = vm->thread;
-    th->top = saved_top;
-    th->frame = saved_frame;
+    vm->thread->top = saved_top;
+    vm->thread->frame = saved_frame;
     vm->token_cur = saved_token;
     vm->no_gc = saved_no_gc;
     vm->pending.is_ok = saved_ok;

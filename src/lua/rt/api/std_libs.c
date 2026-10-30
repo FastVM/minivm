@@ -80,8 +80,7 @@ void mx_std_setup(mx_t *vm, mx_obj_t globals) {
     *mx_thread_objs(th, at + 2) = mx_obj_of_nil();
     th->frame = at;
     th->top = at + 4;
-    mx_std_state_t ls;
-    mx_std_state_enter(&ls, vm, mx_thread_objs(th, at + 4), 0);
+    mx_std_state_t ls = mx_std_state_enter(vm, mx_thread_objs(th, at + 4), 0, NULL, NULL, false);
     mx_std_open_libs(&ls);
     mx_std_open_extras(&ls);
     th->frame = saved_frame;

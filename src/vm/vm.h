@@ -379,6 +379,7 @@ void mx_arena_free(mx_arena_t *arena);
 mx_t *mx_vm_new(void);
 void mx_vm_free(mx_t *vm);
 
+uint32_t mx_vm_grown_cap(uint32_t cap, uint32_t n);
 mx_obj_t *mx_vm_rets_reserve(mx_t *vm, uint32_t n);
 void mx_vm_rets_set(mx_t *vm, const mx_obj_t *vals, uint32_t n);
 void mx_vm_rets_prepend(mx_t *vm, mx_obj_t first, const mx_obj_t *vals, uint32_t n);

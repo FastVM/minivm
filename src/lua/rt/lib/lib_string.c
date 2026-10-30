@@ -10,7 +10,6 @@
 
 enum {
     MX_STD_FMT_SPEC_CAP = 32,
-    MX_STD_GSUB_PATTERN_INLINE = 128,
 };
 
 int64_t mx_std_str_relat(int64_t pos, size_t len) {
@@ -20,6 +19,24 @@ int64_t mx_std_str_relat(int64_t pos, size_t len) {
         return 0;
     } else {
         return (int64_t)len + pos + 1;
+    }
+}
+
+int64_t mx_std_str_start(int64_t pos, size_t len) {
+    int64_t at = mx_std_str_relat(pos, len);
+    if (at < 1) {
+        return 1;
+    } else {
+        return at;
+    }
+}
+
+int64_t mx_std_str_end(int64_t pos, size_t len) {
+    int64_t at = mx_std_str_relat(pos, len);
+    if (at > (int64_t)len) {
+        return (int64_t)len;
+    } else {
+        return at;
     }
 }
 
@@ -33,14 +50,8 @@ int32_t mx_std_string_sub(mx_std_state_t *ls) {
     mx_std_str_t str = mx_std_checkstring(ls, 1);
     size_t len = str.len;
     const char *s = str.ptr;
-    int64_t i = mx_std_str_relat(mx_std_checkinteger(ls, 2), len);
-    int64_t j = mx_std_str_relat(mx_std_optinteger(ls, 3, -1), len);
-    if (i < 1) {
-        i = 1;
-    }
-    if (j > (int64_t)len) {
-        j = (int64_t)len;
-    }
+    int64_t i = mx_std_str_start(mx_std_checkinteger(ls, 2), len);
+    int64_t j = mx_std_str_end(mx_std_optinteger(ls, 3, -1), len);
     if (i <= j) {
         mx_std_pushlstring(ls, s + i - 1, (size_t)(j - i + 1));
     } else {
@@ -129,16 +140,17 @@ int32_t mx_std_string_rep(mx_std_state_t *ls) {
             }
             mx_std_push(ls, mx_obj_intern_strn(ls->vm, tmp, (uint32_t)total));
             return 1;
-        }
-        mx_str_t *out = mx_str_new_gc_sized(ls->vm, (uint32_t)total);
-        for (int64_t i = 0; i < n; i++) {
-            if (i > 0 && seplen > 0) {
-                mx_str_append(out, sep, (uint32_t)seplen);
+        } else {
+            mx_str_t *out = mx_str_new_gc_sized(ls->vm, (uint32_t)total);
+            for (int64_t i = 0; i < n; i++) {
+                if (i > 0 && seplen > 0) {
+                    mx_str_append(out, sep, (uint32_t)seplen);
+                }
+                mx_str_append(out, s, (uint32_t)len);
             }
-            mx_str_append(out, s, (uint32_t)len);
+            mx_std_push(ls, mx_obj_of_string(out));
+            return 1;
         }
-        mx_std_push(ls, mx_obj_of_string(out));
-        return 1;
     }
 }
 
@@ -146,14 +158,9 @@ int32_t mx_std_string_byte(mx_std_state_t *ls) {
     mx_std_str_t str = mx_std_checkstring(ls, 1);
     size_t len = str.len;
     const char *s = str.ptr;
-    int64_t i = mx_std_str_relat(mx_std_optinteger(ls, 2, 1), len);
-    int64_t j = mx_std_str_relat(mx_std_optinteger(ls, 3, i), len);
-    if (i < 1) {
-        i = 1;
-    }
-    if (j > (int64_t)len) {
-        j = (int64_t)len;
-    }
+    int64_t first = mx_std_optinteger(ls, 2, 1);
+    int64_t i = mx_std_str_start(first, len);
+    int64_t j = mx_std_str_end(mx_std_optinteger(ls, 3, first), len);
     if (i > j) {
         return 0;
     } else if (j - i >= INT32_MAX) {
@@ -261,16 +268,19 @@ int32_t mx_std_string_format(mx_std_state_t *ls) {
     for (const char *p = fmt; p < end && !ls->vm->std_error.is_set;) {
         if (*p != '%') {
             const char *pct = memchr(p, '%', (size_t)(end - p));
+            const char *stop;
             if (pct == NULL) {
-                pct = end;
+                stop = end;
+            } else {
+                stop = pct;
             }
-            mx_std_buf_addlstring(&buf, p, (size_t)(pct - p));
-            p = pct;
+            mx_std_buf_addlstring(&buf, p, (size_t)(stop - p));
+            p = stop;
         } else if (p + 1 < end && p[1] == '%') {
             mx_std_buf_addchar(&buf, '%');
             p += 2;
         } else {
-            mx_std_fmt_step_t step = mx_std_fmt_one(ls, &buf, p + 1, end, arg);
+            mx_std_fmt_step_t step = mx_std_fmt_one(ls, &buf, p + 1, end, arg + 1);
             if (step.next == NULL) {
                 if (buf.data != buf.init) {
                     mx_mem_free(buf.data);
@@ -297,15 +307,19 @@ const char *mx_std_fmt_digits(const char *s) {
 }
 
 bool mx_std_fmt_valid(const char *spec, const char *flags, bool has_precision) {
-    const char *s = spec + 1;
-    s += strspn(s, flags);
-    if (*s != '0') {
-        s = mx_std_fmt_digits(s);
-        if (*s == '.' && has_precision) {
-            s = mx_std_fmt_digits(s + 1);
+    const char *width = spec + 1 + strspn(spec + 1, flags);
+    if (*width == '0') {
+        return false;
+    } else {
+        const char *dot = mx_std_fmt_digits(width);
+        const char *conv;
+        if (*dot == '.' && has_precision) {
+            conv = mx_std_fmt_digits(dot + 1);
+        } else {
+            conv = dot;
         }
+        return isalpha((uint8_t)*conv) != 0;
     }
-    return isalpha((uint8_t)*s) != 0;
 }
 
 mx_std_fmt_step_t mx_std_fmt_badspec(mx_std_state_t *ls, const char *spec) {
@@ -325,15 +339,18 @@ bool mx_std_fmt_int_g(mx_std_buf_t *buf, const char *spec, size_t speclen, doubl
     if (speclen < 3 || spec[1] != '.') {
         return false;
     }
-    int64_t precision = 0;
+    int64_t digits = 0;
     for (size_t i = 2; i < speclen; i++) {
         if (isdigit((uint8_t)spec[i]) == 0) {
             return false;
         }
-        precision = precision * 10 + (spec[i] - '0');
+        digits = digits * 10 + (spec[i] - '0');
     }
-    if (precision == 0) {
+    int64_t precision;
+    if (digits == 0) {
         precision = 1;
+    } else {
+        precision = digits;
     }
     double bound = 1;
     for (int64_t i = 0; i < precision && i < 15; i++) {
@@ -349,25 +366,26 @@ bool mx_std_fmt_int_g(mx_std_buf_t *buf, const char *spec, size_t speclen, doubl
     return true;
 }
 
-mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const char *p, const char *end, int32_t arg) {
-    arg += 1;
+mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const char *start, const char *end, int32_t arg) {
     if (arg > mx_std_top(ls)) {
         return mx_std_fmt_fail(ls, mx_std_argerror(ls, arg, "no value"));
     }
-    const char *start = p;
-    while (p < end && *p != '\0' && strchr("-+ #0123456789.", *p) != NULL) {
-        p += 1;
+    const char *stop = start;
+    while (stop < end && *stop != '\0' && strchr("-+ #0123456789.", *stop) != NULL) {
+        stop += 1;
     }
-    size_t speclen = (size_t)(p - start) + 1;
+    size_t speclen = (size_t)(stop - start) + 1;
     if (speclen >= MX_STD_FMT_SPEC_CAP - 10) {
         return mx_std_fmt_fail(ls, mx_std_error(ls, "invalid format (too long)"));
     }
     char conv;
-    if (p < end) {
-        conv = *p;
-        p += 1;
+    const char *next;
+    if (stop < end) {
+        conv = *stop;
+        next = stop + 1;
     } else {
         conv = '\0';
+        next = stop;
     }
     char spec[MX_STD_FMT_SPEC_CAP];
     spec[0] = '%';
@@ -402,12 +420,11 @@ mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const ch
                 return mx_std_fmt_badspec(ls, spec);
             } else if (!has_mods && (conv == 'd' || conv == 'i')) {
                 mx_std_buf_addint(buf, v);
-                break;
-            }
-            mx_std_fmt_addlenmod(spec, "ll");
-            if (conv == 'd' || conv == 'i') {
+            } else if (conv == 'd' || conv == 'i') {
+                mx_std_fmt_addlenmod(spec, "ll");
                 mx_std_buf_addfmt(buf, spec, (long long)v);
             } else {
+                mx_std_fmt_addlenmod(spec, "ll");
                 mx_std_buf_addfmt(buf, spec, (unsigned long long)v);
             }
             break;
@@ -428,10 +445,9 @@ mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const ch
             double d = mx_std_checkfloat(ls, arg);
             if (!mx_std_fmt_valid(spec, "-+ #0", true)) {
                 return mx_std_fmt_badspec(ls, spec);
-            } else if (conv == 'g' && mx_std_fmt_int_g(buf, spec, speclen, d)) {
-                break;
+            } else if (conv != 'g' || !mx_std_fmt_int_g(buf, spec, speclen, d)) {
+                mx_std_buf_addfmt(buf, spec, d);
             }
-            mx_std_buf_addfmt(buf, spec, d);
             break;
         }
         case 'p': {
@@ -439,9 +455,11 @@ mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const ch
                 return mx_std_fmt_badspec(ls, spec);
             }
             mx_obj_t *at = mx_std_at(ls, arg);
-            const void *ptr = NULL;
+            const void *ptr;
             if (at != NULL && (mx_obj_kind(*at) >= MX_KIND_FIRST_DATA || mx_obj_is_string(*at) || mx_obj_is_closure(*at) || mx_obj_is_ffi(*at))) {
                 ptr = mx_ref_obj(at->val.ref);
+            } else {
+                ptr = NULL;
             }
             if (ptr == NULL) {
                 spec[speclen] = 's';
@@ -481,7 +499,7 @@ mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const ch
             return mx_std_fmt_fail(ls, mx_std_error(ls, "invalid conversion '%s' to 'format'", spec));
         }
     }
-    return (mx_std_fmt_step_t) { .next = p, .arg = arg, .ret_count = 0 };
+    return (mx_std_fmt_step_t) { .next = next, .arg = arg, .ret_count = 0 };
 }
 
 bool mx_std_pat_has_special(const char *p, size_t plen) {
@@ -499,19 +517,18 @@ const char *mx_std_pat_lmemfind(const char *s1, size_t l1, const char *s2, size_
     } else if (l2 > l1) {
         return NULL;
     } else {
-        l2 -= 1;
-        l1 = l1 - l2;
-        while (l1 > 0) {
-            const char *init = memchr(s1, *s2, l1);
-            if (init == NULL) {
+        size_t rest = l2 - 1;
+        const char *at = s1;
+        size_t avail = l1 - rest;
+        while (avail > 0) {
+            const char *found = memchr(at, *s2, avail);
+            if (found == NULL) {
                 return NULL;
+            } else if (memcmp(found + 1, s2 + 1, rest) == 0) {
+                return found;
             }
-            init += 1;
-            if (memcmp(init, s2 + 1, l2) == 0) {
-                return init - 1;
-            }
-            l1 -= (size_t)(init - s1);
-            s1 = init;
+            avail -= (size_t)(found + 1 - at);
+            at = found + 1;
         }
         return NULL;
     }
@@ -521,9 +538,10 @@ mx_pattern_result_t mx_std_pat_match(mx_std_state_t *ls, mx_pattern_captures_t *
     mx_pattern_result_t res = mx_pattern_match(&mx_lua_of(ls->vm)->patterns, scratch, s, len, p, lp, init);
     if (res.status == MX_PATTERN_ERROR) {
         mx_std_error(ls, "%s", res.error);
-        res.status = MX_PATTERN_NOMATCH;
+        return (mx_pattern_result_t) { .status = MX_PATTERN_NOMATCH };
+    } else {
+        return res;
     }
-    return res;
 }
 
 void mx_std_pat_push_one(mx_std_state_t *ls, const char *s, const mx_pattern_match_t *m, size_t idx) {
@@ -547,9 +565,11 @@ int32_t mx_std_pat_push_captures(mx_std_state_t *ls, const char *s, const mx_pat
     if (m->is_unfinished) {
         return mx_std_error(ls, "unfinished capture");
     }
-    size_t n = m->len;
-    if (n == 0 && whole) {
+    size_t n;
+    if (m->len == 0 && whole) {
         n = 1;
+    } else {
+        n = m->len;
     }
     for (size_t i = 0; i < n; i++) {
         mx_std_pat_push_one(ls, s, m, i);
@@ -564,10 +584,7 @@ int32_t mx_std_str_find_aux(mx_std_state_t *ls, bool find) {
     const char *p = pv.ptr;
     size_t ls_len = sv.len;
     size_t lp = pv.len;
-    int64_t init = mx_std_str_relat(mx_std_optinteger(ls, 3, 1), ls_len);
-    if (init < 1) {
-        init = 1;
-    }
+    int64_t init = mx_std_str_start(mx_std_optinteger(ls, 3, 1), ls_len);
     if (init > (int64_t)ls_len + 1) {
         mx_std_pushnil(ls);
         return 1;
@@ -637,12 +654,12 @@ int32_t mx_std_string_gmatch_iter(mx_std_state_t *ls) {
 int32_t mx_std_string_gmatch(mx_std_state_t *ls) {
     size_t ls_len = mx_std_checkstring(ls, 1).len;
     mx_std_checkstring(ls, 2);
-    int64_t init = mx_std_str_relat(mx_std_optinteger(ls, 3, 1), ls_len);
-    if (init < 1) {
-        init = 1;
-    }
-    if (init > (int64_t)ls_len + 1) {
+    int64_t start = mx_std_str_start(mx_std_optinteger(ls, 3, 1), ls_len);
+    int64_t init;
+    if (start > (int64_t)ls_len + 1) {
         init = (int64_t)ls_len + 2;
+    } else {
+        init = start;
     }
     mx_std_settop(ls, 2);
     mx_std_pushinteger(ls, init - 1);
@@ -726,38 +743,22 @@ int32_t mx_std_string_gsub(mx_std_state_t *ls) {
         && tr != MX_LUA_TYPE_TABLE && tr != MX_LUA_TYPE_FUNCTION) {
         return mx_std_typeerror(ls, 3, "string/function/table");
     }
-    char ap_buf[MX_STD_GSUB_PATTERN_INLINE];
-    char *ap = ap_buf;
-    if (lp + 2 > sizeof(ap_buf)) {
-        ap = mx_mem_alloc(lp + 2);
-    }
-    size_t aplen = lp;
-    if (anchor) {
-        memcpy(ap, p, lp);
-    } else {
-        ap[0] = '^';
-        memcpy(ap + 1, p, lp);
-        aplen = lp + 1;
-    }
-    ap[aplen] = '\0';
     mx_std_buf_t b;
     mx_std_buf_init(ls, &b);
     size_t pos = 0;
     int64_t n = 0;
     bool changed = false;
     size_t lastmatch = SIZE_MAX;
-    const char *sp = p;
-    size_t splen = lp;
+    const char *sp;
+    size_t splen;
     if (anchor) {
-        sp = ap;
-        splen = aplen;
+        sp = p + 1;
+        splen = lp - 1;
+    } else {
+        sp = p;
+        splen = lp;
     }
     mx_pattern_captures_t scratch;
-    bool is_anchored = splen > 0 && sp[0] == '^';
-    if (is_anchored) {
-        sp += 1;
-        splen -= 1;
-    }
     mx_pattern_cache_t *cache = &mx_lua_of(ls->vm)->patterns;
     mx_pattern_prog_t own;
     const mx_pattern_prog_t *prog;
@@ -768,7 +769,7 @@ int32_t mx_std_string_gsub(mx_std_state_t *ls) {
         prog = mx_pattern_prog(cache, &own, sp, splen);
     }
     while (n < max_s && !ls->vm->std_error.is_set) {
-        mx_pattern_result_t res = mx_pattern_search(&scratch, prog, src, srcl, pos, is_anchored);
+        mx_pattern_result_t res = mx_pattern_search(&scratch, prog, src, srcl, pos, anchor);
         if (res.status == MX_PATTERN_ERROR) {
             mx_std_error(ls, "%s", res.error);
             break;
@@ -800,9 +801,6 @@ int32_t mx_std_string_gsub(mx_std_state_t *ls) {
         mx_pattern_prog_free(&own);
     } else if (is_held) {
         mx_pattern_prog_release(cache, prog);
-    }
-    if (ap != ap_buf) {
-        mx_mem_free(ap);
     }
     if (!changed) {
         if (b.data != b.init) {
@@ -893,16 +891,16 @@ bool mx_ffi_string_match_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         return true;
     } else {
         uint32_t n = res.match.len;
-        args = mx_call_results(vm, n);
-        if (args == NULL) {
+        mx_obj_t *out = mx_call_results(vm, n);
+        if (out == NULL) {
             return false;
         }
         for (uint32_t i = 0; i < n; i++) {
             const mx_pattern_capture_t *cap = &res.match.captures[i];
             if (cap->is_position) {
-                args[i] = mx_obj_of_int((int64_t)cap->start + 1);
+                out[i] = mx_obj_of_int((int64_t)cap->start + 1);
             } else {
-                args[i] = mx_std_str_of(vm, sb->buf + cap->start, cap->len);
+                out[i] = mx_std_str_of(vm, sb->buf + cap->start, cap->len);
             }
         }
         vm->rets.len = n;
@@ -941,15 +939,11 @@ bool mx_ffi_string_sub_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         && (nargs < 3 || mx_obj_is_int(args[2]))) {
         mx_str_t *buf = mx_obj_get_string(args[0]);
         size_t len = buf->len;
-        int64_t i = mx_std_str_relat(mx_obj_get_int(args[1]), len);
-        int64_t j = (int64_t)len;
+        int64_t i = mx_std_str_start(mx_obj_get_int(args[1]), len);
+        int64_t j;
         if (nargs >= 3) {
-            j = mx_std_str_relat(mx_obj_get_int(args[2]), len);
-        }
-        if (i < 1) {
-            i = 1;
-        }
-        if (j > (int64_t)len) {
+            j = mx_std_str_end(mx_obj_get_int(args[2]), len);
+        } else {
             j = (int64_t)len;
         }
         if (i == j) {
@@ -977,9 +971,11 @@ bool mx_ffi_string_byte_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         && (nargs < 2 || mx_obj_is_int(args[1]))) {
         mx_str_t *buf = mx_obj_get_string(args[0]);
         size_t len = buf->len;
-        int64_t i = 1;
+        int64_t i;
         if (nargs >= 2) {
             i = mx_std_str_relat(mx_obj_get_int(args[1]), len);
+        } else {
+            i = 1;
         }
         if (i < 1 || i > (int64_t)len) {
             args[0] = mx_obj_of_nil();
@@ -1005,26 +1001,15 @@ bool mx_ffi_string_char_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         return false;
     }
     char tmp[MX_STR_SSO_CAP];
-    bool ok = true;
     for (size_t i = 0; i < nargs; i++) {
-        if (!mx_obj_is_int(args[i])) {
-            ok = false;
-            break;
+        if (!mx_obj_is_int(args[i]) || mx_obj_get_int(args[i]) < 0 || mx_obj_get_int(args[i]) > 255) {
+            return false;
         }
-        int64_t c = mx_obj_get_int(args[i]);
-        if (c < 0 || c > 255) {
-            ok = false;
-            break;
-        }
-        tmp[i] = (char)c;
+        tmp[i] = (char)mx_obj_get_int(args[i]);
     }
-    if (!ok) {
-        return false;
-    } else {
-        args[0] = mx_std_str_of(vm, tmp, nargs);
-        vm->rets.len = 1;
-        return true;
-    }
+    args[0] = mx_std_str_of(vm, tmp, nargs);
+    vm->rets.len = 1;
+    return true;
 }
 
 void mx_ffi_string_char(mx_t *vm, size_t nargs, mx_obj_t *args) {
@@ -1049,13 +1034,8 @@ bool mx_ffi_string_rep_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         if (buf->len == 1) {
             memset(tmp, buf->buf[0], len);
         } else {
-            uint32_t j = 0;
             for (uint32_t i = 0; i < len; i++) {
-                tmp[i] = buf->buf[j];
-                j += 1;
-                if (j == buf->len) {
-                    j = 0;
-                }
+                tmp[i] = buf->buf[i % buf->len];
             }
         }
         args[0] = mx_obj_intern_strn(vm, tmp, len);

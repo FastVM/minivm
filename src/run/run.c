@@ -189,9 +189,12 @@ mx_obj_t mx_run_set_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t va
                 return mx_obj_of_nil();
             }
         }
-        int32_t got = mx_run_set_str(vm, tbl, key, value);
-        if (got < 0) {
+        int32_t fast = mx_run_set_str(vm, tbl, key, value);
+        int32_t got;
+        if (fast < 0) {
             got = mx_table_hash_set(vm, tbl, key, value);
+        } else {
+            got = fast;
         }
         if (got >= 0) {
             *slot = (uintptr_t)got;
@@ -226,33 +229,24 @@ const mx_resume_t *mx_run_void_rec(mx_t *vm, mx_version_t *rb, uintptr_t *desc, 
     return (const mx_resume_t *)desc[0];
 }
 
-bool mx_run_eq_raw(mx_t *vm, mx_obj_t a, mx_obj_t b, bool *out) {
+mx_run_eq_t mx_run_eq_raw(mx_t *vm, mx_obj_t a, mx_obj_t b) {
     if (a.kind != b.kind) {
-        if (mx_obj_is_number(a) && mx_obj_is_number(b)) {
-            *out = mx_obj_num_eq(a, b);
-        } else {
-            *out = false;
-        }
-        return true;
+        return (mx_run_eq_t) { .is_eq = mx_obj_is_number(a) && mx_obj_is_number(b) && mx_obj_num_eq(a, b), .is_known = true };
     } else if (a.kind < MX_KIND_FIRST_DATA || a.val.bits == b.val.bits) {
-        *out = mx_table_key_eq(a, b);
-        return true;
+        return (mx_run_eq_t) { .is_eq = mx_table_key_eq(a, b), .is_known = true };
     }
     mx_obj_t handler = vm->kinds.ptr[a.kind].ops[MX_OP_EQ];
     bool is_std = mx_obj_is_ffi(handler) && mx_obj_get_ffi(handler) == vm->meta_eq.fn;
     if (is_std && mx_obj_is_table(a) && mx_obj_is_table(b)) {
         mx_obj_table_t *ta = mx_obj_get_table(a);
         mx_obj_table_t *tb = mx_obj_get_table(b);
-        bool has_eq = ta->meta != NULL && !mx_obj_is_nil(mx_table_get_inline(ta->meta, vm->meta_eq.key));
-        if (!has_eq && tb->meta != NULL && tb->meta != ta->meta) {
-            has_eq = !mx_obj_is_nil(mx_table_get_inline(tb->meta, vm->meta_eq.key));
-        }
+        bool has_eq = (ta->meta != NULL && !mx_obj_is_nil(mx_table_get_inline(ta->meta, vm->meta_eq.key)))
+            || (tb->meta != NULL && tb->meta != ta->meta && !mx_obj_is_nil(mx_table_get_inline(tb->meta, vm->meta_eq.key)));
         if (!has_eq) {
-            *out = false;
-            return true;
+            return (mx_run_eq_t) { .is_eq = false, .is_known = true };
         }
     }
-    return false;
+    return (mx_run_eq_t) { .is_eq = false, .is_known = false };
 }
 
 void mx_run_spill(mx_val_t *base, uint32_t frame, const mx_obj_t *extra, uint32_t n) {
@@ -275,24 +269,27 @@ mx_version_t *mx_run_push(mx_t *vm, mx_thread_t *th, uint32_t p, uintptr_t link,
     uintptr_t lo = (uintptr_t)th->slots;
     bool is_inside = th->slots != NULL && at >= lo && at < lo + sizeof(mx_val_t) * th->cap;
     mx_thread_reserve(vm, th, need);
+    const mx_obj_t *src;
     if (is_inside) {
-        args = (const mx_obj_t *)((uintptr_t)th->slots + (at - lo));
+        src = (const mx_obj_t *)((uintptr_t)th->slots + (at - lo));
+    } else {
+        src = args;
     }
-    mx_version_t *rb = mx_version_entry(vm, block, args, n);
+    mx_version_t *rb = mx_version_entry(vm, block, src, n);
     mx_val_t *base = th->slots + p + 2;
     base[-2].bits = link;
     base[-1].bits = (uintptr_t)rec;
     base[0] = fn.val;
     for (uint32_t i = 0; i < func->nparams; i++) {
         if (i < n) {
-            base[i + 1] = args[i].val;
+            base[i + 1] = src[i].val;
         } else {
             base[i + 1].bits = 0;
         }
     }
     if (func->is_vararg) {
         if (n > func->nparams) {
-            mx_run_spill(base, frame, args + func->nparams, n - func->nparams);
+            mx_run_spill(base, frame, src + func->nparams, n - func->nparams);
         } else {
             mx_run_spill(base, frame, NULL, 0);
         }
@@ -421,19 +418,24 @@ bool mx_run_collect(mx_t *vm) {
         const mx_obj_t *dr_vals = (vals); \
         uint32_t dr_n = (n); \
         if (dr_rec->kind == MX_RESUME_VALUES && dr_rec->want <= 3 && !dr_rec->has_cell_out) { \
-            uintptr_t dr_key = ((uintptr_t)(dr_rec->want + 1) << 48) | mx_run_key_flags(vm, true); \
+            uintptr_t dr_head = ((uintptr_t)(dr_rec->want + 1) << 48) | mx_run_key_flags(vm, true); \
+            uintptr_t dr_key; \
             if (dr_rec->want == 1 && dr_n != 0) { \
                 base[dr_rec->out] = dr_vals[0].val; \
-                dr_key |= dr_vals[0].kind; \
+                dr_key = dr_head | dr_vals[0].kind; \
             } else { \
+                uintptr_t dr_kinds = 0; \
                 for (uint32_t dr_i = 0; dr_i < dr_rec->want; dr_i++) { \
-                    mx_obj_t dr_v = mx_obj_of_nil(); \
+                    mx_obj_t dr_v; \
                     if (dr_i < dr_n) { \
                         dr_v = dr_vals[dr_i]; \
+                    } else { \
+                        dr_v = mx_obj_of_nil(); \
                     } \
                     base[dr_rec->out + dr_i] = dr_v.val; \
-                    dr_key |= (uintptr_t)dr_v.kind << (16 * dr_i); \
+                    dr_kinds |= (uintptr_t)dr_v.kind << (16 * dr_i); \
                 } \
+                dr_key = dr_head | dr_kinds; \
             } \
             if (dr_rec->cache.key == dr_key) { \
                 MX_STAT(deliver_resumed_fast); \
@@ -597,7 +599,6 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
     uintptr_t *bc;
     mx_obj_t small[MX_RUN_SMALL];
     mx_kind_t kinds[MX_IR_BRANCH_MAX_ARGS + 1];
-    // rvals and rn carry the values for both deliver and ret.
     const mx_resume_t *drec;
     bool dresumed;
     const mx_obj_t *rvals;
@@ -1105,8 +1106,6 @@ L_TABLE_SET_SK: {
     ip += 11;
     goto set;
 }
-// A store into a table this stream made itself, with a literal key that can't
-// be nil or NaN: no metatable or error is possible, so it is always raw.
 L_TABLE_INIT: {
     mx_obj_table_t *tbl = mx_ref_obj(base[ip[1]].ref);
     mx_obj_t k = mx_run_arg(ip + 2, base);
@@ -1185,7 +1184,7 @@ L_VARARGS: {
 }
 L_UNPACK: {
     mx_obj_table_t *pack = mx_ref_obj(base[ip[1]].ref);
-    uint32_t n = pack->array_len;
+    uint32_t n;
     if (ip[3] != 0) {
         mx_obj_t count = mx_table_get(pack, vm->char_strs[(uint8_t)'n']);
         if (!mx_obj_is_int(count) || (uint64_t)mx_obj_get_int(count) > INT32_MAX / 2) {
@@ -1194,6 +1193,8 @@ L_UNPACK: {
             goto fail;
         }
         n = (uint32_t)mx_obj_get_int(count);
+    } else {
+        n = pack->array_len;
     }
     mx_obj_t *out = mx_vm_rets_reserve(vm, n);
     for (uint32_t i = 0; i < n; i++) {
@@ -1381,9 +1382,9 @@ L_BR_EQ_STR: {
     } else if (x->is_interned && y->is_interned) {
         is_eq = false;
     } else {
-        x = mx_str_flat(x);
-        y = mx_str_flat(y);
-        is_eq = x->len == y->len && memcmp(x->buf, y->buf, x->len) == 0;
+        mx_str_t *fx = mx_str_flat(x);
+        mx_str_t *fy = mx_str_flat(y);
+        is_eq = fx->len == fy->len && memcmp(fx->buf, fy->buf, fx->len) == 0;
     }
     MX_BRANCH(is_eq);
 }
@@ -1450,7 +1451,7 @@ L_TABLE_GET_SK: {
     mx_obj_table_t *tbl = mx_ref_obj(base[ip[2]].ref);
     mx_obj_t key = mx_obj_of_raw(MX_KIND_STRING, (mx_val_t) { .bits = ip[3] });
     if (tbl->is_plain) {
-        mx_obj_t v = mx_obj_of_nil();
+        mx_obj_t v;
         size_t at = (size_t)ip[5];
         if (tbl->entries != NULL && at < mx_table_hash_cap(tbl) && tbl->entries[at].key_kind == MX_KIND_STRING && tbl->entries[at].key.bits == ip[3]) {
             MX_STAT(sk_hit);
@@ -1569,13 +1570,14 @@ L_CELL: {
     mx_kind_t kind = (mx_kind_t)base[ip[2]].bits;
     uintptr_t key = (uintptr_t)kind | mx_run_key_flags(vm, false);
     uintptr_t *code = mx_run_cache_find(&rec->cache, key);
-    if (code == NULL) {
-        rb = mx_version_at(vm, rec, &kind, 1, false);
-        code = rb->code;
-        mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key, (uintptr_t)code);
+    if (code != NULL) {
+        ip = code;
+        rb = (mx_version_t *)ip[-1];
+        MX_DISPATCH();
     }
-    ip = code;
-    rb = (mx_version_t *)ip[-1];
+    rb = mx_version_at(vm, rec, &kind, 1, false);
+    mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key, (uintptr_t)rb->code);
+    ip = rb->code;
     MX_DISPATCH();
 }
 L_META_OP: {
@@ -1597,14 +1599,16 @@ L_META_CMP: {
     mx_obj_t a = mx_run_arg(ip + 3, base);
     mx_obj_t b = mx_run_arg(ip + 5, base);
     mop = (mx_op_t)ip[1];
-    bool is_eq;
-    if (mop == MX_OP_EQ && mx_run_eq_raw(vm, a, b, &is_eq)) {
-        small[0] = mx_obj_of_boolean(is_eq);
-        drec = (const mx_resume_t *)ip[2];
-        rvals = small;
-        rn = 1;
-        dresumed = false;
-        goto deliver;
+    if (mop == MX_OP_EQ) {
+        mx_run_eq_t eq = mx_run_eq_raw(vm, a, b);
+        if (eq.is_known) {
+            small[0] = mx_obj_of_boolean(eq.is_eq);
+            drec = (const mx_resume_t *)ip[2];
+            rvals = small;
+            rn = 1;
+            dresumed = false;
+            goto deliver;
+        }
     }
     crec = (const mx_resume_t *)ip[2];
     base = mx_run_reserve(vm, base, rb->frame + 8 + MX_RUN_SLACK);
@@ -1624,18 +1628,25 @@ L_CALL_LUA: {
     const mx_resume_t *rec = (const mx_resume_t *)ip[4];
     mx_resume_cache_t *cache = (mx_resume_cache_t *)(ip + 5);
     const uintptr_t *argp = ip + 5 + MX_RESUME_CACHE_WORDS;
-    uint32_t total = n;
+    uint32_t total;
     if (is_spread) {
-        total += vm->rets.len;
+        total = n + vm->rets.len;
+    } else {
+        total = n;
     }
-    uintptr_t *code = NULL;
     uintptr_t key = (uintptr_t)block | (uintptr_t)vm->is_hooked;
+    uintptr_t *cached;
     if (!is_spread && cache->key == key) {
-        code = (uintptr_t *)cache->code;
+        cached = (uintptr_t *)cache->code;
     } else if (!is_spread) {
-        code = mx_run_cache_find(cache, key);
+        cached = mx_run_cache_find(cache, key);
+    } else {
+        cached = NULL;
     }
-    if (code == NULL) {
+    uintptr_t *code;
+    if (cached != NULL) {
+        code = cached;
+    } else {
         for (uint32_t i = 0; i < n; i++) {
             kinds[i] = (mx_kind_t)(argp[2 * i + 1] >> 1);
         }
@@ -1671,9 +1682,11 @@ L_CALL_LUA: {
         }
     }
     if (crb->is_vararg) {
-        uint32_t nextra = 0;
+        uint32_t nextra;
         if (total > np) {
             nextra = total - np;
+        } else {
+            nextra = 0;
         }
         callee[frame].bits = nextra;
         mx_obj_t *spill = (mx_obj_t *)(callee + frame + 2);
@@ -1698,9 +1711,11 @@ L_TAILCALL_LUA: {
     bool is_spread = ip[3] != 0;
     mx_resume_cache_t *cache = (mx_resume_cache_t *)(ip + 4);
     const uintptr_t *argp = ip + 4 + MX_RESUME_CACHE_WORDS;
-    uint32_t total = n;
+    uint32_t total;
     if (is_spread) {
-        total += vm->rets.len;
+        total = n + vm->rets.len;
+    } else {
+        total = n;
     }
     mx_obj_t *tmp = mx_vm_tmp_reserve(vm, total);
     for (uint32_t i = 0; i < n; i++) {
@@ -1709,14 +1724,19 @@ L_TAILCALL_LUA: {
     if (is_spread) {
         memcpy(tmp + n, vm->rets.vals, sizeof(mx_obj_t) * vm->rets.len);
     }
-    uintptr_t *code = NULL;
     uintptr_t key = (uintptr_t)block | (uintptr_t)vm->is_hooked;
+    uintptr_t *cached;
     if (!is_spread && cache->key == key) {
-        code = (uintptr_t *)cache->code;
+        cached = (uintptr_t *)cache->code;
     } else if (!is_spread) {
-        code = mx_run_cache_find(cache, key);
+        cached = mx_run_cache_find(cache, key);
+    } else {
+        cached = NULL;
     }
-    if (code == NULL) {
+    uintptr_t *code;
+    if (cached != NULL) {
+        code = cached;
+    } else {
         code = mx_version_entry(vm, block, tmp, total)->code;
         if (!is_spread) {
             mx_run_cache_put(vm, cache, key, (uintptr_t)code);
@@ -1758,9 +1778,11 @@ L_CALL: {
     bool is_spread = ip[4] != 0;
     crec = (const mx_resume_t *)ip[5];
     const uintptr_t *argp = ip + 8;
-    uint32_t total = n;
+    uint32_t total;
     if (is_spread) {
-        total += vm->rets.len;
+        total = n + vm->rets.len;
+    } else {
+        total = n;
     }
     uint32_t above = rb->frame + 6 + 2 * total + MX_RUN_SLACK;
     if ((uint32_t)(base - vm->thread->slots) + above > vm->thread->limit) {
@@ -1845,9 +1867,11 @@ L_CALL: {
 L_CALL_FAST: {
     mx_obj_t fn = mx_run_arg(ip + 1, base);
     uint32_t n = (uint32_t)ip[3];
-    uint32_t nspread = 0;
+    uint32_t nspread;
     if (ip[4] != 0) {
         nspread = vm->rets.len;
+    } else {
+        nspread = 0;
     }
     if (fn.kind == MX_KIND_FFI && fn.val.bits == ip[6] && n + nspread <= MX_RUN_SMALL) {
         for (uint32_t i = 0; i < n; i++) {
@@ -1860,9 +1884,6 @@ L_CALL_FAST: {
         vm->rets.vals[0] = mx_obj_of_nil();
         if (((mx_ffi_fast_t *)ip[7])(vm, n + nspread, small)) {
             MX_STAT(call_fast);
-            // A fast function never runs Lua code, so no captured local of
-            // this frame can have changed and its one result needs no
-            // resumed delivery.
             const mx_resume_t *rec = (const mx_resume_t *)ip[5];
             if (rec->want == 1 && vm->rets.len != 0) {
                 MX_DELIVER1(rec, small[0], NULL);
@@ -1898,9 +1919,11 @@ L_RETURN: {
         rn = n;
         goto ret;
     }
-    uint32_t extra = 0;
+    uint32_t extra;
     if (is_spread) {
         extra = vm->rets.len;
+    } else {
+        extra = 0;
     }
     mx_obj_t *out = mx_vm_rets_reserve(vm, n + extra);
     memmove(out + n, out, sizeof(mx_obj_t) * extra);
@@ -1923,19 +1946,24 @@ safepoint: {
     vm->interrupt = false;
     mx_thread_t *th = vm->thread;
     uint32_t boff = (uint32_t)(base - th->slots);
-    uint32_t top = boff + rb->frame + 2;
     const mx_ir_func_t *func = rb->block->func;
+    uint32_t spill;
     if (func->is_vararg && rb->block->is_func && rb->start_at == 0) {
-        top += 2 * (uint32_t)base[rb->frame].bits;
+        spill = 2 * (uint32_t)base[rb->frame].bits;
+    } else {
+        spill = 0;
     }
+    uint32_t top = boff + rb->frame + 2 + spill;
     mx_thread_reserve(vm, th, top + 2 + MX_RUN_SLACK);
     th->slots[top].bits = mx_link_make(boff - 2, MX_LINK_SAFEPOINT);
     th->slots[top + 1].bits = (uintptr_t)rb;
     th->frame = top;
     th->top = top + 2;
-    bool ran = false;
+    bool ran;
     if (vm->gc_pending != 0 && vm->no_gc == 0 && !vm->is_gc_stopped) {
         ran = mx_run_collect(vm);
+    } else {
+        ran = false;
     }
     base = th->slots + boff;
     if (ran || rb->is_hooked != vm->is_hooked) {
@@ -1957,21 +1985,22 @@ branch: {
 
 deliver: {
     const mx_resume_t *rec = drec;
-    uintptr_t key;
-    uintptr_t *code;
     switch (rec->kind) {
         case MX_RESUME_VALUES: {
             uint32_t want = rec->want;
+            uintptr_t shape;
             uint32_t nout;
             if (want == MX_IR_WANT_MULTI) {
                 mx_vm_rets_set(vm, rvals, rn);
-                key = 1;
+                shape = 1;
                 nout = 0;
             } else {
                 for (uint32_t i = 0; i < want; i++) {
-                    mx_obj_t v = mx_obj_of_nil();
+                    mx_obj_t v;
                     if (i < rn) {
                         v = rvals[i];
+                    } else {
+                        v = mx_obj_of_nil();
                     }
                     base[rec->out + i] = v.val;
                     kinds[i] = v.kind;
@@ -1979,12 +2008,12 @@ deliver: {
                 if (rec->has_cell_out) {
                     mx_run_cells_write(rec, base, kinds, want);
                 }
-                key = (uintptr_t)mx_version_kinds_key(kinds, want);
+                shape = (uintptr_t)mx_version_kinds_key(kinds, want);
                 nout = want;
             }
-            if (key != 0) {
-                key |= mx_run_key_flags(vm, dresumed);
-                code = mx_run_cache_find(&rec->cache, key);
+            uintptr_t key = shape | mx_run_key_flags(vm, dresumed);
+            if (shape != 0) {
+                uintptr_t *code = mx_run_cache_find(&rec->cache, key);
                 if (code != NULL) {
                     MX_STAT(deliver_found);
                     ip = code;
@@ -1994,46 +2023,50 @@ deliver: {
             }
             MX_STAT(deliver_new);
             rb = mx_version_values(vm, rec, kinds, nout, dresumed);
-            if (key != 0) {
-                mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key,(uintptr_t)rb->code);
+            if (shape != 0) {
+                mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key, (uintptr_t)rb->code);
             }
             ip = rb->code;
             goto next;
         }
         case MX_RESUME_AT: {
-            mx_obj_t v = mx_obj_of_nil();
+            mx_obj_t v;
             if (rn > 0) {
                 v = rvals[0];
+            } else {
+                v = mx_obj_of_nil();
             }
             base[rec->out] = v.val;
             kinds[0] = v.kind;
             if (rec->has_cell_out) {
                 mx_run_cells_write(rec, base, kinds, 1);
             }
-            key = (uintptr_t)v.kind | mx_run_key_flags(vm, dresumed);
-            code = mx_run_cache_find(&rec->cache, key);
-            if (code == NULL) {
-                MX_STAT(deliver_new);
-                rb = mx_version_at(vm, rec, kinds, 1, dresumed);
-                code = rb->code;
-                mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key,(uintptr_t)code);
+            uintptr_t key = (uintptr_t)v.kind | mx_run_key_flags(vm, dresumed);
+            uintptr_t *code = mx_run_cache_find(&rec->cache, key);
+            if (code != NULL) {
+                ip = code;
+                rb = (mx_version_t *)ip[-1];
+                goto next;
             }
-            ip = code;
-            rb = (mx_version_t *)ip[-1];
+            MX_STAT(deliver_new);
+            rb = mx_version_at(vm, rec, kinds, 1, dresumed);
+            mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key, (uintptr_t)rb->code);
+            ip = rb->code;
             goto next;
         }
         case MX_RESUME_BRANCH: {
             bool is_true = rn > 0 && mx_obj_is_truthy(rvals[0]);
-            key = ((uintptr_t)is_true + 1) | mx_run_key_flags(vm, dresumed);
-            code = mx_run_cache_find(&rec->cache, key);
-            if (code == NULL) {
-                MX_STAT(deliver_new);
-                rb = mx_version_branch(vm, rec, is_true, dresumed);
-                code = rb->code;
-                mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key,(uintptr_t)code);
+            uintptr_t key = ((uintptr_t)is_true + 1) | mx_run_key_flags(vm, dresumed);
+            uintptr_t *code = mx_run_cache_find(&rec->cache, key);
+            if (code != NULL) {
+                ip = code;
+                rb = (mx_version_t *)ip[-1];
+                goto next;
             }
-            ip = code;
-            rb = (mx_version_t *)ip[-1];
+            MX_STAT(deliver_new);
+            rb = mx_version_branch(vm, rec, is_true, dresumed);
+            mx_run_cache_put(vm, (mx_resume_cache_t *)&rec->cache, key, (uintptr_t)rb->code);
+            ip = rb->code;
             goto next;
         }
         case MX_RESUME_VOID: {
@@ -2182,9 +2215,9 @@ ffi: {
     if (vm->pending.is_set) {
         goto pending;
     }
-    mx_obj_t *res = mx_thread_objs(th, cw + 4);
-    if (mx_obj_is_error(res[0])) {
-        ferr = res[0];
+    mx_obj_t first = *mx_thread_objs(th, cw + 4);
+    if (mx_obj_is_error(first)) {
+        ferr = first;
         frec = crec;
         goto fail_c;
     }
@@ -2196,13 +2229,13 @@ ffi: {
         mx_obj_t herr = vm->hooks.debug(vm, th, crec, 2);
         mx_vm_rets_pop(vm);
         base = th->slots + boff;
-        res = mx_thread_objs(th, cw + 4);
         if (mx_obj_is_error(herr)) {
             ferr = herr;
             frec = crec;
             goto fail_c;
         }
     }
+    mx_obj_t *res = mx_thread_objs(th, cw + 4);
     if (ctag == MX_LINK_PROTECT_C || ctag == MX_LINK_PROTECT_MSGH_C || ctag == MX_LINK_BOTTOM_C) {
         rvals = res;
         rn = vm->rets.len;
@@ -2288,9 +2321,12 @@ pending: {
             }
             bool is_protect = call.kind != MX_RUN_PENDING_KIND_CALLCC;
             if (is_protect && th->nest + th->protects >= 200) {
-                mx_obj_t err = mx_error_value(vm, mx_obj_new_string(vm, "C stack overflow"));
+                mx_obj_t overflow = mx_error_value(vm, mx_obj_new_string(vm, "C stack overflow"));
+                mx_obj_t err;
                 if (call.kind == MX_RUN_PENDING_KIND_PROTECT_MSGH) {
-                    err = mx_run_msgh(vm, call.extra, err);
+                    err = mx_run_msgh(vm, call.extra, overflow);
+                } else {
+                    err = overflow;
                 }
                 small[0] = mx_obj_of_boolean(false);
                 small[1] = mx_error_payload(err);
@@ -2368,12 +2404,13 @@ pending: {
         }
         case MX_RUN_PENDING_KIND_YIELD: {
             mx_thread_t *co = th;
-            co->status = MX_THREAD_SUSPENDED;
-            co->top = cw + 4;
             if (mx_obj_is_truthy(call.extra)) {
                 co->status = MX_THREAD_DEAD;
                 co->frame = MX_THREAD_NONE;
                 co->top = 0;
+            } else {
+                co->status = MX_THREAD_SUSPENDED;
+                co->top = cw + 4;
             }
             if (co->is_c_resumed) {
                 co->resumer = NULL;
@@ -2381,10 +2418,10 @@ pending: {
                 result = (mx_run_result_t) { .error = mx_obj_of_nil(), .status = MX_RUN_YIELD };
                 goto done;
             }
-            th = co->resumer;
+            mx_thread_t *resumer = co->resumer;
             co->resumer = NULL;
-            vm->thread = th;
-            th->status = MX_THREAD_RUNNING;
+            vm->thread = resumer;
+            resumer->status = MX_THREAD_RUNNING;
             if (co->shape == MX_THREAD_SHAPE_STATUS) {
                 mx_vm_rets_prepend(vm, mx_obj_of_boolean(true), pargs, pn);
                 rvals = vm->rets.vals;
@@ -2393,7 +2430,7 @@ pending: {
                 rvals = pargs;
                 rn = pn;
             }
-            cw = th->frame;
+            cw = resumer->frame;
             goto cret;
         }
         case MX_RUN_PENDING_KIND_KJUMP: {
@@ -2511,9 +2548,8 @@ fail_c: {
     bool has_msgh = tag == MX_LINK_PROTECT_MSGH || tag == MX_LINK_PROTECT_MSGH_C || (tag == MX_LINK_ENTRY && !mx_obj_is_nil(handler));
     if (!e->is_handled && has_msgh) {
         ferr = mx_run_msgh(vm, handler, ferr);
-        slots = th->slots;
     }
-    uintptr_t link = slots[p].bits;
+    uintptr_t link = th->slots[p].bits;
     mx_thread_close_upvals(vm, th, p + 2);
     th->frame = mx_link_caller(link);
     th->top = p;

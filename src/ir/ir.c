@@ -31,7 +31,6 @@ mx_ir_func_t *mx_ir_func_new(mx_arena_t *arena, const mx_source_t *source) {
     return func;
 }
 
-
 size_t mx_ir_uv_size(uint64_t v) {
     size_t n = 1;
     while (v >= 0x80) {
@@ -51,8 +50,6 @@ uint8_t *mx_ir_put_uv(uint8_t *p, uint64_t v) {
     return p + 1;
 }
 
-// Writes v in exactly n bytes, padding with continuation bytes, so it can be
-// rewritten in place later. v must fit in 7 * n bits.
 uint8_t *mx_ir_put_uv_wide(uint8_t *p, uint64_t v, size_t n) {
     for (size_t i = 0; i + 1 < n; i++) {
         p[i] = (uint8_t)(v | 0x80);
@@ -70,8 +67,35 @@ mx_ir_uv_t mx_ir_get_uv(const uint8_t *p) {
         shift += 7;
         p += 1;
     }
-    v |= (uint64_t)p[0] << shift;
-    return (mx_ir_uv_t) { .value = v, .next = p + 1 };
+    return (mx_ir_uv_t) {
+        .value = v | ((uint64_t)p[0] << shift),
+        .next = p + 1,
+    };
+}
+
+uint8_t *mx_ir_put_u16(uint8_t *p, uint16_t v) {
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    return p + 2;
+}
+
+uint16_t mx_ir_get_u16(const uint8_t *p) {
+    return (uint16_t)(p[0] | (p[1] << 8));
+}
+
+uint8_t *mx_ir_put_u64(uint8_t *p, uint64_t v) {
+    for (uint32_t i = 0; i < 8; i++) {
+        p[i] = (uint8_t)(v >> (i * 8));
+    }
+    return p + 8;
+}
+
+uint64_t mx_ir_get_u64(const uint8_t *p) {
+    uint64_t v = 0;
+    for (uint32_t i = 0; i < 8; i++) {
+        v |= (uint64_t)p[i] << (i * 8);
+    }
+    return v;
 }
 
 uint64_t mx_ir_zigzag(int64_t v) {
@@ -82,45 +106,56 @@ int64_t mx_ir_unzigzag(uint64_t v) {
     return (int64_t)(v >> 1) ^ -(int64_t)(v & 1);
 }
 
-size_t mx_ir_range_size(const mx_location_range_t *range, uint8_t *flags) {
-    size_t size = mx_ir_uv_size(range->start);
-    uint8_t f = 0;
+uint8_t mx_ir_range_flags(const mx_location_range_t *range) {
+    uint8_t flags = 0;
     for (uint32_t i = 0; i < 2; i++) {
         if (range->names[i].kind != MX_VARHINT_NONE) {
-            f |= (uint8_t)(1 << i);
-            size += 1 + sizeof(const char *);
+            flags |= (uint8_t)(1 << i);
         }
     }
-    *flags = f;
+    return flags;
+}
+
+size_t mx_ir_range_size(const mx_location_range_t *range, uint8_t flags) {
+    size_t size = mx_ir_uv_size(range->start);
+    for (uint32_t i = 0; i < 2; i++) {
+        if ((flags & (1 << i)) != 0) {
+            size += 1 + 8;
+        }
+    }
     return size;
 }
 
 uint8_t *mx_ir_range_write(uint8_t *p, const mx_location_range_t *range, uint8_t flags) {
-    p = mx_ir_put_uv(p, range->start);
+    uint8_t *at = mx_ir_put_uv(p, range->start);
     for (uint32_t i = 0; i < 2; i++) {
         if ((flags & (1 << i)) != 0) {
-            p[0] = range->names[i].kind;
-            memcpy(p + 1, &range->names[i].name, sizeof(const char *));
-            p += 1 + sizeof(const char *);
+            at[0] = range->names[i].kind;
+            at = mx_ir_put_u64(at + 1, (uint64_t)(uintptr_t)range->names[i].name);
         }
     }
-    return p;
+    return at;
 }
 
-const uint8_t *mx_ir_range_read(const uint8_t *p, mx_location_range_t *range, uint8_t flags) {
+mx_ir_range_read_t mx_ir_range_read(const uint8_t *p, uint8_t flags, const mx_source_t *source) {
     mx_ir_uv_t start = mx_ir_get_uv(p);
-    p = start.next;
-    range->start = (uint32_t)start.value;
+    mx_ir_range_read_t got = {
+        .range = (mx_location_range_t) {
+            .source = source,
+            .start = (uint32_t)start.value,
+        },
+        .next = start.next,
+    };
     for (uint32_t i = 0; i < 2; i++) {
         if ((flags & (1 << i)) != 0) {
-            range->names[i].kind = p[0];
-            memcpy(&range->names[i].name, p + 1, sizeof(const char *));
-            p += 1 + sizeof(const char *);
-        } else {
-            range->names[i] = (mx_varname_t) { .name = NULL, .kind = MX_VARHINT_NONE };
+            got.range.names[i] = (mx_varname_t) {
+                .name = (const char *)(uintptr_t)mx_ir_get_u64(got.next + 1),
+                .kind = got.next[0],
+            };
+            got.next += 1 + 8;
         }
     }
-    return p;
+    return got;
 }
 
 size_t mx_ir_arg_size(mx_ir_arg_t arg) {
@@ -132,7 +167,7 @@ size_t mx_ir_arg_size(mx_ir_arg_t arg) {
             if (mx_obj_is_int(arg.lit)) {
                 return 1 + mx_ir_uv_size(mx_ir_zigzag(mx_obj_get_int(arg.lit)));
             } else {
-                return 1 + sizeof(uint16_t) + sizeof(mx_val_t);
+                return 1 + 2 + 8;
             }
         }
         case MX_IR_ARG_TYPE_SPREAD: {
@@ -151,48 +186,62 @@ uint8_t *mx_ir_arg_write(uint8_t *p, mx_ir_arg_t arg) {
         return mx_ir_put_uv(p + 1, mx_ir_zigzag(mx_obj_get_int(arg.lit)));
     }
     p[0] = arg.type;
-    p += 1;
     switch (arg.type) {
         case MX_IR_ARG_TYPE_REG: {
-            return mx_ir_put_uv(p, arg.reg);
+            return mx_ir_put_uv(p + 1, arg.reg);
         }
         case MX_IR_ARG_TYPE_LIT: {
-            uint16_t kind = arg.lit.kind;
-            memcpy(p, &kind, sizeof(uint16_t));
-            memcpy(p + sizeof(uint16_t), &arg.lit.val, sizeof(mx_val_t));
-            return p + sizeof(uint16_t) + sizeof(mx_val_t);
+            return mx_ir_put_u64(mx_ir_put_u16(p + 1, arg.lit.kind), arg.lit.val.bits);
         }
         default: {
-            return p;
+            return p + 1;
         }
     }
 }
 
 mx_ir_arg_read_t mx_ir_arg_read(const uint8_t *p) {
-    mx_ir_arg_t arg;
-    if (p[0] == MX_IR_ENC_INT) {
-        mx_ir_uv_t got = mx_ir_get_uv(p + 1);
-        arg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_LIT, .lit = mx_obj_of_int(mx_ir_unzigzag(got.value)) };
-        return (mx_ir_arg_read_t) { .next = got.next, .arg = arg };
-    }
-    arg.type = p[0];
-    p += 1;
-    switch (arg.type) {
+    switch (p[0]) {
+        case MX_IR_ENC_INT: {
+            mx_ir_uv_t got = mx_ir_get_uv(p + 1);
+            return (mx_ir_arg_read_t) {
+                .next = got.next,
+                .arg = (mx_ir_arg_t) {
+                    .type = MX_IR_ARG_TYPE_LIT,
+                    .lit = mx_obj_of_int(mx_ir_unzigzag(got.value)),
+                },
+            };
+        }
         case MX_IR_ARG_TYPE_REG: {
-            mx_ir_uv_t got = mx_ir_get_uv(p);
-            arg.reg = got.value;
-            return (mx_ir_arg_read_t) { .next = got.next, .arg = arg };
+            mx_ir_uv_t got = mx_ir_get_uv(p + 1);
+            return (mx_ir_arg_read_t) {
+                .next = got.next,
+                .arg = (mx_ir_arg_t) {
+                    .type = MX_IR_ARG_TYPE_REG,
+                    .reg = got.value,
+                },
+            };
         }
         case MX_IR_ARG_TYPE_LIT: {
-            uint16_t kind;
-            memcpy(&kind, p, sizeof(uint16_t));
-            arg.lit.kind = kind;
-            memcpy(&arg.lit.val, p + sizeof(uint16_t), sizeof(mx_val_t));
-            return (mx_ir_arg_read_t) { .next = p + sizeof(uint16_t) + sizeof(mx_val_t), .arg = arg };
+            return (mx_ir_arg_read_t) {
+                .next = p + 11,
+                .arg = (mx_ir_arg_t) {
+                    .type = MX_IR_ARG_TYPE_LIT,
+                    .lit = (mx_obj_t) {
+                        .kind = mx_ir_get_u16(p + 1),
+                        .val = (mx_val_t) {
+                            .bits = mx_ir_get_u64(p + 3),
+                        },
+                    },
+                },
+            };
         }
         default: {
-            arg.reg = 0;
-            return (mx_ir_arg_read_t) { .next = p, .arg = arg };
+            return (mx_ir_arg_read_t) {
+                .next = p + 1,
+                .arg = (mx_ir_arg_t) {
+                    .type = p[0],
+                },
+            };
         }
     }
 }
@@ -218,15 +267,16 @@ uint32_t mx_ir_block_emit(mx_ir_block_t *block, mx_ir_instr_t instr) {
     if (nargs > MX_IR_INSTR_MAX_ARGS) {
         mx_fatal("ir: instruction argument list too wide");
     }
-    uint8_t flags;
-    size_t size = 2 + mx_ir_range_size(&instr.range, &flags);
+    uint8_t flags = mx_ir_range_flags(&instr.range);
     bool has_out = instr.out.type == MX_IR_ARG_TYPE_REG;
-    if (has_out) {
-        size += sizeof(uint16_t);
-    }
-    // TABLE_NEW's size hint is patched once the constructor has been parsed,
-    // so it is written at a fixed width.
     bool is_hint = instr.op == MX_IR_INSTR_OPCODE_TABLE_NEW;
+    size_t out_size;
+    if (has_out) {
+        out_size = 2;
+    } else {
+        out_size = 0;
+    }
+    size_t size = 2 + mx_ir_range_size(&instr.range, flags) + out_size;
     for (uint32_t i = 0; i < nargs; i++) {
         if (is_hint) {
             size += 1 + MX_IR_TABLE_HINT_BYTES;
@@ -236,18 +286,15 @@ uint32_t mx_ir_block_emit(mx_ir_block_t *block, mx_ir_instr_t instr) {
     }
     mx_ir_block_grow(block, block->code_len + size);
     uint32_t at = block->code_len;
-    uint8_t *p = &block->code[at];
-    uint8_t meta = (uint8_t)(nargs | (flags << 3));
+    uint8_t *head = &block->code[at];
+    head[0] = instr.op;
+    head[1] = (uint8_t)(nargs | (flags << 3) | (has_out << 7));
+    uint8_t *range_end = mx_ir_range_write(head + 2, &instr.range, flags);
+    uint8_t *p;
     if (has_out) {
-        meta |= 0x80;
-    }
-    p[0] = instr.op;
-    p[1] = meta;
-    p = mx_ir_range_write(p + 2, &instr.range, flags);
-    if (has_out) {
-        uint16_t out = (uint16_t)instr.out.reg;
-        memcpy(p, &out, sizeof(uint16_t));
-        p += sizeof(uint16_t);
+        p = mx_ir_put_u16(range_end, (uint16_t)instr.out.reg);
+    } else {
+        p = range_end;
     }
     for (uint32_t i = 0; i < nargs; i++) {
         if (is_hint) {
@@ -262,41 +309,43 @@ uint32_t mx_ir_block_emit(mx_ir_block_t *block, mx_ir_instr_t instr) {
 }
 
 uint8_t *mx_ir_block_operands(mx_ir_block_t *block, uint32_t at) {
-    uint8_t *p = &block->code[at];
-    mx_location_range_t range;
-    return (uint8_t *)mx_ir_range_read(p + 2, &range, (uint8_t)((p[1] >> 3) & 3));
+    uint8_t *head = &block->code[at];
+    return (uint8_t *)mx_ir_range_read(head + 2, (uint8_t)((head[1] >> 3) & 3), NULL).next;
 }
 
 void mx_ir_block_patch_hint(mx_ir_block_t *block, uint32_t at, uint64_t hint) {
-    uint8_t *p = mx_ir_block_operands(block, at);
+    uint8_t *operands = mx_ir_block_operands(block, at);
+    uint8_t *arg;
     if ((block->code[at + 1] & 0x80) != 0) {
-        p += sizeof(uint16_t);
+        arg = operands + 2;
+    } else {
+        arg = operands;
     }
-    mx_ir_put_uv_wide(p + 1, mx_ir_zigzag((int64_t)hint), MX_IR_TABLE_HINT_BYTES);
+    mx_ir_put_uv_wide(arg + 1, mx_ir_zigzag((int64_t)hint), MX_IR_TABLE_HINT_BYTES);
 }
 
 void mx_ir_block_retarget(mx_ir_block_t *block, uint32_t at, uint32_t reg) {
-    uint16_t out = (uint16_t)reg;
-    memcpy(mx_ir_block_operands(block, at), &out, sizeof(uint16_t));
+    mx_ir_put_u16(mx_ir_block_operands(block, at), (uint16_t)reg);
 }
 
 mx_ir_step_t mx_ir_block_next(const mx_ir_block_t *block, uint32_t limit, mx_ir_cursor_t *cur) {
     if (cur->off >= limit) {
         return (mx_ir_step_t) { .is_valid = false };
     }
-    const uint8_t *p = &block->code[cur->off];
-    mx_ir_instr_t instr;
-    instr.op = p[0];
-    uint8_t meta = p[1];
-    instr.range.source = block->func->source;
-    p = mx_ir_range_read(p + 2, &instr.range, (uint8_t)((meta >> 3) & 3));
+    const uint8_t *head = &block->code[cur->off];
+    uint8_t meta = head[1];
+    mx_ir_range_read_t range = mx_ir_range_read(head + 2, (uint8_t)((meta >> 3) & 3), block->func->source);
+    mx_ir_arg_t out;
+    const uint8_t *p;
     if ((meta & 0x80) != 0) {
-        uint16_t out;
-        memcpy(&out, p, sizeof(uint16_t));
-        instr.out = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = out };
-        p += sizeof(uint16_t);
+        out = (mx_ir_arg_t) {
+            .type = MX_IR_ARG_TYPE_REG,
+            .reg = mx_ir_get_u16(range.next),
+        };
+        p = range.next + 2;
     } else {
-        instr.out = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
+        out = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
+        p = range.next;
     }
     uint32_t nargs = meta & 7;
     for (uint32_t i = 0; i < nargs; i++) {
@@ -304,10 +353,17 @@ mx_ir_step_t mx_ir_block_next(const mx_ir_block_t *block, uint32_t limit, mx_ir_
         cur->args[i] = got.arg;
         p = got.next;
     }
-    cur->args[nargs].type = MX_IR_ARG_TYPE_NONE;
-    instr.args = cur->args;
+    cur->args[nargs] = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
     cur->off = (uint32_t)(p - block->code);
-    return (mx_ir_step_t) { .instr = instr, .is_valid = true };
+    return (mx_ir_step_t) {
+        .instr = (mx_ir_instr_t) {
+            .range = range.range,
+            .args = cur->args,
+            .out = out,
+            .op = head[0],
+        },
+        .is_valid = true,
+    };
 }
 
 void mx_ir_block_set_branch(mx_t *vm, mx_ir_block_t *block, mx_ir_branch_t branch) {
@@ -318,80 +374,106 @@ void mx_ir_block_set_branch(mx_t *vm, mx_ir_block_t *block, mx_ir_branch_t branc
     if (nargs > MX_IR_BRANCH_MAX_ARGS) {
         mx_fatal("ir: branch argument list too wide");
     }
-    uint8_t flags;
-    size_t size = 1 + mx_ir_range_size(&branch.range, &flags) + mx_ir_uv_size(nargs);
-    uint8_t meta = flags;
-    if (branch.out.type == MX_IR_ARG_TYPE_REG) {
-        meta |= 4;
-        size += mx_ir_uv_size(branch.out.reg);
+    uint8_t flags = mx_ir_range_flags(&branch.range);
+    bool has_out = branch.out.type == MX_IR_ARG_TYPE_REG;
+    bool has_want = branch.want != 0;
+    size_t out_size;
+    if (has_out) {
+        out_size = mx_ir_uv_size(branch.out.reg);
+    } else {
+        out_size = 0;
     }
-    if (branch.want != 0) {
-        meta |= 8;
-        size += mx_ir_uv_size(branch.want);
+    size_t want_size;
+    if (has_want) {
+        want_size = mx_ir_uv_size(branch.want);
+    } else {
+        want_size = 0;
     }
+    size_t size = 1 + mx_ir_range_size(&branch.range, flags) + out_size + want_size + mx_ir_uv_size(nargs);
     for (uint32_t i = 0; i < nargs; i++) {
         size += mx_ir_arg_size(branch.args[i]);
     }
     mx_ir_block_grow(block, block->code_len + size);
     vm->arenas.ir.branches += (uint32_t)size;
     block->branch_len = (uint32_t)size;
-    uint8_t *p = block->code + block->code_len;
-    p[0] = meta;
-    p = mx_ir_range_write(p + 1, &branch.range, flags);
-    if ((meta & 4) != 0) {
-        p = mx_ir_put_uv(p, branch.out.reg);
+    uint8_t *head = block->code + block->code_len;
+    head[0] = (uint8_t)(flags | (has_out << 2) | (has_want << 3));
+    uint8_t *range_end = mx_ir_range_write(head + 1, &branch.range, flags);
+    uint8_t *out_end;
+    if (has_out) {
+        out_end = mx_ir_put_uv(range_end, branch.out.reg);
+    } else {
+        out_end = range_end;
     }
-    if ((meta & 8) != 0) {
-        p = mx_ir_put_uv(p, branch.want);
+    uint8_t *want_end;
+    if (has_want) {
+        want_end = mx_ir_put_uv(out_end, branch.want);
+    } else {
+        want_end = out_end;
     }
-    p = mx_ir_put_uv(p, nargs);
+    uint8_t *p = mx_ir_put_uv(want_end, nargs);
     for (uint32_t i = 0; i < nargs; i++) {
         p = mx_ir_arg_write(p, branch.args[i]);
     }
 }
 
 mx_ir_branch_t mx_ir_block_branch(const mx_ir_block_t *block) {
-    mx_ir_branch_t br = {
+    if (block->branch_len == 0) {
+        return (mx_ir_branch_t) {
+            .op = block->branch_op,
+            .targets = {block->branch_targets[0], block->branch_targets[1]},
+            .range = (mx_location_range_t) { .source = block->func->source },
+            .out = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE },
+        };
+    }
+    const uint8_t *head = block->code + block->code_len;
+    uint8_t meta = head[0];
+    mx_ir_range_read_t range = mx_ir_range_read(head + 1, meta & 3, block->func->source);
+    mx_ir_arg_t out;
+    const uint8_t *out_end;
+    if ((meta & 4) != 0) {
+        mx_ir_uv_t reg = mx_ir_get_uv(range.next);
+        out = (mx_ir_arg_t) {
+            .type = MX_IR_ARG_TYPE_REG,
+            .reg = reg.value,
+        };
+        out_end = reg.next;
+    } else {
+        out = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
+        out_end = range.next;
+    }
+    uint32_t want;
+    const uint8_t *want_end;
+    if ((meta & 8) != 0) {
+        mx_ir_uv_t got = mx_ir_get_uv(out_end);
+        want = (uint32_t)got.value;
+        want_end = got.next;
+    } else {
+        want = 0;
+        want_end = out_end;
+    }
+    mx_ir_uv_t count = mx_ir_get_uv(want_end);
+    return (mx_ir_branch_t) {
         .op = block->branch_op,
         .targets = {block->branch_targets[0], block->branch_targets[1]},
-        .range = {
-            .source = block->func->source,
-        },
-        .out = {
-            .type = MX_IR_ARG_TYPE_NONE,
-        },
+        .range = range.range,
+        .out = out,
+        .want = want,
+        .arg_count = (uint16_t)count.value,
+        .args_enc = count.next,
     };
-    if (block->branch_len != 0) {
-        const uint8_t *p = block->code + block->code_len;
-        uint8_t meta = p[0];
-        p = mx_ir_range_read(p + 1, &br.range, meta & 3);
-        if ((meta & 4) != 0) {
-            mx_ir_uv_t out = mx_ir_get_uv(p);
-            br.out = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = out.value };
-            p = out.next;
-        }
-        if ((meta & 8) != 0) {
-            mx_ir_uv_t want = mx_ir_get_uv(p);
-            br.want = (uint32_t)want.value;
-            p = want.next;
-        }
-        mx_ir_uv_t count = mx_ir_get_uv(p);
-        br.arg_count = (uint16_t)count.value;
-        br.args_enc = count.next;
-    }
-    return br;
 }
 
 mx_location_range_t mx_ir_block_range(const mx_ir_block_t *block, uint32_t at) {
-    mx_location_range_t range = { .source = block->func->source };
     if (at < block->code_len) {
-        const uint8_t *p = &block->code[at];
-        mx_ir_range_read(p + 2, &range, (uint8_t)((p[1] >> 3) & 3));
+        const uint8_t *head = &block->code[at];
+        return mx_ir_range_read(head + 2, (uint8_t)((head[1] >> 3) & 3), block->func->source).range;
     } else if (block->branch_len != 0) {
-        const uint8_t *p = block->code + block->code_len;
-        mx_ir_range_read(p + 1, &range, p[0] & 3);
+        const uint8_t *head = block->code + block->code_len;
+        return mx_ir_range_read(head + 1, head[0] & 3, block->func->source).range;
+    } else {
+        return (mx_location_range_t) { .source = block->func->source };
     }
-    return range;
 }
 
 uint16_t mx_ir_branch_args(const mx_ir_branch_t *br, mx_ir_arg_t *out_args) {
@@ -401,7 +483,7 @@ uint16_t mx_ir_branch_args(const mx_ir_branch_t *br, mx_ir_arg_t *out_args) {
         out_args[i] = got.arg;
         p = got.next;
     }
-    out_args[br->arg_count].type = MX_IR_ARG_TYPE_NONE;
+    out_args[br->arg_count] = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
     return br->arg_count;
 }
 
@@ -488,20 +570,21 @@ void mx_ir_live_local(mx_ir_block_t *block, uint64_t *uevar, uint64_t *kill, uin
 
 void mx_ir_liveness(mx_t *vm, mx_ir_block_t *entry) {
     mx_ir_func_t *func = entry->func;
-    mx_ir_blocks_t blocks = {0};
-    uint32_t cap = 16;
-    blocks.ptr = mx_mem_alloc(sizeof(mx_ir_block_t *) * cap);
+    mx_ir_blocks_t blocks = {
+        .ptr = mx_mem_alloc(sizeof(mx_ir_block_t *) * 16),
+        .len = 1,
+        .cap = 16,
+    };
     entry->is_marked = true;
     blocks.ptr[0] = entry;
-    blocks.len = 1;
     for (uint32_t i = 0; i < blocks.len; i++) {
         for (uint32_t t = 0; t < 2; t++) {
             mx_ir_block_t *target = blocks.ptr[i]->branch_targets[t];
             if (target != NULL && !target->is_marked) {
                 target->is_marked = true;
-                if (blocks.len == cap) {
-                    cap *= 2;
-                    blocks.ptr = mx_mem_realloc(blocks.ptr, sizeof(mx_ir_block_t *) * cap);
+                if (blocks.len == blocks.cap) {
+                    blocks.cap *= 2;
+                    blocks.ptr = mx_mem_realloc(blocks.ptr, sizeof(mx_ir_block_t *) * blocks.cap);
                 }
                 blocks.ptr[blocks.len] = target;
                 blocks.len += 1;

@@ -205,14 +205,16 @@ mx_obj_t mx_prim_tbc_unwind(mx_t *vm, mx_thread_t *th, uint32_t from, mx_obj_t e
         vm->tbcs.len -= 1;
         mx_obj_t handler = mx_prim_close_handler(vm, tbc.value);
         if (!mx_obj_is_nil(handler)) {
-            mx_obj_t pair[2] = {tbc.value, mx_obj_of_nil()};
+            mx_obj_t second;
             uint32_t n;
             if (mx_obj_is_error(err)) {
-                pair[1] = mx_error_payload(err);
+                second = mx_error_payload(err);
                 n = 2;
             } else {
+                second = mx_obj_of_nil();
                 n = 1;
             }
+            mx_obj_t pair[2] = {tbc.value, second};
             mx_vm_hold(vm, err);
             mx_obj_t got = mx_call(vm, handler, n, pair);
             mx_vm_release(vm);

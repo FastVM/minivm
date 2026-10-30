@@ -94,11 +94,14 @@ mx_error_chunkid_t mx_error_chunkid(const char *file) {
             memcpy(got.id + 3, file + 1 + len - (cap - 4), cap - 4);
             got.id[cap - 1] = '\0';
         } else {
+            size_t n;
             if (len > cap - 1) {
-                len = cap - 1;
+                n = cap - 1;
+            } else {
+                n = len;
             }
-            memcpy(got.id, file + 1, len);
-            got.id[len] = '\0';
+            memcpy(got.id, file + 1, n);
+            got.id[n] = '\0';
         }
     } else {
         const char *nl = strchr(file, '\n');
@@ -107,13 +110,19 @@ mx_error_chunkid_t mx_error_chunkid(const char *file) {
         if (nl == NULL && len <= room) {
             snprintf(got.id, cap, "[string \"%s\"]", file);
         } else {
+            size_t line;
             if (nl != NULL) {
-                len = (size_t)(nl - file);
+                line = (size_t)(nl - file);
+            } else {
+                line = len;
             }
-            if (len > room) {
-                len = room;
+            size_t n;
+            if (line > room) {
+                n = room;
+            } else {
+                n = line;
             }
-            snprintf(got.id, cap, "[string \"%.*s...\"]", (int32_t)len, file);
+            snprintf(got.id, cap, "[string \"%.*s...\"]", (int32_t)n, file);
         }
     }
     return got;
@@ -121,13 +130,15 @@ mx_error_chunkid_t mx_error_chunkid(const char *file) {
 
 mx_error_t *mx_error_new(mx_t *vm, mx_obj_t payload) {
     mx_error_t *err = mx_gc_alloc(vm, sizeof(mx_error_t));
-    err->head.kind = MX_KIND_ERROR;
-    err->payload_kind = payload.kind;
-    err->payload = payload.val;
-    err->operand = MX_ERROR_OPERAND_NONE;
-    err->is_raw = false;
-    err->is_handled = false;
-    err->is_hint_inline = false;
+    *err = (mx_error_t) {
+        .head = (mx_obj_head_t) { .kind = MX_KIND_ERROR },
+        .payload_kind = payload.kind,
+        .operand = MX_ERROR_OPERAND_NONE,
+        .is_raw = false,
+        .is_handled = false,
+        .is_hint_inline = false,
+        .payload = payload.val,
+    };
     return err;
 }
 
@@ -182,21 +193,27 @@ mx_obj_t mx_error_message(mx_t *vm, const mx_location_range_t *range, const char
 void mx_error_locate(mx_t *vm, mx_error_t *err, const mx_location_range_t *range) {
     if (err->is_raw) {
         mx_str_t *raw = mx_str_flat((mx_str_t *)mx_ref_obj(err->payload.ref));
-        mx_varname_t name = {0};
+        mx_varname_t name;
         if (err->operand != MX_ERROR_OPERAND_NONE && range != NULL && range->names[err->operand - MX_ERROR_OPERAND_LHS].name != NULL) {
             name = range->names[err->operand - MX_ERROR_OPERAND_LHS];
+        } else {
+            name = (mx_varname_t) { .name = NULL, .kind = MX_VARHINT_NONE };
         }
-        size_t hint_len = 0;
+        size_t hint_len;
         if (name.kind != MX_VARHINT_NONE) {
             hint_len = strlen(mx_varhint_names[name.kind]) + strlen(name.name) + 6;
+        } else {
+            hint_len = 0;
         }
         size_t where_len = sizeof(mx_error_chunkid_t) + MX_STR_INT_DIGITS + 3;
         mx_str_t *msg = mx_str_new_gc_sized(vm, (uint32_t)(where_len + raw->len + hint_len));
         mx_error_where(msg, range);
-        uint32_t split = raw->len;
         const char *space = memchr(raw->buf, ' ', raw->len);
+        uint32_t split;
         if (err->is_hint_inline && space != NULL) {
             split = (uint32_t)(space - raw->buf);
+        } else {
+            split = raw->len;
         }
         mx_str_append(msg, raw->buf, split);
         if (name.kind != MX_VARHINT_NONE) {

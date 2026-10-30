@@ -123,9 +123,11 @@ int32_t mx_std_utf8_char(mx_std_state_t *ls) {
 int32_t mx_std_utf8_offset(mx_std_state_t *ls) {
     mx_std_str_t s = mx_std_checkstring(ls, 1);
     int64_t n = mx_std_checkinteger(ls, 2);
-    int64_t def = 1;
+    int64_t def;
     if (n < 0) {
         def = (int64_t)s.len + 1;
+    } else {
+        def = 1;
     }
     int64_t at = mx_std_str_relat(mx_std_optinteger(ls, 3, def), s.len) - 1;
     if (ls->vm->std_error.is_set) {

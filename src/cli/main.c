@@ -67,18 +67,24 @@ mx_main_cmd_t mx_main_parse(int32_t argc, char **argv) {
             cmd.steps[cmd.nsteps] = (mx_main_step_t) { .kind = MX_MAIN_STEP_WARN };
             cmd.nsteps += 1;
         } else if (a[1] == 'e' || a[1] == 'l') {
-            const char *text = a + 2;
-            if (*text == '\0' && (i + 1 >= argc || argv[i + 1][0] == '-')) {
+            bool is_attached = a[2] != '\0';
+            const char *text;
+            if (!is_attached && (i + 1 >= argc || argv[i + 1][0] == '-')) {
                 cmd.bad = a;
                 cmd.is_missing_arg = true;
-            } else if (*text == '\0') {
+                text = a + 2;
+            } else if (!is_attached) {
                 i += 1;
                 text = argv[i];
+            } else {
+                text = a + 2;
             }
-            mx_main_step_kind_t kind = MX_MAIN_STEP_REQUIRE;
+            mx_main_step_kind_t kind;
             if (a[1] == 'e') {
                 kind = MX_MAIN_STEP_EXEC;
                 cmd.has_exec = true;
+            } else {
+                kind = MX_MAIN_STEP_REQUIRE;
             }
             cmd.steps[cmd.nsteps] = (mx_main_step_t) { .text = text, .kind = kind };
             cmd.nsteps += 1;
@@ -113,18 +119,22 @@ void mx_main_report(mx_t *vm, const char *prog, mx_obj_t err) {
 }
 
 void mx_main_msgh(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_obj_t v = mx_obj_of_nil();
+    mx_obj_t v;
     if (nargs > 0) {
         v = args[0];
+    } else {
+        v = mx_obj_of_nil();
     }
     mx_str_t *out = mx_str_new();
     if (mx_obj_is_string(v) || mx_obj_is_number(v)) {
         mx_meta_render(vm, out, v);
     } else {
         mx_obj_t meta = mx_meta_handler_of(vm, v, mx_lua_of(vm)->meta_keys[MX_LUA_META_KEY_TOSTRING]);
-        mx_obj_t got = mx_obj_of_nil();
+        mx_obj_t got;
         if (!mx_obj_is_nil(meta)) {
             got = mx_call(vm, meta, 1, &v);
+        } else {
+            got = mx_obj_of_nil();
         }
         if (mx_obj_is_string(got)) {
             mx_str_free(out);
@@ -183,11 +193,14 @@ mx_main_exit_t mx_main_run_file(mx_t *vm, const char *prog, const char *fname) {
         mx_str_free(name);
         return MX_MAIN_EXIT_ERROR;
     }
-    char *body = text.ptr;
-    size_t len = text.len;
-    if (len >= 3 && memcmp(body, "\xEF\xBB\xBF", 3) == 0) {
-        body += 3;
-        len -= 3;
+    char *body;
+    size_t len;
+    if (text.len >= 3 && memcmp(text.ptr, "\xEF\xBB\xBF", 3) == 0) {
+        body = text.ptr + 3;
+        len = text.len - 3;
+    } else {
+        body = text.ptr;
+        len = text.len;
     }
     if (len > 0 && body[0] == '#') {
         size_t eol = 0;
@@ -204,11 +217,14 @@ mx_main_exit_t mx_main_run_file(mx_t *vm, const char *prog, const char *fname) {
 
 mx_main_exit_t mx_main_require(mx_t *vm, const char *prog, const char *spec) {
     const char *eq = strchr(spec, '=');
-    const char *module = spec;
-    uint32_t global_len = (uint32_t)strlen(spec);
+    const char *module;
+    uint32_t global_len;
     if (eq != NULL) {
         module = eq + 1;
         global_len = (uint32_t)(eq - spec);
+    } else {
+        module = spec;
+        global_len = (uint32_t)strlen(spec);
     }
     mx_obj_table_t *g = mx_obj_get_table(mx_lua_of(vm)->std);
     mx_obj_t require = mx_table_get(g, mx_obj_intern_strn(vm, "require", 7));
@@ -224,11 +240,15 @@ mx_main_exit_t mx_main_require(mx_t *vm, const char *prog, const char *spec) {
 }
 
 mx_main_exit_t mx_main_run_init(mx_t *vm, const char *prog) {
-    const char *chunkname = "=LUA_INIT_5_5";
-    const char *init = getenv(chunkname + 1);
-    if (init == NULL) {
+    const char *versioned = getenv("LUA_INIT_5_5");
+    const char *chunkname;
+    const char *init;
+    if (versioned != NULL) {
+        chunkname = "=LUA_INIT_5_5";
+        init = versioned;
+    } else {
         chunkname = "=LUA_INIT";
-        init = getenv(chunkname + 1);
+        init = getenv("LUA_INIT");
     }
     if (init == NULL) {
         return MX_MAIN_EXIT_OK;
@@ -261,6 +281,24 @@ mx_main_exit_t mx_main_run_steps(mx_t *vm, const char *prog, const mx_main_cmd_t
     return status;
 }
 
+mx_main_exit_t mx_main_run_all(mx_t *vm, const char *prog, const mx_main_cmd_t *cmd, char **argv, bool is_interactive, bool is_version) {
+    if (!cmd->is_noenv && mx_main_run_init(vm, prog) != MX_MAIN_EXIT_OK) {
+        return MX_MAIN_EXIT_ERROR;
+    } else if (mx_main_run_steps(vm, prog, cmd) != MX_MAIN_EXIT_OK) {
+        return MX_MAIN_EXIT_ERROR;
+    } else if (cmd->script != 0 && cmd->is_stdin_script && mx_main_run_file(vm, prog, NULL) != MX_MAIN_EXIT_OK) {
+        return MX_MAIN_EXIT_ERROR;
+    } else if (cmd->script != 0 && !cmd->is_stdin_script && mx_main_run_file(vm, prog, argv[cmd->script]) != MX_MAIN_EXIT_OK) {
+        return MX_MAIN_EXIT_ERROR;
+    } else if (is_interactive) {
+        return mx_repl_run(vm, prog);
+    } else if (cmd->script == 0 && !cmd->has_exec && !is_version) {
+        return mx_main_run_file(vm, prog, NULL);
+    } else {
+        return MX_MAIN_EXIT_OK;
+    }
+}
+
 int main(int argc, char **argv) {
     const char *prog = argv[0];
     mx_main_cmd_t cmd = mx_main_parse(argc, argv);
@@ -276,33 +314,13 @@ int main(int argc, char **argv) {
         mx_main_drop_extensions(vm);
     }
     mx_lua_set_arg(vm, argc, argv, cmd.script);
-    if (cmd.script == 0 && !cmd.has_exec && !cmd.is_version && isatty(STDIN_FILENO)) {
-        cmd.is_interactive = true;
-        cmd.is_version = true;
-    }
-    if (cmd.is_version) {
+    bool is_auto = cmd.script == 0 && !cmd.has_exec && !cmd.is_version && isatty(STDIN_FILENO);
+    bool is_version = cmd.is_version || is_auto;
+    if (is_version) {
         printf("%s\n", MX_MAIN_BANNER);
         fflush(stdout);
     }
-    mx_main_exit_t status = MX_MAIN_EXIT_OK;
-    if (!cmd.is_noenv) {
-        status = mx_main_run_init(vm, prog);
-    }
-    if (status == MX_MAIN_EXIT_OK) {
-        status = mx_main_run_steps(vm, prog, &cmd);
-    }
-    if (status == MX_MAIN_EXIT_OK && cmd.script != 0) {
-        const char *fname = argv[cmd.script];
-        if (cmd.is_stdin_script) {
-            fname = NULL;
-        }
-        status = mx_main_run_file(vm, prog, fname);
-    }
-    if (status == MX_MAIN_EXIT_OK && cmd.is_interactive) {
-        status = mx_repl_run(vm, prog);
-    } else if (status == MX_MAIN_EXIT_OK && cmd.script == 0 && !cmd.has_exec && !cmd.is_version) {
-        status = mx_main_run_file(vm, prog, NULL);
-    }
+    mx_main_exit_t status = mx_main_run_all(vm, prog, &cmd, argv, cmd.is_interactive || is_auto, is_version);
     mx_mem_free(cmd.steps);
     mx_lua_close(vm);
     mx_vm_free(vm);

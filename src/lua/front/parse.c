@@ -226,12 +226,13 @@ void mx_parse_label_push(mx_parse_t *d, mx_parse_label_t label) {
 }
 
 mx_ir_block_t *mx_parse_here_block(mx_parse_t *d) {
-    mx_ir_block_t *cur = d->fn->cur;
-    if (cur == NULL || cur->code_len != 0) {
-        cur = mx_gen_block(d);
-        mx_gen_enter(d, cur);
+    if (d->fn->cur == NULL || d->fn->cur->code_len != 0) {
+        mx_ir_block_t *block = mx_gen_block(d);
+        mx_gen_enter(d, block);
+        return block;
+    } else {
+        return d->fn->cur;
     }
-    return cur;
 }
 
 mx_error_t *mx_parse_gotos_solve(mx_parse_t *d, mx_parse_scope_t *scope) {
@@ -242,9 +243,11 @@ mx_error_t *mx_parse_gotos_solve(mx_parse_t *d, mx_parse_scope_t *scope) {
         mx_parse_label_t *label = mx_parse_label_find(d, g->name, scope->first_label);
         if (label != NULL) {
             if (g->nvars < label->nvars) {
-                const char *var = d->vars.ptr[g->nvars].name;
-                if (var == d->gall) {
+                const char *var;
+                if (d->vars.ptr[g->nvars].name == d->gall) {
                     var = "*";
+                } else {
+                    var = d->vars.ptr[g->nvars].name;
                 }
                 return mx_parse_semerror(d, "<goto %s> at line %u jumps into the scope of '%s'", g->name, g->line, var);
             }
@@ -446,28 +449,28 @@ void mx_parse_mark_capture(mx_parse_fn_t *fn, uint32_t index) {
     fn->has_cells = true;
 }
 
-mx_error_t *mx_parse_upval_new(mx_parse_t *d, mx_parse_fn_t *fn, const char *name, uint32_t index, bool is_local, bool is_const, uint32_t *out) {
+mx_parse_upval_t mx_parse_upval_new(mx_parse_t *d, mx_parse_fn_t *fn, const char *name, uint32_t index, bool is_local, bool is_const) {
     if (fn->upvals.len >= 255) {
         mx_parse_fn_t *saved = d->fn;
         d->fn = fn;
         mx_error_t *error = mx_parse_limit(d, 255, "upvalues");
         d->fn = saved;
-        return error;
+        return (mx_parse_upval_t) { .error = error, .index = UINT32_MAX };
     }
     if (fn->upvals.len == fn->upvals.cap) {
         fn->upvals.cap = fn->upvals.cap * 2 + 4;
         fn->upvals.ptr = mx_mem_realloc(fn->upvals.ptr, sizeof(mx_ir_upval_t) * fn->upvals.cap);
         fn->upvals.is_const = mx_mem_realloc(fn->upvals.is_const, sizeof(bool) * fn->upvals.cap);
     }
-    *out = fn->upvals.len;
-    fn->upvals.ptr[fn->upvals.len] = (mx_ir_upval_t) {
+    uint32_t at = fn->upvals.len;
+    fn->upvals.ptr[at] = (mx_ir_upval_t) {
         .name = name,
         .index = index,
         .is_local = is_local,
     };
-    fn->upvals.is_const[fn->upvals.len] = is_const;
+    fn->upvals.is_const[at] = is_const;
     fn->upvals.len += 1;
-    return NULL;
+    return (mx_parse_upval_t) { .error = NULL, .index = at };
 }
 
 mx_error_t *mx_parse_resolve(mx_parse_t *d, mx_parse_fn_t *fn, const char *name, bool is_base, int64_t *coll, mx_parse_found_t *out) {
@@ -521,15 +524,13 @@ mx_error_t *mx_parse_resolve(mx_parse_t *d, mx_parse_fn_t *fn, const char *name,
     if (error != NULL) {
         return error;
     } else if (up.kind == MX_PARSE_FOUND_LOCAL) {
-        uint32_t index;
-        error = mx_parse_upval_new(d, fn, name, d->vars.ptr[up.index].reg, true, up.is_const, &index);
-        *out = (mx_parse_found_t) { .kind = MX_PARSE_FOUND_UPVAL, .index = index, .is_const = up.is_const };
-        return error;
+        mx_parse_upval_t got = mx_parse_upval_new(d, fn, name, d->vars.ptr[up.index].reg, true, up.is_const);
+        *out = (mx_parse_found_t) { .kind = MX_PARSE_FOUND_UPVAL, .index = got.index, .is_const = up.is_const };
+        return got.error;
     } else if (up.kind == MX_PARSE_FOUND_UPVAL) {
-        uint32_t index;
-        error = mx_parse_upval_new(d, fn, name, up.index, false, up.is_const, &index);
-        *out = (mx_parse_found_t) { .kind = MX_PARSE_FOUND_UPVAL, .index = index, .is_const = up.is_const };
-        return error;
+        mx_parse_upval_t got = mx_parse_upval_new(d, fn, name, up.index, false, up.is_const);
+        *out = (mx_parse_found_t) { .kind = MX_PARSE_FOUND_UPVAL, .index = got.index, .is_const = up.is_const };
+        return got.error;
     } else {
         *out = up;
         return NULL;
@@ -686,9 +687,11 @@ mx_error_t *mx_parse_funcargs(mx_parse_t *d, mx_parse_exp_t *e, mx_ir_arg_t self
     } else if (last.kind != MX_PARSE_EXP_VOID) {
         mx_gen_to_arg(d, &last);
     }
-    uint32_t nargs = nfixed;
+    uint32_t nargs;
     if (last.kind != MX_PARSE_EXP_VOID) {
-        nargs += 1;
+        nargs = nfixed + 1;
+    } else {
+        nargs = nfixed;
     }
     mx_parse_call_t *call = mx_scratch_alloc(d->vm, sizeof(mx_parse_call_t));
     *call = (mx_parse_call_t) {
@@ -1009,36 +1012,41 @@ void mx_parse_compare(mx_parse_t *d, mx_lex_type_t op, mx_parse_exp_t *e1, mx_pa
     mx_ir_branch_opcode_t bop;
     mx_ir_arg_t a;
     mx_ir_arg_t b;
-    uint8_t tslot = 0;
+    uint8_t tslot;
     switch (op) {
         case MX_LEX_TYPE_LT: {
             bop = MX_IR_BRANCH_OPCODE_IF_LT;
             a = e1->arg;
             b = e2->arg;
+            tslot = 0;
             break;
         }
         case MX_LEX_TYPE_GT: {
             bop = MX_IR_BRANCH_OPCODE_IF_LT;
             a = e2->arg;
             b = e1->arg;
+            tslot = 0;
             break;
         }
         case MX_LEX_TYPE_LE: {
             bop = MX_IR_BRANCH_OPCODE_IF_LE;
             a = e1->arg;
             b = e2->arg;
+            tslot = 0;
             break;
         }
         case MX_LEX_TYPE_GE: {
             bop = MX_IR_BRANCH_OPCODE_IF_LE;
             a = e2->arg;
             b = e1->arg;
+            tslot = 0;
             break;
         }
         case MX_LEX_TYPE_EQ2: {
             bop = MX_IR_BRANCH_OPCODE_IF_EQ;
             a = e1->arg;
             b = e2->arg;
+            tslot = 0;
             break;
         }
         default: {
@@ -1081,9 +1089,14 @@ void mx_parse_posfix(mx_parse_t *d, mx_lex_type_t op, mx_parse_exp_t *e1, mx_par
         mx_parse_compare(d, op, e1, e2, at);
     } else {
         mx_ir_instr_opcode_t iop = mx_parse_arith_op(op);
-        mx_obj_t folded;
-        if (iop != MX_IR_INSTR_OPCODE_CONCAT && mx_gen_is_numeral(e1) && mx_gen_is_numeral(e2) && mx_gen_fold_arith(iop, e1->arg.lit, e2->arg.lit, &folded)) {
-            *e1 = mx_gen_exp_arg(mx_gen_lit(folded), e1->start);
+        mx_parse_fold_t folded;
+        if (iop != MX_IR_INSTR_OPCODE_CONCAT && mx_gen_is_numeral(e1) && mx_gen_is_numeral(e2)) {
+            folded = mx_gen_fold_arith(iop, e1->arg.lit, e2->arg.lit);
+        } else {
+            folded = (mx_parse_fold_t) { .value = mx_obj_of_nil(), .is_folded = false };
+        }
+        if (folded.is_folded) {
+            *e1 = mx_gen_exp_arg(mx_gen_lit(folded.value), e1->start);
         } else {
             mx_gen_to_arg(d, e1);
             mx_gen_to_arg(d, e2);
@@ -1115,17 +1128,14 @@ mx_error_t *mx_parse_prefix(mx_parse_t *d, mx_lex_type_t op, mx_parse_exp_t *e, 
     } else {
         iop = MX_IR_INSTR_OPCODE_TABLE_LEN;
     }
-    mx_obj_t folded;
-    bool is_folded;
-    if (op == MX_LEX_TYPE_MINUS && mx_gen_is_numeral(e)) {
-        is_folded = mx_gen_fold_arith(MX_IR_INSTR_OPCODE_NEG, e->arg.lit, mx_obj_of_int(0), &folded);
-    } else if (op == MX_LEX_TYPE_TILDE && mx_gen_is_numeral(e)) {
-        is_folded = mx_gen_fold_arith(MX_IR_INSTR_OPCODE_BNOT, e->arg.lit, mx_obj_of_int(0), &folded);
+    mx_parse_fold_t folded;
+    if (op != MX_LEX_TYPE_HASH && mx_gen_is_numeral(e)) {
+        folded = mx_gen_fold_arith(iop, e->arg.lit, mx_obj_of_int(0));
     } else {
-        is_folded = false;
+        folded = (mx_parse_fold_t) { .value = mx_obj_of_nil(), .is_folded = false };
     }
-    if (is_folded) {
-        *e = mx_gen_exp_arg(mx_gen_lit(folded), at);
+    if (folded.is_folded) {
+        *e = mx_gen_exp_arg(mx_gen_lit(folded.value), at);
     } else {
         mx_gen_to_arg(d, e);
         mx_varname_t name = mx_parse_operand_name(d, e);
@@ -1276,13 +1286,19 @@ mx_error_t *mx_parse_constructor(mx_parse_t *d, mx_parse_exp_t *e) {
     }
     d->fn->reg_floor = floor;
     d->fn->free_reg = treg + 1;
+    uint32_t pos_hint;
     if (npos > 0xffff) {
-        npos = 0xffff;
+        pos_hint = 0xffff;
+    } else {
+        pos_hint = npos;
     }
+    uint32_t hash_hint;
     if (nhash > 0xffff) {
-        nhash = 0xffff;
+        hash_hint = 0xffff;
+    } else {
+        hash_hint = nhash;
     }
-    mx_ir_block_patch_hint(new_block, new_at, ((uint64_t)nhash << MX_IR_TABLE_HINT_BITS) | npos);
+    mx_ir_block_patch_hint(new_block, new_at, ((uint64_t)hash_hint << MX_IR_TABLE_HINT_BITS) | pos_hint);
     *e = mx_gen_exp_arg(table, open_at);
     return NULL;
 }
@@ -1713,12 +1729,13 @@ mx_error_t *mx_parse_localstat(mx_parse_t *d) {
     if (error != NULL) {
         return error;
     }
-    uint32_t nregs = nvars;
     bool is_ctc = nvars == nexps && consts[nvars - 1] && !closes[nvars - 1] && mx_gen_is_lit(&e);
+    uint32_t nregs;
     if (is_ctc) {
-        nregs -= 1;
+        nregs = nvars - 1;
         d->fn->free_reg = base + nregs;
     } else {
+        nregs = nvars;
         mx_parse_adjust(d, base, nvars, nexps, &e);
     }
     uint32_t at = d->lex.last_stop;
@@ -1993,19 +2010,19 @@ mx_error_t *mx_parse_fornum(mx_parse_t *d, const char *name, uint32_t start) {
     bool is_step_lit = mx_parse_is_nonzero_lit(&step);
     mx_ir_arg_t step_arg;
     if (is_step_lit) {
+        mx_gen_move(d, (uint32_t)step_reg.reg, step.arg);
         step_arg = step.arg;
     } else {
         mx_ir_arg_t args[1] = {step.arg};
-        step_arg = mx_gen_call_prim(d, mx_prim_forprep_step, args, 1, start);
-    }
-    mx_gen_move(d, (uint32_t)step_reg.reg, step_arg);
-    if (!is_step_lit) {
+        mx_gen_move(d, (uint32_t)step_reg.reg, mx_gen_call_prim(d, mx_prim_forprep_step, args, 1, start));
         step_arg = step_reg;
     }
     if (is_step_lit && mx_parse_is_nonzero_lit(&first)) {
-        mx_obj_t v = first.arg.lit;
-        if (!mx_obj_is_int(v) || !mx_obj_is_int(step.arg.lit)) {
-            v = mx_obj_of_number(mx_obj_get_number(v));
+        mx_obj_t v;
+        if (!mx_obj_is_int(first.arg.lit) || !mx_obj_is_int(step.arg.lit)) {
+            v = mx_obj_of_number(mx_obj_get_number(first.arg.lit));
+        } else {
+            v = first.arg.lit;
         }
         mx_gen_move(d, (uint32_t)iter.reg, mx_gen_lit(v));
     } else {
@@ -2570,8 +2587,7 @@ mx_parse_compiled_t mx_parse_chunk(mx_t *vm, const char *src, uint32_t len, cons
     mx_parse_fn_t fn;
     mx_parse_scope_t scope;
     mx_parse_fn_open(&d, &fn, 0, 0);
-    uint32_t env_index;
-    mx_parse_upval_new(&d, &fn, d.env_name, 0, false, false, &env_index);
+    mx_parse_upval_new(&d, &fn, d.env_name, 0, false, false);
     mx_parse_scope_open(&d, &scope, false);
     fn.is_vararg = true;
     fn.pack_reg = mx_gen_reg(&d);
@@ -2590,7 +2606,7 @@ mx_parse_compiled_t mx_parse_chunk(mx_t *vm, const char *src, uint32_t len, cons
     if (error == NULL) {
         error = mx_parse_scope_close(&d);
     }
-    mx_ir_block_t *entry = NULL;
+    mx_ir_block_t *entry;
     if (error == NULL) {
         if (fn.cur != NULL) {
             mx_parse_return(&d, NULL);
@@ -2601,6 +2617,7 @@ mx_parse_compiled_t mx_parse_chunk(mx_t *vm, const char *src, uint32_t len, cons
         while (d.fn != NULL) {
             mx_parse_fn_abandon(&d);
         }
+        entry = NULL;
     }
     mx_parse_free(&d);
     return (mx_parse_compiled_t) { .entry = entry, .error = error };

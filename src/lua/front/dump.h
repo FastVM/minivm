@@ -67,6 +67,7 @@ uint64_t mx_dump_read_uv(mx_dump_reader_t *r);
 const uint8_t *mx_dump_read_bytes(mx_dump_reader_t *r, size_t len);
 const char *mx_dump_read_name(mx_dump_reader_t *r);
 mx_location_range_t mx_dump_read_range(mx_dump_reader_t *r);
+mx_obj_t mx_dump_read_lit(mx_dump_reader_t *r, uint8_t tag);
 mx_ir_arg_t mx_dump_read_arg(mx_dump_reader_t *r, uint32_t nregs);
 bool mx_dump_is_lit(mx_ir_arg_t arg, mx_kind_t kind);
 bool mx_dump_is_index(mx_ir_arg_t arg, uint64_t limit);

@@ -37,9 +37,11 @@ bool mx_std_debug_validopt(const char *what) {
 
 void mx_std_debug_info_source(mx_std_state_t *ls, const mx_ir_block_t *head) {
     const mx_ir_func_t *func = head->func;
-    const char *file = "=?";
+    const char *file;
     if (func->source != NULL && func->source->file != NULL) {
         file = func->source->file;
+    } else {
+        file = "=?";
     }
     mx_std_pushstring(ls, file);
     mx_std_setfield(ls, -2, "source");
@@ -132,13 +134,13 @@ int32_t mx_std_debug_getinfo(mx_std_state_t *ls) {
     } else if (what[0] == '>') {
         return mx_std_argerror(ls, tg.arg + 2, "invalid option '>'");
     }
-    mx_frame_t f = { .is_valid = false };
+    mx_frame_t f;
     mx_obj_t fn;
     if (mx_std_isfunction(ls, tg.arg + 1)) {
+        f = (mx_frame_t) { .is_valid = false };
         fn = *mx_std_at(ls, tg.arg + 1);
     } else if (mx_std_isnumber(ls, tg.arg + 1)) {
-        int64_t level = mx_std_checkinteger(ls, tg.arg + 1);
-        f = mx_std_debug_frame(tg.th, level);
+        f = mx_std_debug_frame(tg.th, mx_std_checkinteger(ls, tg.arg + 1));
         if (vm->std_error.is_set) {
             return 0;
         } else if (!f.is_valid) {
@@ -152,9 +154,11 @@ int32_t mx_std_debug_getinfo(mx_std_state_t *ls) {
     if (!mx_std_debug_validopt(what)) {
         return mx_std_argerror(ls, tg.arg + 2, "invalid option");
     }
-    mx_ir_block_t *head = NULL;
+    mx_ir_block_t *head;
     if (mx_obj_is_closure(fn)) {
         head = mx_obj_get_closure(fn)->block;
+    } else {
+        head = NULL;
     }
     mx_std_newtable(ls);
     if (strchr(what, 'S') != NULL && head != NULL) {
@@ -163,9 +167,11 @@ int32_t mx_std_debug_getinfo(mx_std_state_t *ls) {
         mx_std_debug_info_c(ls);
     }
     if (strchr(what, 'l') != NULL) {
-        int64_t line = -1;
+        int64_t line;
         if (f.is_valid && f.is_lua) {
             line = mx_frame_line(&f);
+        } else {
+            line = -1;
         }
         mx_std_pushinteger(ls, line);
         mx_std_setfield(ls, -2, "currentline");
@@ -185,9 +191,11 @@ int32_t mx_std_debug_getinfo(mx_std_state_t *ls) {
         mx_std_setfield(ls, -2, "isvararg");
     }
     if (strchr(what, 'n') != NULL) {
-        mx_trace_name_t named = { .what = NULL, .name = NULL };
+        mx_trace_name_t named;
         if (f.is_valid) {
             named = mx_trace_namewhat(&f);
+        } else {
+            named = (mx_trace_name_t) { .what = NULL, .name = NULL };
         }
         if (named.what != NULL) {
             mx_std_pushstring(ls, named.name);
@@ -277,9 +285,11 @@ int32_t mx_std_debug_getlocal(mx_std_state_t *ls) {
         return 0;
     } else if (mx_std_isfunction(ls, tg.arg + 1)) {
         mx_obj_t fn = *mx_std_at(ls, tg.arg + 1);
-        const mx_ir_local_t *param = NULL;
+        const mx_ir_local_t *param;
         if (mx_obj_is_closure(fn)) {
-            param =mx_std_debug_param(mx_obj_get_closure(fn)->block->func, n);
+            param = mx_std_debug_param(mx_obj_get_closure(fn)->block->func, n);
+        } else {
+            param = NULL;
         }
         if (param == NULL) {
             mx_std_pushnil(ls);
@@ -485,9 +495,11 @@ int32_t mx_std_debug_traceback(mx_std_state_t *ls) {
         mx_std_pushvalue(ls, tg.arg + 1);
         return 1;
     }
-    int64_t def = 0;
+    int64_t def;
     if (tg.th == ls->th) {
         def = 1;
+    } else {
+        def = 0;
     }
     int64_t level = mx_std_optinteger(ls, tg.arg + 2, def);
     if (ls->vm->std_error.is_set) {
@@ -498,9 +510,11 @@ int32_t mx_std_debug_traceback(mx_std_state_t *ls) {
         mx_str_append(out, msg.ptr, (uint32_t)msg.len);
         mx_str_format(out, "\n");
     }
-    uint32_t from = UINT32_MAX;
+    uint32_t from;
     if (level >= 0 && level < UINT32_MAX) {
         from = (uint32_t)level;
+    } else {
+        from = UINT32_MAX;
     }
     mx_trace_append(ls->vm, out, tg.th, from);
     mx_std_pushlstring(ls, out->buf, out->len);
@@ -527,10 +541,13 @@ int32_t mx_std_debug_debug(mx_std_state_t *ls) {
 
 mx_obj_t mx_std_debug_hook_fire(mx_t *vm, const char *event, int64_t line) {
     mx_lua_hook_t *hook = &mx_lua_of(vm)->hook;
-    mx_obj_t args[2] = { mx_obj_intern(vm, event), mx_obj_of_nil() };
+    mx_obj_t at;
     if (line >= 0) {
-        args[1] = mx_obj_of_int(line);
+        at = mx_obj_of_int(line);
+    } else {
+        at = mx_obj_of_nil();
     }
+    mx_obj_t args[2] = { mx_obj_intern(vm, event), at };
     hook->is_in_hook = true;
     mx_obj_t got = mx_call(vm, hook->fn, 2, args);
     hook->is_in_hook = false;
@@ -616,9 +633,11 @@ mx_obj_t mx_std_debug_hook(mx_t *vm, mx_thread_t *th, const mx_resume_t *at, uin
             }
         }
         case 2: {
-            mx_obj_t err = mx_obj_of_nil();
+            mx_obj_t err;
             if ((hook->mask & MX_LUA_HOOK_RETURN) != 0) {
                 err = mx_std_debug_hook_fire(vm, "return", -1);
+            } else {
+                err = mx_obj_of_nil();
             }
             mx_std_debug_hook_returned(hook, th);
             return err;
@@ -630,36 +649,54 @@ mx_obj_t mx_std_debug_hook(mx_t *vm, mx_thread_t *th, const mx_resume_t *at, uin
     }
 }
 
+uint32_t mx_std_debug_flag(char c) {
+    switch (c) {
+        case 'c': {
+            return MX_LUA_HOOK_CALL;
+        }
+        case 'r': {
+            return MX_LUA_HOOK_RETURN;
+        }
+        case 'l': {
+            return MX_LUA_HOOK_LINE;
+        }
+        default: {
+            return 0;
+        }
+    }
+}
+
 int32_t mx_std_debug_sethook(mx_std_state_t *ls) {
     mx_t *vm = ls->vm;
     mx_std_debug_target_t tg = mx_std_debug_target(ls);
     mx_lua_hook_t *hook = &mx_lua_of(vm)->hook;
-    mx_obj_t fn = mx_obj_of_nil();
-    uint32_t mask = 0;
-    int64_t count = 0;
-    if (!mx_std_isnoneornil(ls, tg.arg + 1)) {
+    mx_obj_t fn;
+    uint32_t mask;
+    int64_t count;
+    if (mx_std_isnoneornil(ls, tg.arg + 1)) {
+        fn = mx_obj_of_nil();
+        mask = 0;
+        count = 0;
+    } else {
         const char *smask = mx_std_checkstring(ls, tg.arg + 2).ptr;
         mx_std_checktype(ls, tg.arg + 1, MX_LUA_TYPE_FUNCTION);
         count = mx_std_optinteger(ls, tg.arg + 3, 0);
         if (vm->std_error.is_set) {
             return 0;
         }
-        fn = *mx_std_at(ls, tg.arg + 1);
-        if (strchr(smask, 'c') != NULL) {
-            mask |= MX_LUA_HOOK_CALL;
-        }
-        if (strchr(smask, 'r') != NULL) {
-            mask |= MX_LUA_HOOK_RETURN;
-        }
-        if (strchr(smask, 'l') != NULL) {
-            mask |= MX_LUA_HOOK_LINE;
-        }
         if (count > 0) {
-            mask |= MX_LUA_HOOK_COUNT;
+            mask = MX_LUA_HOOK_COUNT;
+        } else {
+            mask = 0;
         }
-    }
-    if (mask == 0) {
-        fn = mx_obj_of_nil();
+        for (const char *p = smask; *p != '\0'; p++) {
+            mask |= mx_std_debug_flag(*p);
+        }
+        if (mask == 0) {
+            fn = mx_obj_of_nil();
+        } else {
+            fn = *mx_std_at(ls, tg.arg + 1);
+        }
     }
     hook->fn = fn;
     tg.th->has_hook = mask != 0;
@@ -681,19 +718,13 @@ int32_t mx_std_debug_gethook(mx_std_state_t *ls) {
         mx_std_pushnil(ls);
         return 1;
     }
-    char mask[4];
+    char mask[3];
     uint32_t n = 0;
-    if ((hook->mask & MX_LUA_HOOK_CALL) != 0) {
-        mask[n] = 'c';
-        n += 1;
-    }
-    if ((hook->mask & MX_LUA_HOOK_RETURN) != 0) {
-        mask[n] = 'r';
-        n += 1;
-    }
-    if ((hook->mask & MX_LUA_HOOK_LINE) != 0) {
-        mask[n] = 'l';
-        n += 1;
+    for (const char *p = "crl"; *p != '\0'; p++) {
+        if ((hook->mask & mx_std_debug_flag(*p)) != 0) {
+            mask[n] = *p;
+            n += 1;
+        }
     }
     mx_std_push(ls, hook->fn);
     mx_std_pushlstring(ls, mask, n);

@@ -21,10 +21,10 @@
 #define MX_STD_CFN_MAX_UPVALS 255
 #define MX_STD_MIN_RADIX 2
 #define MX_STD_MAX_RADIX 36
-#define MX_STD_UDATA_HEADER 16
 #define MX_STD_FMT_OUT_CAP 256
 #define MX_STD_MAX_STRING INT32_MAX
 #define MX_STD_QUALNAME_CAP 64
+#define MX_STD_IO_NUMBUF 201
 
 typedef int32_t mx_std_status_t;
 enum {
@@ -77,10 +77,18 @@ typedef struct mx_std_buf_t mx_std_buf_t;
 typedef struct mx_std_pack_t mx_std_pack_t;
 typedef struct mx_std_pack_res_t mx_std_pack_res_t;
 typedef struct mx_std_pack_det_t mx_std_pack_det_t;
+typedef union mx_std_pack_f32_t mx_std_pack_f32_t;
 typedef struct mx_std_utf8_decode_t mx_std_utf8_decode_t;
+typedef struct mx_std_io_num_t mx_std_io_num_t;
 typedef struct mx_std_fmt_step_t mx_std_fmt_step_t;
 typedef struct mx_std_str_t mx_std_str_t;
 typedef struct mx_std_qualname_t mx_std_qualname_t;
+typedef struct mx_std_udata_header_t mx_std_udata_header_t;
+
+struct mx_std_udata_header_t {
+    uint64_t size;
+    uint64_t nuv;
+};
 
 struct mx_std_state_t {
     mx_t *vm;
@@ -137,9 +145,21 @@ struct mx_std_pack_det_t {
     mx_std_pack_opt_t opt;
 };
 
+union mx_std_pack_f32_t {
+    uint32_t bits;
+    float f32;
+};
+
 struct mx_std_utf8_decode_t {
     uint32_t code;
     uint32_t len;
+};
+
+struct mx_std_io_num_t {
+    FILE *fp;
+    int32_t c;
+    size_t n;
+    char buf[MX_STD_IO_NUMBUF];
 };
 
 struct mx_std_str_t {
@@ -177,6 +197,7 @@ extern const mx_ffi_fast_reg_t mx_std_fasts[];
 
 void mx_ffi_base_assert(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_error(mx_t *vm, size_t nargs, mx_obj_t *args);
+mx_obj_t mx_std_base_visible_meta(mx_t *vm, mx_obj_table_t *meta);
 void mx_ffi_base_getmetatable(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_base_getmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_inext(mx_t *vm, size_t nargs, mx_obj_t *args);
@@ -226,7 +247,6 @@ void mx_ffi_string_pack(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_string_unpack(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_string_packsize(mx_t *vm, size_t nargs, mx_obj_t *args);
 
-
 void mx_ffi_table_concat(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_table_concat_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_table_append_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
@@ -264,10 +284,6 @@ void mx_ffi_math_type(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_math_ult(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_math_round_result(mx_t *vm, mx_obj_t *args, double d);
 
-
-
-
-
 void mx_ffi_coroutine_wrap_call(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_coroutine_wrap_fn(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_std_lib_open_into(mx_std_state_t *ls, const char *name);
@@ -284,7 +300,7 @@ mx_obj_t *mx_std_slots(mx_std_state_t *ls);
 void mx_std_sync(mx_std_state_t *ls);
 bool mx_std_grow(mx_std_state_t *ls, int32_t extra);
 void mx_std_push(mx_std_state_t *ls, mx_obj_t value);
-void mx_std_state_enter(mx_std_state_t *ls, mx_t *vm, mx_obj_t *args, int32_t nargs);
+mx_std_state_t mx_std_state_enter(mx_t *vm, mx_obj_t *args, int32_t nargs, const char *fnname, mx_std_fn_t *fn, bool can_pend);
 void mx_std_dispatch(mx_t *vm, mx_std_fn_t *fn, const char *fnname, mx_obj_t *args, int32_t nargs);
 void mx_std_dispatch_finish(mx_std_state_t *ls, int32_t nret);
 void mx_std_take_rets(mx_std_state_t *ls, int32_t from, mx_std_slot_t nresults);
@@ -419,6 +435,7 @@ void mx_std_open_vm(mx_std_state_t *ls);
 void mx_std_setup(mx_t *vm, mx_obj_t globals);
 
 void mx_std_cfn_init(mx_t *vm);
+mx_obj_t mx_std_cfn_alloc(mx_t *vm, mx_ffi_t *fn, mx_std_fn_t *std_fn, const char *std_name, uint32_t nup, const mx_obj_t *ups);
 mx_obj_t mx_std_cfn_new(mx_t *vm, mx_ffi_t *fn, uint32_t nup, const mx_obj_t *ups);
 mx_obj_t mx_std_cfn_new_std(mx_t *vm, mx_std_fn_t *fn, const char *name, uint32_t nup, const mx_obj_t *ups);
 void mx_ffi_std_foreign(mx_t *vm, size_t nargs, mx_obj_t *args);
@@ -479,6 +496,8 @@ int32_t mx_std_vm_gc(mx_std_state_t *ls);
 int32_t mx_std_vm_version(mx_std_state_t *ls);
 
 int64_t mx_std_str_relat(int64_t pos, size_t len);
+int64_t mx_std_str_start(int64_t pos, size_t len);
+int64_t mx_std_str_end(int64_t pos, size_t len);
 bool mx_std_pat_has_special(const char *p, size_t plen);
 const char *mx_std_pat_lmemfind(const char *s1, size_t l1, const char *s2, size_t l2);
 void mx_std_pat_push_one(mx_std_state_t *ls, const char *s, const mx_pattern_match_t *m, size_t idx);
@@ -518,11 +537,10 @@ int32_t mx_std_string_dump(mx_std_state_t *ls);
 bool mx_std_pack_digit(char c);
 size_t mx_std_pack_getnum(mx_std_pack_t *h, size_t df);
 int32_t mx_std_pack_getnumlimit(mx_std_pack_t *h, int32_t df);
-void mx_std_pack_init(mx_std_pack_t *h, mx_std_state_t *ls, const char *fmt);
 mx_std_pack_res_t mx_std_pack_getoption(mx_std_pack_t *h);
 mx_std_pack_det_t mx_std_pack_getdetails(mx_std_pack_t *h, size_t totalsize);
+int32_t mx_std_pack_index(int32_t i, int32_t size, bool is_little);
 void mx_std_pack_packint(mx_std_buf_t *b, uint64_t n, bool is_little, int32_t size, bool neg);
-void mx_std_pack_copywithendian(char *dest, const char *src, int32_t size, bool is_little);
 int64_t mx_std_pack_unpackint(mx_std_state_t *ls, const char *str, bool is_little, int32_t size, bool issigned);
 
 int32_t mx_std_utf8_char(mx_std_state_t *ls);
@@ -614,6 +632,7 @@ void mx_std_io_new_handle(mx_std_state_t *ls, FILE *fp, bool is_pipe);
 bool mx_std_io_checkmode(const char *mode);
 int32_t mx_std_io_fileresult(mx_std_state_t *ls, bool ok, const char *fname);
 int32_t mx_std_io_close_table(mx_std_state_t *ls, mx_obj_table_t *t);
+bool mx_std_io_num_take(mx_std_io_num_t *r, bool ok);
 bool mx_std_io_read_number(mx_std_state_t *ls, FILE *fp);
 bool mx_std_io_read_line(mx_std_state_t *ls, FILE *fp, bool chop);
 void mx_std_io_read_all(mx_std_state_t *ls, FILE *fp);
@@ -701,6 +720,7 @@ mx_obj_t mx_std_debug_hook_fire(mx_t *vm, const char *event, int64_t line);
 void mx_std_debug_hook_returned(mx_lua_hook_t *hook, mx_thread_t *th);
 mx_obj_t mx_std_debug_hook_step(mx_t *vm, mx_thread_t *th, const mx_resume_t *at);
 mx_obj_t mx_std_debug_hook(mx_t *vm, mx_thread_t *th, const mx_resume_t *at, uint32_t event);
+uint32_t mx_std_debug_flag(char c);
 int32_t mx_std_debug_sethook(mx_std_state_t *ls);
 int32_t mx_std_debug_gethook(mx_std_state_t *ls);
 int32_t mx_std_debug_getuservalue(mx_std_state_t *ls);

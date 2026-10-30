@@ -24,9 +24,11 @@ mx_frame_t mx_frame_next(mx_frame_iter_t *it) {
         }
         it->p = mx_link_caller(link);
         if (tag != MX_LINK_HOOK && tag != MX_LINK_META && tag != MX_LINK_SAFEPOINT) {
-            const mx_resume_t *at = NULL;
+            const mx_resume_t *at;
             if (rec_at != MX_THREAD_NONE) {
                 at = (const mx_resume_t *)th->slots[rec_at].bits;
+            } else {
+                at = NULL;
             }
             return (mx_frame_t) {
                 .th = th,
@@ -94,14 +96,17 @@ mx_obj_t mx_frame_reg(const mx_frame_t *f, uint32_t reg) {
         return mx_obj_of_nil();
     }
     mx_val_t *base = mx_frame_base(f);
-    mx_kind_t kind = MX_KIND_NIL;
+    mx_kind_t known;
     if (reg < f->at->nkinds) {
-        kind = f->at->kinds[reg];
+        known = f->at->kinds[reg];
+    } else {
+        known = MX_KIND_NIL;
     }
-    if (kind == MX_KIND_CELL_ANY || kind == MX_KIND_SLOT) {
+    mx_kind_t kind;
+    if (known == MX_KIND_CELL_ANY || known == MX_KIND_SLOT) {
         kind = (mx_kind_t)base[func->nregs + reg].bits;
     } else {
-        kind = mx_kind_plain(kind);
+        kind = mx_kind_plain(known);
     }
     return mx_obj_of_raw(kind, base[reg]);
 }
@@ -112,9 +117,11 @@ bool mx_frame_set_reg(mx_t *vm, const mx_frame_t *f, uint32_t reg, mx_obj_t v) {
         return false;
     }
     mx_val_t *base = mx_frame_base(f);
-    mx_kind_t old = MX_KIND_NIL;
+    mx_kind_t old;
     if (reg < f->at->nkinds) {
         old = f->at->kinds[reg];
+    } else {
+        old = MX_KIND_NIL;
     }
     base[reg] = v.val;
     if (mx_kind_is_cell(old)) {
@@ -123,9 +130,11 @@ bool mx_frame_set_reg(mx_t *vm, const mx_frame_t *f, uint32_t reg, mx_obj_t v) {
     if (old == MX_KIND_CELL_ANY || old == MX_KIND_SLOT || mx_kind_plain(old) == v.kind) {
         return true;
     }
-    uint32_t n = f->at->nkinds;
-    if (reg + 1 > n) {
+    uint32_t n;
+    if (reg + 1 > f->at->nkinds) {
         n = reg + 1;
+    } else {
+        n = f->at->nkinds;
     }
     mx_kind_t *kinds = mx_mem_calloc(sizeof(mx_kind_t) * n);
     memcpy(kinds, f->at->kinds, sizeof(mx_kind_t) * f->at->nkinds);
@@ -134,12 +143,26 @@ bool mx_frame_set_reg(mx_t *vm, const mx_frame_t *f, uint32_t reg, mx_obj_t v) {
     } else {
         kinds[reg] = v.kind;
     }
+    const mx_resume_t *at = f->at;
     mx_resume_t *over = mx_ir_alloc(vm, sizeof(mx_resume_t));
-    *over = *f->at;
-    over->kinds = mx_version_kinds_intern(vm, kinds, n);
-    over->nkinds = n;
-    over->is_override = true;
-    over->cache = (mx_resume_cache_t) {0};
+    *over = (mx_resume_t) {
+        .cache = (mx_resume_cache_t) {0},
+        .want = at->want,
+        .out = at->out,
+        .kind = at->kind,
+        .meta = at->meta,
+        .is_override = true,
+        .has_cell_out = at->has_cell_out,
+        .is_meta = at->is_meta,
+        .nkinds = (uint16_t)n,
+        .site_at = at->site_at,
+        .resume_at = at->resume_at,
+        .rb = at->rb,
+        .kinds = mx_version_kinds_intern(vm, kinds, n),
+        .site = at->site,
+        .target = at->target,
+        .target2 = at->target2,
+    };
     mx_mem_free(kinds);
     f->th->slots[f->rec_at].bits = (uintptr_t)over;
     return true;

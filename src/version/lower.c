@@ -6,9 +6,11 @@
 void mx_lower_reserve(mx_lower_t *l, size_t n) {
     if (l->w + n > l->end) {
         size_t used = (size_t)(l->w - l->start);
-        size_t last = 0;
+        size_t last;
         if (l->last_at != NULL) {
             last = (size_t)(l->last_at - l->start);
+        } else {
+            last = 0;
         }
         size_t cap = (size_t)(l->end - l->start) * 2 + n + 256;
         l->start = mx_mem_realloc(l->start, sizeof(uintptr_t) * cap);
@@ -46,11 +48,12 @@ mx_kind_t mx_lower_kind(mx_lower_t *l, mx_ir_arg_t arg) {
 }
 
 uintptr_t mx_lower_tag(mx_lower_t *l, mx_ir_arg_t arg) {
-    uintptr_t tag = (uintptr_t)mx_lower_kind(l, arg) << 1;
+    uintptr_t kind = (uintptr_t)mx_lower_kind(l, arg) << 1;
     if (arg.type == MX_IR_ARG_TYPE_LIT) {
-        tag |= 1;
+        return kind | 1;
+    } else {
+        return kind;
     }
-    return tag;
 }
 
 uintptr_t mx_lower_value(mx_ir_arg_t arg) {
@@ -88,20 +91,19 @@ void mx_lower_write(mx_lower_t *l, uint32_t out, mx_kind_t kind) {
     }
 }
 
-const mx_kind_t *mx_lower_snapshot(mx_lower_t *l, uint32_t *n) {
+mx_lower_snap_t mx_lower_snapshot(mx_lower_t *l) {
     uint32_t len = l->nregs;
     while (len > 0 && l->types[len - 1] == MX_KIND_NIL) {
         len -= 1;
     }
-    *n = len;
     if (l->snap == NULL || len != l->nsnap || memcmp(l->snap, l->types, sizeof(mx_kind_t) * len) != 0) {
         l->snap = mx_version_kinds_intern(l->vm, l->types, len);
         l->nsnap = len;
     }
-    return l->snap;
+    return (mx_lower_snap_t) { .kinds = l->snap, .nkinds = len };
 }
 
-mx_resume_t *mx_lower_rec(mx_lower_t *l, mx_resume_kind_t kind) {
+mx_resume_t *mx_lower_rec(mx_lower_t *l, mx_resume_t init) {
     mx_resume_t *rec = mx_arena_alloc(&l->vm->arenas.scratch, sizeof(mx_resume_t));
     if (l->recs.len == l->recs.cap) {
         l->recs.cap = l->recs.cap * 2 + 8;
@@ -109,30 +111,35 @@ mx_resume_t *mx_lower_rec(mx_lower_t *l, mx_resume_kind_t kind) {
     }
     l->recs.ptr[l->recs.len] = rec;
     l->recs.len += 1;
-    uint32_t nkinds;
-    const mx_kind_t *kinds = mx_lower_snapshot(l, &nkinds);
+    mx_lower_snap_t snap = mx_lower_snapshot(l);
     *rec = (mx_resume_t) {
-        .rb = l->rb,
-        .kinds = kinds,
-        .nkinds = nkinds,
-        .site = l->block,
+        .want = init.want,
+        .out = init.out,
+        .kind = init.kind,
+        .meta = init.meta,
+        .has_cell_out = init.has_cell_out,
+        .is_meta = init.is_meta,
+        .nkinds = (uint16_t)snap.nkinds,
         .site_at = l->site,
-        .target = l->block,
-        .resume_at = l->at,
-        .kind = kind,
+        .resume_at = init.resume_at,
+        .rb = l->rb,
+        .kinds = snap.kinds,
+        .site = l->block,
+        .target = init.target,
+        .target2 = init.target2,
     };
     l->vm->stats.version_bytes += sizeof(mx_resume_t);
-    l->vm->stats.recs[kind] += 1;
+    l->vm->stats.recs[init.kind] += 1;
     return rec;
 }
 
-void mx_lower_rec_out(mx_lower_t *l, mx_resume_t *rec, uint32_t out, uint32_t count) {
-    rec->out = (uint16_t)out;
+bool mx_lower_has_cell(mx_lower_t *l, uint32_t out, uint32_t count) {
     for (uint32_t r = out; r < out + count && r < l->nregs; r++) {
         if (mx_kind_is_open(l->types[r])) {
-            rec->has_cell_out = true;
+            return true;
         }
     }
+    return false;
 }
 
 uint32_t mx_lower_rec_index(const mx_lower_t *l, const mx_resume_t *rec) {
@@ -157,17 +164,12 @@ void mx_lower_rec_word(mx_lower_t *l, mx_resume_t *rec) {
     mx_lower_word(l, 0);
 }
 
-// A table store needs its resume record only to call __newindex or to report
-// an error, so it gets a descriptor instead and mx_run_void_rec builds the
-// record the first time it is needed. Words: record (0 until built), string
-// key slot, kinds, nkinds, site block, site offset | resume offset << 32.
 void mx_lower_void(mx_lower_t *l) {
-    uint32_t nkinds;
-    const mx_kind_t *kinds = mx_lower_snapshot(l, &nkinds);
+    mx_lower_snap_t snap = mx_lower_snapshot(l);
     mx_lower_word(l, 0);
     mx_lower_word(l, UINTPTR_MAX);
-    mx_lower_word(l, (uintptr_t)kinds);
-    mx_lower_word(l, nkinds);
+    mx_lower_word(l, (uintptr_t)snap.kinds);
+    mx_lower_word(l, snap.nkinds);
     mx_lower_word(l, (uintptr_t)l->block);
     mx_lower_word(l, (uintptr_t)l->site | ((uintptr_t)l->next_at << 32));
 }
@@ -182,8 +184,12 @@ uint32_t mx_lower_unknown_reg(mx_lower_t *l, mx_ir_arg_t *args, uint32_t n) {
 }
 
 void mx_lower_cell(mx_lower_t *l, uint32_t reg) {
-    mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_AT);
-    rec->out = reg;
+    mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+        .out = (uint16_t)reg,
+        .kind = MX_RESUME_AT,
+        .resume_at = l->at,
+        .target = l->block,
+    });
     mx_lower_hop(l, MX_HOP_CELL);
     mx_lower_word(l, reg);
     mx_lower_word(l, l->kslot + reg);
@@ -191,7 +197,11 @@ void mx_lower_cell(mx_lower_t *l, uint32_t reg) {
 }
 
 void mx_lower_hook(mx_lower_t *l, uintptr_t event) {
-    mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_ENTRY);
+    mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+        .kind = MX_RESUME_ENTRY,
+        .resume_at = l->at,
+        .target = l->block,
+    });
     mx_lower_hop(l, MX_HOP_HOOK);
     mx_lower_rec_word(l, rec);
     mx_lower_word(l, event);
@@ -251,11 +261,15 @@ mx_op_t mx_lower_op_of(mx_ir_instr_opcode_t op) {
 }
 
 void mx_lower_meta_op(mx_lower_t *l, mx_op_t op, mx_ir_instr_t *in, uint32_t nargs) {
-    l->at = l->next_at;
-    mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_AT);
-    mx_lower_rec_out(l, rec, (uint32_t)in->out.reg, 1);
-    rec->is_meta = true;
-    rec->meta = op;
+    mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+        .out = (uint16_t)in->out.reg,
+        .kind = MX_RESUME_AT,
+        .meta = op,
+        .has_cell_out = mx_lower_has_cell(l, (uint32_t)in->out.reg, 1),
+        .is_meta = true,
+        .resume_at = l->next_at,
+        .target = l->block,
+    });
     mx_lower_hop(l, MX_HOP_META_OP);
     mx_lower_word(l, op);
     mx_lower_word(l, nargs);
@@ -388,35 +402,49 @@ void mx_lower_arith(mx_lower_t *l, mx_ir_instr_t *in, mx_kind_t want) {
         mx_lower_write(l, out, want);
         return;
     }
+    mx_ir_arg_t fa;
+    mx_ir_arg_t fb;
     if (want == MX_KIND_FLOAT) {
-        a = mx_lower_as_float(l, a, l->frame);
-        b = mx_lower_as_float(l, b, l->frame + 1);
+        fa = mx_lower_as_float(l, a, l->frame);
+        fb = mx_lower_as_float(l, b, l->frame + 1);
+    } else {
+        fa = a;
+        fb = b;
     }
-    if (a.type == MX_IR_ARG_TYPE_LIT && b.type == MX_IR_ARG_TYPE_LIT) {
-        mx_lower_move_i(l, l->frame, a.lit);
-        a =(mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = l->frame };
+    mx_ir_arg_t ra;
+    if (fa.type == MX_IR_ARG_TYPE_LIT && fb.type == MX_IR_ARG_TYPE_LIT) {
+        mx_lower_move_i(l, l->frame, fa.lit);
+        ra = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = l->frame };
+    } else {
+        ra = fa;
     }
     mx_hop_t hop = mx_lower_binop_hop(in->op, want);
     bool can_fail = want == MX_KIND_INT && (in->op == MX_IR_INSTR_OPCODE_IDIV || in->op == MX_IR_INSTR_OPCODE_MOD);
-    mx_resume_t *rec = NULL;
+    mx_resume_t *rec;
     if (can_fail) {
-        rec = mx_lower_rec(l, MX_RESUME_ENTRY);
+        rec = mx_lower_rec(l, (mx_resume_t) {
+            .kind = MX_RESUME_ENTRY,
+            .resume_at = l->at,
+            .target = l->block,
+        });
+    } else {
+        rec = NULL;
     }
-    if (a.type == MX_IR_ARG_TYPE_REG && b.type == MX_IR_ARG_TYPE_REG) {
+    if (ra.type == MX_IR_ARG_TYPE_REG && fb.type == MX_IR_ARG_TYPE_REG) {
         mx_lower_hop(l, hop);
         mx_lower_word(l, out);
-        mx_lower_word(l, (uintptr_t)a.reg);
-        mx_lower_word(l, (uintptr_t)b.reg);
-    } else if (a.type == MX_IR_ARG_TYPE_REG) {
+        mx_lower_word(l, (uintptr_t)ra.reg);
+        mx_lower_word(l, (uintptr_t)fb.reg);
+    } else if (ra.type == MX_IR_ARG_TYPE_REG) {
         mx_lower_hop(l, hop + 1);
         mx_lower_word(l, out);
-        mx_lower_word(l, (uintptr_t)a.reg);
-        mx_lower_word(l, (uintptr_t)b.lit.val.bits);
+        mx_lower_word(l, (uintptr_t)ra.reg);
+        mx_lower_word(l, (uintptr_t)fb.lit.val.bits);
     } else {
         mx_lower_hop(l, hop + 2);
         mx_lower_word(l, out);
-        mx_lower_word(l, (uintptr_t)b.reg);
-        mx_lower_word(l, (uintptr_t)a.lit.val.bits);
+        mx_lower_word(l, (uintptr_t)fb.reg);
+        mx_lower_word(l, (uintptr_t)ra.lit.val.bits);
     }
     if (can_fail) {
         mx_lower_rec_word(l, rec);
@@ -468,13 +496,17 @@ bool mx_lower_is_int_reg(mx_lower_t *l, mx_ir_arg_t arg) {
 void mx_lower_concat(mx_lower_t *l, mx_ir_instr_t *in) {
     bool is_si = !mx_lower_is_int_reg(l, in->args[0]) && mx_lower_is_int_reg(l, in->args[1]);
     bool is_is = mx_lower_is_int_reg(l, in->args[0]) && !mx_lower_is_int_reg(l, in->args[1]);
-    mx_ir_arg_t a = in->args[0];
-    mx_ir_arg_t b = in->args[1];
-    if (!is_is) {
-        a = mx_lower_to_string(l, a, l->frame);
+    mx_ir_arg_t a;
+    if (is_is) {
+        a = in->args[0];
+    } else {
+        a = mx_lower_to_string(l, in->args[0], l->frame);
     }
-    if (!is_si) {
-        b = mx_lower_to_string(l, b, l->frame + 1);
+    mx_ir_arg_t b;
+    if (is_si) {
+        b = in->args[1];
+    } else {
+        b = mx_lower_to_string(l, in->args[1], l->frame + 1);
     }
     if (is_si) {
         mx_lower_hop(l, MX_HOP_CONCAT_SI);
@@ -547,11 +579,6 @@ void mx_lower_closure(mx_lower_t *l, mx_ir_instr_t *in) {
     mx_lower_write(l, (uint32_t)in->out.reg, MX_KIND_CLOSURE);
 }
 
-// l->fresh marks the registers holding a table that TABLE_NEW made earlier in
-// this stream. Until Lua code can run, nothing else can see those tables, so
-// stores into them with a literal key need no metatable check and can't fail.
-// Code can run in the middle of a stream only through a generic table store's
-// __newindex, or a hook, so those end it, and so does overwriting a register.
 void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
     if (in->out.type == MX_IR_ARG_TYPE_REG && in->out.reg < l->nregs) {
         l->fresh[in->out.reg] = false;
@@ -615,13 +642,15 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
                 mx_lower_word(l, out);
                 mx_lower_word(l, (uintptr_t)a.reg);
             } else {
-                uint32_t at = l->at;
-                l->at = l->next_at;
-                mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_AT);
-                l->at = at;
-                mx_lower_rec_out(l, rec, out, 1);
-                rec->is_meta = true;
-                rec->meta = MX_OP_LEN;
+                mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+                    .out = (uint16_t)out,
+                    .kind = MX_RESUME_AT,
+                    .meta = MX_OP_LEN,
+                    .has_cell_out = mx_lower_has_cell(l, out, 1),
+                    .is_meta = true,
+                    .resume_at = l->next_at,
+                    .target = l->block,
+                });
                 mx_lower_hop(l, MX_HOP_LEN_TABLE);
                 mx_lower_word(l, out);
                 mx_lower_word(l, (uintptr_t)a.reg);
@@ -682,7 +711,11 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
             break;
         }
         case MX_IR_INSTR_OPCODE_UNPACK: {
-            mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_AT);
+            mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+                .kind = MX_RESUME_AT,
+                .resume_at = l->at,
+                .target = l->block,
+            });
             mx_lower_hop(l, MX_HOP_UNPACK);
             mx_lower_word(l, (uintptr_t)in->args[0].reg);
             mx_lower_rec_word(l, rec);
@@ -757,17 +790,20 @@ void mx_lower_cmp_form(mx_lower_t *l, mx_hop_t rr, mx_ir_branch_t *br, mx_ir_arg
     } else if (b.type == MX_IR_ARG_TYPE_REG) {
         mx_lower_cmp_hop(l, rr + 2, br, (uintptr_t)b.reg, (uintptr_t)a.lit.val.bits);
     } else {
-        a = mx_lower_lit_reg(l, a, l->frame);
-        mx_lower_cmp_hop(l, rr + 1, br, (uintptr_t)a.reg, (uintptr_t)b.lit.val.bits);
+        mx_ir_arg_t ra = mx_lower_lit_reg(l, a, l->frame);
+        mx_lower_cmp_hop(l, rr + 1, br, (uintptr_t)ra.reg, (uintptr_t)b.lit.val.bits);
     }
 }
 
 void mx_lower_meta_cmp(mx_lower_t *l, mx_ir_branch_t *br, mx_op_t op, mx_ir_arg_t a, mx_ir_arg_t b) {
-    mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_BRANCH);
-    rec->target = br->targets[0];
-    rec->target2 = br->targets[1];
-    rec->is_meta = true;
-    rec->meta = op;
+    mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+        .kind = MX_RESUME_BRANCH,
+        .meta = op,
+        .is_meta = true,
+        .resume_at = l->at,
+        .target = br->targets[0],
+        .target2 = br->targets[1],
+    });
     mx_lower_hop(l, MX_HOP_META_CMP);
     mx_lower_word(l, op);
     mx_lower_rec_word(l, rec);
@@ -775,8 +811,12 @@ void mx_lower_meta_cmp(mx_lower_t *l, mx_ir_branch_t *br, mx_op_t op, mx_ir_arg_
     mx_lower_arg(l, b);
 }
 
-bool mx_lower_lit_exact_float(mx_obj_t v) {
-    return mx_obj_is_float(v) || (mx_obj_get_int(v) >= -((int64_t)1 << 53) && mx_obj_get_int(v) <= ((int64_t)1 << 53));
+mx_ir_arg_t mx_lower_exact_float(mx_ir_arg_t arg) {
+    if (arg.type == MX_IR_ARG_TYPE_LIT && (mx_obj_is_float(arg.lit) || (mx_obj_get_int(arg.lit) >= -((int64_t)1 << 53) && mx_obj_get_int(arg.lit) <= ((int64_t)1 << 53)))) {
+        return (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_LIT, .lit = mx_obj_of_number(mx_obj_get_number(arg.lit)) };
+    } else {
+        return arg;
+    }
 }
 
 void mx_lower_compare(mx_lower_t *l, mx_ir_branch_t *br, mx_ir_arg_t a, mx_ir_arg_t b) {
@@ -799,39 +839,35 @@ void mx_lower_compare(mx_lower_t *l, mx_ir_branch_t *br, mx_ir_arg_t a, mx_ir_ar
     } else if (ka == MX_KIND_FLOAT && kb == MX_KIND_FLOAT) {
         mx_lower_cmp_form(l, MX_HOP_BR_LT_F64_RR + 3 * rel, br, a, b);
     } else if (mx_kind_is_number(ka) && mx_kind_is_number(kb)) {
-        if (a.type == MX_IR_ARG_TYPE_LIT && mx_lower_lit_exact_float(a.lit)) {
-            a.lit = mx_obj_of_number(mx_obj_get_number(a.lit));
-            ka = MX_KIND_FLOAT;
-        }
-        if (b.type == MX_IR_ARG_TYPE_LIT && mx_lower_lit_exact_float(b.lit)) {
-            b.lit = mx_obj_of_number(mx_obj_get_number(b.lit));
-            kb = MX_KIND_FLOAT;
-        }
-        if (ka == MX_KIND_FLOAT && kb == MX_KIND_FLOAT) {
-            mx_lower_cmp_form(l, MX_HOP_BR_LT_F64_RR + 3 * rel, br, a, b);
+        mx_ir_arg_t fa = mx_lower_exact_float(a);
+        mx_ir_arg_t fb = mx_lower_exact_float(b);
+        mx_kind_t fka = mx_lower_kind(l, fa);
+        mx_kind_t fkb = mx_lower_kind(l, fb);
+        if (fka == MX_KIND_FLOAT && fkb == MX_KIND_FLOAT) {
+            mx_lower_cmp_form(l, MX_HOP_BR_LT_F64_RR + 3 * rel, br, fa, fb);
         } else {
-            a = mx_lower_lit_reg(l, a, l->frame);
-            b = mx_lower_lit_reg(l, b, l->frame + 1);
-            if (ka == MX_KIND_INT) {
-                mx_lower_cmp_hop(l, MX_HOP_BR_LT_INT_F64 + rel, br, (uintptr_t)a.reg, (uintptr_t)b.reg);
+            mx_ir_arg_t ra = mx_lower_lit_reg(l, fa, l->frame);
+            mx_ir_arg_t rb = mx_lower_lit_reg(l, fb, l->frame + 1);
+            if (fka == MX_KIND_INT) {
+                mx_lower_cmp_hop(l, MX_HOP_BR_LT_INT_F64 + rel, br, (uintptr_t)ra.reg, (uintptr_t)rb.reg);
             } else if (rel == 2) {
-                mx_lower_cmp_hop(l, MX_HOP_BR_EQ_INT_F64, br, (uintptr_t)b.reg, (uintptr_t)a.reg);
+                mx_lower_cmp_hop(l, MX_HOP_BR_EQ_INT_F64, br, (uintptr_t)rb.reg, (uintptr_t)ra.reg);
             } else {
-                mx_lower_cmp_hop(l, MX_HOP_BR_LT_F64_INT + rel, br, (uintptr_t)a.reg, (uintptr_t)b.reg);
+                mx_lower_cmp_hop(l, MX_HOP_BR_LT_F64_INT + rel, br, (uintptr_t)ra.reg, (uintptr_t)rb.reg);
             }
         }
     } else if (ka == MX_KIND_STRING && kb == MX_KIND_STRING) {
-        a = mx_lower_lit_reg(l, a, l->frame);
-        b = mx_lower_lit_reg(l, b, l->frame + 1);
-        mx_lower_cmp_hop(l, MX_HOP_BR_LT_STR + rel, br, (uintptr_t)a.reg, (uintptr_t)b.reg);
+        mx_ir_arg_t ra = mx_lower_lit_reg(l, a, l->frame);
+        mx_ir_arg_t rb = mx_lower_lit_reg(l, b, l->frame + 1);
+        mx_lower_cmp_hop(l, MX_HOP_BR_LT_STR + rel, br, (uintptr_t)ra.reg, (uintptr_t)rb.reg);
     } else if (rel == 2 && ka != kb && (ka < MX_KIND_FIRST_DATA || kb < MX_KIND_FIRST_DATA)) {
         mx_lower_goto(l, br->targets[1]);
     } else if (rel == 2 && ka == MX_KIND_NIL) {
         mx_lower_goto(l, br->targets[0]);
     } else if (rel == 2 && ka < MX_KIND_FIRST_DATA && ka != MX_KIND_ERROR) {
-        a = mx_lower_lit_reg(l, a, l->frame);
-        b = mx_lower_lit_reg(l, b, l->frame + 1);
-        mx_lower_cmp_hop(l, MX_HOP_BR_EQ_RAW, br, (uintptr_t)a.reg, (uintptr_t)b.reg);
+        mx_ir_arg_t ra = mx_lower_lit_reg(l, a, l->frame);
+        mx_ir_arg_t rb = mx_lower_lit_reg(l, b, l->frame + 1);
+        mx_lower_cmp_hop(l, MX_HOP_BR_EQ_RAW, br, (uintptr_t)ra.reg, (uintptr_t)rb.reg);
     } else {
         mx_lower_meta_cmp(l, br, mop, a, b);
     }
@@ -857,9 +893,11 @@ void mx_lower_close_all(mx_lower_t *l) {
 
 void mx_lower_call(mx_lower_t *l, mx_ir_branch_t *br, mx_ir_arg_t *args, uint32_t nargs) {
     bool is_spread = nargs > 1 && args[nargs - 1].type == MX_IR_ARG_TYPE_SPREAD;
-    uint32_t n = nargs - 1;
+    uint32_t n;
     if (is_spread) {
-        n -= 1;
+        n = nargs - 2;
+    } else {
+        n = nargs - 1;
     }
     mx_ir_arg_t fn = args[0];
     bool is_lua = fn.type == MX_IR_ARG_TYPE_REG && mx_lower_kind(l, fn) == MX_KIND_CLOSURE;
@@ -882,15 +920,28 @@ void mx_lower_call(mx_lower_t *l, mx_ir_branch_t *br, mx_ir_arg_t *args, uint32_
     mx_resume_t *rec;
     if (is_tail) {
         mx_lower_close_all(l);
-        rec = mx_lower_rec(l, MX_RESUME_RETURN);
-        rec->want = MX_IR_WANT_MULTI;
+        rec = mx_lower_rec(l, (mx_resume_t) {
+            .want = MX_IR_WANT_MULTI,
+            .kind = MX_RESUME_RETURN,
+            .resume_at = l->at,
+            .target = l->block,
+        });
+    } else if (br->out.type == MX_IR_ARG_TYPE_REG) {
+        rec = mx_lower_rec(l, (mx_resume_t) {
+            .want = br->want,
+            .out = (uint16_t)br->out.reg,
+            .kind = MX_RESUME_VALUES,
+            .has_cell_out = mx_lower_has_cell(l, (uint32_t)br->out.reg, br->want),
+            .resume_at = l->at,
+            .target = br->targets[0],
+        });
     } else {
-        rec = mx_lower_rec(l, MX_RESUME_VALUES);
-        rec->target = br->targets[0];
-        rec->want = br->want;
-        if (br->out.type == MX_IR_ARG_TYPE_REG) {
-            mx_lower_rec_out(l, rec, (uint32_t)br->out.reg, br->want);
-        }
+        rec = mx_lower_rec(l, (mx_resume_t) {
+            .want = br->want,
+            .kind = MX_RESUME_VALUES,
+            .resume_at = l->at,
+            .target = br->targets[0],
+        });
     }
     if (is_lua) {
         mx_lower_hop(l, MX_HOP_CALL_LUA);
@@ -922,9 +973,11 @@ void mx_lower_return(mx_lower_t *l, mx_ir_arg_t *args, uint32_t nargs) {
         mx_lower_hop(l, MX_HOP_RETURN1);
         mx_lower_arg(l, args[0]);
     } else {
-        uint32_t n = nargs;
+        uint32_t n;
         if (is_spread) {
-            n -= 1;
+            n = nargs - 1;
+        } else {
+            n = nargs;
         }
         mx_lower_hop(l, MX_HOP_RETURN);
         mx_lower_word(l, n);
@@ -934,12 +987,16 @@ void mx_lower_return(mx_lower_t *l, mx_ir_arg_t *args, uint32_t nargs) {
 }
 
 void mx_lower_table_get(mx_lower_t *l, mx_ir_branch_t *br, mx_ir_arg_t *args) {
-    mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_VALUES);
-    rec->target = br->targets[0];
-    mx_lower_rec_out(l, rec, (uint32_t)br->out.reg, 1);
-    rec->want = 1;
-    rec->is_meta = true;
-    rec->meta = MX_OP_GET;
+    mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+        .want = 1,
+        .out = (uint16_t)br->out.reg,
+        .kind = MX_RESUME_VALUES,
+        .meta = MX_OP_GET,
+        .has_cell_out = mx_lower_has_cell(l, (uint32_t)br->out.reg, 1),
+        .is_meta = true,
+        .resume_at = l->at,
+        .target = br->targets[0],
+    });
     mx_kind_t tk = mx_lower_kind(l, args[0]);
     mx_kind_t kk = mx_lower_kind(l, args[1]);
     bool is_table = args[0].type == MX_IR_ARG_TYPE_REG && tk == l->vm->kinds.table;
@@ -1016,10 +1073,14 @@ void mx_lower_branch(mx_lower_t *l, mx_ir_branch_t *br) {
             break;
         }
         case MX_IR_BRANCH_OPCODE_UPVAL_GET: {
-            mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_VALUES);
-            rec->target = br->targets[0];
-            mx_lower_rec_out(l, rec, (uint32_t)br->out.reg, 1);
-            rec->want = 1;
+            mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+                .want = 1,
+                .out = (uint16_t)br->out.reg,
+                .kind = MX_RESUME_VALUES,
+                .has_cell_out = mx_lower_has_cell(l, (uint32_t)br->out.reg, 1),
+                .resume_at = l->at,
+                .target = br->targets[0],
+            });
             uint32_t index = (uint32_t)mx_obj_get_int(args[0].lit);
             mx_kind_t *seen = &l->block->func->upval_seen[index];
             mx_lower_hop(l, MX_HOP_UPVAL_GET);
@@ -1081,10 +1142,14 @@ bool mx_lower_guard(mx_lower_t *l, mx_ir_branch_t *br) {
     if (seen == MX_KIND_NIL || seen == MX_KIND_MIXED || !is_chainable) {
         return false;
     }
-    mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_VALUES);
-    rec->target = target;
-    mx_lower_rec_out(l, rec, (uint32_t)br->out.reg, 1);
-    rec->want = 1;
+    mx_resume_t *rec = mx_lower_rec(l, (mx_resume_t) {
+        .want = 1,
+        .out = (uint16_t)br->out.reg,
+        .kind = MX_RESUME_VALUES,
+        .has_cell_out = mx_lower_has_cell(l, (uint32_t)br->out.reg, 1),
+        .resume_at = l->at,
+        .target = target,
+    });
     mx_lower_hop(l, MX_HOP_UPVAL_GUARD);
     mx_lower_word(l, (uintptr_t)br->out.reg);
     mx_lower_word(l, index);
@@ -1123,7 +1188,9 @@ void mx_lower_try_fuse(mx_lower_t *l, uintptr_t *br_at) {
 void mx_lower_finish(mx_lower_t *l) {
     mx_t *vm = l->vm;
     mx_version_t *rb = l->rb;
-    rb->out = mx_lower_snapshot(l, &rb->nout);
+    mx_lower_snap_t snap = mx_lower_snapshot(l);
+    rb->out = snap.kinds;
+    rb->nout = snap.nkinds;
     size_t used = (size_t)(l->w - l->start);
     uintptr_t *stream = mx_arena_alloc(&vm->arenas.code, sizeof(uintptr_t) * used + sizeof(mx_resume_t) * l->recs.len);
     memcpy(stream, l->start, sizeof(uintptr_t) * used);
@@ -1163,11 +1230,13 @@ void mx_lower_version(mx_t *vm, mx_version_t *rb) {
         .types = vm->lower_scratch.types,
         .fresh = vm->lower_scratch.fresh,
         .block = rb->block,
+        .visited = {rb->block},
         .start = vm->code_scratch.ptr,
+        .w = vm->code_scratch.ptr + 1,
         .end = vm->code_scratch.ptr + vm->code_scratch.cap,
         .mark = mx_arena_mark(&vm->arenas.scratch),
-        .recs = { .ptr = vm->lower_scratch.recs.ptr, .cap = vm->lower_scratch.recs.cap },
-        .refs = { .ptr = vm->lower_scratch.refs.ptr, .cap = vm->lower_scratch.refs.cap },
+        .recs = (mx_lower_recs_t) { .ptr = vm->lower_scratch.recs.ptr, .cap = vm->lower_scratch.recs.cap },
+        .refs = (mx_lower_fixups_t) { .ptr = vm->lower_scratch.refs.ptr, .cap = vm->lower_scratch.refs.cap },
         .nvisited = 1,
         .nregs = nregs,
         .kslot = nregs,
@@ -1176,8 +1245,6 @@ void mx_lower_version(mx_t *vm, mx_version_t *rb) {
         .is_hooked = rb->is_hooked,
         .needs_call_hook = rb->is_hooked && rb->start_at == 0 && rb->block->is_func,
     };
-    l.visited[0] = rb->block;
-    l.w = l.start + 1;
     for (uint32_t i = 0; i < nregs; i++) {
         if (i < rb->nkinds) {
             l.types[i] = rb->kinds[i];
@@ -1197,8 +1264,10 @@ void mx_lower_version(mx_t *vm, mx_version_t *rb) {
             l.next_at = cur.off;
             uint32_t nargs = mx_ir_args_count(in->args);
             bool is_untyped = in->op == MX_IR_INSTR_OPCODE_CLOSURE || in->op == MX_IR_INSTR_OPCODE_KEEP || in->op == MX_IR_INSTR_OPCODE_CLOSE;
-            uint32_t unknown = UINT32_MAX;
-            if (!is_untyped) {
+            uint32_t unknown;
+            if (is_untyped) {
+                unknown = UINT32_MAX;
+            } else {
                 unknown = mx_lower_unknown_reg(&l, in->args, nargs);
             }
             if (unknown != UINT32_MAX) {
@@ -1213,13 +1282,17 @@ void mx_lower_version(mx_t *vm, mx_version_t *rb) {
             if (l.is_hooked && in->op != MX_IR_INSTR_OPCODE_KEEP && in->op != MX_IR_INSTR_OPCODE_VARARGS) {
                 mx_lower_hook(&l, 0);
             }
-            mx_kind_t a = MX_KIND_NIL;
-            mx_kind_t b = MX_KIND_NIL;
+            mx_kind_t a;
             if (nargs >= 1) {
                 a = mx_lower_kind(&l, in->args[0]);
+            } else {
+                a = MX_KIND_NIL;
             }
+            mx_kind_t b;
             if (nargs >= 2) {
                 b = mx_lower_kind(&l, in->args[1]);
+            } else {
+                b = MX_KIND_NIL;
             }
             if (mx_lower_needs_meta(&l, in, a, b)) {
                 mx_lower_meta_op(&l, mx_lower_op_of(in->op), in, nargs);

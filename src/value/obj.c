@@ -5,9 +5,11 @@
 
 mx_obj_closure_t *mx_obj_closure_new(mx_t *vm, mx_ir_block_t *block, uint32_t len) {
     mx_obj_closure_t *closure = mx_gc_alloc(vm, sizeof(mx_obj_closure_t) + sizeof(mx_obj_upval_t *) * len);
-    closure->head.kind = MX_KIND_CLOSURE;
-    closure->block = block;
-    closure->len = len;
+    *closure = (mx_obj_closure_t) {
+        .head = (mx_obj_head_t) { .kind = MX_KIND_CLOSURE },
+        .len = len,
+        .block = block,
+    };
     for (uint32_t i = 0; i < len; i++) {
         closure->upvals[i] = NULL;
     }
@@ -16,12 +18,14 @@ mx_obj_closure_t *mx_obj_closure_new(mx_t *vm, mx_ir_block_t *block, uint32_t le
 
 mx_obj_upval_t *mx_obj_upval_new_closed(mx_t *vm, mx_obj_t value) {
     mx_obj_upval_t *uv = mx_gc_alloc(vm, sizeof(mx_obj_upval_t));
-    uv->head.kind = vm->kinds.upval;
-    uv->at = 0;
-    uv->thread = NULL;
-    uv->next = NULL;
-    uv->kind_at = 0;
-    uv->value = value;
+    *uv = (mx_obj_upval_t) {
+        .head = (mx_obj_head_t) { .kind = vm->kinds.upval },
+        .at = 0,
+        .thread = NULL,
+        .next = NULL,
+        .kind_at = 0,
+        .value = value,
+    };
     return uv;
 }
 
@@ -38,9 +42,11 @@ mx_str_t *mx_intern_tomb(void) {
 }
 
 void mx_intern_grow(mx_t *vm) {
-    uint32_t ncap = MX_INTERN_MIN_SLOTS;
+    uint32_t ncap;
     if (vm->interns.cap >= MX_INTERN_MIN_SLOTS) {
         ncap = vm->interns.cap * 2;
+    } else {
+        ncap = MX_INTERN_MIN_SLOTS;
     }
     mx_str_t **nmap = mx_mem_calloc(sizeof(mx_str_t *) * ncap);
     for (uint32_t i = 0; i < vm->interns.cap; i++) {
@@ -80,15 +86,21 @@ mx_obj_t mx_intern_insert(mx_t *vm, const char *bytes, uint32_t len) {
         }
         i = (i + 1) & mask;
     }
+    uint32_t slot;
     if ((vm->interns.used + vm->interns.tombs + 1) * MX_INTERN_LOAD_DEN
         > vm->interns.cap * MX_INTERN_LOAD_NUM) {
         mx_intern_grow(vm);
-        mask = vm->interns.cap - 1;
-        i = hash & mask;
-        while (vm->interns.slots[i] != NULL) {
-            i = (i + 1) & mask;
+        uint32_t nmask = vm->interns.cap - 1;
+        uint32_t j = hash & nmask;
+        while (vm->interns.slots[j] != NULL) {
+            j = (j + 1) & nmask;
         }
-        has_tomb = false;
+        slot = j;
+    } else if (has_tomb) {
+        vm->interns.tombs -= 1;
+        slot = tomb;
+    } else {
+        slot = i;
     }
     mx_str_t *buf = mx_str_new_gc_sized(vm, len);
     mx_str_append(buf, bytes, len);
@@ -100,14 +112,8 @@ mx_obj_t mx_intern_insert(mx_t *vm, const char *bytes, uint32_t len) {
     }
     vm->interns.young.ptr[vm->interns.young.len] = buf;
     vm->interns.young.len += 1;
-    if (has_tomb) {
-        vm->interns.slots[tomb] = buf;
-        vm->interns.tombs -= 1;
-        vm->interns.used += 1;
-    } else {
-        vm->interns.slots[i] = buf;
-        vm->interns.used += 1;
-    }
+    vm->interns.slots[slot] = buf;
+    vm->interns.used += 1;
     return mx_obj_of_string(buf);
 }
 

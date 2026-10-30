@@ -134,17 +134,17 @@ uint32_t mx_gen_reg(mx_parse_t *d) {
 
 uint32_t mx_gen_nactive_regs(mx_parse_t *d) {
     mx_parse_fn_t *fn = d->fn;
-    uint32_t level = fn->reg_floor;
     for (uint32_t i = d->vars.len; i > fn->first_var; i--) {
         const mx_parse_var_t *var = &d->vars.ptr[i - 1];
         if (var->reg != UINT32_MAX) {
-            if (var->reg + 1 > level) {
-                level = var->reg + 1;
+            if (var->reg + 1 > fn->reg_floor) {
+                return var->reg + 1;
+            } else {
+                return fn->reg_floor;
             }
-            return level;
         }
     }
-    return level;
+    return fn->reg_floor;
 }
 
 void mx_gen_free_arg(mx_parse_t *d, mx_ir_arg_t arg) {
@@ -212,8 +212,19 @@ void mx_gen_enter(mx_parse_t *d, mx_ir_block_t *block) {
 
 void mx_gen_link(mx_parse_t *d, mx_ir_branch_t branch) {
     mx_ir_block_t *next = mx_gen_block(d);
-    branch.targets[0] = next;
-    mx_gen_branch(d, branch);
+    mx_gen_branch(
+        d,
+        (mx_ir_branch_t) {
+            .range = branch.range,
+            .targets = {next, branch.targets[1]},
+            .args = branch.args,
+            .args_enc = branch.args_enc,
+            .out = branch.out,
+            .want = branch.want,
+            .arg_count = branch.arg_count,
+            .op = branch.op,
+        }
+    );
     d->fn->cur = next;
 }
 
@@ -257,12 +268,14 @@ void mx_gen_patch(mx_parse_t *d, uint32_t list, mx_ir_block_t *target) {
 
 void mx_gen_patch_here(mx_parse_t *d, uint32_t list) {
     if (list != MX_PARSE_NO_HOLE) {
-        mx_ir_block_t *cur = d->fn->cur;
-        if (cur == NULL || cur->code_len != 0) {
-            cur = mx_gen_block(d);
-            mx_gen_enter(d, cur);
+        mx_ir_block_t *target;
+        if (d->fn->cur == NULL || d->fn->cur->code_len != 0) {
+            target = mx_gen_block(d);
+            mx_gen_enter(d, target);
+        } else {
+            target = d->fn->cur;
         }
-        mx_gen_patch(d, list, cur);
+        mx_gen_patch(d, list, target);
     }
 }
 
@@ -311,9 +324,13 @@ mx_parse_exp_t mx_gen_exp(mx_parse_exp_kind_t kind, uint32_t start) {
 }
 
 mx_parse_exp_t mx_gen_exp_arg(mx_ir_arg_t arg, uint32_t start) {
-    mx_parse_exp_t e = mx_gen_exp(MX_PARSE_EXP_VALUE, start);
-    e.arg = arg;
-    return e;
+    return (mx_parse_exp_t) {
+        .arg = arg,
+        .t = MX_PARSE_NO_HOLE,
+        .f = MX_PARSE_NO_HOLE,
+        .start = start,
+        .kind = MX_PARSE_EXP_VALUE,
+    };
 }
 
 bool mx_gen_has_jumps(const mx_parse_exp_t *e) {
@@ -622,8 +639,13 @@ mx_ir_arg_t mx_gen_call_prim(mx_parse_t *d, mx_ffi_t *fn, mx_ir_arg_t *args, uin
     for (uint32_t i = 0; i < nargs; i++) {
         call->args[i + 1] = args[i];
     }
-    mx_parse_exp_t e = mx_gen_exp(MX_PARSE_EXP_CALL, start);
-    e.call = call;
+    mx_parse_exp_t e = {
+        .call = call,
+        .t = MX_PARSE_NO_HOLE,
+        .f = MX_PARSE_NO_HOLE,
+        .start = start,
+        .kind = MX_PARSE_EXP_CALL,
+    };
     mx_gen_call(d, &e, 1);
     return e.arg;
 }
@@ -660,15 +682,60 @@ void mx_gen_store(mx_parse_t *d, const mx_parse_exp_t *target, mx_parse_exp_t *v
     }
 }
 
-bool mx_gen_fold_int(mx_obj_t v, int64_t *out) {
-    mx_obj_int_t got = mx_obj_to_int(v);
-    *out = got.value;
-    return got.is_int;
+mx_parse_fold_t mx_gen_fold_bits(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b) {
+    mx_obj_int_t x = mx_obj_to_int(a);
+    mx_obj_int_t y = mx_obj_to_int(b);
+    if (!x.is_int || !y.is_int) {
+        return (mx_parse_fold_t) { .value = mx_obj_of_nil(), .is_folded = false };
+    }
+    switch (op) {
+        case MX_IR_INSTR_OPCODE_BAND: {
+            return (mx_parse_fold_t) { .value = mx_obj_of_int(x.value & y.value), .is_folded = true };
+        }
+        case MX_IR_INSTR_OPCODE_BOR: {
+            return (mx_parse_fold_t) { .value = mx_obj_of_int(x.value | y.value), .is_folded = true };
+        }
+        case MX_IR_INSTR_OPCODE_BXOR: {
+            return (mx_parse_fold_t) { .value = mx_obj_of_int(x.value ^ y.value), .is_folded = true };
+        }
+        case MX_IR_INSTR_OPCODE_SHL: {
+            return (mx_parse_fold_t) { .value = mx_obj_of_int(mx_num_shl(x.value, y.value)), .is_folded = true };
+        }
+        case MX_IR_INSTR_OPCODE_SHR: {
+            return (mx_parse_fold_t) { .value = mx_obj_of_int(mx_num_shr(x.value, y.value)), .is_folded = true };
+        }
+        default: {
+            return (mx_parse_fold_t) { .value = mx_obj_of_int(~x.value), .is_folded = true };
+        }
+    }
 }
 
-bool mx_gen_fold_arith(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b, mx_obj_t *out) {
+mx_obj_t mx_gen_fold_ints(mx_ir_instr_opcode_t op, int64_t x, int64_t y) {
+    switch (op) {
+        case MX_IR_INSTR_OPCODE_ADD: {
+            return mx_obj_of_int((int64_t)((uint64_t)x + (uint64_t)y));
+        }
+        case MX_IR_INSTR_OPCODE_SUB: {
+            return mx_obj_of_int((int64_t)((uint64_t)x - (uint64_t)y));
+        }
+        case MX_IR_INSTR_OPCODE_MUL: {
+            return mx_obj_of_int((int64_t)((uint64_t)x * (uint64_t)y));
+        }
+        case MX_IR_INSTR_OPCODE_IDIV: {
+            return mx_obj_of_int(mx_num_idiv(x, y));
+        }
+        case MX_IR_INSTR_OPCODE_MOD: {
+            return mx_obj_of_int(mx_num_imod(x, y));
+        }
+        default: {
+            return mx_obj_of_int((int64_t)(0 - (uint64_t)x));
+        }
+    }
+}
+
+mx_parse_fold_t mx_gen_fold_arith(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b) {
     if (!mx_obj_is_number(a) || !mx_obj_is_number(b)) {
-        return false;
+        return (mx_parse_fold_t) { .value = mx_obj_of_nil(), .is_folded = false };
     }
     switch (op) {
         case MX_IR_INSTR_OPCODE_BAND:
@@ -677,24 +744,7 @@ bool mx_gen_fold_arith(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b, mx_obj_t
         case MX_IR_INSTR_OPCODE_SHL:
         case MX_IR_INSTR_OPCODE_SHR:
         case MX_IR_INSTR_OPCODE_BNOT: {
-            int64_t x;
-            int64_t y;
-            if (!mx_gen_fold_int(a, &x) || !mx_gen_fold_int(b, &y)) {
-                return false;
-            } else if (op == MX_IR_INSTR_OPCODE_BAND) {
-                *out = mx_obj_of_int(x & y);
-            } else if (op == MX_IR_INSTR_OPCODE_BOR) {
-                *out = mx_obj_of_int(x | y);
-            } else if (op == MX_IR_INSTR_OPCODE_BXOR) {
-                *out = mx_obj_of_int(x ^ y);
-            } else if (op == MX_IR_INSTR_OPCODE_SHL) {
-                *out = mx_obj_of_int(mx_num_shl(x, y));
-            } else if (op == MX_IR_INSTR_OPCODE_SHR) {
-                *out = mx_obj_of_int(mx_num_shr(x, y));
-            } else {
-                *out = mx_obj_of_int(~x);
-            }
-            return true;
+            return mx_gen_fold_bits(op, a, b);
         }
         default: {
             break;
@@ -702,39 +752,11 @@ bool mx_gen_fold_arith(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b, mx_obj_t
     }
     bool is_div = op == MX_IR_INSTR_OPCODE_DIV || op == MX_IR_INSTR_OPCODE_IDIV || op == MX_IR_INSTR_OPCODE_MOD;
     if (is_div && mx_obj_get_number(b) == 0) {
-        return false;
+        return (mx_parse_fold_t) { .value = mx_obj_of_nil(), .is_folded = false };
     }
     bool ints = mx_obj_is_int(a) && mx_obj_is_int(b) && op != MX_IR_INSTR_OPCODE_DIV && op != MX_IR_INSTR_OPCODE_POW;
     if (ints) {
-        int64_t x = mx_obj_get_int(a);
-        int64_t y = mx_obj_get_int(b);
-        switch (op) {
-            case MX_IR_INSTR_OPCODE_ADD: {
-                *out = mx_obj_of_int((int64_t)((uint64_t)x + (uint64_t)y));
-                break;
-            }
-            case MX_IR_INSTR_OPCODE_SUB: {
-                *out = mx_obj_of_int((int64_t)((uint64_t)x - (uint64_t)y));
-                break;
-            }
-            case MX_IR_INSTR_OPCODE_MUL: {
-                *out = mx_obj_of_int((int64_t)((uint64_t)x * (uint64_t)y));
-                break;
-            }
-            case MX_IR_INSTR_OPCODE_IDIV: {
-                *out = mx_obj_of_int(mx_num_idiv(x, y));
-                break;
-            }
-            case MX_IR_INSTR_OPCODE_MOD: {
-                *out = mx_obj_of_int(mx_num_imod(x, y));
-                break;
-            }
-            default: {
-                *out = mx_obj_of_int((int64_t)(0 - (uint64_t)x));
-                break;
-            }
-        }
-        return true;
+        return (mx_parse_fold_t) { .value = mx_gen_fold_ints(op, mx_obj_get_int(a), mx_obj_get_int(b)), .is_folded = true };
     }
     double x = mx_obj_get_number(a);
     double y = mx_obj_get_number(b);
@@ -774,9 +796,8 @@ bool mx_gen_fold_arith(mx_ir_instr_opcode_t op, mx_obj_t a, mx_obj_t b, mx_obj_t
         }
     }
     if (r != r || r == 0) {
-        return false;
+        return (mx_parse_fold_t) { .value = mx_obj_of_nil(), .is_folded = false };
     } else {
-        *out = mx_obj_of_number(r);
-        return true;
+        return (mx_parse_fold_t) { .value = mx_obj_of_number(r), .is_folded = true };
     }
 }

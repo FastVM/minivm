@@ -81,8 +81,10 @@ void mx_dump_arg(mx_dump_writer_t *w, mx_ir_arg_t arg) {
             break;
         }
         case MX_KIND_FLOAT: {
+            uint8_t bits[8];
+            mx_ir_put_u64(bits, v.val.bits);
             mx_str_append_byte(w->out, MX_DUMP_LIT_FLOAT);
-            mx_str_append(w->out, (const char *)&v.val.bits, sizeof(v.val.bits));
+            mx_str_append(w->out, (const char *)bits, 8);
             break;
         }
         case MX_KIND_STRING: {
@@ -225,9 +227,11 @@ void mx_dump_func(mx_dump_writer_t *w, mx_ir_block_t *head) {
 mx_str_t *mx_dump_function(mx_t *vm, mx_ir_block_t *head, bool is_strip) {
     mx_dump_writer_t w = { .vm = vm, .out = mx_str_new(), .is_strip = is_strip };
     const mx_source_t *source = head->func->source;
-    uint32_t len = head->func->stop;
-    if (len > source->len) {
+    uint32_t len;
+    if (head->func->stop > source->len) {
         len = source->len;
+    } else {
+        len = head->func->stop;
     }
     mx_str_append(w.out, MX_DUMP_MAGIC, MX_DUMP_MAGIC_LEN);
     mx_dump_name(&w, source->file);
@@ -289,8 +293,10 @@ const char *mx_dump_read_name(mx_dump_reader_t *r) {
 }
 
 mx_location_range_t mx_dump_read_range(mx_dump_reader_t *r) {
-    mx_location_range_t range = { .source = r->source };
-    range.start = (uint32_t)mx_dump_read_uv(r);
+    mx_location_range_t range = {
+        .source = r->source,
+        .start = (uint32_t)mx_dump_read_uv(r),
+    };
     for (uint32_t i = 0; i < 2; i++) {
         const uint8_t *kind = mx_dump_read_bytes(r, 1);
         if (kind != NULL && kind[0] > MX_VARHINT_FOR_ITERATOR) {
@@ -302,78 +308,78 @@ mx_location_range_t mx_dump_read_range(mx_dump_reader_t *r) {
     return range;
 }
 
-mx_ir_arg_t mx_dump_read_arg(mx_dump_reader_t *r, uint32_t nregs) {
-    mx_ir_arg_t arg = { .type = MX_IR_ARG_TYPE_SPREAD };
-    const uint8_t *type = mx_dump_read_bytes(r, 1);
-    if (type == NULL) {
-        return arg;
-    } else if (type[0] == MX_IR_ARG_TYPE_REG) {
-        arg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = mx_dump_read_uv(r) };
-        r->is_bad = r->is_bad || arg.reg >= nregs;
-        return arg;
-    } else if (type[0] != MX_IR_ARG_TYPE_LIT) {
-        r->is_bad = r->is_bad || type[0] != MX_IR_ARG_TYPE_SPREAD;
-        return arg;
-    }
-    arg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_LIT, .lit = mx_obj_of_nil() };
-    const uint8_t *tag = mx_dump_read_bytes(r, 1);
-    if (tag == NULL) {
-        return arg;
-    }
-    switch (tag[0]) {
+mx_obj_t mx_dump_read_lit(mx_dump_reader_t *r, uint8_t tag) {
+    switch (tag) {
         case MX_DUMP_LIT_NIL: {
-            break;
+            return mx_obj_of_nil();
         }
         case MX_DUMP_LIT_FALSE:
         case MX_DUMP_LIT_TRUE: {
-            arg.lit = mx_obj_of_boolean(tag[0] == MX_DUMP_LIT_TRUE);
-            break;
+            return mx_obj_of_boolean(tag == MX_DUMP_LIT_TRUE);
         }
         case MX_DUMP_LIT_INT: {
-            arg.lit = mx_obj_of_int(mx_ir_unzigzag(mx_dump_read_uv(r)));
-            break;
+            return mx_obj_of_int(mx_ir_unzigzag(mx_dump_read_uv(r)));
         }
         case MX_DUMP_LIT_FLOAT: {
-            const uint8_t *bits = mx_dump_read_bytes(r, sizeof(uint64_t));
+            const uint8_t *bits = mx_dump_read_bytes(r, 8);
             if (bits != NULL) {
-                mx_val_t v;
-                memcpy(&v.bits, bits, sizeof(uint64_t));
-                arg.lit = mx_obj_of_raw(MX_KIND_FLOAT, v);
+                return mx_obj_of_raw(MX_KIND_FLOAT, (mx_val_t) { .bits = mx_ir_get_u64(bits) });
+            } else {
+                return mx_obj_of_nil();
             }
-            break;
         }
         case MX_DUMP_LIT_STRING: {
             uint64_t len = mx_dump_read_uv(r);
             const uint8_t *bytes = mx_dump_read_bytes(r, len);
             if (bytes != NULL && len <= UINT32_MAX) {
-                arg.lit = mx_obj_intern_strn(r->vm, (const char *)bytes, (uint32_t)len);
+                return mx_obj_intern_strn(r->vm, (const char *)bytes, (uint32_t)len);
             } else {
                 r->is_bad = true;
+                return mx_obj_of_nil();
             }
-            break;
         }
         case MX_DUMP_LIT_FUNC: {
             mx_ir_block_t *child = mx_dump_read_func(r);
             if (child != NULL) {
-                arg.lit = mx_obj_of_block(child);
+                return mx_obj_of_block(child);
+            } else {
+                return mx_obj_of_nil();
             }
-            break;
         }
         case MX_DUMP_LIT_PRIM: {
             uint64_t id = mx_dump_read_uv(r);
             if (id < mx_dump_nprims) {
-                arg.lit = mx_obj_of_ffi(mx_dump_prims[id]);
+                return mx_obj_of_ffi(mx_dump_prims[id]);
             } else {
                 r->is_bad = true;
+                return mx_obj_of_nil();
             }
-            break;
         }
         default: {
             r->is_bad = true;
-            break;
+            return mx_obj_of_nil();
         }
     }
-    return arg;
+}
+
+mx_ir_arg_t mx_dump_read_arg(mx_dump_reader_t *r, uint32_t nregs) {
+    const uint8_t *type = mx_dump_read_bytes(r, 1);
+    if (type == NULL) {
+        return (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_SPREAD };
+    } else if (type[0] == MX_IR_ARG_TYPE_REG) {
+        uint64_t reg = mx_dump_read_uv(r);
+        r->is_bad = r->is_bad || reg >= nregs;
+        return (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = reg };
+    } else if (type[0] != MX_IR_ARG_TYPE_LIT) {
+        r->is_bad = r->is_bad || type[0] != MX_IR_ARG_TYPE_SPREAD;
+        return (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_SPREAD };
+    }
+    const uint8_t *tag = mx_dump_read_bytes(r, 1);
+    if (tag == NULL) {
+        return (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_LIT, .lit = mx_obj_of_nil() };
+    } else {
+        return (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_LIT, .lit = mx_dump_read_lit(r, tag[0]) };
+    }
 }
 
 bool mx_dump_is_lit(mx_ir_arg_t arg, mx_kind_t kind) {
@@ -521,11 +527,14 @@ mx_ir_block_t *mx_dump_read_func(mx_dump_reader_t *r) {
         return NULL;
     }
     r->depth += 1;
-    mx_ir_upval_t *upvals = NULL;
-    mx_kind_t *seen = NULL;
+    mx_ir_upval_t *upvals;
+    mx_kind_t *seen;
     if (nupvals != 0) {
         upvals = mx_ir_alloc(vm, sizeof(mx_ir_upval_t) * nupvals);
         seen = mx_ir_alloc(vm, sizeof(mx_kind_t) * nupvals);
+    } else {
+        upvals = NULL;
+        seen = NULL;
     }
     for (uint32_t i = 0; i < nupvals; i++) {
         const char *name = mx_dump_read_name(r);
@@ -543,9 +552,11 @@ mx_ir_block_t *mx_dump_read_func(mx_dump_reader_t *r) {
     if (nlocals > (uint64_t)(r->end - r->p)) {
         r->is_bad = true;
     }
-    mx_ir_local_t *locals = NULL;
+    mx_ir_local_t *locals;
     if (!r->is_bad && nlocals != 0) {
         locals = mx_ir_alloc(vm, sizeof(mx_ir_local_t) * nlocals);
+    } else {
+        locals = NULL;
     }
     for (uint32_t i = 0; i < nlocals && !r->is_bad; i++) {
         const char *name = mx_dump_read_name(r);
@@ -591,7 +602,7 @@ mx_ir_block_t *mx_dump_read_func(mx_dump_reader_t *r) {
         .stop = stop,
         .upval_seen = seen,
         .upvals = upvals,
-        .locals = { .ptr = locals, .len = (uint32_t)nlocals },
+        .locals = (mx_ir_locals_t) { .ptr = locals, .len = (uint32_t)nlocals },
         .nblocks = (uint32_t)nblocks,
         .nupvals = (uint32_t)nupvals,
         .nregs = (uint32_t)nregs,
@@ -616,10 +627,12 @@ mx_ir_block_t *mx_dump_read_func(mx_dump_reader_t *r) {
             for (uint32_t a = 0; a < nargs; a++) {
                 args[a] = mx_dump_read_arg(r, (uint32_t)nregs);
             }
-            args[nargs].type = MX_IR_ARG_TYPE_NONE;
-            mx_ir_arg_t oarg = { .type = MX_IR_ARG_TYPE_NONE };
+            args[nargs] = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
+            mx_ir_arg_t oarg;
             if (out != 0) {
                 oarg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = out - 1 };
+            } else {
+                oarg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
             }
             r->is_bad = r->is_bad || !mx_dump_instr_ok(r, op[0], out != 0, args, (uint32_t)nargs, i == 0 && n == 0);
             if (!r->is_bad) {
@@ -636,40 +649,55 @@ mx_ir_block_t *mx_dump_read_func(mx_dump_reader_t *r) {
             r->is_bad = true;
             break;
         }
-        mx_ir_branch_t br = { .op = bop[0] };
+        mx_ir_block_t *target0;
         if (t0 != 0) {
-            br.targets[0] = blocks[t0 - 1];
+            target0 = blocks[t0 - 1];
+        } else {
+            target0 = NULL;
         }
+        mx_ir_block_t *target1;
         if (t1 != 0) {
-            br.targets[1] = blocks[t1 - 1];
+            target1 = blocks[t1 - 1];
+        } else {
+            target1 = NULL;
         }
-        bool is_flow = br.op == MX_IR_BRANCH_OPCODE_FALL || br.op == MX_IR_BRANCH_OPCODE_JUMP;
+        bool is_flow = bop[0] == MX_IR_BRANCH_OPCODE_FALL || bop[0] == MX_IR_BRANCH_OPCODE_JUMP;
         if ((has_enc[0] == 0 && !is_flow) || (is_flow && (t0 == 0 || t1 != 0))) {
             r->is_bad = true;
             break;
         } else if (has_enc[0] == 0) {
-            block->branch_op = br.op;
-            block->branch_targets[0] = br.targets[0];
-            block->branch_targets[1] = br.targets[1];
+            block->branch_op = bop[0];
+            block->branch_targets[0] = target0;
+            block->branch_targets[1] = target1;
             continue;
         }
-        br.range = mx_dump_read_range(r);
+        mx_location_range_t range = mx_dump_read_range(r);
         uint64_t out = mx_dump_read_uv(r);
-        br.want = (uint32_t)mx_dump_read_uv(r);
+        uint32_t want = (uint32_t)mx_dump_read_uv(r);
         uint64_t nargs = mx_dump_read_uv(r);
         if (r->is_bad || out > nregs || nargs > MX_IR_BRANCH_MAX_ARGS) {
             r->is_bad = true;
             break;
         }
+        mx_ir_arg_t oarg;
         if (out != 0) {
-            br.out = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = out - 1 };
+            oarg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_REG, .reg = out - 1 };
+        } else {
+            oarg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
         }
         mx_ir_arg_t *args = mx_mem_alloc(sizeof(mx_ir_arg_t) * (nargs + 1));
         for (uint32_t a = 0; a < nargs; a++) {
             args[a] = mx_dump_read_arg(r, (uint32_t)nregs);
         }
-        args[nargs].type = MX_IR_ARG_TYPE_NONE;
-        br.args = args;
+        args[nargs] = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_NONE };
+        mx_ir_branch_t br = {
+            .range = range,
+            .targets = {target0, target1},
+            .args = args,
+            .out = oarg,
+            .want = want,
+            .op = bop[0],
+        };
         r->is_bad = r->is_bad || !mx_dump_branch_ok(r, &br, args, (uint32_t)nargs);
         if (!r->is_bad) {
             mx_ir_keep_lits(vm, args);
@@ -699,7 +727,7 @@ mx_dump_loaded_t mx_dump_load(mx_t *vm, const char *data, size_t len) {
     const char *file = mx_dump_read_name(&r);
     uint64_t srclen = mx_dump_read_uv(&r);
     uint64_t nlines = mx_dump_read_uv(&r);
-    mx_ir_block_t *entry = NULL;
+    mx_ir_block_t *read;
     if (!r.is_bad && file != NULL && srclen < UINT32_MAX && nlines >= 1 && nlines <= srclen + 1 && nlines - 1 <= (uint64_t)(r.end - r.p)) {
         uint32_t *lines = mx_ir_alloc(vm, sizeof(uint32_t) * nlines);
         lines[0] = 0;
@@ -710,25 +738,29 @@ mx_dump_loaded_t mx_dump_load(mx_t *vm, const char *data, size_t len) {
         }
         if (!r.is_bad) {
             r.source = mx_source_of_lines(vm, file, lines, (uint32_t)nlines, (uint32_t)srclen);
-            entry = mx_dump_read_func(&r);
+            read = mx_dump_read_func(&r);
+        } else {
+            read = NULL;
         }
+    } else {
+        read = NULL;
     }
-    if (entry == NULL || r.p != r.end) {
+    bool is_ok = read != NULL && r.p == r.end;
+    if (!is_ok) {
         for (uint32_t i = 0; i < r.blocks.len; i++) {
             mx_mem_free(r.blocks.ptr[i]->code);
             r.blocks.ptr[i]->code = NULL;
             r.blocks.ptr[i]->code_len = 0;
         }
         r.blocks.len = 0;
-        entry = NULL;
     }
     mx_ir_blocks_seal(vm, &r.blocks, 0);
     mx_mem_free(r.blocks.ptr);
-    if (entry == NULL && r.is_truncated) {
+    if (is_ok) {
+        return (mx_dump_loaded_t) { .entry = read, .error = NULL };
+    } else if (r.is_truncated) {
         return (mx_dump_loaded_t) { .entry = NULL, .error = "truncated chunk" };
-    } else if (entry == NULL) {
-        return (mx_dump_loaded_t) { .entry = NULL, .error = "malformed chunk" };
     } else {
-        return (mx_dump_loaded_t) { .entry = entry, .error = NULL };
+        return (mx_dump_loaded_t) { .entry = NULL, .error = "malformed chunk" };
     }
 }

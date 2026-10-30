@@ -80,10 +80,10 @@ uint32_t mx_table_key_hash(mx_obj_t key) {
         if (mx_obj_float_fits_int(n) && floor(n) == n) {
             int64_t i = (int64_t)n;
             return (uint32_t)((uint64_t)i ^ ((uint64_t)i >> MX_TABLE_HASH_FOLD)) * MX_TABLE_HASH_INT_MULT;
+        } else {
+            uint64_t bits = key.val.bits;
+            return (uint32_t)(bits ^ (bits >> MX_TABLE_HASH_FOLD)) * MX_TABLE_HASH_FLOAT_MULT;
         }
-        uint64_t bits;
-        memcpy(&bits, &n, sizeof(bits));
-        return (uint32_t)(bits ^ (bits >> MX_TABLE_HASH_FOLD)) * MX_TABLE_HASH_FLOAT_MULT;
     } else if (mx_obj_is_string(key)) {
         return mx_str_content_hash(mx_obj_get_string(key));
     } else if (mx_obj_is_boolean(key)) {
@@ -139,9 +139,11 @@ mx_obj_t mx_table_get_slow(mx_obj_table_t *tbl, mx_obj_t key) {
     size_t mask = len - 1;
     if (mx_obj_is_string(key)) {
         mx_str_t *kb = mx_obj_get_string(key);
-        uint32_t hash = kb->hash;
-        if (hash == 0) {
+        uint32_t hash;
+        if (kb->hash == 0) {
             hash = mx_table_key_hash(key);
+        } else {
+            hash = kb->hash;
         }
         size_t look = hash & mask;
         for (size_t probe = 0; probe < len; probe++) {
@@ -186,9 +188,11 @@ mx_table_slot_t mx_table_get_string_slot(mx_obj_table_t *tbl, mx_obj_t key) {
     size_t len = mx_table_hash_cap(tbl);
     size_t mask = len - 1;
     mx_str_t *kb = mx_obj_get_string(key);
-    uint32_t hash = kb->hash;
-    if (hash == 0) {
+    uint32_t hash;
+    if (kb->hash == 0) {
         hash = mx_table_key_hash(key);
+    } else {
+        hash = kb->hash;
     }
     size_t look = hash & mask;
     for (size_t probe = 0; probe < len; probe++) {
@@ -247,9 +251,11 @@ void mx_table_hash_reserve(mx_t *vm, mx_obj_table_t *restrict tbl, uint32_t coun
         bool fits = false;
         while (!fits) {
             size_t cap = mx_table_hash_cap_of(nsize);
-            size_t allowed = cap * MX_TABLE_LOAD_NUM / MX_TABLE_LOAD_DEN;
+            size_t allowed;
             if (cap <= MX_TABLE_HASH_MIN_CAP) {
                 allowed = cap;
+            } else {
+                allowed = cap * MX_TABLE_LOAD_NUM / MX_TABLE_LOAD_DEN;
             }
             fits = allowed >= (size_t)count;
             if (!fits) {
@@ -308,12 +314,13 @@ void mx_table_extend_len(mx_obj_table_t *restrict tbl, uint32_t from) {
     tbl->len = next;
 }
 
-int32_t mx_table_hash_set(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t key, mx_obj_t value) {
-    if (mx_obj_is_float(key)) {
-        double f = mx_obj_get_float(key);
-        if (mx_obj_float_fits_int(f) && floor(f) == f) {
-            key = mx_obj_of_int((int64_t)f);
-        }
+int32_t mx_table_hash_set(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t raw, mx_obj_t value) {
+    mx_obj_int_t as_int = mx_obj_to_int(raw);
+    mx_obj_t key;
+    if (mx_obj_is_float(raw) && as_int.is_int) {
+        key = mx_obj_of_int(as_int.value);
+    } else {
+        key = raw;
     }
     if (tbl->entries == NULL) {
         if (mx_obj_is_nil(value)) {
@@ -339,10 +346,8 @@ int32_t mx_table_hash_set(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t key, 
         if (mx_obj_is_nil(table_key)) {
             break;
         }
-        bool is_same = table_key.kind == key.kind && table_key.val.bits == key.val.bits;
-        if (!is_same && (table_key.kind == key.kind || (mx_obj_is_number(key) && mx_obj_is_number(table_key)))) {
-            is_same = mx_table_key_eq(key, table_key);
-        }
+        bool is_same = (table_key.kind == key.kind && table_key.val.bits == key.val.bits)
+            || ((table_key.kind == key.kind || (mx_obj_is_number(key) && mx_obj_is_number(table_key))) && mx_table_key_eq(key, table_key));
         if (is_same) {
             bool was_dead = e->val_kind == MX_KIND_NIL;
             if (mx_obj_is_nil(value)) {
@@ -374,17 +379,21 @@ int32_t mx_table_hash_set(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t key, 
         }
         look = (look + 1) & (len - 1);
     }
+    size_t slot;
     if (mx_obj_is_nil(value)) {
         return -1;
     } else if (((tbl->used + 1) * MX_TABLE_LOAD_DEN > len * MX_TABLE_LOAD_NUM
             && len > MX_TABLE_HASH_MIN_CAP)
         || tbl->entries[look].key_kind != MX_KIND_NIL) {
         mx_table_hash_grow(vm, tbl);
-        len = mx_table_hash_cap(tbl);
-        look = hash & (len - 1);
-        while (tbl->entries[look].key_kind != MX_KIND_NIL) {
-            look = (look + 1) & (len - 1);
+        size_t cap = mx_table_hash_cap(tbl);
+        size_t at = hash & (cap - 1);
+        while (tbl->entries[at].key_kind != MX_KIND_NIL) {
+            at = (at + 1) & (cap - 1);
         }
+        slot = at;
+    } else {
+        slot = look;
     }
     if (key.kind == MX_KIND_CLOSURE || key.kind >= MX_KIND_FIRST_DATA) {
         mx_gc_note_ident_key(vm, mx_ref_obj(key.val.ref));
@@ -393,13 +402,13 @@ int32_t mx_table_hash_set(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t key, 
         tbl->has_int_hash = true;
     }
     tbl->used += 1;
-    mx_table_entry_set_key(&tbl->entries[look], key, hash);
-    mx_table_entry_set_val(&tbl->entries[look], value);
+    mx_table_entry_set_key(&tbl->entries[slot], key, hash);
+    mx_table_entry_set_val(&tbl->entries[slot], value);
     int32_t next = tbl->len + 1;
     if (mx_obj_is_number(key) && mx_obj_get_number(key) == next) {
         mx_table_extend_len(tbl, (uint32_t)next);
     }
-    return (int32_t)look;
+    return (int32_t)slot;
 }
 
 mx_table_steal_t mx_table_hash_steal(mx_obj_table_t *restrict tbl, uint32_t key) {
@@ -483,50 +492,32 @@ void mx_table_array_reserve(mx_t *vm, mx_obj_table_t *restrict tbl, uint32_t cap
 }
 
 void mx_table_set(mx_t *vm, mx_obj_table_t *restrict tbl, mx_obj_t key, mx_obj_t value) {
-    int64_t idx = 0;
-    bool is_idx = false;
-    if (mx_obj_is_int(key)) {
-        idx = mx_obj_get_int(key);
-        is_idx = true;
-    } else if (mx_obj_is_float(key)) {
-        double f = mx_obj_get_float(key);
-        if (mx_obj_float_fits_int(f) && floor(f) == f) {
-            idx = (int64_t)f;
-            is_idx = true;
+    mx_obj_int_t idx = mx_obj_to_int(key);
+    if (idx.is_int && 1 <= idx.value && idx.value <= (int64_t)tbl->array_len) {
+        mx_gc_write_barrier(vm, tbl, value);
+        uint32_t i = (uint32_t)idx.value;
+        bool was_nil = mx_obj_is_nil(tbl->array[i - 1]);
+        tbl->array[i - 1] = value;
+        if (mx_obj_is_nil(value)) {
+            if (i <= tbl->len) {
+                tbl->len = i - 1;
+            }
+        } else if (was_nil && i == tbl->len + 1) {
+            mx_table_extend_len(tbl, i);
         }
-    }
-    bool in_array = false;
-    if (is_idx) {
-        if (1 <= idx && idx <= (int64_t)tbl->array_len) {
-            mx_gc_write_barrier(vm, tbl, value);
-            uint32_t i = (uint32_t)idx;
-            bool was_nil = mx_obj_is_nil(tbl->array[i - 1]);
-            tbl->array[i - 1] = value;
-            if (mx_obj_is_nil(value)) {
-                if (i <= tbl->len) {
-                    tbl->len = i - 1;
-                }
-            } else if (was_nil && i == tbl->len + 1) {
-                mx_table_extend_len(tbl, i);
+    } else if (idx.is_int && idx.value == (int64_t)tbl->array_len + 1 && !mx_obj_is_nil(value)) {
+        mx_table_array_push(vm, tbl, value);
+        if (tbl->used != 0) {
+            mx_table_steal_t stolen = mx_table_hash_steal(tbl, tbl->array_len + 1);
+            while (stolen.is_stolen) {
+                mx_table_array_push(vm, tbl, stolen.value);
+                stolen = mx_table_hash_steal(tbl, tbl->array_len + 1);
             }
-            in_array = true;
-        } else if (idx == (int64_t)tbl->array_len + 1 && !mx_obj_is_nil(value)) {
-            mx_table_array_push(vm, tbl, value);
-            if (tbl->used != 0) {
-                mx_table_steal_t stolen = mx_table_hash_steal(tbl, tbl->array_len + 1);
-                while (stolen.is_stolen) {
-                    mx_table_array_push(vm, tbl, stolen.value);
-                    stolen = mx_table_hash_steal(tbl, tbl->array_len + 1);
-                }
-            }
-            uint32_t i = (uint32_t)idx;
-            if (i == tbl->len + 1) {
-                tbl->len = tbl->array_len;
-            }
-            in_array = true;
         }
-    }
-    if (!in_array) {
+        if ((uint32_t)idx.value == tbl->len + 1) {
+            tbl->len = tbl->array_len;
+        }
+    } else {
         mx_table_hash_set(vm, tbl, key, value);
     }
 }
@@ -557,70 +548,44 @@ mx_table_pair_t mx_table_pairs_array_from(mx_t *vm, mx_obj_table_t *tbl, size_t 
 }
 
 mx_table_step_t mx_table_next_into(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t *out) {
-    size_t hslot = 0;
-    bool in_hash = false;
-    if (mx_obj_is_nil(key)) {
-        for (size_t i = 0; i < tbl->array_len; i++) {
+    bool is_array_key = mx_obj_is_nil(key) || (mx_obj_is_int(key) && key.val.i64 >= 1 && (uint64_t)key.val.i64 <= tbl->array_len);
+    if (is_array_key) {
+        size_t from;
+        if (mx_obj_is_nil(key)) {
+            from = 0;
+        } else {
+            from = (size_t)key.val.i64;
+        }
+        for (size_t i = from; i < tbl->array_len; i++) {
             if (!mx_obj_is_nil(tbl->array[i])) {
                 out[0] = mx_obj_of_int((int64_t)(i + 1));
                 out[1] = tbl->array[i];
                 return MX_TABLE_STEP_PAIR;
             }
         }
-        in_hash = true;
-    } else if (mx_obj_is_int(key) && key.val.i64 >= 1 && (uint64_t)key.val.i64 <= tbl->array_len) {
-        for (size_t i = (size_t)key.val.i64; i < tbl->array_len; i++) {
-            if (!mx_obj_is_nil(tbl->array[i])) {
-                out[0] = mx_obj_of_int((int64_t)(i + 1));
-                out[1] = tbl->array[i];
-                return MX_TABLE_STEP_PAIR;
-            }
-        }
-        in_hash = true;
     }
     if (tbl->entries == NULL) {
-        if (in_hash) {
+        if (is_array_key) {
             return MX_TABLE_STEP_END;
         } else {
             return MX_TABLE_STEP_INVALID;
         }
     }
-    size_t len = mx_table_hash_cap(tbl);
-    if (!in_hash) {
-        bool found = false;
-        if (tbl->head.kind == vm->kinds.table && tbl->hidden != 0 && tbl->hidden <= len) {
-            size_t hint = (size_t)tbl->hidden - 1;
-            const mx_table_entry_t *he = &tbl->entries[hint];
-            if ((he->key_kind == key.kind && he->key.bits == key.val.bits) || mx_table_entry_was_key(he, key)) {
-                hslot = hint + 1;
-                found = true;
-            }
-        }
-        if (!found) {
-            mx_table_pair_t pair = mx_table_pairs_next(vm, tbl, key);
-            if (!pair.is_valid) {
-                return MX_TABLE_STEP_INVALID;
-            } else if (mx_obj_is_nil(pair.key)) {
-                return MX_TABLE_STEP_END;
-            } else {
-                out[0] = pair.key;
-                out[1] = pair.val;
-                return MX_TABLE_STEP_PAIR;
-            }
-        }
+    mx_table_pair_t pair;
+    if (is_array_key) {
+        pair = mx_table_pairs_hash_from(vm, tbl, 0);
+    } else {
+        pair = mx_table_pairs_next(vm, tbl, key);
     }
-    for (size_t i = hslot; i < len; i++) {
-        const mx_table_entry_t *e = &tbl->entries[i];
-        if (e->key_kind != MX_KIND_NIL && e->val_kind != MX_KIND_NIL) {
-            if (tbl->head.kind == vm->kinds.table) {
-                tbl->hidden = (uint64_t)i + 1;
-            }
-            out[0] = mx_table_entry_key(e);
-            out[1] = mx_table_entry_val(e);
-            return MX_TABLE_STEP_PAIR;
-        }
+    if (!pair.is_valid) {
+        return MX_TABLE_STEP_INVALID;
+    } else if (mx_obj_is_nil(pair.key)) {
+        return MX_TABLE_STEP_END;
+    } else {
+        out[0] = pair.key;
+        out[1] = pair.val;
+        return MX_TABLE_STEP_PAIR;
     }
-    return MX_TABLE_STEP_END;
 }
 
 mx_table_pair_t mx_table_pairs_next(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key) {

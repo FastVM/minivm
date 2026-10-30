@@ -34,33 +34,23 @@ union mx_val_t {
 };
 
 static inline mx_val_t mx_val_i64(int64_t v) {
-    mx_val_t out;
-    out.i64 = v;
-    return out;
+    return (mx_val_t) { .i64 = v };
 }
 
 static inline mx_val_t mx_val_f64(double v) {
-    mx_val_t out;
-    out.f64 = v;
-    return out;
+    return (mx_val_t) { .f64 = v };
 }
 
 static inline mx_val_t mx_val_bool(bool b) {
-    mx_val_t out;
-    out.bits = (uint64_t)b;
-    return out;
+    return (mx_val_t) { .bits = (uint64_t)b };
 }
 
 static inline mx_val_t mx_val_nil(void) {
-    mx_val_t out;
-    out.bits = 0;
-    return out;
+    return (mx_val_t) { .bits = 0 };
 }
 
 static inline mx_val_t mx_val_ref(mx_ref_t r) {
-    mx_val_t out;
-    out.ref = r;
-    return out;
+    return (mx_val_t) { .ref = r };
 }
 
 static inline int64_t mx_val_as_i64(mx_val_t v) {
@@ -80,9 +70,7 @@ static inline mx_ref_t mx_val_as_ref(mx_val_t v) {
 }
 
 static inline mx_ref_t mx_ref_pin(void *obj) {
-    mx_ref_t out;
-    out.h = (uint64_t)(uintptr_t)obj;
-    return out;
+    return (mx_ref_t) { .h = (uint64_t)(uintptr_t)obj };
 }
 
 static inline void *mx_ref_obj(mx_ref_t r) {

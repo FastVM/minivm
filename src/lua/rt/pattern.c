@@ -37,10 +37,12 @@ void mx_pattern_set_escape(mx_pattern_cache_t *cache, uint64_t *set, uint8_t cl)
 }
 
 mx_pattern_set_end_t mx_pattern_set_parse(mx_pattern_cache_t *cache, uint64_t *set, const char *pat, size_t plen, size_t at) {
-    size_t first = at + 1;
-    bool negate = first < plen && pat[first] == '^';
+    bool negate = at + 1 < plen && pat[at + 1] == '^';
+    size_t first;
     if (negate) {
-        first += 1;
+        first = at + 2;
+    } else {
+        first = at + 1;
     }
     size_t close = first;
     do {
@@ -83,16 +85,40 @@ mx_pattern_item_t *mx_pattern_emit(mx_pattern_prog_t *prog, mx_pattern_op_t op) 
     return item;
 }
 
+void mx_pattern_push(mx_pattern_prog_t *prog, mx_pattern_item_t item) {
+    prog->items[prog->len] = item;
+    prog->len += 1;
+}
+
 void mx_pattern_emit_fail(mx_pattern_prog_t *prog, const char *error, uint8_t arg) {
-    mx_pattern_item_t *item = mx_pattern_emit(prog, MX_PATTERN_OP_FAIL);
-    item->error = error;
-    item->a = arg;
+    mx_pattern_push(prog, (mx_pattern_item_t) { .error = error, .a = arg, .op = MX_PATTERN_OP_FAIL });
+}
+
+mx_pattern_rep_t mx_pattern_rep_of(char c) {
+    switch (c) {
+        case '?': {
+            return MX_PATTERN_REP_OPT;
+        }
+        case '*': {
+            return MX_PATTERN_REP_STAR;
+        }
+        case '+': {
+            return MX_PATTERN_REP_PLUS;
+        }
+        case '-': {
+            return MX_PATTERN_REP_LAZY;
+        }
+        default: {
+            return MX_PATTERN_REP_ONE;
+        }
+    }
 }
 
 void mx_pattern_compile(mx_pattern_cache_t *cache, mx_pattern_prog_t *prog, const char *pat, size_t plen) {
-    prog->items = prog->inline_items;
     if (plen + 1 > MX_PATTERN_ITEMS_INLINE) {
         prog->items = mx_mem_alloc(sizeof(mx_pattern_item_t) * (plen + 1));
+    } else {
+        prog->items = prog->inline_items;
     }
     prog->len = 0;
     prog->ncap = 0;
@@ -108,12 +134,12 @@ void mx_pattern_compile(mx_pattern_cache_t *cache, mx_pattern_prog_t *prog, cons
             mx_pattern_emit_fail(prog, "too many captures", 0);
             is_failed = true;
         } else if (c == '(' && p + 1 < plen && pat[p + 1] == ')') {
-            mx_pattern_emit(prog, MX_PATTERN_OP_POSITION)->a = (uint8_t)prog->ncap;
+            mx_pattern_push(prog, (mx_pattern_item_t) { .a = (uint8_t)prog->ncap, .op = MX_PATTERN_OP_POSITION });
             closed[prog->ncap] = true;
             prog->ncap += 1;
             p += 2;
         } else if (c == '(') {
-            mx_pattern_emit(prog, MX_PATTERN_OP_OPEN)->a = (uint8_t)prog->ncap;
+            mx_pattern_push(prog, (mx_pattern_item_t) { .a = (uint8_t)prog->ncap, .op = MX_PATTERN_OP_OPEN });
             closed[prog->ncap] = false;
             open[nopen] = (uint8_t)prog->ncap;
             nopen += 1;
@@ -124,7 +150,7 @@ void mx_pattern_compile(mx_pattern_cache_t *cache, mx_pattern_prog_t *prog, cons
             is_failed = true;
         } else if (c == ')') {
             nopen -= 1;
-            mx_pattern_emit(prog, MX_PATTERN_OP_CLOSE)->a = open[nopen];
+            mx_pattern_push(prog, (mx_pattern_item_t) { .a = open[nopen], .op = MX_PATTERN_OP_CLOSE });
             closed[open[nopen]] = true;
             p += 1;
         } else if (c == '$' && p + 1 == plen) {
@@ -135,9 +161,7 @@ void mx_pattern_compile(mx_pattern_cache_t *cache, mx_pattern_prog_t *prog, cons
                 mx_pattern_emit_fail(prog, "malformed pattern (missing arguments to '%%b')", 0);
                 is_failed = true;
             } else {
-                mx_pattern_item_t *item = mx_pattern_emit(prog, MX_PATTERN_OP_BALANCE);
-                item->a = (uint8_t)pat[p + 2];
-                item->b = (uint8_t)pat[p + 3];
+                mx_pattern_push(prog, (mx_pattern_item_t) { .a = (uint8_t)pat[p + 2], .b = (uint8_t)pat[p + 3], .op = MX_PATTERN_OP_BALANCE });
                 p += 4;
             }
         } else if (c == '%' && p + 1 < plen && pat[p + 1] == 'f') {
@@ -160,25 +184,25 @@ void mx_pattern_compile(mx_pattern_cache_t *cache, mx_pattern_prog_t *prog, cons
                 mx_pattern_emit_fail(prog, "invalid capture index %%%d", (uint8_t)(n + 1));
                 is_failed = true;
             } else {
-                mx_pattern_emit(prog, MX_PATTERN_OP_BACKREF)->a = (uint8_t)n;
+                mx_pattern_push(prog, (mx_pattern_item_t) { .a = (uint8_t)n, .op = MX_PATTERN_OP_BACKREF });
                 p += 2;
             }
         } else {
             mx_pattern_item_t *item = mx_pattern_emit(prog, MX_PATTERN_OP_ONE);
-            size_t next;
+            size_t after;
             if (c == '.') {
                 for (size_t w = 0; w < 4; w++) {
                     item->set[w] = UINT64_MAX;
                 }
-                next = p + 1;
+                after = p + 1;
             } else if (c == '%' && p + 1 >= plen) {
                 prog->len -= 1;
                 mx_pattern_emit_fail(prog, "malformed pattern (ends with '%%')", 0);
                 is_failed = true;
-                next = plen;
+                after = plen;
             } else if (c == '%') {
                 mx_pattern_set_escape(cache, item->set, (uint8_t)pat[p + 1]);
-                next = p + 2;
+                after = p + 2;
             } else if (c == '[') {
                 mx_pattern_set_end_t end = mx_pattern_set_parse(cache, item->set, pat, plen, p);
                 if (!end.is_closed) {
@@ -186,45 +210,29 @@ void mx_pattern_compile(mx_pattern_cache_t *cache, mx_pattern_prog_t *prog, cons
                     mx_pattern_emit_fail(prog, "malformed pattern (missing ']')", 0);
                     is_failed = true;
                 }
-                next = end.next;
+                after = end.next;
             } else {
                 mx_pattern_set_add(item->set, (uint8_t)c);
                 if (prog->len == 1) {
                     prog->first_byte = (uint8_t)c;
                 }
-                next = p + 1;
+                after = p + 1;
             }
-            if (!is_failed && next < plen) {
-                switch (pat[next]) {
-                    case '?': {
-                        item->rep = MX_PATTERN_REP_OPT;
-                        next += 1;
-                        break;
-                    }
-                    case '*': {
-                        item->rep = MX_PATTERN_REP_STAR;
-                        next += 1;
-                        break;
-                    }
-                    case '+': {
-                        item->rep = MX_PATTERN_REP_PLUS;
-                        next += 1;
-                        break;
-                    }
-                    case '-': {
-                        item->rep = MX_PATTERN_REP_LAZY;
-                        next += 1;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
+            mx_pattern_rep_t rep;
+            if (!is_failed && after < plen) {
+                rep = mx_pattern_rep_of(pat[after]);
+                item->rep = rep;
+            } else {
+                rep = MX_PATTERN_REP_ONE;
             }
-            if (item->rep != MX_PATTERN_REP_ONE && item->rep != MX_PATTERN_REP_PLUS) {
+            if (rep != MX_PATTERN_REP_ONE && rep != MX_PATTERN_REP_PLUS) {
                 prog->first_byte = -1;
             }
-            p = next;
+            if (rep != MX_PATTERN_REP_ONE) {
+                p = after + 1;
+            } else {
+                p = after;
+            }
         }
     }
     if (!is_failed) {
@@ -237,8 +245,6 @@ const mx_pattern_prog_t *mx_pattern_prog(mx_pattern_cache_t *cache, mx_pattern_p
         mx_pattern_compile(cache, own, pat, plen);
         return own;
     }
-    // A pattern is nearly always the buffer of a live string, so its address
-    // is a cheap key; the entry is still checked byte for byte.
     uint64_t h = ((uint64_t)(uintptr_t)pat ^ plen) * UINT64_C(0x9E3779B97F4A7C15);
     uint32_t at = (uint32_t)(h >> 32) & (MX_PATTERN_CACHE_WAYS - 1);
     mx_pattern_cached_t *pair[2] = {&cache->progs[at], &cache->progs[at ^ 1]};
@@ -248,9 +254,11 @@ const mx_pattern_prog_t *mx_pattern_prog(mx_pattern_cache_t *cache, mx_pattern_p
             return &e->prog;
         }
     }
-    mx_pattern_cached_t *e = pair[0];
-    if (e->busy != 0) {
+    mx_pattern_cached_t *e;
+    if (pair[0]->busy != 0) {
         e = pair[1];
+    } else {
+        e = pair[0];
     }
     if (e->busy != 0) {
         mx_pattern_compile(cache, own, pat, plen);
@@ -262,8 +270,6 @@ const mx_pattern_prog_t *mx_pattern_prog(mx_pattern_cache_t *cache, mx_pattern_p
     return &e->prog;
 }
 
-// For callers that run Lua while matching: while held, a cached program is
-// not recompiled, so a callback that needs its slot compiles its own copy.
 const mx_pattern_prog_t *mx_pattern_prog_hold(mx_pattern_cache_t *cache, mx_pattern_prog_t *own, const char *pat, size_t plen) {
     const mx_pattern_prog_t *prog = mx_pattern_prog(cache, own, pat, plen);
     if (prog != own) {
@@ -287,9 +293,9 @@ void mx_pattern_prog_free(mx_pattern_prog_t *prog) {
     }
 }
 
-void mx_pattern_save(mx_pattern_run_t *r, uint32_t *nundo, uint32_t idx) {
-    r->undos[*nundo] = (mx_pattern_undo_t) { .saved = r->caps[idx], .idx = idx };
-    *nundo += 1;
+uint32_t mx_pattern_save(mx_pattern_run_t *r, uint32_t nundo, uint32_t idx) {
+    r->undos[nundo] = (mx_pattern_undo_t) { .saved = r->caps[idx], .idx = idx };
+    return nundo + 1;
 }
 
 int64_t mx_pattern_exec(mx_pattern_run_t *r, size_t start) {
@@ -326,9 +332,11 @@ int64_t mx_pattern_exec(mx_pattern_run_t *r, size_t start) {
                     }
                     case MX_PATTERN_REP_STAR:
                     case MX_PATTERN_REP_PLUS: {
-                        size_t lo = s;
+                        size_t lo;
                         if (item->rep == MX_PATTERN_REP_PLUS) {
-                            lo += 1;
+                            lo = s + 1;
+                        } else {
+                            lo = s;
                         }
                         while (s < len && mx_pattern_set_has(item->set, src[s])) {
                             s += 1;
@@ -360,19 +368,24 @@ int64_t mx_pattern_exec(mx_pattern_run_t *r, size_t start) {
                 break;
             }
             case MX_PATTERN_OP_OPEN: {
-                mx_pattern_save(r, &nundo, item->a);
+                nundo = mx_pattern_save(r, nundo, item->a);
                 r->caps[item->a] = (mx_pattern_capture_t) { .start = (uint32_t)s };
                 break;
             }
             case MX_PATTERN_OP_POSITION: {
-                mx_pattern_save(r, &nundo, item->a);
+                nundo = mx_pattern_save(r, nundo, item->a);
                 r->caps[item->a] = (mx_pattern_capture_t) { .start = (uint32_t)s, .is_position = true, .is_closed = true };
                 break;
             }
             case MX_PATTERN_OP_CLOSE: {
-                mx_pattern_save(r, &nundo, item->a);
-                r->caps[item->a].len = (uint32_t)s - r->caps[item->a].start;
-                r->caps[item->a].is_closed = true;
+                nundo = mx_pattern_save(r, nundo, item->a);
+                uint32_t start = r->caps[item->a].start;
+                r->caps[item->a] = (mx_pattern_capture_t) {
+                    .start = start,
+                    .len = (uint32_t)s - start,
+                    .is_position = r->caps[item->a].is_position,
+                    .is_closed = true,
+                };
                 break;
             }
             case MX_PATTERN_OP_BACKREF: {
@@ -382,31 +395,38 @@ int64_t mx_pattern_exec(mx_pattern_run_t *r, size_t start) {
                 break;
             }
             case MX_PATTERN_OP_BALANCE: {
-                ok = false;
                 if (s < len && src[s] == item->a) {
                     uint32_t depth = 1;
+                    bool is_balanced = false;
                     size_t at = s + 1;
-                    while (at < len && !ok) {
+                    while (at < len && !is_balanced) {
                         if (src[at] == item->b) {
                             depth -= 1;
-                            ok = depth == 0;
+                            is_balanced = depth == 0;
                         } else if (src[at] == item->a) {
                             depth += 1;
                         }
                         at += 1;
                     }
+                    ok = is_balanced;
                     s = at;
+                } else {
+                    ok = false;
                 }
                 break;
             }
             case MX_PATTERN_OP_FRONTIER: {
-                uint8_t before = 0;
+                uint8_t before;
                 if (s > 0) {
                     before = src[s - 1];
+                } else {
+                    before = 0;
                 }
-                uint8_t here = 0;
+                uint8_t here;
                 if (s < len) {
                     here = src[s];
+                } else {
+                    here = 0;
                 }
                 ok = !mx_pattern_set_has(item->set, before) && mx_pattern_set_has(item->set, here);
                 break;
@@ -474,32 +494,33 @@ int64_t mx_pattern_exec(mx_pattern_run_t *r, size_t start) {
 mx_pattern_result_t mx_pattern_search(mx_pattern_captures_t *scratch, const mx_pattern_prog_t *prog, const char *src, size_t src_len, size_t init, bool anchored) {
     mx_pattern_choice_t choices_buf[MX_PATTERN_ITEMS_INLINE];
     mx_pattern_undo_t undos_buf[MX_PATTERN_ITEMS_INLINE];
+    mx_pattern_choice_t *choices;
+    mx_pattern_undo_t *undos;
+    if (prog->len > MX_PATTERN_ITEMS_INLINE) {
+        choices = mx_mem_alloc(sizeof(mx_pattern_choice_t) * prog->len);
+        undos = mx_mem_alloc(sizeof(mx_pattern_undo_t) * prog->len);
+    } else {
+        choices = choices_buf;
+        undos = undos_buf;
+    }
     mx_pattern_run_t r = {
         .prog = prog,
         .src = (const uint8_t *)src,
         .len = src_len,
         .caps = scratch->at,
-        .choices = choices_buf,
-        .undos = undos_buf,
+        .choices = choices,
+        .undos = undos,
     };
-    if (prog->len > MX_PATTERN_ITEMS_INLINE) {
-        r.choices = mx_mem_alloc(sizeof(mx_pattern_choice_t) * prog->len);
-        r.undos = mx_mem_alloc(sizeof(mx_pattern_undo_t) * prog->len);
-    }
     mx_pattern_result_t res = { .status = MX_PATTERN_NOMATCH };
-    // A match has to start with a byte of the first item that consumes input
-    // when that item must match at least once, so other start positions are
-    // skipped here. Opening a capture consumes nothing.
-    const uint64_t *first_set = NULL;
     uint32_t lead = 0;
     while (lead < prog->len && (prog->items[lead].op == MX_PATTERN_OP_OPEN || prog->items[lead].op == MX_PATTERN_OP_POSITION)) {
         lead += 1;
     }
-    if (lead < prog->len) {
-        const mx_pattern_item_t *first = &prog->items[lead];
-        if (first->op == MX_PATTERN_OP_ONE && (first->rep == MX_PATTERN_REP_ONE || first->rep == MX_PATTERN_REP_PLUS)) {
-            first_set = first->set;
-        }
+    const uint64_t *first_set;
+    if (lead < prog->len && prog->items[lead].op == MX_PATTERN_OP_ONE && (prog->items[lead].rep == MX_PATTERN_REP_ONE || prog->items[lead].rep == MX_PATTERN_REP_PLUS)) {
+        first_set = prog->items[lead].set;
+    } else {
+        first_set = NULL;
     }
     size_t s = init;
     bool is_searching = true;
@@ -528,7 +549,7 @@ mx_pattern_result_t mx_pattern_search(mx_pattern_captures_t *scratch, const mx_p
             }
             res = (mx_pattern_result_t) {
                 .status = MX_PATTERN_MATCHED,
-                .match = {
+                .match = (mx_pattern_match_t) {
                     .captures = scratch->at,
                     .start = (uint32_t)s,
                     .stop = (uint32_t)stop,

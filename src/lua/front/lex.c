@@ -75,9 +75,17 @@ mx_obj_t mx_lex_tok_value(const mx_lex_token_t *tok) {
     return mx_obj_of_raw(tok->kind, tok->val);
 }
 
-void mx_lex_tok_set_value(mx_lex_token_t *tok, mx_obj_t v) {
-    tok->kind = v.kind;
-    tok->val = v.val;
+mx_lex_scan_t mx_lex_scan_value(mx_lex_type_t type, uint32_t start, uint32_t stop, mx_obj_t v) {
+    return (mx_lex_scan_t) {
+        .tok = (mx_lex_token_t) {
+            .start = start,
+            .stop = stop,
+            .val = v.val,
+            .kind = v.kind,
+            .type = type,
+        },
+        .error = NULL,
+    };
 }
 
 const mx_lex_class_t mx_lex_classes[256] = {
@@ -219,15 +227,15 @@ mx_lex_long_t mx_lex_long_body(mx_lex_t *lex, uint32_t open_start, int64_t level
             lex->pos += 1;
         }
     }
-    mx_lex_long_t out = {
-        .error = NULL,
-        .content_start = lex->pos,
-        .content_stop = lex->pos,
-    };
-    while (out.error == NULL) {
+    uint32_t content_start = lex->pos;
+    while (true) {
         if (lex->pos >= lex->len) {
             size_t line = mx_lex_line_of(lex, open_start);
-            out.error = mx_lex_error_slice(lex, lex->len, lex->len, "unfinished long %s (starting at line %zu)", what, line);
+            return (mx_lex_long_t) {
+                .error = mx_lex_error_slice(lex, lex->len, lex->len, "unfinished long %s (starting at line %zu)", what, line),
+                .content_start = content_start,
+                .content_stop = content_start,
+            };
         } else if (mx_lex_at(lex, lex->pos) == ']') {
             uint32_t at = lex->pos + 1;
             int64_t close = 0;
@@ -236,9 +244,13 @@ mx_lex_long_t mx_lex_long_body(mx_lex_t *lex, uint32_t open_start, int64_t level
                 close += 1;
             }
             if (close == level && mx_lex_at(lex, at) == ']') {
-                out.content_stop = lex->pos;
+                uint32_t content_stop = lex->pos;
                 lex->pos = at + 1;
-                break;
+                return (mx_lex_long_t) {
+                    .error = NULL,
+                    .content_start = content_start,
+                    .content_stop = content_stop,
+                };
             } else {
                 lex->pos += 1;
             }
@@ -246,7 +258,6 @@ mx_lex_long_t mx_lex_long_body(mx_lex_t *lex, uint32_t open_start, int64_t level
             lex->pos += 1;
         }
     }
-    return out;
 }
 
 mx_obj_t mx_lex_long_value(mx_lex_t *lex, uint32_t start, uint32_t stop) {
@@ -291,58 +302,59 @@ void mx_lex_utf8_encode(mx_str_t *buf, uint64_t cp) {
 }
 
 mx_error_t *mx_lex_escape_error(mx_lex_t *lex, uint32_t start, const char *msg) {
-    uint32_t stop = lex->pos;
-    if (stop < lex->len) {
-        stop += 1;
+    uint32_t stop;
+    if (lex->pos < lex->len) {
+        stop = lex->pos + 1;
+    } else {
+        stop = lex->pos;
     }
     return mx_lex_error_slice(lex, start, stop, "%s", msg);
 }
 
 mx_error_t *mx_lex_escape(mx_lex_t *lex, mx_str_t *buf, uint32_t start) {
-    mx_error_t *error = NULL;
     uint8_t c = mx_lex_at(lex, lex->pos);
     switch (c) {
         case 'n': {
             mx_str_append_byte(buf, '\n');
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case 't': {
             mx_str_append_byte(buf, '\t');
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case 'r': {
             mx_str_append_byte(buf, '\r');
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case 'a': {
             mx_str_append_byte(buf, '\a');
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case 'b': {
             mx_str_append_byte(buf, '\b');
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case 'f': {
             mx_str_append_byte(buf, '\f');
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case 'v': {
             mx_str_append_byte(buf, '\v');
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case '\\':
         case '"':
         case '\'': {
             mx_str_append_byte(buf, (char)c);
             lex->pos += 1;
-            break;
+            return NULL;
         }
         case '\n':
         case '\r': {
@@ -352,130 +364,114 @@ mx_error_t *mx_lex_escape(mx_lex_t *lex, mx_str_t *buf, uint32_t start) {
             if ((second == '\n' || second == '\r') && second != c) {
                 lex->pos += 1;
             }
-            break;
+            return NULL;
         }
         case 'x': {
             lex->pos += 1;
             uint64_t val = 0;
-            for (size_t i = 0; i < 2 && error == NULL; i++) {
+            for (size_t i = 0; i < 2; i++) {
                 uint8_t h = mx_lex_at(lex, lex->pos);
                 if (!mx_lex_byte_is_hex(h)) {
-                    error = mx_lex_escape_error(lex, start, "hexadecimal digit expected");
-                } else {
-                    val = val * 16 + mx_lex_hex_value(h);
-                    lex->pos += 1;
+                    return mx_lex_escape_error(lex, start, "hexadecimal digit expected");
                 }
+                val = val * 16 + mx_lex_hex_value(h);
+                lex->pos += 1;
             }
-            if (error == NULL) {
-                mx_str_append_byte(buf, (char)val);
-            }
-            break;
+            mx_str_append_byte(buf, (char)val);
+            return NULL;
         }
         case 'u': {
             lex->pos += 1;
             if (mx_lex_at(lex, lex->pos) != '{') {
-                error = mx_lex_escape_error(lex, start, "missing '{' in \\u{xxxx}");
-            } else {
-                lex->pos += 1;
-                if (!mx_lex_byte_is_hex(mx_lex_at(lex, lex->pos))) {
-                    error = mx_lex_escape_error(lex, start, "hexadecimal digit expected");
-                }
+                return mx_lex_escape_error(lex, start, "missing '{' in \\u{xxxx}");
+            }
+            lex->pos += 1;
+            if (!mx_lex_byte_is_hex(mx_lex_at(lex, lex->pos))) {
+                return mx_lex_escape_error(lex, start, "hexadecimal digit expected");
             }
             uint64_t cp = 0;
-            while (error == NULL && mx_lex_byte_is_hex(mx_lex_at(lex, lex->pos))) {
+            while (mx_lex_byte_is_hex(mx_lex_at(lex, lex->pos))) {
                 cp = cp * 16 + mx_lex_hex_value(mx_lex_at(lex, lex->pos));
                 if (cp > 0x7FFFFFFF) {
-                    error = mx_lex_escape_error(lex, start, "UTF-8 value too large");
-                } else {
-                    lex->pos += 1;
+                    return mx_lex_escape_error(lex, start, "UTF-8 value too large");
                 }
-            }
-            if (error == NULL && mx_lex_at(lex, lex->pos) != '}') {
-                error = mx_lex_escape_error(lex, start, "missing '}' in \\u{xxxx}");
-            }
-            if (error == NULL) {
                 lex->pos += 1;
-                mx_lex_utf8_encode(buf, cp);
             }
-            break;
+            if (mx_lex_at(lex, lex->pos) != '}') {
+                return mx_lex_escape_error(lex, start, "missing '}' in \\u{xxxx}");
+            }
+            lex->pos += 1;
+            mx_lex_utf8_encode(buf, cp);
+            return NULL;
         }
         case 'z': {
             lex->pos += 1;
             while (lex->pos < lex->len && mx_lex_byte_is_space(mx_lex_at(lex, lex->pos))) {
                 lex->pos += 1;
             }
-            break;
+            return NULL;
         }
         default: {
-            if (mx_lex_byte_is_digit(c)) {
-                uint64_t val = 0;
-                size_t n = 0;
-                while (n < 3 && mx_lex_byte_is_digit(mx_lex_at(lex, lex->pos))) {
-                    val = val * 10 + (uint64_t)(mx_lex_at(lex, lex->pos) - '0');
-                    lex->pos += 1;
-                    n += 1;
-                }
-                if (val > 255) {
-                    error = mx_lex_escape_error(lex, start, "decimal escape too large");
-                } else {
-                    mx_str_append_byte(buf, (char)val);
-                }
-            } else {
-                error = mx_lex_escape_error(lex, start, "invalid escape sequence");
+            if (!mx_lex_byte_is_digit(c)) {
+                return mx_lex_escape_error(lex, start, "invalid escape sequence");
             }
-            break;
+            uint64_t val = 0;
+            size_t n = 0;
+            while (n < 3 && mx_lex_byte_is_digit(mx_lex_at(lex, lex->pos))) {
+                val = val * 10 + (uint64_t)(mx_lex_at(lex, lex->pos) - '0');
+                lex->pos += 1;
+                n += 1;
+            }
+            if (val > 255) {
+                return mx_lex_escape_error(lex, start, "decimal escape too large");
+            }
+            mx_str_append_byte(buf, (char)val);
+            return NULL;
         }
     }
-    return error;
 }
 
-mx_error_t *mx_lex_short_string(mx_lex_t *lex, mx_lex_token_t *tok) {
+mx_lex_scan_t mx_lex_short_string(mx_lex_t *lex) {
     uint32_t start = lex->pos;
     uint8_t quote = mx_lex_at(lex, lex->pos);
     lex->pos += 1;
     mx_str_t *buf = lex->scratch;
     buf->len = 0;
-    mx_error_t *error = NULL;
-    while (error == NULL) {
+    while (true) {
         uint8_t c = mx_lex_at(lex, lex->pos);
         if (lex->pos >= lex->len) {
-            error = mx_lex_error_slice(lex, lex->len, lex->len, "unfinished string");
+            return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, lex->len, lex->len, "unfinished string") };
         } else if (c == quote) {
             lex->pos += 1;
-            break;
+            return mx_lex_scan_value(MX_LEX_TYPE_STRING, start, lex->pos, mx_obj_intern_strn(lex->vm, buf->buf, buf->len));
         } else if (c == '\n' || c == '\r') {
-            error = mx_lex_error_slice(lex, start, lex->pos, "unfinished string");
+            return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, start, lex->pos, "unfinished string") };
         } else if (c != '\\') {
             mx_str_append_byte(buf, (char)c);
             lex->pos += 1;
         } else if (lex->pos + 1 >= lex->len) {
             lex->pos += 1;
-            error = mx_lex_error_slice(lex, lex->len, lex->len, "unfinished string");
+            return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, lex->len, lex->len, "unfinished string") };
         } else {
             lex->pos += 1;
-            error = mx_lex_escape(lex, buf, start);
+            mx_error_t *error = mx_lex_escape(lex, buf, start);
+            if (error != NULL) {
+                return (mx_lex_scan_t) { .error = error };
+            }
         }
     }
-    if (error == NULL) {
-        tok->type = MX_LEX_TYPE_STRING;
-        tok->start = start;
-        tok->stop = lex->pos;
-        mx_lex_tok_set_value(tok, mx_obj_intern_strn(lex->vm, buf->buf, buf->len));
-    }
-    return error;
 }
 
-mx_error_t *mx_lex_number(mx_lex_t *lex, mx_lex_token_t *tok) {
+mx_lex_scan_t mx_lex_number(mx_lex_t *lex) {
     uint32_t start = lex->pos;
-    bool is_hex = false;
-    const char *expo = "eE";
-    if (mx_lex_at(lex, lex->pos) == '0') {
-        uint8_t x = mx_lex_at(lex, lex->pos + 1);
-        if (x == 'x' || x == 'X') {
-            is_hex = true;
-            expo = "pP";
-            lex->pos += 2;
-        }
+    uint8_t x = mx_lex_at(lex, lex->pos + 1);
+    bool is_hex = mx_lex_at(lex, lex->pos) == '0' && (x == 'x' || x == 'X');
+    const char *expo;
+    if (is_hex) {
+        expo = "pP";
+        lex->pos += 2;
+    } else {
+        expo = "eE";
     }
     bool is_int = true;
     while (lex->pos < lex->len) {
@@ -496,62 +492,60 @@ mx_error_t *mx_lex_number(mx_lex_t *lex, mx_lex_token_t *tok) {
             break;
         }
     }
-    mx_error_t *error = NULL;
     if (lex->pos < lex->len && mx_lex_byte_is_name(mx_lex_at(lex, lex->pos))) {
         lex->pos += 1;
-        uint32_t bad_stop = lex->pos;
-        if (bad_stop < lex->len && mx_lex_byte_is_name(mx_lex_at(lex, bad_stop))) {
-            bad_stop += 1;
-        }
-        error = mx_lex_error_slice(lex, start, bad_stop, "malformed number");
-    } else {
-        uint32_t stop = lex->pos;
-        mx_str_t *buf = lex->scratch;
-        buf->len = 0;
-        mx_str_append(buf, &lex->src[start], stop - start);
-        mx_str_append_byte(buf, '\0');
-        const char *text = buf->buf;
-        if (is_int && is_hex) {
-            if (stop - start <= 2) {
-                error = mx_lex_error_slice(lex, start, stop, "malformed number");
-            } else {
-                uint64_t val = 0;
-                for (uint32_t at = start + 2; at < stop; at++) {
-                    val = val * 16 + mx_lex_hex_value((uint8_t)lex->src[at]);
-                }
-                mx_lex_tok_set_value(tok, mx_obj_of_int((int64_t)val));
-            }
-        } else if (is_int) {
-            errno = 0;
-            char *end = NULL;
-            int64_t val = strtoll(text, &end, 10);
-            if (errno == ERANGE || end == NULL || *end != '\0') {
-                mx_lex_tok_set_value(tok, mx_obj_of_number(strtod(text, NULL)));
-            } else {
-                mx_lex_tok_set_value(tok, mx_obj_of_int(val));
-            }
+        uint32_t bad_stop;
+        if (lex->pos < lex->len && mx_lex_byte_is_name(mx_lex_at(lex, lex->pos))) {
+            bad_stop = lex->pos + 1;
         } else {
-            char *end = NULL;
-            double val = strtod(text, &end);
-            char point = localeconv()->decimal_point[0];
-            char *dot = strchr(buf->buf, '.');
-            if ((end == NULL || *end != '\0') && point != '.' && dot != NULL) {
-                *dot = point;
-                val = strtod(text, &end);
-            }
-            if (end == NULL || *end != '\0' || end == text) {
-                error = mx_lex_error_slice(lex, start, stop, "malformed number");
-            } else {
-                mx_lex_tok_set_value(tok, mx_obj_of_number(val));
-            }
+            bad_stop = lex->pos;
         }
-        if (error == NULL) {
-            tok->type = MX_LEX_TYPE_NUMBER;
-            tok->start = start;
-            tok->stop = stop;
+        return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, start, bad_stop, "malformed number") };
+    }
+    uint32_t stop = lex->pos;
+    mx_str_t *buf = lex->scratch;
+    buf->len = 0;
+    mx_str_append(buf, &lex->src[start], stop - start);
+    mx_str_append_byte(buf, '\0');
+    const char *text = buf->buf;
+    if (is_int && is_hex) {
+        if (stop - start <= 2) {
+            return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, start, stop, "malformed number") };
+        }
+        uint64_t val = 0;
+        for (uint32_t at = start + 2; at < stop; at++) {
+            val = val * 16 + mx_lex_hex_value((uint8_t)lex->src[at]);
+        }
+        return mx_lex_scan_value(MX_LEX_TYPE_NUMBER, start, stop, mx_obj_of_int((int64_t)val));
+    } else if (is_int) {
+        errno = 0;
+        char *end;
+        int64_t val = strtoll(text, &end, 10);
+        if (errno == ERANGE || *end != '\0') {
+            return mx_lex_scan_value(MX_LEX_TYPE_NUMBER, start, stop, mx_obj_of_number(strtod(text, NULL)));
+        } else {
+            return mx_lex_scan_value(MX_LEX_TYPE_NUMBER, start, stop, mx_obj_of_int(val));
+        }
+    } else {
+        char *first_end;
+        double first = strtod(text, &first_end);
+        char point = localeconv()->decimal_point[0];
+        char *dot = strchr(buf->buf, '.');
+        char *end;
+        double val;
+        if (*first_end != '\0' && point != '.' && dot != NULL) {
+            *dot = point;
+            val = strtod(text, &end);
+        } else {
+            val = first;
+            end = first_end;
+        }
+        if (*end != '\0' || end == text) {
+            return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, start, stop, "malformed number") };
+        } else {
+            return mx_lex_scan_value(MX_LEX_TYPE_NUMBER, start, stop, mx_obj_of_number(val));
         }
     }
-    return error;
 }
 
 mx_lex_type_t mx_lex_keyword(const char *src, uint32_t start, uint32_t stop) {
@@ -658,10 +652,9 @@ mx_lex_type_t mx_lex_keyword(const char *src, uint32_t start, uint32_t stop) {
     }
 }
 
-mx_error_t *mx_lex_scan_raw(mx_lex_t *lex, mx_lex_token_t *tok) {
-    mx_error_t *error = NULL;
+mx_lex_scan_t mx_lex_scan_raw(mx_lex_t *lex) {
     const uint8_t *src = (const uint8_t *)lex->src;
-    while (error == NULL) {
+    while (true) {
         uint32_t pos = lex->pos;
         while ((mx_lex_classes[src[pos]] & MX_LEX_CLASS_SPACE) != 0) {
             pos += 1;
@@ -669,84 +662,93 @@ mx_error_t *mx_lex_scan_raw(mx_lex_t *lex, mx_lex_token_t *tok) {
         lex->pos = pos;
         uint8_t c = mx_lex_at(lex, lex->pos);
         if (lex->pos >= lex->len) {
-            tok->type = MX_LEX_TYPE_EOF;
-            tok->start = lex->len;
-            tok->stop = lex->len;
-            return NULL;
+            return (mx_lex_scan_t) {
+                .tok = (mx_lex_token_t) {
+                    .start = lex->len,
+                    .stop = lex->len,
+                    .type = MX_LEX_TYPE_EOF,
+                },
+                .error = NULL,
+            };
         } else if (c == '-' && mx_lex_at(lex, lex->pos + 1) == '-') {
             uint32_t open_start = lex->pos;
             lex->pos += 2;
-            int64_t level = -1;
+            int64_t level;
             if (mx_lex_at(lex, lex->pos) == '[') {
                 level = mx_lex_open_level(lex, lex->pos);
+            } else {
+                level = -1;
             }
             if (level >= 0) {
                 lex->pos += (uint32_t)level + 2;
-                error = mx_lex_long_body(lex, open_start, level, "comment").error;
-            } else {
-                pos = lex->pos;
-                while (pos < lex->len && src[pos] != '\n' && src[pos] != '\r') {
-                    pos += 1;
+                mx_error_t *error = mx_lex_long_body(lex, open_start, level, "comment").error;
+                if (error != NULL) {
+                    return (mx_lex_scan_t) { .error = error };
                 }
-                lex->pos = pos;
+            } else {
+                uint32_t end = lex->pos;
+                while (end < lex->len && src[end] != '\n' && src[end] != '\r') {
+                    end += 1;
+                }
+                lex->pos = end;
             }
         } else {
             break;
         }
     }
-    if (error != NULL) {
-        return error;
-    } else {
-        uint32_t start = lex->pos;
-        uint8_t c = mx_lex_at(lex, lex->pos);
-        if (mx_lex_byte_is_name_start(c)) {
+    uint32_t start = lex->pos;
+    uint8_t c = mx_lex_at(lex, lex->pos);
+    if (mx_lex_byte_is_name_start(c)) {
+        uint32_t at = lex->pos + 1;
+        while (mx_lex_byte_is_name(src[at])) {
+            at += 1;
+        }
+        lex->pos = at;
+        return (mx_lex_scan_t) {
+            .tok = (mx_lex_token_t) {
+                .start = start,
+                .stop = at,
+                .type = mx_lex_keyword(lex->src, start, at),
+            },
+            .error = NULL,
+        };
+    } else if (mx_lex_byte_is_digit(c) || (c == '.' && mx_lex_byte_is_digit(mx_lex_at(lex, lex->pos + 1)))) {
+        return mx_lex_number(lex);
+    } else if (c == '"' || c == '\'') {
+        return mx_lex_short_string(lex);
+    } else if (c == '[') {
+        int64_t level = mx_lex_open_level(lex, lex->pos);
+        if (level >= 0) {
+            lex->pos += (uint32_t)level + 2;
+            mx_lex_long_t body = mx_lex_long_body(lex, start, level, "string");
+            if (body.error != NULL) {
+                return (mx_lex_scan_t) { .error = body.error };
+            }
+            return mx_lex_scan_value(MX_LEX_TYPE_STRING, start, lex->pos, mx_lex_long_value(lex, body.content_start, body.content_stop));
+        } else if (mx_lex_at(lex, lex->pos + 1) == '=') {
             uint32_t at = lex->pos + 1;
-            while (mx_lex_byte_is_name(src[at])) {
+            while (mx_lex_at(lex, at) == '=') {
                 at += 1;
             }
-            lex->pos = at;
-            tok->type = mx_lex_keyword(lex->src, start, at);
-            tok->start = start;
-            tok->stop = at;
-            return NULL;
-        } else if (mx_lex_byte_is_digit(c) || (c == '.' && mx_lex_byte_is_digit(mx_lex_at(lex, lex->pos + 1)))) {
-            return mx_lex_number(lex, tok);
-        } else if (c == '"' || c == '\'') {
-            return mx_lex_short_string(lex, tok);
-        } else if (c == '[') {
-            int64_t level = mx_lex_open_level(lex, lex->pos);
-            if (level >= 0) {
-                lex->pos += (uint32_t)level + 2;
-                mx_lex_long_t body = mx_lex_long_body(lex, start, level, "string");
-                if (body.error == NULL) {
-                    tok->type = MX_LEX_TYPE_STRING;
-                    tok->start = start;
-                    tok->stop = lex->pos;
-                    mx_lex_tok_set_value(tok, mx_lex_long_value(lex, body.content_start, body.content_stop));
-                }
-                return body.error;
-            } else if (mx_lex_at(lex, lex->pos + 1) == '=') {
-                uint32_t at = lex->pos + 1;
-                while (mx_lex_at(lex, at) == '=') {
-                    at += 1;
-                }
-                return mx_lex_error_slice(lex, start, at, "invalid long string delimiter");
-            } else {
-                tok->type = MX_LEX_TYPE_LBRACKET;
-                tok->start = start;
-                tok->stop = start + 1;
-                lex->pos += 1;
-                return NULL;
-            }
+            return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, start, at, "invalid long string delimiter") };
         } else {
-            return mx_lex_operator(lex, tok, start, c);
+            lex->pos += 1;
+            return (mx_lex_scan_t) {
+                .tok = (mx_lex_token_t) {
+                    .start = start,
+                    .stop = start + 1,
+                    .type = MX_LEX_TYPE_LBRACKET,
+                },
+                .error = NULL,
+            };
         }
+    } else {
+        return mx_lex_operator(lex, start, c);
     }
 }
 
-mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, uint8_t c) {
+mx_lex_scan_t mx_lex_operator(mx_lex_t *lex, uint32_t start, uint8_t c) {
     mx_lex_type_t type;
-    uint32_t n = 1;
     uint8_t next = mx_lex_at(lex, lex->pos + 1);
     switch (c) {
         case '+': {
@@ -764,7 +766,6 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         case '/': {
             if (next == '/') {
                 type = MX_LEX_TYPE_SLASH2;
-                n = 2;
             } else {
                 type = MX_LEX_TYPE_SLASH;
             }
@@ -789,7 +790,6 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         case '~': {
             if (next == '=') {
                 type = MX_LEX_TYPE_NE;
-                n = 2;
             } else {
                 type = MX_LEX_TYPE_TILDE;
             }
@@ -802,10 +802,8 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         case '<': {
             if (next == '<') {
                 type = MX_LEX_TYPE_SHL;
-                n = 2;
             } else if (next == '=') {
                 type = MX_LEX_TYPE_LE;
-                n = 2;
             } else {
                 type = MX_LEX_TYPE_LT;
             }
@@ -814,10 +812,8 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         case '>': {
             if (next == '>') {
                 type = MX_LEX_TYPE_SHR;
-                n = 2;
             } else if (next == '=') {
                 type = MX_LEX_TYPE_GE;
-                n = 2;
             } else {
                 type = MX_LEX_TYPE_GT;
             }
@@ -826,7 +822,6 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         case '=': {
             if (next == '=') {
                 type = MX_LEX_TYPE_EQ2;
-                n = 2;
             } else {
                 type = MX_LEX_TYPE_ASSIGN;
             }
@@ -859,7 +854,6 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         case ':': {
             if (next == ':') {
                 type = MX_LEX_TYPE_LABEL;
-                n = 2;
             } else {
                 type = MX_LEX_TYPE_COLON;
             }
@@ -872,10 +866,8 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         case '.': {
             if (next == '.' && mx_lex_at(lex, lex->pos + 2) == '.') {
                 type = MX_LEX_TYPE_DOTS;
-                n = 3;
             } else if (next == '.') {
                 type = MX_LEX_TYPE_CONCAT;
-                n = 2;
             } else {
                 type = MX_LEX_TYPE_DOT;
             }
@@ -883,28 +875,41 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
         }
         default: {
             if (c >= 0x21 && c <= 0x7e) {
-                return mx_lex_error_slice(lex, start, start + 1, "unexpected symbol");
+                return (mx_lex_scan_t) { .error = mx_lex_error_slice(lex, start, start + 1, "unexpected symbol") };
             } else {
                 mx_str_t *msg = mx_str_new();
                 mx_str_format(msg, "unexpected symbol near '<\\%d>'", (int32_t)c);
-                return mx_lex_error_finish(lex, msg, start);
+                return (mx_lex_scan_t) { .error = mx_lex_error_finish(lex, msg, start) };
             }
         }
     }
-    tok->type = type;
-    tok->start = start;
-    tok->stop = start + n;
-    lex->pos = start + n;
-    return NULL;
+    uint32_t stop = start + (uint32_t)strlen(mx_lex_type_names[type]);
+    lex->pos = stop;
+    return (mx_lex_scan_t) {
+        .tok = (mx_lex_token_t) {
+            .start = start,
+            .stop = stop,
+            .type = type,
+        },
+        .error = NULL,
+    };
 }
 
-mx_error_t *mx_lex_scan(mx_lex_t *lex, mx_lex_token_t *tok) {
-    tok->name = NULL;
-    mx_error_t *error = mx_lex_scan_raw(lex, tok);
-    if (error == NULL && tok->type == MX_LEX_TYPE_NAME) {
-        tok->name = mx_scratch_intern_range(lex->vm, &lex->src[tok->start], tok->stop - tok->start);
+mx_lex_scan_t mx_lex_scan(mx_lex_t *lex) {
+    mx_lex_scan_t got = mx_lex_scan_raw(lex);
+    if (got.error == NULL && got.tok.type == MX_LEX_TYPE_NAME) {
+        return (mx_lex_scan_t) {
+            .tok = (mx_lex_token_t) {
+                .start = got.tok.start,
+                .stop = got.tok.stop,
+                .name = mx_scratch_intern_range(lex->vm, &lex->src[got.tok.start], got.tok.stop - got.tok.start),
+                .type = MX_LEX_TYPE_NAME,
+            },
+            .error = NULL,
+        };
+    } else {
+        return got;
     }
-    return error;
 }
 
 mx_error_t *mx_lex_next(mx_lex_t *lex) {
@@ -913,24 +918,27 @@ mx_error_t *mx_lex_next(mx_lex_t *lex) {
         lex->tok = lex->ahead;
         lex->has_ahead = false;
         return NULL;
-    } else {
-        return mx_lex_scan(lex, &lex->tok);
     }
+    mx_lex_scan_t got = mx_lex_scan(lex);
+    if (got.error == NULL) {
+        lex->tok = got.tok;
+    }
+    return got.error;
 }
 
 mx_lex_type_t mx_lex_peek(mx_lex_t *lex) {
     if (lex->has_ahead) {
         return lex->ahead.type;
+    }
+    uint32_t pos = lex->pos;
+    mx_lex_scan_t got = mx_lex_scan(lex);
+    if (got.error != NULL) {
+        lex->pos = pos;
+        return MX_LEX_TYPE_EOF;
     } else {
-        uint32_t pos = lex->pos;
-        mx_error_t *error = mx_lex_scan(lex, &lex->ahead);
-        if (error != NULL) {
-            lex->pos = pos;
-            return MX_LEX_TYPE_EOF;
-        } else {
-            lex->has_ahead = true;
-            return lex->ahead.type;
-        }
+        lex->ahead = got.tok;
+        lex->has_ahead = true;
+        return got.tok.type;
     }
 }
 
@@ -994,13 +1002,13 @@ mx_lex_name_t mx_lex_name(mx_lex_t *lex) {
             .at = lex->tok.start,
         };
     } else {
-        mx_lex_name_t out = {
-            .error = NULL,
-            .name = lex->tok.name,
-            .at = lex->tok.start,
+        const char *name = lex->tok.name;
+        uint32_t at = lex->tok.start;
+        return (mx_lex_name_t) {
+            .error = mx_lex_next(lex),
+            .name = name,
+            .at = at,
         };
-        out.error = mx_lex_next(lex);
-        return out;
     }
 }
 
@@ -1026,7 +1034,7 @@ void mx_lex_init(mx_lex_t *lex, mx_t *vm, const mx_source_t *source, const char 
         .src = src,
         .len = source->len,
         .scratch = mx_str_new(),
-        .tok = {
+        .tok = (mx_lex_token_t) {
             .type = MX_LEX_TYPE_EOF,
         },
     };

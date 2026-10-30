@@ -19,13 +19,15 @@ uint32_t mx_scratch_hash(const char *str, size_t len) {
 }
 
 void mx_scratch_push(mx_t *vm, mx_arena_t *arena) {
-    mx_scratch_t *c = vm->scratch;
-    c->arena = arena;
-    c->intern.cap = 1024;
-    c->intern.used = 0;
-    c->intern.slots = mx_arena_alloc(arena, sizeof(const char *) * c->intern.cap);
-    memset(c->intern.slots, 0, sizeof(const char *) * c->intern.cap);
-    c->intern.hashes = mx_arena_alloc(arena, sizeof(uint32_t) * c->intern.cap);
+    const char **slots = mx_arena_alloc(arena, sizeof(const char *) * 1024);
+    memset(slots, 0, sizeof(const char *) * 1024);
+    vm->scratch->arena = arena;
+    vm->scratch->intern = (mx_scratch_intern_t) {
+        .slots = slots,
+        .hashes = mx_arena_alloc(arena, sizeof(uint32_t) * 1024),
+        .used = 0,
+        .cap = 1024,
+    };
 }
 
 void mx_scratch_pop(mx_t *vm) {
@@ -52,24 +54,26 @@ const char *mx_scratch_intern_range(mx_t *vm, const char *str, size_t len) {
     c->intern.hashes[i] = hash;
     c->intern.used += 1;
     if (c->intern.used * 4 > c->intern.cap * 3) {
-        size_t ocap = c->intern.cap;
-        const char **optr = c->intern.slots;
-        uint32_t *ohash = c->intern.hashes;
-        c->intern.cap = ocap * 2;
-        c->intern.slots = mx_arena_alloc(c->arena, sizeof(const char *) * c->intern.cap);
-        memset(c->intern.slots, 0, sizeof(const char *) * c->intern.cap);
-        c->intern.hashes = mx_arena_alloc(c->arena, sizeof(uint32_t) * c->intern.cap);
-        size_t nmask = c->intern.cap - 1;
-        for (size_t k = 0; k < ocap; k++) {
-            if (optr[k] != NULL) {
-                size_t at = ohash[k] & nmask;
-                while (c->intern.slots[at] != NULL) {
-                    at = (at + 1) & nmask;
+        size_t cap = c->intern.cap * 2;
+        const char **slots = mx_arena_alloc(c->arena, sizeof(const char *) * cap);
+        memset(slots, 0, sizeof(const char *) * cap);
+        uint32_t *hashes = mx_arena_alloc(c->arena, sizeof(uint32_t) * cap);
+        for (size_t k = 0; k < c->intern.cap; k++) {
+            if (c->intern.slots[k] != NULL) {
+                size_t at = c->intern.hashes[k] & (cap - 1);
+                while (slots[at] != NULL) {
+                    at = (at + 1) & (cap - 1);
                 }
-                c->intern.slots[at] = optr[k];
-                c->intern.hashes[at] = ohash[k];
+                slots[at] = c->intern.slots[k];
+                hashes[at] = c->intern.hashes[k];
             }
         }
+        c->intern = (mx_scratch_intern_t) {
+            .slots = slots,
+            .hashes = hashes,
+            .used = c->intern.used,
+            .cap = cap,
+        };
     }
     return copy;
 }

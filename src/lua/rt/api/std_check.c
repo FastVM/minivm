@@ -51,15 +51,17 @@ const char *mx_std_libname(mx_std_fn_t *fn) {
 }
 
 mx_std_qualname_t mx_std_qualname(mx_std_state_t *ls) {
-    mx_std_qualname_t out = { .name = {'\0'}, .is_method = false };
     mx_varname_t site = mx_std_site_name(ls);
-    const char *lib = NULL;
+    bool is_site = site.kind != MX_VARHINT_NONE && site.name != NULL;
+    mx_std_qualname_t out = { .name = {'\0'}, .is_method = is_site && site.kind == MX_VARHINT_METHOD };
+    const char *lib;
     if (ls->fn != NULL) {
         lib = mx_std_libname(ls->fn);
+    } else {
+        lib = NULL;
     }
-    if (site.kind != MX_VARHINT_NONE && site.name != NULL) {
+    if (is_site) {
         snprintf(out.name, sizeof(out.name), "%s", site.name);
-        out.is_method = site.kind == MX_VARHINT_METHOD;
     } else if (lib != NULL) {
         snprintf(out.name, sizeof(out.name), "%s.%s", lib, ls->fnname);
     } else if (ls->fnname != NULL) {
@@ -72,9 +74,11 @@ mx_std_qualname_t mx_std_qualname(mx_std_state_t *ls) {
 
 int32_t mx_std_argerror(mx_std_state_t *ls, mx_std_slot_t arg, const char *msg) {
     mx_std_qualname_t qual = mx_std_qualname(ls);
-    int32_t shown = (int32_t)arg;
+    int32_t shown;
     if (qual.is_method) {
-        shown -= 1;
+        shown = (int32_t)arg - 1;
+    } else {
+        shown = (int32_t)arg;
     }
     if (qual.is_method && shown == 0) {
         return mx_std_error(ls, "calling '%s' on bad self (%s)", qual.name, msg);
@@ -86,9 +90,11 @@ int32_t mx_std_argerror(mx_std_state_t *ls, mx_std_slot_t arg, const char *msg) 
 int32_t mx_std_typeerror(mx_std_state_t *ls, mx_std_slot_t arg, const char *expected) {
     const char *got;
     mx_obj_t *at = mx_std_at(ls, arg);
-    mx_obj_t name = mx_obj_of_nil();
+    mx_obj_t name;
     if (at != NULL && mx_obj_is_table(*at) && mx_obj_get_table(*at)->meta != NULL) {
         name = mx_table_get(mx_obj_get_table(*at)->meta, mx_lua_of(ls->vm)->meta_keys[MX_LUA_META_KEY_NAME]);
+    } else {
+        name = mx_obj_of_nil();
     }
     if (mx_obj_is_string(name)) {
         got = mx_obj_get_string(name)->buf;
@@ -133,9 +139,12 @@ mx_std_str_t mx_std_checkstring(mx_std_state_t *ls, mx_std_slot_t arg) {
 }
 
 void mx_std_checktype(mx_std_state_t *ls, mx_std_slot_t arg, mx_lua_type_t type) {
-    mx_lua_type_t got = mx_std_type(ls, arg);
-    if (got == MX_LUA_TYPE_FLOAT) {
+    mx_lua_type_t raw = mx_std_type(ls, arg);
+    mx_lua_type_t got;
+    if (raw == MX_LUA_TYPE_FLOAT) {
         got = MX_LUA_TYPE_INTEGER;
+    } else {
+        got = raw;
     }
     if (got != type) {
         mx_std_typeerror(ls, arg, mx_std_typename(ls, type));
@@ -233,23 +242,27 @@ mx_obj_strtod_t mx_std_str2d(const char *str) {
 }
 
 mx_obj_num_t mx_std_str2int(const char *str) {
-    const char *s = mx_std_skip_space(str);
-    bool neg = *s == '-';
-    if (*s == '+' || *s == '-') {
-        s += 1;
+    const char *lead = mx_std_skip_space(str);
+    bool neg = *lead == '-';
+    const char *digits;
+    if (*lead == '+' || *lead == '-') {
+        digits = lead + 1;
+    } else {
+        digits = lead;
     }
     uint64_t acc = 0;
     bool any = false;
     bool is_overflow = false;
-    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
-        for (s += 2; isxdigit((uint8_t)*s) != 0; s++) {
+    const char *s;
+    if (digits[0] == '0' && (digits[1] == 'x' || digits[1] == 'X')) {
+        for (s = digits + 2; isxdigit((uint8_t)*s) != 0; s++) {
             acc = acc * 16 + (uint64_t)mx_std_base_digit(*s);
             any = true;
         }
     } else {
         uint64_t maxby10 = (uint64_t)INT64_MAX / 10;
         uint64_t maxlast = (uint64_t)INT64_MAX % 10;
-        for (; isdigit((uint8_t)*s) != 0; s++) {
+        for (s = digits; isdigit((uint8_t)*s) != 0; s++) {
             uint64_t d = (uint64_t)(*s - '0');
             if (acc > maxby10 || (acc == maxby10 && d > maxlast + (uint64_t)neg)) {
                 is_overflow = true;
@@ -258,8 +271,8 @@ mx_obj_num_t mx_std_str2int(const char *str) {
             any = true;
         }
     }
-    s = mx_std_skip_space(s);
-    if (!any || is_overflow || *s != '\0') {
+    const char *rest = mx_std_skip_space(s);
+    if (!any || is_overflow || *rest != '\0') {
         return (mx_obj_num_t) { .value = mx_obj_of_nil(), .is_num = false };
     } else if (neg) {
         return (mx_obj_num_t) { .value = mx_obj_of_int((int64_t)((uint64_t)0 - acc)), .is_num = true };

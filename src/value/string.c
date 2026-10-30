@@ -58,9 +58,11 @@ void mx_str_reserve(mx_str_t *buf, uint32_t need) {
             buf->is_tail = false;
         } else if (buf->is_sso) {
             mx_str_payload_t got = mx_str_payload_alloc((size_t)ncap);
-            size_t copy = MX_STR_SSO_CAP + 1;
+            size_t copy;
             if (buf->len < MX_STR_SSO_CAP) {
                 copy = buf->len + 1;
+            } else {
+                copy = MX_STR_SSO_CAP + 1;
             }
             memcpy(got.data, buf->small, copy);
             buf->buf = got.data;
@@ -74,9 +76,11 @@ void mx_str_reserve(mx_str_t *buf, uint32_t need) {
         } else {
             mx_str_payload_t got = mx_str_payload_alloc((size_t)ncap);
             if (buf->buf != NULL) {
-                size_t copy = buf->len;
-                if (copy < buf->cap) {
+                size_t copy;
+                if (buf->len < buf->cap) {
                     copy = (size_t)buf->len + 1;
+                } else {
+                    copy = buf->len;
                 }
                 memcpy(got.data, buf->buf, copy);
                 if ((size_t)buf->len < (size_t)got.cap) {
@@ -205,7 +209,7 @@ void mx_str_flatten(mx_str_t *buf) {
 mx_str_t *mx_str_new(void) {
     mx_str_t *ret = mx_mem_alloc(sizeof(mx_str_t));
     *ret = (mx_str_t) {
-        .head = {
+        .head = (mx_obj_head_t) {
             .kind = MX_KIND_STRING,
         },
     };
@@ -243,9 +247,11 @@ void mx_str_append_byte(mx_str_t *buf, char c) {
 
 uint32_t mx_str_int_digits(char *tmp, int64_t v) {
     uint32_t at = MX_STR_INT_DIGITS;
-    uint64_t u = (uint64_t)v;
+    uint64_t u;
     if (v < 0) {
-        u = (uint64_t)0 - u;
+        u = (uint64_t)0 - (uint64_t)v;
+    } else {
+        u = (uint64_t)v;
     }
     bool has_more = true;
     while (has_more) {
@@ -255,10 +261,11 @@ uint32_t mx_str_int_digits(char *tmp, int64_t v) {
         has_more = u != 0;
     }
     if (v < 0) {
-        at -= 1;
-        tmp[at] = '-';
+        tmp[at - 1] = '-';
+        return at - 1;
+    } else {
+        return at;
     }
-    return at;
 }
 
 void mx_str_append_int(mx_str_t *buf, int64_t v) {
@@ -291,9 +298,10 @@ void mx_str_indent(mx_str_t *out, size_t indent, const char *prefix) {
 int32_t mx_str_float_digits(char *tmp, double n) {
     int32_t written = snprintf(tmp, MX_STR_FLOAT_CAP, "%.15g", n);
     if (n == n && strtod(tmp, NULL) != n) {
-        written = snprintf(tmp, MX_STR_FLOAT_CAP, "%.17g", n);
+        return snprintf(tmp, MX_STR_FLOAT_CAP, "%.17g", n);
+    } else {
+        return written;
     }
-    return written;
 }
 
 void mx_str_number(mx_str_t *out, double n) {
@@ -313,20 +321,21 @@ void mx_str_float(mx_str_t *out, double n) {
     if (looks_int && written + 2 < (int32_t)sizeof(tmp)) {
         tmp[written] = localeconv()->decimal_point[0];
         tmp[written + 1] = '0';
-        written += 2;
+        mx_str_append(out, tmp, (uint32_t)written + 2);
+    } else {
+        mx_str_append(out, tmp, (uint32_t)written);
     }
-    mx_str_append(out, tmp, (uint32_t)written);
 }
 
 void mx_str_print_lit(mx_str_t *out, mx_obj_t value) {
     if (mx_obj_is_nil(value)) {
         mx_str_format(out, "nil");
     } else if (mx_obj_is_boolean(value)) {
-        const char *text = "false";
         if (mx_obj_get_boolean(value)) {
-            text = "true";
+            mx_str_format(out, "true");
+        } else {
+            mx_str_format(out, "false");
         }
-        mx_str_format(out, "%s", text);
     } else if (mx_obj_is_number(value)) {
         mx_str_number(out, mx_obj_get_number(value));
     } else if (mx_obj_is_ffi(value)) {
@@ -351,9 +360,11 @@ void mx_str_obj_debug_table(mx_str_t *out, size_t indent, mx_obj_table_t *tbl, m
             mx_str_obj_debug(out, indent + 1, key, tbl->array[i], next);
         }
     }
-    size_t len = 0;
+    size_t len;
     if (tbl->entries != NULL) {
         len = mx_table_hash_cap(tbl);
+    } else {
+        len = 0;
     }
     for (size_t i = 0; i < len; i++) {
         mx_obj_t key = mx_table_entry_key(&tbl->entries[i]);
@@ -438,11 +449,11 @@ void mx_str_object_tostring(mx_t *vm, mx_str_t *buf, mx_obj_t value) {
     if (mx_obj_is_nil(value)) {
         mx_str_format(buf, "nil");
     } else if (mx_obj_is_boolean(value)) {
-        const char *text = "false";
         if (mx_obj_get_boolean(value)) {
-            text = "true";
+            mx_str_format(buf, "true");
+        } else {
+            mx_str_format(buf, "false");
         }
-        mx_str_format(buf, "%s", text);
     } else if (mx_obj_is_number(value)) {
         mx_str_number(buf, mx_obj_get_number(value));
     } else if (mx_obj_is_string(value)) {
@@ -453,9 +464,11 @@ void mx_str_object_tostring(mx_t *vm, mx_str_t *buf, mx_obj_t value) {
     } else if (mx_obj_is_block(value)) {
         mx_str_format(buf, "code: %p", mx_obj_get_block(value));
     } else if (mx_obj_is_data(value)) {
-        const char *name = "data";
+        const char *name;
         if (vm != NULL) {
             name = mx_kind_name(vm, mx_obj_kind(value));
+        } else {
+            name = "data";
         }
         mx_str_format(buf, "%s: %p", name, mx_obj_data_head(value));
     } else if (mx_obj_is_ffi(value)) {
@@ -472,7 +485,7 @@ mx_str_t *mx_str_from_cstr(const char *str) {
 mx_str_t *mx_str_new_gc(mx_t *vm) {
     mx_str_t *ret = mx_gc_alloc(vm, sizeof(mx_str_t));
     *ret = (mx_str_t) {
-        .head = {
+        .head = (mx_obj_head_t) {
             .kind = MX_KIND_STRING,
         },
         .is_gc = true,
@@ -492,7 +505,7 @@ mx_str_t *mx_str_new_gc_sized(mx_t *vm, uint32_t len) {
     if (len >= MX_STR_SSO_CAP && MX_STR_TAIL_HEADER + (size_t)len + 1 <= MX_GC_MEDIUM_MAX) {
         mx_str_t *ret = mx_gc_alloc(vm, MX_STR_TAIL_HEADER + (size_t)len + 1);
         *ret = (mx_str_t) {
-            .head = {
+            .head = (mx_obj_head_t) {
                 .kind = MX_KIND_STRING,
             },
             .cap = len + 1,
@@ -502,25 +515,32 @@ mx_str_t *mx_str_new_gc_sized(mx_t *vm, uint32_t len) {
         };
         ret->buf[0] = '\0';
         return ret;
-    } else {
+    } else if (len < MX_STR_SSO_CAP) {
         mx_str_t *ret = mx_gc_alloc(vm, sizeof(mx_str_t));
         *ret = (mx_str_t) {
-            .head = {
+            .head = (mx_obj_head_t) {
                 .kind = MX_KIND_STRING,
             },
+            .cap = MX_STR_SSO_CAP,
+            .buf = ret->small,
+            .is_sso = true,
             .is_gc = true,
         };
-        if (len < MX_STR_SSO_CAP) {
-            ret->buf = ret->small;
-            ret->cap = MX_STR_SSO_CAP;
-            ret->is_sso = true;
-        } else {
-            mx_gc_note_final_owned(&ret->head);
-            mx_str_payload_t got = mx_str_payload_alloc((size_t)len + 1);
-            mx_gc_note_bytes(vm, got.cap);
-            ret->buf = got.data;
-            ret->cap = got.cap;
-        }
+        ret->buf[0] = '\0';
+        return ret;
+    } else {
+        mx_str_t *ret = mx_gc_alloc(vm, sizeof(mx_str_t));
+        mx_str_payload_t got = mx_str_payload_alloc((size_t)len + 1);
+        *ret = (mx_str_t) {
+            .head = (mx_obj_head_t) {
+                .kind = MX_KIND_STRING,
+            },
+            .cap = got.cap,
+            .buf = got.data,
+            .is_gc = true,
+        };
+        mx_gc_note_final_owned(&ret->head);
+        mx_gc_note_bytes(vm, got.cap);
         ret->buf[0] = '\0';
         return ret;
     }
@@ -562,8 +582,6 @@ mx_str_t *mx_str_cache_get(mx_t *vm, const char *bytes, uint32_t len) {
     }
 }
 
-// s .. v, or v .. s when is_int_first, without making a string for v unless
-// the result has to be a rope.
 mx_str_t *mx_str_concat_int(mx_t *vm, mx_str_t *s, int64_t v, bool is_int_first) {
     char tmp[MX_STR_INT_DIGITS];
     uint32_t at = mx_str_int_digits(tmp, v);
@@ -603,13 +621,13 @@ mx_str_t *mx_str_new_rope_gc(mx_t *vm, mx_str_t *l, mx_str_t *r) {
     } else {
         mx_str_t *ret = mx_gc_alloc(vm, sizeof(mx_str_t));
         *ret = (mx_str_t) {
-            .head = {
+            .head = (mx_obj_head_t) {
                 .kind = MX_KIND_STRING,
             },
             .len = l->len + r->len,
             .is_rope = true,
             .is_gc = true,
-            .rope = {
+            .rope = (mx_str_rope_t) {
                 .left = l,
                 .right = r,
             },

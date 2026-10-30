@@ -34,15 +34,9 @@ int32_t mx_std_pack_getnumlimit(mx_std_pack_t *h, int32_t df) {
     size_t sz = mx_std_pack_getnum(h, (size_t)df);
     if (sz > MX_STD_PACK_MAXINTSIZE || sz == 0) {
         return mx_std_error(h->ls, "integral size (%d) out of limits [1,%d]", (int32_t)sz, MX_STD_PACK_MAXINTSIZE);
+    } else {
+        return (int32_t)sz;
     }
-    return (int32_t)sz;
-}
-
-void mx_std_pack_init(mx_std_pack_t *h, mx_std_state_t *ls, const char *fmt) {
-    h->ls = ls;
-    h->fmt = fmt;
-    h->is_little = true;
-    h->max_align = 1;
 }
 
 mx_std_pack_res_t mx_std_pack_getoption(mx_std_pack_t *h) {
@@ -98,9 +92,10 @@ mx_std_pack_res_t mx_std_pack_getoption(mx_std_pack_t *h) {
             size_t csize = mx_std_pack_getnum(h, SIZE_MAX);
             if (csize == SIZE_MAX) {
                 mx_std_error(h->ls, "missing size for format option 'c'");
-                csize = 0;
+                return (mx_std_pack_res_t) { .size = 0, .opt = MX_STD_PACK_CHAR };
+            } else {
+                return (mx_std_pack_res_t) { .size = csize, .opt = MX_STD_PACK_CHAR };
             }
-            return (mx_std_pack_res_t) { .size = csize, .opt = MX_STD_PACK_CHAR };
         }
         case 'z': {
             return (mx_std_pack_res_t) { .size = 0, .opt = MX_STD_PACK_ZSTR };
@@ -140,71 +135,68 @@ mx_std_pack_res_t mx_std_pack_getoption(mx_std_pack_t *h) {
 
 mx_std_pack_det_t mx_std_pack_getdetails(mx_std_pack_t *h, size_t totalsize) {
     mx_std_pack_res_t got = mx_std_pack_getoption(h);
-    size_t align = got.size;
-    if (got.opt == MX_STD_PACK_PADDALIGN) {
-        if (*h->fmt == '\0') {
+    size_t align;
+    if (got.opt != MX_STD_PACK_PADDALIGN) {
+        align = got.size;
+    } else if (*h->fmt == '\0') {
+        mx_std_argerror(h->ls, 1, "invalid next option for option 'X'");
+        align = got.size;
+    } else {
+        mx_std_pack_res_t next = mx_std_pack_getoption(h);
+        if (next.opt == MX_STD_PACK_CHAR || next.size == 0) {
             mx_std_argerror(h->ls, 1, "invalid next option for option 'X'");
-        } else {
-            mx_std_pack_res_t next = mx_std_pack_getoption(h);
-            align = next.size;
-            if (next.opt == MX_STD_PACK_CHAR || align == 0) {
-                mx_std_argerror(h->ls, 1, "invalid next option for option 'X'");
-            }
         }
+        align = next.size;
     }
-    int32_t ntoalign = 0;
-    if (align > 1 && got.opt != MX_STD_PACK_CHAR) {
+    int32_t ntoalign;
+    if (align <= 1 || got.opt == MX_STD_PACK_CHAR) {
+        ntoalign = 0;
+    } else {
+        size_t capped;
         if (align > (size_t)h->max_align) {
-            align = (size_t)h->max_align;
+            capped = (size_t)h->max_align;
+        } else {
+            capped = align;
         }
-        if ((align & (align - 1)) != 0) {
+        if ((capped & (capped - 1)) != 0) {
             mx_std_argerror(h->ls, 1, "format asks for alignment not power of 2");
         }
-        ntoalign = (int32_t)((align - (totalsize & (align - 1))) & (align - 1));
+        ntoalign = (int32_t)((capped - (totalsize & (capped - 1))) & (capped - 1));
     }
     return (mx_std_pack_det_t) { .size = got.size, .pad = ntoalign, .opt = got.opt };
 }
 
-void mx_std_pack_packint(mx_std_buf_t *b, uint64_t n, bool is_little, int32_t size, bool neg) {
-    char buff[MX_STD_PACK_MAXINTSIZE];
-    for (int32_t i = 0; i < size; i++) {
-        if (i > 0) {
-            n >>= 8;
-        }
-        int32_t at = size - 1 - i;
-        if (is_little) {
-            at = i;
-        }
-        buff[at] = (char)(n & 0xff);
+int32_t mx_std_pack_index(int32_t i, int32_t size, bool is_little) {
+    if (is_little) {
+        return i;
+    } else {
+        return size - 1 - i;
     }
-    if (neg && size > MX_STD_PACK_INTSIZE) {
-        for (int32_t i = MX_STD_PACK_INTSIZE; i < size; i++) {
-            int32_t at = size - 1 - i;
-            if (is_little) {
-                at = i;
-            }
-            buff[at] = (char)0xff;
-        }
-    }
-    mx_std_buf_addlstring(b, buff, (size_t)size);
 }
 
-void mx_std_pack_copywithendian(char *dest, const char *src, int32_t size, bool is_little) {
-    if (is_little) {
-        memcpy(dest, src, (size_t)size);
-    } else {
+void mx_std_pack_packint(mx_std_buf_t *b, uint64_t n, bool is_little, int32_t size, bool neg) {
+    char *out = mx_std_buf_prep(b, (size_t)size);
+    if (out != NULL) {
         for (int32_t i = 0; i < size; i++) {
-            dest[size - 1 - i] = src[i];
+            uint8_t byte;
+            if (i < MX_STD_PACK_INTSIZE) {
+                byte = (uint8_t)(n >> (i * 8));
+            } else if (neg) {
+                byte = 0xff;
+            } else {
+                byte = 0;
+            }
+            out[mx_std_pack_index(i, size, is_little)] = (char)byte;
         }
+        b->len += (size_t)size;
     }
 }
 
 int32_t mx_std_string_pack(mx_std_state_t *ls) {
     mx_std_buf_t b;
-    mx_std_pack_t h;
+    mx_std_pack_t h = (mx_std_pack_t) { .ls = ls, .fmt = mx_std_checkstring(ls, 1).ptr, .max_align = 1, .is_little = true };
     int32_t arg = 1;
     size_t totalsize = 0;
-    mx_std_pack_init(&h, ls, mx_std_checkstring(ls, 1).ptr);
     mx_std_pushnil(ls);
     mx_std_buf_init(ls, &b);
     while (*h.fmt != '\0' && !ls->vm->std_error.is_set) {
@@ -251,18 +243,14 @@ int32_t mx_std_string_pack(mx_std_state_t *ls) {
                 break;
             }
             case MX_STD_PACK_FLOAT: {
-                float f = (float)mx_std_checkfloat(ls, arg);
-                char buff[sizeof(float)];
-                mx_std_pack_copywithendian(buff, (const char *)&f, sizeof(f), h.is_little);
-                mx_std_buf_addlstring(&b, buff, sizeof(buff));
+                mx_std_pack_f32_t f = (mx_std_pack_f32_t) { .f32 = (float)mx_std_checkfloat(ls, arg) };
+                mx_std_pack_packint(&b, f.bits, h.is_little, (int32_t)size, false);
                 break;
             }
             case MX_STD_PACK_NUMBER:
             case MX_STD_PACK_DOUBLE: {
-                double f = mx_std_checkfloat(ls, arg);
-                char buff[sizeof(double)];
-                mx_std_pack_copywithendian(buff, (const char *)&f, sizeof(f), h.is_little);
-                mx_std_buf_addlstring(&b, buff, sizeof(buff));
+                mx_val_t f = mx_val_f64(mx_std_checkfloat(ls, arg));
+                mx_std_pack_packint(&b, f.bits, h.is_little, (int32_t)size, false);
                 break;
             }
             case MX_STD_PACK_CHAR: {
@@ -324,9 +312,8 @@ int32_t mx_std_string_pack(mx_std_state_t *ls) {
 }
 
 int32_t mx_std_string_packsize(mx_std_state_t *ls) {
-    mx_std_pack_t h;
+    mx_std_pack_t h = (mx_std_pack_t) { .ls = ls, .fmt = mx_std_checkstring(ls, 1).ptr, .max_align = 1, .is_little = true };
     size_t totalsize = 0;
-    mx_std_pack_init(&h, ls, mx_std_checkstring(ls, 1).ptr);
     while (*h.fmt != '\0' && !ls->vm->std_error.is_set) {
         mx_std_pack_det_t det = mx_std_pack_getdetails(&h, totalsize);
         if (det.opt == MX_STD_PACK_STRING || det.opt == MX_STD_PACK_ZSTR) {
@@ -343,44 +330,38 @@ int32_t mx_std_string_packsize(mx_std_state_t *ls) {
 }
 
 int64_t mx_std_pack_unpackint(mx_std_state_t *ls, const char *str, bool is_little, int32_t size, bool issigned) {
-    uint64_t res = 0;
-    int32_t limit = size;
-    if (limit > MX_STD_PACK_INTSIZE) {
+    int32_t limit;
+    if (size > MX_STD_PACK_INTSIZE) {
         limit = MX_STD_PACK_INTSIZE;
+    } else {
+        limit = size;
     }
+    uint64_t res = 0;
     for (int32_t i = limit - 1; i >= 0; i--) {
-        res <<= 8;
-        int32_t at = size - 1 - i;
-        if (is_little) {
-            at = i;
-        }
-        res |= (uint8_t)str[at];
+        res = (res << 8) | (uint8_t)str[mx_std_pack_index(i, size, is_little)];
     }
-    if (size < MX_STD_PACK_INTSIZE) {
-        if (issigned) {
-            uint64_t mask = (uint64_t)1 << (size * 8 - 1);
-            res = ((res ^ mask) - mask);
-        }
+    if (size < MX_STD_PACK_INTSIZE && issigned) {
+        uint64_t mask = (uint64_t)1 << (size * 8 - 1);
+        return (int64_t)((res ^ mask) - mask);
     } else if (size > MX_STD_PACK_INTSIZE) {
-        int32_t mask = 0xff;
-        if (!issigned || (int64_t)res >= 0) {
+        uint8_t mask;
+        if (issigned && (int64_t)res < 0) {
+            mask = 0xff;
+        } else {
             mask = 0;
         }
         for (int32_t i = limit; i < size; i++) {
-            int32_t at = size - 1 - i;
-            if (is_little) {
-                at = i;
-            }
-            if ((uint8_t)str[at] != mask) {
+            if ((uint8_t)str[mx_std_pack_index(i, size, is_little)] != mask) {
                 mx_std_error(ls, "%d-byte integer does not fit into Lua Integer", size);
             }
         }
+        return (int64_t)res;
+    } else {
+        return (int64_t)res;
     }
-    return (int64_t)res;
 }
 
 int32_t mx_std_string_unpack(mx_std_state_t *ls) {
-    mx_std_pack_t h;
     const char *fmt_arg = mx_std_checkstring(ls, 1).ptr;
     mx_std_str_t dv = mx_std_checkstring(ls, 2);
     const char *data = dv.ptr;
@@ -390,7 +371,7 @@ int32_t mx_std_string_unpack(mx_std_state_t *ls) {
     if (!(pos <= ld)) {
         return mx_std_argerror(ls, 3, "initial position out of string");
     }
-    mx_std_pack_init(&h, ls, fmt_arg);
+    mx_std_pack_t h = (mx_std_pack_t) { .ls = ls, .fmt = fmt_arg, .max_align = 1, .is_little = true };
     while (*h.fmt != '\0' && !ls->vm->std_error.is_set) {
         mx_std_pack_det_t det = mx_std_pack_getdetails(&h, pos);
         if (ls->vm->std_error.is_set) {
@@ -415,16 +396,14 @@ int32_t mx_std_string_unpack(mx_std_state_t *ls) {
                 break;
             }
             case MX_STD_PACK_FLOAT: {
-                float f;
-                mx_std_pack_copywithendian((char *)&f, data + pos, sizeof(f), h.is_little);
-                mx_std_pushfloat(ls, (double)f);
+                int64_t bits = mx_std_pack_unpackint(ls, data + pos, h.is_little, (int32_t)size, false);
+                mx_std_pushfloat(ls, (double)((mx_std_pack_f32_t) { .bits = (uint32_t)bits }).f32);
                 break;
             }
             case MX_STD_PACK_NUMBER:
             case MX_STD_PACK_DOUBLE: {
-                double f;
-                mx_std_pack_copywithendian((char *)&f, data + pos, sizeof(f), h.is_little);
-                mx_std_pushfloat(ls, f);
+                int64_t bits = mx_std_pack_unpackint(ls, data + pos, h.is_little, (int32_t)size, false);
+                mx_std_pushfloat(ls, mx_val_i64(bits).f64);
                 break;
             }
             case MX_STD_PACK_CHAR: {

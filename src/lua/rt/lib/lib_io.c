@@ -8,8 +8,6 @@
 #include "../../../value/table.h"
 
 enum {
-    MX_STD_IO_NUMBUF = 201,
-    MX_STD_IO_NUMBUF_MAX = 200,
     MX_STD_IO_VBUF_DEFAULT = 1024,
     MX_STD_IO_LINES_FIXED_UPS = 3,
     MX_STD_IO_LINES_MAX_FORMATS = 250,
@@ -70,10 +68,7 @@ void mx_std_io_new_handle(mx_std_state_t *ls, FILE *fp, bool is_pipe) {
     mx_obj_table_t *t = mx_table_new(ls->vm);
     t->head.kind = lua->file_kind;
     t->is_plain = false;
-    t->hidden = (uint64_t)(uintptr_t)fp;
-    if (is_pipe) {
-        t->hidden |= 1;
-    }
+    t->hidden = (uint64_t)(uintptr_t)fp | (uint64_t)is_pipe;
     t->meta = mx_obj_get_table(lua->file_meta);
     mx_std_push(ls, mx_obj_of_table(t));
 }
@@ -98,15 +93,12 @@ int32_t mx_std_io_fileresult(mx_std_state_t *ls, bool ok, const char *fname) {
 bool mx_std_io_checkmode(const char *mode) {
     if (*mode != 'r' && *mode != 'w' && *mode != 'a') {
         return false;
+    } else {
+        const char *plus = mode + 1;
+        const char *bin = plus + (*plus == '+');
+        const char *end = bin + (*bin == 'b');
+        return *end == '\0';
     }
-    mode += 1;
-    if (*mode == '+') {
-        mode += 1;
-    }
-    if (*mode == 'b') {
-        mode += 1;
-    }
-    return *mode == '\0';
 }
 
 int32_t mx_std_io_open(mx_std_state_t *ls) {
@@ -214,50 +206,41 @@ int32_t mx_std_file_tostring(mx_std_state_t *ls) {
     return 1;
 }
 
+bool mx_std_io_num_take(mx_std_io_num_t *r, bool ok) {
+    if (ok && r->n < MX_STD_IO_NUMBUF) {
+        r->buf[r->n] = (char)r->c;
+        r->n += 1;
+        r->c = getc(r->fp);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool mx_std_io_read_number(mx_std_state_t *ls, FILE *fp) {
-    char buf[MX_STD_IO_NUMBUF];
-    size_t n = 0;
-    int32_t c = getc(fp);
-    while (isspace(c) != 0) {
-        c = getc(fp);
+    mx_std_io_num_t r = (mx_std_io_num_t) { .fp = fp, .c = getc(fp), .n = 0 };
+    while (isspace(r.c) != 0) {
+        r.c = getc(fp);
     }
-    if (c == '-' || c == '+') {
-        buf[n] = (char)c;
-        n += 1;
-        c = getc(fp);
-    }
-    bool hex = false;
-    if (c == '0') {
-        buf[n] = (char)c;
-        n += 1;
-        c = getc(fp);
-        if (c == 'x' || c == 'X') {
-            buf[n] = (char)c;
-            n += 1;
-            c = getc(fp);
-            hex = true;
-        }
-    }
-    for (; n <= MX_STD_IO_NUMBUF_MAX; c = getc(fp)) {
+    mx_std_io_num_take(&r, r.c == '-' || r.c == '+');
+    bool hex = mx_std_io_num_take(&r, r.c == '0') && mx_std_io_num_take(&r, r.c == 'x' || r.c == 'X');
+    bool more = true;
+    while (more) {
         bool ok;
         if (hex) {
-            ok = isxdigit(c) != 0 || c == '.' || c == 'p' || c == 'P' || c == '-' || c == '+';
+            ok = isxdigit(r.c) != 0 || r.c == '.' || r.c == 'p' || r.c == 'P' || r.c == '-' || r.c == '+';
         } else {
-            ok = isdigit(c) != 0 || c == '.' || c == 'e' || c == 'E' || c == '-' || c == '+';
+            ok = isdigit(r.c) != 0 || r.c == '.' || r.c == 'e' || r.c == 'E' || r.c == '-' || r.c == '+';
         }
-        if (!ok) {
-            break;
-        }
-        buf[n] = (char)c;
-        n += 1;
+        more = mx_std_io_num_take(&r, ok);
     }
-    ungetc(c, fp);
-    if (n > MX_STD_IO_NUMBUF_MAX) {
+    ungetc(r.c, fp);
+    if (r.n == MX_STD_IO_NUMBUF) {
         mx_std_pushnil(ls);
         return false;
     } else {
-        buf[n] = '\0';
-        mx_obj_num_t num = mx_std_str2num(buf, strlen(buf));
+        r.buf[r.n] = '\0';
+        mx_obj_num_t num = mx_std_str2num(r.buf, r.n);
         if (num.is_num) {
             mx_std_push(ls, num.value);
             return true;
@@ -344,11 +327,14 @@ int32_t mx_std_io_read_aux(mx_std_state_t *ls, FILE *fp, int32_t first) {
                     success = mx_std_io_read_chars(ls, fp, l);
                 }
             } else {
-                const char *p = mx_std_checkstring(ls, n).ptr;
-                if (*p == '*') {
-                    p += 1;
+                const char *fmt = mx_std_checkstring(ls, n).ptr;
+                char opt;
+                if (*fmt == '*') {
+                    opt = fmt[1];
+                } else {
+                    opt = fmt[0];
                 }
-                switch (*p) {
+                switch (opt) {
                     case 'n': {
                         success = mx_std_io_read_number(ls, fp);
                         break;
@@ -530,15 +516,18 @@ int32_t mx_std_io_lines_iter(mx_std_state_t *ls) {
     } else if (nres > 1) {
         const char *msg = mx_std_tostring(ls, -nres + 1).ptr;
         if (msg == NULL) {
-            msg = "read error";
+            return mx_std_error(ls, "read error");
+        } else {
+            return mx_std_error(ls, "%s", msg);
         }
-        return mx_std_error(ls, "%s", msg);
     } else if (toclose) {
         mx_std_settop(ls, 0);
         mx_std_push(ls, fobj);
         mx_std_io_close_table(ls, t);
+        return 0;
+    } else {
+        return 0;
     }
-    return 0;
 }
 
 void mx_std_io_lines_aux(mx_std_state_t *ls, bool toclose) {

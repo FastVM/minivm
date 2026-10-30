@@ -20,28 +20,23 @@ bool mx_trace_is_close_call(const mx_resume_t *site) {
 }
 
 mx_trace_name_t mx_trace_namewhat(const mx_frame_t *f) {
-    mx_trace_name_t got = { .what = NULL, .name = NULL };
     if (f->tag != MX_LINK_LUA && f->tag != MX_LINK_C) {
-        return got;
+        return (mx_trace_name_t) { .what = NULL, .name = NULL };
     }
     const mx_resume_t *site = (const mx_resume_t *)f->th->slots[f->p + 1].bits;
     if (site == NULL) {
-        return got;
+        return (mx_trace_name_t) { .what = NULL, .name = NULL };
     } else if (site->is_meta) {
-        got.what = "metamethod";
-        got.name = mx_op_names[site->meta];
-        return got;
+        return (mx_trace_name_t) { .what = "metamethod", .name = mx_op_names[site->meta] };
     } else if (mx_trace_is_close_call(site)) {
-        got.what = "metamethod";
-        got.name = "close";
-        return got;
+        return (mx_trace_name_t) { .what = "metamethod", .name = "close" };
     }
     mx_varname_t name = mx_resume_range(site).names[0];
     if (name.kind != MX_VARHINT_NONE && name.name != NULL) {
-        got.what = mx_varhint_names[name.kind];
-        got.name = name.name;
+        return (mx_trace_name_t) { .what = mx_varhint_names[name.kind], .name = name.name };
+    } else {
+        return (mx_trace_name_t) { .what = NULL, .name = NULL };
     }
-    return got;
 }
 
 bool mx_trace_global_name(mx_t *vm, mx_obj_t fn, mx_str_t *out) {
@@ -120,9 +115,11 @@ void mx_trace_append(mx_t *vm, mx_str_t *out, mx_thread_t *th, uint32_t level) {
     uint32_t total = mx_frame_count(th);
     mx_frame_t last = mx_frame_at_level(th, total - 1);
     bool has_host = total > 0 && last.tag == MX_LINK_ENTRY && mx_link_caller(th->slots[last.p].bits) == MX_THREAD_NONE;
-    uint32_t count = total;
+    uint32_t count;
     if (has_host) {
-        count += 1;
+        count = total + 1;
+    } else {
+        count = total;
     }
     mx_str_format(out, "stack traceback:");
     if (level >= count) {

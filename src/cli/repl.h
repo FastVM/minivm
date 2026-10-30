@@ -15,6 +15,7 @@
 #define MX_REPL_RETURN_PREFIX "return "
 #define MX_REPL_CHUNK "=stdin"
 
+void mx_repl_complete_in(ic_completion_env_t *cenv, mx_t *vm, mx_obj_table_t *t, const char *tail);
 void mx_repl_completer(ic_completion_env_t *cenv, const char *prefix);
 bool mx_repl_is_incomplete(mx_error_t *err);
 void mx_repl_print_results(mx_t *vm);
