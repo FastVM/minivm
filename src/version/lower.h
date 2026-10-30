@@ -16,6 +16,7 @@ struct mx_lower_t {
     mx_t *vm;
     mx_version_t *rb;
     mx_kind_t *types;
+    bool *fresh;
     mx_ir_block_t *block;
     mx_ir_block_t *visited[MX_LOWER_CHAIN_MAX];
     uintptr_t *start;
@@ -26,7 +27,6 @@ struct mx_lower_t {
     mx_arena_mark_t mark;
     mx_lower_recs_t recs;
     mx_lower_fixups_t refs;
-    mx_lower_fixups_t fixups;
     uint32_t nvisited;
     uint32_t nsnap;
     uint32_t nregs;
@@ -55,7 +55,7 @@ uint32_t mx_lower_rec_index(const mx_lower_t *l, const mx_resume_t *rec);
 void mx_lower_fixup_push(mx_lower_fixups_t *fixups, uint32_t rec, size_t at);
 void mx_lower_rec_word(mx_lower_t *l, mx_resume_t *rec);
 void mx_lower_rec_out(mx_lower_t *l, mx_resume_t *rec, uint32_t out, uint32_t count);
-void mx_lower_fixup(mx_lower_t *l, mx_resume_t *rec);
+void mx_lower_void(mx_lower_t *l);
 uint32_t mx_lower_unknown_reg(mx_lower_t *l, mx_ir_arg_t *args, uint32_t n);
 void mx_lower_cell(mx_lower_t *l, uint32_t reg);
 void mx_lower_hook(mx_lower_t *l, uintptr_t event);

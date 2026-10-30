@@ -29,7 +29,7 @@ To rerun it, build Lua 5.5.1 in `lua/` and its test modules in `lua/testes/libs`
 
 ## Messages and introspection
 
-- `string.dump` with `strip` drops local and upvalue names but keeps the source text and line information. A function loaded from it reports its real source and lines in errors, tracebacks and `debug.getinfo`, where reference Lua reports `?`, and its `activelines` isn't empty.
+- `string.dump` with `strip` drops local and upvalue names but keeps the chunk name and line information. A function loaded from it reports its real source and lines in errors, tracebacks and `debug.getinfo`, where reference Lua reports `?`, and its `activelines` isn't empty.
 - `debug.getlocal` with a negative index returns `nil`, where reference Lua returns `(vararg)` and the vararg at that position.
 
 ## By design

@@ -109,6 +109,7 @@ mx_obj_t mx_run_call_handler(mx_t *vm, mx_obj_t fn);
 bool mx_run_set_is_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key);
 int32_t mx_run_set_str(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t value);
 mx_obj_t mx_run_set_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t value, uintptr_t *slot);
+const mx_resume_t *mx_run_void_rec(mx_t *vm, mx_version_t *rb, uintptr_t *desc, uintptr_t *next_ip);
 bool mx_run_eq_raw(mx_t *vm, mx_obj_t a, mx_obj_t b, bool *out);
 mx_version_t *mx_run_push(mx_t *vm, mx_thread_t *th, uint32_t p, uintptr_t link, const mx_resume_t *rec, mx_obj_t fn, const mx_obj_t *args, uint32_t n);
 void mx_run_spill(mx_val_t *base, uint32_t frame, const mx_obj_t *extra, uint32_t n);

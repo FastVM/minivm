@@ -25,23 +25,25 @@ mx_chunk_compiled_t mx_chunk_compile(mx_t *vm, const char *src, uint32_t len, co
     if (is_hit) {
         return (mx_chunk_compiled_t) { .entry = slot->entry, .error = NULL };
     }
-    char *src_copy = mx_ir_alloc_bytes(vm, (size_t)len + 1);
-    memcpy(src_copy, src, len);
-    src_copy[len] = '\0';
-    vm->arenas.ir.sources += len + 1;
+    char *text = mx_mem_alloc((size_t)len + 1);
+    memcpy(text, src, len);
+    text[len] = '\0';
     const char *file_copy = mx_ir_strdup(vm, file);
     mx_scratch_push(vm, &vm->arenas.scratch);
-    mx_parse_compiled_t got = mx_parse_chunk(vm, src_copy, len, file_copy);
+    mx_parse_compiled_t got = mx_parse_chunk(vm, text, len, file_copy);
     mx_scratch_pop(vm);
     mx_arena_free(&vm->arenas.scratch);
-    if (got.entry != NULL) {
+    if (got.entry != NULL && len <= MX_CHUNK_CACHE_MAX_LEN) {
+        mx_mem_free(slot->src);
         *slot = (mx_chunk_cache_t) {
-            .src = src_copy,
+            .src = text,
             .file = file_copy,
             .entry = got.entry,
             .len = len,
             .hash = hash,
         };
+    } else {
+        mx_mem_free(text);
     }
     return (mx_chunk_compiled_t) { .entry = got.entry, .error = got.error };
 }

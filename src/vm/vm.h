@@ -85,7 +85,7 @@ struct mx_arena_mark_t {
 typedef struct mx_chunk_cache_t mx_chunk_cache_t;
 
 struct mx_chunk_cache_t {
-    const char *src;
+    char *src;
     const char *file;
     mx_ir_block_t *entry;
     uint32_t len;
@@ -246,10 +246,10 @@ struct mx_lower_recs_t {
 
 struct mx_lower_scratch_t {
     mx_kind_t *types;
+    bool *fresh;
     uint32_t cap;
     mx_lower_recs_t recs;
     mx_lower_fixups_t refs;
-    mx_lower_fixups_t fixups;
 };
 
 struct mx_rets_t {
@@ -292,6 +292,7 @@ struct mx_interns_t {
 struct mx_stats_t {
     uint32_t versions;
     uint32_t version_bytes;
+    uint32_t recs[8];
     uint64_t deliver_fast;
     uint64_t deliver_resumed_fast;
     uint64_t deliver_found;

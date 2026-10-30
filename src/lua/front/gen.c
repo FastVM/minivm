@@ -55,7 +55,6 @@ mx_location_range_t mx_gen_range(mx_parse_t *d, uint32_t start, mx_varname_t a, 
     return (mx_location_range_t) {
         .source = d->source,
         .start = start,
-        .stop = d->lex.last_stop,
         .names = {a, b},
     };
 }
@@ -189,7 +188,7 @@ void mx_gen_move(mx_parse_t *d, uint32_t reg, mx_ir_arg_t value) {
 void mx_gen_branch(mx_parse_t *d, mx_ir_branch_t branch) {
     mx_ir_block_t *block = mx_gen_cur(d);
     mx_ir_keep_lits(d->vm, branch.args);
-    mx_ir_block_set_branch(d->vm, &d->vm->arenas.ir, block, branch);
+    mx_ir_block_set_branch(d->vm, block, branch);
     d->fn->cur = NULL;
 }
 

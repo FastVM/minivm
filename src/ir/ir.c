@@ -18,8 +18,9 @@ mx_ir_block_t *mx_ir_block_new(mx_t *vm, mx_arena_t *arena, mx_ir_func_t *func) 
     mx_ir_block_t *block = mx_arena_alloc(arena, sizeof(mx_ir_block_t));
     *block = (mx_ir_block_t) {
         .func = func,
-        .id = vm->next_block_id,
+        .id = func->nblocks,
     };
+    func->nblocks += 1;
     vm->next_block_id += 1;
     return block;
 }
@@ -50,6 +51,17 @@ uint8_t *mx_ir_put_uv(uint8_t *p, uint64_t v) {
     return p + 1;
 }
 
+// Writes v in exactly n bytes, padding with continuation bytes, so it can be
+// rewritten in place later. v must fit in 7 * n bits.
+uint8_t *mx_ir_put_uv_wide(uint8_t *p, uint64_t v, size_t n) {
+    for (size_t i = 0; i + 1 < n; i++) {
+        p[i] = (uint8_t)(v | 0x80);
+        v >>= 7;
+    }
+    p[n - 1] = (uint8_t)v;
+    return p + n;
+}
+
 mx_ir_uv_t mx_ir_get_uv(const uint8_t *p) {
     uint64_t v = 0;
     uint32_t shift = 0;
@@ -72,7 +84,6 @@ int64_t mx_ir_unzigzag(uint64_t v) {
 
 size_t mx_ir_range_size(const mx_location_range_t *range, uint8_t *flags) {
     size_t size = mx_ir_uv_size(range->start);
-    size += mx_ir_uv_size(mx_ir_zigzag((int64_t)range->stop - (int64_t)range->start));
     uint8_t f = 0;
     for (uint32_t i = 0; i < 2; i++) {
         if (range->names[i].kind != MX_VARHINT_NONE) {
@@ -86,7 +97,6 @@ size_t mx_ir_range_size(const mx_location_range_t *range, uint8_t *flags) {
 
 uint8_t *mx_ir_range_write(uint8_t *p, const mx_location_range_t *range, uint8_t flags) {
     p = mx_ir_put_uv(p, range->start);
-    p = mx_ir_put_uv(p, mx_ir_zigzag((int64_t)range->stop - (int64_t)range->start));
     for (uint32_t i = 0; i < 2; i++) {
         if ((flags & (1 << i)) != 0) {
             p[0] = range->names[i].kind;
@@ -99,10 +109,8 @@ uint8_t *mx_ir_range_write(uint8_t *p, const mx_location_range_t *range, uint8_t
 
 const uint8_t *mx_ir_range_read(const uint8_t *p, mx_location_range_t *range, uint8_t flags) {
     mx_ir_uv_t start = mx_ir_get_uv(p);
-    mx_ir_uv_t delta = mx_ir_get_uv(start.next);
-    p = delta.next;
+    p = start.next;
     range->start = (uint32_t)start.value;
-    range->stop = (uint32_t)((int64_t)start.value + mx_ir_unzigzag(delta.value));
     for (uint32_t i = 0; i < 2; i++) {
         if ((flags & (1 << i)) != 0) {
             range->names[i].kind = p[0];
@@ -121,7 +129,11 @@ size_t mx_ir_arg_size(mx_ir_arg_t arg) {
             return 1 + mx_ir_uv_size(arg.reg);
         }
         case MX_IR_ARG_TYPE_LIT: {
-            return 1 + sizeof(uint16_t) + sizeof(mx_val_t);
+            if (mx_obj_is_int(arg.lit)) {
+                return 1 + mx_ir_uv_size(mx_ir_zigzag(mx_obj_get_int(arg.lit)));
+            } else {
+                return 1 + sizeof(uint16_t) + sizeof(mx_val_t);
+            }
         }
         case MX_IR_ARG_TYPE_SPREAD: {
             return 1;
@@ -134,6 +146,10 @@ size_t mx_ir_arg_size(mx_ir_arg_t arg) {
 }
 
 uint8_t *mx_ir_arg_write(uint8_t *p, mx_ir_arg_t arg) {
+    if (arg.type == MX_IR_ARG_TYPE_LIT && mx_obj_is_int(arg.lit)) {
+        p[0] = MX_IR_ENC_INT;
+        return mx_ir_put_uv(p + 1, mx_ir_zigzag(mx_obj_get_int(arg.lit)));
+    }
     p[0] = arg.type;
     p += 1;
     switch (arg.type) {
@@ -154,6 +170,11 @@ uint8_t *mx_ir_arg_write(uint8_t *p, mx_ir_arg_t arg) {
 
 mx_ir_arg_read_t mx_ir_arg_read(const uint8_t *p) {
     mx_ir_arg_t arg;
+    if (p[0] == MX_IR_ENC_INT) {
+        mx_ir_uv_t got = mx_ir_get_uv(p + 1);
+        arg = (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_LIT, .lit = mx_obj_of_int(mx_ir_unzigzag(got.value)) };
+        return (mx_ir_arg_read_t) { .next = got.next, .arg = arg };
+    }
     arg.type = p[0];
     p += 1;
     switch (arg.type) {
@@ -203,16 +224,17 @@ uint32_t mx_ir_block_emit(mx_ir_block_t *block, mx_ir_instr_t instr) {
     if (has_out) {
         size += sizeof(uint16_t);
     }
+    // TABLE_NEW's size hint is patched once the constructor has been parsed,
+    // so it is written at a fixed width.
+    bool is_hint = instr.op == MX_IR_INSTR_OPCODE_TABLE_NEW;
     for (uint32_t i = 0; i < nargs; i++) {
-        size += mx_ir_arg_size(instr.args[i]);
-    }
-    if (block->code_len + size > mx_ir_block_cap(block)) {
-        uint32_t ncap = 64;
-        while (ncap < block->code_len + size) {
-            ncap *= 2;
+        if (is_hint) {
+            size += 1 + MX_IR_TABLE_HINT_BYTES;
+        } else {
+            size += mx_ir_arg_size(instr.args[i]);
         }
-        block->code = mx_mem_realloc(block->code, ncap);
     }
+    mx_ir_block_grow(block, block->code_len + size);
     uint32_t at = block->code_len;
     uint8_t *p = &block->code[at];
     uint8_t meta = (uint8_t)(nargs | (flags << 3));
@@ -228,7 +250,12 @@ uint32_t mx_ir_block_emit(mx_ir_block_t *block, mx_ir_instr_t instr) {
         p += sizeof(uint16_t);
     }
     for (uint32_t i = 0; i < nargs; i++) {
-        p = mx_ir_arg_write(p, instr.args[i]);
+        if (is_hint) {
+            p[0] = MX_IR_ENC_INT;
+            p = mx_ir_put_uv_wide(p + 1, mx_ir_zigzag(mx_obj_get_int(instr.args[i].lit)), MX_IR_TABLE_HINT_BYTES);
+        } else {
+            p = mx_ir_arg_write(p, instr.args[i]);
+        }
     }
     block->code_len += (uint32_t)size;
     return at;
@@ -240,12 +267,12 @@ uint8_t *mx_ir_block_operands(mx_ir_block_t *block, uint32_t at) {
     return (uint8_t *)mx_ir_range_read(p + 2, &range, (uint8_t)((p[1] >> 3) & 3));
 }
 
-void mx_ir_block_patch_lit(mx_ir_block_t *block, uint32_t at, mx_obj_t lit) {
+void mx_ir_block_patch_hint(mx_ir_block_t *block, uint32_t at, uint64_t hint) {
     uint8_t *p = mx_ir_block_operands(block, at);
     if ((block->code[at + 1] & 0x80) != 0) {
         p += sizeof(uint16_t);
     }
-    mx_ir_arg_write(p, (mx_ir_arg_t) { .type = MX_IR_ARG_TYPE_LIT, .lit = lit });
+    mx_ir_put_uv_wide(p + 1, mx_ir_zigzag((int64_t)hint), MX_IR_TABLE_HINT_BYTES);
 }
 
 void mx_ir_block_retarget(mx_ir_block_t *block, uint32_t at, uint32_t reg) {
@@ -283,7 +310,7 @@ mx_ir_step_t mx_ir_block_next(const mx_ir_block_t *block, uint32_t limit, mx_ir_
     return (mx_ir_step_t) { .instr = instr, .is_valid = true };
 }
 
-void mx_ir_block_set_branch(mx_t *vm, mx_arena_t *arena, mx_ir_block_t *block, mx_ir_branch_t branch) {
+void mx_ir_block_set_branch(mx_t *vm, mx_ir_block_t *block, mx_ir_branch_t branch) {
     block->branch_op = branch.op;
     block->branch_targets[0] = branch.targets[0];
     block->branch_targets[1] = branch.targets[1];
@@ -305,11 +332,10 @@ void mx_ir_block_set_branch(mx_t *vm, mx_arena_t *arena, mx_ir_block_t *block, m
     for (uint32_t i = 0; i < nargs; i++) {
         size += mx_ir_arg_size(branch.args[i]);
     }
-    uint8_t *enc = mx_arena_alloc_bytes(arena, size);
-    if (arena == &vm->arenas.ir) {
-        vm->arenas.ir.branches += (uint32_t)size;
-    }
-    uint8_t *p = enc;
+    mx_ir_block_grow(block, block->code_len + size);
+    vm->arenas.ir.branches += (uint32_t)size;
+    block->branch_len = (uint32_t)size;
+    uint8_t *p = block->code + block->code_len;
     p[0] = meta;
     p = mx_ir_range_write(p + 1, &branch.range, flags);
     if ((meta & 4) != 0) {
@@ -322,7 +348,6 @@ void mx_ir_block_set_branch(mx_t *vm, mx_arena_t *arena, mx_ir_block_t *block, m
     for (uint32_t i = 0; i < nargs; i++) {
         p = mx_ir_arg_write(p, branch.args[i]);
     }
-    block->branch_enc = enc;
 }
 
 mx_ir_branch_t mx_ir_block_branch(const mx_ir_block_t *block) {
@@ -336,8 +361,8 @@ mx_ir_branch_t mx_ir_block_branch(const mx_ir_block_t *block) {
             .type = MX_IR_ARG_TYPE_NONE,
         },
     };
-    if (block->branch_enc != NULL) {
-        const uint8_t *p = block->branch_enc;
+    if (block->branch_len != 0) {
+        const uint8_t *p = block->code + block->code_len;
         uint8_t meta = p[0];
         p = mx_ir_range_read(p + 1, &br.range, meta & 3);
         if ((meta & 4) != 0) {
@@ -362,8 +387,9 @@ mx_location_range_t mx_ir_block_range(const mx_ir_block_t *block, uint32_t at) {
     if (at < block->code_len) {
         const uint8_t *p = &block->code[at];
         mx_ir_range_read(p + 2, &range, (uint8_t)((p[1] >> 3) & 3));
-    } else if (block->branch_enc != NULL) {
-        mx_ir_range_read(block->branch_enc + 1, &range, block->branch_enc[0] & 3);
+    } else if (block->branch_len != 0) {
+        const uint8_t *p = block->code + block->code_len;
+        mx_ir_range_read(p + 1, &range, p[0] & 3);
     }
     return range;
 }
@@ -383,10 +409,11 @@ void mx_ir_blocks_seal(mx_t *vm, mx_ir_blocks_t *blocks, uint32_t from) {
     for (uint32_t i = from; i < blocks->len; i++) {
         mx_ir_block_t *block = blocks->ptr[i];
         uint8_t *code = block->code;
-        if (block->code_len != 0) {
-            block->code = mx_ir_alloc_bytes(vm, block->code_len);
+        uint32_t size = block->code_len + block->branch_len;
+        if (size != 0) {
+            block->code = mx_ir_alloc_bytes(vm, size);
             vm->arenas.ir.sealed += block->code_len;
-            memcpy(block->code, code, block->code_len);
+            memcpy(block->code, code, size);
         } else {
             block->code = NULL;
         }
@@ -460,6 +487,7 @@ void mx_ir_live_local(mx_ir_block_t *block, uint64_t *uevar, uint64_t *kill, uin
 }
 
 void mx_ir_liveness(mx_t *vm, mx_ir_block_t *entry) {
+    mx_ir_func_t *func = entry->func;
     mx_ir_blocks_t blocks = {0};
     uint32_t cap = 16;
     blocks.ptr = mx_mem_alloc(sizeof(mx_ir_block_t *) * cap);
@@ -469,7 +497,7 @@ void mx_ir_liveness(mx_t *vm, mx_ir_block_t *entry) {
     for (uint32_t i = 0; i < blocks.len; i++) {
         for (uint32_t t = 0; t < 2; t++) {
             mx_ir_block_t *target = blocks.ptr[i]->branch_targets[t];
-            if (target != NULL && !target->is_marked && !target->has_liveness) {
+            if (target != NULL && !target->is_marked) {
                 target->is_marked = true;
                 if (blocks.len == cap) {
                     cap *= 2;
@@ -480,46 +508,40 @@ void mx_ir_liveness(mx_t *vm, mx_ir_block_t *entry) {
             }
         }
     }
-    uint32_t nregs = entry->func->nregs;
-    size_t words;
-    if (nregs == 0) {
-        words = 1;
-    } else {
-        words = ((size_t)nregs + 63) / 64;
-    }
+    uint32_t nregs = func->nregs;
+    size_t words = mx_ir_live_words(func);
+    func->live = mx_ir_alloc(vm, sizeof(uint64_t) * words * func->nblocks);
+    memset(func->live, 0, sizeof(uint64_t) * words * func->nblocks);
     uint64_t *uevar = mx_mem_calloc(sizeof(uint64_t) * words * blocks.len);
     uint64_t *kill = mx_mem_calloc(sizeof(uint64_t) * words * blocks.len);
     for (uint32_t i = 0; i < blocks.len; i++) {
-        mx_ir_block_t *b = blocks.ptr[i];
-        b->live_in = mx_ir_alloc(vm, sizeof(uint64_t) * words);
-        memset(b->live_in, 0, sizeof(uint64_t) * words);
-        mx_ir_live_local(b, &uevar[i * words], &kill[i * words], nregs);
+        mx_ir_live_local(blocks.ptr[i], &uevar[i * words], &kill[i * words], nregs);
     }
     bool changed = true;
     while (changed) {
         changed = false;
         for (uint32_t i = blocks.len; i > 0; i--) {
             mx_ir_block_t *b = blocks.ptr[i - 1];
+            uint64_t *live = func->live + words * b->id;
             const uint64_t *ue = &uevar[(i - 1) * words];
             const uint64_t *kl = &kill[(i - 1) * words];
             for (size_t w = 0; w < words; w++) {
                 uint64_t out = 0;
                 for (uint32_t t = 0; t < 2; t++) {
                     mx_ir_block_t *target = b->branch_targets[t];
-                    if (target != NULL && target->live_in != NULL) {
-                        out |= target->live_in[w];
+                    if (target != NULL) {
+                        out |= func->live[words * target->id + w];
                     }
                 }
                 uint64_t next = ue[w] | (out & ~kl[w]);
-                if (next != b->live_in[w]) {
-                    b->live_in[w] = next;
+                if (next != live[w]) {
+                    live[w] = next;
                     changed = true;
                 }
             }
         }
     }
     for (uint32_t i = 0; i < blocks.len; i++) {
-        blocks.ptr[i]->has_liveness = true;
         blocks.ptr[i]->is_marked = false;
     }
     mx_mem_free(uevar);

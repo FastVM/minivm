@@ -52,6 +52,44 @@ void mx_gc_stat_dump(mx_t *vm) {
         gc->slabs.len * MX_GC_SLAB_BYTES,
         pool_slabs * MX_GC_POOL_SLAB_BYTES
     );
+    size_t ncaches = 0;
+    size_t list_bytes = 0;
+    size_t table_bytes = 0;
+    for (const mx_version_cache_t *c = vm->version_caches; c != NULL; c = c->next) {
+        ncaches += 1;
+        list_bytes += sizeof(mx_version_t *) * c->list.cap;
+        table_bytes += sizeof(mx_version_t *) * c->table.cap;
+    }
+    size_t kind_bytes = 0;
+    for (uint32_t i = 0; i < vm->kind_vecs.cap; i++) {
+        kind_bytes += sizeof(mx_kind_t) * vm->kind_vecs.ptr[i].len;
+    }
+    size_t nrecs = 0;
+    for (size_t k = 0; k < 8; k++) {
+        nrecs += vm->stats.recs[k];
+    }
+    fprintf(
+        stderr,
+        "compiler: blocks=%u*%zu versions=%u*%zu recs=%zu*%zu (values=%u branch=%u at=%u void=%u entry=%u return=%u) stream=%u caches=%zu*%zu lists=%zu tables=%zu kinds=%zu\n",
+        vm->next_block_id,
+        sizeof(mx_ir_block_t),
+        vm->stats.versions,
+        sizeof(mx_version_t),
+        nrecs,
+        sizeof(mx_resume_t),
+        vm->stats.recs[MX_RESUME_VALUES],
+        vm->stats.recs[MX_RESUME_BRANCH],
+        vm->stats.recs[MX_RESUME_AT],
+        vm->stats.recs[MX_RESUME_VOID],
+        vm->stats.recs[MX_RESUME_ENTRY],
+        vm->stats.recs[MX_RESUME_RETURN],
+        vm->arenas.code.hops,
+        ncaches,
+        sizeof(mx_version_cache_t),
+        list_bytes,
+        table_bytes,
+        kind_bytes
+    );
     size_t nlarge = 0;
     size_t nfree = 0;
     for (mx_gc_large_t *l = gc->larges.list; l != NULL; l = l->next) {
@@ -103,9 +141,11 @@ void mx_gc_stat_dump(mx_t *vm) {
         vm->stats.call_fast
     );
     size_t hist[6] = {0};
+    hist[0] = vm->stats.versions;
     const mx_version_cache_t *top[8] = {NULL};
     for (const mx_version_cache_t *c = vm->version_caches; c != NULL; c = c->next) {
         uint32_t n = c->list.len;
+        hist[0] -= n;
         size_t at;
         if (n <= 2) {
             at = n - 1;

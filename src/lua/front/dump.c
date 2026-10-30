@@ -41,7 +41,6 @@ void mx_dump_name(mx_dump_writer_t *w, const char *name) {
 
 void mx_dump_range(mx_dump_writer_t *w, const mx_location_range_t *range) {
     mx_dump_uv(w, range->start);
-    mx_dump_uv(w, range->stop);
     for (uint32_t i = 0; i < 2; i++) {
         if (w->is_strip) {
             mx_str_append_byte(w->out, (char)MX_VARHINT_NONE);
@@ -202,8 +201,8 @@ void mx_dump_func(mx_dump_writer_t *w, mx_ir_block_t *head) {
                 mx_dump_uv(w, (uint64_t)mx_dump_index(&blocks, block->branch_targets[t]) + 1);
             }
         }
-        mx_str_append_byte(w->out, (char)(block->branch_enc != NULL));
-        if (block->branch_enc != NULL) {
+        mx_str_append_byte(w->out, (char)(block->branch_len != 0));
+        if (block->branch_len != 0) {
             mx_ir_branch_t br = mx_ir_block_branch(block);
             mx_ir_arg_t args[MX_IR_BRANCH_MAX_ARGS + 1];
             uint16_t nargs = mx_ir_branch_args(&br, args);
@@ -232,7 +231,12 @@ mx_str_t *mx_dump_function(mx_t *vm, mx_ir_block_t *head, bool is_strip) {
     }
     mx_str_append(w.out, MX_DUMP_MAGIC, MX_DUMP_MAGIC_LEN);
     mx_dump_name(&w, source->file);
-    mx_dump_bytes(&w, source->src, len);
+    mx_dump_uv(&w, len);
+    uint32_t nlines = mx_source_line(source, len);
+    mx_dump_uv(&w, nlines);
+    for (uint32_t i = 1; i < nlines; i++) {
+        mx_dump_uv(&w, source->lines[i] - source->lines[i - 1]);
+    }
     mx_dump_func(&w, head);
     if (w.is_bad) {
         mx_str_free(w.out);
@@ -287,7 +291,6 @@ const char *mx_dump_read_name(mx_dump_reader_t *r) {
 mx_location_range_t mx_dump_read_range(mx_dump_reader_t *r) {
     mx_location_range_t range = { .source = r->source };
     range.start = (uint32_t)mx_dump_read_uv(r);
-    range.stop = (uint32_t)mx_dump_read_uv(r);
     for (uint32_t i = 0; i < 2; i++) {
         const uint8_t *kind = mx_dump_read_bytes(r, 1);
         if (kind != NULL && kind[0] > MX_VARHINT_FOR_ITERATOR) {
@@ -589,6 +592,7 @@ mx_ir_block_t *mx_dump_read_func(mx_dump_reader_t *r) {
         .upval_seen = seen,
         .upvals = upvals,
         .locals = { .ptr = locals, .len = (uint32_t)nlocals },
+        .nblocks = (uint32_t)nblocks,
         .nupvals = (uint32_t)nupvals,
         .nregs = (uint32_t)nregs,
         .nparams = (uint32_t)nparams,
@@ -669,7 +673,7 @@ mx_ir_block_t *mx_dump_read_func(mx_dump_reader_t *r) {
         r->is_bad = r->is_bad || !mx_dump_branch_ok(r, &br, args, (uint32_t)nargs);
         if (!r->is_bad) {
             mx_ir_keep_lits(vm, args);
-            mx_ir_block_set_branch(vm, &vm->arenas.ir, block, br);
+            mx_ir_block_set_branch(vm, block, br);
         }
         mx_mem_free(args);
     }
@@ -694,15 +698,20 @@ mx_dump_loaded_t mx_dump_load(mx_t *vm, const char *data, size_t len) {
     };
     const char *file = mx_dump_read_name(&r);
     uint64_t srclen = mx_dump_read_uv(&r);
-    const uint8_t *src = mx_dump_read_bytes(&r, srclen);
+    uint64_t nlines = mx_dump_read_uv(&r);
     mx_ir_block_t *entry = NULL;
-    if (!r.is_bad && file != NULL && srclen < UINT32_MAX) {
-        char *copy = mx_ir_alloc_bytes(vm, srclen + 1);
-        memcpy(copy, src, srclen);
-        copy[srclen] = '\0';
-        vm->arenas.ir.sources += (uint32_t)srclen + 1;
-        r.source = mx_source_new(vm, file, copy, (uint32_t)srclen);
-        entry = mx_dump_read_func(&r);
+    if (!r.is_bad && file != NULL && srclen < UINT32_MAX && nlines >= 1 && nlines <= srclen + 1 && nlines - 1 <= (uint64_t)(r.end - r.p)) {
+        uint32_t *lines = mx_ir_alloc(vm, sizeof(uint32_t) * nlines);
+        lines[0] = 0;
+        for (uint64_t i = 1; i < nlines && !r.is_bad; i++) {
+            uint64_t delta = mx_dump_read_uv(&r);
+            r.is_bad = r.is_bad || delta == 0 || delta > srclen - lines[i - 1];
+            lines[i] = lines[i - 1] + (uint32_t)delta;
+        }
+        if (!r.is_bad) {
+            r.source = mx_source_of_lines(vm, file, lines, (uint32_t)nlines, (uint32_t)srclen);
+            entry = mx_dump_read_func(&r);
+        }
     }
     if (entry == NULL || r.p != r.end) {
         for (uint32_t i = 0; i < r.blocks.len; i++) {

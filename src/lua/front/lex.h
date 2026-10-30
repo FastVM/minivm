@@ -152,7 +152,7 @@ mx_error_t *mx_lex_operator(mx_lex_t *lex, mx_lex_token_t *tok, uint32_t start, 
 mx_error_t *mx_lex_scan_raw(mx_lex_t *lex, mx_lex_token_t *tok);
 mx_error_t *mx_lex_scan(mx_lex_t *lex, mx_lex_token_t *tok);
 
-void mx_lex_init(mx_lex_t *lex, mx_t *vm, const mx_source_t *source);
+void mx_lex_init(mx_lex_t *lex, mx_t *vm, const mx_source_t *source, const char *src);
 void mx_lex_free(mx_lex_t *lex);
 mx_error_t *mx_lex_next(mx_lex_t *lex);
 mx_lex_type_t mx_lex_peek(mx_lex_t *lex);

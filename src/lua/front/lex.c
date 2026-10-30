@@ -139,7 +139,6 @@ mx_error_t *mx_lex_error_finish(mx_lex_t *lex, mx_str_t *msg, uint32_t at) {
     mx_location_range_t range = {
         .source = lex->source,
         .start = at,
-        .stop = at,
     };
     mx_obj_t error = mx_error_message(lex->vm, &range, "%s", msg->buf);
     mx_str_free(msg);
@@ -1020,11 +1019,11 @@ bool mx_lex_is_global(mx_lex_t *lex) {
     }
 }
 
-void mx_lex_init(mx_lex_t *lex, mx_t *vm, const mx_source_t *source) {
+void mx_lex_init(mx_lex_t *lex, mx_t *vm, const mx_source_t *source, const char *src) {
     *lex = (mx_lex_t) {
         .vm = vm,
         .source = source,
-        .src = source->src,
+        .src = src,
         .len = source->len,
         .scratch = mx_str_new(),
         .tok = {

@@ -11,6 +11,10 @@
 #define MX_IR_INSTR_MAX_ARGS 4
 #define MX_IR_TABLE_HINT_BITS 16
 #define MX_IR_TABLE_HINT_MASK ((1 << MX_IR_TABLE_HINT_BITS) - 1)
+#define MX_IR_TABLE_HINT_BYTES 5
+// The encoded tag of an integer literal, which is stored as a zigzag varint
+// after it. The argument decodes to MX_IR_ARG_TYPE_LIT.
+#define MX_IR_ENC_INT 4
 #define MX_IR_BRANCH_MAX_ARGS 260
 #define MX_IR_FRAME_WORDS 2
 #define MX_IR_WANT_MULTI UINT32_MAX
@@ -67,7 +71,6 @@ enum {
     MX_IR_INSTR_OPCODE_KEEP,
 };
 
-typedef struct mx_version_cache_t mx_version_cache_t;
 typedef struct mx_ir_local_t mx_ir_local_t;
 typedef struct mx_ir_locals_t mx_ir_locals_t;
 typedef struct mx_ir_upval_t mx_ir_upval_t;
@@ -101,12 +104,22 @@ struct mx_ir_upval_t {
     bool is_local: 1;
 };
 
+// A block's id is its index among the function's blocks. Versions and
+// liveness are only made for functions that run, so they live here, indexed
+// by block id, instead of in every block. Each word of versions is 0, the
+// block's only version, or its mx_version_cache_t with the low bit set.
+// entry1 is the version last entered with the arguments in entry1_key.
 struct mx_ir_func_t {
     mx_ir_block_t *head;
     const mx_source_t *source;
     mx_kind_t *upval_seen;
     const mx_ir_upval_t *upvals;
+    uintptr_t *versions;
+    uint64_t *live;
+    mx_version_t *entry1;
+    uint64_t entry1_key;
     mx_ir_locals_t locals;
+    uint32_t nblocks;
     uint32_t start;
     uint32_t stop;
     uint32_t nupvals;
@@ -147,20 +160,19 @@ struct mx_ir_cursor_t {
     mx_ir_arg_t args[MX_IR_INSTR_MAX_ARGS + 1];
 };
 
+// code holds code_len bytes of instructions followed by branch_len bytes of
+// encoded branch, when the branch has one.
 struct mx_ir_block_t {
     uint8_t *code;
     mx_ir_block_t *branch_targets[2];
-    const uint8_t *branch_enc;
-    mx_version_cache_t *versions;
-    uint64_t *live_in;
     mx_ir_func_t *func;
     uint32_t id;
     uint32_t code_len;
+    uint32_t branch_len;
     mx_ir_branch_opcode_t branch_op;
     bool is_func: 1;
     bool is_main: 1;
     bool is_marked: 1;
-    bool has_liveness: 1;
 };
 
 struct mx_ir_arg_read_t {
@@ -221,10 +233,20 @@ static inline uint32_t mx_ir_block_cap(const mx_ir_block_t *block) {
         return 0;
     }
     uint32_t cap = 64;
-    while (cap < block->code_len) {
+    while (cap < block->code_len + block->branch_len) {
         cap *= 2;
     }
     return cap;
+}
+
+static inline void mx_ir_block_grow(mx_ir_block_t *block, size_t need) {
+    if (need > mx_ir_block_cap(block)) {
+        uint32_t ncap = 64;
+        while (ncap < need) {
+            ncap *= 2;
+        }
+        block->code = mx_mem_realloc(block->code, ncap);
+    }
 }
 
 static inline uint32_t mx_ir_func_frame(const mx_ir_func_t *func) {
@@ -233,6 +255,18 @@ static inline uint32_t mx_ir_func_frame(const mx_ir_func_t *func) {
     } else {
         return func->nregs;
     }
+}
+
+static inline size_t mx_ir_live_words(const mx_ir_func_t *func) {
+    if (func->nregs == 0) {
+        return 1;
+    } else {
+        return ((size_t)func->nregs + 63) / 64;
+    }
+}
+
+static inline const uint64_t *mx_ir_block_live(const mx_ir_block_t *block) {
+    return block->func->live + mx_ir_live_words(block->func) * block->id;
 }
 
 static inline bool mx_ir_live_test(const uint64_t *mask, uint32_t reg) {
@@ -251,6 +285,7 @@ mx_ir_func_t *mx_ir_func_new(mx_arena_t *arena, const mx_source_t *source);
 
 size_t mx_ir_uv_size(uint64_t v);
 uint8_t *mx_ir_put_uv(uint8_t *p, uint64_t v);
+uint8_t *mx_ir_put_uv_wide(uint8_t *p, uint64_t v, size_t n);
 mx_ir_uv_t mx_ir_get_uv(const uint8_t *p);
 uint64_t mx_ir_zigzag(int64_t v);
 int64_t mx_ir_unzigzag(uint64_t v);
@@ -265,10 +300,10 @@ uint32_t mx_ir_args_count(const mx_ir_arg_t *args);
 void mx_ir_keep_lits(mx_t *vm, const mx_ir_arg_t *args);
 uint32_t mx_ir_block_emit(mx_ir_block_t *block, mx_ir_instr_t instr);
 uint8_t *mx_ir_block_operands(mx_ir_block_t *block, uint32_t at);
-void mx_ir_block_patch_lit(mx_ir_block_t *block, uint32_t at, mx_obj_t lit);
+void mx_ir_block_patch_hint(mx_ir_block_t *block, uint32_t at, uint64_t hint);
 void mx_ir_block_retarget(mx_ir_block_t *block, uint32_t at, uint32_t reg);
 mx_ir_step_t mx_ir_block_next(const mx_ir_block_t *block, uint32_t limit, mx_ir_cursor_t *cur);
-void mx_ir_block_set_branch(mx_t *vm, mx_arena_t *arena, mx_ir_block_t *block, mx_ir_branch_t branch);
+void mx_ir_block_set_branch(mx_t *vm, mx_ir_block_t *block, mx_ir_branch_t branch);
 mx_ir_branch_t mx_ir_block_branch(const mx_ir_block_t *block);
 mx_location_range_t mx_ir_block_range(const mx_ir_block_t *block, uint32_t at);
 uint16_t mx_ir_branch_args(const mx_ir_branch_t *br, mx_ir_arg_t *out_args);

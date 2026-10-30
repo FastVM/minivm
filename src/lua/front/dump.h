@@ -8,7 +8,7 @@
 #include "../../value/string.h"
 #include "../../vm/vm.h"
 
-#define MX_DUMP_MAGIC "\x1bMXIR\x01"
+#define MX_DUMP_MAGIC "\x1bMXIR\x02"
 #define MX_DUMP_MAGIC_LEN 6
 
 typedef uint8_t mx_dump_lit_t;

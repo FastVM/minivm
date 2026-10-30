@@ -53,10 +53,13 @@ const mx_source_t *mx_source_new(mx_t *vm, const char *file, const char *src, ui
     uint32_t *lines = mx_arena_alloc(&vm->arenas.ir, sizeof(uint32_t) * nlines);
     lines[0] = 0;
     mx_source_scan(src, len, lines);
+    return mx_source_of_lines(vm, file, lines, nlines, len);
+}
+
+const mx_source_t *mx_source_of_lines(mx_t *vm, const char *file, const uint32_t *lines, uint32_t nlines, uint32_t len) {
     mx_source_t *source = mx_arena_alloc(&vm->arenas.ir, sizeof(mx_source_t));
     *source = (mx_source_t) {
         .file = file,
-        .src = src,
         .lines = lines,
         .len = len,
         .nlines = nlines,

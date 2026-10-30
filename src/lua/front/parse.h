@@ -396,7 +396,7 @@ mx_error_t *mx_parse_global_attrib(mx_parse_t *d, bool *is_const);
 mx_error_t *mx_parse_globalstat(mx_parse_t *d, uint32_t start);
 mx_error_t *mx_parse_statement(mx_parse_t *d, uint32_t value_reg, bool *produced);
 mx_error_t *mx_parse_statlist(mx_parse_t *d, uint32_t value_reg);
-void mx_parse_init(mx_parse_t *d, mx_t *vm, const mx_source_t *source);
+void mx_parse_init(mx_parse_t *d, mx_t *vm, const mx_source_t *source, const char *src);
 void mx_parse_free(mx_parse_t *d);
 mx_parse_compiled_t mx_parse_chunk(mx_t *vm, const char *src, uint32_t len, const char *file);
 

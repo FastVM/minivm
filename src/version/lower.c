@@ -122,6 +122,7 @@ mx_resume_t *mx_lower_rec(mx_lower_t *l, mx_resume_kind_t kind) {
         .kind = kind,
     };
     l->vm->stats.version_bytes += sizeof(mx_resume_t);
+    l->vm->stats.recs[kind] += 1;
     return rec;
 }
 
@@ -156,8 +157,19 @@ void mx_lower_rec_word(mx_lower_t *l, mx_resume_t *rec) {
     mx_lower_word(l, 0);
 }
 
-void mx_lower_fixup(mx_lower_t *l, mx_resume_t *rec) {
-    mx_lower_fixup_push(&l->fixups, mx_lower_rec_index(l, rec), (size_t)(l->w - l->start));
+// A table store needs its resume record only to call __newindex or to report
+// an error, so it gets a descriptor instead and mx_run_void_rec builds the
+// record the first time it is needed. Words: record (0 until built), string
+// key slot, kinds, nkinds, site block, site offset | resume offset << 32.
+void mx_lower_void(mx_lower_t *l) {
+    uint32_t nkinds;
+    const mx_kind_t *kinds = mx_lower_snapshot(l, &nkinds);
+    mx_lower_word(l, 0);
+    mx_lower_word(l, UINTPTR_MAX);
+    mx_lower_word(l, (uintptr_t)kinds);
+    mx_lower_word(l, nkinds);
+    mx_lower_word(l, (uintptr_t)l->block);
+    mx_lower_word(l, (uintptr_t)l->site | ((uintptr_t)l->next_at << 32));
 }
 
 uint32_t mx_lower_unknown_reg(mx_lower_t *l, mx_ir_arg_t *args, uint32_t n) {
@@ -517,7 +529,15 @@ void mx_lower_closure(mx_lower_t *l, mx_ir_instr_t *in) {
     mx_lower_write(l, (uint32_t)in->out.reg, MX_KIND_CLOSURE);
 }
 
+// l->fresh marks the registers holding a table that TABLE_NEW made earlier in
+// this stream. Until Lua code can run, nothing else can see those tables, so
+// stores into them with a literal key need no metatable check and can't fail.
+// Code can run in the middle of a stream only through a generic table store's
+// __newindex, or a hook, so those end it, and so does overwriting a register.
 void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
+    if (in->out.type == MX_IR_ARG_TYPE_REG && in->out.reg < l->nregs) {
+        l->fresh[in->out.reg] = false;
+    }
     switch (in->op) {
         case MX_IR_INSTR_OPCODE_MOVE: {
             mx_ir_arg_t a = in->args[0];
@@ -597,15 +617,28 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
             mx_lower_word(l, (uintptr_t)in->out.reg);
             mx_lower_word(l, (uintptr_t)mx_obj_get_int(in->args[0].lit));
             mx_lower_write(l, (uint32_t)in->out.reg, l->vm->kinds.table);
+            l->fresh[in->out.reg] = !l->is_hooked;
             break;
         }
         case MX_IR_INSTR_OPCODE_TABLE_SET: {
-            mx_resume_t *rec = mx_lower_rec(l, MX_RESUME_VOID);
-            rec->resume_at = l->next_at;
-            rec->is_meta = true;
-            rec->meta = MX_OP_SET;
             mx_ir_arg_t t = in->args[0];
             mx_ir_arg_t k = in->args[1];
+            bool is_fresh = t.type == MX_IR_ARG_TYPE_REG && t.reg < l->nregs && l->fresh[t.reg] && k.type == MX_IR_ARG_TYPE_LIT && !mx_obj_is_nil(k.lit);
+            if (is_fresh && mx_obj_is_string(k.lit)) {
+                mx_lower_hop(l, MX_HOP_TABLE_INIT_SK);
+                mx_lower_word(l, (uintptr_t)t.reg);
+                mx_lower_word(l, (uintptr_t)k.lit.val.bits);
+                mx_lower_arg(l, in->args[2]);
+                mx_lower_word(l, UINTPTR_MAX);
+                break;
+            } else if (is_fresh) {
+                mx_lower_hop(l, MX_HOP_TABLE_INIT);
+                mx_lower_word(l, (uintptr_t)t.reg);
+                mx_lower_arg(l, k);
+                mx_lower_arg(l, in->args[2]);
+                break;
+            }
+            memset(l->fresh, 0, sizeof(bool) * l->nregs);
             if (t.type == MX_IR_ARG_TYPE_REG && mx_lower_kind(l, t) == l->vm->kinds.table && k.type == MX_IR_ARG_TYPE_LIT && mx_obj_is_string(k.lit)) {
                 mx_lower_hop(l, MX_HOP_TABLE_SET_SK);
                 mx_lower_word(l, (uintptr_t)t.reg);
@@ -616,9 +649,7 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
                 mx_lower_arg(l, k);
             }
             mx_lower_arg(l, in->args[2]);
-            mx_lower_rec_word(l, rec);
-            mx_lower_word(l, UINTPTR_MAX);
-            mx_lower_fixup(l, rec);
+            mx_lower_void(l);
             break;
         }
         case MX_IR_INSTR_OPCODE_CLOSURE: {
@@ -1089,12 +1120,8 @@ void mx_lower_finish(mx_lower_t *l) {
     for (uint32_t i = 0; i < l->refs.len; i++) {
         stream[l->refs.ptr[i].at] = (uintptr_t)&recs[last - l->refs.ptr[i].rec];
     }
-    for (uint32_t i = 0; i < l->fixups.len; i++) {
-        recs[last - l->fixups.ptr[i].rec].next_ip = stream + l->fixups.ptr[i].at;
-    }
     vm->lower_scratch.recs = l->recs;
     vm->lower_scratch.refs = l->refs;
-    vm->lower_scratch.fixups = l->fixups;
     mx_arena_release(&vm->arenas.scratch, l->mark);
 }
 
@@ -1103,8 +1130,11 @@ void mx_lower_version(mx_t *vm, mx_version_t *rb) {
     if (vm->lower_scratch.cap < nregs) {
         vm->lower_scratch.cap = nregs * 2;
         mx_mem_free(vm->lower_scratch.types);
+        mx_mem_free(vm->lower_scratch.fresh);
         vm->lower_scratch.types = mx_mem_alloc(sizeof(mx_kind_t) * vm->lower_scratch.cap);
+        vm->lower_scratch.fresh = mx_mem_alloc(sizeof(bool) * vm->lower_scratch.cap);
     }
+    memset(vm->lower_scratch.fresh, 0, sizeof(bool) * nregs);
     if (vm->code_scratch.cap == 0) {
         vm->code_scratch.cap = 1024;
         vm->code_scratch.ptr = mx_mem_alloc(sizeof(uintptr_t) * vm->code_scratch.cap);
@@ -1113,13 +1143,13 @@ void mx_lower_version(mx_t *vm, mx_version_t *rb) {
         .vm = vm,
         .rb = rb,
         .types = vm->lower_scratch.types,
+        .fresh = vm->lower_scratch.fresh,
         .block = rb->block,
         .start = vm->code_scratch.ptr,
         .end = vm->code_scratch.ptr + vm->code_scratch.cap,
         .mark = mx_arena_mark(&vm->arenas.scratch),
         .recs = { .ptr = vm->lower_scratch.recs.ptr, .cap = vm->lower_scratch.recs.cap },
         .refs = { .ptr = vm->lower_scratch.refs.ptr, .cap = vm->lower_scratch.refs.cap },
-        .fixups = { .ptr = vm->lower_scratch.fixups.ptr, .cap = vm->lower_scratch.fixups.cap },
         .nvisited = 1,
         .nregs = nregs,
         .kslot = nregs,

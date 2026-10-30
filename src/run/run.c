@@ -202,6 +202,30 @@ mx_obj_t mx_run_set_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t va
     return mx_obj_of_nil();
 }
 
+const mx_resume_t *mx_run_void_rec(mx_t *vm, mx_version_t *rb, uintptr_t *desc, uintptr_t *next_ip) {
+    if (desc[0] == 0) {
+        mx_resume_t *rec = mx_arena_alloc(&vm->arenas.code, sizeof(mx_resume_t));
+        mx_ir_block_t *site = (mx_ir_block_t *)desc[4];
+        *rec = (mx_resume_t) {
+            .rb = rb,
+            .kinds = (const mx_kind_t *)desc[2],
+            .nkinds = (uint16_t)desc[3],
+            .site = site,
+            .target = site,
+            .site_at = (uint32_t)desc[5],
+            .resume_at = (uint32_t)(desc[5] >> 32),
+            .kind = MX_RESUME_VOID,
+            .is_meta = true,
+            .meta = MX_OP_SET,
+            .next_ip = next_ip,
+        };
+        vm->stats.version_bytes += sizeof(mx_resume_t);
+        vm->stats.recs[MX_RESUME_VOID] += 1;
+        desc[0] = (uintptr_t)rec;
+    }
+    return (const mx_resume_t *)desc[0];
+}
+
 bool mx_run_eq_raw(mx_t *vm, mx_obj_t a, mx_obj_t b, bool *out) {
     if (a.kind != b.kind) {
         if (mx_obj_is_number(a) && mx_obj_is_number(b)) {
@@ -496,6 +520,8 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
         [MX_HOP_TABLE_NEW] = &&L_TABLE_NEW,
         [MX_HOP_TABLE_SET] = &&L_TABLE_SET,
         [MX_HOP_TABLE_SET_SK] = &&L_TABLE_SET_SK,
+        [MX_HOP_TABLE_INIT] = &&L_TABLE_INIT,
+        [MX_HOP_TABLE_INIT_SK] = &&L_TABLE_INIT_SK,
         [MX_HOP_CLOSURE] = &&L_CLOSURE,
         [MX_HOP_VARARGS] = &&L_VARARGS,
         [MX_HOP_UNPACK] = &&L_UNPACK,
@@ -584,7 +610,7 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
     mx_obj_t st;
     mx_obj_t sk;
     mx_obj_t sv;
-    uintptr_t *sslot;
+    uintptr_t *sdesc;
     mx_thread_t *sw_to;
     const mx_obj_t *sw_vals;
     uint32_t sw_n;
@@ -1012,7 +1038,7 @@ L_TABLE_SET: {
             if (at < (uint64_t)tbl->array_len && tbl->array[at].kind != MX_KIND_NIL) {
                 mx_gc_write_barrier_slot(vm, tbl, v);
                 tbl->array[at] = v;
-                ip += 9;
+                ip += 13;
                 MX_DISPATCH();
             } else if (at == (uint64_t)tbl->array_len && at < (uint64_t)tbl->array_cap && !tbl->has_int_hash) {
                 mx_gc_write_barrier_slot(vm, tbl, v);
@@ -1021,7 +1047,7 @@ L_TABLE_SET: {
                 if (tbl->len == (uint32_t)at) {
                     tbl->len = tbl->array_len;
                 }
-                ip += 9;
+                ip += 13;
                 MX_DISPATCH();
             }
         }
@@ -1029,9 +1055,8 @@ L_TABLE_SET: {
     st = t;
     sk = k;
     sv = v;
-    sslot = &ip[8];
-    crec = (const mx_resume_t *)ip[7];
-    ip += 9;
+    sdesc = &ip[7];
+    ip += 13;
     goto set;
 }
 L_TABLE_SET_SK: {
@@ -1043,7 +1068,7 @@ L_TABLE_SET_SK: {
         if (e->key_kind == MX_KIND_STRING && e->key.bits == ip[2] && e->val_kind != MX_KIND_NIL) {
             mx_gc_write_barrier_slot(vm, tbl, v);
             mx_table_entry_set_val(e, v);
-            ip += 7;
+            ip += 11;
             MX_DISPATCH();
         }
         size_t cap = mx_table_hash_cap(tbl);
@@ -1054,17 +1079,61 @@ L_TABLE_SET_SK: {
             tbl->used += 1;
             mx_table_entry_set_key(e, mx_obj_of_raw(MX_KIND_STRING, (mx_val_t) { .bits = ip[2] }), hash);
             mx_table_entry_set_val(e, v);
-            ip += 7;
+            ip += 11;
             MX_DISPATCH();
         }
     }
     st = mx_obj_of_table(tbl);
     sk = mx_obj_of_raw(MX_KIND_STRING, (mx_val_t) { .bits = ip[2] });
     sv = v;
-    sslot = &ip[6];
-    crec = (const mx_resume_t *)ip[5];
-    ip += 7;
+    sdesc = &ip[5];
+    ip += 11;
     goto set;
+}
+// A store into a table this stream made itself, with a literal key that can't
+// be nil or NaN: no metatable or error is possible, so it is always raw.
+L_TABLE_INIT: {
+    mx_obj_table_t *tbl = mx_ref_obj(base[ip[1]].ref);
+    mx_obj_t k = mx_run_arg(ip + 2, base);
+    mx_obj_t v = mx_run_arg(ip + 4, base);
+    if (k.kind == MX_KIND_INT && v.kind != MX_KIND_NIL) {
+        uint64_t at = (uint64_t)(k.val.i64 - 1);
+        if (at == (uint64_t)tbl->array_len && at < (uint64_t)tbl->array_cap && !tbl->has_int_hash) {
+            mx_gc_write_barrier_slot(vm, tbl, v);
+            tbl->array[at] = v;
+            tbl->array_len += 1;
+            if (tbl->len == (uint32_t)at) {
+                tbl->len = tbl->array_len;
+            }
+            ip += 6;
+            MX_DISPATCH();
+        }
+    }
+    mx_run_set_raw(vm, tbl, k, v, NULL);
+    ip += 6;
+    MX_DISPATCH();
+}
+L_TABLE_INIT_SK: {
+    mx_obj_table_t *tbl = mx_ref_obj(base[ip[1]].ref);
+    mx_obj_t v = mx_run_arg(ip + 3, base);
+    size_t at = (size_t)ip[5];
+    if (v.kind != MX_KIND_NIL && tbl->entries != NULL && at < mx_table_hash_cap(tbl)) {
+        mx_table_entry_t *e = &tbl->entries[at];
+        size_t cap = mx_table_hash_cap(tbl);
+        uint32_t hash = ((mx_str_t *)(uintptr_t)ip[2])->hash;
+        bool is_room = (tbl->used + 1) * MX_TABLE_LOAD_DEN <= cap * MX_TABLE_LOAD_NUM || cap <= MX_TABLE_HASH_MIN_CAP;
+        if (e->key_kind == MX_KIND_NIL && hash != 0 && (hash & (cap - 1)) == at && is_room) {
+            mx_gc_write_barrier(vm, tbl, v);
+            tbl->used += 1;
+            mx_table_entry_set_key(e, mx_obj_of_raw(MX_KIND_STRING, (mx_val_t) { .bits = ip[2] }), hash);
+            mx_table_entry_set_val(e, v);
+            ip += 6;
+            MX_DISPATCH();
+        }
+    }
+    mx_run_set_raw(vm, tbl, mx_obj_of_raw(MX_KIND_STRING, (mx_val_t) { .bits = ip[2] }), v, &ip[5]);
+    ip += 6;
+    MX_DISPATCH();
 }
 L_CLOSURE: {
     mx_ir_block_t *child = (mx_ir_block_t *)ip[2];
@@ -1855,7 +1924,7 @@ safepoint: {
 }
 
 branch: {
-    if (*bc != 0) {
+    if (__builtin_expect(*bc != 0, 1)) {
         MX_ENTER(*bc);
     }
     rb = mx_version_edge(vm, rb->out, rb->nout, (mx_ir_block_t *)bc[-2]);
@@ -2032,14 +2101,15 @@ co_done: {
 set: {
     bool is_raw = st.kind == vm->kinds.table && mx_obj_get_table(st)->is_plain && mx_obj_get_table(st)->meta == NULL;
     if (is_raw || (mx_obj_is_table(st) && mx_run_set_is_raw(vm, mx_obj_get_table(st), sk))) {
-        mx_obj_t err = mx_run_set_raw(vm, mx_obj_get_table(st), sk, sv, sslot);
+        mx_obj_t err = mx_run_set_raw(vm, mx_obj_get_table(st), sk, sv, &sdesc[1]);
         if (mx_obj_is_error(err)) {
             ferr = err;
-            frec = crec;
+            frec = mx_run_void_rec(vm, rb, sdesc, ip);
             goto fail;
         }
         MX_DISPATCH();
     }
+    crec = mx_run_void_rec(vm, rb, sdesc, ip);
     base = mx_run_reserve(vm, base, rb->frame + 10 + MX_RUN_SLACK);
     cw = (uint32_t)(base - vm->thread->slots) + rb->frame;
     mx_obj_t *args = (mx_obj_t *)(base + rb->frame + 4);

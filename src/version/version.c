@@ -88,16 +88,34 @@ void mx_version_caches_free(mx_t *vm) {
     vm->kind_vecs = (mx_kind_vecs_t) {0};
 }
 
-mx_version_cache_t *mx_version_cache(mx_t *vm, mx_ir_block_t *block) {
-    if (block->versions == NULL) {
-        mx_version_cache_t *cache = mx_ir_alloc(vm, sizeof(mx_version_cache_t));
+uintptr_t *mx_version_slot(mx_t *vm, mx_ir_block_t *block) {
+    mx_ir_func_t *func = block->func;
+    if (func->versions == NULL) {
+        func->versions = mx_ir_alloc(vm, sizeof(uintptr_t) * func->nblocks);
+        memset(func->versions, 0, sizeof(uintptr_t) * func->nblocks);
+        vm->stats.version_bytes += (uint32_t)(sizeof(uintptr_t) * func->nblocks);
+    }
+    return &func->versions[block->id];
+}
+
+void mx_version_slot_add(mx_t *vm, uintptr_t *slot, mx_version_t *rb) {
+    if (*slot == 0) {
+        *slot = (uintptr_t)rb;
+        return;
+    }
+    mx_version_cache_t *cache;
+    if ((*slot & 1) == 0) {
+        cache = mx_ir_alloc(vm, sizeof(mx_version_cache_t));
         *cache = (mx_version_cache_t) {0};
         vm->stats.version_bytes += sizeof(mx_version_cache_t);
         cache->next = vm->version_caches;
         vm->version_caches = cache;
-        block->versions = cache;
+        mx_version_cache_add(cache, (mx_version_t *)*slot);
+        *slot = (uintptr_t)cache | 1;
+    } else {
+        cache = (mx_version_cache_t *)(*slot & ~(uintptr_t)1);
     }
-    return block->versions;
+    mx_version_cache_add(cache, rb);
 }
 
 uint32_t mx_version_key_hash(const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked) {
@@ -144,13 +162,7 @@ bool mx_version_matches(const mx_version_t *rb, const mx_kind_t *kinds, uint32_t
         && (nkinds == 0 || memcmp(rb->kinds, kinds, sizeof(mx_kind_t) * nkinds) == 0);
 }
 
-mx_version_t *mx_version_for_at(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at) {
-    mx_version_cache_t *cache = mx_version_cache(vm, block);
-    while (nkinds > 0 && kinds[nkinds - 1] == MX_KIND_NIL) {
-        nkinds -= 1;
-    }
-    bool is_hooked = vm->is_hooked;
-    uint32_t hash = mx_version_key_hash(kinds, nkinds, start_at, is_hooked);
+mx_version_t *mx_version_cache_find(const mx_version_cache_t *cache, uint32_t hash, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked) {
     if (cache->table.cap != 0) {
         uint32_t at = hash & (cache->table.cap - 1);
         while (cache->table.ptr[at] != NULL) {
@@ -168,6 +180,28 @@ mx_version_t *mx_version_for_at(mx_t *vm, mx_ir_block_t *block, const mx_kind_t 
             }
         }
     }
+    return NULL;
+}
+
+mx_version_t *mx_version_for_at(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at) {
+    uintptr_t *slot = mx_version_slot(vm, block);
+    while (nkinds > 0 && kinds[nkinds - 1] == MX_KIND_NIL) {
+        nkinds -= 1;
+    }
+    bool is_hooked = vm->is_hooked;
+    uint32_t hash = mx_version_key_hash(kinds, nkinds, start_at, is_hooked);
+    mx_version_t *found = NULL;
+    if ((*slot & 1) != 0) {
+        found = mx_version_cache_find((const mx_version_cache_t *)(*slot - 1), hash, kinds, nkinds, start_at, is_hooked);
+    } else if (*slot != 0) {
+        found = (mx_version_t *)*slot;
+        if (found->key_hash != hash || !mx_version_matches(found, kinds, nkinds, start_at, is_hooked)) {
+            found = NULL;
+        }
+    }
+    if (found != NULL) {
+        return found;
+    }
     const mx_kind_t *interned = mx_version_kinds_intern(vm, kinds, nkinds);
     mx_version_t *rb = mx_arena_alloc(&vm->arenas.code, sizeof(mx_version_t));
     *rb = (mx_version_t) {
@@ -183,7 +217,7 @@ mx_version_t *mx_version_for_at(mx_t *vm, mx_ir_block_t *block, const mx_kind_t 
     };
     vm->stats.versions += 1;
     vm->stats.version_bytes += sizeof(mx_version_t);
-    mx_version_cache_add(cache, rb);
+    mx_version_slot_add(vm, slot, rb);
     mx_lower_version(vm, rb);
     return rb;
 }
@@ -217,13 +251,12 @@ void mx_version_key_copy(mx_version_key_t *key, const mx_kind_t *kinds, uint32_t
 }
 
 void mx_version_key_live(mx_t *vm, mx_version_key_t *key, mx_ir_block_t *target) {
-    mx_ir_block_t *head = mx_ir_func_head(target);
-    if (!head->has_liveness) {
-        mx_ir_liveness(vm, head);
+    if (target->func->live == NULL) {
+        mx_ir_liveness(vm, mx_ir_func_head(target));
     }
-    const uint64_t *live = target->live_in;
+    const uint64_t *live = mx_ir_block_live(target);
     for (uint32_t i = 0; i < key->nkinds; i++) {
-        if (live != NULL && !mx_kind_is_cell(key->kinds[i]) && !mx_ir_live_test(live, i)) {
+        if (!mx_kind_is_cell(key->kinds[i]) && !mx_ir_live_test(live, i)) {
             key->kinds[i] = MX_KIND_NIL;
         }
     }
@@ -296,16 +329,15 @@ mx_version_t *mx_version_again(mx_t *vm, mx_version_t *rb, bool is_resumed) {
 }
 
 mx_version_t *mx_version_entry(mx_t *vm, mx_ir_block_t *block, const mx_obj_t *args, uint32_t nargs) {
-    const mx_ir_func_t *func = block->func;
+    mx_ir_func_t *func = block->func;
     uint64_t short_key = 0;
-    mx_version_cache_t *cache = mx_version_cache(vm, block);
     if (func->nparams <= 3 && !vm->is_hooked) {
         short_key = (uint64_t)1 << 48;
         for (uint32_t i = 0; i < func->nparams && i < nargs; i++) {
             short_key |= (uint64_t)args[i].kind << (16 * i);
         }
-        if (cache->entry1 != NULL && cache->entry1_key == short_key) {
-            return cache->entry1;
+        if (func->entry1 != NULL && func->entry1_key == short_key) {
+            return func->entry1;
         }
     }
     mx_version_key_t key;
@@ -317,23 +349,22 @@ mx_version_t *mx_version_entry(mx_t *vm, mx_ir_block_t *block, const mx_obj_t *a
     mx_version_t *rb = mx_version_for_at(vm, block, key.kinds, key.nkinds, 0);
     mx_version_key_free(&key);
     if (short_key != 0) {
-        cache->entry1 = rb;
-        cache->entry1_key = short_key;
+        func->entry1 = rb;
+        func->entry1_key = short_key;
     }
     return rb;
 }
 
 mx_version_t *mx_version_args(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nargs) {
-    const mx_ir_func_t *func = block->func;
+    mx_ir_func_t *func = block->func;
     uint64_t short_key = 0;
-    mx_version_cache_t *cache = mx_version_cache(vm, block);
     if (func->nparams <= 3 && !vm->is_hooked) {
         short_key = (uint64_t)1 << 48;
         for (uint32_t i = 0; i < func->nparams && i < nargs; i++) {
             short_key |= (uint64_t)kinds[i] << (16 * i);
         }
-        if (cache->entry1 != NULL && cache->entry1_key == short_key) {
-            return cache->entry1;
+        if (func->entry1 != NULL && func->entry1_key == short_key) {
+            return func->entry1;
         }
     }
     mx_version_key_t key;
@@ -345,8 +376,8 @@ mx_version_t *mx_version_args(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *k
     mx_version_t *rb = mx_version_for_at(vm, block, key.kinds, key.nkinds, 0);
     mx_version_key_free(&key);
     if (short_key != 0) {
-        cache->entry1 = rb;
-        cache->entry1_key = short_key;
+        func->entry1 = rb;
+        func->entry1_key = short_key;
     }
     return rb;
 }

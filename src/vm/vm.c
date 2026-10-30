@@ -166,13 +166,16 @@ void mx_vm_free(mx_t *vm) {
     mx_kind_free(vm);
     mx_gc_free(vm, vm->gc);
     mx_version_caches_free(vm);
+    for (size_t i = 0; i < sizeof(vm->chunk_cache) / sizeof(vm->chunk_cache[0]); i++) {
+        mx_mem_free(vm->chunk_cache[i].src);
+    }
     mx_mem_free(vm->interns.slots);
     mx_mem_free(vm->interns.young.ptr);
     mx_mem_free(vm->code_scratch.ptr);
     mx_mem_free(vm->lower_scratch.types);
+    mx_mem_free(vm->lower_scratch.fresh);
     mx_mem_free(vm->lower_scratch.recs.ptr);
     mx_mem_free(vm->lower_scratch.refs.ptr);
-    mx_mem_free(vm->lower_scratch.fixups.ptr);
     mx_mem_free(vm->tbcs.ptr);
     mx_mem_free(vm->pending.args);
     mx_mem_free(vm->rets.vals);

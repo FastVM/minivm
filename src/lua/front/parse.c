@@ -1282,7 +1282,7 @@ mx_error_t *mx_parse_constructor(mx_parse_t *d, mx_parse_exp_t *e) {
     if (nhash > 0xffff) {
         nhash = 0xffff;
     }
-    mx_ir_block_patch_lit(new_block, new_at, mx_obj_of_int((int64_t)(((uint64_t)nhash << MX_IR_TABLE_HINT_BITS) | npos)));
+    mx_ir_block_patch_hint(new_block, new_at, ((uint64_t)nhash << MX_IR_TABLE_HINT_BITS) | npos);
     *e = mx_gen_exp_arg(table, open_at);
     return NULL;
 }
@@ -2533,12 +2533,12 @@ mx_error_t *mx_parse_statlist(mx_parse_t *d, uint32_t value_reg) {
     return NULL;
 }
 
-void mx_parse_init(mx_parse_t *d, mx_t *vm, const mx_source_t *source) {
+void mx_parse_init(mx_parse_t *d, mx_t *vm, const mx_source_t *source, const char *src) {
     *d = (mx_parse_t) {
         .vm = vm,
         .source = source,
     };
-    mx_lex_init(&d->lex, vm, source);
+    mx_lex_init(&d->lex, vm, source, src);
     d->env_name = mx_scratch_intern(vm, "_ENV");
     d->break_name = mx_scratch_intern(vm, "break");
     d->self_name = mx_scratch_intern(vm, "self");
@@ -2566,7 +2566,7 @@ void mx_parse_free(mx_parse_t *d) {
 
 mx_parse_compiled_t mx_parse_chunk(mx_t *vm, const char *src, uint32_t len, const char *file) {
     mx_parse_t d;
-    mx_parse_init(&d, vm, mx_source_new(vm, file, src, len));
+    mx_parse_init(&d, vm, mx_source_new(vm, file, src, len), src);
     mx_parse_fn_t fn;
     mx_parse_scope_t scope;
     mx_parse_fn_open(&d, &fn, 0, 0);

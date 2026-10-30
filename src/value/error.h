@@ -31,8 +31,7 @@ enum {
 
 struct mx_source_t {
     const char *file;
-    const char *src;
-    uint32_t *lines;
+    const uint32_t *lines;
     uint32_t len;
     uint32_t nlines;
 };
@@ -45,7 +44,6 @@ struct mx_varname_t {
 struct mx_location_range_t {
     const mx_source_t *source;
     uint32_t start;
-    uint32_t stop;
     mx_varname_t names[2];
 };
 
@@ -68,6 +66,7 @@ extern const char *const mx_varhint_names[];
 
 uint32_t mx_source_scan(const char *src, uint32_t len, uint32_t *lines);
 const mx_source_t *mx_source_new(mx_t *vm, const char *file, const char *src, uint32_t len);
+const mx_source_t *mx_source_of_lines(mx_t *vm, const char *file, const uint32_t *lines, uint32_t nlines, uint32_t len);
 uint32_t mx_source_line(const mx_source_t *source, uint32_t byte);
 mx_error_chunkid_t mx_error_chunkid(const char *file);
 mx_error_t *mx_error_new(mx_t *vm, mx_obj_t payload);
