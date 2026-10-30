@@ -442,18 +442,26 @@ bool mx_ffi_table_concat_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         return false;
     }
     mx_str_t *out = mx_str_new_gc_sized(vm, (uint32_t)total);
+    char *w = out->buf;
     for (uint32_t k = 0; k < n; k++) {
         mx_obj_t v = t->array[k];
         if (mx_obj_is_string(v)) {
             mx_str_t *s = mx_obj_get_string(v);
-            mx_str_append(out, s->buf, s->len);
+            memcpy(w, s->buf, s->len);
+            w += s->len;
         } else {
-            mx_str_append_int(out, mx_obj_get_int(v));
+            char tmp[MX_STR_INT_DIGITS];
+            uint32_t at = mx_str_int_digits(tmp, mx_obj_get_int(v));
+            memcpy(w, &tmp[at], MX_STR_INT_DIGITS - at);
+            w += MX_STR_INT_DIGITS - at;
         }
         if (seplen > 0 && k + 1 < n) {
-            mx_str_append(out, sep->buf, (uint32_t)seplen);
+            memcpy(w, sep->buf, seplen);
+            w += seplen;
         }
     }
+    *w = '\0';
+    out->len = (uint32_t)total;
     args[0] = mx_obj_of_string(out);
     vm->rets.len = 1;
     return true;
@@ -465,14 +473,73 @@ void mx_ffi_table_concat(mx_t *vm, size_t nargs, mx_obj_t *args) {
     }
 }
 
+// Only short runs of the array part: the results replace the arguments.
+bool mx_ffi_table_unpack_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs < 1 || nargs > 3 || args[0].kind != vm->kinds.table) {
+        return false;
+    }
+    mx_obj_table_t *t = mx_obj_get_table(args[0]);
+    if (!t->is_plain || t->meta != NULL) {
+        return false;
+    }
+    int64_t i = 1;
+    int64_t e = (int64_t)t->len;
+    if (nargs >= 2 && mx_obj_is_int(args[1])) {
+        i = mx_obj_get_int(args[1]);
+    } else if (nargs >= 2 && !mx_obj_is_nil(args[1])) {
+        return false;
+    }
+    if (nargs == 3 && mx_obj_is_int(args[2])) {
+        e = mx_obj_get_int(args[2]);
+    } else if (nargs == 3 && !mx_obj_is_nil(args[2])) {
+        return false;
+    }
+    if (i > e) {
+        vm->rets.len = 0;
+        return true;
+    } else if (i < 1 || e > (int64_t)t->array_len || e - i >= MX_RUN_SMALL) {
+        return false;
+    }
+    memmove(args, &t->array[i - 1], sizeof(mx_obj_t) * (size_t)(e - i + 1));
+    vm->rets.len = (uint32_t)(e - i + 1);
+    return true;
+}
+
+void mx_ffi_table_unpack(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_table_unpack_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_table_unpack, "unpack", args, (int32_t)nargs);
+    }
+}
+
+bool mx_ffi_table_remove_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs != 1 || args[0].kind != vm->kinds.table) {
+        return false;
+    }
+    mx_obj_table_t *t = mx_obj_get_table(args[0]);
+    if (!t->is_plain || t->meta != NULL || t->len == 0 || t->len > t->array_len) {
+        return false;
+    }
+    args[0] = t->array[t->len - 1];
+    t->array[t->len - 1] = mx_obj_of_nil();
+    t->len -= 1;
+    vm->rets.len = 1;
+    return true;
+}
+
+void mx_ffi_table_remove(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_table_remove_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_table_remove, "remove", args, (int32_t)nargs);
+    }
+}
+
 const mx_std_reg_t mx_std_table_regs[] = {
     {"concat", mx_std_table_concat, mx_ffi_table_concat},
     {"insert", mx_std_table_insert, mx_ffi_table_insert},
     {"move", mx_std_table_move, NULL},
     {"pack", mx_std_table_pack, NULL},
-    {"remove", mx_std_table_remove, NULL},
+    {"remove", mx_std_table_remove, mx_ffi_table_remove},
     {"sort", mx_std_table_sort, NULL},
-    {"unpack", mx_std_table_unpack, NULL},
+    {"unpack", mx_std_table_unpack, mx_ffi_table_unpack},
     {"create", mx_std_table_create, NULL},
     {"keys", mx_std_table_keys, NULL},
     {"values", mx_std_table_values, NULL},

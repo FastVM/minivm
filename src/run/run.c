@@ -243,9 +243,11 @@ bool mx_run_eq_raw(mx_t *vm, mx_obj_t a, mx_obj_t b, bool *out) {
     if (is_std && mx_obj_is_table(a) && mx_obj_is_table(b)) {
         mx_obj_table_t *ta = mx_obj_get_table(a);
         mx_obj_table_t *tb = mx_obj_get_table(b);
-        bool has_a = ta->meta != NULL && !mx_obj_is_nil(mx_table_get(ta->meta, vm->meta_eq.key));
-        bool has_b = tb->meta != NULL && !mx_obj_is_nil(mx_table_get(tb->meta, vm->meta_eq.key));
-        if (!has_a && !has_b) {
+        bool has_eq = ta->meta != NULL && !mx_obj_is_nil(mx_table_get_inline(ta->meta, vm->meta_eq.key));
+        if (!has_eq && tb->meta != NULL && tb->meta != ta->meta) {
+            has_eq = !mx_obj_is_nil(mx_table_get_inline(tb->meta, vm->meta_eq.key));
+        }
+        if (!has_eq) {
             *out = false;
             return true;
         }
@@ -407,8 +409,8 @@ bool mx_run_collect(mx_t *vm) {
         } \
         small[0] = d1_v; \
         drec = d1_rec; \
-        dvals = small; \
-        dn = 1; \
+        rvals = small; \
+        rn = 1; \
         dresumed = false; \
         goto deliver; \
     } while (0)
@@ -444,8 +446,8 @@ bool mx_run_collect(mx_t *vm) {
             } \
         } \
         drec = dr_rec; \
-        dvals = dr_vals; \
-        dn = dr_n; \
+        rvals = dr_vals; \
+        rn = dr_n; \
         dresumed = true; \
         goto deliver; \
     } while (0)
@@ -517,6 +519,8 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
         [MX_HOP_TOSTR_I64] = &&L_TOSTR_I64,
         [MX_HOP_TOSTR_F64] = &&L_TOSTR_F64,
         [MX_HOP_CONCAT] = &&L_CONCAT,
+        [MX_HOP_CONCAT_SI] = &&L_CONCAT_SI,
+        [MX_HOP_CONCAT_IS] = &&L_CONCAT_IS,
         [MX_HOP_TABLE_NEW] = &&L_TABLE_NEW,
         [MX_HOP_TABLE_SET] = &&L_TABLE_SET,
         [MX_HOP_TABLE_SET_SK] = &&L_TABLE_SET_SK,
@@ -593,9 +597,8 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
     uintptr_t *bc;
     mx_obj_t small[MX_RUN_SMALL];
     mx_kind_t kinds[MX_IR_BRANCH_MAX_ARGS + 1];
+    // rvals and rn carry the values for both deliver and ret.
     const mx_resume_t *drec;
-    const mx_obj_t *dvals;
-    uint32_t dn;
     bool dresumed;
     const mx_obj_t *rvals;
     uint32_t rn;
@@ -1021,6 +1024,18 @@ L_CONCAT: {
     ip += 4;
     MX_DISPATCH();
 }
+L_CONCAT_SI: {
+    mx_str_t *a = mx_ref_obj(base[ip[2]].ref);
+    base[ip[1]] = mx_val_ref(mx_ref_pin(mx_str_concat_int(vm, a, base[ip[3]].i64, false)));
+    ip += 4;
+    MX_DISPATCH();
+}
+L_CONCAT_IS: {
+    mx_str_t *b = mx_ref_obj(base[ip[3]].ref);
+    base[ip[1]] = mx_val_ref(mx_ref_pin(mx_str_concat_int(vm, b, base[ip[2]].i64, true)));
+    ip += 4;
+    MX_DISPATCH();
+}
 L_TABLE_NEW: {
     uint32_t hint = (uint32_t)ip[2];
     base[ip[1]] = mx_val_ref(mx_ref_pin(mx_table_new_sized(vm, hint & MX_IR_TABLE_HINT_MASK, hint >> MX_IR_TABLE_HINT_BITS)));
@@ -1209,8 +1224,8 @@ L_UPVAL_GUARD: {
     mx_ir_func_note_upval(rb->block->func, (uint32_t)ip[2], v.kind);
     small[0] = v;
     drec = (const mx_resume_t *)ip[4];
-    dvals = small;
-    dn = 1;
+    rvals = small;
+    rn = 1;
     dresumed = false;
     goto deliver;
 }
@@ -1586,8 +1601,8 @@ L_META_CMP: {
     if (mop == MX_OP_EQ && mx_run_eq_raw(vm, a, b, &is_eq)) {
         small[0] = mx_obj_of_boolean(is_eq);
         drec = (const mx_resume_t *)ip[2];
-        dvals = small;
-        dn = 1;
+        rvals = small;
+        rn = 1;
         dresumed = false;
         goto deliver;
     }
@@ -1845,7 +1860,14 @@ L_CALL_FAST: {
         vm->rets.vals[0] = mx_obj_of_nil();
         if (((mx_ffi_fast_t *)ip[7])(vm, n + nspread, small)) {
             MX_STAT(call_fast);
-            MX_DELIVER_RESUMED((const mx_resume_t *)ip[5], small, vm->rets.len);
+            // A fast function never runs Lua code, so no captured local of
+            // this frame can have changed and its one result needs no
+            // resumed delivery.
+            const mx_resume_t *rec = (const mx_resume_t *)ip[5];
+            if (rec->want == 1 && vm->rets.len != 0) {
+                MX_DELIVER1(rec, small[0], NULL);
+            }
+            MX_DELIVER_RESUMED(rec, small, vm->rets.len);
         }
         if (nspread != 0) {
             memcpy(vm->rets.vals, small + n, sizeof(mx_obj_t) * nspread);
@@ -1942,14 +1964,14 @@ deliver: {
             uint32_t want = rec->want;
             uint32_t nout;
             if (want == MX_IR_WANT_MULTI) {
-                mx_vm_rets_set(vm, dvals, dn);
+                mx_vm_rets_set(vm, rvals, rn);
                 key = 1;
                 nout = 0;
             } else {
                 for (uint32_t i = 0; i < want; i++) {
                     mx_obj_t v = mx_obj_of_nil();
-                    if (i < dn) {
-                        v = dvals[i];
+                    if (i < rn) {
+                        v = rvals[i];
                     }
                     base[rec->out + i] = v.val;
                     kinds[i] = v.kind;
@@ -1980,8 +2002,8 @@ deliver: {
         }
         case MX_RESUME_AT: {
             mx_obj_t v = mx_obj_of_nil();
-            if (dn > 0) {
-                v = dvals[0];
+            if (rn > 0) {
+                v = rvals[0];
             }
             base[rec->out] = v.val;
             kinds[0] = v.kind;
@@ -2001,7 +2023,7 @@ deliver: {
             goto next;
         }
         case MX_RESUME_BRANCH: {
-            bool is_true = dn > 0 && mx_obj_is_truthy(dvals[0]);
+            bool is_true = rn > 0 && mx_obj_is_truthy(rvals[0]);
             key = ((uintptr_t)is_true + 1) | mx_run_key_flags(vm, dresumed);
             code = mx_run_cache_find(&rec->cache, key);
             if (code == NULL) {
@@ -2026,8 +2048,6 @@ deliver: {
             goto next;
         }
         case MX_RESUME_RETURN: {
-            rvals = dvals;
-            rn = dn;
             goto ret;
         }
         default: {

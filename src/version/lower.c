@@ -461,10 +461,28 @@ mx_ir_arg_t mx_lower_to_string(mx_lower_t *l, mx_ir_arg_t arg, uint32_t scratch)
     }
 }
 
+bool mx_lower_is_int_reg(mx_lower_t *l, mx_ir_arg_t arg) {
+    return arg.type == MX_IR_ARG_TYPE_REG && mx_lower_kind(l, arg) == MX_KIND_INT;
+}
+
 void mx_lower_concat(mx_lower_t *l, mx_ir_instr_t *in) {
-    mx_ir_arg_t a = mx_lower_to_string(l, in->args[0], l->frame);
-    mx_ir_arg_t b = mx_lower_to_string(l, in->args[1], l->frame + 1);
-    mx_lower_hop(l, MX_HOP_CONCAT);
+    bool is_si = !mx_lower_is_int_reg(l, in->args[0]) && mx_lower_is_int_reg(l, in->args[1]);
+    bool is_is = mx_lower_is_int_reg(l, in->args[0]) && !mx_lower_is_int_reg(l, in->args[1]);
+    mx_ir_arg_t a = in->args[0];
+    mx_ir_arg_t b = in->args[1];
+    if (!is_is) {
+        a = mx_lower_to_string(l, a, l->frame);
+    }
+    if (!is_si) {
+        b = mx_lower_to_string(l, b, l->frame + 1);
+    }
+    if (is_si) {
+        mx_lower_hop(l, MX_HOP_CONCAT_SI);
+    } else if (is_is) {
+        mx_lower_hop(l, MX_HOP_CONCAT_IS);
+    } else {
+        mx_lower_hop(l, MX_HOP_CONCAT);
+    }
     mx_lower_word(l, (uintptr_t)in->out.reg);
     mx_lower_word(l, (uintptr_t)a.reg);
     mx_lower_word(l, (uintptr_t)b.reg);

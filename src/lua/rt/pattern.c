@@ -237,30 +237,48 @@ const mx_pattern_prog_t *mx_pattern_prog(mx_pattern_cache_t *cache, mx_pattern_p
         mx_pattern_compile(cache, own, pat, plen);
         return own;
     }
-    uint32_t h = MX_VM_FNV_OFFSET;
-    for (size_t i = 0; i < plen; i++) {
-        h = (h ^ (uint8_t)pat[i]) * MX_VM_FNV_PRIME;
+    // A pattern is nearly always the buffer of a live string, so its address
+    // is a cheap key; the entry is still checked byte for byte.
+    uint64_t h = ((uint64_t)(uintptr_t)pat ^ plen) * UINT64_C(0x9E3779B97F4A7C15);
+    uint32_t at = (uint32_t)(h >> 32) & (MX_PATTERN_CACHE_WAYS - 1);
+    mx_pattern_cached_t *pair[2] = {&cache->progs[at], &cache->progs[at ^ 1]};
+    for (uint32_t i = 0; i < 2; i++) {
+        mx_pattern_cached_t *e = pair[i];
+        if (e->prog.items != NULL && e->len == plen && memcmp(e->pat, pat, plen) == 0) {
+            return &e->prog;
+        }
     }
-    mx_pattern_cached_t *e = &cache->progs[h & (MX_PATTERN_CACHE_WAYS - 1)];
-    if (e->prog.items == NULL || e->len != plen || memcmp(e->pat, pat, plen) != 0) {
-        memcpy(e->pat, pat, plen);
-        e->len = plen;
-        mx_pattern_compile(cache, &e->prog, pat, plen);
+    mx_pattern_cached_t *e = pair[0];
+    if (e->busy != 0) {
+        e = pair[1];
     }
+    if (e->busy != 0) {
+        mx_pattern_compile(cache, own, pat, plen);
+        return own;
+    }
+    memcpy(e->pat, pat, plen);
+    e->len = plen;
+    mx_pattern_compile(cache, &e->prog, pat, plen);
     return &e->prog;
 }
 
-// For callers that run Lua while matching: a callback can recompile the cache
-// slot that mx_pattern_prog returned, so they take a private copy.
-void mx_pattern_prog_own(mx_pattern_cache_t *cache, mx_pattern_prog_t *own, const char *pat, size_t plen) {
+// For callers that run Lua while matching: while held, a cached program is
+// not recompiled, so a callback that needs its slot compiles its own copy.
+const mx_pattern_prog_t *mx_pattern_prog_hold(mx_pattern_cache_t *cache, mx_pattern_prog_t *own, const char *pat, size_t plen) {
     const mx_pattern_prog_t *prog = mx_pattern_prog(cache, own, pat, plen);
     if (prog != own) {
-        own->items = own->inline_items;
-        own->len = prog->len;
-        own->ncap = prog->ncap;
-        own->first_byte = prog->first_byte;
-        memcpy(own->inline_items, prog->items, sizeof(mx_pattern_item_t) * prog->len);
+        mx_pattern_cached_of(cache, prog)->busy += 1;
     }
+    return prog;
+}
+
+void mx_pattern_prog_release(mx_pattern_cache_t *cache, const mx_pattern_prog_t *prog) {
+    mx_pattern_cached_of(cache, prog)->busy -= 1;
+}
+
+mx_pattern_cached_t *mx_pattern_cached_of(mx_pattern_cache_t *cache, const mx_pattern_prog_t *prog) {
+    size_t i = ((uintptr_t)prog - (uintptr_t)&cache->progs[0].prog) / sizeof(mx_pattern_cached_t);
+    return &cache->progs[i];
 }
 
 void mx_pattern_prog_free(mx_pattern_prog_t *prog) {
@@ -469,6 +487,20 @@ mx_pattern_result_t mx_pattern_search(mx_pattern_captures_t *scratch, const mx_p
         r.undos = mx_mem_alloc(sizeof(mx_pattern_undo_t) * prog->len);
     }
     mx_pattern_result_t res = { .status = MX_PATTERN_NOMATCH };
+    // A match has to start with a byte of the first item that consumes input
+    // when that item must match at least once, so other start positions are
+    // skipped here. Opening a capture consumes nothing.
+    const uint64_t *first_set = NULL;
+    uint32_t lead = 0;
+    while (lead < prog->len && (prog->items[lead].op == MX_PATTERN_OP_OPEN || prog->items[lead].op == MX_PATTERN_OP_POSITION)) {
+        lead += 1;
+    }
+    if (lead < prog->len) {
+        const mx_pattern_item_t *first = &prog->items[lead];
+        if (first->op == MX_PATTERN_OP_ONE && (first->rep == MX_PATTERN_REP_ONE || first->rep == MX_PATTERN_REP_PLUS)) {
+            first_set = first->set;
+        }
+    }
     size_t s = init;
     bool is_searching = true;
     while (is_searching) {
@@ -478,6 +510,10 @@ mx_pattern_result_t mx_pattern_search(mx_pattern_captures_t *scratch, const mx_p
                 s = src_len;
             } else {
                 s = (size_t)(hit - src);
+            }
+        } else if (first_set != NULL && !anchored) {
+            while (s < src_len && !mx_pattern_set_has(first_set, (uint8_t)src[s])) {
+                s += 1;
             }
         }
         int64_t stop = mx_pattern_exec(&r, s);

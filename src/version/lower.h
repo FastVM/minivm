@@ -67,6 +67,7 @@ mx_ir_arg_t mx_lower_as_float(mx_lower_t *l, mx_ir_arg_t arg, uint32_t scratch);
 void mx_lower_arith(mx_lower_t *l, mx_ir_instr_t *in, mx_kind_t want);
 mx_obj_t mx_lower_lit_string(mx_lower_t *l, mx_obj_t v);
 mx_ir_arg_t mx_lower_to_string(mx_lower_t *l, mx_ir_arg_t arg, uint32_t scratch);
+bool mx_lower_is_int_reg(mx_lower_t *l, mx_ir_arg_t arg);
 void mx_lower_concat(mx_lower_t *l, mx_ir_instr_t *in);
 bool mx_lower_needs_meta(mx_lower_t *l, mx_ir_instr_t *in, mx_kind_t a, mx_kind_t b);
 void mx_lower_closure(mx_lower_t *l, mx_ir_instr_t *in);

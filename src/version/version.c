@@ -328,6 +328,10 @@ mx_version_t *mx_version_again(mx_t *vm, mx_version_t *rb, bool is_resumed) {
     return again;
 }
 
+// A function with at most three parameters remembers the version it last
+// entered, keyed on the argument kinds, so a repeated call skips the lookup.
+// The hit path is kept free of calls so it needs no stack frame; a miss tail
+// calls the slow path, which also refreshes the remembered version.
 mx_version_t *mx_version_entry(mx_t *vm, mx_ir_block_t *block, const mx_obj_t *args, uint32_t nargs) {
     mx_ir_func_t *func = block->func;
     uint64_t short_key = 0;
@@ -340,6 +344,11 @@ mx_version_t *mx_version_entry(mx_t *vm, mx_ir_block_t *block, const mx_obj_t *a
             return func->entry1;
         }
     }
+    return mx_version_entry_slow(vm, block, args, nargs, short_key);
+}
+
+mx_version_t *mx_version_entry_slow(mx_t *vm, mx_ir_block_t *block, const mx_obj_t *args, uint32_t nargs, uint64_t short_key) {
+    mx_ir_func_t *func = block->func;
     mx_version_key_t key;
     mx_version_key_init(&key, func->nregs);
     key.kinds[0] = MX_KIND_CLOSURE;
@@ -367,6 +376,11 @@ mx_version_t *mx_version_args(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *k
             return func->entry1;
         }
     }
+    return mx_version_args_slow(vm, block, kinds, nargs, short_key);
+}
+
+mx_version_t *mx_version_args_slow(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nargs, uint64_t short_key) {
+    mx_ir_func_t *func = block->func;
     mx_version_key_t key;
     mx_version_key_init(&key, func->nregs);
     key.kinds[0] = MX_KIND_CLOSURE;

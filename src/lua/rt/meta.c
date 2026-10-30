@@ -23,33 +23,6 @@ mx_lua_type_t mx_meta_data_type(mx_t *vm, mx_kind_t kind) {
     }
 }
 
-mx_lua_type_t mx_meta_lua_type(mx_t *vm, mx_obj_t v) {
-    switch (v.kind) {
-        case MX_KIND_NIL: {
-            return MX_LUA_TYPE_NIL;
-        }
-        case MX_KIND_BOOLEAN: {
-            return MX_LUA_TYPE_BOOLEAN;
-        }
-        case MX_KIND_INT: {
-            return MX_LUA_TYPE_INTEGER;
-        }
-        case MX_KIND_FLOAT: {
-            return MX_LUA_TYPE_FLOAT;
-        }
-        case MX_KIND_STRING: {
-            return MX_LUA_TYPE_STRING;
-        }
-        case MX_KIND_CLOSURE:
-        case MX_KIND_FFI: {
-            return MX_LUA_TYPE_FUNCTION;
-        }
-        default: {
-            return mx_meta_data_type(vm, v.kind);
-        }
-    }
-}
-
 mx_lua_type_t mx_meta_basic_type(mx_t *vm, mx_obj_t v) {
     mx_lua_type_t type = mx_meta_lua_type(vm, v);
     if (type == MX_LUA_TYPE_FLOAT) {

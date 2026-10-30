@@ -260,8 +260,12 @@ int32_t mx_std_string_format(mx_std_state_t *ls) {
     const char *end = fmt + fmtstr.len;
     for (const char *p = fmt; p < end && !ls->vm->std_error.is_set;) {
         if (*p != '%') {
-            mx_std_buf_addchar(&buf, *p);
-            p += 1;
+            const char *pct = memchr(p, '%', (size_t)(end - p));
+            if (pct == NULL) {
+                pct = end;
+            }
+            mx_std_buf_addlstring(&buf, p, (size_t)(pct - p));
+            p = pct;
         } else if (p + 1 < end && p[1] == '%') {
             mx_std_buf_addchar(&buf, '%');
             p += 2;
@@ -757,9 +761,9 @@ int32_t mx_std_string_gsub(mx_std_state_t *ls) {
     mx_pattern_cache_t *cache = &mx_lua_of(ls->vm)->patterns;
     mx_pattern_prog_t own;
     const mx_pattern_prog_t *prog;
-    if (tr == MX_LUA_TYPE_FUNCTION || tr == MX_LUA_TYPE_TABLE) {
-        mx_pattern_prog_own(cache, &own, sp, splen);
-        prog = &own;
+    bool is_held = tr == MX_LUA_TYPE_FUNCTION || tr == MX_LUA_TYPE_TABLE;
+    if (is_held) {
+        prog = mx_pattern_prog_hold(cache, &own, sp, splen);
     } else {
         prog = mx_pattern_prog(cache, &own, sp, splen);
     }
@@ -794,6 +798,8 @@ int32_t mx_std_string_gsub(mx_std_state_t *ls) {
     }
     if (prog == &own) {
         mx_pattern_prog_free(&own);
+    } else if (is_held) {
+        mx_pattern_prog_release(cache, prog);
     }
     if (ap != ap_buf) {
         mx_mem_free(ap);
@@ -946,7 +952,9 @@ bool mx_ffi_string_sub_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         if (j > (int64_t)len) {
             j = (int64_t)len;
         }
-        if (i <= j) {
+        if (i == j) {
+            args[0] = mx_std_char_str(vm, buf->buf[i - 1]);
+        } else if (i < j) {
             args[0] = mx_std_str_of(vm, buf->buf + i - 1, (size_t)(j - i + 1));
         } else {
             args[0] = mx_std_str_of(vm, buf->buf, 0);
@@ -1037,10 +1045,18 @@ bool mx_ffi_string_rep_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
         return false;
     } else if (n > 1 && (uint64_t)n * buf->len <= MX_INTERN_MAX_LEN) {
         char tmp[MX_INTERN_MAX_LEN];
-        uint32_t len = 0;
-        for (int64_t i = 0; i < n; i++) {
-            memcpy(tmp + len, buf->buf, buf->len);
-            len += buf->len;
+        uint32_t len = (uint32_t)n * buf->len;
+        if (buf->len == 1) {
+            memset(tmp, buf->buf[0], len);
+        } else {
+            uint32_t j = 0;
+            for (uint32_t i = 0; i < len; i++) {
+                tmp[i] = buf->buf[j];
+                j += 1;
+                if (j == buf->len) {
+                    j = 0;
+                }
+            }
         }
         args[0] = mx_obj_intern_strn(vm, tmp, len);
     } else if (n > 1) {

@@ -4,27 +4,6 @@
 #include "string.h"
 #include "../vm/gc.h"
 
-mx_obj_table_t *mx_table_init(mx_t *vm, size_t bytes, bool is_short) {
-    mx_obj_table_t *ret = mx_gc_alloc(vm, bytes);
-    ret->head.kind = vm->kinds.table;
-    ret->head.is_container = true;
-    ret->is_plain = true;
-    ret->is_short = is_short;
-    ret->size = 0;
-    ret->is_weak = false;
-    ret->is_finalizable = false;
-    ret->has_int_hash = false;
-    ret->entries = NULL;
-    ret->array = NULL;
-    ret->array_len = 0;
-    ret->array_cap = 0;
-    ret->used = 0;
-    ret->len = 0;
-    ret->meta = NULL;
-    ret->hidden = 0;
-    return ret;
-}
-
 mx_obj_table_t *mx_table_new(mx_t *vm) {
     return mx_table_init(vm, sizeof(mx_obj_table_t), false);
 }
@@ -36,12 +15,14 @@ mx_obj_table_t *mx_table_new_short(mx_t *vm) {
 mx_obj_table_t *mx_table_new_sized(mx_t *vm, uint32_t narray, uint32_t nhash) {
     mx_obj_table_t *tbl;
     if (narray >= 1 && narray <= MX_TABLE_INLINE_ARRAY) {
-        tbl = mx_table_new(vm);
+        tbl = mx_table_init(vm, sizeof(mx_obj_table_t), false);
+        tbl->array = tbl->inline_array;
+        tbl->array_cap = MX_TABLE_INLINE_ARRAY;
     } else {
-        tbl = mx_table_new_short(vm);
-    }
-    if (narray != 0) {
-        mx_table_array_reserve(vm, tbl, narray);
+        tbl = mx_table_init(vm, MX_TABLE_SHORT_SIZE, true);
+        if (narray != 0) {
+            mx_table_array_reserve(vm, tbl, narray);
+        }
     }
     if (nhash != 0) {
         mx_table_hash_reserve(vm, tbl, nhash);

@@ -371,7 +371,7 @@ void mx_std_buf_addstring(mx_std_buf_t *buf, const char *str) {
     mx_std_buf_addlstring(buf, str, strlen(str));
 }
 
-void mx_std_buf_addchar(mx_std_buf_t *buf, char c) {
+void mx_std_buf_addchar_slow(mx_std_buf_t *buf, char c) {
     char *dst = mx_std_buf_prep(buf, 1);
     if (dst != NULL) {
         *dst = c;

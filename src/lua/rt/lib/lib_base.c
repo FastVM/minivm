@@ -531,11 +531,42 @@ bool mx_ffi_base_getmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
 }
 
 void mx_ffi_base_ipairs(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_std_dispatch(vm, mx_std_base_ipairs, "ipairs", args, (int32_t)nargs);
+    if (!mx_ffi_base_ipairs_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_base_ipairs, "ipairs", args, (int32_t)nargs);
+    }
+}
+
+bool mx_ffi_base_ipairs_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs == 0) {
+        return false;
+    }
+    args[1] = args[0];
+    args[0] = mx_obj_of_ffi(mx_ffi_base_inext);
+    args[2] = mx_obj_of_int(0);
+    vm->rets.len = 3;
+    return true;
 }
 
 void mx_ffi_base_pairs(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_std_dispatch(vm, mx_std_base_pairs, "pairs", args, (int32_t)nargs);
+    if (!mx_ffi_base_pairs_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_base_pairs, "pairs", args, (int32_t)nargs);
+    }
+}
+
+bool mx_ffi_base_pairs_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs == 0 || args[0].kind != vm->kinds.table) {
+        return false;
+    }
+    mx_obj_table_t *meta = mx_obj_get_table(args[0])->meta;
+    if (meta != NULL && !mx_obj_is_nil(mx_table_get(meta, mx_lua_of(vm)->meta_keys[MX_LUA_META_KEY_PAIRS]))) {
+        return false;
+    }
+    args[1] = args[0];
+    args[0] = mx_obj_of_ffi(mx_ffi_base_next);
+    args[2] = mx_obj_of_nil();
+    args[3] = mx_obj_of_nil();
+    vm->rets.len = 4;
+    return true;
 }
 
 void mx_ffi_base_print(mx_t *vm, size_t nargs, mx_obj_t *args) {
@@ -547,7 +578,18 @@ void mx_ffi_base_rawequal(mx_t *vm, size_t nargs, mx_obj_t *args) {
 }
 
 void mx_ffi_base_rawget(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_std_dispatch(vm, mx_std_base_rawget, "rawget", args, (int32_t)nargs);
+    if (!mx_ffi_base_rawget_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_base_rawget, "rawget", args, (int32_t)nargs);
+    }
+}
+
+bool mx_ffi_base_rawget_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs < 2 || args[0].kind != vm->kinds.table) {
+        return false;
+    }
+    args[0] = mx_table_get(mx_obj_get_table(args[0]), args[1]);
+    vm->rets.len = 1;
+    return true;
 }
 
 void mx_ffi_base_rawlen(mx_t *vm, size_t nargs, mx_obj_t *args) {
@@ -592,11 +634,51 @@ bool mx_ffi_base_select_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
 }
 
 void mx_ffi_base_setmetatable(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_std_dispatch(vm, mx_std_base_setmetatable, "setmetatable", args, (int32_t)nargs);
+    if (!mx_ffi_base_setmetatable_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_base_setmetatable, "setmetatable", args, (int32_t)nargs);
+    }
+}
+
+// Anything that would raise an error is left to mx_std_base_setmetatable.
+bool mx_ffi_base_setmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs < 2 || args[0].kind != vm->kinds.table || (args[1].kind != vm->kinds.table && !mx_obj_is_nil(args[1]))) {
+        return false;
+    }
+    mx_lua_t *lua = mx_lua_of(vm);
+    mx_obj_table_t *t = mx_obj_get_table(args[0]);
+    if (t->meta != NULL && !mx_obj_is_nil(mx_table_get(t->meta, lua->meta_keys[MX_LUA_META_KEY_METATABLE]))) {
+        return false;
+    }
+    mx_obj_table_t *meta = NULL;
+    if (!mx_obj_is_nil(args[1])) {
+        meta = mx_obj_get_table(args[1]);
+        mx_gc_write_barrier(vm, t, args[1]);
+    }
+    t->meta = meta;
+    if (meta != NULL && !mx_obj_is_nil(mx_table_get(meta, lua->meta_keys[MX_LUA_META_KEY_GC]))) {
+        mx_gc_note_finalizer(vm, t);
+    }
+    vm->rets.len = 1;
+    return true;
 }
 
 void mx_ffi_base_tonumber(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_std_dispatch(vm, mx_std_base_tonumber, "tonumber", args, (int32_t)nargs);
+    if (!mx_ffi_base_tonumber_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_base_tonumber, "tonumber", args, (int32_t)nargs);
+    }
+}
+
+bool mx_ffi_base_tonumber_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs != 1) {
+        return false;
+    } else if (mx_obj_is_string(args[0])) {
+        mx_str_t *s = mx_obj_get_string(args[0]);
+        args[0] = mx_std_str2num(s->buf, s->len).value;
+    } else if (!mx_obj_is_number(args[0])) {
+        return false;
+    }
+    vm->rets.len = 1;
+    return true;
 }
 
 void mx_ffi_base_type(mx_t *vm, size_t nargs, mx_obj_t *args) {

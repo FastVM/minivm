@@ -4,8 +4,8 @@
 
 const mx_std_reg_t mx_std_coroutine_regs[] = {
     {"create", mx_coro_create, NULL},
-    {"resume", mx_coro_resume, NULL},
-    {"yield", mx_coro_yield, NULL},
+    {"resume", mx_coro_resume, mx_ffi_coro_resume},
+    {"yield", mx_coro_yield, mx_ffi_coro_yield},
     {"status", mx_coro_status, NULL},
     {"running", mx_coro_running, NULL},
     {"isyieldable", mx_coro_isyieldable, NULL},

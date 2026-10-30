@@ -24,6 +24,7 @@ To rerun it, build Lua 5.5.1 in `lua/` and its test modules in `lua/testes/libs`
 - A `__close` handler run while an error is unwinding can't yield; the yield fails with `attempt to yield across a C-call boundary`. Handlers run on a normal scope exit or a `return` can.
 - A `__pairs` metamethod can yield when `pairs` is called for at most 4 results, as in a generic `for`. When all of its results are kept, as in `select('#', pairs(t))`, the yield fails with `attempt to yield across a C-call boundary`.
 - A named vararg parameter (`...t`) is a table built when the function is entered, so reading it allocates.
+- A local that is never read again doesn't keep its value alive, though it is still in scope. Its object can be collected, and finalized, before the block ends. If its `__gc` field is set only after that point, the finalizer never runs. testes gc.lua line 457 depends on this and fails when a collection lands between those lines, as it does under `MX_GC_STRESS`.
 - `math.random` uses xoshiro256** seeded as reference Lua does, so `math.random()` and `math.random(0)` give the same values for the same seed. Ranges (`math.random(m, n)`) are projected differently, so their values differ.
 - A `string.pack` result that runs past `MX_STD_MAX_STRING` (2 GiB) fails with `resulting string too large`, where reference Lua tries to allocate it and fails with `not enough memory`.
 

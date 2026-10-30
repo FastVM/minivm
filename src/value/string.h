@@ -16,6 +16,9 @@
 #define MX_STR_DEBUG_KEY_CAP 64
 #define MX_STR_EXACT_FLOAT_MAX 9007199254740992.0
 #define MX_STR_CACHE_LEN_MULT ((uint32_t)131)
+// Longer concatenations make a rope: an accumulating string would otherwise
+// be copied whole on every append.
+#define MX_STR_FLAT_CONCAT_MAX 256
 
 typedef struct mx_str_rope_t mx_str_rope_t;
 typedef struct mx_str_debug_t mx_str_debug_t;
@@ -91,6 +94,7 @@ mx_str_t *mx_str_new_gc_vformat(mx_t *vm, const char *fmt, va_list ap);
 mx_str_t *mx_str_cache_get(mx_t *vm, const char *bytes, uint32_t len);
 mx_str_t *mx_str_from_cstr_gc(mx_t *vm, const char *str);
 mx_str_t *mx_str_new_rope_gc(mx_t *vm, mx_str_t *l, mx_str_t *r);
+mx_str_t *mx_str_concat_int(mx_t *vm, mx_str_t *s, int64_t v, bool is_int_first);
 
 char *mx_str_sprintf(const char *fmt, ...);
 char *mx_str_vsprintf(const char *fmt, va_list ap);

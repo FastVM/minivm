@@ -200,18 +200,19 @@ void mx_gc_stat_dump(mx_t *vm) {
 
 void mx_gc_finalize_all(mx_t *vm, mx_gc_t *gc) {
     for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
-        for (size_t s = 0; s < MX_GC_OBJ_BITMAP_BYTES; s++) {
-            uint8_t bits = b->obj_start[s];
-            for (size_t k = 0; k < 8; k++) {
-                if ((bits & (uint8_t)((uint32_t)1 << k)) != 0) {
-                    mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + (s * 8 + k) * 8);
-                    if (h->kind == MX_KIND_STRING) {
-                        mx_str_t *buf = (mx_str_t *)h;
-                        buf->is_interned = false;
-                        buf->is_pooled = false;
-                    }
-                    mx_gc_finalize(vm, h);
+        for (size_t s = 0; s < MX_GC_OBJ_BITMAP_BYTES; s += sizeof(uint64_t)) {
+            uint64_t bits;
+            memcpy(&bits, &b->obj_start[s], sizeof(bits));
+            while (bits != 0) {
+                size_t k = (size_t)__builtin_ctzll(bits);
+                bits &= bits - 1;
+                mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + (s * 8 + k) * 8);
+                if (h->kind == MX_KIND_STRING) {
+                    mx_str_t *buf = (mx_str_t *)h;
+                    buf->is_interned = false;
+                    buf->is_pooled = false;
                 }
+                mx_gc_finalize(vm, h);
             }
         }
     }
@@ -225,16 +226,6 @@ void mx_gc_finalize_all(mx_t *vm, mx_gc_t *gc) {
         }
         mx_gc_finalize(vm, h);
     }
-    for (int32_t c = MX_GC_POOL_SLAB_CLASSES; c < MX_GC_POOL_CLASSES; c++) {
-        void *p = gc->pool.free[c];
-        while (p != NULL) {
-            void *next = *(void **)p;
-            mx_mem_free(p);
-            p = next;
-        }
-        gc->pool.free[c] = NULL;
-    }
-    gc->pool.free_bytes = 0;
     void *slab = gc->pool.slabs;
     while (slab != NULL) {
         void *next = *(void **)slab;
@@ -244,6 +235,8 @@ void mx_gc_finalize_all(mx_t *vm, mx_gc_t *gc) {
     gc->pool.slabs = NULL;
     for (int32_t c = 0; c < MX_GC_POOL_SLAB_CLASSES; c++) {
         gc->pool.free[c] = NULL;
+        gc->pool.bump[c] = NULL;
+        gc->pool.bump_end[c] = NULL;
     }
 }
 
@@ -389,6 +382,7 @@ mx_gc_block_t *mx_gc_new_block(mx_gc_t *gc) {
     memset(block->obj_start, 0, MX_GC_OBJ_BITMAP_BYTES);
     memset(block->card, 0, sizeof(block->card));
     memset(block->old_only, 0, sizeof(block->old_only));
+    memset(block->final_lines, 0, sizeof(block->final_lines));
     block->next = gc->blocks.live;
     gc->blocks.live = block;
     gc->blocks.count += 1;
@@ -481,9 +475,8 @@ mx_gc_large_t *mx_gc_large_of(void *payload) {
     return (mx_gc_large_t *)((uint8_t *)payload - header);
 }
 
-void *mx_gc_alloc(mx_t *vm, size_t size) {
+void *mx_gc_alloc_slow(mx_t *vm, size_t size) {
     mx_gc_t *gc = vm->gc;
-    size = (size + 7) & ~(size_t)7;
     if (size > MX_GC_MEDIUM_MAX) {
         return mx_gc_alloc_large(vm, size);
     } else if (size > MX_GC_LINE_SIZE) {
@@ -534,7 +527,13 @@ void mx_gc_note_final_owned(mx_obj_head_t *head) {
         head->is_final = true;
         mx_gc_block_t *b = (mx_gc_block_t *)((uintptr_t)head & ~(MX_GC_BLOCK_SIZE - 1));
         b->final_count += 1;
+        mx_gc_final_line_set(b, head);
     }
+}
+
+void mx_gc_final_line_set(mx_gc_block_t *b, void *ptr) {
+    size_t line = mx_gc_line_of(b, ptr);
+    b->final_lines[line >> 3] |= (uint8_t)(1u << (line & 7));
 }
 
 void mx_gc_note_thread(mx_t *vm, mx_thread_t *th) {
@@ -603,15 +602,20 @@ int32_t mx_gc_pool_class(size_t bytes) {
     }
 }
 
-void mx_gc_pool_slab_refill(mx_gc_t *gc, int32_t cls) {
-    uint8_t *slab = mx_mem_alloc(MX_GC_POOL_SLAB_BYTES);
-    *(void **)slab = gc->pool.slabs;
-    gc->pool.slabs = slab;
+// Chunks are carved from the newest slab of their class only as they are
+// needed, so a slab's untouched pages stay out of the resident set.
+void *mx_gc_pool_slab_take(mx_gc_t *gc, int32_t cls) {
     size_t chunk = (size_t)1 << (cls + MX_GC_POOL_MIN_SHIFT);
-    for (size_t at = MX_GC_POOL_SLAB_HEADER; at + chunk <= MX_GC_POOL_SLAB_BYTES; at += chunk) {
-        *(void **)(slab + at) = gc->pool.free[cls];
-        gc->pool.free[cls] = slab + at;
+    if (gc->pool.bump[cls] == NULL || gc->pool.bump[cls] + chunk > gc->pool.bump_end[cls]) {
+        uint8_t *slab = mx_mem_alloc(MX_GC_POOL_SLAB_BYTES);
+        *(void **)slab = gc->pool.slabs;
+        gc->pool.slabs = slab;
+        gc->pool.bump[cls] = slab + MX_GC_POOL_SLAB_HEADER;
+        gc->pool.bump_end[cls] = slab + MX_GC_POOL_SLAB_BYTES;
     }
+    void *ret = gc->pool.bump[cls];
+    gc->pool.bump[cls] += chunk;
+    return ret;
 }
 
 void *mx_gc_pool_alloc(mx_t *vm, size_t bytes) {
@@ -620,20 +624,14 @@ void *mx_gc_pool_alloc(mx_t *vm, size_t bytes) {
     int32_t cls = mx_gc_pool_class(bytes);
     if (cls < 0) {
         return mx_mem_alloc(bytes);
+    } else if (cls >= MX_GC_POOL_SLAB_CLASSES) {
+        return mx_mem_alloc((size_t)1 << (cls + MX_GC_POOL_MIN_SHIFT));
     } else if (gc->pool.free[cls] != NULL) {
-        void *ret = gc->pool.free[cls];
-        gc->pool.free[cls] = *(void **)ret;
-        if (cls >= MX_GC_POOL_SLAB_CLASSES) {
-            gc->pool.free_bytes -= (size_t)1 << (cls + MX_GC_POOL_MIN_SHIFT);
-        }
-        return ret;
-    } else if (cls < MX_GC_POOL_SLAB_CLASSES) {
-        mx_gc_pool_slab_refill(gc, cls);
         void *ret = gc->pool.free[cls];
         gc->pool.free[cls] = *(void **)ret;
         return ret;
     } else {
-        return mx_mem_alloc((size_t)1 << (cls + MX_GC_POOL_MIN_SHIFT));
+        return mx_gc_pool_slab_take(gc, cls);
     }
 }
 
@@ -671,14 +669,11 @@ void mx_gc_pool_free(mx_t *vm, void *ptr, size_t bytes) {
     if (ptr != NULL) {
         gc->pool.bytes -= bytes;
         int32_t cls = mx_gc_pool_class(bytes);
-        if (cls < 0) {
+        if (cls < 0 || cls >= MX_GC_POOL_SLAB_CLASSES) {
             mx_mem_free(ptr);
         } else {
             *(void **)ptr = gc->pool.free[cls];
             gc->pool.free[cls] = ptr;
-            if (cls >= MX_GC_POOL_SLAB_CLASSES) {
-                gc->pool.free_bytes += (size_t)1 << (cls + MX_GC_POOL_MIN_SHIFT);
-            }
         }
     }
 }
@@ -772,9 +767,12 @@ bool mx_gc_large_owns(mx_gc_t *gc, void *ptr) {
 }
 
 size_t mx_gc_obj_size(mx_t *vm, mx_obj_head_t *head) {
-    if (head->kind == MX_KIND_CLOSURE) {
-        mx_obj_closure_t *c = (mx_obj_closure_t *)head;
-        return sizeof(mx_obj_closure_t) + sizeof(mx_obj_upval_t *) * c->len;
+    if (head->kind >= MX_KIND_FIRST_DATA && head->is_container) {
+        if (((mx_obj_table_t *)head)->is_short) {
+            return MX_TABLE_SHORT_SIZE;
+        } else {
+            return sizeof(mx_obj_table_t);
+        }
     } else if (head->kind == MX_KIND_STRING) {
         mx_str_t *buf = (mx_str_t *)head;
         if (buf->is_tail) {
@@ -782,14 +780,11 @@ size_t mx_gc_obj_size(mx_t *vm, mx_obj_head_t *head) {
         } else {
             return sizeof(mx_str_t);
         }
+    } else if (head->kind == MX_KIND_CLOSURE) {
+        mx_obj_closure_t *c = (mx_obj_closure_t *)head;
+        return sizeof(mx_obj_closure_t) + sizeof(mx_obj_upval_t *) * c->len;
     } else if (head->kind == MX_KIND_ERROR) {
         return sizeof(mx_error_t);
-    } else if (head->kind >= MX_KIND_FIRST_DATA && head->is_container) {
-        if (((mx_obj_table_t *)head)->is_short) {
-            return MX_TABLE_SHORT_SIZE;
-        } else {
-            return sizeof(mx_obj_table_t);
-        }
     } else if (head->kind == vm->kinds.cfn) {
         mx_obj_cfn_t *f = (mx_obj_cfn_t *)head;
         return sizeof(mx_obj_cfn_t) + sizeof(mx_obj_t) * f->len;
@@ -926,6 +921,7 @@ void *mx_gc_maybe_evacuate(mx_t *vm, mx_gc_t *gc, void *obj) {
     memcpy(to, obj, size);
     if (head->is_final) {
         gc->evac.block->final_count += 1;
+        mx_gc_final_line_set(gc->evac.block, to);
         block->final_count -= 1;
     }
     if (head->kind >= MX_KIND_FIRST_DATA && head->is_container) {
@@ -979,10 +975,6 @@ void mx_gc_gray_push(mx_gc_t *gc, mx_obj_head_t *head) {
     }
     gc->gray.ptr[gc->gray.len] = head;
     gc->gray.len += 1;
-}
-
-bool mx_gc_kind_is_ref(mx_t *vm, mx_kind_t kind) {
-    return kind == MX_KIND_STRING || kind == MX_KIND_CLOSURE || kind == MX_KIND_ERROR || (kind >= MX_KIND_FIRST_DATA && kind < vm->kinds.len);
 }
 
 void mx_gc_pin(mx_gc_t *gc, mx_obj_head_t *head) {
@@ -1098,7 +1090,9 @@ void mx_gc_scan_lua_frame(mx_gc_t *gc, mx_val_t *base, const mx_kind_t *kinds, u
         if (mx_kind_is_cell(kind)) {
             kind = (mx_kind_t)base[func->nregs + r].bits;
         }
-        mx_gc_stack_value(gc, kind, &base[r], is_pin);
+        if (mx_gc_kind_is_ref(gc->vm, kind)) {
+            mx_gc_stack_value(gc, kind, &base[r], is_pin);
+        }
     }
     if (rb != NULL && func->is_vararg && rb->block->is_func && rb->start_at == 0) {
         uint32_t frame = mx_ir_func_frame(func);
@@ -1209,7 +1203,9 @@ void mx_gc_mark_ref(mx_gc_t *gc, mx_obj_t *slot) {
         return;
     }
     mx_obj_head_t *seen = ptr;
-    if (seen->mark == gc->mark_value && !seen->is_forwarded) {
+    if (gc->is_minor && seen->is_old) {
+        return;
+    } else if (seen->mark == gc->mark_value && !seen->is_forwarded) {
         if (gc->is_scanning_dirty && !seen->is_old) {
             gc->has_found_young = true;
         }
@@ -1274,12 +1270,25 @@ void mx_gc_pin_roots(mx_t *vm, mx_gc_t *gc, bool is_evac) {
     for (size_t t = 0; t < gc->threads.len && is_evac; t++) {
         mx_gc_scan_stack(gc, gc->threads.ptr[t], true);
     }
-    for (uint32_t i = 0; i < vm->consts.len; i++) {
+    uint32_t from = 0;
+    if (gc->is_minor) {
+        from = gc->consts_old;
+    }
+    for (uint32_t i = from; i < vm->consts.len; i++) {
         mx_obj_head_t *head = mx_gc_heap_head(vm, vm->consts.ptr[i]);
         if (head != NULL) {
             mx_gc_pin(gc, head);
             mx_gc_mark_obj(gc, head);
         }
+    }
+    // Constants are never removed or moved, and an old one stays old, so a
+    // minor collection can skip the prefix that has already been promoted.
+    while (gc->consts_old < vm->consts.len) {
+        mx_obj_head_t *head = mx_gc_heap_head(vm, vm->consts.ptr[gc->consts_old]);
+        if (head != NULL && !head->is_old) {
+            break;
+        }
+        gc->consts_old += 1;
     }
 }
 
@@ -1498,10 +1507,11 @@ void mx_gc_weak_note(mx_gc_t *gc, mx_obj_table_t *table) {
 }
 
 void mx_gc_scan_table(mx_gc_t *gc, mx_obj_table_t *table, bool is_old_scan) {
+    mx_gc_weak_t weak = { .is_weak_keys = false, .is_weak_vals = false };
     if (table->meta != NULL) {
         mx_gc_visit_ptr(gc, table->meta->head.kind, (void **)&table->meta, is_old_scan);
+        weak = mx_gc_table_weak_mode(gc, table);
     }
-    mx_gc_weak_t weak = mx_gc_table_weak_mode(gc, table);
     bool weak_keys = weak.is_weak_keys;
     bool weak_vals = weak.is_weak_vals;
     if (weak_keys || weak_vals) {
@@ -1509,7 +1519,7 @@ void mx_gc_scan_table(mx_gc_t *gc, mx_obj_table_t *table, bool is_old_scan) {
     }
     if (table->array != NULL) {
         for (uint32_t i = 0; i < table->array_len; i++) {
-            if (!weak_vals || !mx_gc_slot_collectable(gc, table->array[i])) {
+            if (mx_gc_kind_is_ref(gc->vm, table->array[i].kind) && (!weak_vals || !mx_gc_slot_collectable(gc, table->array[i]))) {
                 mx_gc_visit(gc, &table->array[i], is_old_scan);
             }
         }
@@ -1525,14 +1535,16 @@ void mx_gc_scan_table(mx_gc_t *gc, mx_obj_table_t *table, bool is_old_scan) {
             mx_obj_t key = mx_table_entry_key(e);
             bool is_key_live;
             if (!weak_keys || !mx_gc_slot_collectable(gc, key)) {
-                mx_gc_visit(gc, &key, is_old_scan);
+                if (mx_gc_kind_is_ref(gc->vm, key.kind)) {
+                    mx_gc_visit(gc, &key, is_old_scan);
+                }
                 is_key_live = true;
             } else {
                 is_key_live = !mx_gc_slot_is_dead(gc, &key);
             }
             e->key = key.val;
             mx_obj_t val = mx_table_entry_val(e);
-            if (is_key_live && (!weak_vals || !mx_gc_slot_collectable(gc, val))) {
+            if (is_key_live && mx_gc_kind_is_ref(gc->vm, val.kind) && (!weak_vals || !mx_gc_slot_collectable(gc, val))) {
                 mx_gc_visit(gc, &val, is_old_scan);
                 e->val = val.val;
             }
@@ -1672,7 +1684,7 @@ void mx_gc_threads_sweep(mx_gc_t *gc) {
 
 void mx_gc_note_finalizer(mx_t *vm, mx_obj_table_t *table) {
     mx_gc_t *gc = vm->gc;
-    if (!table->is_finalizable) {
+    if (!table->is_finalizable && !gc->is_closing) {
         table->is_finalizable = true;
         if (gc->finobjs.len >= gc->finobjs.cap) {
             gc->finobjs.cap = (gc->finobjs.len + 1) * 2;
@@ -1681,6 +1693,16 @@ void mx_gc_note_finalizer(mx_t *vm, mx_obj_table_t *table) {
         gc->finobjs.ptr[gc->finobjs.len] = mx_obj_of_table(table);
         gc->finobjs.len += 1;
     }
+}
+
+void mx_gc_tobefnz_push(mx_gc_t *gc, mx_obj_t obj) {
+    mx_obj_get_table(obj)->is_finalizable = false;
+    if (gc->tobefnz.len >= gc->tobefnz.cap) {
+        gc->tobefnz.cap = (gc->tobefnz.len + 1) * 2;
+        gc->tobefnz.ptr = mx_mem_realloc(gc->tobefnz.ptr, sizeof(mx_obj_t) * gc->tobefnz.cap);
+    }
+    gc->tobefnz.ptr[gc->tobefnz.len] = obj;
+    gc->tobefnz.len += 1;
 }
 
 void mx_gc_finalizers_separate(mx_gc_t *gc) {
@@ -1692,17 +1714,22 @@ void mx_gc_finalizers_separate(mx_gc_t *gc) {
             w += 1;
         } else {
             mx_gc_mark_ref(gc, slot);
-            mx_obj_table_t *table = mx_obj_get_table(*slot);
-            table->is_finalizable = false;
-            if (gc->tobefnz.len >= gc->tobefnz.cap) {
-                gc->tobefnz.cap = (gc->tobefnz.len + 1) * 2;
-                gc->tobefnz.ptr = mx_mem_realloc(gc->tobefnz.ptr, sizeof(mx_obj_t) * gc->tobefnz.cap);
-            }
-            gc->tobefnz.ptr[gc->tobefnz.len] = *slot;
-            gc->tobefnz.len += 1;
+            mx_gc_tobefnz_push(gc, *slot);
         }
     }
     gc->finobjs.len = w;
+}
+
+// Runs the finalizer of every object that still has one, live or not, as
+// closing a state does. A finalizer set while these run never runs.
+void mx_gc_finalize_on_close(mx_t *vm) {
+    mx_gc_t *gc = vm->gc;
+    gc->is_closing = true;
+    for (size_t i = 0; i < gc->finobjs.len; i++) {
+        mx_gc_tobefnz_push(gc, gc->finobjs.ptr[i]);
+    }
+    gc->finobjs.len = 0;
+    mx_gc_run_finalizers(vm);
 }
 
 bool mx_gc_run_finalizers(mx_t *vm) {
@@ -1807,6 +1834,19 @@ void mx_gc_sweep(mx_gc_t *gc) {
         size_t live_lines = 0;
         size_t block_young = 0;
         for (size_t i = MX_GC_BLOCK_HEADER_LINES; i < MX_GC_LINES_PER_BLOCK; i++) {
+            // Eight lines that were never marked hold nothing live; without a
+            // finalizable object among them they are cleared all at once.
+            uint64_t marks = 1;
+            if ((i & 7) == 0) {
+                memcpy(&marks, &block->line_mark[i], sizeof(marks));
+            }
+            if (!MX_GC_VERIFY && marks == 0 && (block->final_count == 0 || block->final_lines[i >> 3] == 0)) {
+                memset(&block->obj_start[i * 2], 0, 16);
+                block->old_only[i >> 3] = 0;
+                block->final_lines[i >> 3] = 0;
+                i += 7;
+                continue;
+            }
             uint8_t bit = (uint8_t)(1u << (i & 7));
             if (mx_gc_line_is_live(gc, block->line_mark[i])) {
                 live_lines += 1;
@@ -1833,9 +1873,10 @@ void mx_gc_sweep(mx_gc_t *gc) {
                     }
                 }
 #endif
-                if (block->final_count != 0) {
+                if (block->final_count != 0 && (block->final_lines[i >> 3] & bit) != 0) {
                     mx_gc_finalize_dead_line(gc, block, i);
                 }
+                block->final_lines[i >> 3] &= (uint8_t)~bit;
                 block->line_mark[i] = 0;
                 block->obj_start[i * 2] = 0;
                 block->obj_start[i * 2 + 1] = 0;
@@ -2059,13 +2100,14 @@ bool mx_gc_collect(mx_t *vm) {
                     b->line_mark[i] = MX_GC_MARK_STALE;
                 }
             }
-            for (size_t s = 0; s < MX_GC_OBJ_BITMAP_BYTES; s++) {
-                uint8_t bits = b->obj_start[s];
-                for (size_t k = 0; k < 8; k++) {
-                    if ((bits & (uint8_t)((uint32_t)1 << k)) != 0) {
-                        mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + (s * 8 + k) * 8);
-                        h->mark = MX_GC_MARK_STALE;
-                    }
+            for (size_t s = 0; s < MX_GC_OBJ_BITMAP_BYTES; s += sizeof(uint64_t)) {
+                uint64_t bits;
+                memcpy(&bits, &b->obj_start[s], sizeof(bits));
+                while (bits != 0) {
+                    size_t k = (size_t)__builtin_ctzll(bits);
+                    bits &= bits - 1;
+                    mx_obj_head_t *h = (mx_obj_head_t *)((uint8_t *)b + (s * 8 + k) * 8);
+                    h->mark = MX_GC_MARK_STALE;
                 }
             }
         }
@@ -2091,7 +2133,11 @@ bool mx_gc_collect(mx_t *vm) {
     gc->is_evacuating = false;
     mx_gc_weak_clear(gc);
     mx_gc_threads_sweep(gc);
-    mx_gc_interns_sweep(vm, gc);
+    if (!gc->is_minor) {
+        // A minor collection marks every young interned string as a root and
+        // never frees an old one, so it has nothing to remove from the table.
+        mx_gc_interns_sweep(vm, gc);
+    }
     mx_gc_sweep(gc);
     if (gc->cycle.live_line_bytes > gc->evac_bytes) {
         gc->cycle.live_line_bytes -= gc->evac_bytes;
@@ -2144,18 +2190,6 @@ bool mx_gc_collect(mx_t *vm) {
         gc->cycle.threshold = mx_gc_budget(gc, gc->cycle.young_line_bytes + large_bytes);
     } else {
         gc->cycle.threshold = mx_gc_budget(gc, live_bytes);
-    }
-    if (!gc->is_minor || gc->pool.free_bytes > MX_GC_POOL_FREE_FLUSH_BYTES) {
-        for (int32_t c = MX_GC_POOL_SLAB_CLASSES; c < MX_GC_POOL_CLASSES; c++) {
-            void *p = gc->pool.free[c];
-            while (p != NULL) {
-                void *next = *(void **)p;
-                mx_mem_free(p);
-                p = next;
-            }
-            gc->pool.free[c] = NULL;
-        }
-        gc->pool.free_bytes = 0;
     }
 #if MX_GC_VERIFY
     mx_gc_verify(vm);

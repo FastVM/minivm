@@ -4,7 +4,7 @@ CC ?= cc
 NO_CROSSJUMPING := ${shell ${CC} -fno-crossjumping -E -x c /dev/null -o /dev/null 2>/dev/null && echo -fno-crossjumping}
 ALIGN_LABELS := ${shell ${CC} -Werror -falign-labels=16 -c -x c /dev/null -o /dev/null 2>/dev/null && echo -falign-labels=16}
 
-OPT ?= -O3 -fno-math-errno -fno-trapping-math ${NO_CROSSJUMPING} ${ALIGN_LABELS}
+OPT ?= -O3 -fno-math-errno -fno-trapping-math -fno-stack-protector ${NO_CROSSJUMPING} ${ALIGN_LABELS}
 
 DEFINES ?= -DNDEBUG
 

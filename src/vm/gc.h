@@ -9,7 +9,7 @@
 #define MX_GC_BLOCK_SIZE (1 << 15)
 #define MX_GC_LINE_SIZE 128
 #define MX_GC_LINES_PER_BLOCK (MX_GC_BLOCK_SIZE / MX_GC_LINE_SIZE)
-#define MX_GC_BLOCK_HEADER_LINES 7
+#define MX_GC_BLOCK_HEADER_LINES 8
 #define MX_GC_USABLE_LINES (MX_GC_LINES_PER_BLOCK - MX_GC_BLOCK_HEADER_LINES)
 #define MX_GC_OBJ_SLOTS (MX_GC_BLOCK_SIZE / 8)
 #define MX_GC_OBJ_BITMAP_BYTES (MX_GC_OBJ_SLOTS / 8)
@@ -21,11 +21,11 @@
 #endif
 
 #if !defined(MX_GC_NURSERY)
-#define MX_GC_NURSERY (2 * 1024 * 1024)
+#define MX_GC_NURSERY (1024 * 1024)
 #endif
 
 #if !defined(MX_GC_NURSERY_MIN)
-#define MX_GC_NURSERY_MIN (1024 * 1024)
+#define MX_GC_NURSERY_MIN (512 * 1024)
 #endif
 
 #if !defined(MX_GC_COLLECT_ENABLED)
@@ -57,7 +57,7 @@
 #endif
 
 #define MX_GC_IDENT_KEYS_INITIAL 64
-#define MX_GC_TENURE_AGE 3
+#define MX_GC_TENURE_AGE 2
 #define MX_GC_POOL_CLASSES 24
 #define MX_GC_POOL_MIN_SHIFT 5
 #define MX_GC_POOL_SLAB_CLASSES 4
@@ -69,7 +69,6 @@
 #define MX_GC_MARK_STALE 255
 #define MX_GC_MINORS_PER_MAJOR 1024
 #define MX_GC_MAJOR_GROWTH_MAX 8
-#define MX_GC_POOL_FREE_FLUSH_BYTES ((size_t)1024 * 1024)
 #define MX_GC_SLAB_BYTES ((size_t)2 << 20)
 #define MX_GC_HASH_MULT UINT64_C(0x9E3779B97F4A7C15)
 
@@ -104,6 +103,9 @@ struct mx_gc_block_t {
     uint8_t obj_start[MX_GC_OBJ_BITMAP_BYTES];
     uint8_t card[MX_GC_LINES_PER_BLOCK / 8];
     uint8_t old_only[MX_GC_LINES_PER_BLOCK / 8];
+    // A set bit means a finalizable object may start on that line, so the
+    // sweep only reads the heads of dead objects on those lines.
+    uint8_t final_lines[MX_GC_LINES_PER_BLOCK / 8];
     bool is_evac: 1;
     bool is_old: 1;
     bool is_dirty: 1;
@@ -111,6 +113,7 @@ struct mx_gc_block_t {
 };
 
 _Static_assert(sizeof(mx_gc_block_t) <= MX_GC_BLOCK_HEADER_LINES * MX_GC_LINE_SIZE, "block header");
+_Static_assert(MX_GC_BLOCK_HEADER_LINES % 8 == 0, "the sweep clears lines in aligned groups of eight");
 
 struct mx_gc_large_t {
     mx_gc_large_t *next;
@@ -182,9 +185,12 @@ struct mx_gc_pinned_t {
     size_t cap;
 };
 
+// Chunks of the small classes come from slabs and are recycled through free
+// lists; larger power-of-two chunks go straight to malloc and back.
 struct mx_gc_pool_t {
-    void *free[MX_GC_POOL_CLASSES];
-    size_t free_bytes;
+    void *free[MX_GC_POOL_SLAB_CLASSES];
+    uint8_t *bump[MX_GC_POOL_SLAB_CLASSES];
+    uint8_t *bump_end[MX_GC_POOL_SLAB_CLASSES];
     size_t bytes;
     void *slabs;
 };
@@ -273,6 +279,7 @@ struct mx_gc_t {
     mx_gc_cycle_t cycle;
     mx_gc_stats_t stats;
     uint32_t params[MX_GC_PARAM_COUNT];
+    uint32_t consts_old;
     uint8_t mark_value;
     bool is_generational: 1;
     bool is_major_mode: 1;
@@ -283,6 +290,7 @@ struct mx_gc_t {
     bool has_found_young: 1;
     bool is_tracing: 1;
     bool is_finalizing: 1;
+    bool is_closing: 1;
 };
 
 mx_gc_t *mx_gc_new(void);
@@ -355,10 +363,34 @@ static inline void mx_gc_head_clear_flags(void *obj) {
     head->mark = 0;
 }
 
-void *mx_gc_alloc(mx_t *vm, size_t size);
+void *mx_gc_alloc_slow(mx_t *vm, size_t size) __attribute__((noinline));
 void mx_gc_note_bytes(mx_t *vm, size_t bytes);
+
+// The bump path is inline so a small allocation saves no registers; anything
+// that needs a new hole, a block or a large object goes to mx_gc_alloc_slow.
+static inline void *mx_gc_alloc(mx_t *vm, size_t size) {
+    mx_gc_t *gc = vm->gc;
+    size = (size + 7) & ~(size_t)7;
+    uint8_t *ret = gc->small.cursor;
+    if (size <= MX_GC_LINE_SIZE && ret != NULL && size <= (size_t)(gc->small.limit - ret)) {
+        gc->small.cursor = ret + size;
+        mx_gc_block_t *block = gc->small.block;
+        size_t slot = ((uintptr_t)ret - (uintptr_t)block) / 8;
+        block->obj_start[slot >> 3] |= (uint8_t)((uint32_t)1 << (slot & 7));
+        memset(ret, 0, sizeof(mx_obj_head_t));
+        gc->cycle.bytes_since_gc += size;
+        if (MX_GC_STRESS || gc->cycle.bytes_since_gc >= gc->cycle.threshold) {
+            vm->gc_pending = 1;
+            vm->interrupt = 1;
+        }
+        return ret;
+    } else {
+        return mx_gc_alloc_slow(vm, size);
+    }
+}
 void mx_gc_note_final(mx_t *vm, mx_obj_head_t *head);
 void mx_gc_note_final_owned(mx_obj_head_t *head);
+void mx_gc_final_line_set(mx_gc_block_t *b, void *ptr);
 void mx_gc_note_thread(mx_t *vm, mx_thread_t *th);
 void mx_gc_write_barrier_slow(mx_t *vm, void *container);
 
@@ -379,7 +411,7 @@ static inline __attribute__((always_inline)) void mx_gc_write_barrier_slot(mx_t 
     }
 }
 
-void mx_gc_pool_slab_refill(mx_gc_t *gc, int32_t cls);
+void *mx_gc_pool_slab_take(mx_gc_t *gc, int32_t cls);
 void *mx_gc_pool_alloc(mx_t *vm, size_t bytes);
 void *mx_gc_pool_realloc(mx_t *vm, void *ptr, size_t old_bytes, size_t bytes);
 void mx_gc_pool_free(mx_t *vm, void *ptr, size_t bytes);
@@ -395,7 +427,10 @@ static inline bool mx_gc_over_budget(const mx_gc_t *gc) {
     return gc->cycle.bytes_since_gc >= gc->cycle.threshold;
 }
 
-bool mx_gc_kind_is_ref(mx_t *vm, mx_kind_t kind);
+static inline bool mx_gc_kind_is_ref(const mx_t *vm, mx_kind_t kind) {
+    return kind == MX_KIND_STRING || kind == MX_KIND_CLOSURE || kind == MX_KIND_ERROR || (kind >= MX_KIND_FIRST_DATA && kind < vm->kinds.len);
+}
+
 void mx_gc_pin(mx_gc_t *gc, mx_obj_head_t *head);
 void mx_gc_mark_obj(mx_gc_t *gc, mx_obj_head_t *head);
 void mx_gc_drain(mx_gc_t *gc);
@@ -426,7 +461,9 @@ void mx_gc_weak_clear_table(mx_gc_t *gc, mx_obj_table_t *table, bool weak_keys, 
 void mx_gc_weak_clear(mx_gc_t *gc);
 void mx_gc_threads_sweep(mx_gc_t *gc);
 void mx_gc_note_finalizer(mx_t *vm, mx_obj_table_t *table);
+void mx_gc_tobefnz_push(mx_gc_t *gc, mx_obj_t obj);
 void mx_gc_finalizers_separate(mx_gc_t *gc);
+void mx_gc_finalize_on_close(mx_t *vm);
 bool mx_gc_run_finalizers(mx_t *vm);
 void mx_gc_scan_dirty_cards(mx_gc_t *gc);
 void mx_gc_scan_old_child(mx_gc_t *gc, mx_obj_t *slot);

@@ -108,6 +108,23 @@ int32_t mx_coro_yield(mx_std_state_t *ls) {
     return 0;
 }
 
+void mx_ffi_coro_resume(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs >= 1 && args[0].kind == vm->kinds.thread && vm->pending.is_ok && mx_coro_resume_check(vm, mx_obj_get_thread(args[0])) == NULL) {
+        mx_call_pend(vm, MX_RUN_PENDING_KIND_RESUME, mx_obj_of_nil(), mx_obj_of_nil(), mx_obj_get_thread(args[0]), (uint32_t)nargs - 1, args + 1);
+    } else {
+        mx_std_dispatch(vm, mx_coro_resume, "resume", args, (int32_t)nargs);
+    }
+}
+
+void mx_ffi_coro_yield(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    mx_thread_t *th = vm->thread;
+    if (th != vm->main && vm->pending.is_ok && th->token == vm->token_cur) {
+        mx_call_pend(vm, MX_RUN_PENDING_KIND_YIELD, mx_obj_of_nil(), mx_obj_of_nil(), NULL, (uint32_t)nargs, args);
+    } else {
+        mx_std_dispatch(vm, mx_coro_yield, "yield", args, (int32_t)nargs);
+    }
+}
+
 int32_t mx_coro_status(mx_std_state_t *ls) {
     mx_thread_t *co = mx_coro_check(ls, 1);
     if (co == NULL) {
@@ -201,7 +218,24 @@ int32_t mx_coro_wrap(mx_std_state_t *ls) {
     }
     mx_std_push(ls, mx_obj_of_thread(mx_thread_new(ls->vm, *fn)));
     mx_std_pushcfn_up(ls, mx_coro_wrap_call, "wrap", 1);
+    mx_obj_t *wrapped = mx_std_at(ls, -1);
+    if (wrapped != NULL) {
+        ((mx_obj_cfn_t *)mx_obj_data_head(*wrapped))->fn = mx_ffi_coro_wrap_call;
+    }
     return 1;
+}
+
+// The common resume of a wrapped coroutine, without setting up the stack API;
+// anything else goes through mx_coro_wrap_call.
+void mx_ffi_coro_wrap_call(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    mx_thread_t *th = vm->thread;
+    mx_obj_cfn_t *cfn = (mx_obj_cfn_t *)mx_ref_obj(mx_thread_objs(th, th->frame + 2)->val.ref);
+    mx_thread_t *co = mx_obj_get_thread(cfn->values[0]);
+    if (vm->pending.is_ok && mx_coro_resume_check(vm, co) == NULL) {
+        mx_call_pend(vm, MX_RUN_PENDING_KIND_RESUME_WRAP, mx_obj_of_nil(), mx_obj_of_nil(), co, (uint32_t)nargs, args);
+    } else {
+        mx_ffi_std_foreign(vm, nargs, args);
+    }
 }
 
 int32_t mx_coro_wrap_call(mx_std_state_t *ls) {

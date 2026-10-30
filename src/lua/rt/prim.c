@@ -110,8 +110,9 @@ void mx_prim_forprep_step(mx_t *vm, size_t nargs, mx_obj_t *args) {
 bool mx_prim_forprep_initial_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (!mx_obj_is_number(args[0])) {
         return false;
+    } else if (!(mx_obj_is_int(args[0]) && mx_obj_is_int(args[1]))) {
+        args[0] = mx_obj_of_number(mx_obj_get_number(args[0]));
     }
-    mx_prim_forprep_initial(vm, nargs, args);
     return true;
 }
 

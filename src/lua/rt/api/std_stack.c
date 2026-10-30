@@ -54,7 +54,9 @@ void mx_std_dispatch_finish(mx_std_state_t *ls, int32_t nret) {
         nret = 0;
     }
     int32_t first = ls->top - nret;
-    if (first != 0) {
+    if (first != 0 && nret == 1) {
+        res[0] = res[first];
+    } else if (first != 0) {
         memmove(res, res + first, sizeof(mx_obj_t) * (size_t)nret);
     }
     if (nret == 0) {
@@ -430,12 +432,9 @@ void mx_std_pushlstring(mx_std_state_t *ls, const char *str, size_t len) {
     }
 }
 
-mx_obj_t mx_std_char_str(mx_t *vm, char c) {
-    mx_obj_t s = vm->char_strs[(uint8_t)c];
-    if (s.kind == MX_KIND_NIL) {
-        s = mx_obj_intern_strn(vm, &c, 1);
-        vm->char_strs[(uint8_t)c] = s;
-    }
+mx_obj_t mx_std_char_str_new(mx_t *vm, char c) {
+    mx_obj_t s = mx_obj_intern_strn(vm, &c, 1);
+    vm->char_strs[(uint8_t)c] = s;
     return s;
 }
 

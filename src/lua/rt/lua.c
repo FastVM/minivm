@@ -10,6 +10,7 @@
 #include "../../value/table.h"
 
 void mx_lua_close(mx_t *vm) {
+    mx_gc_finalize_on_close(vm);
     mx_mem_free(vm->lua_state);
     vm->lua_state = NULL;
 }

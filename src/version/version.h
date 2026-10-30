@@ -150,7 +150,9 @@ mx_version_t *mx_version_branch(mx_t *vm, const mx_resume_t *rec, bool is_true, 
 mx_version_t *mx_version_at(mx_t *vm, const mx_resume_t *rec, const mx_kind_t *outs, uint32_t nouts, bool is_resumed);
 mx_version_t *mx_version_again(mx_t *vm, mx_version_t *rb, bool is_resumed);
 mx_version_t *mx_version_entry(mx_t *vm, mx_ir_block_t *block, const mx_obj_t *args, uint32_t nargs);
+mx_version_t *mx_version_entry_slow(mx_t *vm, mx_ir_block_t *block, const mx_obj_t *args, uint32_t nargs, uint64_t short_key) __attribute__((noinline));
 mx_version_t *mx_version_args(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nargs);
+mx_version_t *mx_version_args_slow(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nargs, uint64_t short_key) __attribute__((noinline));
 
 static inline uint64_t mx_version_kinds_key(const mx_kind_t *kinds, uint32_t n) {
     uint64_t key = (uint64_t)(n + 1) << 48;

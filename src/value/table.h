@@ -6,6 +6,7 @@
 
 #include "obj.h"
 #include "num.h"
+#include "../vm/gc.h"
 #include "../vm/vm.h"
 
 #define MX_TABLE_INLINE_ARRAY 3
@@ -107,7 +108,16 @@ static inline void mx_table_entry_set_val(mx_table_entry_t *e, mx_obj_t v) {
     e->val = v.val;
 }
 
-mx_obj_table_t *mx_table_init(mx_t *vm, size_t bytes, bool is_short);
+static inline mx_obj_table_t *mx_table_init(mx_t *vm, size_t bytes, bool is_short) {
+    mx_obj_table_t *ret = mx_gc_alloc(vm, bytes);
+    memset(ret, 0, MX_TABLE_SHORT_SIZE);
+    ret->head.kind = vm->kinds.table;
+    ret->head.is_container = true;
+    ret->is_plain = true;
+    ret->is_short = is_short;
+    return ret;
+}
+
 mx_obj_table_t *mx_table_new(mx_t *vm);
 mx_obj_table_t *mx_table_new_short(mx_t *vm);
 mx_obj_table_t *mx_table_new_sized(mx_t *vm, uint32_t narray, uint32_t nhash);

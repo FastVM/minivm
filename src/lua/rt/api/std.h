@@ -182,18 +182,23 @@ bool mx_ffi_base_getmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_inext(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_base_inext_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_ipairs(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_base_ipairs_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_next(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_base_next_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_pairs(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_base_pairs_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_print(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_rawequal(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_rawget(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_base_rawget_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_rawlen(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_rawset(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_select(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_base_select_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_setmetatable(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_base_setmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_tonumber(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_base_tonumber_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_tostring(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_type(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_base_type_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
@@ -227,6 +232,10 @@ bool mx_ffi_table_concat_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_table_append_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_table_insert_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_table_insert(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_table_unpack_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
+void mx_ffi_table_unpack(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_table_remove_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
+void mx_ffi_table_remove(mx_t *vm, size_t nargs, mx_obj_t *args);
 
 void mx_ffi_math_abs(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_math_acos(mx_t *vm, size_t nargs, mx_obj_t *args);
@@ -374,7 +383,16 @@ void mx_std_buf_init(mx_std_state_t *ls, mx_std_buf_t *buf);
 char *mx_std_buf_prep(mx_std_buf_t *buf, size_t need);
 void mx_std_buf_addlstring(mx_std_buf_t *buf, const char *data, size_t len);
 void mx_std_buf_addstring(mx_std_buf_t *buf, const char *str);
-void mx_std_buf_addchar(mx_std_buf_t *buf, char c);
+void mx_std_buf_addchar_slow(mx_std_buf_t *buf, char c);
+
+static inline void mx_std_buf_addchar(mx_std_buf_t *buf, char c) {
+    if (buf->len < buf->cap) {
+        buf->data[buf->len] = c;
+        buf->len += 1;
+    } else {
+        mx_std_buf_addchar_slow(buf, c);
+    }
+}
 void mx_std_buf_addint(mx_std_buf_t *buf, int64_t v);
 void mx_std_buf_addvalue(mx_std_buf_t *buf, mx_std_slot_t slot);
 void mx_std_buf_push(mx_std_buf_t *buf);
@@ -412,7 +430,16 @@ void mx_std_setupval(mx_std_state_t *ls, uint32_t i, mx_obj_t v);
 void mx_std_pushcfn_up(mx_std_state_t *ls, mx_std_fn_t *fn, const char *name, uint32_t nup);
 void mx_std_cfn_call_op(mx_t *vm, size_t nargs, mx_obj_t *args);
 
-mx_obj_t mx_std_char_str(mx_t *vm, char c);
+mx_obj_t mx_std_char_str_new(mx_t *vm, char c);
+
+static inline mx_obj_t mx_std_char_str(mx_t *vm, char c) {
+    mx_obj_t s = vm->char_strs[(uint8_t)c];
+    if (s.kind == MX_KIND_NIL) {
+        return mx_std_char_str_new(vm, c);
+    } else {
+        return s;
+    }
+}
 
 int32_t mx_std_base_assert(mx_std_state_t *ls);
 int32_t mx_std_base_collectgarbage(mx_std_state_t *ls);

@@ -226,7 +226,9 @@ void mx_str_append(mx_str_t *buf, const char *data, uint32_t len) {
     if (need > UINT32_MAX) {
         mx_fatal("string: buffer too large");
     }
-    mx_str_reserve(buf, (uint32_t)need);
+    if (need > buf->cap || buf->buf == NULL) {
+        mx_str_reserve(buf, (uint32_t)need);
+    }
     memcpy(&buf->buf[buf->len], data, len);
     buf->len += len;
     buf->buf[buf->len] = '\0';
@@ -560,9 +562,38 @@ mx_str_t *mx_str_cache_get(mx_t *vm, const char *bytes, uint32_t len) {
     }
 }
 
+// s .. v, or v .. s when is_int_first, without making a string for v unless
+// the result has to be a rope.
+mx_str_t *mx_str_concat_int(mx_t *vm, mx_str_t *s, int64_t v, bool is_int_first) {
+    char tmp[MX_STR_INT_DIGITS];
+    uint32_t at = mx_str_int_digits(tmp, v);
+    uint32_t n = MX_STR_INT_DIGITS - at;
+    uint64_t total = (uint64_t)s->len + n;
+    if (!s->is_rope && total <= MX_STR_FLAT_CONCAT_MAX) {
+        mx_str_t *ret = mx_str_new_gc_sized(vm, (uint32_t)total);
+        if (is_int_first) {
+            memcpy(ret->buf, &tmp[at], n);
+            memcpy(ret->buf + n, s->buf, s->len);
+        } else {
+            memcpy(ret->buf, s->buf, s->len);
+            memcpy(ret->buf + s->len, &tmp[at], n);
+        }
+        ret->len = (uint32_t)total;
+        ret->buf[total] = '\0';
+        return ret;
+    }
+    mx_str_t *num = mx_str_new_gc(vm);
+    mx_str_append(num, &tmp[at], n);
+    if (is_int_first) {
+        return mx_str_new_rope_gc(vm, num, s);
+    } else {
+        return mx_str_new_rope_gc(vm, s, num);
+    }
+}
+
 mx_str_t *mx_str_new_rope_gc(mx_t *vm, mx_str_t *l, mx_str_t *r) {
     uint64_t total = (uint64_t)l->len + (uint64_t)r->len;
-    if (!l->is_rope && !r->is_rope && MX_STR_TAIL_HEADER + total + 1 <= MX_GC_MEDIUM_MAX) {
+    if (!l->is_rope && !r->is_rope && total <= MX_STR_FLAT_CONCAT_MAX) {
         mx_str_t *ret = mx_str_new_gc_sized(vm, (uint32_t)total);
         memcpy(ret->buf, l->buf, l->len);
         memcpy(ret->buf + l->len, r->buf, r->len);
