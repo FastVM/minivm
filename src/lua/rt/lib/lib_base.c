@@ -43,7 +43,7 @@ bool mx_std_tostring_meta_handler(mx_std_state_t *ls, mx_std_slot_t slot) {
         mx_std_str_t nm = mx_std_tostring(ls, -1);
         mx_str_t *nbuf = mx_str_new();
         mx_str_append(nbuf, nm.ptr, (uint32_t)nm.len);
-        mx_str_format(nbuf, ": %p", mx_obj_data_head(*mx_std_at(ls, slot)));
+        mx_str_format(nbuf, ": %p", mx_gc_address(ls->vm, *mx_std_at(ls, slot)));
         mx_std_pop(ls, 3);
         mx_std_pushlstring(ls, nbuf->buf, nbuf->len);
         mx_str_free(nbuf);
@@ -245,7 +245,7 @@ int32_t mx_std_base_inext(mx_std_state_t *ls) {
     } else if (t != MX_LUA_TYPE_TABLE && t != MX_LUA_TYPE_STRING) {
         mx_std_pop(ls, 1);
     }
-    int64_t i = mx_std_checkinteger(ls, 2) + 1;
+    int64_t i = mx_num_add(mx_std_checkinteger(ls, 2), 1);
     mx_std_geti(ls, 1, i);
     if (mx_std_isnil(ls, -1)) {
         return 0;
@@ -774,7 +774,7 @@ bool mx_ffi_base_inext_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (!t->is_plain || t->meta != NULL) {
         return false;
     }
-    int64_t i = mx_obj_get_int(args[1]) + 1;
+    int64_t i = mx_num_add(mx_obj_get_int(args[1]), 1);
     mx_obj_t v;
     if (i >= 1 && (uint64_t)i <= (uint64_t)t->array_len) {
         v = t->array[i - 1];

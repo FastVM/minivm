@@ -39,7 +39,7 @@ void mx_std_table_check(mx_std_state_t *ls, mx_std_slot_t arg, mx_std_table_acce
 
 int32_t mx_std_table_insert(mx_std_state_t *ls) {
     mx_std_table_check(ls, 1, MX_STD_TABLE_READ | MX_STD_TABLE_WRITE | MX_STD_TABLE_LEN);
-    int64_t e = mx_std_len_meta(ls, 1) + 1;
+    int64_t e = mx_num_add(mx_std_len_meta(ls, 1), 1);
     if (ls->vm->std_error.is_set) {
         return 0;
     }

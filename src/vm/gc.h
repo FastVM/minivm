@@ -54,6 +54,10 @@
 #define MX_GC_VERIFY 0
 #endif
 
+#if !defined(MX_GC_INCREMENTAL)
+#define MX_GC_INCREMENTAL 0
+#endif
+
 #define MX_GC_IDENT_KEYS_INITIAL 64
 #define MX_GC_TENURE_AGE 2
 #define MX_GC_POOL_CLASSES 24
@@ -285,6 +289,7 @@ struct mx_gc_t {
     bool is_tracing: 1;
     bool is_finalizing: 1;
     bool is_closing: 1;
+    bool is_marking: 1;
 };
 
 mx_gc_t *mx_gc_new(void);
@@ -326,6 +331,8 @@ void mx_gc_forward_set(mx_obj_head_t *head, void *to);
 void *mx_gc_evac_alloc(mx_gc_t *gc, size_t size);
 size_t mx_gc_ident_key_slot(const mx_gc_t *gc, uintptr_t p);
 bool mx_gc_ident_key_has(const mx_gc_t *gc, void *obj);
+void *mx_gc_address(mx_t *vm, mx_obj_t v);
+void mx_gc_ident_keys_prune(mx_gc_t *gc);
 void *mx_gc_maybe_evacuate(mx_t *vm, mx_gc_t *gc, void *obj);
 mx_obj_head_t **mx_gc_next_slot(mx_obj_head_t *head);
 void mx_gc_old_record_block(mx_gc_block_t *block, mx_obj_head_t *head);
@@ -382,7 +389,7 @@ void mx_gc_write_barrier_slow(mx_t *vm, void *container);
 
 static inline __attribute__((always_inline)) void mx_gc_write_barrier(mx_t *vm, void *container, mx_obj_t value) {
     mx_obj_head_t *ch = container;
-    if (ch->is_old) {
+    if (ch->is_old || ch->is_black) {
         mx_gc_write_barrier_slow(vm, container);
     }
 }
@@ -390,7 +397,7 @@ static inline __attribute__((always_inline)) void mx_gc_write_barrier(mx_t *vm, 
 static inline __attribute__((always_inline)) void mx_gc_write_barrier_slot(mx_t *vm, void *container, mx_obj_t value) {
     mx_obj_head_t *ch = container;
     bool is_ref = value.kind == MX_KIND_STRING || value.kind == MX_KIND_CLOSURE || value.kind == MX_KIND_ERROR || value.kind >= MX_KIND_FIRST_DATA;
-    if (ch->is_old && is_ref) {
+    if ((ch->is_old || ch->is_black) && is_ref) {
         mx_gc_write_barrier_slow(vm, container);
     }
 }
@@ -401,6 +408,15 @@ void *mx_gc_pool_realloc(mx_t *vm, void *ptr, size_t old_bytes, size_t bytes);
 void mx_gc_pool_free(mx_t *vm, void *ptr, size_t bytes);
 
 void mx_gc_note_ident_key(mx_t *vm, void *obj);
+void mx_gc_prepare_major(mx_gc_t *gc, bool is_incremental);
+void mx_gc_next_mark(mx_gc_t *gc);
+bool mx_gc_finish(mx_t *vm);
+void mx_gc_abort_marking(mx_gc_t *gc);
+void mx_gc_mark_start(mx_t *vm);
+bool mx_gc_mark_step(mx_gc_t *gc, size_t budget);
+bool mx_gc_mark_atomic(mx_t *vm);
+size_t mx_gc_step_budget(const mx_gc_t *gc);
+bool mx_gc_tick(mx_t *vm);
 bool mx_gc_collect(mx_t *vm);
 bool mx_gc_step(mx_t *vm, size_t kilobytes);
 size_t mx_gc_bytes(mx_t *vm);

@@ -146,7 +146,7 @@ mx_table_steal_t mx_table_hash_steal(mx_obj_table_t *restrict tbl, uint32_t key)
 
 static inline mx_obj_t mx_table_get_inline(mx_obj_table_t *tbl, mx_obj_t key) {
     if (key.kind == MX_KIND_INT) {
-        uint64_t at = (uint64_t)(key.val.i64 - 1);
+        uint64_t at = (uint64_t)key.val.i64 - 1;
         if (at < (uint64_t)tbl->array_len) {
             return tbl->array[at];
         }

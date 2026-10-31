@@ -117,6 +117,9 @@ enum {
     MX_RUN_PENDING_KIND_RESUME_WRAP,
     MX_RUN_PENDING_KIND_YIELD,
     MX_RUN_PENDING_KIND_KJUMP,
+    MX_RUN_PENDING_KIND_YIELDK,
+    MX_RUN_PENDING_KIND_CALLK,
+    MX_RUN_PENDING_KIND_PCALLK,
 };
 
 struct mx_obj_head_t {
@@ -128,6 +131,7 @@ struct mx_obj_head_t {
     bool is_forwarded: 1;
     bool is_old: 1;
     bool is_final: 1;
+    bool is_black: 1;
 };
 
 _Static_assert(sizeof(mx_obj_head_t) == 4, "head layout");
@@ -198,15 +202,20 @@ struct mx_run_pending_t {
     mx_obj_t extra;
     mx_thread_t *thread;
     uint32_t nargs;
+    uint32_t kept;
     mx_run_pending_kind_t kind;
 };
 
 struct mx_pending_t {
     mx_run_pending_t call;
     mx_obj_t *args;
+    mx_obj_t cont[3];
     uint32_t cap;
+    uint32_t cont_nvals;
+    uint8_t cont_status;
     bool is_set: 1;
     bool is_ok: 1;
+    bool is_cont: 1;
 };
 
 struct mx_hooks_t {

@@ -22,7 +22,7 @@ LIBDL ?= -ldl
 PREFIX ?= /usr/local
 DESTDIR ?=
 
-BASE_CFLAGS := ${OPT} -fwrapv ${DEFINES} ${CFLAGS}
+BASE_CFLAGS := ${OPT} ${DEFINES} ${CFLAGS}
 BASE_LDFLAGS := ${OPT} ${LDFLAGS} ${LIBM_FLAGS} ${LIBDL} ${EXPORT_DYNAMIC}
 
 CMODS := build/cmod/luamod.so build/cmod/luajson.so build/cmod/luaabi.so build/cmod/mxmod.so
@@ -35,6 +35,8 @@ MAIN_OBJS = ${MAIN_SRCS:%.c=build/obj/%.o}
 
 MAIN_DEPS = ${MAIN_SRCS:%.c=build/dep/%.dep}
 
+LIB_OBJS = ${filter-out build/obj/src/cli/% build/obj/vendor/%,${MAIN_OBJS}}
+
 default: all
 
 all: minivm
@@ -42,6 +44,10 @@ all: minivm
 minivm: build/bin/minivm${EXE}
 
 cmod: ${CMODS}
+
+lib: build/lib/libminivm.a
+
+embed: build/embed/host${EXE}
 
 clean: .dummy
 	rm -rf build
@@ -54,6 +60,14 @@ install: build/bin/minivm .dummy
 build/cmod/%.so: test/cmod/%.c include/lua.h include/lauxlib.h include/luaconf.h
 	@mkdir -p ${dir ${@}}
 	${CC} -shared -fPIC -Iinclude ${OPT} -o ${@} ${<} ${CMOD_LDFLAGS}
+
+build/lib/libminivm.a: ${LIB_OBJS}
+	@mkdir -p ${dir ${@}}
+	${AR} rcs ${@} ${LIB_OBJS}
+
+build/embed/host${EXE}: test/embed/host.c build/lib/libminivm.a include/lua.h include/lauxlib.h include/lualib.h include/luaconf.h
+	@mkdir -p ${dir ${@}}
+	${CC} -Iinclude ${OPT} -o ${@} ${<} build/lib/libminivm.a ${LIBM_FLAGS} ${LIBDL}
 
 build/bin/minivm${EXE}: ${MAIN_OBJS}
 	@mkdir -p ${dir ${@}}

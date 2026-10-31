@@ -96,17 +96,6 @@ mx_main_cmd_t mx_main_parse(int32_t argc, char **argv) {
     return cmd;
 }
 
-void mx_main_drop_extensions(mx_t *vm) {
-    mx_obj_table_t *g = mx_obj_get_table(mx_lua_of(vm)->std);
-    const char *const globals[] = {"callcc", "callcci", "vm", "unpack"};
-    for (size_t i = 0; i < sizeof(globals) / sizeof(globals[0]); i++) {
-        mx_table_set(vm, g, mx_obj_intern_strn(vm, globals[i], (uint32_t)strlen(globals[i])), mx_obj_of_nil());
-    }
-    mx_obj_t tablib = mx_table_get(g, mx_obj_intern_strn(vm, "table", 5));
-    mx_table_set(vm, mx_obj_get_table(tablib), mx_obj_intern_strn(vm, "keys", 4), mx_obj_of_nil());
-    mx_table_set(vm, mx_obj_get_table(tablib), mx_obj_intern_strn(vm, "values", 6), mx_obj_of_nil());
-}
-
 void mx_main_report(mx_t *vm, const char *prog, mx_obj_t err) {
     mx_obj_t payload = mx_error_payload(err);
     if (mx_obj_is_string(payload)) {
@@ -311,7 +300,7 @@ int main(int argc, char **argv) {
     mx_lua_t *lua = mx_lua_open(vm, cmd.is_noenv);
     lua->is_ext = cmd.is_ext;
     if (!cmd.is_ext) {
-        mx_main_drop_extensions(vm);
+        mx_lua_drop_extensions(vm);
     }
     mx_lua_set_arg(vm, argc, argv, cmd.script);
     bool is_auto = cmd.script == 0 && !cmd.has_exec && !cmd.is_version && isatty(STDIN_FILENO);

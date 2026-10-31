@@ -952,16 +952,26 @@ void mx_lower_call(mx_lower_t *l, mx_ir_branch_t *br, mx_ir_arg_t *args, uint32_
         for (uint32_t i = 0; i < MX_RESUME_CACHE_WORDS; i++) {
             mx_lower_word(l, 0);
         }
+        mx_lower_args(l, args, 1, nargs);
+        return;
+    }
+    mx_kind_t fk = mx_lower_kind(l, fn);
+    bool is_callable = fn.type == MX_IR_ARG_TYPE_REG && !is_spread && (fk == l->vm->kinds.table || fk == l->vm->kinds.udata);
+    if (is_callable) {
+        mx_lower_hop(l, MX_HOP_CALL_META);
     } else {
         mx_lower_hop(l, MX_HOP_CALL);
-        mx_lower_arg(l, fn);
-        mx_lower_word(l, n);
-        mx_lower_word(l, is_spread);
-        mx_lower_rec_word(l, rec);
-        mx_lower_word(l, 0);
+    }
+    mx_lower_arg(l, fn);
+    mx_lower_word(l, n);
+    mx_lower_word(l, is_spread);
+    mx_lower_rec_word(l, rec);
+    mx_lower_word(l, 0);
+    mx_lower_word(l, 0);
+    mx_lower_args(l, args, 1, nargs);
+    for (uint32_t i = 0; i < 12 && is_callable; i++) {
         mx_lower_word(l, 0);
     }
-    mx_lower_args(l, args, 1, nargs);
 }
 
 void mx_lower_return(mx_lower_t *l, mx_ir_arg_t *args, uint32_t nargs) {

@@ -92,7 +92,33 @@ void mx_luaapi_check(mx_std_state_t *ls) {
     mx_lua_foreign_t *foreign = &mx_lua_of(ls->vm)->foreign;
     if (ls->vm->std_error.is_set && foreign->ls == ls) {
         longjmp(*foreign->jmp, 1);
+    } else if (ls->vm->std_error.is_set && foreign->jmp == NULL) {
+        mx_luaapi_panic(ls);
     }
+}
+
+void mx_luaapi_panic(mx_std_state_t *ls) {
+    mx_t *vm = ls->vm;
+    mx_obj_t payload = mx_error_payload(vm->std_error.value);
+    vm->std_error = (mx_std_error_t) { .value = mx_obj_of_nil(), .is_set = false };
+    mx_std_push(ls, payload);
+    mx_std_fn_t *panic = mx_lua_of(vm)->panic;
+    if (panic != NULL) {
+        panic(ls);
+    }
+    abort();
+}
+
+int32_t mx_luaapi_panic_message(lua_State *L) {
+    const char *msg;
+    if (lua_type(L, -1) == LUA_TSTRING) {
+        msg = lua_tolstring(L, -1, NULL);
+    } else {
+        msg = "error object is not a string";
+    }
+    fprintf(stderr, "PANIC: unprotected error in call to Lua API (%s)\n", msg);
+    fflush(stderr);
+    return 0;
 }
 
 int32_t mx_luaapi_protect(mx_lua_t *lua, mx_std_fn_t *fn, mx_std_state_t *ls) {
@@ -109,18 +135,77 @@ int32_t mx_luaapi_protect(mx_lua_t *lua, mx_std_fn_t *fn, mx_std_state_t *ls) {
     return nret;
 }
 
+int32_t mx_luaapi_protect_k(mx_lua_t *lua, mx_std_state_t *ls) {
+    mx_t *vm = ls->vm;
+    lua_KFunction k = (lua_KFunction)(uintptr_t)mx_obj_get_lightuserdata(vm->pending.cont[0]);
+    lua_KContext ctx = (lua_KContext)(intptr_t)mx_obj_get_lightuserdata(vm->pending.cont[1]);
+    int32_t nresults = (int32_t)mx_obj_get_int(vm->pending.cont[2]);
+    int32_t status;
+    if (vm->pending.cont_status == MX_RUN_ERROR) {
+        status = LUA_ERRRUN;
+    } else {
+        status = LUA_YIELD;
+    }
+    if (vm->pending.cont_status == MX_RUN_OK && nresults != LUA_MULTRET) {
+        mx_std_settop(ls, ls->top - (int32_t)vm->pending.cont_nvals + nresults);
+    }
+    jmp_buf here;
+    mx_lua_foreign_t outer = lua->foreign;
+    lua->foreign.jmp = &here;
+    lua->foreign.ls = ls;
+    volatile int32_t nret = 0;
+    if (setjmp(here) == 0) {
+        nret = k((lua_State *)ls, status, ctx);
+    }
+    lua->foreign.jmp = outer.jmp;
+    lua->foreign.ls = outer.ls;
+    return nret;
+}
+
+bool mx_luaapi_can_continue(mx_std_state_t *ls) {
+    mx_t *vm = ls->vm;
+    return mx_lua_of(vm)->foreign.ls == ls && ls->can_pend && ls->th != vm->main && ls->th->token == vm->token_cur;
+}
+
+void mx_luaapi_pend_k(mx_std_state_t *ls, mx_run_pending_kind_t kind, int32_t nargs, int32_t nresults, lua_KContext ctx, lua_KFunction k, mx_obj_t handler) {
+    mx_t *vm = ls->vm;
+    int32_t fn_slot = ls->top - nargs - 1;
+    if (!mx_std_grow(ls, 3)) {
+        mx_std_error(ls, "stack overflow");
+        mx_luaapi_check(ls);
+        return;
+    }
+    mx_obj_t *slots = mx_std_slots(ls);
+    mx_call_pend(vm, kind, slots[fn_slot], handler, NULL, (uint32_t)nargs, slots + fn_slot + 1);
+    vm->pending.call.kept = (uint32_t)fn_slot;
+    slots[fn_slot] = mx_obj_of_lightuserdata((void *)(uintptr_t)k);
+    slots[fn_slot + 1] = mx_obj_of_lightuserdata((void *)(intptr_t)ctx);
+    slots[fn_slot + 2] = mx_obj_of_int(nresults);
+    ls->top = fn_slot + 3;
+    mx_std_sync(ls);
+    longjmp(*mx_lua_of(vm)->foreign.jmp, 1);
+}
+
 void mx_luaapi_call(mx_t *vm, size_t nargs, mx_obj_t *args) {
     mx_lua_t *lua = mx_lua_of(vm);
     mx_thread_t *th = vm->thread;
     uint32_t at = th->frame;
     mx_obj_cfn_t *cfn = (mx_obj_cfn_t *)mx_ref_obj(mx_thread_objs(th, at + 2)->val.ref);
+    mx_luaapi_frame_t *home = mx_luaapi_frame_of(vm, th);
+    bool is_cont = vm->pending.is_cont;
+    vm->pending.is_cont = false;
     mx_luaapi_frame_t frame = {
-        .extra = lua->foreign.extra,
+        .extra = home->extra,
         .ls = mx_std_state_enter(vm, args, (int32_t)nargs, "?", cfn->std_fn, vm->pending.is_ok),
     };
     vm->pending.is_ok = false;
-    int32_t nret = mx_luaapi_protect(lua, cfn->std_fn, &frame.ls);
-    lua->foreign.extra = frame.extra;
+    int32_t nret;
+    if (is_cont) {
+        nret = mx_luaapi_protect_k(lua, &frame.ls);
+    } else {
+        nret = mx_luaapi_protect(lua, cfn->std_fn, &frame.ls);
+    }
+    home->extra = frame.extra;
     if (vm->tbcs.len != 0 && !vm->pending.is_set && !vm->std_error.is_set) {
         mx_obj_t err = mx_prim_tbc_unwind(vm, th, at, mx_obj_of_nil());
         if (mx_obj_is_error(err)) {
@@ -135,16 +220,28 @@ void mx_luaapi_push_cfn(mx_std_state_t *ls, mx_std_fn_t *fn, uint32_t nup) {
         mx_std_error(ls, "too many upvalues (limit is %d)", MX_STD_CFN_MAX_UPVALS);
         mx_luaapi_check(ls);
         return;
+    } else if (nup != 0) {
+        mx_obj_t obj = mx_std_cfn_alloc(ls->vm, mx_luaapi_call, fn, NULL, nup, mx_std_slots(ls) + ls->top - (int32_t)nup);
+        ls->top -= (int32_t)nup;
+        mx_std_push(ls, obj);
+        return;
     }
-    mx_obj_t obj = mx_std_cfn_alloc(ls->vm, mx_luaapi_call, fn, NULL, nup, mx_std_slots(ls) + ls->top - (int32_t)nup);
-    ls->top -= (int32_t)nup;
-    mx_std_push(ls, obj);
+    mx_obj_table_t *cache = mx_obj_get_table(mx_lua_of(ls->vm)->light_cfns);
+    mx_obj_t key = mx_obj_of_lightuserdata((void *)(uintptr_t)fn);
+    mx_obj_t have = mx_table_get(cache, key);
+    if (mx_obj_is_nil(have)) {
+        mx_obj_t obj = mx_std_cfn_alloc(ls->vm, mx_luaapi_call, fn, NULL, 0, NULL);
+        mx_table_set(ls->vm, cache, key, obj);
+        mx_std_push(ls, obj);
+    } else {
+        mx_std_push(ls, have);
+    }
 }
 
-int32_t mx_luaapi_open_loaded(mx_std_state_t *ls, const char *name) {
-    mx_std_getfield(ls, MX_STD_REGISTRYINDEX, LUA_LOADED_TABLE);
-    mx_std_getfield(ls, -1, name);
-    mx_std_remove(ls, -2);
+int32_t mx_luaapi_open_lib(mx_std_state_t *ls, const char *name) {
+    mx_t *vm = ls->vm;
+    mx_std_push(ls, mx_table_get(mx_obj_get_table(mx_lua_of(vm)->libs), mx_obj_intern(vm, name)));
+    mx_luaapi_check(ls);
     return 1;
 }
 
@@ -157,23 +254,60 @@ int32_t mx_luaapi_load_status(mx_std_state_t *ls, int32_t n, int32_t failed) {
     }
 }
 
+void mx_luaapi_clear(mx_t *vm, mx_obj_table_t *t) {
+    uint32_t base = vm->holds.len;
+    mx_obj_t pair[2];
+    mx_table_step_t step = mx_table_next_into(vm, t, mx_obj_of_nil(), pair);
+    while (step == MX_TABLE_STEP_PAIR) {
+        mx_vm_hold(vm, pair[0]);
+        step = mx_table_next_into(vm, t, pair[0], pair);
+    }
+    for (uint32_t i = base; i < vm->holds.len; i++) {
+        mx_table_set(vm, t, vm->holds.ptr[i], mx_obj_of_nil());
+    }
+    vm->holds.len = base;
+}
+
 lua_State *lua_newstate(lua_Alloc f, void *ud, unsigned seed) {
-    return NULL;
+    mx_t *vm = mx_vm_new();
+    mx_lua_t *lua = mx_lua_open(vm, false);
+    lua->allocf = (mx_lua_allocf_t *)f;
+    lua->alloc_ud = ud;
+    mx_lua_drop_extensions(vm);
+    mx_obj_table_t *registry = mx_obj_get_table(lua->registry);
+    lua->std = mx_obj_of_table(mx_table_new(vm));
+    mx_table_set(vm, registry, mx_obj_of_int(LUA_RIDX_GLOBALS), lua->std);
+    mx_luaapi_clear(vm, mx_obj_get_table(mx_table_get(registry, mx_obj_intern(vm, LUA_LOADED_TABLE))));
+    return (lua_State *)mx_luaapi_thread_state(vm, vm->main);
 }
 
 void lua_close(lua_State *L) {
+    mx_t *vm = ((mx_std_state_t *)L)->vm;
+    mx_lua_close(vm);
+    mx_vm_free(vm);
+}
+
+mx_luaapi_frame_t *mx_luaapi_frame_of(mx_t *vm, mx_thread_t *th) {
+    if (th->api == NULL) {
+        void *extra;
+        if (th == vm->main) {
+            extra = NULL;
+        } else {
+            extra = mx_luaapi_frame_of(vm, vm->main)->extra;
+        }
+        mx_luaapi_frame_t *frame = mx_mem_alloc(sizeof(mx_luaapi_frame_t));
+        *frame = (mx_luaapi_frame_t) { .extra = extra };
+        th->api = frame;
+    }
+    return th->api;
+}
+
+mx_luaapi_frame_t *mx_luaapi_frame_self(lua_State *L) {
+    return (mx_luaapi_frame_t *)((char *)L - offsetof(mx_luaapi_frame_t, ls));
 }
 
 mx_std_state_t *mx_luaapi_thread_state(mx_t *vm, mx_thread_t *co) {
-    mx_luaapi_frame_t *frame;
-    if (co->api == NULL) {
-        frame = mx_mem_calloc(sizeof(mx_luaapi_frame_t));
-        frame->extra = mx_lua_of(vm)->foreign.extra;
-        co->api = frame;
-    } else {
-        frame = co->api;
-    }
-    mx_std_state_t *ls = &frame->ls;
+    mx_std_state_t *ls = &mx_luaapi_frame_of(vm, co)->ls;
     uint32_t base;
     if (co->frame == MX_THREAD_NONE) {
         base = 0;
@@ -221,7 +355,10 @@ int lua_closethread(lua_State *L, lua_State *from) {
 }
 
 lua_CFunction lua_atpanic(lua_State *L, lua_CFunction panicf) {
-    return NULL;
+    mx_lua_t *lua = mx_lua_of(((mx_std_state_t *)L)->vm);
+    lua_CFunction old = (lua_CFunction)lua->panic;
+    lua->panic = (mx_std_fn_t *)panicf;
+    return old;
 }
 
 lua_Number lua_version(lua_State *L) {
@@ -416,7 +553,8 @@ lua_State *lua_tothread(lua_State *L, int idx) {
 }
 
 const void *lua_topointer(lua_State *L, int idx) {
-    mx_obj_t *at = mx_std_at((mx_std_state_t *)L, idx);
+    mx_std_state_t *ls = (mx_std_state_t *)L;
+    mx_obj_t *at = mx_std_at(ls, idx);
     if (at == NULL) {
         return NULL;
     } else if (mx_obj_is_lightuserdata(*at)) {
@@ -424,7 +562,7 @@ const void *lua_topointer(lua_State *L, int idx) {
     } else if (mx_obj_kind(*at) < MX_KIND_FIRST_DATA && !mx_obj_is_string(*at) && !mx_obj_is_closure(*at) && !mx_obj_is_ffi(*at)) {
         return NULL;
     } else {
-        return mx_ref_obj(at->val.ref);
+        return mx_gc_address(ls->vm, *at);
     }
 }
 
@@ -706,6 +844,7 @@ void *lua_newuserdatauv(lua_State *L, size_t sz, int nuvalue) {
     memset(payload, 0, sz);
     t->hidden = (uint64_t)(uintptr_t)header;
     mx_gc_note_final(vm, &t->head);
+    mx_gc_note_bytes(vm, sizeof(mx_std_udata_header_t) + sz);
     mx_std_push(ls, mx_obj_of_table(t));
     mx_luaapi_check(ls);
     return payload;
@@ -795,16 +934,40 @@ int lua_setiuservalue(lua_State *L, int idx, int n) {
 
 void lua_callk(lua_State *L, int nargs, int nresults, lua_KContext ctx, lua_KFunction k) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
+    if (k != NULL && mx_luaapi_can_continue(ls) && mx_obj_is_closure(mx_std_slots(ls)[ls->top - nargs - 1])) {
+        mx_luaapi_pend_k(ls, MX_RUN_PENDING_KIND_CALLK, nargs, nresults, ctx, k, mx_obj_of_nil());
+        return;
+    }
+    mx_luaapi_frame_t *self = mx_luaapi_frame_self(L);
+    mx_luaapi_frame_t *home = mx_luaapi_frame_of(ls->vm, ls->th);
+    home->extra = self->extra;
     mx_std_call(ls, nargs, nresults);
+    self->extra = home->extra;
     mx_luaapi_check(ls);
 }
 
 int lua_pcallk(lua_State *L, int nargs, int nresults, int errfunc, lua_KContext ctx, lua_KFunction k) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
+    if (k != NULL && mx_luaapi_can_continue(ls) && mx_obj_is_closure(mx_std_slots(ls)[ls->top - nargs - 1])) {
+        mx_obj_t handler;
+        if (errfunc != 0) {
+            handler = *mx_std_at(ls, errfunc);
+        } else {
+            handler = mx_obj_of_nil();
+        }
+        mx_luaapi_pend_k(ls, MX_RUN_PENDING_KIND_PCALLK, nargs, nresults, ctx, k, handler);
+        return LUA_OK;
+    }
+    mx_luaapi_frame_t *self = mx_luaapi_frame_self(L);
+    mx_luaapi_frame_t *home = mx_luaapi_frame_of(ls->vm, ls->th);
+    home->extra = self->extra;
     mx_std_status_t st = mx_std_pcall(ls, nargs, nresults, errfunc);
+    self->extra = home->extra;
     mx_luaapi_check(ls);
     if (st == MX_STD_OK) {
         return LUA_OK;
+    } else if (st == MX_STD_ERR_HANDLER) {
+        return LUA_ERRERR;
     } else {
         return LUA_ERRRUN;
     }
@@ -857,18 +1020,33 @@ int lua_dump(lua_State *L, lua_Writer writer, void *data, int strip) {
 int lua_yieldk(lua_State *L, int nresults, lua_KContext ctx, lua_KFunction k) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_t *vm = ls->vm;
-    if (k != NULL) {
-        mx_std_error_noloc(ls, "C continuations (lua_yieldk) are not supported by MiniVM");
-    } else if (ls->th == vm->main) {
+    if (ls->th == vm->main) {
         mx_std_error_noloc(ls, "attempt to yield from outside a coroutine");
     } else if (!ls->can_pend || ls->th->token != vm->token_cur) {
         mx_std_error_noloc(ls, "attempt to yield across a C-call boundary");
     }
     mx_luaapi_check(ls);
-    if (!vm->std_error.is_set) {
+    if (vm->std_error.is_set) {
+        return 0;
+    } else if (k == NULL || !mx_luaapi_can_continue(ls)) {
         mx_call_pend(vm, MX_RUN_PENDING_KIND_YIELD, mx_obj_of_nil(), mx_obj_of_nil(), NULL, (uint32_t)nresults, mx_std_slots(ls) + ls->top - nresults);
+        return 0;
     }
-    return 0;
+    int32_t kept = ls->top - nresults;
+    if (!mx_std_grow(ls, 3)) {
+        mx_std_error(ls, "stack overflow");
+        mx_luaapi_check(ls);
+        return 0;
+    }
+    mx_obj_t *slots = mx_std_slots(ls);
+    mx_call_pend(vm, MX_RUN_PENDING_KIND_YIELDK, mx_obj_of_nil(), mx_obj_of_nil(), NULL, (uint32_t)nresults, slots + kept);
+    vm->pending.call.kept = (uint32_t)kept;
+    slots[kept] = mx_obj_of_lightuserdata((void *)(uintptr_t)k);
+    slots[kept + 1] = mx_obj_of_lightuserdata((void *)(intptr_t)ctx);
+    slots[kept + 2] = mx_obj_of_int(0);
+    ls->top = kept + 3;
+    mx_std_sync(ls);
+    longjmp(*mx_lua_of(vm)->foreign.jmp, 1);
 }
 
 int lua_resume(lua_State *L, lua_State *from, int narg, int *nres) {
@@ -944,6 +1122,10 @@ void lua_warning(lua_State *L, const char *msg, int tocont) {
 int lua_gc(lua_State *L, int what, ...) {
     mx_std_state_t *ls = (mx_std_state_t *)L;
     mx_t *vm = ls->vm;
+    mx_gc_t *gc = vm->gc;
+    if (gc->is_finalizing) {
+        return -1;
+    }
     switch (what) {
         case LUA_GCCOUNT: {
             return (int)(mx_gc_bytes(vm) >> 10);
@@ -964,16 +1146,62 @@ int lua_gc(lua_State *L, int what, ...) {
         }
         case LUA_GCGEN:
         case LUA_GCINC: {
-            return LUA_GCGEN;
+            int prev;
+            if (gc->is_generational) {
+                prev = LUA_GCGEN;
+            } else {
+                prev = LUA_GCINC;
+            }
+            gc->is_generational = what == LUA_GCGEN;
+            gc->is_major_mode = false;
+            return prev;
         }
-        case LUA_GCCOLLECT:
-        case LUA_GCSTEP: {
-            vm->gc_pending = 1;
-            vm->interrupt = 1;
+        case LUA_GCCOLLECT: {
+            gc->is_major_forced = true;
+            mx_std_sync(ls);
+            mx_gc_collect(vm);
             return 0;
+        }
+        case LUA_GCSTEP: {
+            va_list ap;
+            va_start(ap, what);
+            int kb = va_arg(ap, int);
+            va_end(ap);
+            size_t kilobytes;
+            if (kb < 0) {
+                kilobytes = 0;
+            } else {
+                kilobytes = (size_t)kb;
+            }
+            mx_std_sync(ls);
+            return mx_luaapi_bool(mx_gc_step(vm, kilobytes));
+        }
+        case LUA_GCPARAM: {
+            const mx_gc_param_t params[LUA_GCPN] = {
+                [LUA_GCPMINORMUL] = MX_GC_PARAM_MINORMUL,
+                [LUA_GCPMAJORMINOR] = MX_GC_PARAM_MAJORMINOR,
+                [LUA_GCPMINORMAJOR] = MX_GC_PARAM_MINORMAJOR,
+                [LUA_GCPPAUSE] = MX_GC_PARAM_PAUSE,
+                [LUA_GCPSTEPMUL] = MX_GC_PARAM_STEPMUL,
+                [LUA_GCPSTEPSIZE] = MX_GC_PARAM_STEPSIZE,
+            };
+            va_list ap;
+            va_start(ap, what);
+            int param = va_arg(ap, int);
+            int value = va_arg(ap, int);
+            va_end(ap);
+            if (param < 0 || param >= LUA_GCPN) {
+                return -1;
+            }
+            uint32_t *slot = &gc->params[params[param]];
+            int prev = (int)*slot;
+            if (value >= 0) {
+                *slot = (uint32_t)value;
+            }
+            return prev;
         }
         default: {
-            return 0;
+            return -1;
         }
     }
 }
@@ -1077,13 +1305,24 @@ size_t lua_stringtonumber(lua_State *L, const char *s) {
 }
 
 lua_Alloc lua_getallocf(lua_State *L, void **ud) {
-    if (ud != NULL) {
-        *ud = NULL;
+    mx_lua_t *lua = mx_lua_of(((mx_std_state_t *)L)->vm);
+    if (lua->allocf == NULL) {
+        if (ud != NULL) {
+            *ud = NULL;
+        }
+        return luaL_alloc;
+    } else {
+        if (ud != NULL) {
+            *ud = lua->alloc_ud;
+        }
+        return (lua_Alloc)lua->allocf;
     }
-    return luaL_alloc;
 }
 
 void lua_setallocf(lua_State *L, lua_Alloc f, void *ud) {
+    mx_lua_t *lua = mx_lua_of(((mx_std_state_t *)L)->vm);
+    lua->allocf = (mx_lua_allocf_t *)f;
+    lua->alloc_ud = ud;
 }
 
 void lua_toclose(lua_State *L, int idx) {
@@ -1170,7 +1409,7 @@ int lua_getinfo(lua_State *L, const char *what, lua_Debug *ar) {
         fn = mx_frame_fn(&f);
         opts = what;
     }
-    const mx_ir_block_t *head;
+    mx_ir_block_t *head;
     if (mx_obj_is_closure(fn)) {
         head = mx_obj_get_closure(fn)->block;
     } else {
@@ -1224,7 +1463,6 @@ int lua_getinfo(lua_State *L, const char *what, lua_Debug *ar) {
                     ar->nparams = 0;
                     ar->isvararg = 1;
                 }
-                ar->extraargs = 0;
                 break;
             }
             case 'n': {
@@ -1243,7 +1481,12 @@ int lua_getinfo(lua_State *L, const char *what, lua_Debug *ar) {
                 break;
             }
             case 't': {
-                ar->istailcall = 0;
+                ar->istailcall = (char)mx_luaapi_bool(f.is_valid && f.is_lua && mx_link_is_tail(f.th->slots[f.p].bits));
+                if (f.is_valid && f.is_lua) {
+                    ar->extraargs = (unsigned char)mx_link_extra(f.th->slots[f.p].bits);
+                } else {
+                    ar->extraargs = 0;
+                }
                 break;
             }
             case 'r': {
@@ -1251,18 +1494,23 @@ int lua_getinfo(lua_State *L, const char *what, lua_Debug *ar) {
                 ar->ntransfer = 0;
                 break;
             }
-            case 'f': {
-                mx_std_push(ls, fn);
-                break;
-            }
+            case 'f':
             case 'L': {
-                mx_std_pushnil(ls);
                 break;
             }
             default: {
                 return 0;
             }
         }
+    }
+    if (strchr(opts, 'f') != NULL) {
+        mx_std_push(ls, fn);
+    }
+    if (strchr(opts, 'L') != NULL && head != NULL) {
+        mx_std_newtable(ls);
+        mx_std_debug_activelines(ls, head);
+    } else if (strchr(opts, 'L') != NULL) {
+        mx_std_pushnil(ls);
     }
     mx_luaapi_check(ls);
     return 1;
@@ -1797,7 +2045,9 @@ int luaL_loadstring(lua_State *L, const char *s) {
 }
 
 lua_State *luaL_newstate(void) {
-    return NULL;
+    lua_State *L = lua_newstate(luaL_alloc, NULL, 0);
+    lua_atpanic(L, mx_luaapi_panic_message);
+    return L;
 }
 
 unsigned luaL_makeseed(lua_State *L) {
@@ -2034,44 +2284,74 @@ char *luaL_buffinitsize(lua_State *L, luaL_Buffer *B, size_t sz) {
 }
 
 int luaopen_base(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_GNAME);
+    mx_std_state_t *ls = (mx_std_state_t *)L;
+    mx_t *vm = ls->vm;
+    mx_lua_t *lua = mx_lua_of(vm);
+    mx_obj_table_t *g = mx_obj_get_table(lua->std);
+    mx_obj_table_t *base = mx_obj_get_table(mx_table_get(mx_obj_get_table(lua->libs), mx_obj_intern(vm, LUA_GNAME)));
+    mx_obj_t pair[2];
+    mx_table_step_t step = mx_table_next_into(vm, base, mx_obj_of_nil(), pair);
+    while (step == MX_TABLE_STEP_PAIR) {
+        mx_table_set(vm, g, pair[0], pair[1]);
+        step = mx_table_next_into(vm, base, pair[0], pair);
+    }
+    mx_table_set(vm, g, mx_obj_intern(vm, LUA_GNAME), lua->std);
+    mx_std_push(ls, lua->std);
+    mx_luaapi_check(ls);
+    return 1;
 }
 
 int luaopen_package(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_LOADLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_LOADLIBNAME);
 }
 
 int luaopen_coroutine(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_COLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_COLIBNAME);
 }
 
 int luaopen_debug(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_DBLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_DBLIBNAME);
 }
 
 int luaopen_io(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_IOLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_IOLIBNAME);
 }
 
 int luaopen_math(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_MATHLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_MATHLIBNAME);
 }
 
 int luaopen_os(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_OSLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_OSLIBNAME);
 }
 
 int luaopen_string(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_STRLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_STRLIBNAME);
 }
 
 int luaopen_table(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_TABLIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_TABLIBNAME);
 }
 
 int luaopen_utf8(lua_State *L) {
-    return mx_luaapi_open_loaded((mx_std_state_t *)L, LUA_UTF8LIBNAME);
+    return mx_luaapi_open_lib((mx_std_state_t *)L, LUA_UTF8LIBNAME);
 }
 
 void luaL_openselectedlibs(lua_State *L, int load, int preload) {
+    const lua_CFunction opens[] = {
+        luaopen_base, luaopen_package, luaopen_coroutine, luaopen_debug, luaopen_io,
+        luaopen_math, luaopen_os, luaopen_string, luaopen_table, luaopen_utf8,
+    };
+    for (int32_t i = 0; mx_std_lib_names[i] != NULL; i++) {
+        int32_t mask = 1 << i;
+        if ((load & mask) != 0) {
+            luaL_requiref(L, mx_std_lib_names[i], opens[i], 1);
+            lua_settop(L, -2);
+        } else if ((preload & mask) != 0) {
+            luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
+            lua_pushcclosure(L, opens[i], 0);
+            lua_setfield(L, -2, mx_std_lib_names[i]);
+            lua_settop(L, -2);
+        }
+    }
 }

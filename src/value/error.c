@@ -137,6 +137,7 @@ mx_error_t *mx_error_new(mx_t *vm, mx_obj_t payload) {
         .is_raw = false,
         .is_handled = false,
         .is_hint_inline = false,
+        .is_in_handler = false,
         .payload = payload.val,
     };
     return err;
@@ -225,6 +226,7 @@ void mx_error_locate(mx_t *vm, mx_error_t *err, const mx_location_range_t *range
             mx_str_append(msg, "')", 2);
         }
         mx_str_append(msg, raw->buf + split, raw->len - split);
+        mx_gc_write_barrier(vm, err, mx_obj_of_string(msg));
         err->payload_kind = MX_KIND_STRING;
         err->payload = mx_obj_of_string(msg).val;
         err->is_raw = false;

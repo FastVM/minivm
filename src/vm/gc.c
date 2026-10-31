@@ -25,7 +25,7 @@ mx_gc_t *mx_gc_new(void) {
             [MX_GC_PARAM_MINORMAJOR] = 68,
         },
         .mark_value = 1,
-        .is_generational = true,
+        .is_generational = !MX_GC_INCREMENTAL,
     };
     return gc;
 }
@@ -586,13 +586,22 @@ bool mx_gc_card_test(const uint8_t *cards, mx_gc_block_t *b, void *ptr) {
 
 void mx_gc_write_barrier_slow(mx_t *vm, void *container) {
     mx_gc_t *gc = vm->gc;
-    uintptr_t base = (uintptr_t)container & ~(MX_GC_BLOCK_SIZE - 1);
-    if (base == gc->dirty.last_base) {
-        mx_gc_card_set((mx_gc_block_t *)base, container);
-    } else if (mx_gc_block_owned(gc, container)) {
-        mx_gc_card_set((mx_gc_block_t *)base, container);
-        mx_gc_dirty_block(gc, (mx_gc_block_t *)base);
-        gc->dirty.last_base = base;
+    mx_obj_head_t *ch = container;
+    if (ch->is_black) {
+        ch->is_black = false;
+        if (gc->is_marking && ch->mark == gc->mark_value) {
+            mx_gc_gray_push(gc, ch);
+        }
+    }
+    if (ch->is_old) {
+        uintptr_t base = (uintptr_t)container & ~(MX_GC_BLOCK_SIZE - 1);
+        if (base == gc->dirty.last_base) {
+            mx_gc_card_set((mx_gc_block_t *)base, container);
+        } else if (mx_gc_block_owned(gc, container)) {
+            mx_gc_card_set((mx_gc_block_t *)base, container);
+            mx_gc_dirty_block(gc, (mx_gc_block_t *)base);
+            gc->dirty.last_base = base;
+        }
     }
 }
 
@@ -721,9 +730,23 @@ size_t mx_gc_budget(const mx_gc_t *gc, size_t live_bytes) {
 bool mx_gc_step(mx_t *vm, size_t kilobytes) {
     mx_gc_t *gc = vm->gc;
     gc->cycle.bytes_since_gc += kilobytes * 1024;
-    if (kilobytes == 0 || mx_gc_over_budget(gc)) {
+    if (gc->is_generational && (kilobytes == 0 || mx_gc_over_budget(gc))) {
         mx_gc_collect(vm);
-        return !gc->is_generational;
+        return false;
+    } else if (gc->is_generational) {
+        return false;
+    } else if (!gc->is_marking) {
+        mx_gc_mark_start(vm);
+    }
+    size_t budget;
+    if (kilobytes == 0) {
+        budget = mx_gc_step_budget(gc);
+    } else {
+        budget = kilobytes * 1024;
+    }
+    if (mx_gc_mark_step(gc, budget)) {
+        mx_gc_mark_atomic(vm);
+        return true;
     } else {
         return false;
     }
@@ -917,6 +940,37 @@ void mx_gc_note_ident_key(mx_t *vm, void *obj) {
     }
 }
 
+void *mx_gc_address(mx_t *vm, mx_obj_t v) {
+    void *ptr = mx_ref_obj(v.val.ref);
+    if (v.kind == MX_KIND_CLOSURE || v.kind >= MX_KIND_FIRST_DATA) {
+        mx_gc_note_ident_key(vm, ptr);
+    }
+    return ptr;
+}
+
+void mx_gc_ident_keys_prune(mx_gc_t *gc) {
+    if (gc->ident_keys.len == 0) {
+        return;
+    }
+    size_t cap = gc->ident_keys.cap;
+    uintptr_t *old = gc->ident_keys.ptr;
+    gc->ident_keys.ptr = mx_mem_calloc(sizeof(uintptr_t) * cap);
+    gc->ident_keys.len = 0;
+    gc->ident_keys.last = 0;
+    for (size_t i = 0; i < cap; i++) {
+        mx_obj_head_t *head = (mx_obj_head_t *)old[i];
+        if (head != NULL && mx_gc_block_owned(gc, head) && head->mark == gc->mark_value) {
+            size_t at = mx_gc_ident_key_slot(gc, old[i]);
+            while (gc->ident_keys.ptr[at] != 0) {
+                at = (at + 1) & (cap - 1);
+            }
+            gc->ident_keys.ptr[at] = old[i];
+            gc->ident_keys.len += 1;
+        }
+    }
+    mx_mem_free(old);
+}
+
 void *mx_gc_maybe_evacuate(mx_t *vm, mx_gc_t *gc, void *obj) {
     if (!gc->is_evacuating || !mx_gc_block_owned(gc, obj)) {
         return obj;
@@ -971,7 +1025,7 @@ void mx_gc_promote_block(mx_gc_t *gc, mx_obj_head_t *head, mx_gc_block_t *block)
         }
     } else if (head->age < MX_GC_TENURE_AGE) {
         head->age += 1;
-    } else {
+    } else if (gc->is_generational) {
         head->is_old = true;
         if (block != NULL) {
             block->is_old = true;
@@ -1034,7 +1088,7 @@ void mx_gc_mark_obj(mx_gc_t *gc, mx_obj_head_t *head) {
                 block->is_old = true;
             } else if (head->age < MX_GC_TENURE_AGE) {
                 head->age += 1;
-            } else if (!((mx_str_t *)head)->is_rope) {
+            } else if (gc->is_generational && !((mx_str_t *)head)->is_rope) {
                 head->is_old = true;
                 block->is_old = true;
                 gc->cycle.promoted_bytes += size + mx_gc_obj_payload_size(head);
@@ -1819,8 +1873,9 @@ bool mx_gc_retire_obj_starts(mx_gc_t *gc, mx_gc_block_t *block, size_t line) {
                 mx_gc_finalize(gc->vm, head);
             }
             keep &= ~((uint32_t)1 << k);
-        } else if (!head->is_old) {
-            has_young = true;
+        } else {
+            head->is_black = false;
+            has_young = has_young || !head->is_old;
         }
     }
     block->starts[line] = (uint16_t)keep;
@@ -1954,6 +2009,7 @@ void mx_gc_sweep_large(mx_gc_t *gc) {
         mx_gc_large_t *next = lg->next;
         mx_obj_head_t *payload = (mx_obj_head_t *)((uint8_t *)lg + header);
         if (lg->mark == gc->mark_value || (gc->is_minor && payload->is_old)) {
+            payload->is_black = false;
             prev = &lg->next;
         } else {
             *prev = next;
@@ -2075,48 +2131,110 @@ void mx_gc_verify(mx_t *vm) {
     }
 }
 
-bool mx_gc_collect(mx_t *vm) {
-    mx_gc_t *gc = vm->gc;
-    memset(vm->str_cache, 0, sizeof(vm->str_cache));
-    size_t old_live;
-    if (gc->cycle.old_live_after_major < MX_GC_INITIAL_THRESHOLD) {
-        old_live = MX_GC_INITIAL_THRESHOLD;
-    } else {
-        old_live = gc->cycle.old_live_after_major;
+void mx_gc_prepare_major(mx_gc_t *gc, bool is_incremental) {
+    gc->cycle.blocks_after_major = gc->blocks.count;
+    for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
+        b->is_old = false;
+        b->is_dirty = false;
+        b->old_head = NULL;
+        memset(b->card, 0, sizeof(b->card));
+        memset(b->old_only, 0, sizeof(b->old_only));
     }
-    size_t grow_limit = old_live / 100 * gc->params[MX_GC_PARAM_MINORMAJOR];
-    bool need_major = !MX_GC_MINOR_ENABLED
-        || gc->is_major_forced
-        || !gc->is_generational
-        || gc->is_major_mode
-        || gc->cycle.promoted_bytes > grow_limit
-        || gc->cycle.minors_since_major >= MX_GC_MINORS_PER_MAJOR
-        || gc->cycle.old_live_after_major == 0
-        || gc->blocks.count > gc->cycle.blocks_after_major * gc->cycle.major_growth_factor + 64;
-    gc->is_major_forced = false;
-    gc->is_minor = !need_major;
-    if (need_major) {
-        gc->cycle.blocks_after_major = gc->blocks.count;
-        for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
-            b->is_old = false;
-            b->is_dirty = false;
-            b->old_head = NULL;
-            memset(b->card, 0, sizeof(b->card));
-            memset(b->old_only, 0, sizeof(b->old_only));
-        }
-        gc->dirty.len = 0;
-        gc->dirty.last_base = 0;
+    gc->dirty.len = 0;
+    gc->dirty.last_base = 0;
+    uint8_t released;
+    if (is_incremental) {
+        gc->is_evacuating = false;
+        released = MX_GC_MARK_STALE;
+    } else {
         mx_gc_select_evac(gc);
-        for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
-            for (size_t i = MX_GC_BLOCK_HEADER_LINES; i < MX_GC_LINES_PER_BLOCK; i++) {
-                if (b->line_mark[i] == MX_GC_MARK_OLD) {
-                    b->line_mark[i] = 0;
-                }
+        released = 0;
+    }
+    for (mx_gc_block_t *b = gc->blocks.live; b != NULL; b = b->next) {
+        for (size_t i = MX_GC_BLOCK_HEADER_LINES; i < MX_GC_LINES_PER_BLOCK; i++) {
+            if (b->line_mark[i] == MX_GC_MARK_OLD) {
+                b->line_mark[i] = released;
             }
         }
-    } else {
-        gc->is_evacuating = false;
     }
+}
+
+void mx_gc_abort_marking(mx_gc_t *gc) {
+    if (gc->is_marking) {
+        gc->is_marking = false;
+        gc->gray.len = 0;
+        gc->is_major_forced = true;
+    }
+}
+
+void mx_gc_mark_start(mx_t *vm) {
+    mx_gc_t *gc = vm->gc;
+    gc->is_minor = false;
+    gc->is_major_forced = false;
+    mx_gc_prepare_major(gc, true);
+    mx_gc_next_mark(gc);
+    gc->is_marking = true;
+    gc->is_tracing = true;
+    mx_gc_mark_roots(vm);
+    gc->is_tracing = false;
+}
+
+bool mx_gc_mark_step(mx_gc_t *gc, size_t budget) {
+    size_t work = 0;
+    gc->is_tracing = true;
+    while (gc->gray.len > 0 && work < budget) {
+        gc->gray.len -= 1;
+        mx_obj_head_t *head = gc->gray.ptr[gc->gray.len];
+        if (head->kind != gc->vm->kinds.thread) {
+            head->is_black = true;
+        }
+        mx_gc_scan_obj(gc, head, false);
+        work += mx_gc_obj_size(gc->vm, head) + mx_gc_obj_payload_size(head);
+    }
+    gc->is_tracing = false;
+    return gc->gray.len == 0;
+}
+
+bool mx_gc_mark_atomic(mx_t *vm) {
+    mx_gc_t *gc = vm->gc;
+    gc->is_marking = false;
+    memset(vm->str_cache, 0, sizeof(vm->str_cache));
+    mx_gc_drain(gc);
+    for (size_t i = 0; i < gc->threads.len; i++) {
+        mx_thread_t *th = gc->threads.ptr[i];
+        if (th->head.mark == gc->mark_value) {
+            mx_gc_scan_obj(gc, &th->head, false);
+            mx_gc_drain(gc);
+        }
+    }
+    mx_gc_mark_roots(vm);
+    return mx_gc_finish(vm);
+}
+
+size_t mx_gc_step_budget(const mx_gc_t *gc) {
+    if (MX_GC_STRESS) {
+        return 64;
+    } else {
+        return (size_t)gc->params[MX_GC_PARAM_STEPSIZE] * gc->params[MX_GC_PARAM_STEPMUL] / 100;
+    }
+}
+
+bool mx_gc_tick(mx_t *vm) {
+    mx_gc_t *gc = vm->gc;
+    if (gc->is_generational || gc->is_major_forced) {
+        return mx_gc_collect(vm);
+    } else if (!gc->is_marking) {
+        mx_gc_mark_start(vm);
+    }
+    if (mx_gc_mark_step(gc, mx_gc_step_budget(gc))) {
+        return mx_gc_mark_atomic(vm);
+    }
+    gc->cycle.threshold = gc->cycle.bytes_since_gc + gc->params[MX_GC_PARAM_STEPSIZE];
+    vm->gc_pending = 0;
+    return false;
+}
+
+void mx_gc_next_mark(mx_gc_t *gc) {
     gc->evac = (mx_gc_bump_t) {
         .cursor = NULL,
         .limit = NULL,
@@ -2153,7 +2271,41 @@ bool mx_gc_collect(mx_t *vm) {
     if (gc->block_index.is_dirty) {
         mx_gc_block_index_rebuild(gc);
     }
+}
+
+bool mx_gc_collect(mx_t *vm) {
+    mx_gc_t *gc = vm->gc;
+    mx_gc_abort_marking(gc);
+    memset(vm->str_cache, 0, sizeof(vm->str_cache));
+    size_t old_live;
+    if (gc->cycle.old_live_after_major < MX_GC_INITIAL_THRESHOLD) {
+        old_live = MX_GC_INITIAL_THRESHOLD;
+    } else {
+        old_live = gc->cycle.old_live_after_major;
+    }
+    size_t grow_limit = old_live / 100 * gc->params[MX_GC_PARAM_MINORMAJOR];
+    bool need_major = !MX_GC_MINOR_ENABLED
+        || gc->is_major_forced
+        || !gc->is_generational
+        || gc->is_major_mode
+        || gc->cycle.promoted_bytes > grow_limit
+        || gc->cycle.minors_since_major >= MX_GC_MINORS_PER_MAJOR
+        || gc->cycle.old_live_after_major == 0
+        || gc->blocks.count > gc->cycle.blocks_after_major * gc->cycle.major_growth_factor + 64;
+    gc->is_major_forced = false;
+    gc->is_minor = !need_major;
+    if (need_major) {
+        mx_gc_prepare_major(gc, false);
+    } else {
+        gc->is_evacuating = false;
+    }
+    mx_gc_next_mark(gc);
     mx_gc_mark_roots(vm);
+    return mx_gc_finish(vm);
+}
+
+bool mx_gc_finish(mx_t *vm) {
+    mx_gc_t *gc = vm->gc;
     while (mx_gc_ephemeron_pass(gc)) {
     }
     mx_gc_finalizers_separate(gc);
@@ -2164,6 +2316,7 @@ bool mx_gc_collect(mx_t *vm) {
     mx_gc_threads_sweep(gc);
     if (!gc->is_minor) {
         mx_gc_interns_sweep(vm, gc);
+        mx_gc_ident_keys_prune(gc);
     }
     mx_gc_sweep(gc);
     if (gc->cycle.live_line_bytes > gc->evac_bytes) {

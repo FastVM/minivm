@@ -102,7 +102,7 @@ void mx_meta_render(mx_t *vm, mx_str_t *buf, mx_obj_t v) {
     } else if (mx_obj_is_ffi(v)) {
         mx_str_format(buf, "builtin: %p", mx_ref_obj(v.val.ref));
     } else {
-        mx_str_format(buf, "%s: %p", mx_meta_typename(vm, v), mx_ref_obj(v.val.ref));
+        mx_str_format(buf, "%s: %p", mx_meta_typename(vm, v), mx_gc_address(vm, v));
     }
 }
 
@@ -189,21 +189,21 @@ mx_obj_t mx_meta_arith_core(mx_t *vm, mx_op_t op, mx_obj_t a, mx_obj_t b) {
     switch (op) {
         case MX_OP_ADD: {
             if (ints) {
-                return mx_obj_of_int(mx_obj_get_int(a) + mx_obj_get_int(b));
+                return mx_obj_of_int(mx_num_add(mx_obj_get_int(a), mx_obj_get_int(b)));
             } else {
                 return mx_obj_of_number(mx_obj_get_number(a) + mx_obj_get_number(b));
             }
         }
         case MX_OP_SUB: {
             if (ints) {
-                return mx_obj_of_int(mx_obj_get_int(a) - mx_obj_get_int(b));
+                return mx_obj_of_int(mx_num_sub(mx_obj_get_int(a), mx_obj_get_int(b)));
             } else {
                 return mx_obj_of_number(mx_obj_get_number(a) - mx_obj_get_number(b));
             }
         }
         case MX_OP_MUL: {
             if (ints) {
-                return mx_obj_of_int(mx_obj_get_int(a) * mx_obj_get_int(b));
+                return mx_obj_of_int(mx_num_mul(mx_obj_get_int(a), mx_obj_get_int(b)));
             } else {
                 return mx_obj_of_number(mx_obj_get_number(a) * mx_obj_get_number(b));
             }
@@ -511,7 +511,7 @@ void mx_meta_op_unm(mx_t *vm, size_t nargs, mx_obj_t *args) {
     mx_obj_t v = args[0];
     mx_obj_num_t num = mx_meta_coerce_num(vm, v);
     if (num.is_num && mx_obj_is_int(num.value)) {
-        mx_meta_result(vm, mx_obj_of_int(-mx_obj_get_int(num.value)));
+        mx_meta_result(vm, mx_obj_of_int(mx_num_neg(mx_obj_get_int(num.value))));
         return;
     } else if (num.is_num) {
         mx_meta_result(vm, mx_obj_of_number(-mx_obj_get_float(num.value)));

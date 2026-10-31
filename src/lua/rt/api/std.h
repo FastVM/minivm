@@ -32,6 +32,7 @@ enum {
     MX_STD_ERR_RUNTIME = 1,
     MX_STD_ERR_MEMORY = 2,
     MX_STD_ERR_TYPE = 3,
+    MX_STD_ERR_HANDLER = 4,
 };
 
 enum {
@@ -194,6 +195,7 @@ extern const mx_std_reg_t mx_std_package_regs[];
 extern const mx_std_reg_t mx_std_load_regs[];
 extern const mx_std_reg_t mx_std_vm_regs[];
 extern const mx_ffi_fast_reg_t mx_std_fasts[];
+extern const char *const mx_std_lib_names[];
 
 void mx_ffi_base_assert(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_error(mx_t *vm, size_t nargs, mx_obj_t *args);
@@ -286,6 +288,8 @@ void mx_ffi_math_round_result(mx_t *vm, mx_obj_t *args, double d);
 
 void mx_ffi_coroutine_wrap_call(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_coroutine_wrap_fn(mx_t *vm, size_t nargs, mx_obj_t *args);
+int32_t mx_std_lib_index(mx_obj_t key);
+void mx_std_libs_snapshot(mx_t *vm);
 void mx_std_lib_open_into(mx_std_state_t *ls, const char *name);
 
 mx_obj_t *mx_std_at(mx_std_state_t *ls, mx_std_slot_t slot);

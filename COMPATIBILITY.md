@@ -36,20 +36,16 @@ To rerun it, build Lua 5.5.1 in `lua/` and its test modules in `lua/testes/libs`
 ## By design
 
 - Binary chunks use MiniVM's own format, so they aren't interchangeable with reference Lua bytecode. `load` rejects truncated and structurally malformed chunks, but like reference Lua it doesn't prove a chunk type-safe, so don't load untrusted binary chunks.
-- `collectgarbage("incremental")` switches to non-generational collection. It doesn't do incremental marking.
+- In incremental mode (`collectgarbage("incremental")`, `lua_gc(L, LUA_GCINC)`) marking runs in steps between which the program keeps running, but sweeping happens all at once at the end of each cycle, and objects are never moved to compact the heap. Full collections (`collectgarbage("collect")`) still compact.
 
 ## C API
 
-C modules built against the Lua 5.5 headers load and run. Errors raised from C (`lua_error`, `luaL_error`, `luaL_check*`) unwind with `longjmp`, as in reference Lua. Threads (`lua_newthread`, `lua_resume`, `lua_tothread`, `lua_closethread`), C debug hooks (`lua_sethook`), warning functions (`lua_setwarnf`, `lua_warning`) and `lua_yield` from a C function work.
+C modules built against the Lua 5.5 headers load and run, and `make lib` builds `build/lib/libminivm.a` for embedding MiniVM in a host program. Errors raised from C (`lua_error`, `luaL_error`, `luaL_check*`) unwind with `longjmp`, as in reference Lua, and an error outside any protected call calls the `lua_atpanic` function and aborts. Threads, C debug hooks, warning functions, `lua_gc` and the host-side functions (`lua_newstate`, `luaL_newstate`, `lua_close`, `luaL_openselectedlibs`) work.
 
-These parts don't:
+These parts differ:
 
-- Continuation functions: `lua_yieldk` with a `k`, and the `k` of `lua_callk` and `lua_pcallk`, which is ignored.
-- Custom allocators: `lua_setallocf` does nothing, and `lua_getallocf` returns the default allocator.
-- `lua_getextraspace` is one block shared by every C call, not one per thread.
-- `lua_pcallk` returns `LUA_ERRRUN` for every error, never `LUA_ERRMEM` or `LUA_ERRERR`.
-- `lua_gc`: `LUA_GCCOLLECT` and `LUA_GCSTEP` only schedule a collection, which runs at the next safepoint rather than before `lua_gc` returns. `LUA_GCGEN` and `LUA_GCINC` always return `LUA_GCGEN`, and `LUA_GCPARAM` returns 0.
-- `lua_getinfo`: `L` pushes `nil` instead of a table of lines, `t` always reports a non-tail call, and `r` always reports zero transferred values.
-- `lua_atpanic` does nothing and returns `NULL`.
-- `luaconf.h` defines only the macros the rest of the headers need, so modules that use others, such as `LUA_MAXUNSIGNED`, `l_mathop` or `lua_getlocaledecpoint`, don't compile.
-- The host side: `lua_newstate` and `luaL_newstate` return `NULL`, and `lua_close` and `luaL_openselectedlibs` do nothing, so MiniVM can't be embedded yet.
+- Continuations: the `k` of `lua_callk` and `lua_pcallk` is used only when the C function runs in a coroutine and the called function is a Lua function. In that case `k` always finishes the C function, with status `LUA_YIELD` even if nothing yielded, so code after the `lua_callk` doesn't run. Elsewhere `k` is ignored and the call returns normally, so a yield inside a C function called that way fails with `attempt to yield across a C-call boundary`. After an error, the continuation of `lua_pcallk` always gets `LUA_ERRRUN`.
+- Custom allocators: `lua_newstate` and `lua_setallocf` record the allocator, and `lua_getallocf` returns it, but MiniVM allocates its own memory with `malloc` and never calls it. Running out of memory ends the process, so `lua_pcallk` never returns `LUA_ERRMEM`.
+- `lua_newstate` ignores its `seed`. The standard libraries exist inside every state even when `luaL_openselectedlibs` leaves them out of the globals, so strings always have their methods.
+- `lua_getextraspace`: a coroutine created from Lua gets its copy of the main thread's block when the C API first uses that coroutine, not when it is created.
+- `lua_getinfo` with `r` always reports zero transferred values.

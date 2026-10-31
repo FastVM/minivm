@@ -1,4 +1,9 @@
 
+#include <float.h>
+#include <locale.h>
+#include <math.h>
+#include <stdio.h>
+
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -164,6 +169,23 @@ static int luaabi_info(lua_State *L) {
     return 3;
 }
 
+static int luaabi_active(lua_State *L) {
+    lua_Debug ar;
+    lua_settop(L, 1);
+    if (!lua_getinfo(L, ">fL", &ar)) {
+        return 0;
+    }
+    int n = 0;
+    lua_pushnil(L);
+    while (lua_next(L, -2)) {
+        n += 1;
+        lua_settop(L, -2);
+    }
+    lua_pushinteger(L, n);
+    lua_pushboolean(L, lua_rawequal(L, 1, -1) == 0 && lua_isfunction(L, -3));
+    return 2;
+}
+
 static int luaabi_globals(lua_State *L) {
     lua_pushglobaltable(L);
     lua_getfield(L, -1, "print");
@@ -180,7 +202,92 @@ static int luaabi_load(lua_State *L) {
     return 2;
 }
 
+static int luaabi_gc(lua_State *L) {
+    int was = lua_gc(L, LUA_GCINC);
+    lua_pushinteger(L, lua_gc(L, LUA_GCGEN));
+    lua_pushinteger(L, lua_gc(L, was));
+    int pause = lua_gc(L, LUA_GCPARAM, LUA_GCPPAUSE, -1);
+    lua_pushinteger(L, pause);
+    lua_pushinteger(L, lua_gc(L, LUA_GCPARAM, LUA_GCPPAUSE, pause + 50));
+    lua_pushinteger(L, lua_gc(L, LUA_GCPARAM, LUA_GCPPAUSE, pause));
+    lua_pushinteger(L, lua_gc(L, LUA_GCCOLLECT));
+    return 6;
+}
+
+static int luaabi_extra(lua_State *L) {
+    lua_Integer *slot = lua_getextraspace(L);
+    lua_pushinteger(L, *slot);
+    *slot = luaL_checkinteger(L, 1);
+    return 1;
+}
+
+static int luaabi_errerr(lua_State *L) {
+    lua_settop(L, 2);
+    lua_pushvalue(L, 1);
+    int status = lua_pcall(L, 0, 0, 2);
+    lua_pushinteger(L, status);
+    lua_insert(L, -2);
+    return 2;
+}
+
+static int luaabi_samefn(lua_State *L) {
+    lua_pushcfunction(L, luaabi_gsub);
+    lua_pushcfunction(L, luaabi_gsub);
+    lua_pushboolean(L, lua_rawequal(L, -1, -2));
+    lua_pushcfunction(L, luaabi_gsub);
+    return 2;
+}
+
+static int luaabi_k_report(lua_State *L, int status, lua_KContext ctx) {
+    int n = lua_gettop(L);
+    lua_pushinteger(L, status);
+    lua_pushinteger(L, (lua_Integer)ctx);
+    return n + 2;
+}
+
+static int luaabi_kyield(lua_State *L) {
+    return lua_yieldk(L, 1, 42, luaabi_k_report);
+}
+
+static int luaabi_kcall(lua_State *L) {
+    int n = lua_gettop(L);
+    lua_pushstring(L, "below");
+    lua_rotate(L, 1, 1);
+    lua_callk(L, n - 1, LUA_MULTRET, 7, luaabi_k_report);
+    return luaabi_k_report(L, LUA_OK, 7);
+}
+
+static int luaabi_kpcall(lua_State *L) {
+    int n = lua_gettop(L);
+    lua_pushstring(L, "below");
+    lua_rotate(L, 1, 1);
+    int status = lua_pcallk(L, n - 1, 1, 0, 9, luaabi_k_report);
+    return luaabi_k_report(L, status, 9);
+}
+
+static int luaabi_conf(lua_State *L) {
+    char buf[64];
+    lua_integer2str(buf, sizeof(buf), LUA_MAXINTEGER);
+    lua_pushstring(L, buf);
+    lua_Integer n = 0;
+    int fits = lua_numbertointeger(l_mathop(floor)(2.5), &n);
+    lua_pushinteger(L, fits ? n : -1);
+    lua_pushboolean(L, LUA_MAXUNSIGNED == (lua_Unsigned)-1 && l_floatatt(MANT_DIG) == 53);
+    char point[2] = {lua_getlocaledecpoint(), '\0'};
+    lua_pushstring(L, point);
+    return 4;
+}
+
 static const luaL_Reg luaabi_lib[] = {
+    {"conf", luaabi_conf},
+    {"kyield", luaabi_kyield},
+    {"kcall", luaabi_kcall},
+    {"kpcall", luaabi_kpcall},
+    {"samefn", luaabi_samefn},
+    {"errerr", luaabi_errerr},
+    {"active", luaabi_active},
+    {"gc", luaabi_gc},
+    {"extra", luaabi_extra},
     {"gsub", luaabi_gsub},
     {"fill", luaabi_fill},
     {"drive", luaabi_drive},

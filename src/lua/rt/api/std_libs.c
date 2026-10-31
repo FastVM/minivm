@@ -34,6 +34,42 @@ const mx_ffi_fast_reg_t mx_std_fasts[] = {
     {NULL, NULL},
 };
 
+const char *const mx_std_lib_names[] = {"_G", "package", "coroutine", "debug", "io", "math", "os", "string", "table", "utf8", NULL};
+
+int32_t mx_std_lib_index(mx_obj_t key) {
+    if (!mx_obj_is_string(key)) {
+        return -1;
+    }
+    const char *name = mx_obj_get_string(key)->buf;
+    for (int32_t i = 0; mx_std_lib_names[i] != NULL; i++) {
+        if (strcmp(name, mx_std_lib_names[i]) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void mx_std_libs_snapshot(mx_t *vm) {
+    mx_lua_t *lua = mx_lua_of(vm);
+    mx_obj_table_t *g = mx_obj_get_table(lua->std);
+    mx_obj_table_t *libs = mx_table_new(vm);
+    mx_obj_table_t *base = mx_table_new(vm);
+    lua->libs = mx_obj_of_table(libs);
+    mx_table_set(vm, libs, mx_obj_intern(vm, "_G"), mx_obj_of_table(base));
+    mx_obj_t pair[2];
+    mx_table_step_t step = mx_table_next_into(vm, g, mx_obj_of_nil(), pair);
+    while (step == MX_TABLE_STEP_PAIR) {
+        mx_obj_t key = pair[0];
+        int32_t at = mx_std_lib_index(key);
+        if (at > 0) {
+            mx_table_set(vm, libs, key, pair[1]);
+        } else if (at < 0) {
+            mx_table_set(vm, base, key, pair[1]);
+        }
+        step = mx_table_next_into(vm, g, key, pair);
+    }
+}
+
 void mx_std_lib_open_into(mx_std_state_t *ls, const char *name) {
     mx_std_getglobal(ls, name);
     if (mx_std_isnil(ls, -1)) {
@@ -105,4 +141,5 @@ void mx_std_setup(mx_t *vm, mx_obj_t globals) {
     mx_table_set(vm, smeta, lua->meta_keys[MX_LUA_META_KEY_UNM], mx_obj_of_ffi(mx_meta_op_unm));
     lua->string_meta = mx_obj_of_table(smeta);
     lua->type_metas[MX_LUA_TYPE_STRING] = lua->string_meta;
+    mx_std_libs_snapshot(vm);
 }

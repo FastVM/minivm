@@ -15,7 +15,7 @@ enum {
 int64_t mx_std_str_relat(int64_t pos, size_t len) {
     if (pos >= 0) {
         return pos;
-    } else if ((uint64_t)(0 - pos) > len) {
+    } else if (0 - (uint64_t)pos > len) {
         return 0;
     } else {
         return (int64_t)len + pos + 1;
@@ -457,7 +457,7 @@ mx_std_fmt_step_t mx_std_fmt_one(mx_std_state_t *ls, mx_std_buf_t *buf, const ch
             mx_obj_t *at = mx_std_at(ls, arg);
             const void *ptr;
             if (at != NULL && (mx_obj_kind(*at) >= MX_KIND_FIRST_DATA || mx_obj_is_string(*at) || mx_obj_is_closure(*at) || mx_obj_is_ffi(*at))) {
-                ptr = mx_ref_obj(at->val.ref);
+                ptr = mx_gc_address(ls->vm, *at);
             } else {
                 ptr = NULL;
             }

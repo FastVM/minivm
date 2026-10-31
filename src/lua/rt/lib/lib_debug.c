@@ -113,6 +113,10 @@ void mx_std_debug_activelines(mx_std_state_t *ls, mx_ir_block_t *head) {
         todo.ptr[i]->is_marked = false;
     }
     mx_mem_free(todo.ptr);
+    if (!head->is_main) {
+        mx_std_pushboolean(ls, true);
+        mx_std_rawseti(ls, -2, mx_source_line(head->func->source, head->func->stop - 1));
+    }
 }
 
 uint32_t mx_std_debug_nups(mx_t *vm, mx_obj_t fn) {
@@ -207,7 +211,7 @@ int32_t mx_std_debug_getinfo(mx_std_state_t *ls) {
         mx_std_setfield(ls, -2, "namewhat");
     }
     if (strchr(what, 't') != NULL) {
-        mx_std_pushboolean(ls, false);
+        mx_std_pushboolean(ls, f.is_valid && f.is_lua && mx_link_is_tail(f.th->slots[f.p].bits));
         mx_std_setfield(ls, -2, "istailcall");
         int64_t extra;
         if (f.is_valid && f.is_lua) {

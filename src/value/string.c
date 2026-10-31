@@ -459,18 +459,16 @@ void mx_str_object_tostring(mx_t *vm, mx_str_t *buf, mx_obj_t value) {
     } else if (mx_obj_is_string(value)) {
         mx_str_t *src = mx_obj_get_string(value);
         mx_str_append(buf, src->buf, src->len);
+    } else if (mx_obj_is_closure(value) && vm != NULL) {
+        mx_str_format(buf, "function: %p", mx_gc_address(vm, value));
     } else if (mx_obj_is_closure(value)) {
         mx_str_format(buf, "function: %p", mx_obj_get_closure(value));
     } else if (mx_obj_is_block(value)) {
         mx_str_format(buf, "code: %p", mx_obj_get_block(value));
+    } else if (mx_obj_is_data(value) && vm != NULL) {
+        mx_str_format(buf, "%s: %p", mx_kind_name(vm, mx_obj_kind(value)), mx_gc_address(vm, value));
     } else if (mx_obj_is_data(value)) {
-        const char *name;
-        if (vm != NULL) {
-            name = mx_kind_name(vm, mx_obj_kind(value));
-        } else {
-            name = "data";
-        }
-        mx_str_format(buf, "%s: %p", name, mx_obj_data_head(value));
+        mx_str_format(buf, "data: %p", mx_obj_data_head(value));
     } else if (mx_obj_is_ffi(value)) {
         mx_str_format(buf, "function: %p", mx_obj_get_ffi(value));
     }

@@ -54,6 +54,7 @@ struct mx_error_t {
     bool is_raw: 1;
     bool is_handled: 1;
     bool is_hint_inline: 1;
+    bool is_in_handler: 1;
     mx_val_t payload;
     void *gc_next;
 };

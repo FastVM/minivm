@@ -46,7 +46,6 @@ struct mx_main_cmd_t {
 
 void mx_main_usage(const char *prog, const mx_main_cmd_t *cmd);
 mx_main_cmd_t mx_main_parse(int32_t argc, char **argv);
-void mx_main_drop_extensions(mx_t *vm);
 void mx_main_report(mx_t *vm, const char *prog, mx_obj_t err);
 void mx_main_msgh(mx_t *vm, size_t nargs, mx_obj_t *args);
 mx_obj_t mx_main_call(mx_t *vm, mx_obj_t fn);

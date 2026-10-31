@@ -103,6 +103,7 @@ void mx_run_cells_write(const mx_resume_t *rec, mx_val_t *base, const mx_kind_t 
 mx_run_found_t mx_run_index_chain(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key);
 mx_run_found_t mx_run_get(mx_t *vm, mx_obj_t t, mx_obj_t key);
 mx_obj_t mx_run_call_handler(mx_t *vm, mx_obj_t fn);
+uintptr_t *mx_run_call_refill(mx_t *vm, mx_obj_t fn, uintptr_t *ic);
 bool mx_run_set_is_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key);
 int32_t mx_run_set_str(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t value);
 mx_obj_t mx_run_set_raw(mx_t *vm, mx_obj_table_t *tbl, mx_obj_t key, mx_obj_t value, uintptr_t *slot);

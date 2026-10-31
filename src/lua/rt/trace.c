@@ -20,7 +20,7 @@ bool mx_trace_is_close_call(const mx_resume_t *site) {
 }
 
 mx_trace_name_t mx_trace_namewhat(const mx_frame_t *f) {
-    if (f->tag != MX_LINK_LUA && f->tag != MX_LINK_C) {
+    if ((f->tag != MX_LINK_LUA && f->tag != MX_LINK_C) || mx_link_is_tail(f->th->slots[f->p].bits)) {
         return (mx_trace_name_t) { .what = NULL, .name = NULL };
     }
     const mx_resume_t *site = (const mx_resume_t *)f->th->slots[f->p + 1].bits;
@@ -135,6 +135,9 @@ void mx_trace_append(mx_t *vm, mx_str_t *out, mx_thread_t *th, uint32_t level) {
         bool is_skipped = n > MX_TRACE_LEVELS_HEAD + MX_TRACE_LEVELS_TAIL && i >= MX_TRACE_LEVELS_HEAD && i < n - MX_TRACE_LEVELS_TAIL;
         if (is_skipped && i == MX_TRACE_LEVELS_HEAD) {
             mx_str_format(out, "\n\t...\t(skipping %u levels)", n - MX_TRACE_LEVELS_HEAD - MX_TRACE_LEVELS_TAIL);
+        } else if (!is_skipped && f.is_valid && mx_link_is_tail(th->slots[f.p].bits)) {
+            mx_trace_line(vm, out, &f);
+            mx_str_format(out, "\n\t(...tail calls...)");
         } else if (!is_skipped && f.is_valid) {
             mx_trace_line(vm, out, &f);
         } else if (!is_skipped) {

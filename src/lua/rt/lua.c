@@ -30,6 +30,21 @@ void mx_lua_set_arg(mx_t *vm, int32_t argc, char **argv, int32_t script) {
     mx_table_set(vm, mx_obj_get_table(lua->std), mx_obj_intern(vm, "arg"), mx_obj_of_table(arg));
 }
 
+void mx_lua_drop_extensions(mx_t *vm) {
+    mx_lua_t *lua = mx_lua_of(vm);
+    mx_obj_table_t *g = mx_obj_get_table(lua->std);
+    mx_obj_table_t *base = mx_obj_get_table(mx_table_get(mx_obj_get_table(lua->libs), mx_obj_intern(vm, "_G")));
+    const char *const globals[] = {"callcc", "callcci", "vm", "unpack"};
+    for (size_t i = 0; i < sizeof(globals) / sizeof(globals[0]); i++) {
+        mx_obj_t key = mx_obj_intern(vm, globals[i]);
+        mx_table_set(vm, g, key, mx_obj_of_nil());
+        mx_table_set(vm, base, key, mx_obj_of_nil());
+    }
+    mx_obj_t tablib = mx_table_get(g, mx_obj_intern(vm, "table"));
+    mx_table_set(vm, mx_obj_get_table(tablib), mx_obj_intern(vm, "keys"), mx_obj_of_nil());
+    mx_table_set(vm, mx_obj_get_table(tablib), mx_obj_intern(vm, "values"), mx_obj_of_nil());
+}
+
 void mx_lua_warning(mx_t *vm, const char *msg, bool tocont) {
     mx_lua_warn_t *w = &mx_lua_of(vm)->warn;
     if (w->fn != NULL) {
@@ -71,6 +86,8 @@ mx_lua_t *mx_lua_open(mx_t *vm, bool is_noenv) {
     mx_gc_add_root(vm, &lua->file_meta);
     mx_gc_add_root(vm, &lua->io_in);
     mx_gc_add_root(vm, &lua->io_out);
+    mx_gc_add_root(vm, &lua->light_cfns);
+    mx_gc_add_root(vm, &lua->libs);
     for (uint32_t i = 0; i < MX_LUA_TYPE_COUNT; i++) {
         mx_gc_add_root(vm, &lua->type_metas[i]);
         mx_gc_add_root(vm, &lua->type_names[i]);
@@ -89,6 +106,10 @@ mx_lua_t *mx_lua_open(mx_t *vm, bool is_noenv) {
     lua->std = mx_obj_of_table(mx_table_new(vm));
     mx_table_set(vm, registry, mx_obj_of_int(2), lua->std);
     mx_table_set(vm, registry, mx_obj_of_int(3), mx_obj_of_thread(vm->main));
+    mx_obj_table_t *light_cfns = mx_table_new(vm);
+    light_cfns->meta = mx_table_new(vm);
+    mx_table_set(vm, light_cfns->meta, lua->meta_keys[MX_LUA_META_KEY_MODE], mx_obj_intern(vm, "v"));
+    lua->light_cfns = mx_obj_of_table(light_cfns);
     if (is_noenv) {
         mx_table_set(vm, registry, mx_obj_intern(vm, "LUA_NOENV"), mx_obj_of_boolean(true));
     }

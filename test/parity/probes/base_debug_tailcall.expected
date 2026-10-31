@@ -1,0 +1,11 @@
+true	false
+false	false
+false
+base_debug_tailcall.lua:21: boom
+stack traceback:
+	[C]: in global 'error'
+	base_debug_tailcall.lua:21: in function <base_debug_tailcall.lua:20>
+	(...tail calls...)
+	[C]: in global 'xpcall'
+	base_debug_tailcall.lua:28: in main chunk
+	[C]: in ?

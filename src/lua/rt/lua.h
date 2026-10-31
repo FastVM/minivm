@@ -57,6 +57,7 @@ typedef struct mx_rand_t mx_rand_t;
 typedef struct mx_lua_foreign_t mx_lua_foreign_t;
 typedef struct mx_lua_warn_t mx_lua_warn_t;
 typedef void mx_lua_warnf_t(void *ud, const char *msg, int32_t tocont);
+typedef void *mx_lua_allocf_t(void *ud, void *ptr, size_t osize, size_t nsize);
 
 struct mx_lua_warn_t {
     mx_lua_warnf_t *fn;
@@ -68,7 +69,6 @@ struct mx_lua_warn_t {
 struct mx_lua_foreign_t {
     jmp_buf *jmp;
     mx_std_state_t *ls;
-    void *extra;
 };
 
 struct mx_rand_t {
@@ -101,6 +101,11 @@ struct mx_lua_t {
     mx_obj_t file_meta;
     mx_obj_t io_in;
     mx_obj_t io_out;
+    mx_obj_t light_cfns;
+    mx_obj_t libs;
+    mx_std_fn_t *panic;
+    mx_lua_allocf_t *allocf;
+    void *alloc_ud;
     mx_lua_hook_t hook;
     mx_lua_foreign_t foreign;
     mx_lua_warn_t warn;
@@ -118,6 +123,7 @@ static inline mx_lua_t *mx_lua_of(mx_t *vm) {
 mx_lua_t *mx_lua_open(mx_t *vm, bool is_noenv);
 void mx_lua_close(mx_t *vm);
 void mx_lua_set_arg(mx_t *vm, int32_t argc, char **argv, int32_t script);
+void mx_lua_drop_extensions(mx_t *vm);
 void mx_lua_warning(mx_t *vm, const char *msg, bool tocont);
 
 #endif

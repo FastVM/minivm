@@ -640,6 +640,8 @@ void mx_std_open_package(mx_std_state_t *ls) {
     }
     mx_std_setfield(ls, -2, "searchers");
     mx_std_newtable(ls);
+    mx_std_pushvalue(ls, -1);
+    mx_std_setfield(ls, MX_STD_REGISTRYINDEX, "_PRELOAD");
     mx_std_setfield(ls, -2, "preload");
     mx_std_package_setpath(ls, "path", "LUA_PATH", "/usr/local/share/lua/5.5/?.lua;/usr/local/share/lua/5.5/?/init.lua;/usr/local/lib/lua/5.5/?.lua;/usr/local/lib/lua/5.5/?/init.lua;./?.lua;./?/init.lua");
     mx_std_package_setpath(ls, "cpath", "LUA_CPATH", "/usr/local/lib/lua/5.5/?.so;/usr/local/lib/lua/5.5/loadall.so;./?.so");

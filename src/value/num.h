@@ -10,6 +10,22 @@
 
 double mx_num_fmod(double a, double b);
 
+static inline int64_t mx_num_add(int64_t a, int64_t b) {
+    return (int64_t)((uint64_t)a + (uint64_t)b);
+}
+
+static inline int64_t mx_num_sub(int64_t a, int64_t b) {
+    return (int64_t)((uint64_t)a - (uint64_t)b);
+}
+
+static inline int64_t mx_num_mul(int64_t a, int64_t b) {
+    return (int64_t)((uint64_t)a * (uint64_t)b);
+}
+
+static inline int64_t mx_num_neg(int64_t a) {
+    return (int64_t)(0 - (uint64_t)a);
+}
+
 static inline int64_t mx_num_idiv(int64_t a, int64_t b) {
     if (b == -1) {
         return (int64_t)(0 - (uint64_t)a);

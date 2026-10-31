@@ -755,7 +755,11 @@ mx_std_status_t mx_std_pcall(mx_std_state_t *ls, mx_std_slot_t nargs, mx_std_slo
     mx_std_sync(ls);
     mx_obj_t *slots = mx_std_slots(ls);
     mx_obj_t got = mx_pcall(ls->vm, slots[fn_slot], (uint32_t)nargs, slots + fn_slot + 1, handler);
-    if (mx_obj_is_error(got)) {
+    if (mx_obj_is_error(got) && mx_obj_get_error(got)->is_in_handler) {
+        ls->top = fn_slot;
+        mx_std_push(ls, mx_error_payload(got));
+        return MX_STD_ERR_HANDLER;
+    } else if (mx_obj_is_error(got)) {
         ls->top = fn_slot;
         mx_std_push(ls, mx_error_payload(got));
         return MX_STD_ERR_RUNTIME;

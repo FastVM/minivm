@@ -26,6 +26,8 @@ enum {
     MX_LINK_PROTECT_C,
     MX_LINK_PROTECT_MSGH_C,
     MX_LINK_BOTTOM_C,
+    MX_LINK_K,
+    MX_LINK_K_PROTECT,
 };
 
 typedef uint8_t mx_thread_status_t;
@@ -84,7 +86,15 @@ static inline uintptr_t mx_link_with_extra(uintptr_t link, uint32_t extra) {
 }
 
 static inline uint32_t mx_link_extra(uintptr_t link) {
-    return (uint32_t)(link >> 40);
+    return (uint32_t)(link >> 40) & 0x7fffff;
+}
+
+static inline uintptr_t mx_link_with_tail(uintptr_t link) {
+    return mx_link_with_extra(link, (uint32_t)1 << 23);
+}
+
+static inline bool mx_link_is_tail(uintptr_t link) {
+    return (link >> 63) != 0;
 }
 
 static inline bool mx_link_has_aux(mx_link_tag_t tag) {
