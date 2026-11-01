@@ -849,8 +849,20 @@ void mx_ffi_string_gsub(mx_t *vm, size_t nargs, mx_obj_t *args) {
     mx_std_dispatch(vm, mx_std_string_gsub, "gsub", args, (int32_t)nargs);
 }
 
+bool mx_ffi_string_len_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (nargs >= 1 && args[0].kind == MX_KIND_STRING) {
+        args[0] = mx_obj_of_int((int64_t)mx_obj_get_string_raw(args[0])->len);
+        vm->rets.len = 1;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void mx_ffi_string_len(mx_t *vm, size_t nargs, mx_obj_t *args) {
-    mx_std_dispatch(vm, mx_std_string_len, "len", args, (int32_t)nargs);
+    if (!mx_ffi_string_len_fast(vm, nargs, args)) {
+        mx_std_dispatch(vm, mx_std_string_len, "len", args, (int32_t)nargs);
+    }
 }
 
 void mx_ffi_string_lower(mx_t *vm, size_t nargs, mx_obj_t *args) {

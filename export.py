@@ -3,7 +3,9 @@ import glob
 
 srcs = []
 
-srcs.extend(glob.glob('src/**/*.c', recursive=True))
+srcs.extend(glob.glob('makefile', recursive=True))
+# srcs.extend(glob.glob('test/bench/**.lua', recursive=True))
+srcs.extend(glob.glob('src/**/*.h', recursive=True))
 srcs.extend(glob.glob('src/**/*.h', recursive=True))
 
 srcs.sort()

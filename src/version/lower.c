@@ -678,6 +678,12 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
                 mx_lower_arg(l, in->args[2]);
                 mx_lower_word(l, UINTPTR_MAX);
                 break;
+            } else if (is_fresh && mx_obj_is_int(k.lit)) {
+                mx_lower_hop(l, MX_HOP_TABLE_INIT_IK);
+                mx_lower_word(l, (uintptr_t)t.reg);
+                mx_lower_arg(l, k);
+                mx_lower_arg(l, in->args[2]);
+                break;
             } else if (is_fresh) {
                 mx_lower_hop(l, MX_HOP_TABLE_INIT);
                 mx_lower_word(l, (uintptr_t)t.reg);
@@ -686,10 +692,19 @@ void mx_lower_instr(mx_lower_t *l, mx_ir_instr_t *in) {
                 break;
             }
             memset(l->fresh, 0, sizeof(bool) * l->nregs);
-            if (t.type == MX_IR_ARG_TYPE_REG && mx_lower_kind(l, t) == l->vm->kinds.table && k.type == MX_IR_ARG_TYPE_LIT && mx_obj_is_string(k.lit)) {
+            bool is_table = t.type == MX_IR_ARG_TYPE_REG && mx_lower_kind(l, t) == l->vm->kinds.table;
+            if (is_table && k.type == MX_IR_ARG_TYPE_LIT && mx_obj_is_string(k.lit)) {
                 mx_lower_hop(l, MX_HOP_TABLE_SET_SK);
                 mx_lower_word(l, (uintptr_t)t.reg);
                 mx_lower_word(l, (uintptr_t)k.lit.val.bits);
+            } else if (is_table && mx_lower_kind(l, k) == MX_KIND_INT) {
+                if (k.type == MX_IR_ARG_TYPE_REG) {
+                    mx_lower_hop(l, MX_HOP_TABLE_SET_IR);
+                } else {
+                    mx_lower_hop(l, MX_HOP_TABLE_SET_IK);
+                }
+                mx_lower_word(l, (uintptr_t)t.reg);
+                mx_lower_word(l, mx_lower_value(k));
             } else {
                 mx_lower_hop(l, MX_HOP_TABLE_SET);
                 mx_lower_arg(l, t);
@@ -1027,11 +1042,15 @@ void mx_lower_table_get(mx_lower_t *l, mx_ir_branch_t *br, mx_ir_arg_t *args) {
         mx_lower_word(l, UINTPTR_MAX);
         mx_lower_word(l, tk);
         mx_lower_hot(l);
-    } else if (is_table && args[1].type == MX_IR_ARG_TYPE_REG && kk == MX_KIND_INT) {
-        mx_lower_hop(l, MX_HOP_TABLE_GET_IR);
+    } else if (is_table && kk == MX_KIND_INT) {
+        if (args[1].type == MX_IR_ARG_TYPE_REG) {
+            mx_lower_hop(l, MX_HOP_TABLE_GET_IR);
+        } else {
+            mx_lower_hop(l, MX_HOP_TABLE_GET_IK);
+        }
         mx_lower_word(l, (uintptr_t)br->out.reg);
         mx_lower_word(l, (uintptr_t)args[0].reg);
-        mx_lower_word(l, (uintptr_t)args[1].reg);
+        mx_lower_word(l, mx_lower_value(args[1]));
         mx_lower_rec_word(l, rec);
         mx_lower_hot(l);
     } else {

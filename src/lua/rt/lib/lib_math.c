@@ -405,68 +405,113 @@ void mx_ffi_math_round_result(mx_t *vm, mx_obj_t *args, double d) {
     vm->rets.len = 1;
 }
 
-void mx_ffi_math_sqrt(mx_t *vm, size_t nargs, mx_obj_t *args) {
+bool mx_ffi_math_sqrt_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs >= 1 && mx_obj_is_number(args[0])) {
         args[0] = mx_obj_of_number(sqrt(mx_obj_get_number(args[0])));
         vm->rets.len = 1;
+        return true;
     } else {
+        return false;
+    }
+}
+
+void mx_ffi_math_sqrt(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_math_sqrt_fast(vm, nargs, args)) {
         mx_std_dispatch(vm, mx_std_math_sqrt, "sqrt", args, (int32_t)nargs);
     }
 }
 
-void mx_ffi_math_floor(mx_t *vm, size_t nargs, mx_obj_t *args) {
+bool mx_ffi_math_floor_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs >= 1 && mx_obj_is_int(args[0])) {
         vm->rets.len = 1;
+        return true;
     } else if (nargs >= 1 && mx_obj_is_float(args[0])) {
         mx_ffi_math_round_result(vm, args, floor(mx_obj_get_float(args[0])));
+        return true;
     } else {
+        return false;
+    }
+}
+
+void mx_ffi_math_floor(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_math_floor_fast(vm, nargs, args)) {
         mx_std_dispatch(vm, mx_std_math_floor, "floor", args, (int32_t)nargs);
     }
 }
 
-void mx_ffi_math_ceil(mx_t *vm, size_t nargs, mx_obj_t *args) {
+bool mx_ffi_math_ceil_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs >= 1 && mx_obj_is_int(args[0])) {
         vm->rets.len = 1;
+        return true;
     } else if (nargs >= 1 && mx_obj_is_float(args[0])) {
         mx_ffi_math_round_result(vm, args, ceil(mx_obj_get_float(args[0])));
+        return true;
     } else {
+        return false;
+    }
+}
+
+void mx_ffi_math_ceil(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_math_ceil_fast(vm, nargs, args)) {
         mx_std_dispatch(vm, mx_std_math_ceil, "ceil", args, (int32_t)nargs);
     }
 }
 
-void mx_ffi_math_abs(mx_t *vm, size_t nargs, mx_obj_t *args) {
+bool mx_ffi_math_abs_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs >= 1 && mx_obj_is_int(args[0])) {
         int64_t n = mx_obj_get_int(args[0]);
         if (n < 0) {
             args[0] = mx_obj_of_int((int64_t)((uint64_t)0 - (uint64_t)n));
         }
         vm->rets.len = 1;
+        return true;
     } else if (nargs >= 1 && mx_obj_is_float(args[0])) {
         args[0] = mx_obj_of_number(fabs(mx_obj_get_float(args[0])));
         vm->rets.len = 1;
+        return true;
     } else {
+        return false;
+    }
+}
+
+void mx_ffi_math_abs(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_math_abs_fast(vm, nargs, args)) {
         mx_std_dispatch(vm, mx_std_math_abs, "abs", args, (int32_t)nargs);
     }
 }
 
-void mx_ffi_math_max(mx_t *vm, size_t nargs, mx_obj_t *args) {
+bool mx_ffi_math_max_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs == 2 && mx_obj_is_number(args[0]) && mx_obj_is_number(args[1])) {
         if (mx_obj_num_lt(args[0], args[1])) {
             args[0] = args[1];
         }
         vm->rets.len = 1;
+        return true;
     } else {
+        return false;
+    }
+}
+
+void mx_ffi_math_max(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_math_max_fast(vm, nargs, args)) {
         mx_std_dispatch(vm, mx_std_math_max, "max", args, (int32_t)nargs);
     }
 }
 
-void mx_ffi_math_min(mx_t *vm, size_t nargs, mx_obj_t *args) {
+bool mx_ffi_math_min_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs == 2 && mx_obj_is_number(args[0]) && mx_obj_is_number(args[1])) {
         if (mx_obj_num_lt(args[1], args[0])) {
             args[0] = args[1];
         }
         vm->rets.len = 1;
+        return true;
     } else {
+        return false;
+    }
+}
+
+void mx_ffi_math_min(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_math_min_fast(vm, nargs, args)) {
         mx_std_dispatch(vm, mx_std_math_min, "min", args, (int32_t)nargs);
     }
 }

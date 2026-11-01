@@ -395,12 +395,22 @@ bool mx_run_collect(mx_t *vm) {
         MX_NEXT(); \
     } while (0)
 
+#define MX_JUMP(code) \
+    do { \
+        ip = (uintptr_t *)(code); \
+        rb = (mx_version_t *)ip[-1]; \
+        MX_DISPATCH(); \
+    } while (0)
+
 #define MX_BRANCH(cond) \
     do { \
         if (cond) { \
             bc = ip + 3; \
         } else { \
             bc = ip + 4; \
+        } \
+        if (__builtin_expect(*bc != 0, 1)) { \
+            MX_ENTER(*bc); \
         } \
         goto branch; \
     } while (0)
@@ -419,12 +429,12 @@ bool mx_run_collect(mx_t *vm) {
                     d1_hot[0] = d1_v.kind; \
                     d1_hot[1] = d1_rec->cache.code; \
                 } \
-                MX_ENTER(d1_rec->cache.code); \
+                MX_JUMP(d1_rec->cache.code); \
             } \
             uintptr_t *d1_code = mx_run_cache_find(&d1_rec->cache, d1_key); \
             if (d1_code != NULL) { \
                 MX_STAT(deliver_fast); \
-                MX_ENTER(d1_code); \
+                MX_JUMP(d1_code); \
             } \
         } \
         small[0] = d1_v; \
@@ -462,12 +472,12 @@ bool mx_run_collect(mx_t *vm) {
             } \
             if (dr_rec->cache.key == dr_key) { \
                 MX_STAT(deliver_resumed_fast); \
-                MX_ENTER(dr_rec->cache.code); \
+                MX_JUMP(dr_rec->cache.code); \
             } \
             uintptr_t *dr_code = mx_run_cache_find(&dr_rec->cache, dr_key); \
             if (dr_code != NULL) { \
                 MX_STAT(deliver_resumed_fast); \
-                MX_ENTER(dr_code); \
+                MX_JUMP(dr_code); \
             } \
         } \
         drec = dr_rec; \
@@ -549,14 +559,16 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
         [MX_HOP_TABLE_NEW] = &&L_TABLE_NEW,
         [MX_HOP_TABLE_SET] = &&L_TABLE_SET,
         [MX_HOP_TABLE_SET_SK] = &&L_TABLE_SET_SK,
+        [MX_HOP_TABLE_SET_IR] = &&L_TABLE_SET_IR,
+        [MX_HOP_TABLE_SET_IK] = &&L_TABLE_SET_IK,
         [MX_HOP_TABLE_INIT] = &&L_TABLE_INIT,
+        [MX_HOP_TABLE_INIT_IK] = &&L_TABLE_INIT_IK,
         [MX_HOP_TABLE_INIT_SK] = &&L_TABLE_INIT_SK,
         [MX_HOP_CLOSURE] = &&L_CLOSURE,
         [MX_HOP_VARARGS] = &&L_VARARGS,
         [MX_HOP_UNPACK] = &&L_UNPACK,
         [MX_HOP_UPVAL_SET] = &&L_UPVAL_SET,
-        [MX_HOP_UPVAL_GUARD] = &&L_UPVAL_GUARD,
-        [MX_HOP_CLOSE] = &&L_CLOSE,
+        [MX_HOP_UPVAL_GUARD] = &&L_UPVAL_GUARD,        [MX_HOP_CLOSE] = &&L_CLOSE,
         [MX_HOP_HOOK] = &&L_HOOK,
         [MX_HOP_GOTO] = &&L_GOTO,
         [MX_HOP_GOTO_HOT] = &&L_GOTO_HOT,
@@ -597,6 +609,7 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
         [MX_HOP_TABLE_GET] = &&L_TABLE_GET,
         [MX_HOP_TABLE_GET_SK] = &&L_TABLE_GET_SK,
         [MX_HOP_TABLE_GET_IR] = &&L_TABLE_GET_IR,
+        [MX_HOP_TABLE_GET_IK] = &&L_TABLE_GET_IK,
         [MX_HOP_METHOD_GET_SK] = &&L_METHOD_GET_SK,
         [MX_HOP_UPVAL_GET] = &&L_UPVAL_GET,
         [MX_HOP_CELL] = &&L_CELL,
@@ -643,6 +656,7 @@ mx_run_result_t mx_run_body(mx_t *vm, const mx_run_entry_t *entry) {
     const mx_obj_t *sw_vals;
     uint32_t sw_n;
     uint8_t kstatus;
+    int64_t gk;
     mx_run_result_t result;
     if (entry->start == MX_RUN_START_CALL) {
         rb = entry->rb;
@@ -1100,6 +1114,41 @@ L_TABLE_SET: {
     ip += 13;
     goto set;
 }
+L_TABLE_SET_IK: {
+    gk = (int64_t)ip[2];
+    goto table_set_int;
+}
+L_TABLE_SET_IR: {
+    gk = base[ip[2]].i64;
+}
+table_set_int: {
+    mx_obj_table_t *tbl = mx_ref_obj(base[ip[1]].ref);
+    mx_obj_t v = mx_run_arg(ip + 3, base);
+    if (tbl->meta == NULL && v.kind != MX_KIND_NIL) {
+        uint64_t at = (uint64_t)gk - 1;
+        if (at < (uint64_t)tbl->array_len && tbl->array[at].kind != MX_KIND_NIL) {
+            mx_gc_write_barrier_slot(vm, tbl, v);
+            tbl->array[at] = v;
+            ip += 11;
+            MX_DISPATCH();
+        } else if (at == (uint64_t)tbl->array_len && at < (uint64_t)tbl->array_cap && !tbl->has_int_hash) {
+            mx_gc_write_barrier_slot(vm, tbl, v);
+            tbl->array[at] = v;
+            tbl->array_len += 1;
+            if (tbl->len == (uint32_t)at) {
+                tbl->len = tbl->array_len;
+            }
+            ip += 11;
+            MX_DISPATCH();
+        }
+    }
+    st = mx_obj_of_table(tbl);
+    sk = mx_obj_of_int(gk);
+    sv = v;
+    sdesc = &ip[5];
+    ip += 11;
+    goto set;
+}
 L_TABLE_SET_SK: {
     mx_obj_table_t *tbl = mx_ref_obj(base[ip[1]].ref);
     mx_obj_t v = mx_run_arg(ip + 3, base);
@@ -1149,6 +1198,23 @@ L_TABLE_INIT: {
         }
     }
     mx_run_set_raw(vm, tbl, k, v, NULL);
+    ip += 6;
+    MX_DISPATCH();
+}
+L_TABLE_INIT_IK: {
+    mx_obj_table_t *tbl = mx_ref_obj(base[ip[1]].ref);
+    mx_obj_t v = mx_run_arg(ip + 4, base);
+    uint64_t at = (uint64_t)ip[2] - 1;
+    if (v.kind != MX_KIND_NIL && at == (uint64_t)tbl->array_len && at < (uint64_t)tbl->array_cap && !tbl->has_int_hash) {
+        tbl->array[at] = v;
+        tbl->array_len += 1;
+        if (tbl->len == (uint32_t)at) {
+            tbl->len = tbl->array_len;
+        }
+        ip += 6;
+        MX_DISPATCH();
+    }
+    mx_run_set_raw(vm, tbl, mx_obj_of_int((int64_t)ip[2]), v, NULL);
     ip += 6;
     MX_DISPATCH();
 }
@@ -1492,7 +1558,7 @@ L_TABLE_GET_SK: {
         if (!mx_obj_is_nil(v) || tbl->meta == NULL) {
             if ((uintptr_t)v.kind == ip[6]) {
                 base[ip[1]] = v.val;
-                MX_ENTER(ip[7]);
+                MX_JUMP(ip[7]);
             }
             MX_DELIVER1((const mx_resume_t *)ip[4], v, ip + 6);
         }
@@ -1514,15 +1580,22 @@ L_TABLE_GET_SK: {
     mop = MX_OP_GET;
     goto meta;
 }
+L_TABLE_GET_IK: {
+    gk = (int64_t)ip[3];
+    goto table_get_int;
+}
 L_TABLE_GET_IR: {
+    gk = base[ip[3]].i64;
+}
+table_get_int: {
     mx_obj_table_t *tbl = mx_ref_obj(base[ip[2]].ref);
-    int64_t k = base[ip[3]].i64;
+    int64_t k = gk;
     if (tbl->is_plain && (uint64_t)k - 1 < (uint64_t)tbl->array_len) {
         mx_obj_t v = tbl->array[k - 1];
         if (!mx_obj_is_nil(v) || tbl->meta == NULL) {
             if ((uintptr_t)v.kind == ip[5]) {
                 base[ip[1]] = v.val;
-                MX_ENTER(ip[6]);
+                MX_JUMP(ip[6]);
             }
             MX_DELIVER1((const mx_resume_t *)ip[4], v, ip + 5);
         }
@@ -1554,7 +1627,7 @@ L_METHOD_GET_SK: {
             mx_obj_t v = mx_table_entry_val(&tbl->entries[at]);
             if ((uintptr_t)v.kind == ip[7]) {
                 base[ip[1]] = v.val;
-                MX_ENTER(ip[8]);
+                MX_JUMP(ip[8]);
             }
             MX_DELIVER1((const mx_resume_t *)ip[4], v, ip + 7);
         }
@@ -1586,7 +1659,7 @@ L_UPVAL_GET: {
     }
     if ((uintptr_t)v.kind == ip[5]) {
         base[ip[1]] = v.val;
-        MX_ENTER(ip[6]);
+        MX_JUMP(ip[6]);
     }
     MX_DELIVER1((const mx_resume_t *)ip[3], v, ip + 5);
 }
@@ -1697,6 +1770,18 @@ L_CALL_LUA: {
     callee[-1].bits = (uintptr_t)rec;
     callee[0] = fn.val;
     uint32_t np = crb->nparams;
+    if (total == np && !crb->is_vararg) {
+        for (uint32_t i = 0; i < n; i++) {
+            callee[i + 1] = mx_run_arg(argp + 2 * i, base).val;
+        }
+        for (uint32_t i = n; i < np; i++) {
+            callee[i + 1] = vm->rets.vals[i - n].val;
+        }
+        base = callee;
+        rb = crb;
+        ip = code;
+        goto next;
+    }
     for (uint32_t i = 0; i < np; i++) {
         if (i < n) {
             callee[i + 1] = mx_run_arg(argp + 2 * i, base).val;
@@ -1742,7 +1827,12 @@ L_TAILCALL_LUA: {
     } else {
         total = n;
     }
-    mx_obj_t *tmp = mx_vm_tmp_reserve(vm, total);
+    mx_obj_t *tmp;
+    if (total <= MX_RUN_SMALL) {
+        tmp = small;
+    } else {
+        tmp = mx_vm_tmp_reserve(vm, total);
+    }
     for (uint32_t i = 0; i < n; i++) {
         tmp[i] = mx_run_arg(argp + 2 * i, base);
     }
@@ -2016,7 +2106,18 @@ L_RETURN0: {
     goto ret;
 }
 L_RETURN1: {
-    small[0] = mx_run_arg(ip + 1, base);
+    mx_obj_t v = mx_run_arg(ip + 1, base);
+    uintptr_t link = base[-2].bits;
+    const mx_resume_t *rec = (const mx_resume_t *)base[-1].bits;
+    if (mx_link_tag(link) == MX_LINK_LUA && rec->kind == MX_RESUME_VALUES && rec->want == 1 && !rec->has_cell_out) {
+        uintptr_t key = ((uintptr_t)2 << 48) | mx_run_key_flags(vm, true) | v.kind;
+        if (rec->cache.key == key) {
+            base = vm->thread->slots + mx_link_caller(link) + 2;
+            base[rec->out] = v.val;
+            MX_JUMP(rec->cache.code);
+        }
+    }
+    small[0] = v;
     rvals = small;
     rn = 1;
     goto ret;
@@ -2087,9 +2188,6 @@ safepoint: {
 }
 
 branch: {
-    if (__builtin_expect(*bc != 0, 1)) {
-        MX_ENTER(*bc);
-    }
     rb = mx_version_edge(vm, rb->out, rb->nout, (mx_ir_block_t *)bc[-2]);
     *bc = (uintptr_t)rb->code;
     ip = rb->code;
