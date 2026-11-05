@@ -74,7 +74,10 @@ struct mx_version_t {
     uint32_t frame;
     bool is_hooked: 1;
     bool is_vararg: 1;
+    bool is_loop: 1;
+    uint8_t recompiles;
     uint16_t nparams;
+    uint16_t misses;
 };
 
 struct mx_kind_vec_t {

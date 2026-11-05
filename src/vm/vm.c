@@ -3,6 +3,7 @@
 #include "gc.h"
 #include "../ir/ir.h"
 #include "../ir/scratch.h"
+#include "../jit/jit.h"
 #include "../run/run.h"
 #include "../run/thread.h"
 #include "../value/kind.h"
@@ -163,7 +164,8 @@ mx_t *mx_vm_new(void) {
     vm->gc->vm = vm;
     mx_kind_init(vm);
     mx_run_body(vm, &(mx_run_entry_t) { .start = MX_RUN_START_INIT });
-    vm->main = mx_thread_new(vm, mx_obj_of_raw(MX_KIND_NIL, (mx_val_t) { .bits = 0 }));
+    mx_jit_init(vm);
+    vm->main =mx_thread_new(vm, mx_obj_of_raw(MX_KIND_NIL, (mx_val_t) { .bits = 0 }));
     vm->main->status = MX_THREAD_RUNNING;
     vm->thread = vm->main;
     mx_vm_rets_reserve(vm, 1);
@@ -196,6 +198,7 @@ void mx_vm_free(mx_t *vm) {
     mx_mem_free(vm->holds.ptr);
     mx_mem_free(vm->consts.ptr);
     mx_scratch_free(vm);
+    mx_jit_free(vm);
     mx_arena_free(&vm->arenas.scratch);
     mx_arena_free(&vm->arenas.code);
     mx_arena_free(&vm->arenas.ir);

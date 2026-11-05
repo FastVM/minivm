@@ -223,6 +223,7 @@ bool mx_ffi_base_setmetatable_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_tonumber(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_base_tonumber_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_tostring(mx_t *vm, size_t nargs, mx_obj_t *args);
+bool mx_ffi_base_tostring_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 void mx_ffi_base_type(mx_t *vm, size_t nargs, mx_obj_t *args);
 bool mx_ffi_base_type_fast(mx_t *vm, size_t nargs, mx_obj_t *args);
 

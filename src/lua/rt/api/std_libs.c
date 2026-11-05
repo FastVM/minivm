@@ -17,6 +17,7 @@ const mx_ffi_fast_reg_t mx_std_fasts[] = {
     {mx_ffi_base_select, mx_ffi_base_select_fast},
     {mx_ffi_base_rawget, mx_ffi_base_rawget_fast},
     {mx_ffi_base_tonumber, mx_ffi_base_tonumber_fast},
+    {mx_ffi_base_tostring, mx_ffi_base_tostring_fast},
     {mx_ffi_base_pairs, mx_ffi_base_pairs_fast},
     {mx_ffi_base_ipairs, mx_ffi_base_ipairs_fast},
     {mx_ffi_base_setmetatable, mx_ffi_base_setmetatable_fast},

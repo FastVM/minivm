@@ -1281,6 +1281,11 @@ void mx_lower_version(mx_t *vm, mx_version_t *rb) {
             l.types[i] = MX_KIND_NIL;
         }
     }
+    if (vm->jit.mem != NULL) {
+        mx_lower_hop(&l, MX_HOP_ENTRY);
+        mx_lower_word(&l, vm->jit.back);
+        mx_lower_word(&l, 0);
+    }
     while (true) {
         mx_ir_block_t *block = l.block;
         mx_ir_cursor_t cur = {

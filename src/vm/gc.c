@@ -1,6 +1,7 @@
 
 #include "gc.h"
 #include "../ir/ir.h"
+#include "../jit/jit.h"
 #include "../run/thread.h"
 #include "../value/error.h"
 #include "../value/kind.h"
@@ -146,6 +147,22 @@ void mx_gc_stat_dump(mx_t *vm) {
         vm->stats.call_ffi,
         vm->stats.call_fast
     );
+    if (vm->jit.mem != NULL) {
+        fprintf(
+            stderr,
+            "jit: versions=%u hot=%zu cold=%zu enters=%" PRIu64 " exits:",
+            vm->stats.jit_versions,
+            (size_t)(vm->jit.hot - vm->jit.mem),
+            (size_t)(vm->jit.cold - (vm->jit.mem + MX_JIT_COLD_OFFSET)),
+            vm->stats.jit_enters
+        );
+        for (uint32_t hop = 0; hop < 160; hop++) {
+            if (vm->stats.jit_exits[hop] != 0) {
+                fprintf(stderr, " %u=%" PRIu64, hop, vm->stats.jit_exits[hop]);
+            }
+        }
+        fprintf(stderr, "\n");
+    }
     size_t hist[6] = {vm->stats.versions};
     const mx_version_cache_t *top[8] = {NULL};
     for (const mx_version_cache_t *c = vm->version_caches; c != NULL; c = c->next) {

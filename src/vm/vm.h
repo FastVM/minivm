@@ -312,6 +312,75 @@ struct mx_stats_t {
     uint64_t call_lua;
     uint64_t call_ffi;
     uint64_t call_fast;
+    uint32_t jit_versions;
+    uint64_t jit_enters;
+    uint64_t jit_exits[160];
+};
+
+typedef struct mx_jit_t mx_jit_t;
+typedef struct mx_jit_bit_t mx_jit_bit_t;
+typedef struct mx_jit_layout_t mx_jit_layout_t;
+typedef struct mx_jit_exit_t mx_jit_exit_t;
+typedef struct mx_jit_label_t mx_jit_label_t;
+typedef struct mx_jit_pend_t mx_jit_pend_t;
+
+struct mx_jit_exit_t {
+    uintptr_t *ip;
+    mx_val_t *base;
+};
+
+typedef mx_jit_exit_t mx_jit_enter_t(mx_val_t *base, mx_t *vm, uintptr_t target);
+
+struct mx_jit_bit_t {
+    uint32_t off;
+    uint8_t mask;
+};
+
+struct mx_jit_layout_t {
+    mx_jit_bit_t table_plain;
+    mx_jit_bit_t table_size;
+    mx_jit_bit_t table_int_hash;
+    mx_jit_bit_t head_barrier;
+    mx_jit_bit_t rec_cell_out;
+    mx_jit_bit_t str_rope;
+    mx_jit_bit_t str_interned;
+    mx_jit_bit_t pending_ok;
+    mx_jit_bit_t pending_set;
+    mx_jit_bit_t vm_hooked;
+};
+
+typedef uint8_t mx_jit_handoff_t;
+enum {
+    MX_JIT_HANDOFF_NONE,
+    MX_JIT_HANDOFF_PENDING,
+    MX_JIT_HANDOFF_FAIL,
+    MX_JIT_HANDOFF_DELIVER,
+};
+
+struct mx_jit_t {
+    mx_jit_enter_t *enter;
+    uintptr_t back;
+    mx_version_t *rb;
+    const mx_resume_t *hand_rec;
+    const mx_obj_t *hand_vals;
+    mx_obj_t hand_err;
+    uint32_t hand_cw;
+    uint32_t hand_n;
+    mx_jit_handoff_t handoff;
+    uint8_t *mem;
+    uint8_t *hot;
+    uint8_t *cold;
+    uint8_t *exit;
+    uint8_t *link;
+    void **slots;
+    mx_jit_label_t *labels;
+    mx_jit_pend_t *pend;
+    uintptr_t hop_keys[512];
+    uint8_t hop_vals[512];
+    uint64_t room[64];
+    mx_jit_layout_t layout;
+    uint32_t threshold;
+    uint32_t poll_len;
 };
 
 struct mx_t {
@@ -362,6 +431,8 @@ struct mx_t {
     mx_obj_t char_strs[256];
     mx_str_t *str_cache[2048];
     mx_chunk_cache_t chunk_cache[256];
+
+    mx_jit_t jit;
 
     uint8_t interrupt;
     bool is_gc_stopped: 1;

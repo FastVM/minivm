@@ -714,9 +714,10 @@ bool mx_ffi_base_type_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     return true;
 }
 
-void mx_ffi_base_tostring(mx_t *vm, size_t nargs, mx_obj_t *args) {
+bool mx_ffi_base_tostring_fast(mx_t *vm, size_t nargs, mx_obj_t *args) {
     if (nargs >= 1 && mx_obj_is_string(args[0])) {
         vm->rets.len = 1;
+        return true;
     } else if (nargs >= 1 && mx_obj_is_number(args[0])) {
         mx_str_t *buf = mx_str_new_gc(vm);
         if (mx_obj_is_int(args[0])) {
@@ -726,7 +727,14 @@ void mx_ffi_base_tostring(mx_t *vm, size_t nargs, mx_obj_t *args) {
         }
         args[0] = mx_obj_of_string(buf);
         vm->rets.len = 1;
+        return true;
     } else {
+        return false;
+    }
+}
+
+void mx_ffi_base_tostring(mx_t *vm, size_t nargs, mx_obj_t *args) {
+    if (!mx_ffi_base_tostring_fast(vm, nargs, args)) {
         mx_std_dispatch(vm, mx_std_base_tostring, "tostring", args, (int32_t)nargs);
     }
 }

@@ -142,6 +142,7 @@ enum {
     MX_HOP_RETURN0,
     MX_HOP_RETURN1,
     MX_HOP_RETURN,
+    MX_HOP_ENTRY,
     MX_HOP_COUNT,
 };
 
