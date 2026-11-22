@@ -2,6 +2,7 @@
 #include "main.h"
 #include "repl.h"
 #include "../lua/front/chunk.h"
+#include "../lua/front/dump.h"
 #include "../lua/rt/api/std.h"
 #include "../lua/rt/lua.h"
 #include "../lua/rt/meta.h"
@@ -37,10 +38,22 @@ void mx_main_usage(const char *prog, const mx_main_cmd_t *cmd) {
     );
 }
 
+void mx_main_cmd_free(mx_main_cmd_t *cmd) {
+    if (cmd != NULL && !cmd->is_static && cmd->steps != NULL) {
+        mx_mem_free(cmd->steps);
+        cmd->steps = NULL;
+    }
+}
+
 mx_main_cmd_t mx_main_parse(int32_t argc, char **argv) {
-    mx_main_cmd_t cmd = {
-        .steps = mx_mem_alloc(sizeof(mx_main_step_t) * (size_t)argc),
-    };
+    mx_main_cmd_t cmd = {0};
+    if ((size_t)argc <= MX_MAIN_STATIC_STEPS) {
+        cmd.steps = cmd.static_steps;
+        cmd.is_static = true;
+    } else {
+        cmd.steps = mx_mem_alloc(sizeof(mx_main_step_t) * (size_t)argc);
+        cmd.is_static = false;
+    }
     int32_t i = 1;
     while (i < argc && cmd.bad == NULL && cmd.script == 0) {
         const char *a = argv[i];
@@ -148,12 +161,21 @@ mx_obj_t mx_main_call(mx_t *vm, mx_obj_t fn) {
 }
 
 mx_main_exit_t mx_main_run_source(mx_t *vm, const char *prog, const char *src, uint32_t len, const char *chunkname) {
-    mx_chunk_compiled_t got = mx_chunk_compile(vm, src, len, chunkname);
     mx_obj_t result;
-    if (got.error != NULL) {
-        result = mx_obj_of_error(got.error);
+    if (len >= MX_DUMP_MAGIC_LEN && memcmp(src, MX_DUMP_MAGIC, MX_DUMP_MAGIC_LEN) == 0) {
+        mx_dump_loaded_t got = mx_dump_load(vm, src, len);
+        if (got.error != NULL) {
+            result = mx_error_raw(vm, "%s: bad binary format (%s)", chunkname ? chunkname : "=(bytecode)", got.error);
+        } else {
+            result = mx_main_call(vm, mx_std_load_closure(vm, got.entry, mx_lua_of(vm)->std));
+        }
     } else {
-        result = mx_main_call(vm, mx_std_load_closure(vm, got.entry, mx_lua_of(vm)->std));
+        mx_chunk_compiled_t got = mx_chunk_compile(vm, src, len, chunkname);
+        if (got.error != NULL) {
+            result = mx_obj_of_error(got.error);
+        } else {
+            result = mx_main_call(vm, mx_std_load_closure(vm, got.entry, mx_lua_of(vm)->std));
+        }
     }
     if (mx_obj_is_error(result)) {
         mx_main_report(vm, prog, result);
@@ -291,9 +313,12 @@ mx_main_exit_t mx_main_run_all(mx_t *vm, const char *prog, const mx_main_cmd_t *
 int main(int argc, char **argv) {
     const char *prog = argv[0];
     mx_main_cmd_t cmd = mx_main_parse(argc, argv);
+    if (cmd.is_static) {
+        cmd.steps = cmd.static_steps;
+    }
     if (cmd.bad != NULL) {
         mx_main_usage(prog, &cmd);
-        mx_mem_free(cmd.steps);
+        mx_main_cmd_free(&cmd);
         return MX_MAIN_EXIT_ERROR;
     }
     mx_t *vm = mx_vm_new();
@@ -310,7 +335,7 @@ int main(int argc, char **argv) {
         fflush(stdout);
     }
     mx_main_exit_t status = mx_main_run_all(vm, prog, &cmd, argv, cmd.is_interactive || is_auto, is_version);
-    mx_mem_free(cmd.steps);
+    mx_main_cmd_free(&cmd);
     mx_lua_close(vm);
     mx_vm_free(vm);
     return status;

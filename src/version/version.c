@@ -90,6 +90,33 @@ void mx_version_caches_free(mx_t *vm) {
     vm->kind_vecs = (mx_kind_vecs_t) {0};
 }
 
+void mx_version_reap(mx_t *vm, uint32_t poly_threshold, uint32_t cold_misses) {
+    mx_version_cache_t *cache = vm->version_caches;
+    while (cache != NULL) {
+        if (cache->list.len > poly_threshold) {
+            uint32_t kept = 0;
+            for (uint32_t i = 0; i < cache->list.len; i++) {
+                mx_version_t *v = cache->list.ptr[i];
+                if (v != NULL) {
+                    bool is_cold = v->misses > cold_misses || v->recompiles > 4;
+                    if (!is_cold && kept < poly_threshold / 2) {
+                        cache->list.ptr[kept++] = v;
+                    } else {
+                        v->misses = 0;
+                    }
+                }
+            }
+            cache->list.len = kept;
+            if (cache->table.ptr != NULL) {
+                mx_mem_free(cache->table.ptr);
+                cache->table.ptr = NULL;
+                cache->table.cap = 0;
+            }
+        }
+        cache = cache->next;
+    }
+}
+
 uintptr_t *mx_version_slot(mx_t *vm, mx_ir_block_t *block) {
     mx_ir_func_t *func = block->func;
     if (func->versions == NULL) {

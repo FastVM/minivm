@@ -1,5 +1,6 @@
 
 #include "jit.h"
+#include "../../include/luaconf.h"
 #include "../ir/ir.h"
 #include "../lua/rt/api/std.h"
 #include "../lua/rt/lua.h"
@@ -4513,7 +4514,7 @@ void mx_jit_unit(mx_jit_cc_t *cc) {
     mx_jit_unpin(cc);
     cc->head_label = cc->hot.p;
     uint32_t n = MX_JIT_ENTRY_WORDS;
-    while (n != 0 || cc->pend_at < cc->npend) {
+    while (luai_likely(n != 0 || cc->pend_at < cc->npend)) {
         if (n == 0) {
             n = mx_jit_resume(cc);
             mx_jit_unpin(cc);

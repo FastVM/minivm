@@ -42,7 +42,7 @@ jobs:
     env:
       UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Allow ASan's shadow mapping
         if: matrix.name == 'linux-x64 sanitize'
         run: sudo sysctl -w vm.mmap_rnd_bits=28

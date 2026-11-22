@@ -2334,6 +2334,7 @@ bool mx_gc_finish(mx_t *vm) {
     if (!gc->is_minor) {
         mx_gc_interns_sweep(vm, gc);
         mx_gc_ident_keys_prune(gc);
+        mx_version_reap(vm, MX_VERSION_POLY_THRESHOLD, MX_VERSION_REAP_MISSES);
     }
     mx_gc_sweep(gc);
     if (gc->cycle.live_line_bytes > gc->evac_bytes) {

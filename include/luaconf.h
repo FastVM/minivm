@@ -1,9 +1,6 @@
 
 #pragma once
 
-#if !defined(MX_HEADER_PUBLIC_LUACONF)
-#define MX_HEADER_PUBLIC_LUACONF
-
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -81,6 +78,4 @@
 #else
 #define luai_likely(x) (x)
 #define luai_unlikely(x) (x)
-#endif
-
 #endif
