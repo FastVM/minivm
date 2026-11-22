@@ -90,24 +90,88 @@ void mx_version_caches_free(mx_t *vm) {
     vm->kind_vecs = (mx_kind_vecs_t) {0};
 }
 
+static inline uint32_t mx_version_metric_dist(const mx_version_t *a, const mx_version_t *b) {
+    uint32_t max_n = a->nkinds > b->nkinds ? a->nkinds : b->nkinds;
+    uint32_t dist = 0;
+    for (uint32_t i = 0; i < max_n; i++) {
+        mx_kind_t ka = i < a->nkinds ? a->kinds[i] : MX_KIND_NIL;
+        mx_kind_t kb = i < b->nkinds ? b->kinds[i] : MX_KIND_NIL;
+        if (ka != kb) {
+            if (mx_kind_is_number(ka) && mx_kind_is_number(kb)) {
+                dist += 1;
+            } else if (ka == MX_KIND_NIL || kb == MX_KIND_NIL) {
+                dist += 2;
+            } else {
+                dist += 4;
+            }
+        }
+    }
+    return dist;
+}
+
 void mx_version_reap(mx_t *vm, uint32_t poly_threshold, uint32_t cold_misses) {
     mx_version_cache_t *cache = vm->version_caches;
     while (cache != NULL) {
         if (cache->list.len > poly_threshold) {
-            uint32_t kept = 0;
-            for (uint32_t i = 0; i < cache->list.len; i++) {
+            mx_version_t *cands[64];
+            uint32_t ncands = 0;
+            for (uint32_t i = 0; i < cache->list.len && ncands < 64; i++) {
                 mx_version_t *v = cache->list.ptr[i];
                 if (v != NULL) {
                     bool is_cold = v->misses > cold_misses || v->recompiles > 4;
-                    if (!is_cold && kept < poly_threshold / 2) {
-                        cache->list.ptr[kept++] = v;
+                    if (!is_cold) {
+                        cands[ncands++] = v;
                     } else {
                         v->misses = 0;
                     }
                 }
             }
-            cache->list.len = kept;
-            if (cache->table.ptr != NULL) {
+            uint32_t target_k = poly_threshold / 2;
+            if (ncands <= target_k) {
+                for (uint32_t i = 0; i < ncands; i++) {
+                    cache->list.ptr[i] = cands[i];
+                }
+                cache->list.len = ncands;
+            } else {
+                mx_version_t *centers[32];
+                uint32_t min_dist[64];
+                centers[0] = cands[0];
+                for (uint32_t i = 0; i < ncands; i++) {
+                    min_dist[i] = mx_version_metric_dist(cands[i], centers[0]);
+                }
+                for (uint32_t k = 1; k < target_k; k++) {
+                    uint32_t best_idx = 0;
+                    uint32_t max_d = 0;
+                    for (uint32_t i = 0; i < ncands; i++) {
+                        if (min_dist[i] > max_d) {
+                            max_d = min_dist[i];
+                            best_idx = i;
+                        }
+                    }
+                    centers[k] = cands[best_idx];
+                    for (uint32_t i = 0; i < ncands; i++) {
+                        uint32_t d = mx_version_metric_dist(cands[i], centers[k]);
+                        if (d < min_dist[i]) {
+                            min_dist[i] = d;
+                        }
+                    }
+                }
+                for (uint32_t i = 0; i < target_k; i++) {
+                    cache->list.ptr[i] = centers[i];
+                }
+                cache->list.len = target_k;
+            }
+            if (cache->table.ptr != NULL && cache->table.cap >= 16) {
+                memset(cache->table.ptr, 0, sizeof(mx_version_t *) * cache->table.cap);
+                for (uint32_t i = 0; i < cache->list.len; i++) {
+                    mx_version_t *v = cache->list.ptr[i];
+                    uint32_t at = v->key_hash & (cache->table.cap - 1);
+                    while (cache->table.ptr[at] != NULL) {
+                        at = (at + 1) & (cache->table.cap - 1);
+                    }
+                    cache->table.ptr[at] = v;
+                }
+            } else if (cache->table.ptr != NULL) {
                 mx_mem_free(cache->table.ptr);
                 cache->table.ptr = NULL;
                 cache->table.cap = 0;
