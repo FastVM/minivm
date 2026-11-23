@@ -112,6 +112,8 @@ struct mx_ir_func_t {
     uint64_t *live;
     mx_version_t *entry1;
     uint64_t entry1_key;
+    mx_version_t *entry2;
+    uint64_t entry2_key;
     mx_ir_locals_t locals;
     uint32_t nblocks;
     uint32_t start;

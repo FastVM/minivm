@@ -6,13 +6,14 @@ This document summarizes the contributions and optimizations added to the `miniv
 
 ## 1. Summary of Changes
 
-MiniVM is a lightweight Lua 5.5 virtual machine featuring Lazy Basic Block Versioning (LBBV). This PR focuses on four practical improvements:
+MiniVM is a lightweight Lua 5.5 virtual machine featuring Lazy Basic Block Versioning (LBBV). This PR focuses on five practical, targeted improvements:
 
 1. **JIT Arithmetic Formal SMT Verification (`test/jit/verify_ir_smt.py`)**: An automated Z3 verification script that mathematically proves MiniVM's x86-64 machine-code lowering for floor division (`//`) and modulo (`%`) adheres strictly to Lua 5.5 semantics across all 64-bit integer values with zero counterexamples.
 2. **GC-Integrated Version Pruning (`src/version/version.c`)**: A pruner that cleans up excess compiled block versions during major garbage collection cycles. When a call site exceeds 8 versions, it preserves the most diverse set of input types (e.g. keeping an integer, float, string, and table version rather than keeping four identical integer variants), preventing cache bloat while avoiding re-compilation thrashing.
-3. **RISC-V 64-bit JIT Backend Emitter (`src/jit/rv64.c`, `src/jit/rv64.h`, `src/jit/backend.h`)**: Decoupled machine code generation behind a clean backend interface and introduced a 64-bit RISC-V (`RV64GC`) instruction encoder and branch patcher.
-4. **CLI Startup Optimization (`src/cli/main.c`, `src/cli/main.h`)**: Replaced dynamic heap allocations during CLI argument parsing with a fixed inline array (`static_steps[32]`) for common command-line execution, reducing startup allocations to zero.
-5. **CI/CD Workflow Action Fix (`.github/workflows/*.yml`)**: Updated broken GitHub Action references from deprecated `@v7`/`@v8` to official `@v4` tags.
+3. **Bit-Packed Version Keys & 2-Way Entry Cache (`src/version/version.c`, `src/ir/ir.h`)**: Packs 8-bit type tags into a 64-bit scalar word (`short_key`) for block versions with $\le 6$ kinds, replacing `memcmp` with a single integer compare during version lookup. Expands the function entry inline cache (`mx_version_entry`, `mx_version_args`) from 1 monomorphic slot ($\le 3$ params) to a 2-way LRU polymorphic inline cache supporting up to 6 parameters.
+4. **RISC-V 64-bit JIT Backend Emitter (`src/jit/rv64.c`, `src/jit/rv64.h`, `src/jit/backend.h`)**: Decoupled machine code generation behind a clean backend interface and introduced a 64-bit RISC-V (`RV64GC`) instruction encoder and branch patcher.
+5. **CLI Startup Optimization (`src/cli/main.c`, `src/cli/main.h`)**: Replaced dynamic heap allocations during CLI argument parsing with a fixed inline array (`static_steps[32]`) for common command-line execution, reducing startup allocations to zero.
+6. **CI/CD Workflow Action Fix (`.github/workflows/*.yml`)**: Updated broken GitHub Action references from deprecated `@v7`/`@v8` to official `@v4` tags.
 
 ---
 
@@ -23,7 +24,8 @@ MiniVM is a lightweight Lua 5.5 virtual machine featuring Lazy Basic Block Versi
 | `test/jit/verify_ir_smt.py` | Verification | Offline Z3 SMT script proving integer division and modulo JIT lowering correctness. |
 | `src/jit/backend.h` | JIT | Target-independent backend interface for multi-architecture support. |
 | `src/jit/rv64.h` / `src/jit/rv64.c` | JIT | 64-bit RISC-V instruction encoder and branch displacement patcher. |
-| `src/version/version.h` / `src/version/version.c` | Versioning | Diverse type selection for JIT block version pruning when cache exceeds 8 versions. |
+| `src/version/version.h` / `src/version/version.c` | Versioning | Diverse type selection for JIT block version pruning; bit-packed scalar keys (`short_key`). |
+| `src/ir/ir.h` | IR | Added `entry2` and `entry2_key` for 2-way polymorphic inline cache. |
 | `src/vm/gc.c` | GC | Hooks version pruning into major garbage collection sweeps. |
 | `src/cli/main.h` / `src/cli/main.c` | CLI | Inline static step array (`static_steps[32]`) to eliminate startup allocations. |
 | `.github/workflows/*.yml` | CI/CD | Fixed invalid action versions (`@v4`). |
@@ -55,13 +57,17 @@ During major garbage collection, `mx_version_reap` trims caches that exceed 8 en
 - **Diverse pruning**: The pruner calculates the difference between type signatures and selects 4 versions that are as different from each other as possible (e.g. keeping an integer version, a float version, a string version, and a table version).
 - **Result**: Retaining a diverse set of types maximizes the chance that subsequent calls hit an existing compiled version, preventing memory bloat without causing recompilation thrashing.
 
-### 3.3. RISC-V 64-bit Backend (`src/jit/rv64.c`, `src/jit/rv64.h`)
+### 3.3. Bit-Packed Version Keys & 2-Way Entry Cache (`src/version/version.c`, `src/ir/ir.h`)
+- **Scalar Key Packing**: Type tags in MiniVM are 8-bit values ($0 \le k \le 255$). For any basic block version with $\le 6$ inputs, `mx_kinds_short_key` packs the parameter count and all type tags into a single `uint64_t`. Version cache matching (`mx_version_matches`) checks this 64-bit integer directly, eliminating `memcmp` calls across version cache lookups.
+- **2-Way Function Entry Cache**: Expanded `mx_ir_func_t` entry cache from 1 slot to 2 slots (`entry1`, `entry2`) using LRU replacement, and extended parameter support from $\le 3$ to $\le 6$ parameters. Eliminates cache thrashing when functions are called with two alternating types.
+
+### 3.4. RISC-V 64-bit Backend (`src/jit/rv64.c`, `src/jit/rv64.h`)
 To allow MiniVM to run on RISC-V hardware:
 - Adds an architecture-agnostic backend interface in `src/jit/backend.h`.
 - Implements an RV64GC machine code emitter for standard R-type, I-type, S-type, B-type, and J-type instructions.
 - Includes displacement calculation and branch patching (`mx_rv64_patch_b`) for relative jumps.
 
-### 3.4. Zero-Allocation CLI Steps (`src/cli/main.c`, `src/cli/main.h`)
+### 3.5. Zero-Allocation CLI Steps (`src/cli/main.c`, `src/cli/main.h`)
 Standard command-line executions previously allocated dynamic arrays on the heap to track execution steps:
 - Added `static_steps[32]` inside `mx_main_cmd_t`.
 - Standard invocations (`minivm file.lua` or `minivm -e "..."`) execute without making initial heap allocations during argument parsing.

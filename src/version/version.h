@@ -79,6 +79,7 @@ struct mx_version_t {
     uint32_t nout;
     uint32_t start_at;
     uint32_t key_hash;
+    uint64_t short_key;
     uint32_t frame;
     bool is_hooked: 1;
     bool is_vararg: 1;
@@ -146,8 +147,8 @@ uintptr_t *mx_version_slot(mx_t *vm, mx_ir_block_t *block);
 uint32_t mx_version_key_hash(const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
 void mx_version_cache_add(mx_version_cache_t *cache, mx_version_t *rb);
 void mx_version_slot_add(mx_t *vm, uintptr_t *slot, mx_version_t *rb);
-bool mx_version_matches(const mx_version_t *rb, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
-mx_version_t *mx_version_cache_find(const mx_version_cache_t *cache, uint32_t hash, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
+bool mx_version_matches(const mx_version_t *rb, uint64_t short_key, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
+mx_version_t *mx_version_cache_find(const mx_version_cache_t *cache, uint32_t hash, uint64_t short_key, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
 mx_version_t *mx_version_for_at(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at);
 
 void mx_version_key_init(mx_version_key_t *key, uint32_t n);
