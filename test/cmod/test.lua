@@ -327,4 +327,31 @@ local exact_res = g:query(5.0, 5.0, 5.0, true)
 check('grid.query.exact.len', #exact_res, 1)
 check('grid.query.exact.1', exact_res[1], 101)
 
+-- Spectral Walsh-Hadamard Transform
+local spec = pat.wht({1, 1, 1, -1})
+check('wht.len', #spec, 4)
+check('wht.0', spec[1], 2)
+check('wht.1', spec[2], 2)
+check('wht.2', spec[3], 2)
+check('wht.3', spec[4], -2)
+
+-- Dozenal Phase Exact Invariant
+check('dozenal.third', pat.dozenal(2 * math.pi / 3), 1024)
+check('dozenal.half', pat.dozenal(math.pi), 1536)
+check('dozenal.quarter', pat.dozenal(math.pi / 2), 768)
+
+-- Chebyshev Spectral Function Compression
+local c_sin = pat.chebyshev(math.sin, -1.0, 1.0, 5)
+check('cheb.sin.0', math.abs(c_sin(0.0)) < 1e-6, true)
+check('cheb.sin.half', math.abs(c_sin(0.5) - math.sin(0.5)) < 1e-4, true)
+
+-- Discrete Fourier Phase Detector
+local sig = {}
+for i = 1, 64 do
+    sig[i] = math.sin((i - 1) * 2 * math.pi / 8)
+end
+local freq, pconf = pat.phase(sig)
+check('phase.freq', math.abs(freq - 0.125) < 1e-4, true)
+check('phase.conf', pconf > 0.90, true)
+
 print('ok')

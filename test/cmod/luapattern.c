@@ -6,7 +6,13 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #define GRID_MT "luapattern.grid"
+#define CHEB_MT "luapattern.chebyshev"
+#define TM_DOZENAL_FULL_CIRCLE 3072
 
 /* Spatial Hash Grid for O(1) Localized Neighbor Queries */
 typedef struct {
@@ -189,7 +195,7 @@ static int pattern_stemleaf(lua_State *L) {
     lua_Integer len = lua_tointeger(L, -1);
     lua_pop(L, 1);
 
-    lua_newtable(L); /* Result stems table */
+    lua_newtable(L);
 
     for (lua_Integer i = 1; i <= len; i++) {
         lua_rawgeti(L, 1, i);
@@ -198,26 +204,24 @@ static int pattern_stemleaf(lua_State *L) {
             int64_t stem = (int64_t)floor(val / stem_size);
             double leaf = val - ((double)stem * stem_size);
 
-            /* Look up leaf array for this stem */
             lua_pushinteger(L, stem);
             if (lua_rawget(L, -3) != LUA_TTABLE) {
-                lua_pop(L, 1); /* pop nil */
+                lua_pop(L, 1);
                 lua_newtable(L);
                 lua_pushinteger(L, stem);
                 lua_pushvalue(L, -2);
-                lua_rawset(L, -5); /* stems[stem] = leaf_array */
+                lua_rawset(L, -5);
             }
 
-            /* Append leaf to leaf array */
             lua_len(L, -1);
             lua_Integer leaf_len = lua_tointeger(L, -1);
             lua_pop(L, 1);
 
             lua_pushnumber(L, leaf);
             lua_rawseti(L, -2, leaf_len + 1);
-            lua_pop(L, 1); /* pop leaf array */
+            lua_pop(L, 1);
         }
-        lua_pop(L, 1); /* pop element */
+        lua_pop(L, 1);
     }
 
     return 1;
@@ -230,29 +234,25 @@ static int pattern_memo_call(lua_State *L) {
         lua_Number n = lua_tonumber(L, 1);
         uint64_t bits = *(uint64_t *)&n;
 
-        /* Check cache */
-        lua_pushvalue(L, lua_upvalueindex(2)); /* cache table */
+        lua_pushvalue(L, lua_upvalueindex(2));
         lua_pushinteger(L, (lua_Integer)bits);
         if (lua_rawget(L, -2) != LUA_TNIL) {
-            return 1; /* Cache hit! */
+            return 1;
         }
-        lua_pop(L, 1); /* pop nil */
+        lua_pop(L, 1);
 
-        /* Cache miss: call target fn */
         lua_pushvalue(L, lua_upvalueindex(1));
         lua_pushnumber(L, n);
         lua_call(L, 1, 1);
 
-        /* Store in cache */
         lua_pushvalue(L, lua_upvalueindex(2));
         lua_pushinteger(L, (lua_Integer)bits);
-        lua_pushvalue(L, -3); /* result */
+        lua_pushvalue(L, -3);
         lua_rawset(L, -3);
-        lua_pop(L, 1); /* pop cache table */
+        lua_pop(L, 1);
         return 1;
     }
 
-    /* Fallback: direct call for multi-arg or non-number */
     lua_pushvalue(L, lua_upvalueindex(1));
     for (int i = 1; i <= nargs; i++) {
         lua_pushvalue(L, i);
@@ -263,14 +263,14 @@ static int pattern_memo_call(lua_State *L) {
 
 static int pattern_memo(lua_State *L) {
     luaL_checktype(L, 1, LUA_TFUNCTION);
-    lua_pushvalue(L, 1);       /* upvalue 1: function */
-    lua_newtable(L);           /* upvalue 2: cache table */
-    lua_pushinteger(L, 0);     /* upvalue 3: size counter */
+    lua_pushvalue(L, 1);
+    lua_newtable(L);
+    lua_pushinteger(L, 0);
     lua_pushcclosure(L, pattern_memo_call, 3);
     return 1;
 }
 
-/* O(1) Pattern Prediction Engine (Linear, Geometric, Cycle, Constant) */
+/* O(1) Pattern Prediction Engine */
 static int pattern_predict(lua_State *L) {
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_len(L, 1);
@@ -284,7 +284,6 @@ static int pattern_predict(lua_State *L) {
         return 3;
     }
 
-    /* Read up to the last 8 entries */
     int k = (n > 8) ? 8 : (int)n;
     double vals[8];
     for (int i = 0; i < k; i++) {
@@ -293,7 +292,6 @@ static int pattern_predict(lua_State *L) {
         lua_pop(L, 1);
     }
 
-    /* 1. Constant check */
     bool constant = true;
     for (int i = 1; i < k; i++) {
         if (fabs(vals[i] - vals[0]) > 1e-9) {
@@ -308,7 +306,6 @@ static int pattern_predict(lua_State *L) {
         return 3;
     }
 
-    /* 2. Linear / Arithmetic check (1st difference) */
     double d = vals[1] - vals[0];
     bool linear = true;
     for (int i = 2; i < k; i++) {
@@ -324,7 +321,6 @@ static int pattern_predict(lua_State *L) {
         return 3;
     }
 
-    /* 3. Geometric check (ratio) */
     if (fabs(vals[0]) > 1e-9) {
         double r = vals[1] / vals[0];
         bool geometric = true;
@@ -342,7 +338,6 @@ static int pattern_predict(lua_State *L) {
         }
     }
 
-    /* 4. Repeating Cycle check (cycle length 2, 3, 4) */
     for (int period = 2; period <= k / 2; period++) {
         bool cyclic = true;
         for (int i = 0; i < k - period; i++) {
@@ -352,7 +347,6 @@ static int pattern_predict(lua_State *L) {
             }
         }
         if (cyclic) {
-            int next_offset = period - 1;
             lua_pushnumber(L, vals[k - period]);
             lua_pushnumber(L, 0.90);
             lua_pushstring(L, "cycle");
@@ -360,12 +354,239 @@ static int pattern_predict(lua_State *L) {
         }
     }
 
-    /* Fallback: Extrapolate with average delta */
     double avg_d = (vals[k - 1] - vals[0]) / (k - 1);
     lua_pushnumber(L, vals[k - 1] + avg_d);
     lua_pushnumber(L, 0.40);
     lua_pushstring(L, "trend");
     return 3;
+}
+
+/* ========================================================================= */
+/* Spectral Fourier & Harmonic Extensions                                    */
+/* ========================================================================= */
+
+/* Fast Walsh-Hadamard Transform (FWHT) for Boolean logic and truth tables */
+static int pattern_wht(lua_State *L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    lua_len(L, 1);
+    lua_Integer n = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    if (n <= 0 || (n & (n - 1)) != 0) {
+        return luaL_error(L, "table size must be a power of 2");
+    }
+
+    int32_t *buf = (int32_t *)malloc(n * sizeof(int32_t));
+    for (lua_Integer i = 1; i <= n; i++) {
+        lua_rawgeti(L, 1, i);
+        buf[i - 1] = (int32_t)luaL_checkinteger(L, -1);
+        lua_pop(L, 1);
+    }
+
+    /* In-place butterfly network */
+    for (size_t len = 1; len < (size_t)n; len <<= 1) {
+        for (size_t i = 0; i < (size_t)n; i += 2 * len) {
+            for (size_t j = 0; j < len; j++) {
+                int32_t u = buf[i + j];
+                int32_t v = buf[i + len + j];
+                buf[i + j] = u + v;
+                buf[i + len + j] = u - v;
+            }
+        }
+    }
+
+    lua_newtable(L);
+    for (size_t i = 0; i < (size_t)n; i++) {
+        lua_pushinteger(L, buf[i]);
+        lua_rawseti(L, -2, (lua_Integer)(i + 1));
+    }
+
+    free(buf);
+    return 1;
+}
+
+/* Branchless Fourier evaluation: sum coeff * (-1)^{<mask, x>} */
+static int pattern_wht_eval(lua_State *L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    uint32_t input_mask = (uint32_t)luaL_checkinteger(L, 2);
+
+    lua_len(L, 1);
+    lua_Integer count = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    int32_t sum = 0;
+    for (lua_Integer i = 1; i <= count; i++) {
+        lua_rawgeti(L, 1, i);
+        if (lua_istable(L, -1)) {
+            lua_rawgeti(L, -1, 1);
+            uint32_t term_mask = (uint32_t)lua_tointeger(L, -1);
+            lua_pop(L, 1);
+
+            lua_rawgeti(L, -1, 2);
+            int32_t coeff = (int32_t)lua_tointeger(L, -1);
+            lua_pop(L, 1);
+
+            uint32_t masked = term_mask & input_mask;
+#if defined(__GNUC__) || defined(__clang__)
+            int parity = __builtin_parity(masked);
+#else
+            masked ^= masked >> 16;
+            masked ^= masked >> 8;
+            masked ^= masked >> 4;
+            masked &= 0xf;
+            int parity = (0x6996 >> masked) & 1;
+#endif
+            sum += (parity ? -coeff : coeff);
+        }
+        lua_pop(L, 1);
+    }
+
+    lua_pushinteger(L, sum);
+    return 1;
+}
+
+/* Dozenal (Base-12) Phase Conversion: 2*pi = 3072 units */
+static int pattern_dozenal(lua_State *L) {
+    double rad = luaL_checknumber(L, 1);
+    double two_pi = 2.0 * M_PI;
+    double norm = fmod(rad, two_pi);
+    if (norm < 0.0) norm += two_pi;
+    uint32_t units = (uint32_t)floor((norm / two_pi) * (double)TM_DOZENAL_FULL_CIRCLE + 0.5);
+    lua_pushinteger(L, units % TM_DOZENAL_FULL_CIRCLE);
+    return 1;
+}
+
+/* Chebyshev Function Compression Evaluator Closure */
+typedef struct {
+    double a;
+    double b;
+    size_t degree;
+    double coeffs[16];
+} cheb_closure_t;
+
+static int cheb_eval_call(lua_State *L) {
+    cheb_closure_t *cc = (cheb_closure_t *)luaL_checkudata(L, lua_upvalueindex(1), CHEB_MT);
+    double x = luaL_checknumber(L, 1);
+
+    double y = (2.0 * x - (cc->b + cc->a)) / (cc->b - cc->a);
+    double y2 = 2.0 * y;
+    double d1 = 0.0;
+    double d2 = 0.0;
+
+    for (size_t j = cc->degree; j >= 1; j--) {
+        double d0 = y2 * d1 - d2 + cc->coeffs[j];
+        d2 = d1;
+        d1 = d0;
+    }
+
+    double res = y * d1 - d2 + 0.5 * cc->coeffs[0];
+    lua_pushnumber(L, res);
+    return 1;
+}
+
+static int pattern_chebyshev(lua_State *L) {
+    luaL_checktype(L, 1, LUA_TFUNCTION);
+    double a = luaL_checknumber(L, 2);
+    double b = luaL_checknumber(L, 3);
+    size_t degree = (size_t)luaL_optinteger(L, 4, 6);
+    if (degree > 15) degree = 15;
+    if (b <= a) return luaL_error(L, "b must be greater than a");
+
+    size_t num_nodes = degree * 2 + 16;
+    double *f_vals = (double *)malloc(num_nodes * sizeof(double));
+
+    for (size_t k = 0; k < num_nodes; k++) {
+        double theta = M_PI * ((double)k + 0.5) / (double)num_nodes;
+        double z = cos(theta);
+        double x = 0.5 * (b - a) * z + 0.5 * (b + a);
+
+        lua_pushvalue(L, 1);
+        lua_pushnumber(L, x);
+        lua_call(L, 1, 1);
+        f_vals[k] = lua_tonumber(L, -1);
+        lua_pop(L, 1);
+    }
+
+    cheb_closure_t *cc = (cheb_closure_t *)lua_newuserdatauv(L, sizeof(cheb_closure_t), 0);
+    cc->a = a;
+    cc->b = b;
+    cc->degree = degree;
+
+    for (size_t j = 0; j <= degree; j++) {
+        double sum = 0.0;
+        for (size_t k = 0; k < num_nodes; k++) {
+            double theta = M_PI * ((double)k + 0.5) / (double)num_nodes;
+            sum += f_vals[k] * cos((double)j * theta);
+        }
+        cc->coeffs[j] = (2.0 / (double)num_nodes) * sum;
+    }
+    free(f_vals);
+
+    luaL_getmetatable(L, CHEB_MT);
+    lua_setmetatable(L, -2);
+
+    /* Return closure with cheb_closure_t as upvalue */
+    lua_pushcclosure(L, cheb_eval_call, 1);
+    return 1;
+}
+
+/* Discrete Fourier Phase Detector */
+static int pattern_phase(lua_State *L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    lua_len(L, 1);
+    lua_Integer len = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    if (len < 8) {
+        lua_pushnil(L);
+        lua_pushnumber(L, 0.0);
+        return 2;
+    }
+
+    double *sig = (double *)malloc(len * sizeof(double));
+    double mean = 0.0;
+    for (lua_Integer i = 1; i <= len; i++) {
+        lua_rawgeti(L, 1, i);
+        sig[i - 1] = luaL_checknumber(L, -1);
+        mean += sig[i - 1];
+        lua_pop(L, 1);
+    }
+    mean /= (double)len;
+
+    size_t num_bins = (size_t)len / 2;
+    double max_power = 0.0;
+    size_t best_k = 0;
+    double total_power = 0.0;
+
+    for (size_t k = 1; k < num_bins; k++) {
+        double real = 0.0;
+        double imag = 0.0;
+        double omega = 2.0 * M_PI * (double)k / (double)len;
+
+        for (size_t n = 0; n < (size_t)len; n++) {
+            double val = sig[n] - mean;
+            real += val * cos(omega * (double)n);
+            imag -= val * sin(omega * (double)n);
+        }
+
+        double power = real * real + imag * imag;
+        total_power += power;
+        if (power > max_power) {
+            max_power = power;
+            best_k = k;
+        }
+    }
+    free(sig);
+
+    if (total_power < 1e-9) {
+        lua_pushnil(L);
+        lua_pushnumber(L, 0.0);
+        return 2;
+    }
+
+    lua_pushnumber(L, (double)best_k / (double)len);
+    lua_pushnumber(L, max_power / total_power);
+    return 2;
 }
 
 static const luaL_Reg grid_methods[] = {
@@ -383,6 +604,11 @@ static const luaL_Reg pattern_fns[] = {
     {"stemleaf", pattern_stemleaf},
     {"memo", pattern_memo},
     {"predict", pattern_predict},
+    {"wht", pattern_wht},
+    {"wht_eval", pattern_wht_eval},
+    {"dozenal", pattern_dozenal},
+    {"chebyshev", pattern_chebyshev},
+    {"phase", pattern_phase},
     {NULL, NULL},
 };
 
@@ -392,6 +618,10 @@ int luaopen_luapattern(lua_State *L) {
     luaL_newlib(L, grid_methods);
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);
+
+    luaL_newmetatable(L, CHEB_MT);
+    lua_pop(L, 1);
+
     luaL_newlib(L, pattern_fns);
     return 1;
 }
