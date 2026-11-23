@@ -11,6 +11,14 @@
 #define MX_RESUME_WAYS 4
 #endif
 
+#if !defined(MX_VERSION_POLY_THRESHOLD)
+#define MX_VERSION_POLY_THRESHOLD 8
+#endif
+
+#if !defined(MX_VERSION_REAP_MISSES)
+#define MX_VERSION_REAP_MISSES 128
+#endif
+
 #define MX_KIND_CELL ((mx_kind_t)0x8000)
 #define MX_KIND_CELL_ANY ((mx_kind_t)0xffff)
 #define MX_KIND_SLOT ((mx_kind_t)0xfffe)
@@ -71,6 +79,7 @@ struct mx_version_t {
     uint32_t nout;
     uint32_t start_at;
     uint32_t key_hash;
+    uint64_t short_key;
     uint32_t frame;
     bool is_hooked: 1;
     bool is_vararg: 1;
@@ -133,12 +142,13 @@ mx_location_range_t mx_resume_range(const mx_resume_t *rec);
 uint32_t mx_version_kinds_hash(const mx_kind_t *kinds, uint32_t n);
 const mx_kind_t *mx_version_kinds_intern(mx_t *vm, const mx_kind_t *kinds, uint32_t n);
 void mx_version_caches_free(mx_t *vm);
+void mx_version_reap(mx_t *vm, uint32_t poly_threshold, uint32_t cold_misses);
 uintptr_t *mx_version_slot(mx_t *vm, mx_ir_block_t *block);
 uint32_t mx_version_key_hash(const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
 void mx_version_cache_add(mx_version_cache_t *cache, mx_version_t *rb);
 void mx_version_slot_add(mx_t *vm, uintptr_t *slot, mx_version_t *rb);
-bool mx_version_matches(const mx_version_t *rb, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
-mx_version_t *mx_version_cache_find(const mx_version_cache_t *cache, uint32_t hash, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
+bool mx_version_matches(const mx_version_t *rb, uint64_t short_key, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
+mx_version_t *mx_version_cache_find(const mx_version_cache_t *cache, uint32_t hash, uint64_t short_key, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at, bool is_hooked);
 mx_version_t *mx_version_for_at(mx_t *vm, mx_ir_block_t *block, const mx_kind_t *kinds, uint32_t nkinds, uint32_t start_at);
 
 void mx_version_key_init(mx_version_key_t *key, uint32_t n);

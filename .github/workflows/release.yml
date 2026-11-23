@@ -30,7 +30,7 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: '13.0'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Name the package
         run: echo "PKG=minivm-${GITHUB_REF_NAME#v}-${{ matrix.target }}" >> "$GITHUB_ENV"
       - name: Build
@@ -51,7 +51,7 @@ jobs:
           cp LICENSE README.md COMPATIBILITY.md "stage/$PKG"
           cp vendor/isocline/LICENSE "stage/$PKG/LICENSE.isocline"
           tar -C stage -czf "$PKG.tar.gz" "$PKG"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PKG }}
           path: ${{ env.PKG }}.tar.gz
@@ -63,7 +63,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true

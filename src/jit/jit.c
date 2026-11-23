@@ -1873,9 +1873,37 @@ void mx_jit_unary_i(mx_jit_cc_t *cc, bool is_neg, uint32_t out, uint32_t a) {
     }
 }
 
+static inline uintptr_t *mx_jit_predict_target(const mx_jit_cc_t *cc, mx_ir_block_t *target_block) {
+    if (target_block == NULL || cc->rb->out == NULL) {
+        return NULL;
+    }
+    uintptr_t *slot = mx_version_slot(cc->vm, target_block);
+    if (*slot != 0 && (*slot & 1) == 0) {
+        mx_version_t *v = (mx_version_t *)*slot;
+        if (v->code != NULL && mx_version_matches(v, v->short_key, cc->rb->out, cc->rb->nout, 0, cc->vm->is_hooked)) {
+            return v->code;
+        }
+    }
+    return NULL;
+}
+
 mx_jit_plan_t mx_jit_plan(const mx_jit_cc_t *cc) {
     const uintptr_t *taken = (const uintptr_t *)cc->ip[3];
     const uintptr_t *other = (const uintptr_t *)cc->ip[4];
+    if (taken == NULL) {
+        uintptr_t *pred = mx_jit_predict_target(cc, (mx_ir_block_t *)cc->ip[1]);
+        if (pred != NULL) {
+            ((uintptr_t *)cc->ip)[3] = (uintptr_t)pred;
+            taken = pred;
+        }
+    }
+    if (other == NULL) {
+        uintptr_t *pred = mx_jit_predict_target(cc, (mx_ir_block_t *)cc->ip[2]);
+        if (pred != NULL) {
+            ((uintptr_t *)cc->ip)[4] = (uintptr_t)pred;
+            other = pred;
+        }
+    }
     bool can_taken = mx_jit_can_stitch(cc, taken);
     bool can_other = mx_jit_can_stitch(cc, other);
     if (can_taken && can_other) {

@@ -25,7 +25,7 @@ DESTDIR ?=
 BASE_CFLAGS := ${OPT} ${DEFINES} ${CFLAGS}
 BASE_LDFLAGS := ${OPT} ${LDFLAGS} ${LIBM_FLAGS} ${LIBDL} ${EXPORT_DYNAMIC}
 
-CMODS := build/cmod/luamod.so build/cmod/luajson.so build/cmod/luaabi.so build/cmod/mxmod.so
+CMODS := build/cmod/luamod.so build/cmod/luajson.so build/cmod/luaabi.so build/cmod/mxmod.so build/cmod/luapattern.so
 CMOD_LDFLAGS ?=
 
 SRCS := ${shell find src -name '*.c'}
