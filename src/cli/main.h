@@ -25,15 +25,12 @@ enum {
 typedef struct mx_main_step_t mx_main_step_t;
 typedef struct mx_main_cmd_t mx_main_cmd_t;
 
-#define MX_MAIN_STATIC_STEPS 32
-
 struct mx_main_step_t {
     const char *text;
     mx_main_step_kind_t kind;
 };
 
 struct mx_main_cmd_t {
-    mx_main_step_t static_steps[MX_MAIN_STATIC_STEPS];
     mx_main_step_t *steps;
     uint32_t nsteps;
     int32_t script;
@@ -45,10 +42,7 @@ struct mx_main_cmd_t {
     bool is_interactive: 1;
     bool is_version: 1;
     bool has_exec: 1;
-    bool is_static: 1;
 };
-
-void mx_main_cmd_free(mx_main_cmd_t *cmd);
 
 void mx_main_usage(const char *prog, const mx_main_cmd_t *cmd);
 mx_main_cmd_t mx_main_parse(int32_t argc, char **argv);

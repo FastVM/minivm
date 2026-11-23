@@ -38,22 +38,10 @@ void mx_main_usage(const char *prog, const mx_main_cmd_t *cmd) {
     );
 }
 
-void mx_main_cmd_free(mx_main_cmd_t *cmd) {
-    if (cmd != NULL && !cmd->is_static && cmd->steps != NULL) {
-        mx_mem_free(cmd->steps);
-        cmd->steps = NULL;
-    }
-}
-
 mx_main_cmd_t mx_main_parse(int32_t argc, char **argv) {
-    mx_main_cmd_t cmd = {0};
-    if ((size_t)argc <= MX_MAIN_STATIC_STEPS) {
-        cmd.steps = cmd.static_steps;
-        cmd.is_static = true;
-    } else {
-        cmd.steps = mx_mem_alloc(sizeof(mx_main_step_t) * (size_t)argc);
-        cmd.is_static = false;
-    }
+    mx_main_cmd_t cmd = (mx_main_cmd_t) {
+        .steps = mx_mem_alloc(sizeof(mx_main_step_t) * (size_t)argc),
+    };
     int32_t i = 1;
     while (i < argc && cmd.bad == NULL && cmd.script == 0) {
         const char *a = argv[i];
@@ -313,12 +301,9 @@ mx_main_exit_t mx_main_run_all(mx_t *vm, const char *prog, const mx_main_cmd_t *
 int main(int argc, char **argv) {
     const char *prog = argv[0];
     mx_main_cmd_t cmd = mx_main_parse(argc, argv);
-    if (cmd.is_static) {
-        cmd.steps = cmd.static_steps;
-    }
     if (cmd.bad != NULL) {
         mx_main_usage(prog, &cmd);
-        mx_main_cmd_free(&cmd);
+        mx_mem_free(cmd.steps);
         return MX_MAIN_EXIT_ERROR;
     }
     mx_t *vm = mx_vm_new();
@@ -335,7 +320,7 @@ int main(int argc, char **argv) {
         fflush(stdout);
     }
     mx_main_exit_t status = mx_main_run_all(vm, prog, &cmd, argv, cmd.is_interactive || is_auto, is_version);
-    mx_main_cmd_free(&cmd);
+    mx_mem_free(cmd.steps);
     mx_lua_close(vm);
     mx_vm_free(vm);
     return status;
