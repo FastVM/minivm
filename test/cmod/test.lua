@@ -254,4 +254,77 @@ check('abi.extra.copied', first, 5)
 check('abi.extra.own', second, 7)
 check('abi.extra.main', abi.extra(0), 5)
 
+local pat = require('luapattern')
+check('pat.quantize', pat.quantize(14.7, 5.0), 15.0)
+check('pat.quantize.default', pat.quantize(14.7), 15.0)
+check('pat.quantize.neg', pat.quantize(-3.2, 2.0), -4.0)
+
+local g = pat.grid(10.0)
+check('grid.count.empty', g:count(), 0)
+g:insert(101, 5.0, 5.0)
+g:insert(102, 12.0, 8.0)
+g:insert(103, 50.0, 50.0)
+check('grid.count', g:count(), 3)
+
+local res = g:query(5.0, 5.0, 10.0)
+table.sort(res)
+check('grid.query.len', #res, 2)
+check('grid.query.1', res[1], 101)
+check('grid.query.2', res[2], 102)
+
+local far = g:query(50.0, 50.0, 5.0)
+check('grid.query.far.len', #far, 1)
+check('grid.query.far.1', far[1], 103)
+
+g:clear()
+check('grid.count.cleared', g:count(), 0)
+
+local calls = 0
+local memo_sin = pat.memo(function(x)
+    calls = calls + 1
+    return math.sin(x)
+end)
+local s1 = memo_sin(1.5)
+local s2 = memo_sin(1.5)
+check('memo.val', s1, s2)
+check('memo.calls', calls, 1)
+local s3 = memo_sin(2.5)
+check('memo.calls2', calls, 2)
+
+-- Stem-and-leaf decomposition
+local stems = pat.stemleaf({12, 15, 23, 27, 31}, 10)
+check('stemleaf.1.len', #stems[1], 2)
+check('stemleaf.1.1', stems[1][1], 2)
+check('stemleaf.1.2', stems[1][2], 5)
+check('stemleaf.2.len', #stems[2], 2)
+check('stemleaf.2.1', stems[2][1], 3)
+check('stemleaf.2.2', stems[2][2], 7)
+check('stemleaf.3.len', #stems[3], 1)
+check('stemleaf.3.1', stems[3][1], 1)
+
+-- Pattern predictor
+local pred, conf, kind = pat.predict({2, 4, 6, 8, 10})
+check('predict.linear.pred', pred, 12)
+check('predict.linear.kind', kind, 'linear')
+check('predict.linear.conf', conf, 1.0)
+
+pred, conf, kind = pat.predict({3, 9, 27, 81})
+check('predict.geom.pred', pred, 243)
+check('predict.geom.kind', kind, 'geometric')
+
+pred, conf, kind = pat.predict({42, 42, 42, 42})
+check('predict.const.pred', pred, 42)
+check('predict.const.kind', kind, 'constant')
+
+pred, conf, kind = pat.predict({1, 2, 3, 1, 2, 3, 1, 2})
+check('predict.cycle.pred', pred, 3)
+check('predict.cycle.kind', kind, 'cycle')
+
+-- Exact distance query on spatial grid
+g:insert(101, 5.0, 5.0)
+g:insert(102, 12.0, 8.0)
+local exact_res = g:query(5.0, 5.0, 5.0, true)
+check('grid.query.exact.len', #exact_res, 1)
+check('grid.query.exact.1', exact_res[1], 101)
+
 print('ok')
