@@ -13,7 +13,8 @@ MiniVM is a lightweight Lua 5.5 virtual machine featuring Lazy Basic Block Versi
 3. **Bit-Packed Version Keys & 2-Way Entry Cache (`src/version/version.c`, `src/ir/ir.h`)**: Packs 8-bit type tags into a 64-bit scalar word (`short_key`) for block versions with $\le 6$ kinds, replacing `memcmp` with a single integer compare during version lookup. Expands the function entry inline cache (`mx_version_entry`, `mx_version_args`) from 1 monomorphic slot ($\le 3$ params) to a 2-way LRU polymorphic inline cache supporting up to 6 parameters.
 4. **RISC-V 64-bit JIT Backend Emitter (`src/jit/rv64.c`, `src/jit/rv64.h`, `src/jit/backend.h`)**: Decoupled machine code generation behind a clean backend interface and introduced a 64-bit RISC-V (`RV64GC`) instruction encoder and branch patcher.
 5. **CLI Startup Optimization (`src/cli/main.c`, `src/cli/main.h`)**: Replaced dynamic heap allocations during CLI argument parsing with a fixed inline array (`static_steps[32]`) for common command-line execution, reducing startup allocations to zero.
-6. **CI/CD Workflow Action Fix (`.github/workflows/*.yml`)**: Updated broken GitHub Action references from deprecated `@v7`/`@v8` to official `@v4` tags.
+6. **Predictive Target Pre-linking (`src/jit/jit.c`)**: Enabled speculative pre-resolution of unlinked downstream branch targets in `mx_jit_plan`, allowing blocks with matching exit types to stitch directly into hot machine code rather than falling back to cold stub trampolines.
+7. **CI/CD Workflow Action Fix (`.github/workflows/*.yml`)**: Updated broken GitHub Action references from deprecated `@v7`/`@v8` to official `@v4` tags.
 
 ---
 
@@ -22,6 +23,8 @@ MiniVM is a lightweight Lua 5.5 virtual machine featuring Lazy Basic Block Versi
 | File | Subsystem | Description |
 | :--- | :--- | :--- |
 | `test/jit/verify_ir_smt.py` | Verification | Offline Z3 SMT script proving integer division and modulo JIT lowering correctness. |
+| `test/jit/pattern_blocks.py` | Diagnostics | Diagnostic tool measuring block stitch efficiency and CFG topography. |
+| `src/jit/jit.c` | JIT | Predictive target pre-linking in `mx_jit_plan` for direct hotpath stitching. |
 | `src/jit/backend.h` | JIT | Target-independent backend interface for multi-architecture support. |
 | `src/jit/rv64.h` / `src/jit/rv64.c` | JIT | 64-bit RISC-V instruction encoder and branch displacement patcher. |
 | `src/version/version.h` / `src/version/version.c` | Versioning | Diverse type selection for JIT block version pruning; bit-packed scalar keys (`short_key`). |
@@ -71,6 +74,11 @@ To allow MiniVM to run on RISC-V hardware:
 Standard command-line executions previously allocated dynamic arrays on the heap to track execution steps:
 - Added `static_steps[32]` inside `mx_main_cmd_t`.
 - Standard invocations (`minivm file.lua` or `minivm -e "..."`) execute without making initial heap allocations during argument parsing.
+
+### 3.6. Predictive Target Pre-linking (`src/jit/jit.c`)
+- **Speculative Trace Stitching**: When `mx_jit_plan` evaluates branch targets for block stitching (`can_taken` and `can_other`), unlinked targets (`code == NULL`) previously forced the JIT to abandon stitching and fall back to `MX_JIT_PLAN_NONE` (emitting two cold memory stub trampolines).
+- Added `mx_jit_predict_target` to check if a downstream target block already has a compiled version matching the current block's exit types (`rb->out`). If a match is found, the target is pre-linked into `cc->ip[3]` / `cc->ip[4]` and stitched directly into the hot machine code stream without stub jumps.
+- **Diagnostics Tool**: Added `test/jit/pattern_blocks.py` to analyze compute block type-peg compatibility and Control Flow Graph (CFG) topography (acyclic downstream traces vs loop back-edges).
 
 ---
 
