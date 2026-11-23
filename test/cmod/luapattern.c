@@ -23,11 +23,15 @@ typedef struct {
     double y;
 } grid_item_t;
 
+#define GRID_EMBEDDED_CAP 512
+
 typedef struct {
     double cell_size;
     uint32_t cap;
     uint32_t count;
+    bool is_heap;
     grid_item_t *items;
+    grid_item_t embedded[GRID_EMBEDDED_CAP];
 } spatial_grid_t;
 
 static inline uint32_t spatial_hash(int64_t cx, int64_t cy, uint32_t mask) {
@@ -44,9 +48,10 @@ static int grid_new(lua_State *L) {
     }
     spatial_grid_t *g = (spatial_grid_t *)lua_newuserdatauv(L, sizeof(spatial_grid_t), 0);
     g->cell_size = size;
-    g->cap = 1024;
+    g->cap = GRID_EMBEDDED_CAP;
     g->count = 0;
-    g->items = (grid_item_t *)calloc(g->cap, sizeof(grid_item_t));
+    g->is_heap = false;
+    g->items = g->embedded;
     for (uint32_t i = 0; i < g->cap; i++) {
         g->items[i].id = -1;
     }
@@ -57,15 +62,22 @@ static int grid_new(lua_State *L) {
 
 static int grid_gc(lua_State *L) {
     spatial_grid_t *g = (spatial_grid_t *)luaL_checkudata(L, 1, GRID_MT);
-    if (g->items != NULL) {
+    if (g->is_heap && g->items != NULL) {
         free(g->items);
         g->items = NULL;
+        g->is_heap = false;
     }
     return 0;
 }
 
 static int grid_clear(lua_State *L) {
     spatial_grid_t *g = (spatial_grid_t *)luaL_checkudata(L, 1, GRID_MT);
+    if (g->is_heap && g->items != NULL) {
+        free(g->items);
+        g->items = g->embedded;
+        g->cap = GRID_EMBEDDED_CAP;
+        g->is_heap = false;
+    }
     for (uint32_t i = 0; i < g->cap; i++) {
         g->items[i].id = -1;
     }
@@ -76,8 +88,11 @@ static int grid_clear(lua_State *L) {
 static void grid_grow(spatial_grid_t *g) {
     uint32_t old_cap = g->cap;
     grid_item_t *old_items = g->items;
+    bool was_heap = g->is_heap;
+
     g->cap = old_cap * 2;
     g->items = (grid_item_t *)calloc(g->cap, sizeof(grid_item_t));
+    g->is_heap = true;
     for (uint32_t i = 0; i < g->cap; i++) {
         g->items[i].id = -1;
     }
@@ -93,7 +108,9 @@ static void grid_grow(spatial_grid_t *g) {
             g->count++;
         }
     }
-    free(old_items);
+    if (was_heap && old_items != NULL) {
+        free(old_items);
+    }
 }
 
 static int grid_insert(lua_State *L) {
@@ -376,7 +393,8 @@ static int pattern_wht(lua_State *L) {
         return luaL_error(L, "table size must be a power of 2");
     }
 
-    int32_t *buf = (int32_t *)malloc(n * sizeof(int32_t));
+    int32_t stack_buf[256];
+    int32_t *buf = (n <= 256) ? stack_buf : (int32_t *)malloc(n * sizeof(int32_t));
     for (lua_Integer i = 1; i <= n; i++) {
         lua_rawgeti(L, 1, i);
         buf[i - 1] = (int32_t)luaL_checkinteger(L, -1);
@@ -401,7 +419,9 @@ static int pattern_wht(lua_State *L) {
         lua_rawseti(L, -2, (lua_Integer)(i + 1));
     }
 
-    free(buf);
+    if (buf != stack_buf) {
+        free(buf);
+    }
     return 1;
 }
 
@@ -493,7 +513,7 @@ static int pattern_chebyshev(lua_State *L) {
     if (b <= a) return luaL_error(L, "b must be greater than a");
 
     size_t num_nodes = degree * 2 + 16;
-    double *f_vals = (double *)malloc(num_nodes * sizeof(double));
+    double f_vals[48];
 
     for (size_t k = 0; k < num_nodes; k++) {
         double theta = M_PI * ((double)k + 0.5) / (double)num_nodes;
@@ -520,7 +540,6 @@ static int pattern_chebyshev(lua_State *L) {
         }
         cc->coeffs[j] = (2.0 / (double)num_nodes) * sum;
     }
-    free(f_vals);
 
     luaL_getmetatable(L, CHEB_MT);
     lua_setmetatable(L, -2);
@@ -543,7 +562,8 @@ static int pattern_phase(lua_State *L) {
         return 2;
     }
 
-    double *sig = (double *)malloc(len * sizeof(double));
+    double stack_sig[256];
+    double *sig = (len <= 256) ? stack_sig : (double *)malloc(len * sizeof(double));
     double mean = 0.0;
     for (lua_Integer i = 1; i <= len; i++) {
         lua_rawgeti(L, 1, i);
@@ -576,7 +596,9 @@ static int pattern_phase(lua_State *L) {
             best_k = k;
         }
     }
-    free(sig);
+    if (sig != stack_sig) {
+        free(sig);
+    }
 
     if (total_power < 1e-9) {
         lua_pushnil(L);
@@ -617,6 +639,8 @@ int luaopen_luapattern(lua_State *L) {
     luaL_newmetatable(L, GRID_MT);
     luaL_newlib(L, grid_methods);
     lua_setfield(L, -2, "__index");
+    lua_pushcfunction(L, grid_gc);
+    lua_setfield(L, -2, "__gc");
     lua_pop(L, 1);
 
     luaL_newmetatable(L, CHEB_MT);
