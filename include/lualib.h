@@ -1,6 +1,9 @@
 
 #pragma once
 
+#if !defined(MX_HEADER_PUBLIC_LUALIB)
+#define MX_HEADER_PUBLIC_LUALIB
+
 #include "lua.h"
 
 #define LUA_VERSUFFIX "_5_5"
@@ -47,3 +50,5 @@ LUAMOD_API int luaopen_utf8(lua_State *L);
 LUALIB_API void luaL_openselectedlibs(lua_State *L, int load, int preload);
 
 #define luaL_openlibs(L) luaL_openselectedlibs(L, ~0, 0)
+
+#endif

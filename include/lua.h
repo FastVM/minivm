@@ -1,6 +1,9 @@
 
 #pragma once
 
+#if !defined(MX_HEADER_PUBLIC_LUA)
+#define MX_HEADER_PUBLIC_LUA
+
 #include <stdarg.h>
 #include <stddef.h>
 
@@ -300,3 +303,5 @@ struct lua_Debug {
     char short_src[LUA_IDSIZE];
     struct CallInfo *i_ci;
 };
+
+#endif

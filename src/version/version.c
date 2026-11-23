@@ -90,7 +90,9 @@ void mx_version_caches_free(mx_t *vm) {
     vm->kind_vecs = (mx_kind_vecs_t) {0};
 }
 
-static inline uint32_t mx_version_metric_dist(const mx_version_t *a, const mx_version_t *b) {
+// Calculates type distance between two versions to preserve input diversity.
+// Similar types (int vs float) have small distance (1), while distinct types (string vs table) have larger distance (4).
+static inline uint32_t mx_version_type_dist(const mx_version_t *a, const mx_version_t *b) {
     uint32_t max_n = a->nkinds > b->nkinds ? a->nkinds : b->nkinds;
     uint32_t dist = 0;
     for (uint32_t i = 0; i < max_n; i++) {
@@ -109,6 +111,9 @@ static inline uint32_t mx_version_metric_dist(const mx_version_t *a, const mx_ve
     return dist;
 }
 
+// When a block version cache exceeds poly_threshold (8), prune down to poly_threshold / 2 (4).
+// Instead of naively keeping the first versions created, we keep the most diverse set of input
+// types to prevent subsequent calls from deoptimizing and recompiling.
 void mx_version_reap(mx_t *vm, uint32_t poly_threshold, uint32_t cold_misses) {
     mx_version_cache_t *cache = vm->version_caches;
     while (cache != NULL) {
@@ -137,7 +142,7 @@ void mx_version_reap(mx_t *vm, uint32_t poly_threshold, uint32_t cold_misses) {
                 uint32_t min_dist[64];
                 centers[0] = cands[0];
                 for (uint32_t i = 0; i < ncands; i++) {
-                    min_dist[i] = mx_version_metric_dist(cands[i], centers[0]);
+                    min_dist[i] = mx_version_type_dist(cands[i], centers[0]);
                 }
                 for (uint32_t k = 1; k < target_k; k++) {
                     uint32_t best_idx = 0;
@@ -150,7 +155,7 @@ void mx_version_reap(mx_t *vm, uint32_t poly_threshold, uint32_t cold_misses) {
                     }
                     centers[k] = cands[best_idx];
                     for (uint32_t i = 0; i < ncands; i++) {
-                        uint32_t d = mx_version_metric_dist(cands[i], centers[k]);
+                        uint32_t d = mx_version_type_dist(cands[i], centers[k]);
                         if (d < min_dist[i]) {
                             min_dist[i] = d;
                         }

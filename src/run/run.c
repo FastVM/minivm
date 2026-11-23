@@ -2,7 +2,6 @@
 #include "run.h"
 #include "hop.h"
 #include "op.h"
-#include "../../include/luaconf.h"
 #include "../jit/jit.h"
 #include "../vm/gc.h"
 #include "../ir/ir.h"
@@ -385,7 +384,7 @@ bool mx_run_collect(mx_t *vm) {
 
 #define MX_NEXT() \
     do { \
-        if (luai_unlikely(vm->interrupt)) { \
+        if (vm->interrupt) { \
             goto safepoint; \
         } \
         MX_DISPATCH(); \
@@ -2105,7 +2104,7 @@ L_ENTRY: {
 }
 
 next:
-    if (luai_unlikely(vm->interrupt)) {
+    if (vm->interrupt) {
         goto safepoint;
     }
     MX_DISPATCH();

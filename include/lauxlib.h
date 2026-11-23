@@ -1,6 +1,9 @@
 
 #pragma once
 
+#if !defined(MX_HEADER_PUBLIC_LAUXLIB)
+#define MX_HEADER_PUBLIC_LAUXLIB
+
 #include <stddef.h>
 #include <stdio.h>
 
@@ -146,3 +149,5 @@ typedef struct luaL_Stream {
     FILE *f;
     lua_CFunction closef;
 } luaL_Stream;
+
+#endif
